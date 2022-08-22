@@ -5,14 +5,17 @@
 mod get_directories;
 pub use get_directories::*;
 
+use crate::veilid_config::VeilidConfigLogLevel;
 use crate::xx::*;
-use android_logger::{Config, FilterBuilder};
+use crate::*;
 use backtrace::Backtrace;
 use jni::errors::Result as JniResult;
 use jni::{objects::GlobalRef, objects::JObject, objects::JString, JNIEnv, JavaVM};
 use lazy_static::*;
-use log::*;
 use std::panic;
+use tracing::*;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::*;
 
 pub struct AndroidGlobals {
     pub vm: JavaVM,
@@ -41,19 +44,25 @@ pub fn veilid_core_setup_android<'a>(
     env: JNIEnv<'a>,
     ctx: JObject<'a>,
     log_tag: &'a str,
-    log_level: Level,
+    log_level: VeilidConfigLogLevel,
 ) {
-    android_logger::init_once(
-        Config::default()
-            .with_min_level(log_level)
-            .with_tag(log_tag)
-            .with_filter(
-                FilterBuilder::new()
-                    .filter(Some(log_tag), log_level.to_level_filter())
-                    .build(),
-            ),
-    );
+    // Set up subscriber and layers
+    let subscriber = Registry::default();
+    let mut layers = Vec::new();
+    let mut filters = BTreeMap::new();
+    let filter = VeilidLayerFilter::new(log_level, None);
+    let layer = tracing_android::layer(log_tag)
+        .expect("failed to set up android logging")
+        .with_filter(filter.clone());
+    filters.insert("system", filter);
+    layers.push(layer.boxed());
 
+    let subscriber = subscriber.with(layers);
+    subscriber
+        .try_init()
+        .expect("failed to init android tracing");
+
+    // Set up panic hook for backtraces
     panic::set_hook(Box::new(|panic_info| {
         let bt = Backtrace::new();
         if let Some(location) = panic_info.location() {

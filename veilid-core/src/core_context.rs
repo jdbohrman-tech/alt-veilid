@@ -195,7 +195,7 @@ impl VeilidCoreContext {
     ) -> Result<VeilidCoreContext, VeilidAPIError> {
         cfg_if! {
             if #[cfg(target_os = "android")] {
-                if utils::android::ANDROID_GLOBALS.lock().is_none() {
+                if crate::intf::utils::android::ANDROID_GLOBALS.lock().is_none() {
                     error!("Android globals are not set up");
                     return Err(VeilidAPIError::Internal { message: "Android globals are not set up".to_owned() });
                 }

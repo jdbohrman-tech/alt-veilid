@@ -68,7 +68,7 @@ cargo {
     prebuiltToolchains = true
     profile = gradle.startParameter.taskNames.any{it.toLowerCase().contains("debug")} ? "debug" : "release"
     features {
-        defaultAnd("android_tests")
+        defaultAnd("android_tests", "rt-tokio")
     }
 }
 

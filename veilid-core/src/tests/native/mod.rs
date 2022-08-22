@@ -19,7 +19,12 @@ pub extern "system" fn Java_com_veilid_veilidcore_veilidcore_1android_1tests_Mai
     _class: JClass,
     ctx: JObject,
 ) {
-    crate::intf::utils::android::veilid_core_setup_android(env, ctx, "veilid_core", Level::Trace);
+    crate::intf::utils::android::veilid_core_setup_android(
+        env,
+        ctx,
+        "veilid_core",
+        crate::veilid_config::VeilidConfigLogLevel::Trace,
+    );
     run_all_tests();
 }
 

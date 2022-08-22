@@ -133,7 +133,7 @@ jni = "^0"
 jni-sys = "^0"
 ndk = { version = "^0", features = ["trace"] }
 ndk-glue = { version = "^0", features = ["logger"] }
-android_logger = { version = "^0" }
+tracing-android = { version = "^0" }
 backtrace = { version = "^0" }
 
 # Dependenices for all Unix (Linux, Android, MacOS, iOS)

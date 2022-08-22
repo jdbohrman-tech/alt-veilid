@@ -3,7 +3,6 @@ use super::*;
 use futures_util::stream::FuturesUnordered;
 use futures_util::FutureExt;
 use stop_token::future::FutureExt as StopTokenFutureExt;
-use tokio::task::spawn_blocking;
 
 struct DetectedPublicDialInfo {
     dial_info: DialInfo,
