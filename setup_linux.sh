@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-if [ ! "$(grep -qEi 'debian|buntu|mint' /etc/*release 2>/dev/null)" ]; then
+if [ "$(lsb_release -d | grep -qEi 'debian|buntu|mint')" ]; then
     echo Not a supported Linux
     exit 1
 fi
@@ -62,6 +62,4 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 cargo install wasm-bindgen-cli
 
 # Ensure packages are installed
-sudo apt-get install libc6-dev-i386 libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 openjdk-11-jdk llvm wabt
-
-
+sudo apt-get install libc6-dev-i386 libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 openjdk-11-jdk llvm wabt capnproto
