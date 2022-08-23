@@ -268,9 +268,8 @@ impl Network {
         if !from.ip().is_unspecified() {
             vec![*from]
         } else {
-            self.unlocked_inner
-                .interfaces
-                .best_addresses()
+            let addrs = self.get_usable_interface_addresses();
+            addrs
                 .iter()
                 .filter_map(|a| {
                     // We create sockets that are only ipv6 or ipv6 (not dual, so only translate matching unspecified address)
@@ -311,11 +310,21 @@ impl Network {
         }
     }
 
-    pub fn with_interface_addresses<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[IpAddr]) -> R,
-    {
-        self.unlocked_inner.interfaces.with_best_addresses(f)
+    pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
+        let usable_addrs = self.get_usable_interface_addresses();
+        usable_addrs.contains(&addr)
+    }
+
+    pub fn get_usable_interface_addresses(&self) -> Vec<IpAddr> {
+        let addrs = self.unlocked_inner.interfaces.best_addresses();
+        let addrs: Vec<IpAddr> = addrs
+            .into_iter()
+            .filter(|addr| {
+                let address = Address::from_ip_addr(*addr);
+                address.is_local() || address.is_global()
+            })
+            .collect();
+        addrs
     }
 
     // See if our interface addresses have changed, if so we need to punt the network
@@ -591,7 +600,7 @@ impl Network {
         {
             let mut inner = self.inner.lock();
             inner.enable_ipv4 = false;
-            for addr in self.unlocked_inner.interfaces.best_addresses() {
+            for addr in self.get_usable_interface_addresses() {
                 if addr.is_ipv4() {
                     log_net!(debug "enable address {:?} as ipv4", addr);
                     inner.enable_ipv4 = true;

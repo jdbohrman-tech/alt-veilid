@@ -16,10 +16,13 @@ Development of Veilid on GNU/Linux requires a Debian variant such as Debian
 itself, Ubuntu or Mint. Pull requests to support other distributions would be
 welcome!
 
-Development requires the Android SDK and NDK be installed.
+Running the setup script requires:
+* Android SDK and NDK
+* Rust
 
-You may decide to use Android Studio to maintain your Android dependencies. If
-so, use the dependency manager within your IDE. If you do so, you may skip to
+You may decide to use Android Studio [here](https://developer.android.com/studio) 
+to maintain your Android dependencies. If so, use the dependency manager 
+within your IDE. If you do so, you may skip to 
 [Run Veilid setup script](#Run Veilid setup script).
 
 * build-tools;30.0.3
@@ -45,8 +48,9 @@ your path.
 ```shell
 cat << EOF >> ~/.profile 
 export ANDROID_SDK_ROOT=<path to sdk>
-export ANDROID_NDK_HOME=<path to ndk>
-export PATH=${ANDROID_SDK_ROOT}/platform-tools"
+export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/22.0.7026061
+export PATH=\$PATH:$ANDROID_SDK_ROOT/platform-tools
+EOF
 ```
 
 #### Run Veilid setup script
@@ -60,7 +64,72 @@ pull the remaining Rust dependencies:
 
 ### macOS
 
-**TODO**
+Development of Veilid on MacOS is possible on both Intel and ARM hardware.
+
+Development requires:
+* Xcode, preferably latest version
+* Homebrew [here](https://brew.sh)
+* Android SDK and NDK
+* Java 8
+* Rust
+
+You may decide to use Android Studio [here](https://developer.android.com/studio) 
+to maintain your Android dependencies. If so, use the dependency manager 
+within your IDE. If you do so, you may skip to 
+[Run Veilid setup script](#Run Veilid setup script).
+
+* build-tools;30.0.3
+* ndk;22.0.7026061
+* cmake;3.22.1
+
+#### Setup Java
+
+```shell
+brew install openjdk@8
+```
+and then symlink it as appropriate for your system:
+
+Intel:
+```shell
+sudo ln -sfn /usr/local/opt/openjdk@8/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+```
+
+ARM:
+```shell
+sudo ln -sfn /opt/homebrew/openjdk@8/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+```
+
+
+#### Setup Dependencies using the CLI
+
+Otherwise, you may choose to use Android `sdkmanager`. Use 
+the command line to install the requisite package versions: `brew install android-commandlinetools`
+
+```shell
+sdkmanager --install "build-tools;30.0.3"
+sdkmanager --install "ndk;22.0.7026061"
+sdkmanager --install "cmake;3.22.1"
+```
+
+Export environment variables and add the Android SDK platform-tools directory to
+your path.
+
+```shell
+cat << EOF >> ~/.zshenv
+export ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
+export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/22.0.7026061
+export PATH=\$PATH:$HOME/Library/Android/sdk/platform-tools
+EOF
+```
+
+#### Run Veilid setup script
+
+Now you may run the MacOS setup script to check your development environment and
+pull the remaining Rust dependencies:
+
+```shell
+./setup_macos.sh
+```
 
 ### Windows
 

@@ -332,14 +332,15 @@ impl Network {
                 }
 
                 // See if this public address is also a local interface address we haven't registered yet
-                let is_interface_address = self.with_interface_addresses(|ip_addrs| {
-                    for ip_addr in ip_addrs {
-                        if pdi_addr.ip() == *ip_addr {
+                let is_interface_address = (|| {
+                    for ip_addr in self.get_usable_interface_addresses() {
+                        if pdi_addr.ip() == ip_addr {
                             return true;
                         }
                     }
                     false
-                });
+                })();
+
                 if !local_dial_info_list.contains(&pdi) && is_interface_address {
                     routing_table.register_dial_info(
                         RoutingDomain::LocalNetwork,
@@ -428,15 +429,9 @@ impl Network {
                 }
 
                 // See if this public address is also a local interface address
-                let is_interface_address = self.with_interface_addresses(|ip_addrs| {
-                    for ip_addr in ip_addrs {
-                        if gsa.ip() == *ip_addr {
-                            return true;
-                        }
-                    }
-                    false
-                });
-                if !registered_addresses.contains(&gsa.ip()) && is_interface_address {
+                if !registered_addresses.contains(&gsa.ip())
+                    && self.is_usable_interface_address(gsa.ip())
+                {
                     routing_table.register_dial_info(
                         RoutingDomain::LocalNetwork,
                         pdi,
@@ -559,15 +554,9 @@ impl Network {
                 }
 
                 // See if this public address is also a local interface address
-                let is_interface_address = self.with_interface_addresses(|ip_addrs| {
-                    for ip_addr in ip_addrs {
-                        if gsa.ip() == *ip_addr {
-                            return true;
-                        }
-                    }
-                    false
-                });
-                if !registered_addresses.contains(&gsa.ip()) && is_interface_address {
+                if !registered_addresses.contains(&gsa.ip())
+                    && self.is_usable_interface_address(gsa.ip())
+                {
                     routing_table.register_dial_info(
                         RoutingDomain::LocalNetwork,
                         pdi,
@@ -679,15 +668,7 @@ impl Network {
                 }
 
                 // See if this public address is also a local interface address
-                let is_interface_address = self.with_interface_addresses(|ip_addrs| {
-                    for ip_addr in ip_addrs {
-                        if pdi_addr.ip() == *ip_addr {
-                            return true;
-                        }
-                    }
-                    false
-                });
-                if is_interface_address {
+                if self.is_usable_interface_address(pdi_addr.ip()) {
                     routing_table.register_dial_info(
                         RoutingDomain::LocalNetwork,
                         pdi,

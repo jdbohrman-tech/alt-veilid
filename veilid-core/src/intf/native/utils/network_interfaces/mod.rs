@@ -385,14 +385,6 @@ impl NetworkInterfaces {
         inner.interface_address_cache.clone()
     }
 
-    pub fn with_best_addresses<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[IpAddr]) -> R,
-    {
-        let inner = self.inner.lock();
-        f(&inner.interface_address_cache)
-    }
-
     /////////////////////////////////////////////
 
     fn cache_best_addresses(inner: &mut NetworkInterfacesInner) {

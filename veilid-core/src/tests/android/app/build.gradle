@@ -67,6 +67,7 @@ cargo {
     targetDirectory = "../../../../../target"
     prebuiltToolchains = true
     profile = gradle.startParameter.taskNames.any{it.toLowerCase().contains("debug")} ? "debug" : "release"
+    pythonCommand = "python3"
     features {
         defaultAnd("android_tests", "rt-tokio")
     }

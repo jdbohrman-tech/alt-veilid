@@ -282,15 +282,12 @@ impl Network {
         trace!("network stopped");
     }
 
-    pub fn with_interface_addresses<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[IpAddr]) -> R,
-    {
-        f(&[])
+    pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
+        false
     }
 
-    pub async fn check_interface_addresses(&self) -> EyreResult<bool> {
-        Ok(false)
+    pub fn get_usable_interface_addresses(&self) -> Vec<IpAddr> {
+        Vec::new()
     }
 
     //////////////////////////////////////////

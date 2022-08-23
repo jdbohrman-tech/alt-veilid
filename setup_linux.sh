@@ -14,7 +14,6 @@ else
     exit 1
 fi
 
-
 # ensure ANDROID_NDK_HOME is defined and exists
 if [ -d "$ANDROID_NDK_HOME" ]; then
     echo '[X] $ANDROID_NDK_HOME is defined and exists' 
@@ -55,8 +54,24 @@ else
     exit 1
 fi
 
+# ensure rustup is installed
+if command -v rustup &> /dev/null; then 
+    echo '[X] rustup is available in the path'
+else
+    echo 'rustup is not available in the path'
+    exit 1
+fi
+
+# ensure cargo is installed
+if command -v cargo &> /dev/null; then 
+    echo '[X] cargo is available in the path'
+else
+    echo 'cargo is not available in the path'
+    exit 1
+fi
+
 # install targets
-rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android wasm32-unknown-unknown
 
 # install cargo packages
 cargo install wasm-bindgen-cli
