@@ -611,7 +611,7 @@ impl Network {
                 ip_addrs,
                 tcp_port,
                 false,
-                Box::new(|_, _, a| Box::new(RawTcpProtocolHandler::new(a))),
+                Box::new(move |c, _, a| Box::new(RawTcpProtocolHandler::new(c, a))),
             )
             .await?;
         trace!("TCP: listener started on {:#?}", socket_addresses);

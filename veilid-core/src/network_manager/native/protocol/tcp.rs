@@ -103,6 +103,7 @@ pub struct RawTcpProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {
+    connection_initial_timeout_ms: u32,
     inner: Arc<Mutex<RawTcpProtocolHandlerInner>>,
 }
 
@@ -111,22 +112,31 @@ impl RawTcpProtocolHandler {
         RawTcpProtocolHandlerInner { local_address }
     }
 
-    pub fn new(local_address: SocketAddr) -> Self {
+    pub fn new(config: VeilidConfig, local_address: SocketAddr) -> Self {
+        let c = config.get();
+        let connection_initial_timeout_ms = c.network.connection_initial_timeout_ms;
         Self {
+            connection_initial_timeout_ms,
             inner: Arc::new(Mutex::new(Self::new_inner(local_address))),
         }
     }
 
-    #[instrument(level = "trace", err, skip(self, stream))]
+    #[instrument(level = "trace", err, skip(self, ps))]
     async fn on_accept_async(
         self,
-        stream: AsyncPeekStream,
+        ps: AsyncPeekStream,
         socket_addr: SocketAddr,
     ) -> io::Result<Option<ProtocolNetworkConnection>> {
         log_net!("TCP: on_accept_async: enter");
         let mut peekbuf: [u8; PEEK_DETECT_LEN] = [0u8; PEEK_DETECT_LEN];
-        let peeklen = stream.peek(&mut peekbuf).await?;
-        assert_eq!(peeklen, PEEK_DETECT_LEN);
+        if let Err(_) = timeout(
+            self.connection_initial_timeout_ms,
+            ps.peek_exact(&mut peekbuf),
+        )
+        .await
+        {
+            return Ok(None);
+        }
 
         let peer_addr = PeerAddress::new(
             SocketAddress::from_socket_addr(socket_addr),
@@ -136,7 +146,7 @@ impl RawTcpProtocolHandler {
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
             ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_address))
                 .map_err(|e| io::Error::new(io::ErrorKind::AddrNotAvailable, e))?,
-            stream,
+            ps,
         ));
 
         log_net!(debug "TCP: on_accept_async from: {}", socket_addr);
