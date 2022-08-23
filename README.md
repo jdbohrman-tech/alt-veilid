@@ -22,7 +22,9 @@ Running the setup script requires:
 
 You may decide to use Android Studio [here](https://developer.android.com/studio) 
 to maintain your Android dependencies. If so, use the dependency manager 
-within your IDE. If you do so, you may skip to 
+within your IDE. If you plan on using Flutter for Veilid development, the Android Studio
+method is highly recommended as you may run into path problems with the 'flutter' 
+command line without it. If you do so, you may skip to 
 [Run Veilid setup script](#Run Veilid setup script).
 
 * build-tools;30.0.3
@@ -62,6 +64,17 @@ pull the remaining Rust dependencies:
 ./setup_linux.sh
 ```
 
+#### Run the veilid-flutter setup script (optional)
+
+If you are developing Flutter applications or the flutter-veilid portion, you should
+install Android Studio, and run the flutter setup script:
+
+```shell
+cd veilid-flutter
+./setup_flutter.sh
+```
+
+
 ### macOS
 
 Development of Veilid on MacOS is possible on both Intel and ARM hardware.
@@ -75,7 +88,9 @@ Development requires:
 
 You may decide to use Android Studio [here](https://developer.android.com/studio) 
 to maintain your Android dependencies. If so, use the dependency manager 
-within your IDE. If you do so, you may skip to 
+within your IDE. If you plan on using Flutter for Veilid development, the Android Studio
+method is highly recommended as you may run into path problems with the 'flutter' 
+command line without it. If you do so, you may skip to 
 [Run Veilid setup script](#Run Veilid setup script).
 
 * build-tools;30.0.3
@@ -129,6 +144,16 @@ pull the remaining Rust dependencies:
 
 ```shell
 ./setup_macos.sh
+```
+
+#### Run the veilid-flutter setup script (optional)
+
+If you are developing Flutter applications or the flutter-veilid portion, you should
+install Android Studio, and run the flutter setup script:
+
+```shell
+cd veilid-flutter
+./setup_flutter.sh
 ```
 
 ### Windows

@@ -649,7 +649,11 @@ impl Address {
     }
     pub fn is_local(&self) -> bool {
         match self {
-            Address::IPV4(v4) => ipv4addr_is_private(v4) || ipv4addr_is_link_local(v4),
+            Address::IPV4(v4) => {
+                ipv4addr_is_private(v4)
+                    || ipv4addr_is_link_local(v4)
+                    || ipv4addr_is_ietf_protocol_assignment(v4)
+            }
             Address::IPV6(v6) => {
                 ipv6addr_is_unicast_site_local(v6)
                     || ipv6addr_is_unicast_link_local(v6)

@@ -86,6 +86,7 @@ cargo {
     targets = ["arm", "arm64", "x86", "x86_64"]
     targetDirectory = "../../target"
     prebuiltToolchains = true
+    pythonCommand = "python3"
     profile = gradle.startParameter.taskNames.any{it.toLowerCase().contains("debug")} ? "debug" : "release"
     // features {
     //     defaultAnd("android_tests")

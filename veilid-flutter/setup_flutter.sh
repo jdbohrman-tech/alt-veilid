@@ -81,7 +81,7 @@ elif [ "$OS" == "macos" ]; then
     sudo arch -x86_64 gem install cocoapods
 
     # ensure platforms are enabled in flutter
-    flutter config --enable-macos-desktop --enable-ios --no-enable-android
+    flutter config --enable-macos-desktop --enable-ios --enable-android
 fi
 
 # turn off analytics
