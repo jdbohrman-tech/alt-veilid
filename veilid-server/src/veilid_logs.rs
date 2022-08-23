@@ -153,7 +153,7 @@ impl VeilidLogs {
                         convert_loglevel(settingsr.logging.system.level),
                         None,
                     );
-                    let layer =tracing_journald::layer().wrap_err("failed to set up journald logging")?
+                    let layer = tracing_journald::layer().wrap_err("failed to set up journald logging")?
                         .with_filter(filter.clone());
                     filters.insert("system", filter);
                     layers.push(layer.boxed());
