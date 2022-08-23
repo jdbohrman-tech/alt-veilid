@@ -39,10 +39,10 @@ Future<VeilidConfig> getDefaultVeilidConfig() async {
     network: VeilidConfigNetwork(
       connectionInitialTimeoutMs: 2000,
       connectionInactivityTimeoutMs: 60000,
-      maxConnectionsPerIp4: 8,
-      maxConnectionsPerIp6Prefix: 8,
+      maxConnectionsPerIp4: 32,
+      maxConnectionsPerIp6Prefix: 32,
       maxConnectionsPerIp6PrefixSize: 56,
-      maxConnectionFrequencyPerMin: 8,
+      maxConnectionFrequencyPerMin: 128,
       clientWhitelistTimeoutMs: 300000,
       reverseConnectionReceiptTimeMs: 5000,
       holePunchReceiptTimeMs: 5000,
@@ -86,7 +86,7 @@ Future<VeilidConfig> getDefaultVeilidConfig() async {
       natpmp: true,
       detectAddressChanges: true,
       enableLocalPeerScope: false,
-      restrictedNatRetries: 3,
+      restrictedNatRetries: 0,
       tls: VeilidConfigTLS(
         certificatePath: "",
         privateKeyPath: "",

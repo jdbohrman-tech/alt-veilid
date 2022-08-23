@@ -80,51 +80,20 @@ cd veilid-flutter
 Development of Veilid on MacOS is possible on both Intel and ARM hardware.
 
 Development requires:
+* Android Studio 
 * Xcode, preferably latest version
 * Homebrew [here](https://brew.sh)
 * Android SDK and NDK
-* Java 8
 * Rust
 
-You may decide to use Android Studio [here](https://developer.android.com/studio) 
-to maintain your Android dependencies. If so, use the dependency manager 
-within your IDE. If you plan on using Flutter for Veilid development, the Android Studio
-method is highly recommended as you may run into path problems with the 'flutter' 
-command line without it. If you do so, you may skip to 
-[Run Veilid setup script](#Run Veilid setup script).
+You will need to use Android Studio [here](https://developer.android.com/studio) 
+to maintain your Android dependencies. Use the SDK Manager in the IDE to install the following packages (use package details view to select version):
+* Android SDK Build Tools (30.0.3)
+* NDK (Side-by-side) (22.0.7026061)
+* Cmake (3.22.1)
+* Android SDK Command Line Tools (latest) (7.0/latest)
 
-* build-tools;30.0.3
-* ndk;22.0.7026061
-* cmake;3.22.1
-
-#### Setup Java
-
-```shell
-brew install openjdk@8
-```
-and then symlink it as appropriate for your system:
-
-Intel:
-```shell
-sudo ln -sfn /usr/local/opt/openjdk@8/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-```
-
-ARM:
-```shell
-sudo ln -sfn /opt/homebrew/openjdk@8/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-```
-
-
-#### Setup Dependencies using the CLI
-
-Otherwise, you may choose to use Android `sdkmanager`. Use 
-the command line to install the requisite package versions: `brew install android-commandlinetools`
-
-```shell
-sdkmanager --install "build-tools;30.0.3"
-sdkmanager --install "ndk;22.0.7026061"
-sdkmanager --install "cmake;3.22.1"
-```
+#### Setup command line environment
 
 Export environment variables and add the Android SDK platform-tools directory to
 your path.
