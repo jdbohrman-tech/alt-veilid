@@ -68,7 +68,6 @@ impl RawTcpNetworkConnection {
         let mut header = [0u8; 4];
 
         network_result_try!(stream.read_exact(&mut header).await.into_network_result()?);
-
         if header[0] != b'V' || header[1] != b'L' {
             bail_io_error_other!("received invalid TCP frame header");
         }
@@ -78,7 +77,8 @@ impl RawTcpNetworkConnection {
         }
 
         let mut out: Vec<u8> = vec![0u8; len];
-        network_result_try!(stream.read_exact(&mut out).await.into_network_result()?);
+        let nrout = stream.read_exact(&mut out).await.into_network_result()?;
+        network_result_try!(nrout);
 
         Ok(NetworkResult::Value(out))
     }

@@ -294,6 +294,51 @@ pub async fn test_peek_some_read_peek_some_read_all_read() {
     assert_eq!(inbuf3, outbuf[peeksize1..outbuf.len()].to_vec());
 }
 
+pub async fn test_peek_exact_read_peek_exact_read_all_read() {
+    info!("test_peek_exact_read_peek_exact_read_all_read");
+
+    let (mut a, mut c) = make_async_peek_stream_loopback().await;
+
+    // write everything
+    let outbuf = MESSAGE.to_vec();
+    a.write_all(&outbuf).await.unwrap();
+
+    // peek partially
+    let mut peekbuf1: Vec<u8> = Vec::new();
+    peekbuf1.resize(outbuf.len() / 4, 0u8);
+    let peeksize1 = c.peek_exact(&mut peekbuf1).await.unwrap();
+    assert_eq!(peeksize1, peekbuf1.len());
+
+    // read partially
+    let mut inbuf1: Vec<u8> = Vec::new();
+    inbuf1.resize(peeksize1 - 1, 0u8);
+    c.read_exact(&mut inbuf1).await.unwrap();
+
+    // peek partially
+    let mut peekbuf2: Vec<u8> = Vec::new();
+    peekbuf2.resize(2, 0u8);
+    let peeksize2 = c.peek_exact(&mut peekbuf2).await.unwrap();
+    assert_eq!(peeksize2, peekbuf2.len());
+    // read partially
+    let mut inbuf2: Vec<u8> = Vec::new();
+    inbuf2.resize(1, 0u8);
+    c.read_exact(&mut inbuf2).await.unwrap();
+
+    // read remaining
+    let mut inbuf3: Vec<u8> = Vec::new();
+    inbuf3.resize(outbuf.len() - peeksize1, 0u8);
+    c.read_exact(&mut inbuf3).await.unwrap();
+
+    assert_eq!(peekbuf1, outbuf[0..peeksize1].to_vec());
+    assert_eq!(inbuf1, outbuf[0..peeksize1 - 1].to_vec());
+    assert_eq!(
+        peekbuf2[0..peeksize2].to_vec(),
+        outbuf[peeksize1 - 1..peeksize1 + 1].to_vec()
+    );
+    assert_eq!(inbuf2, peekbuf2[0..1].to_vec());
+    assert_eq!(inbuf3, outbuf[peeksize1..outbuf.len()].to_vec());
+}
+
 pub async fn test_all() {
     test_nothing().await;
     test_no_peek().await;
@@ -303,4 +348,5 @@ pub async fn test_all() {
     test_peek_some_read_peek_some_read().await;
     test_peek_some_read_peek_all_read().await;
     test_peek_some_read_peek_some_read_all_read().await;
+    test_peek_exact_read_peek_exact_read_all_read().await;
 }

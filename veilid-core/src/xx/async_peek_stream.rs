@@ -1,5 +1,4 @@
 use super::*;
-use futures_util::AsyncReadExt;
 use std::io;
 use task::{Context, Poll};
 
@@ -32,10 +31,10 @@ impl Future for Peek<'_> {
         if buf_len > inner.peekbuf_len {
             //
             inner.peekbuf.resize(buf_len, 0u8);
-            let mut read_future = inner
-                .stream
-                .read(&mut inner.peekbuf.as_mut_slice()[inner.peekbuf_len..buf_len]);
-            let read_len = match Pin::new(&mut read_future).poll(cx) {
+            let read_len = match Pin::new(&mut inner.stream).poll_read(
+                cx,
+                &mut inner.peekbuf.as_mut_slice()[inner.peekbuf_len..buf_len],
+            ) {
                 Poll::Pending => {
                     inner.peekbuf.resize(inner.peekbuf_len, 0u8);
                     return Poll::Pending;
@@ -60,6 +59,7 @@ impl Future for Peek<'_> {
 pub struct PeekExact<'a> {
     aps: AsyncPeekStream,
     buf: &'a mut [u8],
+    cur_read: usize,
 }
 
 impl Unpin for PeekExact<'_> {}
@@ -78,10 +78,10 @@ impl Future for PeekExact<'_> {
         if buf_len > inner.peekbuf_len {
             //
             inner.peekbuf.resize(buf_len, 0u8);
-            let mut read_future = inner
-                .stream
-                .read_exact(&mut inner.peekbuf.as_mut_slice()[inner.peekbuf_len..buf_len]);
-            match Pin::new(&mut read_future).poll(cx) {
+            let read_len = match Pin::new(&mut inner.stream).poll_read(
+                cx,
+                &mut inner.peekbuf.as_mut_slice()[inner.peekbuf_len..buf_len],
+            ) {
                 Poll::Pending => {
                     inner.peekbuf.resize(inner.peekbuf_len, 0u8);
                     return Poll::Pending;
@@ -89,13 +89,19 @@ impl Future for PeekExact<'_> {
                 Poll::Ready(Err(e)) => {
                     return Poll::Ready(Err(e));
                 }
-                Poll::Ready(Ok(())) => (),
+                Poll::Ready(Ok(v)) => v,
             };
-            inner.peekbuf_len = buf_len;
+            inner.peekbuf_len += read_len;
+            inner.peekbuf.resize(inner.peekbuf_len, 0u8);
             copy_len = inner.peekbuf_len;
         }
-        this.buf[..copy_len].copy_from_slice(&inner.peekbuf[..copy_len]);
-        Poll::Ready(Ok(copy_len))
+        this.buf[this.cur_read..copy_len].copy_from_slice(&inner.peekbuf[this.cur_read..copy_len]);
+        this.cur_read = copy_len;
+        if this.cur_read == buf_len {
+            Poll::Ready(Ok(buf_len))
+        } else {
+            Poll::Pending
+        }
     }
 }
 /////////
@@ -139,6 +145,7 @@ impl AsyncPeekStream {
         PeekExact::<'a> {
             aps: self.clone(),
             buf,
+            cur_read: 0,
         }
     }
 }

@@ -81,6 +81,14 @@ where
             Ok(v) => NetworkResult::value(v),
             Err(e) => err_to_network_result(e),
         };
+        if !out.is_value() {
+            tracing::Span::current().record("network_result", &tracing::field::display(&out));
+            return Ok(out);
+        }
+        let out = match self.stream.clone().flush().await {
+            Ok(v) => NetworkResult::value(v),
+            Err(e) => err_to_network_result(e),
+        };
         tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
