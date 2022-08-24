@@ -52,7 +52,8 @@ impl RawTcpNetworkConnection {
         let header = [b'V', b'L', len as u8, (len >> 8) as u8];
 
         network_result_try!(stream.write_all(&header).await.into_network_result()?);
-        stream.write_all(&message).await.into_network_result()
+        network_result_try!(stream.write_all(&message).await.into_network_result()?);
+        stream.flush().await.into_network_result()
     }
 
     #[instrument(level="trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
