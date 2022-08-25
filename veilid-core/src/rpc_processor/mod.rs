@@ -769,14 +769,6 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    async fn generate_sender_info(peer_noderef: NodeRef) -> SenderInfo {
-        let socket_address = peer_noderef
-            .last_connection()
-            .await
-            .map(|c| c.remote_address().clone());
-        SenderInfo { socket_address }
-    }
-
     //////////////////////////////////////////////////////////////////////
     #[instrument(level = "trace", skip(self, encoded_msg), err)]
     async fn process_rpc_message_version_0(

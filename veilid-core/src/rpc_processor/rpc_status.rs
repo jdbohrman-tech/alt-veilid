@@ -84,7 +84,6 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), err)]
     pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
-        let peer_noderef = msg.header.peer_noderef.clone();
         let connection_descriptor = msg.header.connection_descriptor;
 
         // Get the question
@@ -106,11 +105,11 @@ impl RPCProcessor {
 
         // Make status answer
         let node_status = self.network_manager().generate_node_status();
-        // Filter the noderef down to the protocol used by the incoming connection
-        let filtered_peer_noderef =
-            peer_noderef.filtered_clone(connection_descriptor.make_dial_info_filter());
+
         // Get the peer address in the returned sender info
-        let sender_info = Self::generate_sender_info(filtered_peer_noderef).await;
+        let sender_info = SenderInfo {
+            socket_address: Some(*connection_descriptor.remote_address()),
+        };
 
         let status_a = RPCOperationStatusA {
             node_status,
