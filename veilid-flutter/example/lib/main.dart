@@ -252,7 +252,7 @@ class _MyAppState extends State<MyApp> with UiLoggy {
                         labelText: 'Debug Command'),
                     textInputAction: TextInputAction.send,
                     onSubmitted: (String v) async {
-                      loggy.debug(await Veilid.instance.debug(v));
+                      loggy.info(await Veilid.instance.debug(v));
                     })),
             DropdownButton<LogLevel>(
                 value: loggy.level.logLevel,

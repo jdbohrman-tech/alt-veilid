@@ -199,11 +199,12 @@ pub fn change_log_level(layer: String, log_level: String) {
 }
 
 #[wasm_bindgen()]
-pub fn startup_veilid_core(update_callback: Function, json_config: String) -> Promise {
+pub fn startup_veilid_core(update_callback_js: Function, json_config: String) -> Promise {
+    let update_callback_js = SendWrapper::new(update_callback_js);
     wrap_api_future(async move {
         let update_callback = Arc::new(move |update: VeilidUpdate| {
             let _ret =
-                match Function::call1(&update_callback, &JsValue::UNDEFINED, &to_json(update)) {
+                match Function::call1(&update_callback_js, &JsValue::UNDEFINED, &to_json(update)) {
                     Ok(v) => v,
                     Err(e) => {
                         error!("calling update callback failed: {:?}", e);

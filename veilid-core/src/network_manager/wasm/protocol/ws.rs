@@ -10,7 +10,18 @@ struct WebsocketNetworkConnectionInner {
 }
 
 fn to_io(err: WsErr) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, err.to_string())
+    match err {
+        WsErr::InvalidWsState { supplied: _ } => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::ConnectionNotOpen => io::Error::new(io::ErrorKind::NotConnected, err.to_string()),
+        WsErr::InvalidUrl { supplied: _ } => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::InvalidCloseCode { supplied: _ } => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::ReasonStringToLong => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::ConnectionFailed { event: _ }  => io::Error::new(io::ErrorKind::ConnectionRefused, err.to_string()),
+        WsErr::InvalidEncoding => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::CantDecodeBlob => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::UnknownDataType => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        _ => io::Error::new(io::ErrorKind::Other, err.to_string()),
+    }
 }
 
 #[derive(Clone)]
@@ -115,20 +126,19 @@ impl WebsocketProtocolHandler {
         let fut = SendWrapper::new(timeout(timeout_ms, async move {
             WsMeta::connect(request, None).await.map_err(to_io)
         }));
+        
         let (wsmeta, wsio) = network_result_try!(network_result_try!(fut
             .await
             .into_network_result())
         .into_network_result()?);
 
         // Make our connection descriptor
-
         let wnc = WebsocketNetworkConnection::new(
             ConnectionDescriptor::new_no_local(dial_info.to_peer_address())
                 .map_err(|e| io::Error::new(io::ErrorKind::AddrNotAvailable, e))?,
             wsmeta,
             wsio,
         );
-
         Ok(NetworkResult::Value(ProtocolNetworkConnection::Ws(wnc)))
     }
 }

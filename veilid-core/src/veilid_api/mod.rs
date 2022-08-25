@@ -641,6 +641,12 @@ impl Address {
             Address::IPV6(v6) => format!("[{}]:{}", v6, port),
         }
     }
+    pub fn is_unspecified(&self) -> bool {
+        match self {
+            Address::IPV4(v4) => ipv4addr_is_unspecified(v4),
+            Address::IPV6(v6) => ipv6addr_is_unspecified(v6),
+        }
+    }
     pub fn is_global(&self) -> bool {
         match self {
             Address::IPV4(v4) => ipv4addr_is_global(v4) && !ipv4addr_is_multicast(v4),
@@ -1519,8 +1525,20 @@ impl ConnectionDescriptor {
     fn validate_peer_scope(remote: PeerAddress) -> Result<(), VeilidAPIError> {
         // Verify address is in one of our peer scopes we care about
         let addr = remote.socket_address.address();
+
+        // Allow WASM to have unresolved addresses, for bootstraps
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                if addr.is_unspecified() {
+                    return Ok(());
+                }
+            }
+        }
         if !addr.is_global() && !addr.is_local() {
-            return Err(VeilidAPIError::generic("not a valid peer scope"));
+            return Err(VeilidAPIError::generic(format!(
+                "not a valid peer scope: {:?}",
+                addr
+            )));
         }
         Ok(())
     }
@@ -1556,6 +1574,14 @@ impl ConnectionDescriptor {
     }
     pub fn peer_scope(&self) -> PeerScope {
         let addr = self.remote.socket_address.address();
+        // Allow WASM to have unresolved addresses, for bootstraps
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                if addr.is_unspecified() {
+                    return PeerScope::Global;
+                }
+            }
+        }
         if addr.is_global() {
             return PeerScope::Global;
         }
