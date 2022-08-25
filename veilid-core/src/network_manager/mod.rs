@@ -1383,25 +1383,28 @@ impl NetworkManager {
     async fn on_recv_envelope(
         &self,
         data: &[u8],
-        descriptor: ConnectionDescriptor,
+        connection_descriptor: ConnectionDescriptor,
     ) -> EyreResult<bool> {
         let root = span!(
             parent: None,
             Level::TRACE,
             "on_recv_envelope",
             "data.len" = data.len(),
-            "descriptor" = ?descriptor
+            "descriptor" = ?connection_descriptor
         );
         let _root_enter = root.enter();
 
         log_net!(
             "envelope of {} bytes received from {:?}",
             data.len(),
-            descriptor
+            connection_descriptor
         );
 
         // Network accounting
-        self.stats_packet_rcvd(descriptor.remote_address().to_ip_addr(), data.len() as u64);
+        self.stats_packet_rcvd(
+            connection_descriptor.remote_address().to_ip_addr(),
+            data.len() as u64,
+        );
 
         // If this is a zero length packet, just drop it, because these are used for hole punching
         // and possibly other low-level network connectivity tasks and will never require
@@ -1418,7 +1421,7 @@ impl NetworkManager {
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(debug self.handle_boot_request(descriptor).await? => {});
+            network_result_value_or_log!(debug self.handle_boot_request(connection_descriptor).await? => {});
             return Ok(true);
         }
 
@@ -1528,7 +1531,7 @@ impl NetworkManager {
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
             envelope.get_sender_id(),
-            descriptor,
+            connection_descriptor,
             ts,
         ) {
             None => {
@@ -1543,7 +1546,7 @@ impl NetworkManager {
         // xxx: deal with spoofing and flooding here?
 
         // Pass message to RPC system
-        rpc.enqueue_message(envelope, body, source_noderef)?;
+        rpc.enqueue_message(envelope, body, source_noderef, connection_descriptor)?;
 
         // Inform caller that we dealt with the envelope locally
         Ok(true)
@@ -1756,7 +1759,13 @@ impl NetworkManager {
                 routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
                 net.reset_network_class();
             } else {
+                let inner = self.inner.lock();
                 warn!("Public address may have changed. Restarting the server may be required.");
+                info!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
+                info!(
+                    "public_address_check_cache: {:#?}",
+                    inner.public_address_check_cache
+                );
             }
         }
     }

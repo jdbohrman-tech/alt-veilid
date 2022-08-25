@@ -36,11 +36,15 @@ use stop_token::future::FutureExt;
 
 type OperationId = u64;
 
+/// Where to send an RPC message
 #[derive(Debug, Clone)]
 pub enum Destination {
-    Direct(NodeRef),            // Send to node (target noderef)
-    Relay(NodeRef, DHTKey),     // Send to node for relay purposes (relay noderef, target nodeid)
-    PrivateRoute(PrivateRoute), // Send to private route (privateroute)
+    /// Send to node (target noderef)
+    Direct(NodeRef),
+    /// Send to node for relay purposes (relay noderef, target nodeid)
+    Relay(NodeRef, DHTKey),
+    /// Send to private route (privateroute)
+    PrivateRoute(PrivateRoute),
 }
 
 impl fmt::Display for Destination {
@@ -59,12 +63,19 @@ impl fmt::Display for Destination {
     }
 }
 
+/// The decoded header of an RPC message
 #[derive(Debug, Clone)]
 struct RPCMessageHeader {
-    timestamp: u64, // time the message was received, not sent
+    /// Time the message was received, not sent
+    timestamp: u64,
+    /// The decoded header of the envelope
     envelope: Envelope,
+    /// The length in bytes of the rpc message body
     body_len: u64,
-    peer_noderef: NodeRef, // ensures node doesn't get evicted from routing table until we're done with it
+    /// The noderef of the peer that sent the message (not the original sender). Ensures node doesn't get evicted from routing table until we're done with it
+    peer_noderef: NodeRef,
+    /// The connection from the peer sent the message (not the original sender)
+    connection_descriptor: ConnectionDescriptor,
 }
 
 #[derive(Debug)]
@@ -993,6 +1004,7 @@ impl RPCProcessor {
         envelope: Envelope,
         body: Vec<u8>,
         peer_noderef: NodeRef,
+        connection_descriptor: ConnectionDescriptor,
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
@@ -1000,6 +1012,7 @@ impl RPCProcessor {
                 envelope,
                 body_len: body.len() as u64,
                 peer_noderef,
+                connection_descriptor,
             },
             data: RPCMessageData { contents: body },
         };
