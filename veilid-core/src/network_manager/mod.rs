@@ -1761,8 +1761,8 @@ impl NetworkManager {
             } else {
                 let inner = self.inner.lock();
                 warn!("Public address may have changed. Restarting the server may be required.");
-                info!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
-                info!(
+                warn!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
+                warn!(
                     "public_address_check_cache: {:#?}",
                     inner.public_address_check_cache
                 );
