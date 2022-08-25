@@ -170,6 +170,43 @@ impl IGDManager {
         format!("{} map {} for port {}", self.config.get().program_name, convert_llpt(llpt), local_port )
     }
 
+    pub async fn unmap_port(&self, 
+        llpt: LowLevelProtocolType,
+        at: AddressType,
+        mapped_port: u16,
+    ) -> Option<()> {
+        let this = self.clone();
+        intf::blocking_wrapper(move || {
+            let mut inner = this.inner.lock();
+
+            // If we already have this port mapped, just return the existing portmap
+            let mut found = None;
+            for (pmk, pmv) in &inner.port_maps {
+                if pmk.llpt == llpt && pmk.at == at && pmv.mapped_port == mapped_port {
+                    found = Some(pmk.clone());
+                    break;
+                }
+            }
+            let pmk = found?;
+            let pmv = inner.port_maps.remove(&pmk).unwrap();
+
+            // Find gateway
+            let gw = Self::find_gateway(&mut *inner, at)?;
+
+            // Unmap port
+            match gw.remove_port(convert_llpt(llpt), mapped_port) {
+                Ok(()) => (),
+                Err(e) => {
+                    // Failed to map external port
+                    log_net!(debug "upnp failed to remove external port: {}", e);
+                    return None;
+                }
+            };
+            Some(())
+        }, None)
+        .await
+    }
+
     pub async fn map_any_port(
         &self,
         llpt: LowLevelProtocolType,

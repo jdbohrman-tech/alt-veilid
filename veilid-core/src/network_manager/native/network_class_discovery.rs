@@ -219,14 +219,15 @@ impl DiscoveryContext {
         };
 
         if enable_upnp {
-            let (pt, llpt, at, external_address_1, local_port) = {
+            let (pt, llpt, at, external_address_1, node_1, local_port) = {
                 let inner = self.inner.lock();
                 let pt = inner.protocol_type.unwrap();
                 let llpt = pt.low_level_protocol_type();
                 let at = inner.address_type.unwrap();
                 let external_address_1 = inner.external_1_address.unwrap();
+                let node_1 = inner.node_1.as_ref().unwrap().clone();
                 let local_port = self.net.get_local_port(pt);
-                (pt, llpt, at, external_address_1, local_port)
+                (pt, llpt, at, external_address_1, node_1, local_port)
             };
 
             if let Some(mapped_external_address) = self
@@ -236,13 +237,25 @@ impl DiscoveryContext {
                 .map_any_port(llpt, at, local_port, Some(external_address_1.to_ip_addr()))
                 .await
             {
-                // make dial info from the port
-                return Some(
-                    self.make_dial_info(
-                        SocketAddress::from_socket_addr(mapped_external_address),
-                        pt,
-                    ),
-                );
+                // make dial info from the port mapping
+                let external_mapped_dial_info = self
+                    .make_dial_info(SocketAddress::from_socket_addr(mapped_external_address), pt);
+
+                // ensure people can reach us. if we're firewalled off, this is useless
+                if self
+                    .validate_dial_info(node_1.clone(), external_mapped_dial_info.clone(), false)
+                    .await
+                {
+                    return Some(external_mapped_dial_info);
+                } else {
+                    // release the mapping if we're still unreachable
+                    let _ = self
+                        .net
+                        .unlocked_inner
+                        .igd_manager
+                        .unmap_port(llpt, at, external_address_1.port())
+                        .await;
+                }
             }
         }
 
@@ -335,16 +348,18 @@ impl DiscoveryContext {
         {
             // Add public dial info with Direct dialinfo class
             self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Direct);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
         }
         // Attempt a port mapping via all available and enabled mechanisms
         else if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
             // Got a port mapping, let's use it
             self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
         } else {
             // Add public dial info with Blocked dialinfo class
             self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Blocked);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
         }
-        self.set_detected_network_class(NetworkClass::InboundCapable);
         Ok(())
     }
 
@@ -362,8 +377,18 @@ impl DiscoveryContext {
             )
         };
 
-        // Attempt a UDP port mapping via all available and enabled mechanisms
-        if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
+        // Do a validate_dial_info on the external address from a redirected node
+        if self
+            .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
+            .await
+        {
+            // Add public dial info with Direct dialinfo class
+            self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Direct);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
+            return Ok(true);
+        }
+        // Attempt a port mapping via all available and enabled mechanisms
+        else if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
             // Got a port mapping, let's use it
             self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
             self.set_detected_network_class(NetworkClass::InboundCapable);
