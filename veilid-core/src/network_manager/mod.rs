@@ -1097,7 +1097,7 @@ impl NetworkManager {
         }
 
         // Otherwise, we can't reach this node
-        debug!("unable to reach node {:?}", target_node_ref);
+        log_net!("unable to reach node {:?}", target_node_ref);
         ContactMethod::Unreachable
     }
 
