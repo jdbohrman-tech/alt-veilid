@@ -213,7 +213,7 @@ impl DiscoveryContext {
 
     #[instrument(level = "trace", skip(self), ret)]
     async fn try_port_mapping(&self) -> Option<DialInfo> {
-        let (enable_upnp, enable_natpmp) = {
+        let (enable_upnp, _enable_natpmp) = {
             let c = self.net.config.get();
             (c.network.upnp, c.network.natpmp)
         };

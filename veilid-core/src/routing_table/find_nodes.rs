@@ -533,9 +533,11 @@ impl RoutingTable {
             }
 
             // register the node if it's new
-            if let Some(nr) =
-                self.register_node_with_signed_node_info(p.node_id.key, p.signed_node_info.clone())
-            {
+            if let Some(nr) = self.register_node_with_signed_node_info(
+                p.node_id.key,
+                p.signed_node_info.clone(),
+                false,
+            ) {
                 out.push(nr);
             }
         }

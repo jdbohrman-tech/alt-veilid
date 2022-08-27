@@ -40,8 +40,11 @@ impl RPCProcessor {
             return Ok(());
         }
 
-        self.routing_table()
-            .register_node_with_signed_node_info(sender_node_id, node_info_update.signed_node_info);
+        self.routing_table().register_node_with_signed_node_info(
+            sender_node_id,
+            node_info_update.signed_node_info,
+            false,
+        );
 
         Ok(())
     }

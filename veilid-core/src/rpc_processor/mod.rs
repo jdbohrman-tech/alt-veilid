@@ -253,8 +253,8 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
-    // Search the DHT for a single node closest to a key and add it to the routing table and return the node reference
-    // If no node was found in the timeout, this returns None
+    /// Search the DHT for a single node closest to a key and add it to the routing table and return the node reference
+    /// If no node was found in the timeout, this returns None
     pub async fn search_dht_single_key(
         &self,
         _node_id: DHTKey,
@@ -269,7 +269,7 @@ impl RPCProcessor {
         Err(RPCError::unimplemented("search_dht_single_key")).map_err(logthru_rpc!(error))
     }
 
-    // Search the DHT for the 'count' closest nodes to a key, adding them all to the routing table if they are not there and returning their node references
+    /// Search the DHT for the 'count' closest nodes to a key, adding them all to the routing table if they are not there and returning their node references
     pub async fn search_dht_multi_key(
         &self,
         _node_id: DHTKey,
@@ -281,8 +281,8 @@ impl RPCProcessor {
         Err(RPCError::unimplemented("search_dht_multi_key")).map_err(logthru_rpc!(error))
     }
 
-    // Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
-    // Note: This routine can possible be recursive, hence the SendPinBoxFuture async form
+    /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
+    /// Note: This routine can possible be recursive, hence the SendPinBoxFuture async form
     pub fn resolve_node(
         &self,
         node_id: DHTKey,
@@ -393,7 +393,7 @@ impl RPCProcessor {
                     .stats_question_lost(waitable_reply.node_ref.clone());
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
-                // Note that we definitely received this node info since we got a reply
+                // Note that the remote node definitely received this node info since we got a reply
                 waitable_reply.node_ref.set_seen_our_node_info();
 
                 // Reply received
@@ -410,9 +410,9 @@ impl RPCProcessor {
         out
     }
 
-    // Gets a 'RespondTo::Sender' that contains either our dial info,
-    // or None if the peer has seen our dial info before or our node info is not yet valid
-    // because of an unknown network class
+    /// Gets a 'RespondTo::Sender' that contains either our dial info,
+    /// or None if the peer has seen our dial info before or our node info is not yet valid
+    /// because of an unknown network class
     pub fn make_respond_to_sender(&self, peer: NodeRef) -> RespondTo {
         if peer.has_seen_our_node_info()
             || matches!(
@@ -429,9 +429,9 @@ impl RPCProcessor {
         }
     }
 
-    // Produce a byte buffer that represents the wire encoding of the entire
-    // unencrypted envelope body for a RPC message. This incorporates
-    // wrapping a private and/or safety route if they are specified.
+    /// Produce a byte buffer that represents the wire encoding of the entire
+    /// unencrypted envelope body for a RPC message. This incorporates
+    /// wrapping a private and/or safety route if they are specified.
     #[instrument(level = "debug", skip(self, operation, safety_route_spec), err)]
     fn render_operation(
         &self,
@@ -800,9 +800,11 @@ impl RPCProcessor {
                                 "respond_to_sender_signed_node_info has invalid peer scope",
                             ));
                         }
-                        opt_sender_nr = self
-                            .routing_table()
-                            .register_node_with_signed_node_info(sender_node_id, sender_ni.clone());
+                        opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
+                            sender_node_id,
+                            sender_ni.clone(),
+                            false,
+                        );
                     }
                     _ => {}
                 }

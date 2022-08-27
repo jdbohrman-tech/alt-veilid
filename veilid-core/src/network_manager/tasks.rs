@@ -188,7 +188,7 @@ impl NetworkManager {
                 let k = pi.node_id.key;
                 // Register the node
                 if let Some(nr) =
-                    routing_table.register_node_with_signed_node_info(k, pi.signed_node_info)
+                    routing_table.register_node_with_signed_node_info(k, pi.signed_node_info, false)
                 {
                     // Add this our futures to process in parallel
                     let routing_table = routing_table.clone();
@@ -288,6 +288,7 @@ impl NetworkManager {
                     dial_info_detail_list: v.dial_info_details, // Dial info is as specified in the bootstrap list
                     relay_peer_info: None, // Bootstraps never require a relay themselves
                 }),
+                true,
             ) {
                 // Add this our futures to process in parallel
                 let routing_table = routing_table.clone();
@@ -458,6 +459,7 @@ impl NetworkManager {
                         if let Some(nr) = routing_table.register_node_with_signed_node_info(
                             outbound_relay_peerinfo.node_id.key,
                             outbound_relay_peerinfo.signed_node_info,
+                            false,
                         ) {
                             info!("Outbound relay node selected: {}", nr);
                             inner.relay_node = Some(nr);
@@ -529,6 +531,30 @@ impl NetworkManager {
         // Send update
         self.send_network_update();
 
+        Ok(())
+    }
+
+    // Clean up the public address check tables, removing entries that have timed out
+    #[instrument(level = "trace", skip(self), err)]
+    pub(super) async fn public_address_check_task_routine(
+        self,
+        stop_token: StopToken,
+        _last_ts: u64,
+        cur_ts: u64,
+    ) -> EyreResult<()> {
+        // go through public_address_inconsistencies_table and time out things that have expired
+        let mut inner = self.inner.lock();
+        for (_, pait_v) in &mut inner.public_address_inconsistencies_table {
+            let mut expired = Vec::new();
+            for (addr, exp_ts) in pait_v.iter() {
+                if *exp_ts <= cur_ts {
+                    expired.push(*addr);
+                }
+            }
+            for exp in expired {
+                pait_v.remove(&exp);
+            }
+        }
         Ok(())
     }
 }

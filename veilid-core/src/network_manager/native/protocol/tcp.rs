@@ -69,11 +69,15 @@ impl RawTcpNetworkConnection {
 
         network_result_try!(stream.read_exact(&mut header).await.into_network_result()?);
         if header[0] != b'V' || header[1] != b'L' {
-            bail_io_error_other!("received invalid TCP frame header");
+            return Ok(NetworkResult::invalid_message(
+                "received invalid TCP frame header",
+            ));
         }
         let len = ((header[3] as usize) << 8) | (header[2] as usize);
         if len > MAX_MESSAGE_SIZE {
-            bail_io_error_other!("received too large TCP frame");
+            return Ok(NetworkResult::invalid_message(
+                "received too large TCP frame",
+            ));
         }
 
         let mut out: Vec<u8> = vec![0u8; len];

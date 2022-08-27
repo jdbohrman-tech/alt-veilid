@@ -108,6 +108,12 @@ impl NodeRef {
     pub fn set_seen_our_node_info(&self) {
         self.operate_mut(|e| e.set_seen_our_node_info(true));
     }
+    pub fn has_updated_since_last_network_change(&self) -> bool {
+        self.operate(|e| e.has_updated_since_last_network_change())
+    }
+    pub fn set_updated_since_last_network_change(&self) {
+        self.operate_mut(|e| e.set_updated_since_last_network_change(true));
+    }
     pub fn network_class(&self) -> Option<NetworkClass> {
         self.operate(|e| e.node_info().map(|n| n.network_class))
     }
@@ -139,7 +145,7 @@ impl NodeRef {
 
             // Register relay node and return noderef
             self.routing_table
-                .register_node_with_signed_node_info(t.node_id.key, t.signed_node_info)
+                .register_node_with_signed_node_info(t.node_id.key, t.signed_node_info, false)
                 .map(|mut nr| {
                     nr.set_filter(self.filter_ref().cloned());
                     nr

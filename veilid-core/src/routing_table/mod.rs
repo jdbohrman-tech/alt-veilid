@@ -290,6 +290,7 @@ impl RoutingTable {
         // Public dial info changed, go through all nodes and reset their 'seen our node info' bit
         if matches!(domain, RoutingDomain::PublicInternet) {
             Self::reset_all_seen_our_node_info(&*inner);
+            Self::reset_all_updated_since_last_network_change(&*inner);
         }
 
         Ok(())
@@ -299,6 +300,14 @@ impl RoutingTable {
         let cur_ts = intf::get_timestamp();
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_, v| {
             v.with_mut(|e| e.set_seen_our_node_info(false));
+            Option::<()>::None
+        });
+    }
+
+    fn reset_all_updated_since_last_network_change(inner: &RoutingTableInner) {
+        let cur_ts = intf::get_timestamp();
+        Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_, v| {
+            v.with_mut(|e| e.set_updated_since_last_network_change(false));
             Option::<()>::None
         });
     }
@@ -587,6 +596,7 @@ impl RoutingTable {
         &self,
         node_id: DHTKey,
         signed_node_info: SignedNodeInfo,
+        allow_invalid_signature: bool,
     ) -> Option<NodeRef> {
         // validate signed node info is not something malicious
         if node_id == self.node_id() {
@@ -601,7 +611,7 @@ impl RoutingTable {
         }
 
         self.create_node_ref(node_id, |e| {
-            if e.update_node_info(signed_node_info) {
+            if e.update_signed_node_info(signed_node_info, allow_invalid_signature) {
                 // at least someone thought this node was live and its node info changed so lets try to contact it
                 e.touch_last_seen(intf::get_timestamp());
             }

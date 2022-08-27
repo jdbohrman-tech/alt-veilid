@@ -1,33 +1,36 @@
 use super::*;
 use core::sync::atomic::{AtomicU32, Ordering};
 
-// Reliable pings are done with increased spacing between pings
-// - Start secs is the number of seconds between the first two pings
-// - Max secs is the maximum number of seconds between consecutive pings
-// - Multiplier changes the number of seconds between pings over time
-//   making it longer as the node becomes more reliable
+/// Reliable pings are done with increased spacing between pings
+
+/// - Start secs is the number of seconds between the first two pings
 const RELIABLE_PING_INTERVAL_START_SECS: u32 = 10;
+/// - Max secs is the maximum number of seconds between consecutive pings
 const RELIABLE_PING_INTERVAL_MAX_SECS: u32 = 10 * 60;
+/// - Multiplier changes the number of seconds between pings over time
+///   making it longer as the node becomes more reliable
 const RELIABLE_PING_INTERVAL_MULTIPLIER: f64 = 2.0;
 
-// Unreliable pings are done for a fixed amount of time while the
-// node is given a chance to come back online before it is made dead
-// If a node misses a single ping, it is marked unreliable and must
-// return reliable pings for the duration of the span before being
-// marked reliable again
-// - Span is the number of seconds total to attempt to validate the node
-// - Interval is the number of seconds between each ping
+/// Unreliable pings are done for a fixed amount of time while the
+/// node is given a chance to come back online before it is made dead
+/// If a node misses a single ping, it is marked unreliable and must
+/// return reliable pings for the duration of the span before being
+/// marked reliable again
+///
+/// - Span is the number of seconds total to attempt to validate the node
 const UNRELIABLE_PING_SPAN_SECS: u32 = 60;
+/// - Interval is the number of seconds between each ping
 const UNRELIABLE_PING_INTERVAL_SECS: u32 = 5;
 
-// Keepalive pings are done occasionally to ensure holepunched public dialinfo
-// remains valid, as well as to make sure we remain in any relay node's routing table
+/// Keepalive pings are done occasionally to ensure holepunched public dialinfo
+/// remains valid, as well as to make sure we remain in any relay node's routing table
 const KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
 
-// How many times do we try to ping a never-reached node before we call it dead
+/// How many times do we try to ping a never-reached node before we call it dead
 const NEVER_REACHED_PING_COUNT: u32 = 3;
 
 // Do not change order here, it will mess up other sorts
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BucketEntryState {
     Dead,
@@ -42,6 +45,7 @@ struct LastConnectionKey(PeerScope, ProtocolType, AddressType);
 pub struct BucketEntryInner {
     min_max_version: Option<(u8, u8)>,
     seen_our_node_info: bool,
+    updated_since_last_network_change: bool,
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
     opt_signed_node_info: Option<SignedNodeInfo>,
     opt_local_node_info: Option<LocalNodeInfo>,
@@ -112,22 +116,44 @@ impl BucketEntryInner {
     }
 
     // Retuns true if the node info changed
-    pub fn update_node_info(&mut self, signed_node_info: SignedNodeInfo) -> bool {
-        // Don't update with older node info, or something less valid
+    pub fn update_signed_node_info(
+        &mut self,
+        signed_node_info: SignedNodeInfo,
+        allow_invalid_signature: bool,
+    ) -> bool {
+        // Don't allow invalid signatures unless we are explicitly allowing it
+        if !allow_invalid_signature && !signed_node_info.signature.valid {
+            return false;
+        }
+
+        // See if we have an existing signed_node_info to update or not
         if let Some(current_sni) = &self.opt_signed_node_info {
-            if current_sni.signature.valid && !signed_node_info.signature.valid {
-                return false;
-            }
-            if signed_node_info.timestamp < current_sni.timestamp {
+            // If the timestamp hasn't changed or is less, ignore this update
+            if signed_node_info.timestamp <= current_sni.timestamp {
+                // If we received a node update with the same timestamp
+                // we can try again, but only if our network hasn't changed
+                if !self.updated_since_last_network_change
+                    && signed_node_info.timestamp == current_sni.timestamp
+                {
+                    // No need to update the signednodeinfo though since the timestamp is the same
+                    // Just return true so we can make the node not dead
+                    self.updated_since_last_network_change = true;
+                    return true;
+                }
                 return false;
             }
         }
+
+        // Update the protocol min/max version we have
         self.min_max_version = Some((
             signed_node_info.node_info.min_version,
             signed_node_info.node_info.max_version,
         ));
+
+        // Update the signed node info
         self.opt_signed_node_info = Some(signed_node_info);
 
+        self.updated_since_last_network_change = true;
         true
     }
     pub fn update_local_node_info(&mut self, local_node_info: LocalNodeInfo) {
@@ -236,6 +262,14 @@ impl BucketEntryInner {
 
     pub fn has_seen_our_node_info(&self) -> bool {
         self.seen_our_node_info
+    }
+
+    pub fn set_updated_since_last_network_change(&mut self, updated: bool) {
+        self.updated_since_last_network_change = updated;
+    }
+
+    pub fn has_updated_since_last_network_change(&self) -> bool {
+        self.updated_since_last_network_change
     }
 
     ///// stats methods
@@ -461,6 +495,7 @@ impl BucketEntry {
             inner: RwLock::new(BucketEntryInner {
                 min_max_version: None,
                 seen_our_node_info: false,
+                updated_since_last_network_change: false,
                 last_connections: BTreeMap::new(),
                 opt_signed_node_info: None,
                 opt_local_node_info: None,

@@ -113,7 +113,7 @@ impl Network {
         let addr = match tcp_stream.peer_addr() {
             Ok(addr) => addr,
             Err(e) => {
-                log_net!(error "failed to get peer address: {}", e);
+                log_net!(debug "failed to get peer address: {}", e);
                 return;
             }
         };
@@ -139,7 +139,7 @@ impl Network {
         {
             // If we fail to get a packet within the connection initial timeout
             // then we punt this connection
-            log_net!(warn "connection initial timeout from: {:?}", addr);
+            log_net!("connection initial timeout from: {:?}", addr);
             return;
         }
 
@@ -169,12 +169,12 @@ impl Network {
             }
             Ok(None) => {
                 // No protocol handlers matched? drop it.
-                log_net!(warn "no protocol handler for connection from {:?}", addr);
+                log_net!(debug "no protocol handler for connection from {:?}", addr);
                 return;
             }
             Err(e) => {
                 // Failed to negotiate connection? drop it.
-                log_net!(warn "failed to negotiate connection from {:?}: {}", addr, e);
+                log_net!(debug "failed to negotiate connection from {:?}: {}", addr, e);
                 return;
             }
         };

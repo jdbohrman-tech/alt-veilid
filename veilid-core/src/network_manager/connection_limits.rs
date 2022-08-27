@@ -41,30 +41,6 @@ impl ConnectionLimits {
         }
     }
 
-    // Converts an ip to a ip block by applying a netmask
-    // to the host part of the ip address
-    // ipv4 addresses are treated as single hosts
-    // ipv6 addresses are treated as prefix allocated blocks
-    fn ip_to_ipblock(&self, addr: IpAddr) -> IpAddr {
-        match addr {
-            IpAddr::V4(_) => addr,
-            IpAddr::V6(v6) => {
-                let mut hostlen = 128usize.saturating_sub(self.max_connections_per_ip6_prefix_size);
-                let mut out = v6.octets();
-                for i in (0..16).rev() {
-                    if hostlen >= 8 {
-                        out[i] = 0xFF;
-                        hostlen -= 8;
-                    } else {
-                        out[i] |= !(0xFFu8 << hostlen);
-                        break;
-                    }
-                }
-                IpAddr::V6(Ipv6Addr::from(out))
-            }
-        }
-    }
-
     fn purge_old_timestamps(&mut self, cur_ts: u64) {
         // v4
         {
@@ -101,7 +77,7 @@ impl ConnectionLimits {
     }
 
     pub fn add(&mut self, addr: IpAddr) -> Result<(), AddressFilterError> {
-        let ipblock = self.ip_to_ipblock(addr);
+        let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
         let ts = intf::get_timestamp();
 
         self.purge_old_timestamps(ts);
@@ -156,7 +132,7 @@ impl ConnectionLimits {
     }
 
     pub fn remove(&mut self, addr: IpAddr) -> Result<(), AddressNotInTableError> {
-        let ipblock = self.ip_to_ipblock(addr);
+        let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
 
         let ts = intf::get_timestamp();
         self.purge_old_timestamps(ts);

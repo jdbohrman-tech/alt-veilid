@@ -188,7 +188,7 @@ impl IGDManager {
                 }
             }
             let pmk = found?;
-            let pmv = inner.port_maps.remove(&pmk).unwrap();
+            let _pmv = inner.port_maps.remove(&pmk).expect("key found but remove failed");
 
             // Find gateway
             let gw = Self::find_gateway(&mut *inner, at)?;

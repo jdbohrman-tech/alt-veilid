@@ -191,3 +191,27 @@ pub fn ipv6addr_multicast_scope(addr: &Ipv6Addr) -> Option<Ipv6MulticastScope> {
 pub fn ipv6addr_is_multicast(addr: &Ipv6Addr) -> bool {
     (addr.segments()[0] & 0xff00) == 0xff00
 }
+
+// Converts an ip to a ip block by applying a netmask
+// to the host part of the ip address
+// ipv4 addresses are treated as single hosts
+// ipv6 addresses are treated as prefix allocated blocks
+pub fn ip_to_ipblock(ip6_prefix_size: usize, addr: IpAddr) -> IpAddr {
+    match addr {
+        IpAddr::V4(_) => addr,
+        IpAddr::V6(v6) => {
+            let mut hostlen = 128usize.saturating_sub(ip6_prefix_size);
+            let mut out = v6.octets();
+            for i in (0..16).rev() {
+                if hostlen >= 8 {
+                    out[i] = 0xFF;
+                    hostlen -= 8;
+                } else {
+                    out[i] |= !(0xFFu8 << hostlen);
+                    break;
+                }
+            }
+            IpAddr::V6(Ipv6Addr::from(out))
+        }
+    }
+}
