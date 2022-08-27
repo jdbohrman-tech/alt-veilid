@@ -45,6 +45,7 @@ pub const PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT: usize = 3;
 pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 8;
 pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
 pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: u64 = 300_000_000u64; // 5 minutes
+pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: u64 = 3600_000_000u64; // 60 minutes
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 pub const BOOTSTRAP_TXT_VERSION: u8 = 0;
 
@@ -1702,6 +1703,9 @@ impl NetworkManager {
         let network_class = net.get_network_class().unwrap_or(NetworkClass::Invalid);
 
         // Determine if our external address has likely changed
+        let mut bad_public_address_detection_punishment: Option<
+            Box<dyn FnOnce() + Send + 'static>,
+        > = None;
         let needs_public_address_detection =
             if matches!(network_class, NetworkClass::InboundCapable) {
                 // Get the dial info filter for this connection so we can check if we have any public dialinfo that may have changed
@@ -1721,7 +1725,6 @@ impl NetworkManager {
                 // then we zap the network class and re-detect it
                 let inner = &mut *self.inner.lock();
                 let mut inconsistencies = Vec::new();
-                let mut inconsistent = false;
                 // Iteration goes from most recent to least recent node/address pair
                 let pacc = inner
                     .public_address_check_cache
@@ -1737,24 +1740,41 @@ impl NetworkManager {
                     if !current_addresses.contains(a) && !pait.contains_key(reporting_ip_block) {
                         // Record the origin of the inconsistency
                         inconsistencies.push(*reporting_ip_block);
-
-                        // If we have enough inconsistencies to consider changing our public dial info,
-                        // add them to our denylist (throttling) and go ahead and check for new
-                        // public dialinfo
-                        if inconsistencies.len() >= PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT {
-                            let exp_ts =
-                                intf::get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
-                            for i in inconsistencies {
-                                pait.insert(i, exp_ts);
-                            }
-
-                            inconsistent = true;
-                            break;
-                        }
                     }
                 }
+
+                // If we have enough inconsistencies to consider changing our public dial info,
+                // add them to our denylist (throttling) and go ahead and check for new
+                // public dialinfo
+                let inconsistent = if inconsistencies.len() >= PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT
+                {
+                    let exp_ts = intf::get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
+                    for i in &inconsistencies {
+                        pait.insert(*i, exp_ts);
+                    }
+
+                    // Run this routine if the inconsistent nodes turn out to be lying
+                    let this = self.clone();
+                    bad_public_address_detection_punishment = Some(Box::new(move || {
+                        let mut inner = this.inner.lock();
+                        let pait = inner
+                            .public_address_inconsistencies_table
+                            .entry(key)
+                            .or_insert_with(|| HashMap::new());
+                        let exp_ts = intf::get_timestamp()
+                            + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
+                        for i in inconsistencies {
+                            pait.insert(i, exp_ts);
+                        }
+                    }));
+
+                    true
+                } else {
+                    false
+                };
+
                 // // debug code
-                // if changed {
+                // if inconsistent {
                 //     trace!("public_address_check_cache: {:#?}\ncurrent_addresses: {:#?}\ninconsistencies: {}", inner
                 //                 .public_address_check_cache, current_addresses, inconsistencies);
                 // }
@@ -1799,9 +1819,8 @@ impl NetworkManager {
                 let mut inner = self.inner.lock();
                 inner.public_address_check_cache.clear();
 
-                // Reset the network class and dial info so we can re-detect it
-                routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
-                net.reset_network_class();
+                // Re-detect the public dialinfo
+                net.set_needs_public_dial_info_check(bad_public_address_detection_punishment);
             } else {
                 let inner = self.inner.lock();
                 warn!("Public address may have changed. Restarting the server may be required.");

@@ -605,16 +605,13 @@ impl Network {
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn update_network_class_task_routine(
-        self,
+    pub async fn do_public_dial_info_check(
+        &self,
         stop_token: StopToken,
         _l: u64,
         _t: u64,
     ) -> EyreResult<()> {
-        // Ensure we aren't trying to update this without clearing it first
-        let old_network_class = self.inner.lock().network_class;
-        assert_eq!(old_network_class, None);
-
+        // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let protocol_config = self.inner.lock().protocol_config.unwrap_or_default();
         let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
             && protocol_config.inbound.contains(ProtocolType::WS)
@@ -823,6 +820,26 @@ impl Network {
             network_manager.send_node_info_updates(true).await;
         }
 
+        if !changed {}
+
         Ok(())
+    }
+    #[instrument(level = "trace", skip(self), err)]
+    pub async fn update_network_class_task_routine(
+        self,
+        stop_token: StopToken,
+        l: u64,
+        t: u64,
+    ) -> EyreResult<()> {
+        // Note that we are doing the public dial info check
+        self.inner.lock().doing_public_dial_info_check = true;
+
+        // Do the public dial info check
+        let out = self.do_public_dial_info_check(stop_token, l, t);
+
+        // Done with public dial info check
+        self.inner.lock().doing_public_dial_info_check = false;
+
+        out
     }
 }
