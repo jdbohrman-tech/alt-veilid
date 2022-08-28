@@ -55,7 +55,7 @@ impl NetworkManager {
                     // txt_version,min_version,max_version,nodeid,hostname,dialinfoshort*
                     //
                     // Split bootstrap node record by commas. Example:
-                    // 0,0,0,7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ,bootstrap-dev-alpha.veilid.net,T5150,U5150,W5150/ws
+                    // 0,0,0,7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ,bootstrap-1.dev.veilid.net,T5150,U5150,W5150/ws
                     let records: Vec<String> = bsnirecord
                         .trim()
                         .split(',')
