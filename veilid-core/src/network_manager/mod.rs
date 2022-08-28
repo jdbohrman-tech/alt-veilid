@@ -937,6 +937,7 @@ impl NetworkManager {
         // should not be subject to our ability to decode it
 
         // Send receipt directly
+        log_net!(debug "send_out_of_band_receipt: dial_info={}", dial_info);
         network_result_value_or_log!(debug self
             .net()
             .send_data_unbound_to_dial_info(dial_info, rcpt_data)
@@ -1652,7 +1653,7 @@ impl NetworkManager {
     // Determine if a local IP address has changed
     // this means we should restart the low level network and and recreate all of our dial info
     // Wait until we have received confirmation from N different peers
-    pub async fn report_local_socket_address(
+    pub fn report_local_socket_address(
         &self,
         _socket_address: SocketAddress,
         _connection_descriptor: ConnectionDescriptor,
@@ -1664,7 +1665,7 @@ impl NetworkManager {
     // Determine if a global IP address has changed
     // this means we should recreate our public dial info if it is not static and rediscover it
     // Wait until we have received confirmation from N different peers
-    pub async fn report_global_socket_address(
+    pub fn report_global_socket_address(
         &self,
         socket_address: SocketAddress, // the socket address as seen by the remote peer
         connection_descriptor: ConnectionDescriptor, // the connection descriptor used
@@ -1673,39 +1674,46 @@ impl NetworkManager {
         // debug code
         //info!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
 
+        // Ignore these reports if we are currently detecting public dial info
+        let inner = &mut *self.inner.lock();
+        let net = inner.components.as_ref().unwrap().net.clone();
+        if net.doing_public_dial_info_check() {
+            return;
+        }
+        let routing_table = inner.routing_table.as_ref().unwrap().clone();
+        let c = self.config.get();
+        let detect_address_changes = c.network.detect_address_changes;
+
+        // Get the ip(block) this report is coming from
+        let ip6_prefix_size = c.network.max_connections_per_ip6_prefix_size as usize;
+        let ipblock = ip_to_ipblock(
+            ip6_prefix_size,
+            connection_descriptor.remote_address().to_ip_addr(),
+        );
+
+        // Store the reported address if it isn't denylisted
         let key = PublicAddressCheckCacheKey(
             connection_descriptor.protocol_type(),
             connection_descriptor.address_type(),
         );
-
-        let (net, routing_table, detect_address_changes) = {
-            let mut inner = self.inner.lock();
-            let c = self.config.get();
-
-            // Get the ip(block) this report is coming from
-            let ip6_prefix_size = c.network.max_connections_per_ip6_prefix_size as usize;
-            let ipblock = ip_to_ipblock(
-                ip6_prefix_size,
-                connection_descriptor.remote_address().to_ip_addr(),
-            );
-
-            // Store the reported address
-            let pacc = inner
-                .public_address_check_cache
-                .entry(key)
-                .or_insert_with(|| LruCache::new(PUBLIC_ADDRESS_CHECK_CACHE_SIZE));
-            pacc.insert(ipblock, socket_address);
-
-            let net = inner.components.as_ref().unwrap().net.clone();
-            let routing_table = inner.routing_table.as_ref().unwrap().clone();
-            (net, routing_table, c.network.detect_address_changes)
-        };
-        let network_class = net.get_network_class().unwrap_or(NetworkClass::Invalid);
+        let pacc = inner
+            .public_address_check_cache
+            .entry(key)
+            .or_insert_with(|| LruCache::new(PUBLIC_ADDRESS_CHECK_CACHE_SIZE));
+        let pait = inner
+            .public_address_inconsistencies_table
+            .entry(key)
+            .or_insert_with(|| HashMap::new());
+        if pait.contains_key(&ipblock) {
+            return;
+        }
+        pacc.insert(ipblock, socket_address);
 
         // Determine if our external address has likely changed
         let mut bad_public_address_detection_punishment: Option<
             Box<dyn FnOnce() + Send + 'static>,
         > = None;
+        let network_class = net.get_network_class().unwrap_or(NetworkClass::Invalid);
         let needs_public_address_detection =
             if matches!(network_class, NetworkClass::InboundCapable) {
                 // Get the dial info filter for this connection so we can check if we have any public dialinfo that may have changed
@@ -1723,17 +1731,9 @@ impl NetworkManager {
 
                 // If we are inbound capable, but start to see inconsistent socket addresses from multiple reporting peers
                 // then we zap the network class and re-detect it
-                let inner = &mut *self.inner.lock();
                 let mut inconsistencies = Vec::new();
+
                 // Iteration goes from most recent to least recent node/address pair
-                let pacc = inner
-                    .public_address_check_cache
-                    .entry(key)
-                    .or_insert_with(|| LruCache::new(PUBLIC_ADDRESS_CHECK_CACHE_SIZE));
-                let pait = inner
-                    .public_address_inconsistencies_table
-                    .entry(key)
-                    .or_insert_with(|| HashMap::new());
                 for (reporting_ip_block, a) in pacc {
                     // If this address is not one of our current addresses (inconsistent)
                     // and we haven't already denylisted the reporting source,
@@ -1785,7 +1785,6 @@ impl NetworkManager {
                 // but if we are starting to see consistent socket address from multiple reporting peers
                 // then we may be become inbound capable, so zap the network class so we can re-detect it and any public dial info
 
-                let mut inner = self.inner.lock();
                 let mut consistencies = 0;
                 let mut consistent = false;
                 let mut current_address = Option::<SocketAddress>::None;
@@ -1816,13 +1815,11 @@ impl NetworkManager {
                 // Reset the address check cache now so we can start detecting fresh
                 info!("Public address has changed, detecting public dial info");
 
-                let mut inner = self.inner.lock();
                 inner.public_address_check_cache.clear();
 
                 // Re-detect the public dialinfo
                 net.set_needs_public_dial_info_check(bad_public_address_detection_punishment);
             } else {
-                let inner = self.inner.lock();
                 warn!("Public address may have changed. Restarting the server may be required.");
                 warn!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
                 warn!(

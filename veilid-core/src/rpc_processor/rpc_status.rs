@@ -47,24 +47,16 @@ impl RPCProcessor {
             match send_data_kind {
                 SendDataKind::Direct(connection_descriptor) => {
                     match connection_descriptor.peer_scope() {
-                        PeerScope::Global => {
-                            self.network_manager()
-                                .report_global_socket_address(
-                                    socket_address,
-                                    connection_descriptor,
-                                    peer,
-                                )
-                                .await;
-                        }
-                        PeerScope::Local => {
-                            self.network_manager()
-                                .report_local_socket_address(
-                                    socket_address,
-                                    connection_descriptor,
-                                    peer,
-                                )
-                                .await;
-                        }
+                        PeerScope::Global => self.network_manager().report_global_socket_address(
+                            socket_address,
+                            connection_descriptor,
+                            peer,
+                        ),
+                        PeerScope::Local => self.network_manager().report_local_socket_address(
+                            socket_address,
+                            connection_descriptor,
+                            peer,
+                        ),
                     }
                 }
                 SendDataKind::Indirect => {
