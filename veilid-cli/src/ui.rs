@@ -790,7 +790,7 @@ impl UI {
         inner.ui_state.connection_state.set(state);
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
-    pub fn add_node_event(&self, event: &str) {
+    pub fn add_node_event(&self, event: String) {
         let inner = self.inner.borrow();
         let color = *inner.log_colors.get(&Level::Info).unwrap();
         for line in event.lines() {
