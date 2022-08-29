@@ -373,7 +373,8 @@ impl RPCProcessor {
             let (span_id, rpcreader) = res.take_value().unwrap();
             let end_ts = intf::get_timestamp();
 
-            Span::current().follows_from(span_id);
+            // fixme: causes crashes? "Missing otel data span extensions"??
+            //Span::current().follows_from(span_id);
 
             (rpcreader, end_ts - start_ts)
         }))
@@ -903,7 +904,8 @@ impl RPCProcessor {
             receiver.recv_async().timeout_at(stop_token.clone()).await
         {
             let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker");
-            rpc_worker_span.follows_from(span_id);
+            // fixme: causes crashes? "Missing otel data span extensions"??
+            //rpc_worker_span.follows_from(span_id);
             let _enter = rpc_worker_span.enter();
 
             let _ = self

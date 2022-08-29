@@ -480,22 +480,6 @@ impl Network {
             c.network.restricted_nat_retries
         };
 
-        // See if we already have a public dialinfo of this protocol/address type
-        let routing_table = self.routing_table();
-        let dif = DialInfoFilter::global()
-            .with_protocol_type(protocol_type)
-            .with_address_type(AddressType::IPV4);
-        let dids =
-            routing_table.all_filtered_dial_info_details(Some(RoutingDomain::PublicInternet), &dif);
-        if !dids.is_empty() {
-            log_net!(debug
-                "Skipping detection for public dialinfo for {:?}:IPV4",
-                protocol_type
-            );
-            context.set_detected_network_class(NetworkClass::InboundCapable);
-            return Ok(());
-        }
-
         // Start doing ipv4 protocol
         context.protocol_begin(protocol_type, AddressType::IPV4);
 
@@ -553,21 +537,6 @@ impl Network {
         context: &DiscoveryContext,
         protocol_type: ProtocolType,
     ) -> EyreResult<()> {
-        // See if we already have a public dialinfo of this protocol/address type
-        let routing_table = self.routing_table();
-        let dif = DialInfoFilter::global()
-            .with_protocol_type(protocol_type)
-            .with_address_type(AddressType::IPV6);
-        let dids =
-            routing_table.all_filtered_dial_info_details(Some(RoutingDomain::PublicInternet), &dif);
-        if !dids.is_empty() {
-            log_net!(debug
-                "Skipping detection for public dialinfo for {:?}:IPV6",
-                protocol_type
-            );
-            context.set_detected_network_class(NetworkClass::InboundCapable);
-            return Ok(());
-        }
         // Start doing ipv6 protocol
         context.protocol_begin(protocol_type, AddressType::IPV6);
 
