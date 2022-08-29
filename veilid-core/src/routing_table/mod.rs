@@ -617,10 +617,7 @@ impl RoutingTable {
         }
 
         self.create_node_ref(node_id, |e| {
-            if e.update_signed_node_info(signed_node_info, allow_invalid_signature) {
-                // at least someone thought this node was live and its node info changed so lets try to contact it
-                e.touch_last_seen(intf::get_timestamp());
-            }
+            e.update_signed_node_info(signed_node_info, allow_invalid_signature);
         })
     }
 

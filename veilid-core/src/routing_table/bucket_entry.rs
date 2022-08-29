@@ -120,10 +120,11 @@ impl BucketEntryInner {
         &mut self,
         signed_node_info: SignedNodeInfo,
         allow_invalid_signature: bool,
-    ) -> bool {
+    ) {
         // Don't allow invalid signatures unless we are explicitly allowing it
         if !allow_invalid_signature && !signed_node_info.signature.valid {
-            return false;
+            log_rtab!(debug "Invalid signature on signed node info: {:?}", signed_node_info);
+            return;
         }
 
         // See if we have an existing signed_node_info to update or not
@@ -131,16 +132,16 @@ impl BucketEntryInner {
             // If the timestamp hasn't changed or is less, ignore this update
             if signed_node_info.timestamp <= current_sni.timestamp {
                 // If we received a node update with the same timestamp
-                // we can try again, but only if our network hasn't changed
+                // we can make this node live again, but only if our network hasn't changed
                 if !self.updated_since_last_network_change
                     && signed_node_info.timestamp == current_sni.timestamp
                 {
                     // No need to update the signednodeinfo though since the timestamp is the same
                     // Just return true so we can make the node not dead
                     self.updated_since_last_network_change = true;
-                    return true;
+                    self.touch_last_seen(intf::get_timestamp());
                 }
-                return false;
+                return;
             }
         }
 
@@ -152,9 +153,8 @@ impl BucketEntryInner {
 
         // Update the signed node info
         self.opt_signed_node_info = Some(signed_node_info);
-
         self.updated_since_last_network_change = true;
-        true
+        self.touch_last_seen(intf::get_timestamp());
     }
     pub fn update_local_node_info(&mut self, local_node_info: LocalNodeInfo) {
         self.opt_local_node_info = Some(local_node_info)
