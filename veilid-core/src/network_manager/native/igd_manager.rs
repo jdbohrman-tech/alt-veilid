@@ -6,6 +6,7 @@ use std::net::UdpSocket;
 const UPNP_GATEWAY_DETECT_TIMEOUT_MS: u32 = 5_000;
 const UPNP_MAPPING_LIFETIME_MS: u32 = 120_000;
 const UPNP_MAPPING_ATTEMPTS: u32 = 3;
+const UPNP_MAPPING_LIFETIME_US:u64 = (UPNP_MAPPING_LIFETIME_MS as u64) * 1000u64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct PortMapKey {
@@ -299,18 +300,17 @@ impl IGDManager {
         // If an error is received, then return false to restart the local network
         let mut full_renews: Vec<(PortMapKey, PortMapValue)> = Vec::new();
         let mut renews: Vec<(PortMapKey, PortMapValue)> = Vec::new();
-        let now = intf::get_timestamp();
-        const UPNP_MAPPING_LIFETIME_US:u64 = (UPNP_MAPPING_LIFETIME_MS as u64) * 1000u64;
-
         {
             let inner = self.inner.lock();
+            let now = intf::get_timestamp();
 
             for (k, v) in &inner.port_maps {
-                if (now - v.timestamp) >= UPNP_MAPPING_LIFETIME_US || v.renewal_attempts >= UPNP_MAPPING_ATTEMPTS {
+                let mapping_lifetime = now.saturating_sub(v.timestamp);
+                if mapping_lifetime >= UPNP_MAPPING_LIFETIME_US || v.renewal_attempts >= UPNP_MAPPING_ATTEMPTS {
                     // Past expiration time or tried N times, do a full renew and fail out if we can't
                     full_renews.push((*k, *v));
                 }
-                else if (now - v.timestamp) >= v.renewal_lifetime {
+                else if mapping_lifetime >= v.renewal_lifetime {
                     // Attempt a normal renewal
                     renews.push((*k, *v));            
                 }

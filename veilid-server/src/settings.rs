@@ -67,7 +67,7 @@ core:
         hole_punch_receipt_time_ms: 5000 
         node_id: ''
         node_id_secret: ''
-        bootstrap: ['bootstrap-dev.veilid.net']
+        bootstrap: ['bootstrap.dev.veilid.net']
         bootstrap_nodes: []
         routing_table:
             limit_over_attached: 64
@@ -1472,7 +1472,7 @@ mod tests {
         //
         assert_eq!(
             s.core.network.bootstrap,
-            vec!["bootstrap-dev.veilid.net".to_owned()]
+            vec!["bootstrap.dev.veilid.net".to_owned()]
         );
         assert_eq!(s.core.network.bootstrap_nodes, vec![]);
         //

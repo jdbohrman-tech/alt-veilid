@@ -291,6 +291,11 @@ impl Network {
     }
 
     //////////////////////////////////////////
+    
+    pub fn set_needs_public_dial_info_check(&self) {
+        //
+    }
+
     pub fn get_network_class(&self) -> Option<NetworkClass> {
         // xxx eventually detect tor browser?
         return if self.inner.lock().network_started {
@@ -298,11 +303,6 @@ impl Network {
         } else {
             None
         };
-    }
-
-    pub fn reset_network_class(&self) {
-        //let mut inner = self.inner.lock();
-        //inner.network_class = None;
     }
 
     pub fn get_protocol_config(&self) -> Option<ProtocolConfig> {

@@ -48,6 +48,10 @@ struct NetworkInner {
     enable_ipv4: bool,
     enable_ipv6_global: bool,
     enable_ipv6_local: bool,
+    // public dial info check
+    needs_public_dial_info_check: bool,
+    doing_public_dial_info_check: bool,
+    public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     // udp
     bound_first_udp: BTreeMap<u16, Option<(socket2::Socket, socket2::Socket)>>,
     inbound_udp_protocol_handlers: BTreeMap<SocketAddr, RawUdpProtocolHandler>,
@@ -89,6 +93,9 @@ impl Network {
         NetworkInner {
             network_started: false,
             network_needs_restart: false,
+            needs_public_dial_info_check: false,
+            doing_public_dial_info_check: false,
+            public_dial_info_check_punishment: None,
             protocol_config: None,
             static_public_dialinfo: ProtocolTypeSet::empty(),
             network_class: None,
@@ -770,15 +777,28 @@ impl Network {
     }
 
     //////////////////////////////////////////
+    pub fn set_needs_public_dial_info_check(
+        &self,
+        punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
+    ) {
+        let mut inner = self.inner.lock();
+        inner.needs_public_dial_info_check = true;
+        inner.public_dial_info_check_punishment = punishment;
+    }
+
+    fn needs_public_dial_info_check(&self) -> bool {
+        let inner = self.inner.lock();
+        inner.needs_public_dial_info_check
+    }
+
+    pub fn doing_public_dial_info_check(&self) -> bool {
+        let inner = self.inner.lock();
+        inner.doing_public_dial_info_check
+    }
+
     pub fn get_network_class(&self) -> Option<NetworkClass> {
         let inner = self.inner.lock();
         inner.network_class
-    }
-
-    #[instrument(level = "debug", skip_all)]
-    pub fn reset_network_class(&self) {
-        let mut inner = self.inner.lock();
-        inner.network_class = None;
     }
 
     //////////////////////////////////////////
@@ -842,7 +862,8 @@ impl Network {
         // If we need to figure out our network class, tick the task for it
         if detect_address_changes {
             let network_class = self.get_network_class().unwrap_or(NetworkClass::Invalid);
-            if network_class == NetworkClass::Invalid {
+            let needs_public_dial_info_check = self.needs_public_dial_info_check();
+            if network_class == NetworkClass::Invalid || needs_public_dial_info_check {
                 let routing_table = self.routing_table();
                 let rth = routing_table.get_routing_table_health();
 

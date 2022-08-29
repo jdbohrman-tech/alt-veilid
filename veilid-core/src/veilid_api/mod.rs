@@ -323,7 +323,7 @@ pub struct SenderInfo {
 }
 
 // Keep member order appropriate for sorting < preference
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Hash)]
 pub enum DialInfoClass {
     Direct = 0, // D = Directly reachable with public IP and no firewall, with statically configured port
     Mapped = 1, // M = Directly reachable with via portmap behind any NAT or firewalled with dynamically negotiated port
@@ -357,7 +357,7 @@ impl DialInfoClass {
 }
 
 // Keep member order appropriate for sorting < preference
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 pub struct DialInfoDetail {
     pub class: DialInfoClass,
     pub dial_info: DialInfo,
@@ -369,7 +369,7 @@ impl MatchesDialInfoFilter for DialInfoDetail {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Hash)]
 pub enum NetworkClass {
     InboundCapable = 0, // I = Inbound capable without relay, may require signal
     OutboundOnly = 1, // O = Outbound only, inbound relay required except with reverse connect signal
@@ -856,29 +856,29 @@ pub trait MatchesDialInfoFilter {
     fn matches_filter(&self, filter: &DialInfoFilter) -> bool;
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 pub struct DialInfoUDP {
     pub socket_address: SocketAddress,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 pub struct DialInfoTCP {
     pub socket_address: SocketAddress,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 pub struct DialInfoWS {
     pub socket_address: SocketAddress,
     pub request: String,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 pub struct DialInfoWSS {
     pub socket_address: SocketAddress,
     pub request: String,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 #[serde(tag = "kind")]
 // Keep member order appropriate for sorting < preference
 // Must match ProtocolType order

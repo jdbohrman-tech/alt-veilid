@@ -234,16 +234,7 @@ impl RoutingTable {
         ret
     }
 
-    pub fn register_dial_info(
-        &self,
-        domain: RoutingDomain,
-        dial_info: DialInfo,
-        class: DialInfoClass,
-    ) -> EyreResult<()> {
-        log_rtab!(debug
-            "Registering dial_info with:\n  domain: {:?}\n  dial_info: {:?}\n  class: {:?}",
-            domain, dial_info, class
-        );
+    pub fn ensure_dial_info_is_valid(&self, domain: RoutingDomain, dial_info: &DialInfo) -> bool {
         let enable_local_peer_scope = {
             let config = self.network_manager().config();
             let c = config.get();
@@ -254,13 +245,28 @@ impl RoutingTable {
             && matches!(domain, RoutingDomain::PublicInternet)
             && dial_info.is_local()
         {
-            bail!("shouldn't be registering local addresses as public");
+            log_rtab!(debug "shouldn't be registering local addresses as public");
+            return false;
         }
         if !dial_info.is_valid() {
-            bail!(
+            log_rtab!(debug
                 "shouldn't be registering invalid addresses: {:?}",
                 dial_info
             );
+            return false;
+        }
+        true
+    }
+
+    #[instrument(level = "debug", skip(self), err)]
+    pub fn register_dial_info(
+        &self,
+        domain: RoutingDomain,
+        dial_info: DialInfo,
+        class: DialInfoClass,
+    ) -> EyreResult<()> {
+        if !self.ensure_dial_info_is_valid(domain, &dial_info) {
+            return Err(eyre!("dial info is not valid"));
         }
 
         let mut inner = self.inner.write();
@@ -611,10 +617,7 @@ impl RoutingTable {
         }
 
         self.create_node_ref(node_id, |e| {
-            if e.update_signed_node_info(signed_node_info, allow_invalid_signature) {
-                // at least someone thought this node was live and its node info changed so lets try to contact it
-                e.touch_last_seen(intf::get_timestamp());
-            }
+            e.update_signed_node_info(signed_node_info, allow_invalid_signature);
         })
     }
 
