@@ -61,19 +61,27 @@ impl RPCProcessor {
 
         // add node information for the requesting node to our routing table
         let routing_table = self.routing_table();
+        let rt2 = routing_table.clone();
+        let rt3 = routing_table.clone();
 
         // find N nodes closest to the target node in our routing table
-        let own_peer_info = routing_table.get_own_peer_info();
+        let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
         let own_peer_info_is_valid = own_peer_info.signed_node_info.is_valid();
 
         let closest_nodes = routing_table.find_closest_nodes(
             find_node_q.node_id,
             // filter
             Some(move |_k, v| {
-                RoutingTable::filter_has_valid_signed_node_info(v, own_peer_info_is_valid)
+                rt2.filter_has_valid_signed_node_info(
+                    v,
+                    own_peer_info_is_valid,
+                    Some(RoutingDomain::PublicInternet),
+                )
             }),
             // transform
-            move |k, v| RoutingTable::transform_to_peer_info(k, v, &own_peer_info),
+            move |k, v| {
+                rt3.transform_to_peer_info(RoutingDomain::PublicInternet, k, v, &own_peer_info)
+            },
         );
 
         // Make status answer

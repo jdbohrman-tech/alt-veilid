@@ -15,20 +15,37 @@ use bucket::*;
 pub use bucket_entry::*;
 pub use debug::*;
 pub use find_nodes::*;
+use hashlink::LruCache;
 pub use node_ref::*;
 pub use stats_accounting::*;
+
+const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
 //////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub enum RoutingDomain {
-    PublicInternet,
-    LocalNetwork,
+    PublicInternet = 0,
+    LocalNetwork = 1,
+}
+impl RoutingDomain {
+    pub const fn count() -> usize {
+        2
+    }
+    pub const fn all() -> [RoutingDomain; RoutingDomain::count()] {
+        [RoutingDomain::PublicInternet, RoutingDomain::LocalNetwork]
+    }
 }
 
 #[derive(Debug, Default)]
 pub struct RoutingDomainDetail {
+    relay_node: Option<NodeRef>,
     dial_info_details: Vec<DialInfoDetail>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RecentPeersEntry {
+    last_connection: ConnectionDescriptor,
 }
 
 struct RoutingTableInner {
@@ -46,6 +63,7 @@ struct RoutingTableInner {
     self_latency_stats_accounting: LatencyStatsAccounting, // Interim accounting mechanism for this node's RPC latency to any other node
     self_transfer_stats_accounting: TransferStatsAccounting, // Interim accounting mechanism for the total bandwidth to/from this node
     self_transfer_stats: TransferStatsDownUp, // Statistics about the total bandwidth to/from this node
+    recent_peers: LruCache<DHTKey, RecentPeersEntry>, // Peers we have recently communicated with
 }
 
 #[derive(Clone, Debug, Default)]
@@ -82,6 +100,7 @@ impl RoutingTable {
             self_latency_stats_accounting: LatencyStatsAccounting::new(),
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
+            recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
         }
     }
     fn new_unlocked_inner(_config: VeilidConfig) -> RoutingTableUnlockedInner {
@@ -157,6 +176,16 @@ impl RoutingTable {
             RoutingDomain::PublicInternet => f(&mut inner.public_internet_routing_domain),
             RoutingDomain::LocalNetwork => f(&mut inner.local_network_routing_domain),
         }
+    }
+
+    pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {
+        let inner = self.inner.read();
+        Self::with_routing_domain(&*inner, domain, |rd| rd.relay_node.clone())
+    }
+
+    pub fn set_relay_node(&self, domain: RoutingDomain, opt_relay_node: Option<NodeRef>) {
+        let inner = self.inner.write();
+        Self::with_routing_domain(&mut *inner, domain, |rd| rd.relay_node = opt_relay_node);
     }
 
     pub fn has_dial_info(&self, domain: RoutingDomain) -> bool {
@@ -295,14 +324,14 @@ impl RoutingTable {
 
         // Public dial info changed, go through all nodes and reset their 'seen our node info' bit
         if matches!(domain, RoutingDomain::PublicInternet) {
-            Self::reset_all_seen_our_node_info(&*inner);
-            Self::reset_all_updated_since_last_network_change(&*inner);
+            Self::reset_all_seen_our_node_info(&mut *inner);
+            Self::reset_all_updated_since_last_network_change(&mut *inner);
         }
 
         Ok(())
     }
 
-    fn reset_all_seen_our_node_info(inner: &RoutingTableInner) {
+    fn reset_all_seen_our_node_info(inner: &mut RoutingTableInner) {
         let cur_ts = intf::get_timestamp();
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_, v| {
             v.with_mut(|e| e.set_seen_our_node_info(false));
@@ -310,7 +339,7 @@ impl RoutingTable {
         });
     }
 
-    fn reset_all_updated_since_last_network_change(inner: &RoutingTableInner) {
+    fn reset_all_updated_since_last_network_change(inner: &mut RoutingTableInner) {
         let cur_ts = intf::get_timestamp();
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_, v| {
             v.with_mut(|e| e.set_updated_since_last_network_change(false));
@@ -328,7 +357,7 @@ impl RoutingTable {
 
         // Public dial info changed, go through all nodes and reset their 'seen our node info' bit
         if matches!(domain, RoutingDomain::PublicInternet) {
-            Self::reset_all_seen_our_node_info(&*inner);
+            Self::reset_all_seen_our_node_info(&mut *inner);
         }
     }
 
@@ -479,12 +508,17 @@ impl RoutingTable {
         None
     }
 
-    pub fn get_nodes_needing_updates(&self, cur_ts: u64, all: bool) -> Vec<NodeRef> {
+    pub fn get_nodes_needing_updates(
+        &self,
+        routing_domain: RoutingDomain,
+        cur_ts: u64,
+        all: bool,
+    ) -> Vec<NodeRef> {
         let inner = self.inner.read();
         let mut node_refs = Vec::<NodeRef>::with_capacity(inner.bucket_entry_count);
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
             // Only update nodes that haven't seen our node info yet
-            if all || !v.with(|e| e.has_seen_our_node_info()) {
+            if all || !v.with(|e| e.has_seen_our_node_info(routing_domain)) {
                 node_refs.push(NodeRef::new(self.clone(), k, v, None));
             }
             Option::<()>::None
@@ -492,16 +526,25 @@ impl RoutingTable {
         node_refs
     }
 
-    pub fn get_nodes_needing_ping(
-        &self,
-        cur_ts: u64,
-        relay_node_id: Option<DHTKey>,
-    ) -> Vec<NodeRef> {
+    pub fn get_nodes_needing_ping(&self, cur_ts: u64) -> Vec<NodeRef> {
         let inner = self.inner.read();
+
+        // Collect relay nodes
+        let mut relays: HashSet<DHTKey> = HashSet::new();
+        for rd in RoutingDomain::all() {
+            let opt_relay_id =
+                Self::with_routing_domain(&*inner, RoutingDomain::PublicInternet, |rd| {
+                    rd.relay_node.map(|rn| rn.node_id())
+                });
+            if let Some(relay_id) = opt_relay_id {
+                relays.insert(relay_id);
+            }
+        }
+
+        // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
         let mut node_refs = Vec::<NodeRef>::with_capacity(inner.bucket_entry_count);
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
-            // Only update nodes that haven't seen our node info yet
-            if v.with(|e| e.needs_ping(&k, cur_ts, relay_node_id)) {
+            if v.with(|e| e.has_node_info(None) && e.needs_ping(&k, cur_ts, relays.contains(&k))) {
                 node_refs.push(NodeRef::new(self.clone(), k, v, None));
             }
             Option::<()>::None
@@ -600,6 +643,7 @@ impl RoutingTable {
     // and add the dial info we have for it, since that's pretty common
     pub fn register_node_with_signed_node_info(
         &self,
+        routing_domain: RoutingDomain,
         node_id: DHTKey,
         signed_node_info: SignedNodeInfo,
         allow_invalid_signature: bool,
@@ -617,7 +661,7 @@ impl RoutingTable {
         }
 
         self.create_node_ref(node_id, |e| {
-            e.update_signed_node_info(signed_node_info, allow_invalid_signature);
+            e.update_signed_node_info(routing_domain, signed_node_info, allow_invalid_signature);
         })
     }
 
@@ -654,64 +698,6 @@ impl RoutingTable {
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Stats Accounting
-    pub fn stats_question_sent(
-        &self,
-        node_ref: NodeRef,
-        ts: u64,
-        bytes: u64,
-        expects_answer: bool,
-    ) {
-        self.inner
-            .write()
-            .self_transfer_stats_accounting
-            .add_up(bytes);
-        node_ref.operate_mut(|e| {
-            e.question_sent(ts, bytes, expects_answer);
-        })
-    }
-    pub fn stats_question_rcvd(&self, node_ref: NodeRef, ts: u64, bytes: u64) {
-        self.inner
-            .write()
-            .self_transfer_stats_accounting
-            .add_down(bytes);
-        node_ref.operate_mut(|e| {
-            e.question_rcvd(ts, bytes);
-        })
-    }
-    pub fn stats_answer_sent(&self, node_ref: NodeRef, bytes: u64) {
-        self.inner
-            .write()
-            .self_transfer_stats_accounting
-            .add_up(bytes);
-        node_ref.operate_mut(|e| {
-            e.answer_sent(bytes);
-        })
-    }
-    pub fn stats_answer_rcvd(&self, node_ref: NodeRef, send_ts: u64, recv_ts: u64, bytes: u64) {
-        {
-            let mut inner = self.inner.write();
-            inner.self_transfer_stats_accounting.add_down(bytes);
-            inner
-                .self_latency_stats_accounting
-                .record_latency(recv_ts - send_ts);
-        }
-        node_ref.operate_mut(|e| {
-            e.answer_rcvd(send_ts, recv_ts, bytes);
-        })
-    }
-    pub fn stats_question_lost(&self, node_ref: NodeRef) {
-        node_ref.operate_mut(|e| {
-            e.question_lost();
-        })
-    }
-    pub fn stats_failed_to_send(&self, node_ref: NodeRef, ts: u64, expects_answer: bool) {
-        node_ref.operate_mut(|e| {
-            e.failed_to_send(ts, expects_answer);
-        })
-    }
-
-    //////////////////////////////////////////////////////////////////////
     // Routing Table Health Metrics
 
     pub fn get_routing_table_health(&self) -> RoutingTableHealth {
@@ -734,5 +720,24 @@ impl RoutingTable {
             }
         }
         health
+    }
+
+    pub fn get_recent_peers(&self) -> Vec<(DHTKey, RecentPeersEntry)> {
+        let inner = self.inner.read();
+        inner
+            .recent_peers
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
+
+    pub fn touch_recent_peer(
+        inner: &mut RoutingTableInner,
+        node_id: DHTKey,
+        last_connection: ConnectionDescriptor,
+    ) {
+        inner
+            .recent_peers
+            .insert(node_id, RecentPeersEntry { last_connection });
     }
 }

@@ -124,7 +124,7 @@ impl DiscoveryContext {
         let inbound_dial_info_entry_filter =
             RoutingTable::make_inbound_dial_info_entry_filter(dial_info_filter.clone());
         let disallow_relays_filter = move |e: &BucketEntryInner| {
-            if let Some(n) = e.node_info() {
+            if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
                 n.relay_peer_info.is_none()
             } else {
                 false
@@ -583,7 +583,8 @@ impl Network {
         let (protocol_config, existing_network_class, tcp_same_port) = {
             let inner = self.inner.lock();
             let protocol_config = inner.protocol_config.unwrap_or_default();
-            let existing_network_class = inner.network_class;
+            let existing_network_class =
+                inner.network_class[RoutingDomain::PublicInternet as usize];
             let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
                 && protocol_config.inbound.contains(ProtocolType::WS)
             {
@@ -815,14 +816,15 @@ impl Network {
 
             // Is the network class different?
             if existing_network_class != new_network_class {
-                self.inner.lock().network_class = new_network_class;
+                self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] =
+                    new_network_class;
                 changed = true;
-                log_net!(debug "network class changed to {:?}", new_network_class);
+                log_net!(debug "PublicInternet network class changed to {:?}", new_network_class);
             }
         } else if existing_network_class.is_some() {
             // Network class could not be determined
             routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
-            self.inner.lock().network_class = None;
+            self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] = None;
             changed = true;
             log_net!(debug "network class cleared");
         }
@@ -834,7 +836,9 @@ impl Network {
             }
         } else {
             // Send updates to everyone
-            network_manager.send_node_info_updates(true).await;
+            network_manager
+                .send_node_info_updates(RoutingDomain::PublicInternet, true)
+                .await;
         }
 
         Ok(())

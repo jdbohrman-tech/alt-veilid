@@ -200,11 +200,14 @@ struct DialInfoDetail {
 }
 
 struct NodeStatus {
+    # PublicInternet RoutingDomain Status
     willRoute               @0  :Bool;
     willTunnel              @1  :Bool;
     willSignal              @2  :Bool;
     willRelay               @3  :Bool;
     willValidateDialInfo    @4  :Bool;
+    # LocalNetwork RoutingDomain Status
+    # TODO
 }
 
 struct ProtocolTypeSet {

@@ -10,6 +10,7 @@ impl RPCProcessor {
         safety_route: Option<&SafetyRouteSpec>,
     ) -> Result<NetworkResult<()>, RPCError> {
         let signed_node_info = self.routing_table().get_own_signed_node_info();
+        xxx add routing domain to capnp....
         let node_info_update = RPCOperationNodeInfoUpdate { signed_node_info };
         let statement = RPCStatement::new(RPCStatementDetail::NodeInfoUpdate(node_info_update));
 

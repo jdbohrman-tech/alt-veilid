@@ -296,7 +296,7 @@ impl Network {
         //
     }
 
-    pub fn get_network_class(&self) -> Option<NetworkClass> {
+    pub fn get_network_class(&self, _routing_domain: PublicInternet) -> Option<NetworkClass> {
         // xxx eventually detect tor browser?
         return if self.inner.lock().network_started {
             Some(NetworkClass::WebApp)

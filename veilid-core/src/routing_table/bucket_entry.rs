@@ -44,11 +44,10 @@ struct LastConnectionKey(PeerScope, ProtocolType, AddressType);
 #[derive(Debug)]
 pub struct BucketEntryInner {
     min_max_version: Option<(u8, u8)>,
-    seen_our_node_info: bool,
     updated_since_last_network_change: bool,
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
-    opt_signed_node_info: Option<SignedNodeInfo>,
-    opt_local_node_info: Option<LocalNodeInfo>,
+    signed_node_info: [Option<Box<SignedNodeInfo>>; RoutingDomain::count()],
+    seen_our_node_info: [bool; RoutingDomain::count()],
     peer_stats: PeerStats,
     latency_stats_accounting: LatencyStatsAccounting,
     transfer_stats_accounting: TransferStatsAccounting,
@@ -118,6 +117,7 @@ impl BucketEntryInner {
     // Retuns true if the node info changed
     pub fn update_signed_node_info(
         &mut self,
+        routing_domain: RoutingDomain,
         signed_node_info: SignedNodeInfo,
         allow_invalid_signature: bool,
     ) {
@@ -128,7 +128,7 @@ impl BucketEntryInner {
         }
 
         // See if we have an existing signed_node_info to update or not
-        if let Some(current_sni) = &self.opt_signed_node_info {
+        if let Some(current_sni) = &self.signed_node_info[routing_domain as usize] {
             // If the timestamp hasn't changed or is less, ignore this update
             if signed_node_info.timestamp <= current_sni.timestamp {
                 // If we received a node update with the same timestamp
@@ -137,7 +137,7 @@ impl BucketEntryInner {
                     && signed_node_info.timestamp == current_sni.timestamp
                 {
                     // No need to update the signednodeinfo though since the timestamp is the same
-                    // Just return true so we can make the node not dead
+                    // Touch the node and let it try to live again
                     self.updated_since_last_network_change = true;
                     self.touch_last_seen(intf::get_timestamp());
                 }
@@ -152,43 +152,57 @@ impl BucketEntryInner {
         ));
 
         // Update the signed node info
-        self.opt_signed_node_info = Some(signed_node_info);
+        self.signed_node_info[routing_domain as usize] = Some(Box::new(signed_node_info));
         self.updated_since_last_network_change = true;
         self.touch_last_seen(intf::get_timestamp());
     }
-    pub fn update_local_node_info(&mut self, local_node_info: LocalNodeInfo) {
-        self.opt_local_node_info = Some(local_node_info)
-    }
 
-    pub fn has_node_info(&self) -> bool {
-        self.opt_signed_node_info.is_some()
-    }
-
-    pub fn has_valid_signed_node_info(&self) -> bool {
-        if let Some(sni) = &self.opt_signed_node_info {
-            sni.is_valid()
+    pub fn has_node_info(&self, opt_routing_domain: Option<RoutingDomain>) -> bool {
+        if let Some(rd) = opt_routing_domain {
+            self.signed_node_info[rd as usize].is_some()
         } else {
+            for rd in RoutingDomain::all() {
+                if self.signed_node_info[rd as usize].is_some() {
+                    return true;
+                }
+            }
             false
         }
     }
 
-    pub fn has_local_node_info(&self) -> bool {
-        self.opt_local_node_info.is_some()
+    pub fn has_valid_signed_node_info(&self, opt_routing_domain: Option<RoutingDomain>) -> bool {
+        if let Some(rd) = opt_routing_domain {
+            if let Some(sni) = &self.signed_node_info[rd as usize] {
+                if sni.is_valid() {
+                    return true;
+                }
+            }
+            false
+        } else {
+            for rd in RoutingDomain::all() {
+                if let Some(sni) = &self.signed_node_info[rd as usize] {
+                    if sni.is_valid() {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
     }
 
-    pub fn node_info(&self) -> Option<NodeInfo> {
-        self.opt_signed_node_info
+    pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<NodeInfo> {
+        self.signed_node_info[routing_domain as usize]
             .as_ref()
             .map(|s| s.node_info.clone())
     }
-    pub fn local_node_info(&self) -> Option<LocalNodeInfo> {
-        self.opt_local_node_info.clone()
-    }
-    pub fn peer_info(&self, key: DHTKey) -> Option<PeerInfo> {
-        self.opt_signed_node_info.as_ref().map(|s| PeerInfo {
-            node_id: NodeId::new(key),
-            signed_node_info: s.clone(),
-        })
+
+    pub fn peer_info(&self, key: DHTKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+        self.signed_node_info[routing_domain as usize]
+            .as_ref()
+            .map(|s| PeerInfo {
+                node_id: NodeId::new(key),
+                signed_node_info: *s.clone(),
+            })
     }
 
     fn descriptor_to_key(last_connection: ConnectionDescriptor) -> LastConnectionKey {
@@ -256,12 +270,12 @@ impl BucketEntryInner {
         self.peer_stats.status = Some(status);
     }
 
-    pub fn set_seen_our_node_info(&mut self, seen: bool) {
-        self.seen_our_node_info = seen;
+    pub fn set_seen_our_node_info(&mut self, routing_domain: RoutingDomain, seen: bool) {
+        self.seen_our_node_info[routing_domain as usize] = seen;
     }
 
-    pub fn has_seen_our_node_info(&self) -> bool {
-        self.seen_our_node_info
+    pub fn has_seen_our_node_info(&self, routing_domain: RoutingDomain) -> bool {
+        self.seen_our_node_info[routing_domain as usize]
     }
 
     pub fn set_updated_since_last_network_change(&mut self, updated: bool) {
@@ -337,20 +351,14 @@ impl BucketEntryInner {
     }
 
     // Check if this node needs a ping right now to validate it is still reachable
-    pub(super) fn needs_ping(
-        &self,
-        node_id: &DHTKey,
-        cur_ts: u64,
-        relay_node_id: Option<DHTKey>,
-    ) -> bool {
+    pub(super) fn needs_ping(&self, node_id: &DHTKey, cur_ts: u64, needs_keepalive: bool) -> bool {
         // See which ping pattern we are to use
         let state = self.state(cur_ts);
 
-        // If this entry is our relay node, then we should ping it regularly to keep our association alive
-        if let Some(relay_node_id) = relay_node_id {
-            if relay_node_id == *node_id {
-                return self.needs_constant_ping(cur_ts, KEEPALIVE_PING_INTERVAL_SECS as u64);
-            }
+        // If this entry needs a keepalive (like a relay node),
+        // then we should ping it regularly to keep our association alive
+        if needs_keepalive {
+            return self.needs_constant_ping(cur_ts, KEEPALIVE_PING_INTERVAL_SECS as u64);
         }
 
         match state {
@@ -494,11 +502,10 @@ impl BucketEntry {
             ref_count: AtomicU32::new(0),
             inner: RwLock::new(BucketEntryInner {
                 min_max_version: None,
-                seen_our_node_info: false,
+                seen_our_node_info: [false, false],
                 updated_since_last_network_change: false,
                 last_connections: BTreeMap::new(),
-                opt_signed_node_info: None,
-                opt_local_node_info: None,
+                signed_node_info: [None, None],
                 peer_stats: PeerStats {
                     time_added: now,
                     rpc_stats: RPCStats::default(),
@@ -547,7 +554,7 @@ impl Drop for BucketEntry {
 
             panic!(
                 "bucket entry dropped with non-zero refcount: {:#?}",
-                self.inner.read().node_info()
+                &*self.inner.read()
             )
         }
     }

@@ -390,8 +390,7 @@ impl RPCProcessor {
             Err(_) | Ok(TimeoutOr::Timeout) => {
                 self.cancel_op_id_waiter(waitable_reply.op_id);
 
-                self.routing_table()
-                    .stats_question_lost(waitable_reply.node_ref.clone());
+                waitable_reply.node_ref.stats_question_lost();
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
                 // Note that the remote node definitely received this node info since we got a reply
@@ -399,8 +398,7 @@ impl RPCProcessor {
 
                 // Reply received
                 let recv_ts = intf::get_timestamp();
-                self.routing_table().stats_answer_rcvd(
-                    waitable_reply.node_ref,
+                waitable_reply.node_ref.stats_answer_rcvd(
                     waitable_reply.send_ts,
                     recv_ts,
                     rpcreader.header.body_len,
@@ -595,20 +593,19 @@ impl RPCProcessor {
             .map_err(|e| {
                 // If we're returning an error, clean up
                 self.cancel_op_id_waiter(op_id);
-                self.routing_table()
-                    .stats_failed_to_send(node_ref.clone(), send_ts, true);
-                RPCError::network(e) })?
-            => {
+                node_ref
+                    .stats_failed_to_send(send_ts, true);
+                RPCError::network(e)
+            })? => {
                 // If we couldn't send we're still cleaning up
                 self.cancel_op_id_waiter(op_id);
-                self.routing_table()
-                    .stats_failed_to_send(node_ref, send_ts, true);
+                node_ref
+                    .stats_failed_to_send(send_ts, true);
             }
         );
 
         // Successfully sent
-        self.routing_table()
-            .stats_question_sent(node_ref.clone(), send_ts, bytes, true);
+        node_ref.stats_question_sent(send_ts, bytes, true);
 
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
@@ -663,18 +660,18 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.routing_table()
-                    .stats_failed_to_send(node_ref.clone(), send_ts, true);
-                RPCError::network(e) })? => {
+                node_ref
+                    .stats_failed_to_send(send_ts, true);
+                RPCError::network(e)
+            })? => {
                 // If we couldn't send we're still cleaning up
-                self.routing_table()
-                    .stats_failed_to_send(node_ref, send_ts, true);
+                node_ref
+                    .stats_failed_to_send(send_ts, true);
             }
         );
 
         // Successfully sent
-        self.routing_table()
-            .stats_question_sent(node_ref.clone(), send_ts, bytes, true);
+        node_ref.stats_question_sent(send_ts, bytes, true);
 
         Ok(NetworkResult::value(()))
     }
@@ -755,17 +752,18 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.routing_table()
-                    .stats_failed_to_send(node_ref.clone(), send_ts, true);
-                RPCError::network(e) })? => {
+                node_ref
+                    .stats_failed_to_send(send_ts, true);
+                RPCError::network(e)
+            })? => {
                 // If we couldn't send we're still cleaning up
-                self.routing_table()
-                    .stats_failed_to_send(node_ref.clone(), send_ts, false);
+                node_ref
+                    .stats_failed_to_send(send_ts, false);
             }
         );
 
         // Reply successfully sent
-        self.routing_table().stats_answer_sent(node_ref, bytes);
+        node_ref.stats_answer_sent(bytes);
 
         Ok(NetworkResult::value(()))
     }
@@ -828,21 +826,13 @@ impl RPCProcessor {
         let kind = match msg.operation.kind() {
             RPCOperationKind::Question(_) => {
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
-                    self.routing_table().stats_question_rcvd(
-                        sender_nr,
-                        msg.header.timestamp,
-                        msg.header.body_len,
-                    );
+                    sender_nr.stats_question_rcvd(msg.header.timestamp, msg.header.body_len);
                 }
                 "question"
             }
             RPCOperationKind::Statement(_) => {
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
-                    self.routing_table().stats_question_rcvd(
-                        sender_nr,
-                        msg.header.timestamp,
-                        msg.header.body_len,
-                    );
+                    sender_nr.stats_question_rcvd(msg.header.timestamp, msg.header.body_len);
                 }
                 "statement"
             }

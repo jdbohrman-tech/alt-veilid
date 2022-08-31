@@ -85,57 +85,82 @@ impl NodeRef {
     //         .unwrap_or(true)
     // }
 
-    pub fn operate<T, F>(&self, f: F) -> T
+    pub(super) fn operate<T, F>(&self, f: F) -> T
     where
-        F: FnOnce(&BucketEntryInner) -> T,
+        F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> T,
     {
-        self.entry.with(f)
+        let inner = &*self.routing_table.inner.read();
+        self.entry.with(|e| f(inner, e))
     }
 
-    pub fn operate_mut<T, F>(&self, f: F) -> T
+    pub(super) fn operate_mut<T, F>(&self, f: F) -> T
     where
-        F: FnOnce(&mut BucketEntryInner) -> T,
+        F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> T,
     {
-        self.entry.with_mut(f)
+        let inner = &mut *self.routing_table.inner.write();
+        self.entry.with_mut(|e| f(inner, e))
     }
 
-    pub fn peer_info(&self) -> Option<PeerInfo> {
-        self.operate(|e| e.peer_info(self.node_id()))
+    pub fn peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+        self.operate(|_rti, e| e.peer_info(self.node_id(), routing_domain))
     }
-    pub fn has_seen_our_node_info(&self) -> bool {
-        self.operate(|e| e.has_seen_our_node_info())
+    pub fn has_valid_signed_node_info(&self, opt_routing_domain: Option<RoutingDomain>) -> bool {
+        self.operate(|_rti, e| e.has_valid_signed_node_info(opt_routing_domain))
     }
-    pub fn set_seen_our_node_info(&self) {
-        self.operate_mut(|e| e.set_seen_our_node_info(true));
+    pub fn has_seen_our_node_info(&self, routing_domain: RoutingDomain) -> bool {
+        self.operate(|_rti, e| e.has_seen_our_node_info(routing_domain))
+    }
+    pub fn set_seen_our_node_info(&self, routing_domain: RoutingDomain) {
+        self.operate_mut(|_rti, e| e.set_seen_our_node_info(routing_domain, true));
     }
     pub fn has_updated_since_last_network_change(&self) -> bool {
-        self.operate(|e| e.has_updated_since_last_network_change())
+        self.operate(|_rti, e| e.has_updated_since_last_network_change())
     }
     pub fn set_updated_since_last_network_change(&self) {
-        self.operate_mut(|e| e.set_updated_since_last_network_change(true));
+        self.operate_mut(|_rti, e| e.set_updated_since_last_network_change(true));
     }
-    pub fn network_class(&self) -> Option<NetworkClass> {
-        self.operate(|e| e.node_info().map(|n| n.network_class))
+
+    pub fn update_node_status(&self, node_status: NodeStatus) {
+        self.operate_mut(|_rti, e| {
+            e.update_node_status(node_status);
+        });
     }
-    pub fn outbound_protocols(&self) -> Option<ProtocolTypeSet> {
-        self.operate(|e| e.node_info().map(|n| n.outbound_protocols))
+
+    pub fn min_max_version(&self) -> Option<(u8, u8)> {
+        self.operate(|_rti, e| e.min_max_version())
     }
-    pub fn address_types(&self) -> Option<AddressTypeSet> {
-        self.operate(|e| e.node_info().map(|n| n.address_types))
+
+    pub fn set_min_max_version(&self, min_max_version: (u8, u8)) {
+        self.operate_mut(|_rti, e| e.set_min_max_version(min_max_version))
     }
-    pub fn node_info_outbound_filter(&self) -> DialInfoFilter {
+
+    pub fn state(&self, cur_ts: u64) -> BucketEntryState {
+        self.operate(|_rti, e| e.state(cur_ts))
+    }
+
+    pub fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
+        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class))
+    }
+    pub fn outbound_protocols(&self, routing_domain: RoutingDomain) -> Option<ProtocolTypeSet> {
+        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.outbound_protocols))
+    }
+    pub fn address_types(&self, routing_domain: RoutingDomain) -> Option<AddressTypeSet> {
+        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.address_types))
+    }
+    pub fn node_info_outbound_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
         let mut dif = DialInfoFilter::all();
-        if let Some(outbound_protocols) = self.outbound_protocols() {
+        if let Some(outbound_protocols) = self.outbound_protocols(routing_domain) {
             dif = dif.with_protocol_type_set(outbound_protocols);
         }
-        if let Some(address_types) = self.address_types() {
+        if let Some(address_types) = self.address_types(routing_domain) {
             dif = dif.with_address_type_set(address_types);
         }
         dif
     }
 
-    pub fn relay(&self) -> Option<NodeRef> {
-        let target_rpi = self.operate(|e| e.node_info().map(|n| n.relay_peer_info))?;
+    pub fn relay(&self, routing_domain: RoutingDomain) -> Option<NodeRef> {
+        let target_rpi =
+            self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.relay_peer_info))?;
         target_rpi.and_then(|t| {
             // If relay is ourselves, then return None, because we can't relay through ourselves
             // and to contact this node we should have had an existing inbound connection
@@ -145,7 +170,12 @@ impl NodeRef {
 
             // Register relay node and return noderef
             self.routing_table
-                .register_node_with_signed_node_info(t.node_id.key, t.signed_node_info, false)
+                .register_node_with_signed_node_info(
+                    routing_domain,
+                    t.node_id.key,
+                    t.signed_node_info,
+                    false,
+                )
                 .map(|mut nr| {
                     nr.set_filter(self.filter_ref().cloned());
                     nr
@@ -156,20 +186,16 @@ impl NodeRef {
         &self,
         routing_domain: Option<RoutingDomain>,
     ) -> Option<DialInfoDetail> {
-        self.operate(|e| {
+        self.operate(|_rt, e| {
             // Prefer local dial info first unless it is filtered out
             if routing_domain == None || routing_domain == Some(RoutingDomain::LocalNetwork) {
-                e.local_node_info().and_then(|l| {
-                    l.first_filtered_dial_info(|di| {
+                e.node_info(RoutingDomain::LocalNetwork).and_then(|l| {
+                    l.first_filtered_dial_info_detail(|did| {
                         if let Some(filter) = self.filter.as_ref() {
-                            di.matches_filter(filter)
+                            did.matches_filter(filter)
                         } else {
                             true
                         }
-                    })
-                    .map(|di| DialInfoDetail {
-                        class: DialInfoClass::Direct,
-                        dial_info: di,
                     })
                 })
             } else {
@@ -177,7 +203,7 @@ impl NodeRef {
             }
             .or_else(|| {
                 if routing_domain == None || routing_domain == Some(RoutingDomain::PublicInternet) {
-                    e.node_info().and_then(|n| {
+                    e.node_info(RoutingDomain::PublicInternet).and_then(|n| {
                         n.first_filtered_dial_info_detail(|did| {
                             if let Some(filter) = self.filter.as_ref() {
                                 did.matches_filter(filter)
@@ -198,26 +224,21 @@ impl NodeRef {
         routing_domain: Option<RoutingDomain>,
     ) -> Vec<DialInfoDetail> {
         let mut out = Vec::new();
-        self.operate(|e| {
+        self.operate(|_rt, e| {
             // Prefer local dial info first unless it is filtered out
             if routing_domain == None || routing_domain == Some(RoutingDomain::LocalNetwork) {
-                if let Some(lni) = e.local_node_info() {
-                    for di in lni.all_filtered_dial_info(|di| {
+                if let Some(ni) = e.node_info(RoutingDomain::LocalNetwork) {
+                    out.append(&mut ni.all_filtered_dial_info_details(|did| {
                         if let Some(filter) = self.filter.as_ref() {
-                            di.matches_filter(filter)
+                            did.matches_filter(filter)
                         } else {
                             true
                         }
-                    }) {
-                        out.push(DialInfoDetail {
-                            class: DialInfoClass::Direct,
-                            dial_info: di,
-                        });
-                    }
+                    }))
                 }
             }
             if routing_domain == None || routing_domain == Some(RoutingDomain::PublicInternet) {
-                if let Some(ni) = e.node_info() {
+                if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
                     out.append(&mut ni.all_filtered_dial_info_details(|did| {
                         if let Some(filter) = self.filter.as_ref() {
                             did.matches_filter(filter)
@@ -235,7 +256,7 @@ impl NodeRef {
     pub async fn last_connection(&self) -> Option<ConnectionDescriptor> {
         // Get the last connection and the last time we saw anything with this connection
         let (last_connection, last_seen) =
-            self.operate(|e| e.last_connection(self.filter.clone()))?;
+            self.operate(|_rti, e| e.last_connection(self.filter.clone()))?;
 
         // Should we check the connection table?
         if last_connection.protocol_type().is_connection_oriented() {
@@ -254,21 +275,60 @@ impl NodeRef {
     }
 
     pub fn clear_last_connections(&self) {
-        self.operate_mut(|e| e.clear_last_connections())
+        self.operate_mut(|_rti, e| e.clear_last_connections())
     }
 
     pub fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: u64) {
-        self.operate_mut(|e| e.set_last_connection(connection_descriptor, ts))
+        self.operate_mut(|_rti, e| e.set_last_connection(connection_descriptor, ts))
     }
 
     pub fn has_any_dial_info(&self) -> bool {
-        self.operate(|e| {
-            e.node_info()
-                .map(|n| n.has_any_dial_info())
-                .unwrap_or(false)
-                || e.local_node_info()
-                    .map(|l| l.has_dial_info())
-                    .unwrap_or(false)
+        self.operate(|_rti, e| {
+            for rtd in RoutingDomain::all() {
+                if let Some(ni) = e.node_info(rtd) {
+                    if ni.has_any_dial_info() {
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+    }
+
+    pub fn stats_question_sent(&self, ts: u64, bytes: u64, expects_answer: bool) {
+        self.operate_mut(|rti, e| {
+            rti.self_transfer_stats_accounting.add_up(bytes);
+            e.question_sent(ts, bytes, expects_answer);
+        })
+    }
+    pub fn stats_question_rcvd(&self, ts: u64, bytes: u64) {
+        self.operate_mut(|rti, e| {
+            rti.self_transfer_stats_accounting.add_down(bytes);
+            e.question_rcvd(ts, bytes);
+        })
+    }
+    pub fn stats_answer_sent(&self, bytes: u64) {
+        self.operate_mut(|rti, e| {
+            rti.self_transfer_stats_accounting.add_up(bytes);
+            e.answer_sent(bytes);
+        })
+    }
+    pub fn stats_answer_rcvd(&self, send_ts: u64, recv_ts: u64, bytes: u64) {
+        self.operate_mut(|rti, e| {
+            rti.self_transfer_stats_accounting.add_down(bytes);
+            rti.self_latency_stats_accounting
+                .record_latency(recv_ts - send_ts);
+            e.answer_rcvd(send_ts, recv_ts, bytes);
+        })
+    }
+    pub fn stats_question_lost(&self) {
+        self.operate_mut(|_rti, e| {
+            e.question_lost();
+        })
+    }
+    pub fn stats_failed_to_send(&self, ts: u64, expects_answer: bool) {
+        self.operate_mut(|_rti, e| {
+            e.failed_to_send(ts, expects_answer);
         })
     }
 }

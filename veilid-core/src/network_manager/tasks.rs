@@ -187,9 +187,12 @@ impl NetworkManager {
             for pi in peer_info {
                 let k = pi.node_id.key;
                 // Register the node
-                if let Some(nr) =
-                    routing_table.register_node_with_signed_node_info(k, pi.signed_node_info, false)
-                {
+                if let Some(nr) = routing_table.register_node_with_signed_node_info(
+                    RoutingDomain::PublicInternet,
+                    k,
+                    pi.signed_node_info,
+                    false,
+                ) {
                     // Add this our futures to process in parallel
                     let routing_table = routing_table.clone();
                     unord.push(
@@ -278,6 +281,7 @@ impl NetworkManager {
 
             // Make invalid signed node info (no signature)
             if let Some(nr) = routing_table.register_node_with_signed_node_info(
+                RoutingDomain::PublicInternet,
                 k,
                 SignedNodeInfo::with_no_signature(NodeInfo {
                     network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
@@ -298,7 +302,7 @@ impl NetworkManager {
                     let _ = routing_table.find_target(nr.clone()).await;
 
                     // Ensure we got the signed peer info
-                    if !nr.operate(|e| e.has_valid_signed_node_info()) {
+                    if !nr.has_valid_signed_node_info(Some(RoutingDomain::PublicInternet)) {
                         log_net!(warn
                             "bootstrap at {:?} did not return valid signed node info",
                             nr
@@ -329,19 +333,24 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         let routing_table = self.routing_table();
 
-        let relay_node_id = self.relay_node().map(|nr| nr.node_id());
+        let mut unord = FuturesUnordered::new();
+
+        let node_refs = routing_table.get_nodes_needing_ping(cur_ts);
+        let mut mapped_port_info = routing_table.get_mapped_port_info();
+        let opt_public_internet_relay_nr = routing_table.relay_node(RoutingDomain::PublicInternet);
+        let opt_public_internet_relay_id = opt_public_internet_relay_nr.map(|nr| nr.node_id());
+        // let opt_local_network_relay_nr = routing_table.relay_node(RoutingDomain::LocalNetwork);
+        // let opt_local_network_relay_id = opt_local_network_relay_nr.map(|nr| nr.node_id());
+
+        // Public Internet Routing Domain
         let dids = routing_table.all_filtered_dial_info_details(
             Some(RoutingDomain::PublicInternet),
             &DialInfoFilter::global(),
         );
-        let mut unord = FuturesUnordered::new();
-
-        let node_refs = routing_table.get_nodes_needing_ping(cur_ts, relay_node_id);
-        let mut mapped_port_info = routing_table.get_mapped_port_info();
 
         for nr in node_refs {
             let rpc = rpc.clone();
-            if Some(nr.node_id()) == relay_node_id {
+            if Some(nr.node_id()) == opt_public_internet_relay_id {
                 // Relay nodes get pinged over all protocols we have inbound dialinfo for
                 // This is so we can preserve the inbound NAT mappings at our router
                 for did in &dids {
@@ -414,21 +423,20 @@ impl NetworkManager {
     ) -> EyreResult<()> {
         // Get our node's current node info and network class and do the right thing
         let routing_table = self.routing_table();
-        let node_info = routing_table.get_own_node_info();
-        let network_class = self.get_network_class();
+        let node_info = routing_table.get_own_node_info(RoutingDomain::PublicInternet);
+        let network_class = self.get_network_class(RoutingDomain::PublicInternet);
         let mut node_info_changed = false;
 
         // Do we know our network class yet?
         if let Some(network_class) = network_class {
             // If we already have a relay, see if it is dead, or if we don't need it any more
             let has_relay = {
-                let mut inner = self.inner.lock();
-                if let Some(relay_node) = inner.relay_node.clone() {
-                    let state = relay_node.operate(|e| e.state(cur_ts));
+                if let Some(relay_node) = routing_table.relay_node(RoutingDomain::PublicInternet) {
+                    let state = relay_node.state(cur_ts);
                     // Relay node is dead or no longer needed
                     if matches!(state, BucketEntryState::Dead) {
                         info!("Relay node died, dropping relay {}", relay_node);
-                        inner.relay_node = None;
+                        routing_table.set_relay_node(RoutingDomain::PublicInternet, None);
                         node_info_changed = true;
                         false
                     } else if !node_info.requires_relay() {
@@ -436,7 +444,7 @@ impl NetworkManager {
                             "Relay node no longer required, dropping relay {}",
                             relay_node
                         );
-                        inner.relay_node = None;
+                        routing_table.set_relay_node(RoutingDomain::PublicInternet, None);
                         node_info_changed = true;
                         false
                     } else {
@@ -453,16 +461,15 @@ impl NetworkManager {
                 if network_class.outbound_wants_relay() {
                     // The outbound relay is the host of the PWA
                     if let Some(outbound_relay_peerinfo) = intf::get_outbound_relay_peer().await {
-                        let mut inner = self.inner.lock();
-
                         // Register new outbound relay
                         if let Some(nr) = routing_table.register_node_with_signed_node_info(
+                            RoutingDomain::PublicInternet,
                             outbound_relay_peerinfo.node_id.key,
                             outbound_relay_peerinfo.signed_node_info,
                             false,
                         ) {
                             info!("Outbound relay node selected: {}", nr);
-                            inner.relay_node = Some(nr);
+                            routing_table.set_relay_node(RoutingDomain::PublicInternet, Some(nr));
                             node_info_changed = true;
                         }
                     }
@@ -470,9 +477,8 @@ impl NetworkManager {
                 } else {
                     // Find a node in our routing table that is an acceptable inbound relay
                     if let Some(nr) = routing_table.find_inbound_relay(cur_ts) {
-                        let mut inner = self.inner.lock();
                         info!("Inbound relay node selected: {}", nr);
-                        inner.relay_node = Some(nr);
+                        routing_table.set_relay_node(RoutingDomain::PublicInternet, Some(nr));
                         node_info_changed = true;
                     }
                 }
@@ -481,7 +487,8 @@ impl NetworkManager {
 
         // Re-send our node info if we selected a relay
         if node_info_changed {
-            self.send_node_info_updates(true).await;
+            self.send_node_info_updates(RoutingDomain::PublicInternet, true)
+                .await;
         }
 
         Ok(())

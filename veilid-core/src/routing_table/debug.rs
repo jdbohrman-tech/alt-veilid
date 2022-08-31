@@ -85,8 +85,17 @@ impl RoutingTable {
             out += &format!("  {:>2}: {:?}\n", n, gdi);
         }
 
-        out += "Own PeerInfo:\n";
-        out += &format!("  {:#?}\n", self.get_own_peer_info());
+        out += "LocalNetwork PeerInfo:\n";
+        out += &format!(
+            "  {:#?}\n",
+            self.get_own_peer_info(RoutingDomain::LocalNetwork)
+        );
+
+        out += "PublicInternet PeerInfo:\n";
+        out += &format!(
+            "  {:#?}\n",
+            self.get_own_peer_info(RoutingDomain::PublicInternet)
+        );
 
         out
     }
@@ -142,7 +151,7 @@ impl RoutingTable {
         let mut out = String::new();
         out += &format!("Entry {:?}:\n", node_id);
         if let Some(nr) = self.lookup_node_ref(node_id) {
-            out += &nr.operate(|e| format!("{:#?}\n", e));
+            out += &nr.operate(|_rt, e| format!("{:#?}\n", e));
         } else {
             out += "Entry not found\n";
         }

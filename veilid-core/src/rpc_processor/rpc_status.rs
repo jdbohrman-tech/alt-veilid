@@ -38,9 +38,7 @@ impl RPCProcessor {
         };
 
         // Update latest node status in routing table
-        peer.operate_mut(|e| {
-            e.update_node_status(status_a.node_status.clone());
-        });
+        peer.update_node_status(status_a.node_status.clone());
 
         // Report sender_info IP addresses to network manager
         if let Some(socket_address) = status_a.sender_info.socket_address {
@@ -90,9 +88,7 @@ impl RPCProcessor {
         // update node status for the requesting node to our routing table
         if let Some(sender_nr) = msg.opt_sender_nr.clone() {
             // Update latest node status in routing table for the statusq sender
-            sender_nr.operate_mut(|e| {
-                e.update_node_status(status_q.node_status.clone());
-            });
+            sender_nr.update_node_status(status_q.node_status.clone());
         }
 
         // Make status answer

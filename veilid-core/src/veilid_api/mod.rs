@@ -392,11 +392,14 @@ impl NetworkClass {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NodeStatus {
+    // PublicInternet RoutingDomain Status
     pub will_route: bool,
     pub will_tunnel: bool,
     pub will_signal: bool,
     pub will_relay: bool,
     pub will_validate_dial_info: bool,
+    // LocalNetwork RoutingDomain Status
+    // TODO
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -499,43 +502,6 @@ impl NodeInfo {
     pub fn can_validate_dial_info(&self) -> bool {
         // For now this is the same
         self.can_signal()
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct LocalNodeInfo {
-    pub dial_info_list: Vec<DialInfo>,
-}
-
-impl LocalNodeInfo {
-    pub fn first_filtered_dial_info<F>(&self, filter: F) -> Option<DialInfo>
-    where
-        F: Fn(&DialInfo) -> bool,
-    {
-        for di in &self.dial_info_list {
-            if filter(di) {
-                return Some(di.clone());
-            }
-        }
-        None
-    }
-
-    pub fn all_filtered_dial_info<F>(&self, filter: F) -> Vec<DialInfo>
-    where
-        F: Fn(&DialInfo) -> bool,
-    {
-        let mut dial_info_list = Vec::new();
-
-        for di in &self.dial_info_list {
-            if filter(di) {
-                dial_info_list.push(di.clone());
-            }
-        }
-        dial_info_list
-    }
-
-    pub fn has_dial_info(&self) -> bool {
-        !self.dial_info_list.is_empty()
     }
 }
 

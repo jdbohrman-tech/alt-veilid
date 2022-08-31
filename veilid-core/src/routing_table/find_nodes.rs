@@ -19,12 +19,19 @@ impl RoutingTable {
     ) -> impl FnMut(&BucketEntryInner) -> bool {
         // does it have matching public dial info?
         move |e| {
-            e.node_info()
-                .map(|n| {
-                    n.first_filtered_dial_info_detail(|did| did.matches_filter(&dial_info_filter))
+            for rd in RoutingDomain::all() {
+                if let Some(ni) = e.node_info(rd) {
+                    if ni
+                        .first_filtered_dial_info_detail(|did| {
+                            did.matches_filter(&dial_info_filter)
+                        })
                         .is_some()
-                })
-                .unwrap_or(false)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
         }
     }
 
@@ -34,14 +41,17 @@ impl RoutingTable {
     ) -> impl FnMut(&BucketEntryInner) -> bool {
         // does the node's outbound capabilities match the dialinfo?
         move |e| {
-            e.node_info()
-                .map(|n| {
+            for rd in RoutingDomain::all() {
+                if let Some(ni) = e.node_info(rd) {
                     let mut dif = DialInfoFilter::all();
-                    dif = dif.with_protocol_type_set(n.outbound_protocols);
-                    dif = dif.with_address_type_set(n.address_types);
-                    dial_info.matches_filter(&dif)
-                })
-                .unwrap_or(false)
+                    dif = dif.with_protocol_type_set(ni.outbound_protocols);
+                    dif = dif.with_address_type_set(ni.address_types);
+                    if dial_info.matches_filter(&dif) {
+                        return true;
+                    }
+                }
+            }
+            false
         }
     }
 
@@ -75,14 +85,17 @@ impl RoutingTable {
             // count
             node_count,
             // filter
-            Some(move |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            Some(|_k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(|e| {
-                    // skip nodes on our local network here
-                    if e.local_node_info().is_some() {
+                    // skip nodes on local network
+                    if e.node_info(RoutingDomain::LocalNetwork).is_some() {
                         return false;
                     }
-
+                    // skip nodes not on public internet
+                    if e.node_info(RoutingDomain::PublicInternet).is_none() {
+                        return false;
+                    }
                     // skip nodes that dont match entry filter
                     entry_filter(e)
                 })
@@ -113,7 +126,7 @@ impl RoutingTable {
                 let entry = v.unwrap();
                 entry.with(|e| {
                     // skip nodes on our local network here
-                    if e.local_node_info().is_some() {
+                    if e.node_info(RoutingDomain::LocalNetwork).is_some() {
                         return false;
                     }
 
@@ -147,7 +160,9 @@ impl RoutingTable {
                         keep
                     };
 
-                    e.node_info().map(filter).unwrap_or(false)
+                    e.node_info(RoutingDomain::PublicInternet)
+                        .map(filter)
+                        .unwrap_or(false)
                 })
             }),
             // transform
@@ -158,49 +173,61 @@ impl RoutingTable {
     }
 
     // Get our own node's peer info (public node info) so we can share it with other nodes
-    pub fn get_own_peer_info(&self) -> PeerInfo {
-        PeerInfo::new(NodeId::new(self.node_id()), self.get_own_signed_node_info())
+    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
+        PeerInfo::new(
+            NodeId::new(self.node_id()),
+            self.get_own_signed_node_info(routing_domain),
+        )
     }
 
-    pub fn get_own_signed_node_info(&self) -> SignedNodeInfo {
+    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedNodeInfo {
         let node_id = NodeId::new(self.node_id());
         let secret = self.node_id_secret();
-        SignedNodeInfo::with_secret(self.get_own_node_info(), node_id, &secret).unwrap()
+        SignedNodeInfo::with_secret(self.get_own_node_info(routing_domain), node_id, &secret)
+            .unwrap()
     }
 
-    pub fn get_own_node_info(&self) -> NodeInfo {
+    pub fn get_own_node_info(&self, routing_domain: RoutingDomain) -> NodeInfo {
         let netman = self.network_manager();
-        let relay_node = netman.relay_node();
+        let relay_node = self.relay_node(routing_domain);
         let pc = netman.get_protocol_config();
         NodeInfo {
-            network_class: netman.get_network_class().unwrap_or(NetworkClass::Invalid),
+            network_class: netman
+                .get_network_class(routing_domain)
+                .unwrap_or(NetworkClass::Invalid),
             outbound_protocols: pc.outbound,
             address_types: pc.family_global,
             min_version: MIN_VERSION,
             max_version: MAX_VERSION,
-            dial_info_detail_list: self.dial_info_details(RoutingDomain::PublicInternet),
-            relay_peer_info: relay_node.and_then(|rn| rn.peer_info().map(Box::new)),
+            dial_info_detail_list: self.dial_info_details(routing_domain),
+            relay_peer_info: relay_node.and_then(|rn| rn.peer_info(routing_domain).map(Box::new)),
         }
     }
 
     pub fn filter_has_valid_signed_node_info(
+        &self,
         v: Option<Arc<BucketEntry>>,
         own_peer_info_is_valid: bool,
+        opt_routing_domain: Option<RoutingDomain>,
     ) -> bool {
+        let routing_table = self.clone();
         match v {
             None => own_peer_info_is_valid,
-            Some(entry) => entry.with(|e| e.has_valid_signed_node_info()),
+            Some(entry) => entry.with(|e| e.has_valid_signed_node_info(opt_routing_domain)),
         }
     }
 
     pub fn transform_to_peer_info(
+        &self,
+        routing_domain: RoutingDomain,
         k: DHTKey,
         v: Option<Arc<BucketEntry>>,
         own_peer_info: &PeerInfo,
     ) -> PeerInfo {
+        let routing_table = self.clone();
         match v {
             None => own_peer_info.clone(),
-            Some(entry) => entry.with(|e| e.peer_info(k).unwrap()),
+            Some(entry) => entry.with(|e| e.peer_info(k, routing_domain).unwrap()),
         }
     }
 

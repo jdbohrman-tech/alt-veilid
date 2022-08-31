@@ -147,7 +147,6 @@ struct NetworkManagerInner {
     update_callback: Option<UpdateCallback>,
     stats: NetworkManagerStats,
     client_whitelist: LruCache<DHTKey, ClientWhitelistEntry>,
-    relay_node: Option<NodeRef>,
     public_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
@@ -187,7 +186,6 @@ impl NetworkManager {
             update_callback: None,
             stats: NetworkManagerStats::default(),
             client_whitelist: LruCache::new_unbounded(),
-            relay_node: None,
             public_address_check_cache: BTreeMap::new(),
             public_address_inconsistencies_table: BTreeMap::new(),
             protocol_config: None,
@@ -315,10 +313,6 @@ impl NetworkManager {
             .clone()
     }
 
-    pub fn relay_node(&self) -> Option<NodeRef> {
-        self.inner.lock().relay_node.clone()
-    }
-
     #[instrument(level = "debug", skip_all, err)]
     pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
         let routing_table = RoutingTable::new(self.clone());
@@ -418,7 +412,9 @@ impl NetworkManager {
         }
 
         // Inform routing table entries that our dial info has changed
-        self.send_node_info_updates(true).await;
+        for rd in RoutingDomain::all() {
+            self.send_node_info_updates(rd, true).await;
+        }
 
         // Inform api clients that things have changed
         self.send_network_update();
@@ -478,7 +474,6 @@ impl NetworkManager {
         {
             let mut inner = self.inner.lock();
             inner.components = None;
-            inner.relay_node = None;
             inner.public_inbound_dial_info_filter = None;
             inner.local_inbound_dial_info_filter = None;
             inner.public_outbound_dial_info_filter = None;
@@ -601,9 +596,9 @@ impl NetworkManager {
     }
 
     // Return what network class we are in
-    pub fn get_network_class(&self) -> Option<NetworkClass> {
+    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
         if let Some(components) = &self.inner.lock().components {
-            components.net.get_network_class()
+            components.net.get_network_class(routing_domain)
         } else {
             None
         }
@@ -611,7 +606,9 @@ impl NetworkManager {
 
     // Get our node's capabilities
     pub fn generate_node_status(&self) -> NodeStatus {
-        let peer_info = self.routing_table().get_own_peer_info();
+        let peer_info = self
+            .routing_table()
+            .get_own_peer_info(RoutingDomain::PublicInternet);
 
         let will_route = peer_info.signed_node_info.node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
         let will_tunnel = peer_info.signed_node_info.node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
@@ -776,6 +773,7 @@ impl NetworkManager {
 
                 // Add the peer info to our routing table
                 let peer_nr = match routing_table.register_node_with_signed_node_info(
+                    RoutingDomain::PublicInternet,
                     peer_info.node_id.key,
                     peer_info.signed_node_info,
                     false,
@@ -799,6 +797,7 @@ impl NetworkManager {
 
                 // Add the peer info to our routing table
                 let mut peer_nr = match routing_table.register_node_with_signed_node_info(
+                    RoutingDomain::PublicInternet,
                     peer_info.node_id.key,
                     peer_info.signed_node_info,
                     false,
@@ -900,8 +899,7 @@ impl NetworkManager {
         }
         // Get node's min/max version and see if we can send to it
         // and if so, get the max version we can use
-        let version = if let Some((node_min, node_max)) = node_ref.operate(|e| e.min_max_version())
-        {
+        let version = if let Some((node_min, node_max)) = node_ref.min_max_version() {
             #[allow(clippy::absurd_extreme_comparisons)]
             if node_min > MAX_VERSION || node_max < MIN_VERSION {
                 bail!(
@@ -966,7 +964,7 @@ impl NetworkManager {
 
             // Get the target's inbound relay, it must have one or it is not reachable
             // Note that .relay() never returns our own node. We can't relay to ourselves.
-            if let Some(inbound_relay_nr) = target_node_ref.relay() {
+            if let Some(inbound_relay_nr) = target_node_ref.relay(RoutingDomain::PublicInternet) {
                 // Scope down to protocols we can do outbound
                 let inbound_relay_nr = inbound_relay_nr.filtered_clone(public_outbound_dif.clone());
                 // Can we reach the inbound relay?
@@ -975,8 +973,9 @@ impl NetworkManager {
                     .is_some()
                 {
                     // Can we receive anything inbound ever?
-                    let our_network_class =
-                        self.get_network_class().unwrap_or(NetworkClass::Invalid);
+                    let our_network_class = self
+                        .get_network_class(RoutingDomain::PublicInternet)
+                        .unwrap_or(NetworkClass::Invalid);
                     if matches!(our_network_class, NetworkClass::InboundCapable) {
                         let routing_table = self.routing_table();
 
@@ -985,7 +984,10 @@ impl NetworkManager {
                         // Get the best match dial info for an reverse inbound connection
                         let reverse_dif = self
                             .get_inbound_dial_info_filter(RoutingDomain::PublicInternet)
-                            .filtered(target_node_ref.node_info_outbound_filter());
+                            .filtered(
+                                target_node_ref
+                                    .node_info_outbound_filter(RoutingDomain::PublicInternet),
+                            );
                         if let Some(reverse_did) = routing_table.first_filtered_dial_info_detail(
                             Some(RoutingDomain::PublicInternet),
                             &reverse_dif,
@@ -1016,7 +1018,10 @@ impl NetworkManager {
                             // Does the self node have a direct udp dialinfo the target can reach?
                             let inbound_udp_dif = self
                                 .get_inbound_dial_info_filter(RoutingDomain::PublicInternet)
-                                .filtered(target_node_ref.node_info_outbound_filter())
+                                .filtered(
+                                    target_node_ref
+                                        .node_info_outbound_filter(RoutingDomain::PublicInternet),
+                                )
                                 .filtered(
                                     DialInfoFilter::global().with_protocol_type(ProtocolType::UDP),
                                 );
@@ -1046,7 +1051,9 @@ impl NetworkManager {
             }
         }
         // If the other node is not inbound capable at all, it needs to have an inbound relay
-        else if let Some(target_inbound_relay_nr) = target_node_ref.relay() {
+        else if let Some(target_inbound_relay_nr) =
+            target_node_ref.relay(RoutingDomain::PublicInternet)
+        {
             // Can we reach the full relay?
             if target_inbound_relay_nr
                 .first_filtered_dial_info_detail(Some(RoutingDomain::PublicInternet))
@@ -1054,6 +1061,14 @@ impl NetworkManager {
             {
                 return ContactMethod::InboundRelay(target_inbound_relay_nr);
             }
+        }
+
+        // If we can't reach the node by other means, try our outbound relay if we have one
+        if let Some(relay_node) = self
+            .routing_table()
+            .relay_node(RoutingDomain::PublicInternet)
+        {
+            return ContactMethod::OutboundRelay(relay_node);
         }
 
         ContactMethod::Unreachable
@@ -1093,11 +1108,6 @@ impl NetworkManager {
             return out;
         }
 
-        // If we can't reach the node by other means, try our outbound relay if we have one
-        if let Some(relay_node) = self.relay_node() {
-            return ContactMethod::OutboundRelay(relay_node);
-        }
-
         // Otherwise, we can't reach this node
         log_net!("unable to reach node {:?}", target_node_ref);
         ContactMethod::Unreachable
@@ -1105,6 +1115,7 @@ impl NetworkManager {
 
     // Send a reverse connection signal and wait for the return receipt over it
     // Then send the data across the new connection
+    // Only usable for PublicInternet routing domain
     #[instrument(level = "trace", skip(self, data), err)]
     pub async fn do_reverse_connect(
         &self,
@@ -1118,7 +1129,9 @@ impl NetworkManager {
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 
         // Get our peer info
-        let peer_info = self.routing_table().get_own_peer_info();
+        let peer_info = self
+            .routing_table()
+            .get_own_peer_info(RoutingDomain::PublicInternet);
 
         // Issue the signal
         let rpc = self.rpc_processor();
@@ -1172,6 +1185,7 @@ impl NetworkManager {
 
     // Send a hole punch signal and do a negotiating ping and wait for the return receipt
     // Then send the data across the new connection
+    // Only usable for PublicInternet routing domain
     #[instrument(level = "trace", skip(self, data), err)]
     pub async fn do_hole_punch(
         &self,
@@ -1189,7 +1203,9 @@ impl NetworkManager {
         let receipt_timeout = ms_to_us(self.config.get().network.hole_punch_receipt_time_ms);
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
         // Get our peer info
-        let peer_info = self.routing_table().get_own_peer_info();
+        let peer_info = self
+            .routing_table()
+            .get_own_peer_info(RoutingDomain::PublicInternet);
 
         // Get the udp direct dialinfo for the hole punch
         let hole_punch_did = target_nr
@@ -1358,7 +1374,7 @@ impl NetworkManager {
         // Serialize out peer info
         let bootstrap_peerinfo: Vec<PeerInfo> = bootstrap_nodes
             .iter()
-            .filter_map(|b| b.peer_info())
+            .filter_map(|b| b.peer_info(RoutingDomain::PublicInternet))
             .collect();
         let json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
 
@@ -1567,7 +1583,7 @@ impl NetworkManager {
             }
             Some(v) => v,
         };
-        source_noderef.operate_mut(|e| e.set_min_max_version(envelope.get_min_max_version()));
+        source_noderef.set_min_max_version(envelope.get_min_max_version());
 
         // xxx: deal with spoofing and flooding here?
 
@@ -1713,9 +1729,11 @@ impl NetworkManager {
         let mut bad_public_address_detection_punishment: Option<
             Box<dyn FnOnce() + Send + 'static>,
         > = None;
-        let network_class = net.get_network_class().unwrap_or(NetworkClass::Invalid);
+        let public_internet_network_class = net
+            .get_network_class(RoutingDomain::PublicInternet)
+            .unwrap_or(NetworkClass::Invalid);
         let needs_public_address_detection =
-            if matches!(network_class, NetworkClass::InboundCapable) {
+            if matches!(public_internet_network_class, NetworkClass::InboundCapable) {
                 // Get the dial info filter for this connection so we can check if we have any public dialinfo that may have changed
                 let dial_info_filter = connection_descriptor.make_dial_info_filter();
 
@@ -1831,7 +1849,7 @@ impl NetworkManager {
     }
 
     // Inform routing table entries that our dial info has changed
-    pub async fn send_node_info_updates(&self, all: bool) {
+    pub async fn send_node_info_updates(&self, routing_domain: RoutingDomain, all: bool) {
         let this = self.clone();
 
         // Run in background only once
@@ -1842,7 +1860,8 @@ impl NetworkManager {
             .single_spawn(async move {
                 // Only update if we actually have a valid network class
                 if matches!(
-                    this.get_network_class().unwrap_or(NetworkClass::Invalid),
+                    this.get_network_class(routing_domain)
+                        .unwrap_or(NetworkClass::Invalid),
                     NetworkClass::Invalid
                 ) {
                     trace!(
@@ -1853,7 +1872,9 @@ impl NetworkManager {
 
                 // Get the list of refs to all nodes to update
                 let cur_ts = intf::get_timestamp();
-                let node_refs = this.routing_table().get_nodes_needing_updates(cur_ts, all);
+                let node_refs =
+                    this.routing_table()
+                        .get_nodes_needing_updates(routing_domain, cur_ts, all);
 
                 // Send the updates
                 log_net!(debug "Sending node info updates to {} nodes", node_refs.len());
@@ -1872,7 +1893,7 @@ impl NetworkManager {
                         }
 
                         // Mark the node as having seen our node info
-                        nr.set_seen_our_node_info();
+                        nr.set_seen_our_node_info(routing_domain);
                     });
                 }
 
