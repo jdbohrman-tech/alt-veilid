@@ -390,16 +390,62 @@ impl NetworkClass {
     }
 }
 
+/// RoutingDomain-specific status for each node
+/// is returned by the StatusA call
+
+/// PublicInternet RoutingDomain Status
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct NodeStatus {
-    // PublicInternet RoutingDomain Status
+pub struct PublicInternetNodeStatus {
     pub will_route: bool,
     pub will_tunnel: bool,
     pub will_signal: bool,
     pub will_relay: bool,
     pub will_validate_dial_info: bool,
-    // LocalNetwork RoutingDomain Status
-    // TODO
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct LocalNetworkNodeStatus {
+    pub will_relay: bool,
+    pub will_validate_dial_info: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NodeStatus {
+    PublicInternet(PublicInternetNodeStatus),
+    LocalNetwork(LocalNetworkNodeStatus),
+}
+
+impl NodeStatus {
+    pub fn will_route(&self) -> bool {
+        match self {
+            NodeStatus::PublicInternet(pi) => pi.will_route,
+            NodeStatus::LocalNetwork(_) => false,
+        }
+    }
+    pub fn will_tunnel(&self) -> bool {
+        match self {
+            NodeStatus::PublicInternet(pi) => pi.will_tunnel,
+            NodeStatus::LocalNetwork(_) => false,
+        }
+    }
+    pub fn will_signal(&self) -> bool {
+        match self {
+            NodeStatus::PublicInternet(pi) => pi.will_signal,
+            NodeStatus::LocalNetwork(_) => false,
+        }
+    }
+    pub fn will_relay(&self) -> bool {
+        match self {
+            NodeStatus::PublicInternet(pi) => pi.will_relay,
+            NodeStatus::LocalNetwork(ln) => ln.will_relay,
+        }
+    }
+    pub fn will_validate_dial_info(&self) -> bool {
+        match self {
+            NodeStatus::PublicInternet(pi) => pi.will_validate_dial_info,
+            NodeStatus::LocalNetwork(ln) => ln.will_validate_dial_info,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -556,13 +602,23 @@ pub enum AddressType {
 }
 pub type AddressTypeSet = EnumSet<AddressType>;
 
+// Routing domain here is listed in order of preference, keep in order
 #[allow(clippy::derive_hash_xor_eq)]
 #[derive(Debug, Ord, PartialOrd, Hash, Serialize, Deserialize, EnumSetType)]
-pub enum PeerScope {
-    Global,
-    Local,
+pub enum RoutingDomain {
+    LocalNetwork = 0,
+    PublicInternet = 1,
 }
-pub type PeerScopeSet = EnumSet<PeerScope>;
+impl RoutingDomain {
+    pub const fn count() -> usize {
+        2
+    }
+    pub const fn all() -> [RoutingDomain; RoutingDomain::count()] {
+        // Routing domain here is listed in order of preference, keep in order
+        [RoutingDomain::LocalNetwork, RoutingDomain::PublicInternet]
+    }
+}
+pub type RoutingDomainSet = EnumSet<RoutingDomain>;
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Address {
@@ -729,7 +785,6 @@ impl FromStr for SocketAddress {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DialInfoFilter {
-    pub peer_scope_set: PeerScopeSet,
     pub protocol_type_set: ProtocolTypeSet,
     pub address_type_set: AddressTypeSet,
 }
@@ -737,7 +792,6 @@ pub struct DialInfoFilter {
 impl Default for DialInfoFilter {
     fn default() -> Self {
         Self {
-            peer_scope_set: PeerScopeSet::all(),
             protocol_type_set: ProtocolTypeSet::all(),
             address_type_set: AddressTypeSet::all(),
         }
@@ -747,28 +801,6 @@ impl Default for DialInfoFilter {
 impl DialInfoFilter {
     pub fn all() -> Self {
         Self {
-            peer_scope_set: PeerScopeSet::all(),
-            protocol_type_set: ProtocolTypeSet::all(),
-            address_type_set: AddressTypeSet::all(),
-        }
-    }
-    pub fn global() -> Self {
-        Self {
-            peer_scope_set: PeerScopeSet::only(PeerScope::Global),
-            protocol_type_set: ProtocolTypeSet::all(),
-            address_type_set: AddressTypeSet::all(),
-        }
-    }
-    pub fn local() -> Self {
-        Self {
-            peer_scope_set: PeerScopeSet::only(PeerScope::Local),
-            protocol_type_set: ProtocolTypeSet::all(),
-            address_type_set: AddressTypeSet::all(),
-        }
-    }
-    pub fn scoped(peer_scope: PeerScope) -> Self {
-        Self {
-            peer_scope_set: PeerScopeSet::only(peer_scope),
             protocol_type_set: ProtocolTypeSet::all(),
             address_type_set: AddressTypeSet::all(),
         }
@@ -789,25 +821,19 @@ impl DialInfoFilter {
         self.address_type_set = address_set;
         self
     }
-    pub fn filtered(mut self, other_dif: DialInfoFilter) -> Self {
-        self.peer_scope_set &= other_dif.peer_scope_set;
+    pub fn filtered(mut self, other_dif: &DialInfoFilter) -> Self {
         self.protocol_type_set &= other_dif.protocol_type_set;
         self.address_type_set &= other_dif.address_type_set;
         self
     }
     pub fn is_dead(&self) -> bool {
-        self.peer_scope_set.is_empty()
-            || self.protocol_type_set.is_empty()
-            || self.address_type_set.is_empty()
+        self.protocol_type_set.is_empty() || self.address_type_set.is_empty()
     }
 }
 
 impl fmt::Debug for DialInfoFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let mut out = String::new();
-        if self.peer_scope_set != PeerScopeSet::all() {
-            out += &format!("+{:?}", self.peer_scope_set);
-        }
         if self.protocol_type_set != ProtocolTypeSet::all() {
             out += &format!("+{:?}", self.protocol_type_set);
         }
@@ -1126,49 +1152,15 @@ impl DialInfo {
             Self::WSS(di) => Some(format!("wss://{}", di.request)),
         }
     }
-    pub fn is_global(&self) -> bool {
-        self.socket_address().address().is_global()
-    }
-    pub fn is_local(&self) -> bool {
-        self.socket_address().address().is_local()
-    }
     pub fn is_valid(&self) -> bool {
         let socket_address = self.socket_address();
         let address = socket_address.address();
         let port = socket_address.port();
         (address.is_global() || address.is_local()) && port > 0
     }
-    pub fn peer_scope(&self) -> Option<PeerScope> {
-        let addr = self.socket_address().address();
-        if addr.is_global() {
-            return Some(PeerScope::Global);
-        }
-        if addr.is_local() {
-            return Some(PeerScope::Local);
-        }
-        None
-    }
-    pub fn matches_peer_scope(&self, scope: PeerScopeSet) -> bool {
-        if let Some(ps) = self.peer_scope() {
-            scope.contains(ps)
-        } else {
-            false
-        }
-    }
 
-    pub fn make_filter(&self, scoped: bool) -> DialInfoFilter {
+    pub fn make_filter(&self) -> DialInfoFilter {
         DialInfoFilter {
-            peer_scope_set: if scoped {
-                if self.is_global() {
-                    PeerScopeSet::only(PeerScope::Global)
-                } else if self.is_local() {
-                    PeerScopeSet::only(PeerScope::Local)
-                } else {
-                    PeerScopeSet::empty()
-                }
-            } else {
-                PeerScopeSet::all()
-            },
             protocol_type_set: ProtocolTypeSet::only(self.protocol_type()),
             address_type_set: AddressTypeSet::only(self.address_type()),
         }
@@ -1355,9 +1347,6 @@ impl DialInfo {
 
 impl MatchesDialInfoFilter for DialInfo {
     fn matches_filter(&self, filter: &DialInfoFilter) -> bool {
-        if !self.matches_peer_scope(filter.peer_scope_set) {
-            return false;
-        }
         if !filter.protocol_type_set.contains(self.protocol_type()) {
             return false;
         }
@@ -1452,8 +1441,8 @@ impl PeerInfo {
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub struct PeerAddress {
-    socket_address: SocketAddress,
     protocol_type: ProtocolType,
+    socket_address: SocketAddress,
 }
 
 impl PeerAddress {
@@ -1488,36 +1477,13 @@ pub struct ConnectionDescriptor {
 }
 
 impl ConnectionDescriptor {
-    fn validate_peer_scope(remote: PeerAddress) -> Result<(), VeilidAPIError> {
-        // Verify address is in one of our peer scopes we care about
-        let addr = remote.socket_address.address();
-
-        // Allow WASM to have unresolved addresses, for bootstraps
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                if addr.is_unspecified() {
-                    return Ok(());
-                }
-            }
-        }
-        if !addr.is_global() && !addr.is_local() {
-            return Err(VeilidAPIError::generic(format!(
-                "not a valid peer scope: {:?}",
-                addr
-            )));
-        }
-        Ok(())
-    }
-
     pub fn new(remote: PeerAddress, local: SocketAddress) -> Result<Self, VeilidAPIError> {
-        Self::validate_peer_scope(remote)?;
         Ok(Self {
             remote,
             local: Some(local),
         })
     }
     pub fn new_no_local(remote: PeerAddress) -> Result<Self, VeilidAPIError> {
-        Self::validate_peer_scope(remote)?;
         Ok(Self {
             remote,
             local: None,
@@ -1538,36 +1504,15 @@ impl ConnectionDescriptor {
     pub fn address_type(&self) -> AddressType {
         self.remote.address_type()
     }
-    pub fn peer_scope(&self) -> PeerScope {
-        let addr = self.remote.socket_address.address();
-        // Allow WASM to have unresolved addresses, for bootstraps
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                if addr.is_unspecified() {
-                    return PeerScope::Global;
-                }
-            }
-        }
-        if addr.is_global() {
-            return PeerScope::Global;
-        }
-        PeerScope::Local
-    }
     pub fn make_dial_info_filter(&self) -> DialInfoFilter {
-        DialInfoFilter::scoped(self.peer_scope())
+        DialInfoFilter::all()
             .with_protocol_type(self.protocol_type())
             .with_address_type(self.address_type())
-    }
-    pub fn matches_peer_scope(&self, scope: PeerScopeSet) -> bool {
-        scope.contains(self.peer_scope())
     }
 }
 
 impl MatchesDialInfoFilter for ConnectionDescriptor {
     fn matches_filter(&self, filter: &DialInfoFilter) -> bool {
-        if !self.matches_peer_scope(filter.peer_scope_set) {
-            return false;
-        }
         if !filter.protocol_type_set.contains(self.protocol_type()) {
             return false;
         }
@@ -1654,7 +1599,6 @@ pub struct PeerStats {
     pub rpc_stats: RPCStats,           // information about RPCs
     pub latency: Option<LatencyStats>, // latencies for communications with the peer
     pub transfer: TransferStatsDownUp, // Stats for communications with the peer
-    pub status: Option<NodeStatus>,    // Last known node status
 }
 
 pub type ValueChangeCallback =

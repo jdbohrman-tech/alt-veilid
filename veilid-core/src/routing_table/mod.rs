@@ -23,20 +23,6 @@ const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
 //////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq)]
-pub enum RoutingDomain {
-    PublicInternet = 0,
-    LocalNetwork = 1,
-}
-impl RoutingDomain {
-    pub const fn count() -> usize {
-        2
-    }
-    pub const fn all() -> [RoutingDomain; RoutingDomain::count()] {
-        [RoutingDomain::PublicInternet, RoutingDomain::LocalNetwork]
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct RoutingDomainDetail {
     relay_node: Option<NodeRef>,
@@ -519,7 +505,13 @@ impl RoutingTable {
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
             // Only update nodes that haven't seen our node info yet
             if all || !v.with(|e| e.has_seen_our_node_info(routing_domain)) {
-                node_refs.push(NodeRef::new(self.clone(), k, v, None));
+                node_refs.push(NodeRef::new(
+                    self.clone(),
+                    k,
+                    v,
+                    RoutingDomainSet::only(routing_domain),
+                    None,
+                ));
             }
             Option::<()>::None
         });

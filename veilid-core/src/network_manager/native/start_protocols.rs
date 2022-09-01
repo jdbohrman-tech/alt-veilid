@@ -253,12 +253,11 @@ impl Network {
     pub(super) async fn start_udp_listeners(&self) -> EyreResult<()> {
         trace!("starting udp listeners");
         let routing_table = self.routing_table();
-        let (listen_address, public_address, enable_local_peer_scope, detect_address_changes) = {
+        let (listen_address, public_address, detect_address_changes) = {
             let c = self.config.get();
             (
                 c.network.protocol.udp.listen_address.clone(),
                 c.network.protocol.udp.public_address.clone(),
-                c.network.enable_local_peer_scope,
                 c.network.detect_address_changes,
             )
         };
@@ -288,6 +287,9 @@ impl Network {
 
         // Register local dial info
         for di in &local_dial_info_list {
+
+xxx write routing table sieve for routing domain from dialinfo and local network detection and registration
+
             // If the local interface address is global, or we are enabling local peer scope
             // register global dial info if no public address is specified
             if !detect_address_changes

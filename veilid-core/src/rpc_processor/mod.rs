@@ -39,25 +39,200 @@ type OperationId = u64;
 /// Where to send an RPC message
 #[derive(Debug, Clone)]
 pub enum Destination {
-    /// Send to node (target noderef)
-    Direct(NodeRef),
-    /// Send to node for relay purposes (relay noderef, target nodeid)
-    Relay(NodeRef, DHTKey),
+    /// Send to node directly
+    Direct {
+        /// The node to send to
+        target: NodeRef,
+        /// An optional routing domain to require
+        routing_domain: Option<RoutingDomain>,
+        /// An optional safety route specification to send from for sender privacy
+        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
+    },
+    /// Send to node for relay purposes
+    Relay {
+        /// The relay to send to
+        relay: NodeRef,
+        /// The final destination the relay should send to
+        target: DHTKey,
+        /// An optional routing domain to require
+        routing_domain: Option<RoutingDomain>,
+        /// An optional safety route specification to send from for sender privacy
+        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
+    },
     /// Send to private route (privateroute)
-    PrivateRoute(PrivateRoute),
+    PrivateRoute {
+        /// A private route to send to
+        private_route: PrivateRoute,
+        /// An optional safety route specification to send from for sender privacy
+        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
+    },
+}
+
+impl Destination {
+    pub fn direct(target: NodeRef) -> Self {
+        Self::Direct {
+            target,
+            routing_domain: None,
+            safety_route_spec: None,
+        }
+    }
+    pub fn relay(relay: NodeRef, target: DHTKey) -> Self {
+        Self::Relay {
+            relay,
+            target,
+            routing_domain: None,
+            safety_route_spec: None,
+        }
+    }
+    pub fn private_route(private_route: PrivateRoute) -> Self {
+        Self::PrivateRoute {
+            private_route,
+            safety_route_spec: None,
+        }
+    }
+
+    pub fn 
+
+    pub fn routing_domain(&self) -> Option<RoutingDomain> {
+        match self {
+            Destination::Direct {
+                target,
+                routing_domain,
+                safety_route_spec,
+            } => *routing_domain,
+            Destination::Relay {
+                relay,
+                target,
+                routing_domain,
+                safety_route_spec,
+            } => *routing_domain,
+            Destination::PrivateRoute {
+                private_route,
+                safety_route_spec,
+            } => Some(RoutingDomain::PublicInternet),
+        }
+    }
+    pub fn safety_route_spec(&self) -> Option<Arc<SafetyRouteSpec>> {
+        match self {
+            Destination::Direct {
+                target,
+                routing_domain,
+                safety_route_spec,
+            } => safety_route_spec.clone(),
+            Destination::Relay {
+                relay,
+                target,
+                routing_domain,
+                safety_route_spec,
+            } => safety_route_spec.clone(),
+            Destination::PrivateRoute {
+                private_route,
+                safety_route_spec,
+            } => safety_route_spec.clone(),
+        }
+    }
+    pub fn with_routing_domain(self, routing_domain: RoutingDomain) -> Self {
+        match self {
+            Destination::Direct {
+                target,
+                routing_domain: _,
+                safety_route_spec,
+            } => Self::Direct {
+                target,
+                routing_domain: Some(routing_domain),
+                safety_route_spec,
+            },
+            Destination::Relay {
+                relay,
+                target,
+                routing_domain: _,
+                safety_route_spec,
+            } => Self::Relay {
+                relay,
+                target,
+                routing_domain: Some(routing_domain),
+                safety_route_spec,
+            },
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_route_spec: _,
+            } => panic!("Private route is only valid in PublicInternet routing domain"),
+        }
+    }
+    pub fn with_safety_route_spec(self, safety_route_spec: Arc<SafetyRouteSpec>) -> Self {
+        match self {
+            Destination::Direct {
+                target,
+                routing_domain,
+                safety_route_spec: _,
+            } => Self::Direct {
+                target,
+                routing_domain,
+                safety_route_spec: Some(safety_route_spec),
+            },
+            Destination::Relay {
+                relay,
+                target,
+                routing_domain,
+                safety_route_spec: _,
+            } => Self::Relay {
+                relay,
+                target,
+                routing_domain,
+                safety_route_spec: Some(safety_route_spec),
+            },
+            Destination::PrivateRoute {
+                private_route,
+                safety_route_spec: _,
+            } => Self::PrivateRoute {
+                private_route,
+                safety_route_spec: Some(safety_route_spec),
+            },
+        }
+    }
 }
 
 impl fmt::Display for Destination {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Destination::Direct(nr) => {
-                write!(f, "{:?}", nr)
+            Destination::Direct {
+                target,
+                routing_domain,
+                safety_route_spec,
+            } => {
+                let rd = routing_domain
+                    .map(|rd| format!("#{:?}", rd))
+                    .unwrap_or_default();
+                let sr = safety_route_spec
+                    .map(|_sr| "+SR".to_owned())
+                    .unwrap_or_default();
+
+                write!(f, "{:?}{}{}", target, rd, sr)
             }
-            Destination::Relay(nr, key) => {
-                write!(f, "{:?}@{:?}", key.encode(), nr)
+            Destination::Relay {
+                relay,
+                target,
+                routing_domain,
+                safety_route_spec,
+            } => {
+                let rd = routing_domain
+                    .map(|rd| format!("#{:?}", rd))
+                    .unwrap_or_default();
+                let sr = safety_route_spec
+                    .map(|_sr| "+SR".to_owned())
+                    .unwrap_or_default();
+
+                write!(f, "{:?}@{:?}{}{}", target.encode(), relay, rd, sr)
             }
-            Destination::PrivateRoute(pr) => {
-                write!(f, "{}", pr)
+            Destination::PrivateRoute {
+                private_route,
+                safety_route_spec,
+            } => {
+                let sr = safety_route_spec
+                    .map(|_sr| "+SR".to_owned())
+                    .unwrap_or_default();
+
+                write!(f, "{}{}", private_route, sr)
             }
         }
     }
@@ -412,18 +587,24 @@ impl RPCProcessor {
     /// Gets a 'RespondTo::Sender' that contains either our dial info,
     /// or None if the peer has seen our dial info before or our node info is not yet valid
     /// because of an unknown network class
-    pub fn make_respond_to_sender(&self, peer: NodeRef) -> RespondTo {
-        if peer.has_seen_our_node_info()
+    pub fn make_respond_to_sender(
+        &self,
+        routing_domain: RoutingDomain,
+        peer: NodeRef,
+    ) -> RespondTo {
+        if peer.has_seen_our_node_info(routing_domain)
             || matches!(
                 self.network_manager()
-                    .get_network_class()
+                    .get_network_class(routing_domain)
                     .unwrap_or(NetworkClass::Invalid),
                 NetworkClass::Invalid
             )
         {
             RespondTo::Sender(None)
         } else {
-            let our_sni = self.routing_table().get_own_signed_node_info();
+            let our_sni = self
+                .routing_table()
+                .get_own_signed_node_info(routing_domain);
             RespondTo::Sender(Some(our_sni))
         }
     }
@@ -431,13 +612,12 @@ impl RPCProcessor {
     /// Produce a byte buffer that represents the wire encoding of the entire
     /// unencrypted envelope body for a RPC message. This incorporates
     /// wrapping a private and/or safety route if they are specified.
-    #[instrument(level = "debug", skip(self, operation, safety_route_spec), err)]
+    #[instrument(level = "debug", skip(self, operation), err)]
     fn render_operation(
         &self,
         dest: Destination,
         operation: &RPCOperation,
-        safety_route_spec: Option<&SafetyRouteSpec>,
-    ) -> Result<RenderedOperation, RPCError> {
+    ) -> Result<RenderedOperation, RPCError> { xxx continue propagating safetyroutespec 
         let out_node_id; // Envelope Node Id
         let mut out_node_ref: Option<NodeRef> = None; // Node to send envelope to
         let out_hop_count: usize; // Total safety + private route hop count
@@ -548,7 +728,6 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         question: RPCQuestion,
-        safety_route_spec: Option<&SafetyRouteSpec>,
     ) -> Result<NetworkResult<WaitableReply>, RPCError> {
         // Wrap question in operation
         let operation = RPCOperation::new_question(question);
@@ -624,7 +803,6 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         statement: RPCStatement,
-        safety_route_spec: Option<&SafetyRouteSpec>,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Wrap statement in operation
         let operation = RPCOperation::new_statement(statement);
@@ -714,7 +892,6 @@ impl RPCProcessor {
         &self,
         request: RPCMessage,
         answer: RPCAnswer,
-        safety_route_spec: Option<&SafetyRouteSpec>,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Wrap answer in operation
         let operation = RPCOperation::new_answer(&request.operation, answer);

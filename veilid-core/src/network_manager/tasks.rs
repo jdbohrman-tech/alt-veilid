@@ -476,7 +476,9 @@ impl NetworkManager {
                 // Otherwise we must need an inbound relay
                 } else {
                     // Find a node in our routing table that is an acceptable inbound relay
-                    if let Some(nr) = routing_table.find_inbound_relay(cur_ts) {
+                    if let Some(nr) =
+                        routing_table.find_inbound_relay(RoutingDomain::PublicInternet, cur_ts)
+                    {
                         info!("Inbound relay node selected: {}", nr);
                         routing_table.set_relay_node(RoutingDomain::PublicInternet, Some(nr));
                         node_info_changed = true;

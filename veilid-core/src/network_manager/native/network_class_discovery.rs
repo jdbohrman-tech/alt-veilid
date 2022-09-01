@@ -118,11 +118,13 @@ impl DiscoveryContext {
 
         // Build an filter that matches our protocol and address type
         // and excludes relays so we can get an accurate external address
-        let dial_info_filter = DialInfoFilter::global()
+        let dial_info_filter = DialInfoFilter::all()
             .with_protocol_type(protocol_type)
             .with_address_type(address_type);
-        let inbound_dial_info_entry_filter =
-            RoutingTable::make_inbound_dial_info_entry_filter(dial_info_filter.clone());
+        let inbound_dial_info_entry_filter = RoutingTable::make_inbound_dial_info_entry_filter(
+            RoutingDomain::PublicInternet,
+            dial_info_filter.clone(),
+        );
         let disallow_relays_filter = move |e: &BucketEntryInner| {
             if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
                 n.relay_peer_info.is_none()
@@ -169,7 +171,7 @@ impl DiscoveryContext {
         protocol_type: ProtocolType,
         address_type: AddressType,
     ) -> Vec<SocketAddress> {
-        let filter = DialInfoFilter::local()
+        let filter = DialInfoFilter::all()
             .with_protocol_type(protocol_type)
             .with_address_type(address_type);
         self.routing_table

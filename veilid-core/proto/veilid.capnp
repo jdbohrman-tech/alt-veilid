@@ -200,14 +200,11 @@ struct DialInfoDetail {
 }
 
 struct NodeStatus {
-    # PublicInternet RoutingDomain Status
     willRoute               @0  :Bool;
     willTunnel              @1  :Bool;
     willSignal              @2  :Bool;
     willRelay               @3  :Bool;
     willValidateDialInfo    @4  :Bool;
-    # LocalNetwork RoutingDomain Status
-    # TODO
 }
 
 struct ProtocolTypeSet {
@@ -224,7 +221,7 @@ struct AddressTypeSet {
 
 struct NodeInfo {
     networkClass            @0  :NetworkClass;          # network class of this node
-    outboundProtocols       @1  :ProtocolTypeSet;           # protocols that can go outbound
+    outboundProtocols       @1  :ProtocolTypeSet;       # protocols that can go outbound
     addressTypes            @2  :AddressTypeSet;        # address types supported
     minVersion              @3  :UInt8;                 # minimum protocol version for rpc
     maxVersion              @4  :UInt8;                 # maximum protocol version for rpc

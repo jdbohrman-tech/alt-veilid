@@ -1884,7 +1884,7 @@ impl NetworkManager {
                     unord.push(async move {
                         // Update the node
                         if let Err(e) = rpc
-                            .rpc_call_node_info_update(Destination::Direct(nr.clone()), None)
+                            .rpc_call_node_info_update(nr.clone, routing_domain)
                             .await
                         {
                             // Not fatal, but we should be able to see if this is happening

@@ -6,16 +6,23 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn rpc_call_node_info_update(
         self,
-        dest: Destination,
-        safety_route: Option<&SafetyRouteSpec>,
+        target: NodeRef,
+        routing_domain: RoutingDomain,
     ) -> Result<NetworkResult<()>, RPCError> {
-        let signed_node_info = self.routing_table().get_own_signed_node_info();
-        xxx add routing domain to capnp....
+        let signed_node_info = self
+            .routing_table()
+            .get_own_signed_node_info(routing_domain);
         let node_info_update = RPCOperationNodeInfoUpdate { signed_node_info };
         let statement = RPCStatement::new(RPCStatementDetail::NodeInfoUpdate(node_info_update));
 
         // Send the node_info_update request
-        network_result_try!(self.statement(dest, statement, safety_route).await?);
+        network_result_try!(
+            self.statement(
+                Destination::direct(target).with_routing_domain(routing_domain),
+                statement,
+            )
+            .await?
+        );
 
         Ok(NetworkResult::value(()))
     }

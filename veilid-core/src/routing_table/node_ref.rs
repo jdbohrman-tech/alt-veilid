@@ -52,7 +52,7 @@ impl NodeRef {
 
     pub fn merge_filter(&mut self, filter: DialInfoFilter) {
         if let Some(self_filter) = self.filter.take() {
-            self.filter = Some(self_filter.filtered(filter));
+            self.filter = Some(self_filter.filtered(&filter));
         } else {
             self.filter = Some(filter);
         }
@@ -71,19 +71,6 @@ impl NodeRef {
             false
         }
     }
-
-    // Returns true if some protocols can still pass the filter and false if no protocols remain
-    // pub fn filter_protocols(&mut self, protocol_set: ProtocolSet) -> bool {
-    //     if protocol_set != ProtocolSet::all() {
-    //         let mut dif = self.filter.clone().unwrap_or_default();
-    //         dif.protocol_set &= protocol_set;
-    //         self.filter = Some(dif);
-    //     }
-    //     self.filter
-    //         .as_ref()
-    //         .map(|f| !f.protocol_set.is_empty())
-    //         .unwrap_or(true)
-    // }
 
     pub(super) fn operate<T, F>(&self, f: F) -> T
     where
@@ -129,7 +116,6 @@ impl NodeRef {
     pub fn min_max_version(&self) -> Option<(u8, u8)> {
         self.operate(|_rti, e| e.min_max_version())
     }
-
     pub fn set_min_max_version(&self, min_max_version: (u8, u8)) {
         self.operate_mut(|_rti, e| e.set_min_max_version(min_max_version))
     }
