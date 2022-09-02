@@ -22,6 +22,14 @@ In this document I would like to propose some guidelines and processes that can
 help to minimize the impact of malicious actors upon the core Veilid code base
 by way of direct commits and/or to its dependencies.
 
+## Signing
+
+### Commits
+
+### Packages
+
+### PKI
+
 Some of this work will be toil, but most ought to be automated.
 
 ## Forked Dependencies
