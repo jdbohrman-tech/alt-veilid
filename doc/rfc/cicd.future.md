@@ -1,8 +1,11 @@
 ---
 title: CI/CD Future Planning
+keywords:
+- dependencies
+- cicd
+- security
 status: PROPOSAL
 ---
-
 
 # CI/CD Future Planning
 
@@ -37,4 +40,9 @@ dependencies fall into which categories.
 
 ### Soft forks
 
+**TODO** _Note which submodules are soft forks and changes can be contributed
+upstream_
+
 ### Hard forks
+
+**TODO** _Note which submodules are hard forks and will be maintained by us._
