@@ -3,6 +3,7 @@ mod bucket_entry;
 mod debug;
 mod find_nodes;
 mod node_ref;
+mod routing_domains;
 mod stats_accounting;
 mod tasks;
 
@@ -17,34 +18,31 @@ pub use debug::*;
 pub use find_nodes::*;
 use hashlink::LruCache;
 pub use node_ref::*;
+pub use routing_domains::*;
 pub use stats_accounting::*;
 
 const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
 //////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Default)]
-pub struct RoutingDomainDetail {
-    relay_node: Option<NodeRef>,
-    dial_info_details: Vec<DialInfoDetail>,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct RecentPeersEntry {
     last_connection: ConnectionDescriptor,
 }
 
+/// RoutingTable rwlock-internal data
 struct RoutingTableInner {
     network_manager: NetworkManager,
-    node_id: DHTKey,              // The current node's public DHT key
+    // The current node's public DHT key
+    node_id: DHTKey,
     node_id_secret: DHTKeySecret, // The current node's DHT key secret
 
     buckets: Vec<Bucket>,        // Routing table buckets that hold entries
     kick_queue: BTreeSet<usize>, // Buckets to kick on our next kick task
     bucket_entry_count: usize,   // A fast counter for the number of entries in the table, total
 
-    public_internet_routing_domain: RoutingDomainDetail, // The dial info we use on the public internet
-    local_network_routing_domain: RoutingDomainDetail, // The dial info we use on the local network
+    public_internet_routing_domain: PublicInternetRoutingDomainDetail, // The public internet
+    local_network_routing_domain: LocalInternetRoutingDomainDetail, // The dial info we use on the local network
 
     self_latency_stats_accounting: LatencyStatsAccounting, // Interim accounting mechanism for this node's RPC latency to any other node
     self_transfer_stats_accounting: TransferStatsAccounting, // Interim accounting mechanism for the total bandwidth to/from this node
@@ -80,8 +78,8 @@ impl RoutingTable {
             node_id_secret: DHTKeySecret::default(),
             buckets: Vec::new(),
             kick_queue: BTreeSet::default(),
-            public_internet_routing_domain: RoutingDomainDetail::default(),
-            local_network_routing_domain: RoutingDomainDetail::default(),
+            public_internet_routing_domain: PublicInternetRoutingDomainDetail::default(),
+            local_network_routing_domain: LocalInternetRoutingDomainDetail::default(),
             bucket_entry_count: 0,
             self_latency_stats_accounting: LatencyStatsAccounting::new(),
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
@@ -140,9 +138,21 @@ impl RoutingTable {
         self.inner.read().node_id_secret
     }
 
+    pub fn routing_domain_for_address(&self, address: Address) -> Option<RoutingDomain> {
+        let inner = self.inner.read();
+        for rd in RoutingDomain::all() {
+            let can_contain =
+                Self::with_routing_domain(&*inner, rd, |rdd| rdd.can_contain_address(address));
+            if can_contain {
+                return Some(rd);
+            }
+        }
+        None
+    }
+
     fn with_routing_domain<F, R>(inner: &RoutingTableInner, domain: RoutingDomain, f: F) -> R
     where
-        F: FnOnce(&RoutingDomainDetail) -> R,
+        F: FnOnce(&dyn RoutingDomainDetail) -> R,
     {
         match domain {
             RoutingDomain::PublicInternet => f(&inner.public_internet_routing_domain),
@@ -156,7 +166,7 @@ impl RoutingTable {
         f: F,
     ) -> R
     where
-        F: FnOnce(&mut RoutingDomainDetail) -> R,
+        F: FnOnce(&mut dyn RoutingDomainDetail) -> R,
     {
         match domain {
             RoutingDomain::PublicInternet => f(&mut inner.public_internet_routing_domain),
@@ -166,79 +176,56 @@ impl RoutingTable {
 
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {
         let inner = self.inner.read();
-        Self::with_routing_domain(&*inner, domain, |rd| rd.relay_node.clone())
+        Self::with_routing_domain(&*inner, domain, |rd| rd.relay_node())
     }
 
     pub fn set_relay_node(&self, domain: RoutingDomain, opt_relay_node: Option<NodeRef>) {
         let inner = self.inner.write();
-        Self::with_routing_domain(&mut *inner, domain, |rd| rd.relay_node = opt_relay_node);
+        Self::with_routing_domain_mut(&mut *inner, domain, |rd| rd.set_relay_node(opt_relay_node));
     }
 
     pub fn has_dial_info(&self, domain: RoutingDomain) -> bool {
         let inner = self.inner.read();
-        Self::with_routing_domain(&*inner, domain, |rd| !rd.dial_info_details.is_empty())
+        Self::with_routing_domain(&*inner, domain, |rd| !rd.dial_info_details().is_empty())
     }
 
     pub fn dial_info_details(&self, domain: RoutingDomain) -> Vec<DialInfoDetail> {
         let inner = self.inner.read();
-        Self::with_routing_domain(&*inner, domain, |rd| rd.dial_info_details.clone())
+        Self::with_routing_domain(&*inner, domain, |rd| rd.dial_info_details().clone())
     }
 
     pub fn first_filtered_dial_info_detail(
         &self,
-        domain: Option<RoutingDomain>,
+        routing_domain_set: RoutingDomainSet,
         filter: &DialInfoFilter,
     ) -> Option<DialInfoDetail> {
         let inner = self.inner.read();
-        // Prefer local network first if it isn't filtered out
-        if domain == None || domain == Some(RoutingDomain::LocalNetwork) {
-            Self::with_routing_domain(&*inner, RoutingDomain::LocalNetwork, |rd| {
-                for did in &rd.dial_info_details {
+        for routing_domain in routing_domain_set {
+            let did = Self::with_routing_domain(&*inner, routing_domain, |rd| {
+                for did in rd.dial_info_details() {
                     if did.matches_filter(filter) {
                         return Some(did.clone());
                     }
                 }
                 None
-            })
-        } else {
-            None
-        }
-        .or_else(|| {
-            if domain == None || domain == Some(RoutingDomain::PublicInternet) {
-                Self::with_routing_domain(&*inner, RoutingDomain::PublicInternet, |rd| {
-                    for did in &rd.dial_info_details {
-                        if did.matches_filter(filter) {
-                            return Some(did.clone());
-                        }
-                    }
-                    None
-                })
-            } else {
-                None
+            });
+            if did.is_some() {
+                return did;
             }
-        })
+        }
+        None
     }
 
     pub fn all_filtered_dial_info_details(
         &self,
-        domain: Option<RoutingDomain>,
+        routing_domain_set: RoutingDomainSet,
         filter: &DialInfoFilter,
     ) -> Vec<DialInfoDetail> {
         let inner = self.inner.read();
         let mut ret = Vec::new();
-
-        if domain == None || domain == Some(RoutingDomain::LocalNetwork) {
-            Self::with_routing_domain(&*inner, RoutingDomain::LocalNetwork, |rd| {
-                for did in &rd.dial_info_details {
-                    if did.matches_filter(filter) {
-                        ret.push(did.clone());
-                    }
-                }
-            });
-        }
-        if domain == None || domain == Some(RoutingDomain::PublicInternet) {
-            Self::with_routing_domain(&*inner, RoutingDomain::PublicInternet, |rd| {
-                for did in &rd.dial_info_details {
+        for routing_domain in routing_domain_set {
+            Self::with_routing_domain(&*inner, routing_domain, |rd| {
+                for did in rd.dial_info_details() {
                     if did.matches_filter(filter) {
                         ret.push(did.clone());
                     }
@@ -250,17 +237,13 @@ impl RoutingTable {
     }
 
     pub fn ensure_dial_info_is_valid(&self, domain: RoutingDomain, dial_info: &DialInfo) -> bool {
-        let enable_local_peer_scope = {
-            let config = self.network_manager().config();
-            let c = config.get();
-            c.network.enable_local_peer_scope
-        };
+        let address = dial_info.socket_address().address();
+        let inner = self.inner.read();
+        let can_contain_address =
+            Self::with_routing_domain(&*inner, domain, |rd| rd.can_contain_address(address));
 
-        if !enable_local_peer_scope
-            && matches!(domain, RoutingDomain::PublicInternet)
-            && dial_info.is_local()
-        {
-            log_rtab!(debug "shouldn't be registering local addresses as public");
+        if !can_contain_address {
+            log_rtab!(debug "can not add dial info to this routing domain");
             return false;
         }
         if !dial_info.is_valid() {
@@ -281,25 +264,20 @@ impl RoutingTable {
         class: DialInfoClass,
     ) -> EyreResult<()> {
         if !self.ensure_dial_info_is_valid(domain, &dial_info) {
-            return Err(eyre!("dial info is not valid"));
+            return Err(eyre!("dial info is not valid in this routing domain"));
         }
 
         let mut inner = self.inner.write();
         Self::with_routing_domain_mut(&mut *inner, domain, |rd| {
-            rd.dial_info_details.push(DialInfoDetail {
+            rd.add_dial_info_detail(DialInfoDetail {
                 dial_info: dial_info.clone(),
                 class,
             });
-            rd.dial_info_details.sort();
         });
 
-        let domain_str = match domain {
-            RoutingDomain::PublicInternet => "Public",
-            RoutingDomain::LocalNetwork => "Local",
-        };
         info!(
-            "{} Dial Info: {}",
-            domain_str,
+            "{:?} Dial Info: {}",
+            domain,
             NodeDialInfo {
                 node_id: NodeId::new(inner.node_id),
                 dial_info
@@ -308,19 +286,18 @@ impl RoutingTable {
         );
         debug!("    Class: {:?}", class);
 
-        // Public dial info changed, go through all nodes and reset their 'seen our node info' bit
-        if matches!(domain, RoutingDomain::PublicInternet) {
-            Self::reset_all_seen_our_node_info(&mut *inner);
-            Self::reset_all_updated_since_last_network_change(&mut *inner);
-        }
+        Self::reset_all_seen_our_node_info(&mut *inner, domain);
+        Self::reset_all_updated_since_last_network_change(&mut *inner);
 
         Ok(())
     }
 
-    fn reset_all_seen_our_node_info(inner: &mut RoutingTableInner) {
+    fn reset_all_seen_our_node_info(inner: &mut RoutingTableInner, routing_domain: RoutingDomain) {
         let cur_ts = intf::get_timestamp();
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_, v| {
-            v.with_mut(|e| e.set_seen_our_node_info(false));
+            v.with_mut(|e| {
+                e.set_seen_our_node_info(routing_domain, false);
+            });
             Option::<()>::None
         });
     }
@@ -333,18 +310,55 @@ impl RoutingTable {
         });
     }
 
-    pub fn clear_dial_info_details(&self, domain: RoutingDomain) {
-        trace!("clearing dial info domain: {:?}", domain);
+    pub fn clear_dial_info_details(&self, routing_domain: RoutingDomain) {
+        trace!("clearing dial info domain: {:?}", routing_domain);
 
         let mut inner = self.inner.write();
-        Self::with_routing_domain_mut(&mut *inner, domain, |rd| {
-            rd.dial_info_details.clear();
+        Self::with_routing_domain_mut(&mut *inner, routing_domain, |rd| {
+            rd.clear_dial_info_details();
         });
 
         // Public dial info changed, go through all nodes and reset their 'seen our node info' bit
-        if matches!(domain, RoutingDomain::PublicInternet) {
-            Self::reset_all_seen_our_node_info(&mut *inner);
+        Self::reset_all_seen_our_node_info(&mut *inner, routing_domain);
+    }
+
+    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
+        PeerInfo::new(
+            NodeId::new(self.node_id()),
+            self.get_own_signed_node_info(routing_domain),
+        )
+    }
+
+    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedNodeInfo {
+        let node_id = NodeId::new(self.node_id());
+        let secret = self.node_id_secret();
+        SignedNodeInfo::with_secret(self.get_own_node_info(routing_domain), node_id, &secret)
+            .unwrap()
+    }
+
+    pub fn get_own_node_info(&self, routing_domain: RoutingDomain) -> NodeInfo {
+        let netman = self.network_manager();
+        let relay_node = self.relay_node(routing_domain);
+        let pc = netman.get_protocol_config();
+        NodeInfo {
+            network_class: netman
+                .get_network_class(routing_domain)
+                .unwrap_or(NetworkClass::Invalid),
+            outbound_protocols: pc.outbound,
+            address_types: pc.family_global,
+            min_version: MIN_VERSION,
+            max_version: MAX_VERSION,
+            dial_info_detail_list: self.dial_info_details(routing_domain),
+            relay_peer_info: relay_node.and_then(|rn| rn.peer_info(routing_domain).map(Box::new)),
         }
+    }
+
+    pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
+        let netman = self.network_manager();
+        let nc = netman
+            .get_network_class(routing_domain)
+            .unwrap_or(NetworkClass::Invalid);
+        !matches!(nc, NetworkClass::Invalid)
     }
 
     fn bucket_depth(index: usize) -> usize {
@@ -396,6 +410,24 @@ impl RoutingTable {
         *self.inner.write() = Self::new_inner(self.network_manager());
 
         debug!("finished routing table terminate");
+    }
+
+    pub fn configure_local_network_routing_domain(&self, local_networks: Vec<(IpAddr, IpAddr)>) {
+        let mut inner = self.inner.write();
+        let changed = inner
+            .local_network_routing_domain
+            .set_local_networks(local_networks);
+
+        // If the local network topology has changed, nuke the existing local node info and let new local discovery happen
+        if changed {
+            let cur_ts = intf::get_timestamp();
+            Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_rti, e| {
+                e.with_mut(|e| {
+                    e.clear_signed_node_info(RoutingDomain::LocalNetwork);
+                });
+                Option::<()>::None
+            });
+        }
     }
 
     // Attempt to empty the routing table
@@ -461,16 +493,28 @@ impl RoutingTable {
             .unwrap()
     }
 
-    pub fn get_entry_count(&self, min_state: BucketEntryState) -> usize {
+    pub fn get_entry_count(
+        &self,
+        routing_domain_set: RoutingDomainSet,
+        min_state: BucketEntryState,
+    ) -> usize {
         let inner = self.inner.read();
-        Self::get_entry_count_inner(&*inner, min_state)
+        Self::get_entry_count_inner(&*inner, routing_domain_set, min_state)
     }
 
-    fn get_entry_count_inner(inner: &RoutingTableInner, min_state: BucketEntryState) -> usize {
+    fn get_entry_count_inner(
+        inner: &RoutingTableInner,
+        routing_domain_set: RoutingDomainSet,
+        min_state: BucketEntryState,
+    ) -> usize {
         let mut count = 0usize;
         let cur_ts = intf::get_timestamp();
-        Self::with_entries(inner, cur_ts, min_state, |_, _| {
-            count += 1;
+        Self::with_entries(inner, cur_ts, min_state, |_, e| {
+            if e.with(|e| e.best_routing_domain(routing_domain_set))
+                .is_some()
+            {
+                count += 1;
+            }
             Option::<()>::None
         });
         count
@@ -505,38 +549,32 @@ impl RoutingTable {
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
             // Only update nodes that haven't seen our node info yet
             if all || !v.with(|e| e.has_seen_our_node_info(routing_domain)) {
-                node_refs.push(NodeRef::new(
-                    self.clone(),
-                    k,
-                    v,
-                    RoutingDomainSet::only(routing_domain),
-                    None,
-                ));
+                node_refs.push(NodeRef::new(self.clone(), k, v, None));
             }
             Option::<()>::None
         });
         node_refs
     }
 
-    pub fn get_nodes_needing_ping(&self, cur_ts: u64) -> Vec<NodeRef> {
+    pub fn get_nodes_needing_ping(
+        &self,
+        routing_domain: RoutingDomain,
+        cur_ts: u64,
+    ) -> Vec<NodeRef> {
         let inner = self.inner.read();
 
         // Collect relay nodes
-        let mut relays: HashSet<DHTKey> = HashSet::new();
-        for rd in RoutingDomain::all() {
-            let opt_relay_id =
-                Self::with_routing_domain(&*inner, RoutingDomain::PublicInternet, |rd| {
-                    rd.relay_node.map(|rn| rn.node_id())
-                });
-            if let Some(relay_id) = opt_relay_id {
-                relays.insert(relay_id);
-            }
-        }
+        let opt_relay_id = Self::with_routing_domain(&*inner, routing_domain, |rd| {
+            rd.relay_node().map(|rn| rn.node_id())
+        });
 
         // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
         let mut node_refs = Vec::<NodeRef>::with_capacity(inner.bucket_entry_count);
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
-            if v.with(|e| e.has_node_info(None) && e.needs_ping(&k, cur_ts, relays.contains(&k))) {
+            if v.with(|e| {
+                e.has_node_info(RoutingDomainSet::only(routing_domain))
+                    && e.needs_ping(&k, cur_ts, opt_relay_id == Some(k))
+            }) {
                 node_refs.push(NodeRef::new(self.clone(), k, v, None));
             }
             Option::<()>::None
@@ -599,7 +637,7 @@ impl RoutingTable {
 
                 // Kick the bucket
                 inner.kick_queue.insert(idx);
-                log_rtab!(debug "Routing table now has {} nodes, {} live", cnt, Self::get_entry_count_inner(&mut *inner, BucketEntryState::Unreliable));
+                log_rtab!(debug "Routing table now has {} nodes, {} live", cnt, Self::get_entry_count_inner(&mut *inner, RoutingDomainSet::all(), BucketEntryState::Unreliable));
 
                 nr
             }
@@ -635,7 +673,6 @@ impl RoutingTable {
     // and add the dial info we have for it, since that's pretty common
     pub fn register_node_with_signed_node_info(
         &self,
-        routing_domain: RoutingDomain,
         node_id: DHTKey,
         signed_node_info: SignedNodeInfo,
         allow_invalid_signature: bool,
@@ -651,9 +688,12 @@ impl RoutingTable {
                 return None;
             }
         }
-
         self.create_node_ref(node_id, |e| {
-            e.update_signed_node_info(routing_domain, signed_node_info, allow_invalid_signature);
+            e.update_signed_node_info(signed_node_info, allow_invalid_signature);
+        })
+        .map(|mut nr| {
+            nr.set_filter(Some(NodeRefFilter::new().with_routing_domain(signed_node_info.routing_domain)))
+            nr
         })
     }
 

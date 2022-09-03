@@ -1,4 +1,5 @@
 mod coders;
+mod destination;
 mod private_route;
 mod rpc_cancel_tunnel;
 mod rpc_complete_tunnel;
@@ -18,6 +19,7 @@ mod rpc_validate_dial_info;
 mod rpc_value_changed;
 mod rpc_watch_value;
 
+pub use destination::*;
 pub use private_route::*;
 pub use rpc_error::*;
 
@@ -36,208 +38,6 @@ use stop_token::future::FutureExt;
 
 type OperationId = u64;
 
-/// Where to send an RPC message
-#[derive(Debug, Clone)]
-pub enum Destination {
-    /// Send to node directly
-    Direct {
-        /// The node to send to
-        target: NodeRef,
-        /// An optional routing domain to require
-        routing_domain: Option<RoutingDomain>,
-        /// An optional safety route specification to send from for sender privacy
-        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
-    },
-    /// Send to node for relay purposes
-    Relay {
-        /// The relay to send to
-        relay: NodeRef,
-        /// The final destination the relay should send to
-        target: DHTKey,
-        /// An optional routing domain to require
-        routing_domain: Option<RoutingDomain>,
-        /// An optional safety route specification to send from for sender privacy
-        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
-    },
-    /// Send to private route (privateroute)
-    PrivateRoute {
-        /// A private route to send to
-        private_route: PrivateRoute,
-        /// An optional safety route specification to send from for sender privacy
-        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
-    },
-}
-
-impl Destination {
-    pub fn direct(target: NodeRef) -> Self {
-        Self::Direct {
-            target,
-            routing_domain: None,
-            safety_route_spec: None,
-        }
-    }
-    pub fn relay(relay: NodeRef, target: DHTKey) -> Self {
-        Self::Relay {
-            relay,
-            target,
-            routing_domain: None,
-            safety_route_spec: None,
-        }
-    }
-    pub fn private_route(private_route: PrivateRoute) -> Self {
-        Self::PrivateRoute {
-            private_route,
-            safety_route_spec: None,
-        }
-    }
-
-    pub fn 
-
-    pub fn routing_domain(&self) -> Option<RoutingDomain> {
-        match self {
-            Destination::Direct {
-                target,
-                routing_domain,
-                safety_route_spec,
-            } => *routing_domain,
-            Destination::Relay {
-                relay,
-                target,
-                routing_domain,
-                safety_route_spec,
-            } => *routing_domain,
-            Destination::PrivateRoute {
-                private_route,
-                safety_route_spec,
-            } => Some(RoutingDomain::PublicInternet),
-        }
-    }
-    pub fn safety_route_spec(&self) -> Option<Arc<SafetyRouteSpec>> {
-        match self {
-            Destination::Direct {
-                target,
-                routing_domain,
-                safety_route_spec,
-            } => safety_route_spec.clone(),
-            Destination::Relay {
-                relay,
-                target,
-                routing_domain,
-                safety_route_spec,
-            } => safety_route_spec.clone(),
-            Destination::PrivateRoute {
-                private_route,
-                safety_route_spec,
-            } => safety_route_spec.clone(),
-        }
-    }
-    pub fn with_routing_domain(self, routing_domain: RoutingDomain) -> Self {
-        match self {
-            Destination::Direct {
-                target,
-                routing_domain: _,
-                safety_route_spec,
-            } => Self::Direct {
-                target,
-                routing_domain: Some(routing_domain),
-                safety_route_spec,
-            },
-            Destination::Relay {
-                relay,
-                target,
-                routing_domain: _,
-                safety_route_spec,
-            } => Self::Relay {
-                relay,
-                target,
-                routing_domain: Some(routing_domain),
-                safety_route_spec,
-            },
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_route_spec: _,
-            } => panic!("Private route is only valid in PublicInternet routing domain"),
-        }
-    }
-    pub fn with_safety_route_spec(self, safety_route_spec: Arc<SafetyRouteSpec>) -> Self {
-        match self {
-            Destination::Direct {
-                target,
-                routing_domain,
-                safety_route_spec: _,
-            } => Self::Direct {
-                target,
-                routing_domain,
-                safety_route_spec: Some(safety_route_spec),
-            },
-            Destination::Relay {
-                relay,
-                target,
-                routing_domain,
-                safety_route_spec: _,
-            } => Self::Relay {
-                relay,
-                target,
-                routing_domain,
-                safety_route_spec: Some(safety_route_spec),
-            },
-            Destination::PrivateRoute {
-                private_route,
-                safety_route_spec: _,
-            } => Self::PrivateRoute {
-                private_route,
-                safety_route_spec: Some(safety_route_spec),
-            },
-        }
-    }
-}
-
-impl fmt::Display for Destination {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Destination::Direct {
-                target,
-                routing_domain,
-                safety_route_spec,
-            } => {
-                let rd = routing_domain
-                    .map(|rd| format!("#{:?}", rd))
-                    .unwrap_or_default();
-                let sr = safety_route_spec
-                    .map(|_sr| "+SR".to_owned())
-                    .unwrap_or_default();
-
-                write!(f, "{:?}{}{}", target, rd, sr)
-            }
-            Destination::Relay {
-                relay,
-                target,
-                routing_domain,
-                safety_route_spec,
-            } => {
-                let rd = routing_domain
-                    .map(|rd| format!("#{:?}", rd))
-                    .unwrap_or_default();
-                let sr = safety_route_spec
-                    .map(|_sr| "+SR".to_owned())
-                    .unwrap_or_default();
-
-                write!(f, "{:?}@{:?}{}{}", target.encode(), relay, rd, sr)
-            }
-            Destination::PrivateRoute {
-                private_route,
-                safety_route_spec,
-            } => {
-                let sr = safety_route_spec
-                    .map(|_sr| "+SR".to_owned())
-                    .unwrap_or_default();
-
-                write!(f, "{}{}", private_route, sr)
-            }
-        }
-    }
-}
-
 /// The decoded header of an RPC message
 #[derive(Debug, Clone)]
 struct RPCMessageHeader {
@@ -251,6 +51,8 @@ struct RPCMessageHeader {
     peer_noderef: NodeRef,
     /// The connection from the peer sent the message (not the original sender)
     connection_descriptor: ConnectionDescriptor,
+    /// The routing domain the message was sent through
+    routing_domain: RoutingDomain,
 }
 
 #[derive(Debug)]
@@ -352,7 +154,6 @@ pub struct RPCProcessorInner {
 pub struct RPCProcessor {
     crypto: Crypto,
     config: VeilidConfig,
-    enable_local_peer_scope: bool,
     inner: Arc<Mutex<RPCProcessorInner>>,
 }
 
@@ -375,11 +176,6 @@ impl RPCProcessor {
         Self {
             crypto: network_manager.crypto(),
             config: network_manager.config(),
-            enable_local_peer_scope: network_manager
-                .config()
-                .get()
-                .network
-                .enable_local_peer_scope,
             inner: Arc::new(Mutex::new(Self::new_inner(network_manager))),
         }
     }
@@ -402,12 +198,8 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
-    fn filter_peer_scope(&self, node_info: &NodeInfo) -> bool {
-        // if local peer scope is enabled, then don't reject any peer info
-        if self.enable_local_peer_scope {
-            return true;
-        }
-
+    /// Determine if a NodeInfo can be placed into the specified routing domain
+    fn filter_node_info(&self, routing_domain: RoutingDomain, node_info: &NodeInfo) -> bool {
         // reject attempts to include non-public addresses in results
         for did in &node_info.dial_info_detail_list {
             if !did.dial_info.is_global() {
@@ -584,31 +376,6 @@ impl RPCProcessor {
         out
     }
 
-    /// Gets a 'RespondTo::Sender' that contains either our dial info,
-    /// or None if the peer has seen our dial info before or our node info is not yet valid
-    /// because of an unknown network class
-    pub fn make_respond_to_sender(
-        &self,
-        routing_domain: RoutingDomain,
-        peer: NodeRef,
-    ) -> RespondTo {
-        if peer.has_seen_our_node_info(routing_domain)
-            || matches!(
-                self.network_manager()
-                    .get_network_class(routing_domain)
-                    .unwrap_or(NetworkClass::Invalid),
-                NetworkClass::Invalid
-            )
-        {
-            RespondTo::Sender(None)
-        } else {
-            let our_sni = self
-                .routing_table()
-                .get_own_signed_node_info(routing_domain);
-            RespondTo::Sender(Some(our_sni))
-        }
-    }
-
     /// Produce a byte buffer that represents the wire encoding of the entire
     /// unencrypted envelope body for a RPC message. This incorporates
     /// wrapping a private and/or safety route if they are specified.
@@ -617,7 +384,7 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         operation: &RPCOperation,
-    ) -> Result<RenderedOperation, RPCError> { xxx continue propagating safetyroutespec 
+    ) -> Result<RenderedOperation, RPCError> {
         let out_node_id; // Envelope Node Id
         let mut out_node_ref: Option<NodeRef> = None; // Node to send envelope to
         let out_hop_count: usize; // Total safety + private route hop count
@@ -634,12 +401,28 @@ impl RPCProcessor {
 
         // To where are we sending the request
         match dest {
-            Destination::Direct(ref node_ref) | Destination::Relay(ref node_ref, _) => {
+            Destination::Direct {
+                target: node_ref,
+                routing_domain,
+                safety_route_spec,
+            }
+            | Destination::Relay {
+                relay: node_ref,
+                target: _,
+                routing_domain,
+                safety_route_spec,
+            } => {
                 // Send to a node without a private route
                 // --------------------------------------
 
                 // Get the actual destination node id accounting for relays
-                let (node_ref, node_id) = if let Destination::Relay(_, dht_key) = dest {
+                let (node_ref, node_id) = if let Destination::Relay {
+                    relay: _,
+                    target: dht_key,
+                    routing_domain: _,
+                    safety_route_spec: _,
+                } = dest
+                {
                     (node_ref.clone(), dht_key.clone())
                 } else {
                     let node_id = node_ref.node_id();
@@ -676,7 +459,10 @@ impl RPCProcessor {
                     }
                 };
             }
-            Destination::PrivateRoute(private_route) => {
+            Destination::PrivateRoute {
+                private_route,
+                safety_route_spec,
+            } => {
                 // Send to private route
                 // ---------------------
                 // Reply with 'route' operation
@@ -723,12 +509,22 @@ impl RPCProcessor {
     }
 
     // Issue a question over the network, possibly using an anonymized route
-    #[instrument(level = "debug", skip(self, question, safety_route_spec), err)]
+    #[instrument(level = "debug", skip(self, question), err)]
     async fn question(
         &self,
         dest: Destination,
         question: RPCQuestion,
     ) -> Result<NetworkResult<WaitableReply>, RPCError> {
+        
+        // Get sender info if we should send that
+        let opt_sender_info = if dest.safety_route_spec().is_none() && matches!(question.respond_to(), RespondTo::Sender) {
+            // Sender is not private, send sender info if needed
+            // Get the noderef of the eventual destination or first route hop
+            if let Some(target_nr) = self.routing_table().lookup_node_ref(dest.get_target_id()) {
+                if target_nr.has_seen_our_node_info(R)
+            }
+        }
+
         // Wrap question in operation
         let operation = RPCOperation::new_question(question);
         let op_id = operation.op_id();
@@ -951,6 +747,10 @@ impl RPCProcessor {
         &self,
         encoded_msg: RPCMessageEncoded,
     ) -> Result<(), RPCError> {
+        
+        // Get the routing domain
+        let routing_domain = encoded_msg.header.routing_domain;
+
         // Decode the operation
         let sender_node_id = encoded_msg.header.envelope.get_sender_id();
 
@@ -971,12 +771,13 @@ impl RPCProcessor {
                 match q.respond_to() {
                     RespondTo::Sender(Some(sender_ni)) => {
                         // Sender NodeInfo was specified, update our routing table with it
-                        if !self.filter_peer_scope(&sender_ni.node_info) {
+                        if !self.filter_node_info(&sender_ni.node_info) {
                             return Err(RPCError::invalid_format(
                                 "respond_to_sender_signed_node_info has invalid peer scope",
                             ));
                         }
                         opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
+                            routing_domain,
                             sender_node_id,
                             sender_ni.clone(),
                             false,
@@ -1168,6 +969,7 @@ impl RPCProcessor {
         body: Vec<u8>,
         peer_noderef: NodeRef,
         connection_descriptor: ConnectionDescriptor,
+        routing_domain: RoutingDomain,
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
@@ -1176,6 +978,7 @@ impl RPCProcessor {
                 body_len: body.len() as u64,
                 peer_noderef,
                 connection_descriptor,
+                routing_domain,
             },
             data: RPCMessageData { contents: body },
         };

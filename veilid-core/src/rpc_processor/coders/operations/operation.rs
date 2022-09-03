@@ -58,32 +58,44 @@ impl RPCOperationKind {
 #[derive(Debug, Clone)]
 pub struct RPCOperation {
     op_id: u64,
+    sender_info: Option<SignedNodeInfo>,
     kind: RPCOperationKind,
 }
 
 impl RPCOperation {
-    pub fn new_question(question: RPCQuestion) -> Self {
+    pub fn new_question(question: RPCQuestion, sender_info: Option<SignedNodeInfo>) -> Self {
         Self {
             op_id: intf::get_random_u64(),
+            sender_info,
             kind: RPCOperationKind::Question(question),
         }
     }
-    pub fn new_statement(statement: RPCStatement) -> Self {
+    pub fn new_statement(statement: RPCStatement, sender_info: Option<SignedNodeInfo>) -> Self {
         Self {
             op_id: intf::get_random_u64(),
+            sender_info,
             kind: RPCOperationKind::Statement(statement),
         }
     }
 
-    pub fn new_answer(request: &RPCOperation, answer: RPCAnswer) -> Self {
+    pub fn new_answer(
+        request: &RPCOperation,
+        answer: RPCAnswer,
+        sender_info: Option<SignedNodeInfo>,
+    ) -> Self {
         Self {
             op_id: request.op_id,
+            sender_info,
             kind: RPCOperationKind::Answer(answer),
         }
     }
 
     pub fn op_id(&self) -> u64 {
         self.op_id
+    }
+
+    pub fn sender_info(&self) -> Option<&SignedNodeInfo> {
+        self.sender_info.as_ref()
     }
 
     pub fn kind(&self) -> &RPCOperationKind {
@@ -100,16 +112,32 @@ impl RPCOperation {
     ) -> Result<Self, RPCError> {
         let op_id = operation_reader.get_op_id();
 
+        let sender_info = if operation_reader.has_sender_info() {
+            let sni_reader = operation_reader.get_sender_info();
+            let sni = decode_signed_node_info(&sni_reader, sender_node_id, true)?;
+            Some(sni)
+        } else {
+            None
+        };
+
         let kind_reader = operation_reader.get_kind();
         let kind = RPCOperationKind::decode(&kind_reader, sender_node_id)?;
 
-        Ok(RPCOperation { op_id, kind })
+        Ok(RPCOperation {
+            op_id,
+            sender_info,
+            kind,
+        })
     }
 
     pub fn encode(&self, builder: &mut veilid_capnp::operation::Builder) -> Result<(), RPCError> {
         builder.set_op_id(self.op_id);
         let mut k_builder = builder.reborrow().init_kind();
         self.kind.encode(&mut k_builder)?;
+        if let Some(sender_info) = self.sender_info {
+            let si_builder = builder.reborrow().init_sender_info();
+            encode_signed_node_info(&self.sender_info, &mut si_builder)?;
+        }
         Ok(())
     }
 }

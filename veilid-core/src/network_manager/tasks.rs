@@ -197,7 +197,11 @@ impl NetworkManager {
                     let routing_table = routing_table.clone();
                     unord.push(
                         // lets ask bootstrap to find ourselves now
-                        async move { routing_table.reverse_find_node(nr, true).await },
+                        async move {
+                            routing_table
+                                .reverse_find_node(RoutingDomain::PublicInternet, nr, true)
+                                .await
+                        },
                     );
                 }
             }
@@ -299,7 +303,9 @@ impl NetworkManager {
                 unord.push(async move {
                     // Need VALID signed peer info, so ask bootstrap to find_node of itself
                     // which will ensure it has the bootstrap's signed peer info as part of the response
-                    let _ = routing_table.find_target(nr.clone()).await;
+                    let _ = routing_table
+                        .find_target(RoutingDomain::PublicInternet, nr.clone())
+                        .await;
 
                     // Ensure we got the signed peer info
                     if !nr.has_valid_signed_node_info(Some(RoutingDomain::PublicInternet)) {
@@ -310,7 +316,9 @@ impl NetworkManager {
                         // If this node info is invalid, it will time out after being unpingable
                     } else {
                         // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                        routing_table.reverse_find_node(nr, true).await
+                        routing_table
+                            .reverse_find_node(RoutingDomain::PublicInternet, nr, true)
+                            .await
                     }
                 });
             }
@@ -324,33 +332,35 @@ impl NetworkManager {
     // Ping each node in the routing table if they need to be pinged
     // to determine their reliability
     #[instrument(level = "trace", skip(self), err)]
-    pub(super) async fn ping_validator_task_routine(
-        self,
-        stop_token: StopToken,
-        _last_ts: u64,
+    fn ping_validator_public_internet(
+        &self,
         cur_ts: u64,
+        unord: &mut FuturesUnordered,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
         let routing_table = self.routing_table();
 
-        let mut unord = FuturesUnordered::new();
+        // Get all nodes needing pings in the PublicInternet routing domain
+        let node_refs = routing_table.get_nodes_needing_ping(RoutingDomain::PublicInternet, cur_ts);
 
-        let node_refs = routing_table.get_nodes_needing_ping(cur_ts);
+        // Look up any NAT mappings we may need to try to preserve with keepalives
         let mut mapped_port_info = routing_table.get_mapped_port_info();
-        let opt_public_internet_relay_nr = routing_table.relay_node(RoutingDomain::PublicInternet);
-        let opt_public_internet_relay_id = opt_public_internet_relay_nr.map(|nr| nr.node_id());
-        // let opt_local_network_relay_nr = routing_table.relay_node(RoutingDomain::LocalNetwork);
-        // let opt_local_network_relay_id = opt_local_network_relay_nr.map(|nr| nr.node_id());
 
-        // Public Internet Routing Domain
+        // Get the PublicInternet relay if we are using one
+        let opt_relay_nr = routing_table.relay_node(RoutingDomain::PublicInternet);
+        let opt_relay_id = opt_relay_nr.map(|nr| nr.node_id());
+
+        // Get our publicinternet dial info
         let dids = routing_table.all_filtered_dial_info_details(
-            Some(RoutingDomain::PublicInternet),
-            &DialInfoFilter::global(),
+            RoutingDomainSet::only(RoutingDomain::PublicInternet),
+            &DialInfoFilter::all(),
         );
 
+        // For all nodes needing pings, figure out how many and over what protocols
         for nr in node_refs {
-            let rpc = rpc.clone();
-            if Some(nr.node_id()) == opt_public_internet_relay_id {
+            // If this is a relay, let's check for NAT keepalives
+            let mut did_pings = false;
+            if Some(nr.node_id()) == opt_relay_id {
                 // Relay nodes get pinged over all protocols we have inbound dialinfo for
                 // This is so we can preserve the inbound NAT mappings at our router
                 for did in &dids {
@@ -370,19 +380,84 @@ impl NetworkManager {
                     };
                     if needs_ping {
                         let rpc = rpc.clone();
-                        let dif = did.dial_info.make_filter(true);
+                        let dif = did.dial_info.make_filter();
                         let nr_filtered = nr.filtered_clone(dif);
                         log_net!("--> Keepalive ping to {:?}", nr_filtered);
-                        unord.push(async move { rpc.rpc_call_status(nr_filtered).await }.boxed());
+                        unord.push(
+                            async move {
+                                rpc.rpc_call_status(Some(routing_domain), nr_filtered).await
+                            }
+                            .boxed(),
+                        );
+                        did_pings = true;
                     }
                 }
-            } else {
-                // Just do a single ping with the best protocol for all the other nodes
-                unord.push(async move { rpc.rpc_call_status(nr).await }.boxed());
+            }
+            // Just do a single ping with the best protocol for all the other nodes,
+            // ensuring that we at least ping a relay with -something- even if we didnt have
+            // any mapped ports to preserve
+            if !did_pings {
+                let rpc = rpc.clone();
+                unord.push(
+                    async move { rpc.rpc_call_status(Some(routing_domain), nr).await }.boxed(),
+                );
             }
         }
 
-        // Wait for futures to complete
+        Ok(())
+    }
+
+    // Ping each node in the LocalNetwork routing domain if they
+    // need to be pinged to determine their reliability
+    #[instrument(level = "trace", skip(self), err)]
+    fn ping_validator_local_network(
+        &self,
+        cur_ts: u64,
+        unord: &mut FuturesUnordered,
+    ) -> EyreResult<()> {
+        let rpc = self.rpc_processor();
+        let routing_table = self.routing_table();
+
+        // Get all nodes needing pings in the LocalNetwork routing domain
+        let node_refs = routing_table.get_nodes_needing_ping(RoutingDomain::LocalNetwork, cur_ts);
+
+        // Get our LocalNetwork dial info
+        let dids = routing_table.all_filtered_dial_info_details(
+            RoutingDomainSet::only(RoutingDomain::LocalNetwork),
+            &DialInfoFilter::all(),
+        );
+
+        // For all nodes needing pings, figure out how many and over what protocols
+        for nr in node_refs {
+            let rpc = rpc.clone();
+
+            // Just do a single ping with the best protocol for all the nodes
+            unord.push(async move { rpc.rpc_call_status(Some(routing_domain), nr).await }.boxed());
+        }
+
+        Ok(())
+    }
+
+    // Ping each node in the routing table if they need to be pinged
+    // to determine their reliability
+    #[instrument(level = "trace", skip(self), err)]
+    pub(super) async fn ping_validator_task_routine(
+        self,
+        stop_token: StopToken,
+        _last_ts: u64,
+        cur_ts: u64,
+    ) -> EyreResult<()> {
+        let rpc = self.rpc_processor();
+        let routing_table = self.routing_table();
+        let mut unord = FuturesUnordered::new();
+
+        // PublicInternet
+        self.ping_validator_public_internet(cur_ts, &mut unord)?;
+
+        // LocalNetwork
+        self.ping_validator_local_network(cur_ts, &mut unord)?;
+
+        // Wait for ping futures to complete in parallel
         while let Ok(Some(_)) = unord.next().timeout_at(stop_token.clone()).await {}
 
         Ok(())
@@ -390,24 +465,38 @@ impl NetworkManager {
 
     // Ask our remaining peers to give us more peers before we go
     // back to the bootstrap servers to keep us from bothering them too much
+    // This only adds PublicInternet routing domain peers. The discovery
+    // mechanism for LocalNetwork suffices for locating all the local network
+    // peers that are available. This, however, may query other LocalNetwork
+    // nodes for their PublicInternet peers, which is a very fast way to get
+    // a new node online.
     #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn peer_minimum_refresh_task_routine(
         self,
         stop_token: StopToken,
     ) -> EyreResult<()> {
         let routing_table = self.routing_table();
-        let cur_ts = intf::get_timestamp();
+        let mut unord = FuturesOrdered::new();
+        let min_peer_count = {
+            let c = self.config.get();
+            c.network.dht.min_peer_count as usize
+        };
 
-        // get list of all peers we know about, even the unreliable ones, and ask them to find nodes close to our node too
-        let noderefs = routing_table.get_all_nodes(cur_ts);
-
-        // do peer minimum search concurrently
-        let mut unord = FuturesUnordered::new();
+        // For the PublicInternet routing domain, get list of all peers we know about
+        // even the unreliable ones, and ask them to find nodes close to our node too
+        let noderefs = routing_table.find_fastest_nodes(
+            min_peer_count,
+            None,
+            |k: DHTKey, v: Option<Arc<BucketEntry>>| {
+                NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
+            },
+        );
         for nr in noderefs {
-            log_net!("--- peer minimum search with {:?}", nr);
             let routing_table = routing_table.clone();
             unord.push(async move { routing_table.reverse_find_node(nr, false).await });
         }
+
+        // do peer minimum search in order from fastest to slowest
         while let Ok(Some(_)) = unord.next().timeout_at(stop_token.clone()).await {}
 
         Ok(())

@@ -460,9 +460,31 @@ pub struct NodeInfo {
 }
 
 impl NodeInfo {
-    pub fn is_valid(&self) -> bool {
-        !matches!(self.network_class, NetworkClass::Invalid)
+    pub fn is_valid_in_routing_domain(
+        &self,
+        routing_table: RoutingTable,
+        routing_domain: RoutingDomain,
+    ) -> bool {
+        // Should not be passing around nodeinfo with an invalid network class
+        if matches!(self.network_class, NetworkClass::Invalid) {
+            return false;
+        }
+        // Ensure all of the dial info works in this routing domain
+        for did in self.dial_info_detail_list {
+            if !routing_table.ensure_dial_info_is_valid(routing_domain, &did.dial_info) {
+                return false;
+            }
+        }
+        // Ensure the relay is also valid in this routing domain if it is provided
+        if let Some(relay_peer_info) = self.relay_peer_info {
+            let relay_ni = &relay_peer_info.signed_node_info.node_info;
+            if !relay_ni.is_valid_in_routing_domain(routing_table, routing_domain) {
+                return false;
+            }
+        }
+        true
     }
+
     pub fn first_filtered_dial_info_detail<F>(&self, filter: F) -> Option<DialInfoDetail>
     where
         F: Fn(&DialInfoDetail) -> bool,
@@ -783,7 +805,7 @@ impl FromStr for SocketAddress {
 
 //////////////////////////////////////////////////////////////////
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DialInfoFilter {
     pub protocol_type_set: ProtocolTypeSet,
     pub address_type_set: AddressTypeSet,
@@ -1095,6 +1117,14 @@ impl DialInfo {
     }
     pub fn address_type(&self) -> AddressType {
         self.socket_address().address_type()
+    }
+    pub fn address(&self) -> Address {
+        match self {
+            Self::UDP(di) => di.socket_address.address,
+            Self::TCP(di) => di.socket_address.address,
+            Self::WS(di) => di.socket_address.address,
+            Self::WSS(di) => di.socket_address.address,
+        }
     }
     pub fn socket_address(&self) -> SocketAddress {
         match self {

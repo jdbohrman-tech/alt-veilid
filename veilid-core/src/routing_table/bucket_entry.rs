@@ -39,7 +39,7 @@ pub enum BucketEntryState {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-struct LastConnectionKey(ProtocolType, AddressType);
+struct LastConnectionKey(RoutingDomain, ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
 #[derive(Debug)]
@@ -136,10 +136,18 @@ impl BucketEntryInner {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
+    pub fn clear_signed_node_info(&mut self, routing_domain: RoutingDomain) {
+        // Get the correct signed_node_info for the chosen routing domain
+        let opt_current_sni = match routing_domain {
+            RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
+            RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+        };
+        *opt_current_sni = None;
+    }
+
     // Retuns true if the node info changed
     pub fn update_signed_node_info(
         &mut self,
-        routing_domain: RoutingDomain,
         signed_node_info: SignedNodeInfo,
         allow_invalid_signature: bool,
     ) {
@@ -150,7 +158,7 @@ impl BucketEntryInner {
         }
 
         // Get the correct signed_node_info for the chosen routing domain
-        let opt_current_sni = match routing_domain {
+        let opt_current_sni = match signed_node_info.routing_domain {
             RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
         };
@@ -160,7 +168,8 @@ impl BucketEntryInner {
             // If the timestamp hasn't changed or is less, ignore this update
             if signed_node_info.timestamp <= current_sni.timestamp {
                 // If we received a node update with the same timestamp
-                // we can make this node live again, but only if our network hasn't changed
+                // we can make this node live again, but only if our network has recently changed
+                // which may make nodes that were unreachable now reachable with the same dialinfo
                 if !self.updated_since_last_network_change
                     && signed_node_info.timestamp == current_sni.timestamp
                 {
@@ -185,50 +194,34 @@ impl BucketEntryInner {
         self.touch_last_seen(intf::get_timestamp());
     }
 
-    pub fn has_node_info(&self, opt_routing_domain: Option<RoutingDomain>) -> bool {
-        if let Some(routing_domain) = opt_routing_domain {
+    pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
+        for routing_domain in routing_domain_set {
             // Get the correct signed_node_info for the chosen routing domain
             let opt_current_sni = match routing_domain {
                 RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
                 RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
             };
-            opt_current_sni.is_some()
-        } else {
-            if self.local_network.signed_node_info.is_some() {
-                true
-            } else if self.public_internet.signed_node_info.is_some() {
-                true
-            } else {
-                false
+            if opt_current_sni.is_some() {
+                return true;
             }
         }
+        false
     }
 
-    pub fn has_valid_signed_node_info(&self, opt_routing_domain: Option<RoutingDomain>) -> bool {
-        if let Some(routing_domain) = opt_routing_domain {
+    pub fn has_valid_signed_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
+        for routing_domain in routing_domain_set {
             // Get the correct signed_node_info for the chosen routing domain
             let opt_current_sni = match routing_domain {
                 RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
                 RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
             };
             if let Some(sni) = opt_current_sni {
-                sni.is_valid()
-            } else {
-                false
-            }
-        } else {
-            if let Some(sni) = self.local_network.signed_node_info {
                 if sni.is_valid() {
                     return true;
                 }
             }
-            if let Some(sni) = self.public_internet.signed_node_info {
-                if sni.is_valid() {
-                    return true;
-                }
-            }
-            false
         }
+        false
     }
 
     pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<NodeInfo> {
@@ -250,8 +243,28 @@ impl BucketEntryInner {
         })
     }
 
-    fn descriptor_to_key(last_connection: ConnectionDescriptor) -> LastConnectionKey {
+    pub fn best_routing_domain(
+        &self,
+        routing_domain_set: RoutingDomainSet,
+    ) -> Option<RoutingDomain> {
+        for routing_domain in routing_domain_set {
+            let opt_current_sni = match routing_domain {
+                RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
+                RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+            };
+            if let Some(sni) = opt_current_sni {
+                if sni.is_valid() {
+                    return Some(routing_domain);
+                }
+            }
+        }
+        None
+    }
+
+    fn descriptor_to_key(&self, last_connection: ConnectionDescriptor) -> LastConnectionKey {
+        let routing_domain = self.routing_domain_for_address(last_connection.remote().address());
         LastConnectionKey(
+            routing_domain,
             last_connection.protocol_type(),
             last_connection.address_type(),
         )
@@ -259,7 +272,7 @@ impl BucketEntryInner {
 
     // Stores a connection descriptor in this entry's table of last connections
     pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: u64) {
-        let key = Self::descriptor_to_key(last_connection);
+        let key = self.descriptor_to_key(last_connection);
         self.last_connections
             .insert(key, (last_connection, timestamp));
     }
@@ -269,18 +282,21 @@ impl BucketEntryInner {
         self.last_connections.clear();
     }
 
-    // Gets the best 'last connection' that matches a set of protocol types and address types
+    // Gets the best 'last connection' that matches a set of routing domain, protocol types and address types
     pub fn last_connection(
         &self,
+        routing_domain_set: RoutingDomainSet,
         dial_info_filter: Option<DialInfoFilter>,
     ) -> Option<(ConnectionDescriptor, u64)> {
         // Iterate peer scopes and protocol types and address type in order to ensure we pick the preferred protocols if all else is the same
         let dif = dial_info_filter.unwrap_or_default();
-        for pt in dif.protocol_type_set {
-            for at in dif.address_type_set {
-                let key = LastConnectionKey(pt, at);
-                if let Some(v) = self.last_connections.get(&key) {
-                    return Some(*v);
+        for rd in routing_domain_set {
+            for pt in dif.protocol_type_set {
+                for at in dif.address_type_set {
+                    let key = LastConnectionKey(rd, pt, at);
+                    if let Some(v) = self.last_connections.get(&key) {
+                        return Some(*v);
+                    }
                 }
             }
         }
@@ -325,7 +341,7 @@ impl BucketEntryInner {
                 .node_status
                 .map(|ln| NodeStatus::LocalNetwork(ln)),
             RoutingDomain::PublicInternet => self
-                .local_network
+                .public_internet
                 .node_status
                 .map(|pi| NodeStatus::PublicInternet(pi)),
         }

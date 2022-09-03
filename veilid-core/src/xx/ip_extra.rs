@@ -215,3 +215,48 @@ pub fn ip_to_ipblock(ip6_prefix_size: usize, addr: IpAddr) -> IpAddr {
         }
     }
 }
+
+pub fn ipaddr_apply_netmask(addr: IpAddr, netmask: IpAddr) -> IpAddr {
+    match addr {
+        IpAddr::V4(v4) => {
+            let v4mask = match netmask {
+                IpAddr::V4(v4mask) => v4mask,
+                IpAddr::V6(_) => {
+                    panic!("netmask doesn't match ipv4 address");
+                }
+            };
+            let v4 = v4.octets();
+            let v4mask = v4mask.octets();
+            IpAddr::V4(Ipv4Addr::new(
+                v4[0] & v4mask[0],
+                v4[1] & v4mask[1],
+                v4[2] & v4mask[2],
+                v4[3] & v4mask[3],
+            ))
+        }
+        IpAddr::V6(v6) => {
+            let v6mask = match netmask {
+                IpAddr::V4(_) => {
+                    panic!("netmask doesn't match ipv6 address");
+                }
+                IpAddr::V6(v6mask) => v6mask,
+            };
+            let v6 = v6.segments();
+            let v6mask = v6mask.segments();
+            IpAddr::V6(Ipv6Addr::new(
+                v6[0] & v6mask[0],
+                v6[1] & v6mask[1],
+                v6[2] & v6mask[2],
+                v6[3] & v6mask[3],
+                v6[4] & v6mask[4],
+                v6[5] & v6mask[5],
+                v6[6] & v6mask[6],
+                v6[7] & v6mask[7],
+            ))
+        }
+    }
+}
+
+pub fn ipaddr_in_network(addr: IpAddr, netaddr: IpAddr, netmask: IpAddr) -> bool {
+    ipaddr_apply_netmask(netaddr, netmask) == ipaddr_apply_netmask(addr, netmask)
+}

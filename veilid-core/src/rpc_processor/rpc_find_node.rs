@@ -8,15 +8,11 @@ impl RPCProcessor {
         self,
         dest: Destination,
         key: DHTKey,
-        safety_route: Option<&SafetyRouteSpec>,
-        respond_to: RespondTo,
     ) -> Result<NetworkResult<Answer<Vec<PeerInfo>>>, RPCError> {
-        let find_node_q = RPCOperationFindNodeQ { node_id: key };
-        let question = RPCQuestion::new(respond_to, RPCQuestionDetail::FindNodeQ(find_node_q));
+        let find_node_q = RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ { node_id: key });
 
         // Send the find_node request
-        let waitable_reply =
-            network_result_try!(self.question(dest, question, safety_route).await?);
+        let waitable_reply = network_result_try!(self.question(dest, find_node_q).await?);
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
@@ -35,7 +31,7 @@ impl RPCProcessor {
 
         // Verify peers are in the correct peer scope
         for peer_info in &find_node_a.peers {
-            if !self.filter_peer_scope(&peer_info.signed_node_info.node_info) {
+            if !self.filter_node_info(&peer_info.signed_node_info.node_info) {
                 return Err(RPCError::invalid_format(
                     "find_node response has invalid peer scope",
                 ));

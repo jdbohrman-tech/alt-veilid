@@ -741,7 +741,6 @@ class VeilidConfigNetwork {
   bool upnp;
   bool natpmp;
   bool detectAddressChanges;
-  bool enableLocalPeerScope;
   int restrictedNatRetries;
   VeilidConfigTLS tls;
   VeilidConfigApplication application;
@@ -767,7 +766,6 @@ class VeilidConfigNetwork {
     required this.upnp,
     required this.natpmp,
     required this.detectAddressChanges,
-    required this.enableLocalPeerScope,
     required this.restrictedNatRetries,
     required this.tls,
     required this.application,
@@ -795,7 +793,6 @@ class VeilidConfigNetwork {
       'upnp': upnp,
       'natpmp': natpmp,
       'detect_address_changes': detectAddressChanges,
-      'enable_local_peer_scope': enableLocalPeerScope,
       'restricted_nat_retries': restrictedNatRetries,
       'tls': tls.json,
       'application': application.json,
@@ -826,7 +823,6 @@ class VeilidConfigNetwork {
         upnp = json['upnp'],
         natpmp = json['natpmp'],
         detectAddressChanges = json['detect_address_changes'],
-        enableLocalPeerScope = json['enable_local_peer_scope'],
         restrictedNatRetries = json['restricted_nat_retries'],
         tls = VeilidConfigTLS.fromJson(json['tls']),
         application = VeilidConfigApplication.fromJson(json['application']),

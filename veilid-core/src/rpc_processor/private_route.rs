@@ -4,7 +4,7 @@ impl RPCProcessor {
     //////////////////////////////////////////////////////////////////////
     fn compile_safety_route(
         &self,
-        safety_route_spec: &SafetyRouteSpec,
+        safety_route_spec: Arc<SafetyRouteSpec>,
         private_route: PrivateRoute,
     ) -> Result<SafetyRoute, RPCError> {
         // Ensure the total hop count isn't too long for our config
@@ -111,15 +111,15 @@ impl RPCProcessor {
     // Wrap an operation inside a route
     pub(super) fn wrap_with_route(
         &self,
-        safety_route_spec: Option<&SafetyRouteSpec>,
+        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
         private_route: PrivateRoute,
         message_data: Vec<u8>,
     ) -> Result<Vec<u8>, RPCError> {
         // Encrypt routed operation
         // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
         let nonce = Crypto::get_random_nonce();
-        let stub_safety_route_spec = SafetyRouteSpec::new();
-        let safety_route_spec = safety_route_spec.unwrap_or(&stub_safety_route_spec);
+        let safety_route_spec =
+            safety_route_spec.unwrap_or_else(|| Arc::new(SafetyRouteSpec::new()));
         let dh_secret = self
             .crypto
             .cached_dh(&private_route.public_key, &safety_route_spec.secret_key)

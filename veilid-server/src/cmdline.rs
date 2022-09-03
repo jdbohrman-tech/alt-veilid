@@ -130,11 +130,7 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .value_name("BOOTSTRAP_NODE_LIST")
                 .help("Specify a list of bootstrap node dialinfos to use"),
         )
-        .arg(
-            Arg::new("local")
-                .long("local")
-                .help("Enable local peer scope")
-        );
+        ;
 
     #[cfg(debug_assertions)]
     let matches = matches.arg(
@@ -217,9 +213,6 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
     }
     if matches.is_present("attach") {
         settingsrw.auto_attach = !matches!(matches.value_of("attach"), Some("true"));
-    }
-    if matches.is_present("local") {
-        settingsrw.core.network.enable_local_peer_scope = true;
     }
     if matches.occurrences_of("delete-protected-store") != 0 {
         settingsrw.core.protected_store.delete = true;

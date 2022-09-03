@@ -603,6 +603,29 @@ impl Network {
         // initialize interfaces
         self.unlocked_inner.interfaces.refresh().await?;
 
+        // build the set of networks we should consider for the 'LocalNetwork' routing domain
+        let mut local_networks: HashSet<(IpAddr, IpAddr)> = HashSet::new();
+        self.unlocked_inner
+            .interfaces
+            .with_interfaces(|interfaces| {
+                for (name, intf) in interfaces {
+                    // Skip networks that we should never encounter
+                    if intf.is_loopback() || !intf.is_running() {
+                        return;
+                    }
+                    // Add network to local networks table
+                    for addr in intf.addrs {
+                        let netmask = addr.if_addr().netmask();
+                        let network_ip = ipaddr_apply_netmask(addr.if_addr().ip(), netmask);
+                        local_networks.insert((network_ip, netmask));
+                    }
+                }
+            });
+        let local_networks: Vec<(IpAddr, IpAddr)> = local_networks.into_iter().collect();
+        self.unlocked_inner
+            .routing_table
+            .configure_local_network_routing_domain(local_networks);
+
         // determine if we have ipv4/ipv6 addresses
         {
             let mut inner = self.inner.lock();

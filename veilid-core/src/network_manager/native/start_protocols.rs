@@ -367,13 +367,12 @@ xxx write routing table sieve for routing domain from dialinfo and local network
     pub(super) async fn start_ws_listeners(&self) -> EyreResult<()> {
         trace!("starting ws listeners");
         let routing_table = self.routing_table();
-        let (listen_address, url, path, enable_local_peer_scope, detect_address_changes) = {
+        let (listen_address, url, path, detect_address_changes) = {
             let c = self.config.get();
             (
                 c.network.protocol.ws.listen_address.clone(),
                 c.network.protocol.ws.url.clone(),
                 c.network.protocol.ws.path.clone(),
-                c.network.enable_local_peer_scope,
                 c.network.detect_address_changes,
             )
         };
@@ -586,12 +585,11 @@ xxx write routing table sieve for routing domain from dialinfo and local network
         trace!("starting tcp listeners");
 
         let routing_table = self.routing_table();
-        let (listen_address, public_address, enable_local_peer_scope, detect_address_changes) = {
+        let (listen_address, public_address, detect_address_changes) = {
             let c = self.config.get();
             (
                 c.network.protocol.tcp.listen_address.clone(),
                 c.network.protocol.tcp.public_address.clone(),
-                c.network.enable_local_peer_scope,
                 c.network.detect_address_changes,
             )
         };

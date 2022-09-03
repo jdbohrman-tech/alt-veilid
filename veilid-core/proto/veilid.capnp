@@ -175,10 +175,6 @@ struct ValueData {
 # Operations
 ##############################
 
-struct OperationStatusQ {
-    nodeStatus              @0  :NodeStatus;            # node status update about the statusq sender
-}
-
 enum NetworkClass {
     inboundCapable          @0;                         # I = Inbound capable without relay, may require signal
     outboundOnly            @1;                         # O = Outbound only, inbound relay required except with reverse connect signal
@@ -199,12 +195,24 @@ struct DialInfoDetail {
     class                   @1  :DialInfoClass;
 }
 
-struct NodeStatus {
+struct PublicInternetNodeStatus {
     willRoute               @0  :Bool;
     willTunnel              @1  :Bool;
     willSignal              @2  :Bool;
     willRelay               @3  :Bool;
     willValidateDialInfo    @4  :Bool;
+}
+
+struct LocalNetworkNodeStatus {
+    willRelay               @0  :Bool;
+    willValidateDialInfo    @1  :Bool;
+}
+
+struct NodeStatus {
+    union {
+        publicInternet          @0  :PublicInternetNodeStatus;
+        localNetwork            @1  :LocalNetworkNodeStatus;
+    }
 }
 
 struct ProtocolTypeSet {
@@ -239,6 +247,21 @@ struct SenderInfo {
     socketAddress           @0  :SocketAddress;         # socket address was available for peer
 }
 
+struct PeerInfo {
+    nodeId                  @0  :NodeID;                # node id for 'closer peer'
+    signedNodeInfo          @1  :SignedNodeInfo;        # signed node info for 'closer peer'
+}
+
+struct RoutedOperation {
+    signatures              @0  :List(Signature);       # signatures from nodes that have handled the private route
+    nonce                   @1  :Nonce;                 # nonce Xmsg 
+    data                    @2  :Data;                  # Operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
+}
+
+struct OperationStatusQ {
+    nodeStatus              @0  :NodeStatus;            # node status update about the statusq sender
+}
+
 struct OperationStatusA {
     nodeStatus              @0  :NodeStatus;            # returned node status
     senderInfo              @1  :SenderInfo;            # info about StatusQ sender from the perspective of the replier
@@ -258,19 +281,8 @@ struct OperationFindNodeQ {
     nodeId                  @0  :NodeID;                # node id to locate
 }
 
-struct PeerInfo {
-    nodeId                  @0  :NodeID;                # node id for 'closer peer'
-    signedNodeInfo          @1  :SignedNodeInfo;        # signed node info for 'closer peer'
-}
-
 struct OperationFindNodeA {
     peers                   @0  :List(PeerInfo);        # returned 'closer peer' information
-}
-
-struct RoutedOperation {
-    signatures              @0  :List(Signature);       # signatures from nodes that have handled the private route
-    nonce                   @1  :Nonce;                 # nonce Xmsg 
-    data                    @2  :Data;                  # Operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
 }
 
 struct OperationRoute {
@@ -419,26 +431,25 @@ struct OperationCancelTunnelA {
 # Things that want an answer
 struct Question {
     respondTo :union {
-        sender              @0  :Void;                  # sender without node info
-        senderWithInfo      @1  :SignedNodeInfo;        # some envelope-sender signed node info to be used for reply
-        privateRoute        @2  :PrivateRoute;          # embedded private route to be used for reply
+        sender              @0  :Void;                  # sender
+        privateRoute        @1  :PrivateRoute;          # embedded private route to be used for reply
     }
     detail :union {
         # Direct operations
-        statusQ             @3  :OperationStatusQ;
-        findNodeQ           @4  :OperationFindNodeQ;
+        statusQ             @2  :OperationStatusQ;
+        findNodeQ           @3  :OperationFindNodeQ;
         
         # Routable operations
-        getValueQ           @5  :OperationGetValueQ;
-        setValueQ           @6  :OperationSetValueQ;
-        watchValueQ         @7  :OperationWatchValueQ;
-        supplyBlockQ        @8  :OperationSupplyBlockQ;
-        findBlockQ          @9  :OperationFindBlockQ;
+        getValueQ           @4  :OperationGetValueQ;
+        setValueQ           @5  :OperationSetValueQ;
+        watchValueQ         @6  :OperationWatchValueQ;
+        supplyBlockQ        @7  :OperationSupplyBlockQ;
+        findBlockQ          @8  :OperationFindBlockQ;
         
         # Tunnel operations
-        startTunnelQ        @10 :OperationStartTunnelQ;
-        completeTunnelQ     @11 :OperationCompleteTunnelQ;
-        cancelTunnelQ       @12 :OperationCancelTunnelQ; 
+        startTunnelQ        @9 :OperationStartTunnelQ;
+        completeTunnelQ     @10 :OperationCompleteTunnelQ;
+        cancelTunnelQ       @11 :OperationCancelTunnelQ; 
     }
 }
 
@@ -480,10 +491,10 @@ struct Answer {
 
 struct Operation {
     opId                    @0  :UInt64;                # Random RPC ID. Must be random to foil reply forgery attacks. 
-
+    senderInfo              @1  :SignedNodeInfo;        # (optional) SignedNodeInfo for the sender to be cached by the receiver.
     kind :union {
-        question            @1  :Question;
-        statement           @2  :Statement;
-        answer              @3  :Answer;
+        question            @2  :Question;
+        statement           @3  :Statement;
+        answer              @4  :Answer;
     }
 }
