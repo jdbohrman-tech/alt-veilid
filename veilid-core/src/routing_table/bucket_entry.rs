@@ -39,7 +39,7 @@ pub enum BucketEntryState {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-struct LastConnectionKey(RoutingDomain, ProtocolType, AddressType);
+struct LastConnectionKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
 #[derive(Debug)]
@@ -148,17 +148,11 @@ impl BucketEntryInner {
     // Retuns true if the node info changed
     pub fn update_signed_node_info(
         &mut self,
+        routing_domain: RoutingDomain,
         signed_node_info: SignedNodeInfo,
-        allow_invalid_signature: bool,
     ) {
-        // Don't allow invalid signatures unless we are explicitly allowing it
-        if !allow_invalid_signature && !signed_node_info.signature.valid {
-            log_rtab!(debug "Invalid signature on signed node info: {:?}", signed_node_info);
-            return;
-        }
-
         // Get the correct signed_node_info for the chosen routing domain
-        let opt_current_sni = match signed_node_info.routing_domain {
+        let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
         };
@@ -208,31 +202,23 @@ impl BucketEntryInner {
         false
     }
 
-    pub fn has_valid_signed_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
-        for routing_domain in routing_domain_set {
-            // Get the correct signed_node_info for the chosen routing domain
-            let opt_current_sni = match routing_domain {
-                RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
-                RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
-            };
-            if let Some(sni) = opt_current_sni {
-                if sni.is_valid() {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<NodeInfo> {
+    pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<&NodeInfo> {
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
         };
-        opt_current_sni.as_ref().map(|s| s.node_info.clone())
+        opt_current_sni.as_ref().map(|s| &s.node_info)
     }
 
-    pub fn peer_info(&self, key: DHTKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+    pub fn signed_node_info(&self, routing_domain: RoutingDomain) -> Option<&SignedNodeInfo> {
+        let opt_current_sni = match routing_domain {
+            RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
+            RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+        };
+        opt_current_sni.as_ref().map(|s| s.as_ref())
+    }
+
+    pub fn make_peer_info(&self, key: DHTKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
@@ -253,18 +239,14 @@ impl BucketEntryInner {
                 RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
             };
             if let Some(sni) = opt_current_sni {
-                if sni.is_valid() {
-                    return Some(routing_domain);
-                }
+                return Some(routing_domain);
             }
         }
         None
     }
 
     fn descriptor_to_key(&self, last_connection: ConnectionDescriptor) -> LastConnectionKey {
-        let routing_domain = self.routing_domain_for_address(last_connection.remote().address());
         LastConnectionKey(
-            routing_domain,
             last_connection.protocol_type(),
             last_connection.address_type(),
         )
@@ -285,17 +267,23 @@ impl BucketEntryInner {
     // Gets the best 'last connection' that matches a set of routing domain, protocol types and address types
     pub fn last_connection(
         &self,
-        routing_domain_set: RoutingDomainSet,
-        dial_info_filter: Option<DialInfoFilter>,
+        routing_table_inner: &RoutingTableInner,
+        node_ref_filter: &Option<NodeRefFilter>,
     ) -> Option<(ConnectionDescriptor, u64)> {
         // Iterate peer scopes and protocol types and address type in order to ensure we pick the preferred protocols if all else is the same
-        let dif = dial_info_filter.unwrap_or_default();
-        for rd in routing_domain_set {
-            for pt in dif.protocol_type_set {
-                for at in dif.address_type_set {
-                    let key = LastConnectionKey(rd, pt, at);
-                    if let Some(v) = self.last_connections.get(&key) {
-                        return Some(*v);
+        let nrf = node_ref_filter.unwrap_or_default();
+        for pt in nrf.dial_info_filter.protocol_type_set {
+            for at in nrf.dial_info_filter.address_type_set {
+                let key = LastConnectionKey(pt, at);
+                if let Some(v) = self.last_connections.get(&key) {
+                    // Verify this connection could be in the filtered routing domain
+                    let address = v.0.remote_address().address();
+                    if let Some(rd) =
+                        RoutingTable::routing_domain_for_address_inner(routing_table_inner, address)
+                    {
+                        if nrf.routing_domain_set.contains(rd) {
+                            return Some(*v);
+                        }
                     }
                 }
             }

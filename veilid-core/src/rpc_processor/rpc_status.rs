@@ -118,17 +118,15 @@ impl RPCProcessor {
         // Ensure the node status from the question is the kind for the routing domain we received the request in
         match routing_domain {
             RoutingDomain::PublicInternet => {
-                if !matches!(status_a.node_status, NodeStatus::PublicInternet(_)) {
-                    return Ok(NetworkResult::invalid_message(
-                        "node status doesn't match PublicInternet routing domain",
-                    ));
+                if !matches!(status_q.node_status, NodeStatus::PublicInternet(_)) {
+                    log_rpc!(debug "node status doesn't match PublicInternet routing domain");
+                    return Ok(());
                 }
             }
             RoutingDomain::LocalNetwork => {
-                if !matches!(status_a.node_status, NodeStatus::LocalNetwork(_)) {
-                    return Ok(NetworkResult::invalid_message(
-                        "node status doesn't match LocalNetwork routing domain",
-                    ));
+                if !matches!(status_q.node_status, NodeStatus::LocalNetwork(_)) {
+                    log_rpc!(debug "node status doesn't match LocalNetwork routing domain");
+                    return Ok(());
                 }
             }
         }

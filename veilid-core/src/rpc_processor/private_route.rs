@@ -139,7 +139,7 @@ impl RPCProcessor {
             operation,
         };
         let operation =
-            RPCOperation::new_statement(RPCStatement::new(RPCStatementDetail::Route(route)));
+            RPCOperation::new_statement(RPCStatement::new(RPCStatementDetail::Route(route)), None);
 
         // Convert message to bytes and return it
         let mut route_msg = ::capnp::message::Builder::new_default();

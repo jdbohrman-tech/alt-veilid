@@ -14,7 +14,7 @@ pub struct NodeRefFilter {
 
 impl Default for NodeRefFilter {
     fn default() -> Self {
-        self.new()
+        Self::new()
     }
 }
 
@@ -27,7 +27,7 @@ impl NodeRefFilter {
     }
 
     pub fn with_routing_domain(mut self, routing_domain: RoutingDomain) -> Self {
-        self.routing_domain_set = RoutingDomainSet::only(routing_domain);
+        self.routing_domain_set = routing_domain.into();
         self
     }
     pub fn with_routing_domain_set(mut self, routing_domain_set: RoutingDomainSet) -> Self {
@@ -62,7 +62,7 @@ impl NodeRefFilter {
         self
     }
     pub fn is_dead(&self) -> bool {
-        self.dial_info_filter.is_empty() || self.routing_domain_set.is_empty()
+        self.dial_info_filter.is_dead() || self.routing_domain_set.is_empty()
     }
 }
 
@@ -154,6 +154,12 @@ impl NodeRef {
             .unwrap_or(RoutingDomainSet::all())
     }
 
+    pub fn dial_info_filter(&self) -> DialInfoFilter {
+        self.filter
+            .map(|f| f.dial_info_filter)
+            .unwrap_or(DialInfoFilter::all())
+    }
+
     pub fn best_routing_domain(&self) -> Option<RoutingDomain> {
         self.operate(|_rti, e| {
             e.best_routing_domain(
@@ -170,9 +176,6 @@ impl NodeRef {
     }
     pub fn node_id(&self) -> DHTKey {
         self.node_id
-    }
-    pub fn has_valid_signed_node_info(&self) -> bool {
-        self.operate(|_rti, e| e.has_valid_signed_node_info(self.routing_domain_set()))
     }
     pub fn has_updated_since_last_network_change(&self) -> bool {
         self.operate(|_rti, e| e.has_updated_since_last_network_change())
@@ -196,8 +199,15 @@ impl NodeRef {
     }
 
     // Per-RoutingDomain accessors
-    pub fn peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
-        self.operate(|_rti, e| e.peer_info(self.node_id(), routing_domain))
+    pub fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+        self.operate(|_rti, e| e.make_peer_info(self.node_id(), routing_domain))
+    }
+    pub fn signed_node_info_has_valid_signature(&self, routing_domain: RoutingDomain) -> bool {
+        self.operate(|_rti, e| {
+            e.signed_node_info(routing_domain)
+                .map(|sni| sni.has_valid_signature())
+                .unwrap_or(false)
+        })
     }
     pub fn has_seen_our_node_info(&self, routing_domain: RoutingDomain) -> bool {
         self.operate(|_rti, e| e.has_seen_our_node_info(routing_domain))
@@ -236,6 +246,7 @@ impl NodeRef {
 
             // Register relay node and return noderef
             self.routing_table.register_node_with_signed_node_info(
+                routing_domain,
                 t.node_id.key,
                 t.signed_node_info,
                 false,
@@ -246,15 +257,12 @@ impl NodeRef {
     // Filtered accessors
     pub fn first_filtered_dial_info_detail(&self) -> Option<DialInfoDetail> {
         let routing_domain_set = self.routing_domain_set();
+        let dial_info_filter = self.dial_info_filter();
+
         self.operate(|_rt, e| {
             for routing_domain in routing_domain_set {
                 if let Some(ni) = e.node_info(routing_domain) {
-                    let filter = |did: &DialInfoDetail| {
-                        self.filter
-                            .as_ref()
-                            .map(|f| did.matches_filter(f))
-                            .unwrap_or(true)
-                    };
+                    let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
                     if let Some(did) = ni.first_filtered_dial_info_detail(filter) {
                         return Some(did);
                     }
@@ -266,16 +274,13 @@ impl NodeRef {
 
     pub fn all_filtered_dial_info_details<F>(&self) -> Vec<DialInfoDetail> {
         let routing_domain_set = self.routing_domain_set();
+        let dial_info_filter = self.dial_info_filter();
+
         let mut out = Vec::new();
         self.operate(|_rt, e| {
             for routing_domain in routing_domain_set {
                 if let Some(ni) = e.node_info(routing_domain) {
-                    let filter = |did: &DialInfoDetail| {
-                        self.filter
-                            .as_ref()
-                            .map(|f| did.matches_filter(f))
-                            .unwrap_or(true)
-                    };
+                    let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
                     if let Some(did) = ni.first_filtered_dial_info_detail(filter) {
                         out.push(did);
                     }
@@ -288,12 +293,8 @@ impl NodeRef {
 
     pub async fn last_connection(&self) -> Option<ConnectionDescriptor> {
         // Get the last connection and the last time we saw anything with this connection
-        let (last_connection, last_seen) = self.operate(|_rti, e| {
-            e.last_connection(
-                self.filter.routing_domain_set,
-                self.filter.dial_info_filter.clone(),
-            )
-        })?;
+        let (last_connection, last_seen) =
+            self.operate(|rti, e| e.last_connection(rti, &self.filter))?;
 
         // Should we check the connection table?
         if last_connection.protocol_type().is_connection_oriented() {

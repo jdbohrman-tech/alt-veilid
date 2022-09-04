@@ -491,7 +491,7 @@ struct Answer {
 
 struct Operation {
     opId                    @0  :UInt64;                # Random RPC ID. Must be random to foil reply forgery attacks. 
-    senderInfo              @1  :SignedNodeInfo;        # (optional) SignedNodeInfo for the sender to be cached by the receiver.
+    senderNodeInfo          @1  :SignedNodeInfo;        # (optional) SignedNodeInfo for the sender to be cached by the receiver.
     kind :union {
         question            @2  :Question;
         statement           @3  :Statement;

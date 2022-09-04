@@ -18,7 +18,9 @@ impl RPCProcessor {
         // Send the node_info_update request to the specific routing domain requested
         network_result_try!(
             self.statement(
-                Destination::direct(target).with_routing_domain(routing_domain),
+                Destination::direct(
+                    target.filtered_clone(NodeRefFilter::new().with_routing_domain(routing_domain))
+                ),
                 statement,
             )
             .await?
@@ -30,6 +32,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
     pub(crate) async fn process_node_info_update(&self, msg: RPCMessage) -> Result<(), RPCError> {
         let sender_node_id = msg.header.envelope.get_sender_id();
+        let routing_domain = msg.header.routing_domain;
 
         // Get the statement
         let node_info_update = match msg.operation.into_kind() {
@@ -41,14 +44,13 @@ impl RPCProcessor {
         };
 
         // Update our routing table with signed node info
-        if !self.filter_node_info(&node_info_update.signed_node_info.node_info) {
-            log_rpc!(debug
-                "node_info_update has invalid peer scope from {}", sender_node_id
-            );
+        if !self.filter_node_info(routing_domain, &node_info_update.signed_node_info.node_info) {
+            log_rpc!(debug "node info doesn't belong in {:?} routing domain: {}", routing_domain, sender_node_id);
             return Ok(());
         }
 
         self.routing_table().register_node_with_signed_node_info(
+            routing_domain,
             sender_node_id,
             node_info_update.signed_node_info,
             false,

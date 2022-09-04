@@ -3,6 +3,7 @@ mod bucket_entry;
 mod debug;
 mod find_nodes;
 mod node_ref;
+mod routing_domain_editor;
 mod routing_domains;
 mod stats_accounting;
 mod tasks;
@@ -18,6 +19,7 @@ pub use debug::*;
 pub use find_nodes::*;
 use hashlink::LruCache;
 pub use node_ref::*;
+pub use routing_domain_editor::*;
 pub use routing_domains::*;
 pub use stats_accounting::*;
 
@@ -138,16 +140,23 @@ impl RoutingTable {
         self.inner.read().node_id_secret
     }
 
-    pub fn routing_domain_for_address(&self, address: Address) -> Option<RoutingDomain> {
-        let inner = self.inner.read();
+    pub fn routing_domain_for_address_inner(
+        inner: &RoutingTableInner,
+        address: Address,
+    ) -> Option<RoutingDomain> {
         for rd in RoutingDomain::all() {
             let can_contain =
-                Self::with_routing_domain(&*inner, rd, |rdd| rdd.can_contain_address(address));
+                Self::with_routing_domain(inner, rd, |rdd| rdd.can_contain_address(address));
             if can_contain {
                 return Some(rd);
             }
         }
         None
+    }
+
+    pub fn routing_domain_for_address(&self, address: Address) -> Option<RoutingDomain> {
+        let inner = self.inner.read();
+        Self::routing_domain_for_address_inner(&*inner, address)
     }
 
     fn with_routing_domain<F, R>(inner: &RoutingTableInner, domain: RoutingDomain, f: F) -> R
@@ -256,6 +265,36 @@ impl RoutingTable {
         true
     }
 
+    pub fn node_info_is_valid_in_routing_domain(
+        &self,
+        routing_domain: RoutingDomain,
+        node_info: &NodeInfo,
+    ) -> bool {
+        // Should not be passing around nodeinfo with an invalid network class
+        if matches!(node_info.network_class, NetworkClass::Invalid) {
+            return false;
+        }
+        // Ensure all of the dial info works in this routing domain
+        for did in node_info.dial_info_detail_list {
+            if !self.ensure_dial_info_is_valid(routing_domain, &did.dial_info) {
+                return false;
+            }
+        }
+        // Ensure the relay is also valid in this routing domain if it is provided
+        if let Some(relay_peer_info) = node_info.relay_peer_info {
+            let relay_ni = &relay_peer_info.signed_node_info.node_info;
+            if !self.node_info_is_valid_in_routing_domain(routing_domain, relay_ni) {
+                return false;
+            }
+        }
+        true
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub fn edit_routing_domain(&self, domain: RoutingDomain) -> RoutingDomainEditor {
+        RoutingDomainEditor::new(self.clone(), domain)
+    }
+
     #[instrument(level = "debug", skip(self), err)]
     pub fn register_dial_info(
         &self,
@@ -349,7 +388,8 @@ impl RoutingTable {
             min_version: MIN_VERSION,
             max_version: MAX_VERSION,
             dial_info_detail_list: self.dial_info_details(routing_domain),
-            relay_peer_info: relay_node.and_then(|rn| rn.peer_info(routing_domain).map(Box::new)),
+            relay_peer_info: relay_node
+                .and_then(|rn| rn.make_peer_info(routing_domain).map(Box::new)),
         }
     }
 
@@ -424,6 +464,8 @@ impl RoutingTable {
             Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_rti, e| {
                 e.with_mut(|e| {
                     e.clear_signed_node_info(RoutingDomain::LocalNetwork);
+                    e.set_seen_our_node_info(RoutingDomain::LocalNetwork, false);
+                    e.set_updated_since_last_network_change(false);
                 });
                 Option::<()>::None
             });
@@ -549,7 +591,12 @@ impl RoutingTable {
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
             // Only update nodes that haven't seen our node info yet
             if all || !v.with(|e| e.has_seen_our_node_info(routing_domain)) {
-                node_refs.push(NodeRef::new(self.clone(), k, v, None));
+                node_refs.push(NodeRef::new(
+                    self.clone(),
+                    k,
+                    v,
+                    Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
+                ));
             }
             Option::<()>::None
         });
@@ -572,10 +619,15 @@ impl RoutingTable {
         let mut node_refs = Vec::<NodeRef>::with_capacity(inner.bucket_entry_count);
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
             if v.with(|e| {
-                e.has_node_info(RoutingDomainSet::only(routing_domain))
+                e.has_node_info(routing_domain.into())
                     && e.needs_ping(&k, cur_ts, opt_relay_id == Some(k))
             }) {
-                node_refs.push(NodeRef::new(self.clone(), k, v, None));
+                node_refs.push(NodeRef::new(
+                    self.clone(),
+                    k,
+                    v,
+                    Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
+                ));
             }
             Option::<()>::None
         });
@@ -670,12 +722,14 @@ impl RoutingTable {
     }
 
     // Shortcut function to add a node to our routing table if it doesn't exist
-    // and add the dial info we have for it, since that's pretty common
+    // and add the dial info we have for it. Returns a noderef filtered to
+    // the routing domain in which this node was registered for convenience.
     pub fn register_node_with_signed_node_info(
         &self,
+        routing_domain: RoutingDomain,
         node_id: DHTKey,
         signed_node_info: SignedNodeInfo,
-        allow_invalid_signature: bool,
+        allow_invalid: bool,
     ) -> Option<NodeRef> {
         // validate signed node info is not something malicious
         if node_id == self.node_id() {
@@ -688,11 +742,28 @@ impl RoutingTable {
                 return None;
             }
         }
+        if !allow_invalid {
+            // verify signature
+            if !signed_node_info.has_valid_signature() {
+                log_rtab!(debug "signed node info for {} has invalid signature", node_id);
+                return None;
+            }
+            // verify signed node info is valid in this routing domain
+            if !self
+                .node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info.node_info)
+            {
+                log_rtab!(debug "signed node info for {} not valid in the {:?} routing domain", node_id, routing_domain);
+                return None;
+            }
+        }
+
         self.create_node_ref(node_id, |e| {
-            e.update_signed_node_info(signed_node_info, allow_invalid_signature);
+            e.update_signed_node_info(routing_domain, signed_node_info);
         })
         .map(|mut nr| {
-            nr.set_filter(Some(NodeRefFilter::new().with_routing_domain(signed_node_info.routing_domain)))
+            nr.set_filter(Some(
+                NodeRefFilter::new().with_routing_domain(routing_domain),
+            ));
             nr
         })
     }

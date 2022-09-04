@@ -48,6 +48,57 @@ impl Destination {
             safety_route_spec: None,
         }
     }
+    // pub fn target_id(&self) -> DHTKey {
+    //     match self {
+    //         Destination::Direct {
+    //             target,
+    //             safety_route_spec,
+    //         } => target.node_id(),
+    //         Destination::Relay {
+    //             relay,
+    //             target,
+    //             safety_route_spec,
+    //         } => *target,
+    //         Destination::PrivateRoute {
+    //             private_route,
+    //             safety_route_spec,
+    //         } => {}
+    //     }
+    // }
+
+    // pub fn best_routing_domain(&self) -> RoutingDomain {
+    //     match self {
+    //         Destination::Direct {
+    //             target,
+    //             safety_route_spec,
+    //         } => {
+    //             if safety_route_spec.is_some() {
+    //                 RoutingDomain::PublicInternet
+    //             } else {
+    //                 target
+    //                     .best_routing_domain()
+    //                     .unwrap_or(RoutingDomain::PublicInternet)
+    //             }
+    //         }
+    //         Destination::Relay {
+    //             relay,
+    //             target,
+    //             safety_route_spec,
+    //         } => {
+    //             if safety_route_spec.is_some() {
+    //                 RoutingDomain::PublicInternet
+    //             } else {
+    //                 relay
+    //                     .best_routing_domain()
+    //                     .unwrap_or(RoutingDomain::PublicInternet)
+    //             }
+    //         }
+    //         Destination::PrivateRoute {
+    //             private_route: _,
+    //             safety_route_spec: _,
+    //         } => RoutingDomain::PublicInternet,
+    //     }
+    // }
 
     pub fn safety_route_spec(&self) -> Option<Arc<SafetyRouteSpec>> {
         match self {
@@ -100,7 +151,6 @@ impl fmt::Display for Destination {
         match self {
             Destination::Direct {
                 target,
-                routing_domain,
                 safety_route_spec,
             } => {
                 let sr = safety_route_spec

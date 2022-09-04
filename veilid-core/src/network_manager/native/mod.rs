@@ -614,7 +614,7 @@ impl Network {
                         return;
                     }
                     // Add network to local networks table
-                    for addr in intf.addrs {
+                    for addr in &intf.addrs {
                         let netmask = addr.if_addr().netmask();
                         let network_ip = ipaddr_apply_netmask(addr.if_addr().ip(), netmask);
                         local_networks.insert((network_ip, netmask));

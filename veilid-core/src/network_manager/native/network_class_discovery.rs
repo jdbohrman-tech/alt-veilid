@@ -132,8 +132,10 @@ impl DiscoveryContext {
                 false
             }
         };
-        let filter =
-            RoutingTable::combine_filters(inbound_dial_info_entry_filter, disallow_relays_filter);
+        let filter = RoutingTable::combine_entry_filters(
+            inbound_dial_info_entry_filter,
+            disallow_relays_filter,
+        );
 
         // Find public nodes matching this filter
         let peers = self
@@ -155,7 +157,11 @@ impl DiscoveryContext {
                     continue;
                 }
             }
-            peer.set_filter(Some(dial_info_filter.clone()));
+            peer.set_filter(Some(
+                NodeRefFilter::new()
+                    .with_routing_domain(RoutingDomain::PublicInternet)
+                    .with_dial_info_filter(dial_info_filter.clone()),
+            ));
             if let Some(sa) = self.request_public_address(peer.clone()).await {
                 return Some((sa, peer));
             }
@@ -764,7 +770,7 @@ impl Network {
             // Get existing public dial info
             let existing_public_dial_info: HashSet<DialInfoDetail> = routing_table
                 .all_filtered_dial_info_details(
-                    Some(RoutingDomain::PublicInternet),
+                    RoutingDomain::PublicInternet.into(),
                     &DialInfoFilter::all(),
                 )
                 .into_iter()

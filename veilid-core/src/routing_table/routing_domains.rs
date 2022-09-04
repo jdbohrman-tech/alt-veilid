@@ -27,8 +27,11 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         self.relay_node.clone()
     }
     fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
-        self.relay_node = opt_relay_node
-            .map(|nr| nr.filtered_clone(NodeRefFilter::new().with_routing_domain(PublicInternet)))
+        self.relay_node = opt_relay_node.map(|nr| {
+            nr.filtered_clone(
+                NodeRefFilter::new().with_routing_domain(RoutingDomain::PublicInternet),
+            )
+        })
     }
     fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details
@@ -78,8 +81,9 @@ impl RoutingDomainDetail for LocalInternetRoutingDomainDetail {
         self.relay_node.clone()
     }
     fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
-        self.relay_node = opt_relay_node
-            .map(|nr| nr.filtered_clone(NodeRefFilter::new().with_routing_domain(LocalNetwork)));
+        self.relay_node = opt_relay_node.map(|nr| {
+            nr.filtered_clone(NodeRefFilter::new().with_routing_domain(RoutingDomain::LocalNetwork))
+        });
     }
     fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details

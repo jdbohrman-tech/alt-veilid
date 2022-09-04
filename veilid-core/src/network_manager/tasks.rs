@@ -197,11 +197,7 @@ impl NetworkManager {
                     let routing_table = routing_table.clone();
                     unord.push(
                         // lets ask bootstrap to find ourselves now
-                        async move {
-                            routing_table
-                                .reverse_find_node(RoutingDomain::PublicInternet, nr, true)
-                                .await
-                        },
+                        async move { routing_table.reverse_find_node(nr, true).await },
                     );
                 }
             }
@@ -303,12 +299,10 @@ impl NetworkManager {
                 unord.push(async move {
                     // Need VALID signed peer info, so ask bootstrap to find_node of itself
                     // which will ensure it has the bootstrap's signed peer info as part of the response
-                    let _ = routing_table
-                        .find_target(RoutingDomain::PublicInternet, nr.clone())
-                        .await;
+                    let _ = routing_table.find_target(nr.clone()).await;
 
                     // Ensure we got the signed peer info
-                    if !nr.has_valid_signed_node_info(Some(RoutingDomain::PublicInternet)) {
+                    if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
                         log_net!(warn
                             "bootstrap at {:?} did not return valid signed node info",
                             nr
@@ -316,9 +310,7 @@ impl NetworkManager {
                         // If this node info is invalid, it will time out after being unpingable
                     } else {
                         // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                        routing_table
-                            .reverse_find_node(RoutingDomain::PublicInternet, nr, true)
-                            .await
+                        routing_table.reverse_find_node(nr, true).await
                     }
                 });
             }
@@ -335,7 +327,9 @@ impl NetworkManager {
     fn ping_validator_public_internet(
         &self,
         cur_ts: u64,
-        unord: &mut FuturesUnordered,
+        unord: &mut FuturesUnordered<
+            SendPinBoxFuture<Result<NetworkResult<Answer<SenderInfo>>, RPCError>>,
+        >,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
         let routing_table = self.routing_table();
@@ -352,7 +346,7 @@ impl NetworkManager {
 
         // Get our publicinternet dial info
         let dids = routing_table.all_filtered_dial_info_details(
-            RoutingDomainSet::only(RoutingDomain::PublicInternet),
+            RoutingDomain::PublicInternet.into(),
             &DialInfoFilter::all(),
         );
 
@@ -381,14 +375,10 @@ impl NetworkManager {
                     if needs_ping {
                         let rpc = rpc.clone();
                         let dif = did.dial_info.make_filter();
-                        let nr_filtered = nr.filtered_clone(dif);
+                        let nr_filtered =
+                            nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
                         log_net!("--> Keepalive ping to {:?}", nr_filtered);
-                        unord.push(
-                            async move {
-                                rpc.rpc_call_status(Some(routing_domain), nr_filtered).await
-                            }
-                            .boxed(),
-                        );
+                        unord.push(async move { rpc.rpc_call_status(nr_filtered).await }.boxed());
                         did_pings = true;
                     }
                 }
@@ -398,9 +388,7 @@ impl NetworkManager {
             // any mapped ports to preserve
             if !did_pings {
                 let rpc = rpc.clone();
-                unord.push(
-                    async move { rpc.rpc_call_status(Some(routing_domain), nr).await }.boxed(),
-                );
+                unord.push(async move { rpc.rpc_call_status(nr).await }.boxed());
             }
         }
 
@@ -413,7 +401,9 @@ impl NetworkManager {
     fn ping_validator_local_network(
         &self,
         cur_ts: u64,
-        unord: &mut FuturesUnordered,
+        unord: &mut FuturesUnordered<
+            SendPinBoxFuture<Result<NetworkResult<Answer<SenderInfo>>, RPCError>>,
+        >,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
         let routing_table = self.routing_table();
@@ -423,7 +413,7 @@ impl NetworkManager {
 
         // Get our LocalNetwork dial info
         let dids = routing_table.all_filtered_dial_info_details(
-            RoutingDomainSet::only(RoutingDomain::LocalNetwork),
+            RoutingDomain::LocalNetwork.into(),
             &DialInfoFilter::all(),
         );
 
@@ -432,7 +422,7 @@ impl NetworkManager {
             let rpc = rpc.clone();
 
             // Just do a single ping with the best protocol for all the nodes
-            unord.push(async move { rpc.rpc_call_status(Some(routing_domain), nr).await }.boxed());
+            unord.push(async move { rpc.rpc_call_status(nr).await }.boxed());
         }
 
         Ok(())
@@ -476,7 +466,7 @@ impl NetworkManager {
         stop_token: StopToken,
     ) -> EyreResult<()> {
         let routing_table = self.routing_table();
-        let mut unord = FuturesOrdered::new();
+        let mut ord = FuturesOrdered::new();
         let min_peer_count = {
             let c = self.config.get();
             c.network.dht.min_peer_count as usize
@@ -486,18 +476,18 @@ impl NetworkManager {
         // even the unreliable ones, and ask them to find nodes close to our node too
         let noderefs = routing_table.find_fastest_nodes(
             min_peer_count,
-            None,
+            |_k, _v| true,
             |k: DHTKey, v: Option<Arc<BucketEntry>>| {
-                NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
+                NodeRef::new(routing_table.clone(), k, v.unwrap().clone(), None)
             },
         );
         for nr in noderefs {
             let routing_table = routing_table.clone();
-            unord.push(async move { routing_table.reverse_find_node(nr, false).await });
+            ord.push_back(async move { routing_table.reverse_find_node(nr, false).await });
         }
 
         // do peer minimum search in order from fastest to slowest
-        while let Ok(Some(_)) = unord.next().timeout_at(stop_token.clone()).await {}
+        while let Ok(Some(_)) = ord.next().timeout_at(stop_token.clone()).await {}
 
         Ok(())
     }

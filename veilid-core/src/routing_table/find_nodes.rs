@@ -52,7 +52,10 @@ impl RoutingTable {
     }
 
     // Make a filter that wraps another filter
-    pub fn combine_filters<F, G>(mut f1: F, mut f2: G) -> impl FnMut(&BucketEntryInner) -> bool
+    pub fn combine_entry_filters<F, G>(
+        mut f1: F,
+        mut f2: G,
+    ) -> impl FnMut(&BucketEntryInner) -> bool
     where
         F: FnMut(&BucketEntryInner) -> bool,
         G: FnMut(&BucketEntryInner) -> bool,
@@ -81,7 +84,7 @@ impl RoutingTable {
             // count
             node_count,
             // filter
-            Some(|_k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(|e| {
                     // skip nodes on local network
@@ -95,7 +98,7 @@ impl RoutingTable {
                     // skip nodes that dont match entry filter
                     entry_filter(e)
                 })
-            }),
+            },
             // transform
             |k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
@@ -118,16 +121,16 @@ impl RoutingTable {
             // count
             protocol_types.len() * 2 * max_per_type,
             // filter
-            Some(move |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            move |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(|e| {
                     // skip nodes on our local network here
-                    if e.has_node_info(RoutingDomainSet::only(RoutingDomain::LocalNetwork)) {
+                    if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
                         return false;
                     }
 
                     // does it have some dial info we need?
-                    let filter = |n: NodeInfo| {
+                    let filter = |n: &NodeInfo| {
                         let mut keep = false;
                         for did in n.dial_info_detail_list {
                             if matches!(did.dial_info.address_type(), AddressType::IPV4) {
@@ -157,7 +160,7 @@ impl RoutingTable {
                         .map(filter)
                         .unwrap_or(false)
                 })
-            }),
+            },
             // transform
             |k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
@@ -167,14 +170,16 @@ impl RoutingTable {
 
     pub fn filter_has_valid_signed_node_info(
         &self,
+        routing_domain: RoutingDomain,
         v: Option<Arc<BucketEntry>>,
-        own_peer_info_is_valid: bool,
-        routing_domain_set: RoutingDomainSet,
     ) -> bool {
-        let routing_table = self.clone();
         match v {
-            None => own_peer_info_is_valid,
-            Some(entry) => entry.with(|e| e.has_valid_signed_node_info(routing_domain_set)),
+            None => self.has_valid_own_node_info(routing_domain),
+            Some(entry) => entry.with(|e| {
+                e.signed_node_info(routing_domain.into())
+                    .map(|sni| sni.has_valid_signature())
+                    .unwrap_or(false)
+            }),
         }
     }
 
@@ -183,12 +188,10 @@ impl RoutingTable {
         routing_domain: RoutingDomain,
         k: DHTKey,
         v: Option<Arc<BucketEntry>>,
-        own_peer_info: &PeerInfo,
     ) -> PeerInfo {
-        let routing_table = self.clone();
         match v {
-            None => own_peer_info.clone(),
-            Some(entry) => entry.with(|e| e.peer_info(k, routing_domain).unwrap()),
+            None => self.get_own_peer_info(routing_domain),
+            Some(entry) => entry.with(|e| e.make_peer_info(k, routing_domain).unwrap()),
         }
     }
 
@@ -246,8 +249,8 @@ impl RoutingTable {
     pub fn find_fastest_nodes<T, F, O>(
         &self,
         node_count: usize,
-        mut filter: Option<F>,
-        transform: T,
+        mut filter: F,
+        mut transform: T,
     ) -> Vec<O>
     where
         F: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> bool,
@@ -264,7 +267,7 @@ impl RoutingTable {
                     if entry.with(|e| e.state(cur_ts) == BucketEntryState::Dead) {
                         false
                     } else {
-                        filter.as_mut().map(|f| f(k, v)).unwrap_or(true)
+                        filter(k, v)
                     }
                 } else {
                     // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
@@ -328,12 +331,12 @@ impl RoutingTable {
     pub fn find_closest_nodes<F, T, O>(
         &self,
         node_id: DHTKey,
-        mut filter: Option<F>,
+        mut filter: F,
         mut transform: T,
     ) -> Vec<O>
     where
-        T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
         F: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
         let node_count = {
@@ -344,7 +347,7 @@ impl RoutingTable {
             node_count,
             cur_ts,
             // filter
-            |k, v| filter.as_mut().map(|f| f(k, v)).unwrap_or(true),
+            filter,
             // sort
             |(a_key, a_entry), (b_key, b_entry)| {
                 // same nodes are always the same
@@ -390,7 +393,7 @@ impl RoutingTable {
         let mut protocol_to_port =
             BTreeMap::<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>::new();
         let our_dids = self.all_filtered_dial_info_details(
-            RoutingDomainSet::only(RoutingDomain::PublicInternet),
+            RoutingDomain::PublicInternet.into(),
             &DialInfoFilter::all(),
         );
         for did in our_dids {
@@ -417,12 +420,12 @@ impl RoutingTable {
         // Get all our outbound protocol/address types
         let outbound_dif = self
             .network_manager()
-            .get_outbound_node_ref_filter(RoutingDomain::PublicInternet);
+            .get_outbound_dial_info_filter(RoutingDomain::PublicInternet);
         let mapped_port_info = self.get_mapped_port_info();
 
         move |e: &BucketEntryInner| {
             // Ensure this node is not on the local network
-            if e.has_node_info(RoutingDomainSet::only(RoutingDomain::LocalNetwork)) {
+            if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
                 return false;
             }
 
@@ -549,7 +552,7 @@ impl RoutingTable {
         let res = network_result_try!(
             rpc_processor
                 .clone()
-                .rpc_call_find_node(Destination::direct(node_ref), node_id,)
+                .rpc_call_find_node(Destination::direct(node_ref), node_id)
                 .await?
         );
 
@@ -560,37 +563,24 @@ impl RoutingTable {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn find_self(
-        &self,
-        routing_domain: RoutingDomain,
-        node_ref: NodeRef,
-    ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
+    pub async fn find_self(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let node_id = self.node_id();
-        self.find_node(routing_domain, node_ref, node_id).await
+        self.find_node(node_ref, node_id).await
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn find_target(
-        &self,
-        routing_domain: RoutingDomain,
-        node_ref: NodeRef,
-    ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
+    pub async fn find_target(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let node_id = node_ref.node_id();
-        self.find_node(routing_domain, node_ref, node_id).await
+        self.find_node(node_ref, node_id).await
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn reverse_find_node(
-        &self,
-        routing_domain: RoutingDomain,
-        node_ref: NodeRef,
-        wide: bool,
-    ) {
+    pub async fn reverse_find_node(&self, node_ref: NodeRef, wide: bool) {
         // Ask bootstrap node to 'find' our own node so we can get some more nodes near ourselves
         // and then contact those nodes to inform -them- that we exist
 
         // Ask bootstrap server for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(debug match self.find_self(routing_domain, node_ref.clone()).await {
+        let closest_nodes = network_result_value_or_log!(debug match self.find_self(node_ref.clone()).await {
             Err(e) => {
                 log_rtab!(error
                     "find_self failed for {:?}: {:?}",
@@ -606,7 +596,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(debug match self.find_self(routing_domain, closest_nr.clone()).await {
+                network_result_value_or_log!(debug match self.find_self(closest_nr.clone()).await {
                     Err(e) => {
                         log_rtab!(error
                             "find_self failed for {:?}: {:?}",

@@ -7,7 +7,6 @@ impl RPCProcessor {
     pub async fn rpc_call_return_receipt<D: AsRef<[u8]>>(
         self,
         dest: Destination,
-        safety_route: Option<&SafetyRouteSpec>,
         receipt: D,
     ) -> Result<NetworkResult<()>, RPCError> {
         let receipt = receipt.as_ref().to_vec();
@@ -16,7 +15,7 @@ impl RPCProcessor {
         let statement = RPCStatement::new(RPCStatementDetail::ReturnReceipt(return_receipt));
 
         // Send the return_receipt request
-        network_result_try!(self.statement(dest, statement, safety_route).await?);
+        network_result_try!(self.statement(dest, statement).await?);
 
         Ok(NetworkResult::value(()))
     }

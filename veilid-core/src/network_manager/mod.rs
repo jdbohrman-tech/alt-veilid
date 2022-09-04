@@ -23,7 +23,7 @@ use connection_handle::*;
 use connection_limits::*;
 use connection_manager::*;
 use dht::*;
-use futures_util::stream::{FuturesUnordered, StreamExt};
+use futures_util::stream::{FuturesOrdered, FuturesUnordered, StreamExt};
 use hashlink::LruCache;
 use intf::*;
 #[cfg(not(target_arch = "wasm32"))]
@@ -388,22 +388,22 @@ impl NetworkManager {
                 .unwrap();
 
             inner.public_inbound_dial_info_filter = Some(
-                DialInfoFilter::global()
+                DialInfoFilter::all()
                     .with_protocol_type_set(pc.inbound)
                     .with_address_type_set(pc.family_global),
             );
             inner.local_inbound_dial_info_filter = Some(
-                DialInfoFilter::local()
+                DialInfoFilter::all()
                     .with_protocol_type_set(pc.inbound)
                     .with_address_type_set(pc.family_local),
             );
             inner.public_outbound_dial_info_filter = Some(
-                DialInfoFilter::global()
+                DialInfoFilter::all()
                     .with_protocol_type_set(pc.outbound)
                     .with_address_type_set(pc.family_global),
             );
             inner.local_outbound_dial_info_filter = Some(
-                DialInfoFilter::local()
+                DialInfoFilter::all()
                     .with_protocol_type_set(pc.outbound)
                     .with_address_type_set(pc.family_local),
             );
@@ -557,7 +557,7 @@ impl NetworkManager {
 
         // See how many live PublicInternet entries we have
         let live_public_internet_entry_count = routing_table.get_entry_count(
-            RoutingTableSet::only(RoutingTable::PublicInternet),
+            RoutingDomain::PublicInternet.into(),
             BucketEntryState::Unreliable,
         );
         let min_peer_count = {
@@ -816,7 +816,7 @@ impl NetworkManager {
                 };
 
                 // Make a reverse connection to the peer and send the receipt to it
-                rpc.rpc_call_return_receipt(Destination::Direct(peer_nr), None, receipt)
+                rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
                     .await
                     .wrap_err("rpc failure")
             }
@@ -841,12 +841,12 @@ impl NetworkManager {
                 };
 
                 // Get the udp direct dialinfo for the hole punch
-                let outbound_dif = self
-                    .get_outbound_dial_info_filter(RoutingDomain::PublicInternet)
+                let outbound_nrf = self
+                    .get_outbound_node_ref_filter(RoutingDomain::PublicInternet)
                     .with_protocol_type(ProtocolType::UDP);
-                peer_nr.set_filter(Some(outbound_dif));
+                peer_nr.set_filter(Some(outbound_nrf));
                 let hole_punch_dial_info_detail = peer_nr
-                    .first_filtered_dial_info_detail(Some(RoutingDomain::PublicInternet))
+                    .first_filtered_dial_info_detail()
                     .ok_or_else(|| eyre!("No hole punch capable dialinfo found for node"))?;
 
                 // Now that we picked a specific dialinfo, further restrict the noderef to the specific address type
@@ -872,7 +872,7 @@ impl NetworkManager {
                 peer_nr.set_last_connection(connection_descriptor, intf::get_timestamp());
 
                 // Return the receipt using the same dial info send the receipt to it
-                rpc.rpc_call_return_receipt(Destination::Direct(peer_nr), None, receipt)
+                rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
                     .await
                     .wrap_err("rpc failure")
             }
@@ -1014,7 +1014,7 @@ impl NetworkManager {
                                     .node_info_outbound_filter(RoutingDomain::PublicInternet),
                             );
                         if let Some(reverse_did) = routing_table.first_filtered_dial_info_detail(
-                            RoutingDomainSet::only(RoutingDomain::PublicInternet),
+                            RoutingDomain::PublicInternet.into(),
                             &reverse_dif,
                         ) {
                             // Ensure we aren't on the same public IP address (no hairpin nat)
@@ -1048,11 +1048,11 @@ impl NetworkManager {
                                         .node_info_outbound_filter(RoutingDomain::PublicInternet),
                                 )
                                 .filtered(
-                                    DialInfoFilter::global().with_protocol_type(ProtocolType::UDP),
+                                    &DialInfoFilter::all().with_protocol_type(ProtocolType::UDP),
                                 );
                             if let Some(self_udp_dialinfo_detail) = routing_table
                                 .first_filtered_dial_info_detail(
-                                    RoutingDomainSet::only(RoutingDomain::PublicInternet),
+                                    RoutingDomain::PublicInternet.into(),
                                     &inbound_udp_dif,
                                 )
                             {
@@ -1102,8 +1102,8 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), ret)]
     fn get_contact_method_local(&self, target_node_ref: NodeRef) -> ContactMethod {
         // Scope noderef down to protocols we can do outbound
-        let local_outbound_dif = self.get_outbound_dial_info_filter(RoutingDomain::LocalNetwork);
-        let target_node_ref = target_node_ref.filtered_clone(NodeRefFilter::local_outbound_dif);
+        let local_outbound_nrf = self.get_outbound_node_ref_filter(RoutingDomain::LocalNetwork);
+        let target_node_ref = target_node_ref.filtered_clone(local_outbound_nrf);
 
         // Get the best matching local direct dial info if we have it
         if target_node_ref.is_filter_dead() {
@@ -1157,8 +1157,7 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::Relay(relay_nr.clone(), target_nr.node_id()),
-                None,
+                Destination::relay(relay_nr, target_nr.node_id()),
                 SignalInfo::ReverseConnect { receipt, peer_info },
             )
             .await
@@ -1214,9 +1213,16 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
         // Ensure we are filtered down to UDP (the only hole punch protocol supported today)
+        // and only in the PublicInternet routing domain
         assert!(target_nr
             .filter_ref()
-            .map(|dif| dif.protocol_type_set == ProtocolTypeSet::only(ProtocolType::UDP))
+            .map(|nrf| nrf.dial_info_filter.protocol_type_set
+                == ProtocolTypeSet::only(ProtocolType::UDP))
+            .unwrap_or_default());
+        assert!(target_nr
+            .filter_ref()
+            .map(|nrf| nrf.routing_domain_set
+                == RoutingDomainSet::only(RoutingDomain::PublicInternet))
             .unwrap_or_default());
 
         // Build a return receipt for the signal
@@ -1229,7 +1235,7 @@ impl NetworkManager {
 
         // Get the udp direct dialinfo for the hole punch
         let hole_punch_did = target_nr
-            .first_filtered_dial_info_detail(Some(RoutingDomain::PublicInternet))
+            .first_filtered_dial_info_detail()
             .ok_or_else(|| eyre!("No hole punch capable dialinfo found for node"))?;
 
         // Do our half of the hole punch by sending an empty packet
@@ -1246,8 +1252,7 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::Relay(relay_nr.clone(), target_nr.node_id()),
-                None,
+                Destination::relay(relay_nr, target_nr.node_id()),
                 SignalInfo::HolePunch { receipt, peer_info },
             )
             .await
@@ -1394,7 +1399,7 @@ impl NetworkManager {
         // Serialize out peer info
         let bootstrap_peerinfo: Vec<PeerInfo> = bootstrap_nodes
             .iter()
-            .filter_map(|b| b.peer_info(RoutingDomain::PublicInternet))
+            .filter_map(|nr| nr.make_peer_info(RoutingDomain::PublicInternet))
             .collect();
         let json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
 
@@ -1484,7 +1489,7 @@ impl NetworkManager {
         // Get the routing domain for this data
         let routing_domain = match self
             .routing_table()
-            .routing_domain_for_address(connection_descriptor.remote().address())
+            .routing_domain_for_address(connection_descriptor.remote_address().address())
         {
             Some(rd) => rd,
             None => {
@@ -1778,7 +1783,7 @@ impl NetworkManager {
                 // Get current external ip/port from registered global dialinfo
                 let current_addresses: BTreeSet<SocketAddress> = routing_table
                     .all_filtered_dial_info_details(
-                        Some(RoutingDomain::PublicInternet),
+                        RoutingDomain::PublicInternet.into(),
                         &dial_info_filter,
                     )
                     .iter()
@@ -1896,12 +1901,8 @@ impl NetworkManager {
             .unlocked_inner
             .node_info_update_single_future
             .single_spawn(async move {
-                // Only update if we actually have a valid network class
-                if matches!(
-                    this.get_network_class(routing_domain)
-                        .unwrap_or(NetworkClass::Invalid),
-                    NetworkClass::Invalid
-                ) {
+                // Only update if we actually have valid signed node info for this routing domain
+                if !this.routing_table().has_valid_own_node_info(routing_domain) {
                     trace!(
                         "not sending node info update because our network class is not yet valid"
                     );
@@ -1922,7 +1923,7 @@ impl NetworkManager {
                     unord.push(async move {
                         // Update the node
                         if let Err(e) = rpc
-                            .rpc_call_node_info_update(nr.clone, routing_domain)
+                            .rpc_call_node_info_update(nr.clone(), routing_domain)
                             .await
                         {
                             // Not fatal, but we should be able to see if this is happening

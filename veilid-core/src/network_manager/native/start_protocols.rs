@@ -287,14 +287,11 @@ impl Network {
 
         // Register local dial info
         for di in &local_dial_info_list {
-
-xxx write routing table sieve for routing domain from dialinfo and local network detection and registration
-
-            // If the local interface address is global, or we are enabling local peer scope
-            // register global dial info if no public address is specified
+            // If the local interface address is global, then register global dial info
+            // if no other public address is specified
             if !detect_address_changes
                 && public_address.is_none()
-                && (di.is_global() || enable_local_peer_scope)
+                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, &di)
             {
                 routing_table.register_dial_info(
                     RoutingDomain::PublicInternet,
@@ -455,7 +452,7 @@ xxx write routing table sieve for routing domain from dialinfo and local network
 
             if !detect_address_changes
                 && url.is_none()
-                && (socket_address.address().is_global() || enable_local_peer_scope)
+                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, &local_di)
             {
                 // Register public dial info
                 routing_table.register_dial_info(
@@ -625,7 +622,7 @@ xxx write routing table sieve for routing domain from dialinfo and local network
             // Register global dial info if no public address is specified
             if !detect_address_changes
                 && public_address.is_none()
-                && (di.is_global() || enable_local_peer_scope)
+                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, &di)
             {
                 routing_table.register_dial_info(
                     RoutingDomain::PublicInternet,
