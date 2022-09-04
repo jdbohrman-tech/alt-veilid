@@ -537,15 +537,13 @@ impl NetworkManager {
     }
 
     pub async fn tick(&self) -> EyreResult<()> {
-        let (routing_table, net, receipt_manager, protocol_config) = {
+        let (routing_table, net, receipt_manager) = {
             let inner = self.inner.lock();
             let components = inner.components.as_ref().unwrap();
-            let protocol_config = inner.protocol_config.as_ref().unwrap();
             (
                 inner.routing_table.as_ref().unwrap().clone(),
                 components.net.clone(),
                 components.receipt_manager.clone(),
-                protocol_config.clone(),
             )
         };
 

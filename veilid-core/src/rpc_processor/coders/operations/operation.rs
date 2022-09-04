@@ -25,7 +25,7 @@ impl RPCOperationKind {
         let out = match which_reader {
             veilid_capnp::operation::kind::Which::Question(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCQuestion::decode(&q_reader, sender_node_id)?;
+                let out = RPCQuestion::decode(&q_reader)?;
                 RPCOperationKind::Question(out)
             }
             veilid_capnp::operation::kind::Which::Statement(r) => {
@@ -137,12 +137,12 @@ impl RPCOperation {
 
     pub fn encode(&self, builder: &mut veilid_capnp::operation::Builder) -> Result<(), RPCError> {
         builder.set_op_id(self.op_id);
-        let mut k_builder = builder.reborrow().init_kind();
-        self.kind.encode(&mut k_builder)?;
-        if let Some(sender_info) = self.sender_node_info {
-            let si_builder = builder.reborrow().init_sender_node_info();
+        if let Some(sender_info) = &self.sender_node_info {
+            let mut si_builder = builder.reborrow().init_sender_node_info();
             encode_signed_node_info(&sender_info, &mut si_builder)?;
         }
+        let mut k_builder = builder.reborrow().init_kind();
+        self.kind.encode(&mut k_builder)?;
         Ok(())
     }
 }

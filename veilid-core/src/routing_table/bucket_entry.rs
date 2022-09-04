@@ -192,8 +192,8 @@ impl BucketEntryInner {
         for routing_domain in routing_domain_set {
             // Get the correct signed_node_info for the chosen routing domain
             let opt_current_sni = match routing_domain {
-                RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
-                RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+                RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
+                RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
             };
             if opt_current_sni.is_some() {
                 return true;
@@ -204,24 +204,24 @@ impl BucketEntryInner {
 
     pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<&NodeInfo> {
         let opt_current_sni = match routing_domain {
-            RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
-            RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+            RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
+            RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
         opt_current_sni.as_ref().map(|s| &s.node_info)
     }
 
     pub fn signed_node_info(&self, routing_domain: RoutingDomain) -> Option<&SignedNodeInfo> {
         let opt_current_sni = match routing_domain {
-            RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
-            RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+            RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
+            RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
         opt_current_sni.as_ref().map(|s| s.as_ref())
     }
 
     pub fn make_peer_info(&self, key: DHTKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
         let opt_current_sni = match routing_domain {
-            RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
-            RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+            RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
+            RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
         opt_current_sni.as_ref().map(|s| PeerInfo {
             node_id: NodeId::new(key),
@@ -235,10 +235,10 @@ impl BucketEntryInner {
     ) -> Option<RoutingDomain> {
         for routing_domain in routing_domain_set {
             let opt_current_sni = match routing_domain {
-                RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
-                RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
+                RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
+                RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
             };
-            if let Some(sni) = opt_current_sni {
+            if opt_current_sni.is_some() {
                 return Some(routing_domain);
             }
         }
@@ -265,10 +265,10 @@ impl BucketEntryInner {
     }
 
     // Gets the best 'last connection' that matches a set of routing domain, protocol types and address types
-    pub fn last_connection(
+    pub(super) fn last_connection(
         &self,
         routing_table_inner: &RoutingTableInner,
-        node_ref_filter: &Option<NodeRefFilter>,
+        node_ref_filter: Option<NodeRefFilter>,
     ) -> Option<(ConnectionDescriptor, u64)> {
         // Iterate peer scopes and protocol types and address type in order to ensure we pick the preferred protocols if all else is the same
         let nrf = node_ref_filter.unwrap_or_default();
@@ -327,11 +327,13 @@ impl BucketEntryInner {
             RoutingDomain::LocalNetwork => self
                 .local_network
                 .node_status
-                .map(|ln| NodeStatus::LocalNetwork(ln)),
+                .as_ref()
+                .map(|ln| NodeStatus::LocalNetwork(ln.clone())),
             RoutingDomain::PublicInternet => self
                 .public_internet
                 .node_status
-                .map(|pi| NodeStatus::PublicInternet(pi)),
+                .as_ref()
+                .map(|pi| NodeStatus::PublicInternet(pi.clone())),
         }
     }
 
@@ -426,7 +428,7 @@ impl BucketEntryInner {
     }
 
     // Check if this node needs a ping right now to validate it is still reachable
-    pub(super) fn needs_ping(&self, node_id: &DHTKey, cur_ts: u64, needs_keepalive: bool) -> bool {
+    pub(super) fn needs_ping(&self, cur_ts: u64, needs_keepalive: bool) -> bool {
         // See which ping pattern we are to use
         let state = self.state(cur_ts);
 
@@ -605,7 +607,7 @@ impl BucketEntry {
         }
     }
 
-    pub fn with<F, R>(&self, f: F) -> R
+    pub(super) fn with<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&BucketEntryInner) -> R,
     {
@@ -613,7 +615,7 @@ impl BucketEntry {
         f(&*inner)
     }
 
-    pub fn with_mut<F, R>(&self, f: F) -> R
+    pub(super) fn with_mut<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut BucketEntryInner) -> R,
     {

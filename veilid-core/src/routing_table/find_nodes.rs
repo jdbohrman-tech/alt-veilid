@@ -132,7 +132,7 @@ impl RoutingTable {
                     // does it have some dial info we need?
                     let filter = |n: &NodeInfo| {
                         let mut keep = false;
-                        for did in n.dial_info_detail_list {
+                        for did in &n.dial_info_detail_list {
                             if matches!(did.dial_info.address_type(), AddressType::IPV4) {
                                 for (n, protocol_type) in protocol_types.iter().enumerate() {
                                     if nodes_proto_v4[n] < max_per_type
@@ -250,7 +250,7 @@ impl RoutingTable {
         &self,
         node_count: usize,
         mut filter: F,
-        mut transform: T,
+        transform: T,
     ) -> Vec<O>
     where
         F: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> bool,
@@ -331,7 +331,7 @@ impl RoutingTable {
     pub fn find_closest_nodes<F, T, O>(
         &self,
         node_id: DHTKey,
-        mut filter: F,
+        filter: F,
         mut transform: T,
     ) -> Vec<O>
     where

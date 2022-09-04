@@ -150,13 +150,15 @@ impl NodeRef {
 
     pub fn routing_domain_set(&self) -> RoutingDomainSet {
         self.filter
+            .as_ref()
             .map(|f| f.routing_domain_set)
             .unwrap_or(RoutingDomainSet::all())
     }
 
     pub fn dial_info_filter(&self) -> DialInfoFilter {
         self.filter
-            .map(|f| f.dial_info_filter)
+            .as_ref()
+            .map(|f| f.dial_info_filter.clone())
             .unwrap_or(DialInfoFilter::all())
     }
 
@@ -164,6 +166,7 @@ impl NodeRef {
         self.operate(|_rti, e| {
             e.best_routing_domain(
                 self.filter
+                    .as_ref()
                     .map(|f| f.routing_domain_set)
                     .unwrap_or(RoutingDomainSet::all()),
             )
@@ -235,8 +238,10 @@ impl NodeRef {
         dif
     }
     pub fn relay(&self, routing_domain: RoutingDomain) -> Option<NodeRef> {
-        let target_rpi =
-            self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.relay_peer_info))?;
+        let target_rpi = self.operate(|_rti, e| {
+            e.node_info(routing_domain)
+                .map(|n| n.relay_peer_info.as_ref().map(|pi| pi.as_ref().clone()))
+        })?;
         target_rpi.and_then(|t| {
             // If relay is ourselves, then return None, because we can't relay through ourselves
             // and to contact this node we should have had an existing inbound connection
@@ -294,7 +299,7 @@ impl NodeRef {
     pub async fn last_connection(&self) -> Option<ConnectionDescriptor> {
         // Get the last connection and the last time we saw anything with this connection
         let (last_connection, last_seen) =
-            self.operate(|rti, e| e.last_connection(rti, &self.filter))?;
+            self.operate(|rti, e| e.last_connection(rti, self.filter.clone()))?;
 
         // Should we check the connection table?
         if last_connection.protocol_type().is_connection_oriented() {

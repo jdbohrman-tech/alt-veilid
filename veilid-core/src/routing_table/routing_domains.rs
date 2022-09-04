@@ -57,7 +57,7 @@ pub struct LocalInternetRoutingDomainDetail {
 }
 
 impl LocalInternetRoutingDomainDetail {
-    pub fn set_local_networks(&mut self, local_networks: Vec<(IpAddr, IpAddr)>) -> bool {
+    pub fn set_local_networks(&mut self, mut local_networks: Vec<(IpAddr, IpAddr)>) -> bool {
         local_networks.sort();
         if local_networks == self.local_networks {
             return false;
@@ -70,7 +70,7 @@ impl LocalInternetRoutingDomainDetail {
 impl RoutingDomainDetail for LocalInternetRoutingDomainDetail {
     fn can_contain_address(&self, address: Address) -> bool {
         let ip = address.to_ip_addr();
-        for localnet in self.local_networks {
+        for localnet in &self.local_networks {
             if ipaddr_in_network(ip, localnet.0, localnet.1) {
                 return true;
             }

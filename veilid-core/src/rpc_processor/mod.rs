@@ -323,7 +323,7 @@ impl RPCProcessor {
             .await
             .into_timeout_or();
         Ok(res.map(|res| {
-            let (span_id, rpcreader) = res.take_value().unwrap();
+            let (_span_id, rpcreader) = res.take_value().unwrap();
             let end_ts = intf::get_timestamp();
 
             // fixme: causes crashes? "Missing otel data span extensions"??
@@ -385,13 +385,13 @@ impl RPCProcessor {
         // To where are we sending the request
         match dest {
             Destination::Direct {
-                target: node_ref,
-                safety_route_spec,
+                target: ref node_ref,
+                ref safety_route_spec,
             }
             | Destination::Relay {
-                relay: node_ref,
+                relay: ref node_ref,
                 target: _,
-                safety_route_spec,
+                ref safety_route_spec,
             } => {
                 // Send to a node without a private route
                 // --------------------------------------
@@ -399,7 +399,7 @@ impl RPCProcessor {
                 // Get the actual destination node id accounting for relays
                 let (node_ref, node_id) = if let Destination::Relay {
                     relay: _,
-                    target: dht_key,
+                    target: ref dht_key,
                     safety_route_spec: _,
                 } = dest
                 {
@@ -410,7 +410,7 @@ impl RPCProcessor {
                 };
 
                 // Handle the existence of safety route
-                match safety_route_spec {
+                match safety_route_spec.as_ref() {
                     None => {
                         // If no safety route is being used, and we're not sending to a private
                         // route, we can use a direct envelope instead of routing
@@ -434,7 +434,8 @@ impl RPCProcessor {
                             .dial_info
                             .node_id
                             .key;
-                        out_message = self.wrap_with_route(Some(sr), private_route, message_vec)?;
+                        out_message =
+                            self.wrap_with_route(Some(sr.clone()), private_route, message_vec)?;
                         out_hop_count = 1 + sr.hops.len();
                     }
                 };
@@ -892,7 +893,7 @@ impl RPCProcessor {
         stop_token: StopToken,
         receiver: flume::Receiver<(Option<Id>, RPCMessageEncoded)>,
     ) {
-        while let Ok(Ok((span_id, msg))) =
+        while let Ok(Ok((_span_id, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
         {
             let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker");

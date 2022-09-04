@@ -411,12 +411,6 @@ impl NetworkManager {
         // Get all nodes needing pings in the LocalNetwork routing domain
         let node_refs = routing_table.get_nodes_needing_ping(RoutingDomain::LocalNetwork, cur_ts);
 
-        // Get our LocalNetwork dial info
-        let dids = routing_table.all_filtered_dial_info_details(
-            RoutingDomain::LocalNetwork.into(),
-            &DialInfoFilter::all(),
-        );
-
         // For all nodes needing pings, figure out how many and over what protocols
         for nr in node_refs {
             let rpc = rpc.clone();
@@ -437,8 +431,6 @@ impl NetworkManager {
         _last_ts: u64,
         cur_ts: u64,
     ) -> EyreResult<()> {
-        let rpc = self.rpc_processor();
-        let routing_table = self.routing_table();
         let mut unord = FuturesUnordered::new();
 
         // PublicInternet

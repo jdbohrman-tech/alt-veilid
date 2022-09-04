@@ -140,7 +140,7 @@ impl RoutingTable {
         self.inner.read().node_id_secret
     }
 
-    pub fn routing_domain_for_address_inner(
+    fn routing_domain_for_address_inner(
         inner: &RoutingTableInner,
         address: Address,
     ) -> Option<RoutingDomain> {
@@ -189,7 +189,7 @@ impl RoutingTable {
     }
 
     pub fn set_relay_node(&self, domain: RoutingDomain, opt_relay_node: Option<NodeRef>) {
-        let inner = self.inner.write();
+        let mut inner = self.inner.write();
         Self::with_routing_domain_mut(&mut *inner, domain, |rd| rd.set_relay_node(opt_relay_node));
     }
 
@@ -275,13 +275,13 @@ impl RoutingTable {
             return false;
         }
         // Ensure all of the dial info works in this routing domain
-        for did in node_info.dial_info_detail_list {
+        for did in &node_info.dial_info_detail_list {
             if !self.ensure_dial_info_is_valid(routing_domain, &did.dial_info) {
                 return false;
             }
         }
         // Ensure the relay is also valid in this routing domain if it is provided
-        if let Some(relay_peer_info) = node_info.relay_peer_info {
+        if let Some(relay_peer_info) = node_info.relay_peer_info.as_ref() {
             let relay_ni = &relay_peer_info.signed_node_info.node_info;
             if !self.node_info_is_valid_in_routing_domain(routing_domain, relay_ni) {
                 return false;
@@ -620,7 +620,7 @@ impl RoutingTable {
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
             if v.with(|e| {
                 e.has_node_info(routing_domain.into())
-                    && e.needs_ping(&k, cur_ts, opt_relay_id == Some(k))
+                    && e.needs_ping(cur_ts, opt_relay_id == Some(k))
             }) {
                 node_refs.push(NodeRef::new(
                     self.clone(),
@@ -834,7 +834,7 @@ impl RoutingTable {
             .collect()
     }
 
-    pub fn touch_recent_peer(
+    fn touch_recent_peer(
         inner: &mut RoutingTableInner,
         node_id: DHTKey,
         last_connection: ConnectionDescriptor,

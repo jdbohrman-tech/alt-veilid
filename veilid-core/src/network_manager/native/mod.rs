@@ -608,7 +608,7 @@ impl Network {
         self.unlocked_inner
             .interfaces
             .with_interfaces(|interfaces| {
-                for (name, intf) in interfaces {
+                for (_name, intf) in interfaces {
                     // Skip networks that we should never encounter
                     if intf.is_loopback() || !intf.is_running() {
                         return;

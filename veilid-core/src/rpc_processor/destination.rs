@@ -103,16 +103,16 @@ impl Destination {
     pub fn safety_route_spec(&self) -> Option<Arc<SafetyRouteSpec>> {
         match self {
             Destination::Direct {
-                target,
+                target: _,
                 safety_route_spec,
             } => safety_route_spec.clone(),
             Destination::Relay {
-                relay,
-                target,
+                relay: _,
+                target: _,
                 safety_route_spec,
             } => safety_route_spec.clone(),
             Destination::PrivateRoute {
-                private_route,
+                private_route: _,
                 safety_route_spec,
             } => safety_route_spec.clone(),
         }
@@ -154,6 +154,7 @@ impl fmt::Display for Destination {
                 safety_route_spec,
             } => {
                 let sr = safety_route_spec
+                    .as_ref()
                     .map(|_sr| "+SR".to_owned())
                     .unwrap_or_default();
 
@@ -165,6 +166,7 @@ impl fmt::Display for Destination {
                 safety_route_spec,
             } => {
                 let sr = safety_route_spec
+                    .as_ref()
                     .map(|_sr| "+SR".to_owned())
                     .unwrap_or_default();
 
@@ -175,6 +177,7 @@ impl fmt::Display for Destination {
                 safety_route_spec,
             } => {
                 let sr = safety_route_spec
+                    .as_ref()
                     .map(|_sr| "+SR".to_owned())
                     .unwrap_or_default();
 
