@@ -348,19 +348,21 @@ impl DiscoveryContext {
             )
         };
 
+        // Attempt a port mapping via all available and enabled mechanisms
+        // Try this before the direct mapping in the event that we are restarting
+        // and may not have recorded a mapping created the last time
+        if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
+            // Got a port mapping, let's use it
+            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
+        }
         // Do a validate_dial_info on the external address from a redirected node
-        if self
+        else if self
             .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
             .await
         {
             // Add public dial info with Direct dialinfo class
             self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Direct);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
-        }
-        // Attempt a port mapping via all available and enabled mechanisms
-        else if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
-            // Got a port mapping, let's use it
-            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
             self.set_detected_network_class(NetworkClass::InboundCapable);
         } else {
             // Add public dial info with Blocked dialinfo class
@@ -384,8 +386,19 @@ impl DiscoveryContext {
             )
         };
 
+        // Attempt a port mapping via all available and enabled mechanisms
+        // Try this before the direct mapping in the event that we are restarting
+        // and may not have recorded a mapping created the last time
+        if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
+            // Got a port mapping, let's use it
+            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
+
+            // No more retries
+            return Ok(true);
+        }
         // Do a validate_dial_info on the external address from a redirected node
-        if self
+        else if self
             .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
             .await
         {
@@ -394,17 +407,9 @@ impl DiscoveryContext {
             self.set_detected_network_class(NetworkClass::InboundCapable);
             return Ok(true);
         }
-        // Attempt a port mapping via all available and enabled mechanisms
-        else if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
-            // Got a port mapping, let's use it
-            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
 
-            // No more retries
-            return Ok(true);
-        }
-
-        // Port mapping was not possible, let's see what kind of NAT we have
+        // Port mapping was not possible, and things aren't accessible directly.
+        // Let's see what kind of NAT we have
 
         // Does a redirected dial info validation from a different address and a random port find us?
         if self

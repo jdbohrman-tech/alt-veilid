@@ -258,5 +258,11 @@ pub fn ipaddr_apply_netmask(addr: IpAddr, netmask: IpAddr) -> IpAddr {
 }
 
 pub fn ipaddr_in_network(addr: IpAddr, netaddr: IpAddr, netmask: IpAddr) -> bool {
+    if addr.is_ipv4() && !netaddr.is_ipv4() {
+        return false;
+    }
+    if addr.is_ipv6() && !netaddr.is_ipv6() {
+        return false;
+    }
     ipaddr_apply_netmask(netaddr, netmask) == ipaddr_apply_netmask(addr, netmask)
 }
