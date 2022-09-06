@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:veilid/veilid.dart';
 import 'package:flutter_loggy/flutter_loggy.dart';
@@ -188,7 +187,7 @@ class _MyAppState extends State<MyApp> with UiLoggy {
         if (update is VeilidUpdateLog) {
           await processUpdateLog(update);
         } else {
-          loggy.trace("Update: " + update.json.toString());
+          loggy.trace("Update: ${update.json}");
         }
       }
     }

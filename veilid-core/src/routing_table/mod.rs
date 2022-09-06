@@ -29,7 +29,7 @@ const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RecentPeersEntry {
-    last_connection: ConnectionDescriptor,
+    pub last_connection: ConnectionDescriptor,
 }
 
 /// RoutingTable rwlock-internal data
@@ -776,13 +776,15 @@ impl RoutingTable {
         descriptor: ConnectionDescriptor,
         timestamp: u64,
     ) -> Option<NodeRef> {
-        self.create_node_ref(node_id, |e| {
-            // set the most recent node address for connection finding and udp replies
-            e.set_last_connection(descriptor, timestamp);
-
+        let out = self.create_node_ref(node_id, |e| {
             // this node is live because it literally just connected to us
             e.touch_last_seen(timestamp);
-        })
+        });
+        if let Some(nr) = &out {
+            // set the most recent node address for connection finding and udp replies
+            nr.set_last_connection(descriptor, timestamp);
+        }
+        out
     }
 
     // Ticks about once per second
@@ -834,11 +836,8 @@ impl RoutingTable {
             .collect()
     }
 
-    fn touch_recent_peer(
-        inner: &mut RoutingTableInner,
-        node_id: DHTKey,
-        last_connection: ConnectionDescriptor,
-    ) {
+    pub fn touch_recent_peer(&self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
+        let mut inner = self.inner.write();
         inner
             .recent_peers
             .insert(node_id, RecentPeersEntry { last_connection });

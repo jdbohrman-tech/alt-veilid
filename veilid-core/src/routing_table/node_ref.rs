@@ -200,6 +200,9 @@ impl NodeRef {
     pub fn state(&self, cur_ts: u64) -> BucketEntryState {
         self.operate(|_rti, e| e.state(cur_ts))
     }
+    pub fn peer_stats(&self) -> PeerStats {
+        self.operate(|_rti, e| e.peer_stats().clone())
+    }
 
     // Per-RoutingDomain accessors
     pub fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
@@ -322,7 +325,9 @@ impl NodeRef {
     }
 
     pub fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: u64) {
-        self.operate_mut(|_rti, e| e.set_last_connection(connection_descriptor, ts))
+        self.operate_mut(|_rti, e| e.set_last_connection(connection_descriptor, ts));
+        self.routing_table
+            .touch_recent_peer(self.node_id(), connection_descriptor);
     }
 
     pub fn has_any_dial_info(&self) -> bool {

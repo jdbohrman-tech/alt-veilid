@@ -1,4 +1,5 @@
 use crate::command_processor::*;
+use crate::peers_table_view::*;
 use crate::settings::Settings;
 use crossbeam_channel::Sender;
 use cursive::align::*;
@@ -10,6 +11,7 @@ use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
 use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
+//use cursive_multiplex::*;
 use log::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
@@ -20,7 +22,7 @@ use veilid_core::*;
 //////////////////////////////////////////////////////////////
 ///
 struct Dirty<T> {
-    pub value: T,
+    value: T,
     dirty: bool,
 }
 
@@ -52,6 +54,7 @@ struct UIState {
     network_started: Dirty<bool>,
     network_down_up: Dirty<(f32, f32)>,
     connection_state: Dirty<ConnectionState>,
+    peers_state: Dirty<Vec<PeerTableData>>,
 }
 
 impl UIState {
@@ -61,6 +64,7 @@ impl UIState {
             network_started: Dirty::new(false),
             network_down_up: Dirty::new((0.0, 0.0)),
             connection_state: Dirty::new(ConnectionState::Disconnected),
+            peers_state: Dirty::new(Vec::new()),
         }
     }
 }
@@ -218,6 +222,9 @@ impl UI {
     }
     fn status_bar(s: &mut Cursive) -> ViewRef<TextView> {
         s.find_name("status-bar").unwrap()
+    }
+    fn peers(s: &mut Cursive) -> ViewRef<PeersTableView> {
+        s.find_name("peers").unwrap()
     }
     fn render_attachment_state<'a>(inner: &mut UIInner) -> &'a str {
         match inner.ui_state.attachment_state.get() {
@@ -607,15 +614,23 @@ impl UI {
         statusbar.set_content(status);
     }
 
+    fn refresh_peers(s: &mut Cursive) {
+        let mut peers = UI::peers(s);
+        let inner = Self::inner_mut(s);
+        peers.set_items_stable(inner.ui_state.peers_state.get().clone());
+    }
+
     fn update_cb(s: &mut Cursive) {
         let mut inner = Self::inner_mut(s);
 
         let mut refresh_statusbar = false;
         let mut refresh_button_attach = false;
         let mut refresh_connection_dialog = false;
+        let mut refresh_peers = false;
         if inner.ui_state.attachment_state.take_dirty() {
             refresh_statusbar = true;
             refresh_button_attach = true;
+            refresh_peers = true;
         }
         if inner.ui_state.network_started.take_dirty() {
             refresh_statusbar = true;
@@ -627,6 +642,10 @@ impl UI {
             refresh_statusbar = true;
             refresh_button_attach = true;
             refresh_connection_dialog = true;
+            refresh_peers = true;
+        }
+        if inner.ui_state.peers_state.take_dirty() {
+            refresh_peers = true;
         }
 
         drop(inner);
@@ -639,6 +658,9 @@ impl UI {
         }
         if refresh_connection_dialog {
             Self::refresh_connection_dialog(s);
+        }
+        if refresh_peers {
+            Self::refresh_peers(s);
         }
     }
 
@@ -686,30 +708,48 @@ impl UI {
         siv.set_user_data(this.inner.clone());
 
         // Create layouts
-        let mut mainlayout = LinearLayout::vertical().with_name("main-layout");
-        mainlayout.get_mut().add_child(
-            Panel::new(
-                FlexiLoggerView::new_scrollable()
-                    .with_name("node-events")
-                    .full_screen(),
-            )
-            .title_position(HAlign::Left)
-            .title("Node Events"),
-        );
-        mainlayout.get_mut().add_child(
-            Panel::new(ScrollView::new(
-                TextView::new("Peer Table")
-                    .with_name("peers")
-                    .fixed_height(8)
-                    .scrollable(),
-            ))
-            .title_position(HAlign::Left)
-            .title("Peers"),
-        );
+
+        let node_events_view = Panel::new(
+            FlexiLoggerView::new_scrollable()
+                .with_name("node-events")
+                .full_screen(),
+        )
+        .title_position(HAlign::Left)
+        .title("Node Events");
+
+        let peers_table_view = PeersTableView::new()
+            .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(43))
+            .column(PeerTableColumn::Address, "Address", |c| c)
+            .column(PeerTableColumn::LatencyAvg, "Ping", |c| c.width(8))
+            .column(PeerTableColumn::TransferDownAvg, "Down", |c| c.width(8))
+            .column(PeerTableColumn::TransferUpAvg, "Up", |c| c.width(8))
+            .with_name("peers")
+            .full_width()
+            .min_height(8);
+
+        // attempt at using Mux. Mux has bugs, like resizing problems.
+        // let mut mux = Mux::new();
+        // let node_node_events_view = mux
+        //     .add_below(node_events_view, mux.root().build().unwrap())
+        //     .unwrap();
+        // let node_peers_table_view = mux
+        //     .add_below(peers_table_view, node_node_events_view)
+        //     .unwrap();
+        // mux.set_container_split_ratio(node_peers_table_view, 0.75)
+        //     .unwrap();
+        // let mut mainlayout = LinearLayout::vertical();
+        // mainlayout.add_child(mux);
+
+        // Back to fixed layout
+        let mut mainlayout = LinearLayout::vertical();
+        mainlayout.add_child(node_events_view);
+        mainlayout.add_child(peers_table_view);
+        // ^^^ fixed layout
+
         let mut command = StyledString::new();
         command.append_styled("Command> ", ColorStyle::title_primary());
         //
-        mainlayout.get_mut().add_child(
+        mainlayout.add_child(
             LinearLayout::horizontal()
                 .child(TextView::new(command))
                 .child(
@@ -738,7 +778,7 @@ impl UI {
             ColorStyle::highlight_inactive(),
         );
 
-        mainlayout.get_mut().add_child(
+        mainlayout.add_child(
             LinearLayout::horizontal()
                 .color(Some(ColorStyle::highlight_inactive()))
                 .child(
@@ -776,13 +816,20 @@ impl UI {
         inner.ui_state.attachment_state.set(state);
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
-    pub fn set_network_status(&mut self, started: bool, bps_down: u64, bps_up: u64) {
+    pub fn set_network_status(
+        &mut self,
+        started: bool,
+        bps_down: u64,
+        bps_up: u64,
+        peers: Vec<PeerTableData>,
+    ) {
         let mut inner = self.inner.borrow_mut();
         inner.ui_state.network_started.set(started);
         inner.ui_state.network_down_up.set((
             ((bps_down as f64) / 1000.0f64) as f32,
             ((bps_up as f64) / 1000.0f64) as f32,
         ));
+        inner.ui_state.peers_state.set(peers);
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
     pub fn set_connection_state(&mut self, state: ConnectionState) {
@@ -790,6 +837,7 @@ impl UI {
         inner.ui_state.connection_state.set(state);
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
+
     pub fn add_node_event(&self, event: String) {
         let inner = self.inner.borrow();
         let color = *inner.log_colors.get(&Level::Info).unwrap();

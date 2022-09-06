@@ -1680,12 +1680,30 @@ impl NetworkManager {
                 started: true,
                 bps_down: inner.stats.self_stats.transfer_stats.down.average,
                 bps_up: inner.stats.self_stats.transfer_stats.up.average,
+                peers: {
+                    let mut out = Vec::new();
+                    let routing_table = inner.routing_table.as_ref().unwrap();
+                    for (k, v) in routing_table.get_recent_peers() {
+                        if let Some(nr) = routing_table.lookup_node_ref(k) {
+                            let peer_stats = nr.peer_stats();
+                            let peer = PeerTableData {
+                                node_id: k,
+                                peer_address: v.last_connection.remote(),
+                                peer_stats,
+                            };
+                            out.push(peer);
+                        }
+                    }
+
+                    out
+                },
             }
         } else {
             VeilidStateNetwork {
                 started: false,
                 bps_down: 0,
                 bps_up: 0,
+                peers: Vec::new(),
             }
         }
     }

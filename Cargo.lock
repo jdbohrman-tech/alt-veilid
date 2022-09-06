@@ -1210,6 +1210,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cursive_table_view"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8935dd87d19c54b7506b245bc988a7b4e65b1058e1d0d64c0ad9b3188e48060"
+dependencies = [
+ "cursive_core",
+]
+
+[[package]]
 name = "curve25519-dalek"
 version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5087,6 +5096,7 @@ dependencies = [
  "cursive",
  "cursive-flexi-logger-view",
  "cursive_buffered_backend",
+ "cursive_table_view",
  "directories",
  "flexi_logger",
  "futures",
@@ -5155,6 +5165,7 @@ dependencies = [
  "nix 0.25.0",
  "no-std-net",
  "once_cell",
+ "owning_ref",
  "owo-colors",
  "parking_lot 0.12.1",
  "rand 0.7.3",

@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 use veilid_core::xx::{Eventual, EventualCommon};
-use veilid_core::VeilidConfigLogLevel;
+use veilid_core::*;
 
 pub fn convert_loglevel(s: &str) -> Result<VeilidConfigLogLevel, String> {
     match s.to_ascii_lowercase().as_str() {
@@ -323,9 +323,12 @@ change_log_level    - change the log level for a tracing layer
     }
 
     pub fn update_network_status(&mut self, network: veilid_core::VeilidStateNetwork) {
-        self.inner_mut()
-            .ui
-            .set_network_status(network.started, network.bps_down, network.bps_up);
+        self.inner_mut().ui.set_network_status(
+            network.started,
+            network.bps_down,
+            network.bps_up,
+            network.peers,
+        );
     }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidStateLog) {

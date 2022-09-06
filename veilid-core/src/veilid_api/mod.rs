@@ -215,22 +215,32 @@ impl fmt::Display for VeilidLogLevel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VeilidStateLog {
     pub log_level: VeilidLogLevel,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VeilidStateAttachment {
     pub state: AttachmentState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PeerTableData {
+    pub node_id: DHTKey,
+    pub peer_address: PeerAddress,
+    pub peer_stats: PeerStats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VeilidStateNetwork {
     pub started: bool,
+    #[serde(with = "json_as_string")]
     pub bps_down: u64,
+    #[serde(with = "json_as_string")]
     pub bps_up: u64,
+    pub peers: Vec<PeerTableData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -702,6 +712,15 @@ impl Address {
                 Some(v4) => Address::IPV4(v4),
                 None => Address::IPV6(*v6),
             },
+        }
+    }
+}
+
+impl fmt::Display for Address {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Address::IPV4(v4) => write!(f, "{}", v4),
+            Address::IPV6(v6) => write!(f, "{}", v6),
         }
     }
 }
@@ -1447,6 +1466,7 @@ impl PeerInfo {
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub struct PeerAddress {
     protocol_type: ProtocolType,
+    #[serde(with = "json_as_string")]
     socket_address: SocketAddress,
 }
 
@@ -1565,42 +1585,53 @@ impl FromStr for NodeDialInfo {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LatencyStats {
+    #[serde(with = "json_as_string")]
     pub fastest: u64, // fastest latency in the ROLLING_LATENCIES_SIZE last latencies
+    #[serde(with = "json_as_string")]
     pub average: u64, // average latency over the ROLLING_LATENCIES_SIZE last latencies
+    #[serde(with = "json_as_string")]
     pub slowest: u64, // slowest latency in the ROLLING_LATENCIES_SIZE last latencies
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TransferStats {
-    pub total: u64,   // total amount transferred ever
+    #[serde(with = "json_as_string")]
+    pub total: u64, // total amount transferred ever
+    #[serde(with = "json_as_string")]
     pub maximum: u64, // maximum rate over the ROLLING_TRANSFERS_SIZE last amounts
+    #[serde(with = "json_as_string")]
     pub average: u64, // average rate over the ROLLING_TRANSFERS_SIZE last amounts
+    #[serde(with = "json_as_string")]
     pub minimum: u64, // minimum rate over the ROLLING_TRANSFERS_SIZE last amounts
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TransferStatsDownUp {
     pub down: TransferStats,
     pub up: TransferStats,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RPCStats {
     pub messages_sent: u32, // number of rpcs that have been sent in the total_time range
     pub messages_rcvd: u32, // number of rpcs that have been received in the total_time range
     pub questions_in_flight: u32, // number of questions issued that have yet to be answered
+    #[serde(with = "opt_json_as_string")]
     pub last_question: Option<u64>, // when the peer was last questioned (either successfully or not) and we wanted an answer
+    #[serde(with = "opt_json_as_string")]
     pub last_seen_ts: Option<u64>, // when the peer was last seen for any reason, including when we first attempted to reach out to it
+    #[serde(with = "opt_json_as_string")]
     pub first_consecutive_seen_ts: Option<u64>, // the timestamp of the first consecutive proof-of-life for this node (an answer or received question)
     pub recent_lost_answers: u32, // number of answers that have been lost since we lost reliability
     pub failed_to_send: u32, // number of messages that have failed to send since we last successfully sent one
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PeerStats {
-    pub time_added: u64,               // when the peer was added to the routing table
+    #[serde(with = "json_as_string")]
+    pub time_added: u64, // when the peer was added to the routing table
     pub rpc_stats: RPCStats,           // information about RPCs
     pub latency: Option<LatencyStats>, // latencies for communications with the peer
     pub transfer: TransferStatsDownUp, // Stats for communications with the peer
