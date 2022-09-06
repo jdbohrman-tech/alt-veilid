@@ -1234,7 +1234,8 @@ abstract class VeilidUpdate {
         {
           return VeilidUpdateLog(
               logLevel: veilidLogLevelFromJson(json["log_level"]),
-              message: json["message"]);
+              message: json["message"],
+              backtrace: json["backtrace"]);
         }
       case "Attachment":
         {
@@ -1258,10 +1259,12 @@ abstract class VeilidUpdate {
 class VeilidUpdateLog implements VeilidUpdate {
   final VeilidLogLevel logLevel;
   final String message;
+  final String? backtrace;
   //
   VeilidUpdateLog({
     required this.logLevel,
     required this.message,
+    required this.backtrace,
   });
 
   @override
@@ -1270,6 +1273,7 @@ class VeilidUpdateLog implements VeilidUpdate {
       'kind': "Log",
       'log_level': logLevel.json,
       'message': message,
+      'backtrace': backtrace
     };
   }
 }
@@ -1323,8 +1327,8 @@ class VeilidStateAttachment {
 
 class VeilidStateNetwork {
   final bool started;
-  final int bpsDown;
-  final int bpsUp;
+  final BigInt bpsDown;
+  final BigInt bpsUp;
   final List<PeerTableData> peers;
 
   VeilidStateNetwork(
@@ -1335,15 +1339,15 @@ class VeilidStateNetwork {
 
   VeilidStateNetwork.fromJson(Map<String, dynamic> json)
       : started = json['started'],
-        bpsDown = json['bps_down'],
-        bpsUp = json['bps_up'],
+        bpsDown = BigInt.parse(json['bps_down']),
+        bpsUp = BigInt.parse(json['bps_up']),
         peers = json['peers'].map((j) => PeerTableData.fromJson(j)).toList();
 
   Map<String, dynamic> get json {
     return {
       'started': started,
-      'bps_down': bpsDown,
-      'bps_up': bpsUp,
+      'bps_down': bpsDown.toString(),
+      'bps_up': bpsUp.toString(),
       'peers': peers.map((p) => p.json).toList(),
     };
   }
@@ -1563,6 +1567,8 @@ abstract class Veilid {
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel);
   Stream<VeilidUpdate> startupVeilidCore(VeilidConfig config);
   Future<VeilidState> getVeilidState();
+  Future<void> attach();
+  Future<void> detach();
   Future<void> shutdownVeilidCore();
   Future<String> debug(String command);
   String veilidVersionString();

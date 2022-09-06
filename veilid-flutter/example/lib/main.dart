@@ -223,6 +223,7 @@ class _MyAppState extends State<MyApp> with UiLoggy {
                             _updateStream = updateStream;
                             _updateProcessor = processUpdates();
                           });
+                          await Veilid.instance.attach();
                         },
                   child: const Text('Startup'),
                 ),

@@ -61,6 +61,16 @@ class VeilidJS implements Veilid {
   }
 
   @override
+  Future<void> attach() async {
+    return _wrapApiPromise(js_util.callMethod(wasm, "attach", []));
+  }
+
+  @override
+  Future<void> detach() async {
+    return _wrapApiPromise(js_util.callMethod(wasm, "detach", []));
+  }
+
+  @override
   Future<void> shutdownVeilidCore() {
     return _wrapApiPromise(
         js_util.callMethod(wasm, "shutdown_veilid_core", []));

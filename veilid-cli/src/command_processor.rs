@@ -332,9 +332,16 @@ change_log_level    - change the log level for a tracing layer
     }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidStateLog) {
-        self.inner()
-            .ui
-            .add_node_event(format!("{}: {}", log.log_level, log.message));
+        self.inner().ui.add_node_event(format!(
+            "{}: {}{}",
+            log.log_level,
+            log.message,
+            if let Some(bt) = log.backtrace {
+                format!("\nBacktrace:\n{}", bt);
+            } else {
+                "".to_owned()
+            }
+        ));
     }
 
     pub fn update_shutdown(&mut self) {

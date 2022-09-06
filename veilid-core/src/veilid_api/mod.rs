@@ -219,6 +219,7 @@ impl fmt::Display for VeilidLogLevel {
 pub struct VeilidStateLog {
     pub log_level: VeilidLogLevel,
     pub message: String,
+    pub backtrace: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -303,6 +303,24 @@ pub extern "C" fn get_veilid_state(port: i64) {
 }
 
 #[no_mangle]
+pub extern "C" fn attach(port: i64) {
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+        veilid_api.attach().await?;
+        APIRESULT_VOID
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn detach(port: i64) {
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+        veilid_api.detach().await?;
+        APIRESULT_VOID
+    });
+}
+
+#[no_mangle]
 #[instrument]
 pub extern "C" fn shutdown_veilid_core(port: i64) {
     DartIsolateWrapper::new(port).spawn_result_json(async move {

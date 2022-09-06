@@ -41,6 +41,12 @@ typedef _StartupVeilidCoreDart = void Function(int, Pointer<Utf8>);
 // fn get_veilid_state(port: i64)
 typedef _GetVeilidStateC = Void Function(Int64);
 typedef _GetVeilidStateDart = void Function(int);
+// fn attach(port: i64)
+typedef _AttachC = Void Function(Int64);
+typedef _AttachDart = void Function(int);
+// fn detach(port: i64)
+typedef _DetachC = Void Function(Int64);
+typedef _DetachDart = void Function(int);
 // fn debug(port: i64, log_level: FfiStr)
 typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
 typedef _DebugDart = void Function(int, Pointer<Utf8>);
@@ -249,6 +255,8 @@ class VeilidFFI implements Veilid {
   final _ChangeLogLevelDart _changeLogLevel;
   final _StartupVeilidCoreDart _startupVeilidCore;
   final _GetVeilidStateDart _getVeilidState;
+  final _AttachDart _attach;
+  final _DetachDart _detach;
   final _ShutdownVeilidCoreDart _shutdownVeilidCore;
   final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
@@ -269,6 +277,8 @@ class VeilidFFI implements Veilid {
         _getVeilidState =
             dylib.lookupFunction<_GetVeilidStateC, _GetVeilidStateDart>(
                 'get_veilid_state'),
+        _attach = dylib.lookupFunction<_AttachC, _AttachDart>('attach'),
+        _detach = dylib.lookupFunction<_DetachC, _DetachDart>('detach'),
         _shutdownVeilidCore =
             dylib.lookupFunction<_ShutdownVeilidCoreC, _ShutdownVeilidCoreDart>(
                 'shutdown_veilid_core'),
@@ -325,6 +335,22 @@ class VeilidFFI implements Veilid {
     final sendPort = recvPort.sendPort;
     _getVeilidState(sendPort.nativePort);
     return processFutureJson(VeilidState.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<void> attach() async {
+    final recvPort = ReceivePort("attach");
+    final sendPort = recvPort.sendPort;
+    _attach(sendPort.nativePort);
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<void> detach() async {
+    final recvPort = ReceivePort("detach");
+    final sendPort = recvPort.sendPort;
+    _detach(sendPort.nativePort);
+    return processFutureVoid(recvPort.first);
   }
 
   @override

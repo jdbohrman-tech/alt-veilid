@@ -233,6 +233,24 @@ pub fn get_veilid_state() -> Promise {
 }
 
 #[wasm_bindgen()]
+pub fn attach() -> Promise {
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        veilid_api.attach().await?;
+        APIRESULT_UNDEFINED
+    })
+}
+
+#[wasm_bindgen()]
+pub fn detach() -> Promise {
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        veilid_api.detach().await?;
+        APIRESULT_UNDEFINED
+    })
+}
+
+#[wasm_bindgen()]
 pub fn shutdown_veilid_core() -> Promise {
     wrap_api_future(async move {
         let veilid_api = take_veilid_api()?;
