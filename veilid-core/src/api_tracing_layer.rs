@@ -97,12 +97,17 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             let message = format!("{} {}", origin, recorder);
 
             let backtrace = if log_level <= VeilidLogLevel::Error {
-                Some(std::backtrace::Backtrace)
+                let bt = backtrace::Backtrace::new();
+                Some(format!("{:?}", bt))
             } else {
                 None
             };
 
-            (inner.update_callback)(VeilidUpdate::Log(VeilidStateLog { log_level, message }))
+            (inner.update_callback)(VeilidUpdate::Log(VeilidStateLog {
+                log_level,
+                message,
+                backtrace,
+            }))
         }
     }
 }

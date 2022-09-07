@@ -303,7 +303,11 @@ impl RoutingTable {
         class: DialInfoClass,
     ) -> EyreResult<()> {
         if !self.ensure_dial_info_is_valid(domain, &dial_info) {
-            return Err(eyre!("dial info is not valid in this routing domain"));
+            return Err(eyre!(
+                "dial info '{}' is not valid in routing domain '{:?}'",
+                dial_info,
+                domain
+            ));
         }
 
         let mut inner = self.inner.write();
@@ -453,6 +457,8 @@ impl RoutingTable {
     }
 
     pub fn configure_local_network_routing_domain(&self, local_networks: Vec<(IpAddr, IpAddr)>) {
+        log_net!(debug "configure_local_network_routing_domain: {:#?}", local_networks);
+
         let mut inner = self.inner.write();
         let changed = inner
             .local_network_routing_domain

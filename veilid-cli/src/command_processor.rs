@@ -337,7 +337,7 @@ change_log_level    - change the log level for a tracing layer
             log.log_level,
             log.message,
             if let Some(bt) = log.backtrace {
-                format!("\nBacktrace:\n{}", bt);
+                format!("\nBacktrace:\n{}", bt)
             } else {
                 "".to_owned()
             }

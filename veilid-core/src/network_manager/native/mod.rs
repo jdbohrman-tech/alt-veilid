@@ -608,10 +608,12 @@ impl Network {
         self.unlocked_inner
             .interfaces
             .with_interfaces(|interfaces| {
+                trace!("interfaces: {:#?}", interfaces);
+
                 for (_name, intf) in interfaces {
                     // Skip networks that we should never encounter
                     if intf.is_loopback() || !intf.is_running() {
-                        return;
+                        continue;
                     }
                     // Add network to local networks table
                     for addr in &intf.addrs {

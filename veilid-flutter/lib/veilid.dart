@@ -1018,31 +1018,31 @@ class LatencyStats {
 
 class TransferStats {
   BigInt total;
-  BigInt fastest;
+  BigInt maximum;
   BigInt average;
-  BigInt slowest;
+  BigInt minimum;
 
   TransferStats({
     required this.total,
-    required this.fastest,
+    required this.maximum,
     required this.average,
-    required this.slowest,
+    required this.minimum,
   });
 
   Map<String, dynamic> get json {
     return {
       'total': total.toString(),
-      'fastest': fastest.toString(),
+      'maximum': maximum.toString(),
       'average': average.toString(),
-      'slowest': slowest.toString(),
+      'minimum': minimum.toString(),
     };
   }
 
   TransferStats.fromJson(Map<String, dynamic> json)
-      : total = BigInt.parse(json['fastest']),
-        fastest = BigInt.parse(json['fastest']),
+      : total = BigInt.parse(json['total']),
+        maximum = BigInt.parse(json['maximum']),
         average = BigInt.parse(json['average']),
-        slowest = BigInt.parse(json['slowest']);
+        minimum = BigInt.parse(json['minimum']);
 }
 
 ////////////
@@ -1058,8 +1058,8 @@ class TransferStatsDownUp {
 
   Map<String, dynamic> get json {
     return {
-      'down': down.toString(),
-      'up': up.toString(),
+      'down': down.json,
+      'up': up.json,
     };
   }
 
@@ -1341,7 +1341,8 @@ class VeilidStateNetwork {
       : started = json['started'],
         bpsDown = BigInt.parse(json['bps_down']),
         bpsUp = BigInt.parse(json['bps_up']),
-        peers = json['peers'].map((j) => PeerTableData.fromJson(j)).toList();
+        peers = List<PeerTableData>.from(
+            json['peers'].map((j) => PeerTableData.fromJson(j)));
 
   Map<String, dynamic> get json {
     return {

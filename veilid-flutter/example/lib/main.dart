@@ -161,21 +161,30 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   }
 
   Future<void> processUpdateLog(VeilidUpdateLog update) async {
+    StackTrace? stackTrace;
+    Object? error;
+    final backtrace = update.backtrace;
+    if (backtrace != null) {
+      stackTrace =
+          StackTrace.fromString("$backtrace\n${StackTrace.current.toString()}");
+      error = 'embedded stack trace for ${update.logLevel} ${update.message}';
+    }
+
     switch (update.logLevel) {
       case VeilidLogLevel.error:
-        loggy.error(update.message);
+        loggy.error(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.warn:
-        loggy.warning(update.message);
+        loggy.warning(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.info:
-        loggy.info(update.message);
+        loggy.info(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.debug:
-        loggy.debug(update.message);
+        loggy.debug(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.trace:
-        loggy.trace(update.message);
+        loggy.trace(update.message, error, stackTrace);
         break;
     }
   }

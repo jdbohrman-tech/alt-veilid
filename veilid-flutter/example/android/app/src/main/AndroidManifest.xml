@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.veilid.veilid_example">
+          package="com.veilid.veilid_example">
     <application
         android:label="veilid_example"
         android:name="${applicationName}"
