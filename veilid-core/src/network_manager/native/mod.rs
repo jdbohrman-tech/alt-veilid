@@ -521,7 +521,7 @@ impl Network {
         // Handle connection-oriented protocols
 
         // Try to send to the exact existing connection if one exists
-        if let Some(conn) = self.connection_manager().get_connection(descriptor).await {
+        if let Some(conn) = self.connection_manager().get_connection(descriptor) {
             // connection exists, send over it
             match conn.send_async(data).await {
                 ConnectionHandleSendResult::Sent => {

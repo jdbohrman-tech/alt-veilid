@@ -299,7 +299,7 @@ impl NodeRef {
         out
     }
 
-    pub async fn last_connection(&self) -> Option<ConnectionDescriptor> {
+    pub fn last_connection(&self) -> Option<ConnectionDescriptor> {
         // Get the last connection and the last time we saw anything with this connection
         let (last_connection, last_seen) =
             self.operate(|rti, e| e.last_connection(rti, self.filter.clone()))?;
@@ -308,7 +308,7 @@ impl NodeRef {
         if last_connection.protocol_type().is_connection_oriented() {
             // Look the connection up in the connection manager and see if it's still there
             let connection_manager = self.routing_table.network_manager().connection_manager();
-            connection_manager.get_connection(last_connection).await?;
+            connection_manager.get_connection(last_connection)?;
         } else {
             // If this is not connection oriented, then we check our last seen time
             // to see if this mapping has expired (beyond our timeout)

@@ -1184,7 +1184,7 @@ impl NetworkManager {
         }
 
         // And now use the existing connection to send over
-        if let Some(descriptor) = inbound_nr.last_connection().await {
+        if let Some(descriptor) = inbound_nr.last_connection() {
             match self
                 .net()
                 .send_data_to_existing_connection(descriptor, data)
@@ -1283,7 +1283,7 @@ impl NetworkManager {
         }
 
         // And now use the existing connection to send over
-        if let Some(descriptor) = inbound_nr.last_connection().await {
+        if let Some(descriptor) = inbound_nr.last_connection() {
             match self
                 .net()
                 .send_data_to_existing_connection(descriptor, data)
@@ -1316,7 +1316,7 @@ impl NetworkManager {
         let this = self.clone();
         Box::pin(async move {
             // First try to send data to the last socket we've seen this peer on
-            let data = if let Some(connection_descriptor) = node_ref.last_connection().await {
+            let data = if let Some(connection_descriptor) = node_ref.last_connection() {
                 match this
                     .net()
                     .send_data_to_existing_connection(connection_descriptor, data)

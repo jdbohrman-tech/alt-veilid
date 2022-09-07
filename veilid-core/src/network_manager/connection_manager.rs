@@ -122,10 +122,7 @@ impl ConnectionManager {
     }
 
     // Returns a network connection if one already is established
-    pub async fn get_connection(
-        &self,
-        descriptor: ConnectionDescriptor,
-    ) -> Option<ConnectionHandle> {
+    pub fn get_connection(&self, descriptor: ConnectionDescriptor) -> Option<ConnectionHandle> {
         let mut inner = self.arc.inner.lock();
         let inner = match &mut *inner {
             Some(v) => v,
@@ -363,6 +360,7 @@ impl ConnectionManager {
                             None => None,
                         }
                     };
+
                     if let Some(mut conn) = conn {
                         conn.close();
                         conn.await;

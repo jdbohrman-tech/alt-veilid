@@ -834,12 +834,42 @@ impl RoutingTable {
     }
 
     pub fn get_recent_peers(&self) -> Vec<(DHTKey, RecentPeersEntry)> {
-        let inner = self.inner.read();
-        inner
-            .recent_peers
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect()
+        let mut recent_peers = Vec::new();
+        let mut dead_peers = Vec::new();
+        let mut out = Vec::new();
+
+        // collect all recent peers
+        {
+            let inner = self.inner.read();
+            for (k, _v) in &inner.recent_peers {
+                recent_peers.push(*k);
+            }
+        }
+
+        // look up each node and make sure the connection is still live
+        // (uses same logic as send_data, ensuring last_connection works for UDP)
+        for e in &recent_peers {
+            let mut dead = true;
+            if let Some(nr) = self.lookup_node_ref(*e) {
+                if let Some(last_connection) = nr.last_connection() {
+                    out.push((*e, RecentPeersEntry { last_connection }));
+                    dead = false;
+                }
+            }
+            if dead {
+                dead_peers.push(e);
+            }
+        }
+
+        // purge dead recent peers
+        {
+            let mut inner = self.inner.write();
+            for d in dead_peers {
+                inner.recent_peers.remove(d);
+            }
+        }
+
+        out
     }
 
     pub fn touch_recent_peer(&self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
