@@ -16,12 +16,12 @@ pub mod tests;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+pub use connection_manager::*;
 pub use network_connection::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 use connection_handle::*;
 use connection_limits::*;
-use connection_manager::*;
 use dht::*;
 use futures_util::stream::{FuturesOrdered, FuturesUnordered, StreamExt};
 use hashlink::LruCache;
@@ -142,9 +142,6 @@ struct PublicAddressCheckCacheKey(ProtocolType, AddressType);
 
 // The mutable state of the network manager
 struct NetworkManagerInner {
-    routing_table: Option<RoutingTable>,
-    components: Option<NetworkComponents>,
-    update_callback: Option<UpdateCallback>,
     stats: NetworkManagerStats,
     client_whitelist: LruCache<DHTKey, ClientWhitelistEntry>,
     public_address_check_cache:
@@ -159,6 +156,10 @@ struct NetworkManagerInner {
 }
 
 struct NetworkManagerUnlockedInner {
+    // Accessors
+    routing_table: RwLock<Option<RoutingTable>>,
+    components: RwLock<Option<NetworkComponents>>,
+    update_callback: RwLock<Option<UpdateCallback>>,
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     relay_management_task: TickTask<EyreReport>,
@@ -181,9 +182,6 @@ pub struct NetworkManager {
 impl NetworkManager {
     fn new_inner() -> NetworkManagerInner {
         NetworkManagerInner {
-            routing_table: None,
-            components: None,
-            update_callback: None,
             stats: NetworkManagerStats::default(),
             client_whitelist: LruCache::new_unbounded(),
             public_address_check_cache: BTreeMap::new(),
@@ -198,6 +196,9 @@ impl NetworkManager {
     fn new_unlocked_inner(config: VeilidConfig) -> NetworkManagerUnlockedInner {
         let c = config.get();
         NetworkManagerUnlockedInner {
+            routing_table: RwLock::new(None),
+            components: RwLock::new(None),
+            update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
             bootstrap_task: TickTask::new(1),
@@ -280,33 +281,44 @@ impl NetworkManager {
         self.crypto.clone()
     }
     pub fn routing_table(&self) -> RoutingTable {
-        self.inner.lock().routing_table.as_ref().unwrap().clone()
+        self.unlocked_inner
+            .routing_table
+            .read()
+            .as_ref()
+            .unwrap()
+            .clone()
     }
     pub fn net(&self) -> Network {
-        self.inner.lock().components.as_ref().unwrap().net.clone()
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .unwrap()
+            .net
+            .clone()
     }
     pub fn rpc_processor(&self) -> RPCProcessor {
-        self.inner
-            .lock()
+        self.unlocked_inner
             .components
+            .read()
             .as_ref()
             .unwrap()
             .rpc_processor
             .clone()
     }
     pub fn receipt_manager(&self) -> ReceiptManager {
-        self.inner
-            .lock()
+        self.unlocked_inner
             .components
+            .read()
             .as_ref()
             .unwrap()
             .receipt_manager
             .clone()
     }
     pub fn connection_manager(&self) -> ConnectionManager {
-        self.inner
-            .lock()
+        self.unlocked_inner
             .components
+            .read()
             .as_ref()
             .unwrap()
             .connection_manager
@@ -317,27 +329,24 @@ impl NetworkManager {
     pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
         let routing_table = RoutingTable::new(self.clone());
         routing_table.init().await?;
-        self.inner.lock().routing_table = Some(routing_table.clone());
-        self.inner.lock().update_callback = Some(update_callback);
+        *self.unlocked_inner.routing_table.write() = Some(routing_table.clone());
+        *self.unlocked_inner.update_callback.write() = Some(update_callback);
         Ok(())
     }
 
     #[instrument(level = "debug", skip_all)]
     pub async fn terminate(&self) {
-        let routing_table = {
-            let mut inner = self.inner.lock();
-            inner.routing_table.take()
-        };
+        let routing_table = self.unlocked_inner.routing_table.write().take();
         if let Some(routing_table) = routing_table {
             routing_table.terminate().await;
         }
-        self.inner.lock().update_callback = None;
+        *self.unlocked_inner.update_callback.write() = None;
     }
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn internal_startup(&self) -> EyreResult<()> {
         trace!("NetworkManager::internal_startup begin");
-        if self.inner.lock().components.is_some() {
+        if self.unlocked_inner.components.read().is_some() {
             debug!("NetworkManager::internal_startup already started");
             return Ok(());
         }
@@ -351,7 +360,7 @@ impl NetworkManager {
         );
         let rpc_processor = RPCProcessor::new(self.clone());
         let receipt_manager = ReceiptManager::new(self.clone());
-        self.inner.lock().components = Some(NetworkComponents {
+        *self.unlocked_inner.components.write() = Some(NetworkComponents {
             net: net.clone(),
             connection_manager: connection_manager.clone(),
             rpc_processor: rpc_processor.clone(),
@@ -378,14 +387,9 @@ impl NetworkManager {
 
         // Store copy of protocol config and dial info filters
         {
+            let pc = self.net().get_protocol_config().unwrap();
+
             let mut inner = self.inner.lock();
-            let pc = inner
-                .components
-                .as_ref()
-                .unwrap()
-                .net
-                .get_protocol_config()
-                .unwrap();
 
             inner.public_inbound_dial_info_filter = Some(
                 DialInfoFilter::all()
@@ -461,19 +465,20 @@ impl NetworkManager {
         // Shutdown network components if they started up
         debug!("shutting down network components");
 
-        let components = self.inner.lock().components.clone();
+        let components = self.unlocked_inner.components.read().clone();
         if let Some(components) = components {
             components.net.shutdown().await;
             components.rpc_processor.shutdown().await;
             components.receipt_manager.shutdown().await;
             components.connection_manager.shutdown().await;
+
+            *self.unlocked_inner.components.write() = None;
         }
 
         // reset the state
         debug!("resetting network manager state");
         {
             let mut inner = self.inner.lock();
-            inner.components = None;
             inner.public_inbound_dial_info_filter = None;
             inner.local_inbound_dial_info_filter = None;
             inner.public_outbound_dial_info_filter = None;
@@ -482,7 +487,7 @@ impl NetworkManager {
         }
 
         // send update
-        debug!("sending network state update");
+        debug!("sending network state update to api clients");
         self.send_network_update();
 
         debug!("finished network manager shutdown");
@@ -537,15 +542,9 @@ impl NetworkManager {
     }
 
     pub async fn tick(&self) -> EyreResult<()> {
-        let (routing_table, net, receipt_manager) = {
-            let inner = self.inner.lock();
-            let components = inner.components.as_ref().unwrap();
-            (
-                inner.routing_table.as_ref().unwrap().clone(),
-                components.net.clone(),
-                components.receipt_manager.clone(),
-            )
-        };
+        let routing_table = self.routing_table();
+        let net = self.net();
+        let receipt_manager = self.receipt_manager();
 
         // Run the rolling transfers task
         self.unlocked_inner.rolling_transfers_task.tick().await?;
@@ -591,7 +590,7 @@ impl NetworkManager {
 
     // Return what network class we are in
     pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        if let Some(components) = &self.inner.lock().components {
+        if let Some(components) = self.unlocked_inner.components.read().as_ref() {
             components.net.get_network_class(routing_domain)
         } else {
             None
@@ -1517,15 +1516,6 @@ impl NetworkManager {
             }
         };
 
-        // Get routing table and rpc processor
-        let (routing_table, rpc) = {
-            let inner = self.inner.lock();
-            (
-                inner.routing_table.as_ref().unwrap().clone(),
-                inner.components.as_ref().unwrap().rpc_processor.clone(),
-            )
-        };
-
         // Get timestamp range
         let (tsbehind, tsahead) = {
             let c = self.config.get();
@@ -1556,6 +1546,10 @@ impl NetworkManager {
                 return Ok(false);
             }
         }
+
+        // Get routing table and rpc processor
+        let routing_table = self.routing_table();
+        let rpc = self.rpc_processor();
 
         // Peek at header and see if we need to relay this
         // If the recipient id is not our node id, then it needs relaying
@@ -1674,55 +1668,62 @@ impl NetworkManager {
         inner.stats.clone()
     }
 
-    fn get_veilid_state_inner(inner: &NetworkManagerInner) -> VeilidStateNetwork {
-        if inner.components.is_some() && inner.components.as_ref().unwrap().net.is_started() {
-            VeilidStateNetwork {
-                started: true,
-                bps_down: inner.stats.self_stats.transfer_stats.down.average,
-                bps_up: inner.stats.self_stats.transfer_stats.up.average,
-                peers: {
-                    let mut out = Vec::new();
-                    let routing_table = inner.routing_table.as_ref().unwrap();
-                    for (k, v) in routing_table.get_recent_peers() {
-                        if let Some(nr) = routing_table.lookup_node_ref(k) {
-                            let peer_stats = nr.peer_stats();
-                            let peer = PeerTableData {
-                                node_id: k,
-                                peer_address: v.last_connection.remote(),
-                                peer_stats,
-                            };
-                            out.push(peer);
-                        }
-                    }
+    pub fn get_veilid_state(&self) -> VeilidStateNetwork {
+        let has_state = self
+            .unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .map(|c| c.net.is_started())
+            .unwrap_or(false);
 
-                    out
-                },
-            }
-        } else {
-            VeilidStateNetwork {
+        if !has_state {
+            return VeilidStateNetwork {
                 started: false,
                 bps_down: 0,
                 bps_up: 0,
                 peers: Vec::new(),
-            }
+            };
         }
-    }
-    pub fn get_veilid_state(&self) -> VeilidStateNetwork {
-        let inner = self.inner.lock();
-        Self::get_veilid_state_inner(&*inner)
+        let routing_table = self.routing_table();
+
+        let (bps_down, bps_up) = {
+            let inner = self.inner.lock();
+            (
+                inner.stats.self_stats.transfer_stats.down.average,
+                inner.stats.self_stats.transfer_stats.up.average,
+            )
+        };
+
+        VeilidStateNetwork {
+            started: true,
+            bps_down,
+            bps_up,
+            peers: {
+                let mut out = Vec::new();
+                for (k, v) in routing_table.get_recent_peers() {
+                    if let Some(nr) = routing_table.lookup_node_ref(k) {
+                        let peer_stats = nr.peer_stats();
+                        let peer = PeerTableData {
+                            node_id: k,
+                            peer_address: v.last_connection.remote(),
+                            peer_stats,
+                        };
+                        out.push(peer);
+                    }
+                }
+                out
+            },
+        }
     }
 
     fn send_network_update(&self) {
-        let (update_cb, state) = {
-            let inner = self.inner.lock();
-            let update_cb = inner.update_callback.clone();
-            if update_cb.is_none() {
-                return;
-            }
-            let state = Self::get_veilid_state_inner(&*inner);
-            (update_cb.unwrap(), state)
-        };
-        update_cb(VeilidUpdate::Network(state));
+        let update_cb = self.unlocked_inner.update_callback.read().clone();
+        if update_cb.is_none() {
+            return;
+        }
+        let state = self.get_veilid_state();
+        (update_cb.unwrap())(VeilidUpdate::Network(state));
     }
 
     // Determine if a local IP address has changed
@@ -1750,12 +1751,12 @@ impl NetworkManager {
         //info!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
 
         // Ignore these reports if we are currently detecting public dial info
-        let inner = &mut *self.inner.lock();
-        let net = inner.components.as_ref().unwrap().net.clone();
+        let net = self.net();
         if net.doing_public_dial_info_check() {
             return;
         }
-        let routing_table = inner.routing_table.as_ref().unwrap().clone();
+
+        let routing_table = self.routing_table();
         let c = self.config.get();
         let detect_address_changes = c.network.detect_address_changes;
 
@@ -1771,6 +1772,10 @@ impl NetworkManager {
             connection_descriptor.protocol_type(),
             connection_descriptor.address_type(),
         );
+
+        let mut inner = self.inner.lock();
+        let inner = &mut *inner;
+
         let pacc = inner
             .public_address_check_cache
             .entry(key)

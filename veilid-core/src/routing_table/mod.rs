@@ -34,7 +34,6 @@ pub struct RecentPeersEntry {
 
 /// RoutingTable rwlock-internal data
 struct RoutingTableInner {
-    network_manager: NetworkManager,
     // The current node's public DHT key
     node_id: DHTKey,
     node_id_secret: DHTKeySecret, // The current node's DHT key secret
@@ -60,6 +59,8 @@ pub struct RoutingTableHealth {
 }
 
 struct RoutingTableUnlockedInner {
+    network_manager: NetworkManager,
+
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     kick_buckets_task: TickTask<EyreReport>,
@@ -73,9 +74,8 @@ pub struct RoutingTable {
 }
 
 impl RoutingTable {
-    fn new_inner(network_manager: NetworkManager) -> RoutingTableInner {
+    fn new_inner() -> RoutingTableInner {
         RoutingTableInner {
-            network_manager,
             node_id: DHTKey::default(),
             node_id_secret: DHTKeySecret::default(),
             buckets: Vec::new(),
@@ -89,9 +89,13 @@ impl RoutingTable {
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
         }
     }
-    fn new_unlocked_inner(_config: VeilidConfig) -> RoutingTableUnlockedInner {
+    fn new_unlocked_inner(
+        _config: VeilidConfig,
+        network_manager: NetworkManager,
+    ) -> RoutingTableUnlockedInner {
         //let c = config.get();
         RoutingTableUnlockedInner {
+            network_manager,
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),
         }
@@ -100,8 +104,8 @@ impl RoutingTable {
         let config = network_manager.config();
         let this = Self {
             config: config.clone(),
-            inner: Arc::new(RwLock::new(Self::new_inner(network_manager))),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(config)),
+            inner: Arc::new(RwLock::new(Self::new_inner())),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(config, network_manager)),
         };
         // Set rolling transfers tick task
         {
@@ -126,7 +130,7 @@ impl RoutingTable {
     }
 
     pub fn network_manager(&self) -> NetworkManager {
-        self.inner.read().network_manager.clone()
+        self.unlocked_inner.network_manager.clone()
     }
     pub fn rpc_processor(&self) -> RPCProcessor {
         self.network_manager().rpc_processor()
@@ -451,7 +455,7 @@ impl RoutingTable {
             error!("kick_buckets_task not stopped: {}", e);
         }
 
-        *self.inner.write() = Self::new_inner(self.network_manager());
+        *self.inner.write() = Self::new_inner();
 
         debug!("finished routing table terminate");
     }
