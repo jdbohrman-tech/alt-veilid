@@ -35,7 +35,7 @@ class VeilidJS implements Veilid {
   }
 
   @override
-  Stream<VeilidUpdate> startupVeilidCore(VeilidConfig config) async* {
+  Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config) async {
     var streamController = StreamController<VeilidUpdate>();
     updateCallback(String update) {
       var updateJson = jsonDecode(update);
@@ -51,7 +51,8 @@ class VeilidJS implements Veilid {
       js.allowInterop(updateCallback),
       jsonEncode(config.json, toEncodable: veilidApiToEncodable)
     ]));
-    yield* streamController.stream;
+
+    return streamController.stream;
   }
 
   @override

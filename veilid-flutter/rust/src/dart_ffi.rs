@@ -48,19 +48,6 @@ define_string_destructor!(free_string);
 type APIResult<T> = Result<T, veilid_core::VeilidAPIError>;
 const APIRESULT_VOID: APIResult<()> = APIResult::Ok(());
 
-// Stream abort macro for simplified error handling
-macro_rules! check_err_json {
-    ($stream:expr, $ex:expr) => {
-        match $ex {
-            Ok(v) => v,
-            Err(e) => {
-                $stream.abort_json(e);
-                return;
-            }
-        }
-    };
-}
-
 /////////////////////////////////////////
 // FFI-specific cofnig
 
@@ -253,25 +240,24 @@ pub extern "C" fn change_log_level(layer: FfiStr, log_level: FfiStr) {
 
 #[no_mangle]
 #[instrument]
-pub extern "C" fn startup_veilid_core(port: i64, config: FfiStr) {
+pub extern "C" fn startup_veilid_core(port: i64, stream_port: i64, config: FfiStr) {
     let config = config.into_opt_string();
-    let stream = DartIsolateStream::new(port);
-    spawn(async move {
+    let stream = DartIsolateStream::new(stream_port);
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
         let config_json = match config {
             Some(v) => v,
             None => {
-                stream.abort_json(veilid_core::VeilidAPIError::MissingArgument {
+                let err = veilid_core::VeilidAPIError::MissingArgument {
                     context: "startup_veilid_core".to_owned(),
                     argument: "config".to_owned(),
-                });
-                return;
+                };
+                return APIResult::Err(err);
             }
         };
 
         let mut api_lock = VEILID_API.lock().await;
         if api_lock.is_some() {
-            stream.abort_json(veilid_core::VeilidAPIError::AlreadyInitialized);
-            return;
+            return APIResult::Err(veilid_core::VeilidAPIError::AlreadyInitialized);
         }
 
         let sink = stream.clone();
@@ -287,9 +273,10 @@ pub extern "C" fn startup_veilid_core(port: i64, config: FfiStr) {
             }
         });
 
-        let res = veilid_core::api_startup_json(update_callback, config_json).await;
-        let veilid_api = check_err_json!(stream, res);
+        let veilid_api = veilid_core::api_startup_json(update_callback, config_json).await?;
         *api_lock = Some(veilid_api);
+
+        APIRESULT_VOID
     });
 }
 

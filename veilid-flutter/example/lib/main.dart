@@ -11,7 +11,7 @@ import 'package:loggy/loggy.dart';
 import 'config.dart';
 
 // Loggy tools
-const LogLevel traceLevel = LogLevel('trace', 1);
+const LogLevel traceLevel = LogLevel('Trace', 1);
 
 class ConsolePrinter extends LoggyPrinter {
   ConsolePrinter(this.childPrinter) : super();
@@ -226,8 +226,9 @@ class _MyAppState extends State<MyApp> with UiLoggy {
                   onPressed: _updateStream != null
                       ? null
                       : () async {
-                          var updateStream = Veilid.instance.startupVeilidCore(
-                              await getDefaultVeilidConfig());
+                          var updateStream = await Veilid.instance
+                              .startupVeilidCore(
+                                  await getDefaultVeilidConfig());
                           setState(() {
                             _updateStream = updateStream;
                             _updateProcessor = processUpdates();

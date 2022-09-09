@@ -1425,14 +1425,13 @@ impl NetworkManager {
         };
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
-        let out_data: Vec<u8> = match self
+        let out_data: Vec<u8> = network_result_value_or_log!(debug self
             .net()
             .send_recv_data_unbound_to_dial_info(dial_info, data, timeout_ms)
-            .await?
+            .await? =>
         {
-            NetworkResult::Value(v) => v,
-            _ => return Ok(Vec::new()),
-        };
+            return Ok(Vec::new());
+        });
 
         let bootstrap_peerinfo: Vec<PeerInfo> =
             deserialize_json(std::str::from_utf8(&out_data).wrap_err("bad utf8 in boot peerinfo")?)

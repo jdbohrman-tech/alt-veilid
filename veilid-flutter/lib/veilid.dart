@@ -1566,7 +1566,7 @@ abstract class Veilid {
 
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson);
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel);
-  Stream<VeilidUpdate> startupVeilidCore(VeilidConfig config);
+  Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config);
   Future<VeilidState> getVeilidState();
   Future<void> attach();
   Future<void> detach();

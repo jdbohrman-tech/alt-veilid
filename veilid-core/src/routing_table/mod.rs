@@ -741,6 +741,8 @@ impl RoutingTable {
         signed_node_info: SignedNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
+        log_rtab!("register_node_with_signed_node_info: routing_domain: {:?}, node_id: {:?}, signed_node_info: {:?}, allow_invalid: {:?}", routing_domain, node_id, signed_node_info, allow_invalid );
+
         // validate signed node info is not something malicious
         if node_id == self.node_id() {
             log_rtab!(debug "can't register own node id in routing table");

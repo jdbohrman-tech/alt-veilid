@@ -20,7 +20,7 @@ const MESSAGE_ERR_JSON: i32 = 3;
 //const MESSAGE_STREAM_ITEM: i32 = 4;
 const MESSAGE_STREAM_ITEM_JSON: i32 = 5;
 //const MESSAGE_STREAM_ABORT: i32 = 6;
-const MESSAGE_STREAM_ABORT_JSON: i32 = 7;
+//const MESSAGE_STREAM_ABORT_JSON: i32 = 7;
 const MESSAGE_STREAM_CLOSE: i32 = 8;
 
 impl DartIsolateWrapper {
@@ -148,17 +148,17 @@ impl DartIsolateStream {
     //     }
     // }
 
-    pub fn abort_json<E: Serialize + Debug>(self, error: E) -> bool {
-        let mut inner = self.inner.lock();
-        if let Some(isolate) = inner.isolate.take() {
-            isolate.post(vec![
-                MESSAGE_STREAM_ABORT_JSON.into_dart(),
-                veilid_core::serialize_json(error).into_dart(),
-            ])
-        } else {
-            false
-        }
-    }
+    // pub fn abort_json<E: Serialize + Debug>(self, error: E) -> bool {
+    //     let mut inner = self.inner.lock();
+    //     if let Some(isolate) = inner.isolate.take() {
+    //         isolate.post(vec![
+    //             MESSAGE_STREAM_ABORT_JSON.into_dart(),
+    //             veilid_core::serialize_json(error).into_dart(),
+    //         ])
+    //     } else {
+    //         false
+    //     }
+    // }
 
     pub fn close(self) -> bool {
         let mut inner = self.inner.lock();

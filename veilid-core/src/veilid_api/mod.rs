@@ -853,9 +853,13 @@ impl fmt::Debug for DialInfoFilter {
         let mut out = String::new();
         if self.protocol_type_set != ProtocolTypeSet::all() {
             out += &format!("+{:?}", self.protocol_type_set);
+        } else {
+            out += "*";
         }
         if self.address_type_set != AddressTypeSet::all() {
             out += &format!("+{:?}", self.address_type_set);
+        } else {
+            out += "*";
         }
         write!(f, "[{}]", out)
     }

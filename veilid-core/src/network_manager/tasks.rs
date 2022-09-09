@@ -181,7 +181,11 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         for bootstrap_di in bootstrap_dialinfos {
+            log_net!(debug "direct bootstrap with: {}", bootstrap_di);
+
             let peer_info = self.boot_request(bootstrap_di).await?;
+
+            log_net!(debug "  direct bootstrap peerinfo: {:?}", peer_info);
 
             // Got peer info, let's add it to the routing table
             for pi in peer_info {
