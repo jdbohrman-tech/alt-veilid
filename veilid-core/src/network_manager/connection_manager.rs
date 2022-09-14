@@ -185,11 +185,6 @@ impl ConnectionManager {
                 // Connection already exists
                 let desc = conn.connection_descriptor();
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
-                // xxx remove this
-                panic!(
-                    "connection already exists: {:?}  connection_table: {:#?}",
-                    desc, self.arc.connection_table
-                );
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection already exists: {:?}",
                     desc
