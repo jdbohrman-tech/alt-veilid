@@ -212,8 +212,7 @@ impl WebsocketProtocolHandler {
             ConnectionDescriptor::new(
                 peer_addr,
                 SocketAddress::from_socket_addr(self.arc.local_address),
-            )
-            .map_err(|e| io::Error::new(io::ErrorKind::AddrNotAvailable, e))?,
+            ),
             ws_stream,
         ));
 
@@ -268,8 +267,7 @@ impl WebsocketProtocolHandler {
         let descriptor = ConnectionDescriptor::new(
             dial_info.to_peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
-        )
-        .map_err(|e| io::Error::new(io::ErrorKind::AddrNotAvailable, e))?;
+        );
 
         // Negotiate TLS if this is WSS
         if tls {

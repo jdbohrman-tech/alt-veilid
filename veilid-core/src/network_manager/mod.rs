@@ -1314,14 +1314,27 @@ impl NetworkManager {
     ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataKind>>> {
         let this = self.clone();
         Box::pin(async move {
+            info!("{}", format!("send_data to: {:?}", node_ref).red());
+
             // First try to send data to the last socket we've seen this peer on
             let data = if let Some(connection_descriptor) = node_ref.last_connection() {
+                info!(
+                    "{}",
+                    format!("last_connection to: {:?}", connection_descriptor).red()
+                );
+
                 match this
                     .net()
                     .send_data_to_existing_connection(connection_descriptor, data)
                     .await?
                 {
                     None => {
+                        info!(
+                            "{}",
+                            format!("sent to existing connection: {:?}", connection_descriptor)
+                                .red()
+                        );
+
                         // Update timestamp for this last connection since we just sent to it
                         node_ref.set_last_connection(connection_descriptor, intf::get_timestamp());
 
@@ -1334,6 +1347,8 @@ impl NetworkManager {
             } else {
                 data
             };
+
+            info!("{}", "no existing connection".red());
 
             // If we don't have last_connection, try to reach out to the peer via its dial info
             let contact_method = this.get_contact_method(node_ref.clone());

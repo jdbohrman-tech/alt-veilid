@@ -1507,17 +1507,17 @@ pub struct ConnectionDescriptor {
 }
 
 impl ConnectionDescriptor {
-    pub fn new(remote: PeerAddress, local: SocketAddress) -> Result<Self, VeilidAPIError> {
-        Ok(Self {
+    pub fn new(remote: PeerAddress, local: SocketAddress) -> Self {
+        Self {
             remote,
             local: Some(local),
-        })
+        }
     }
-    pub fn new_no_local(remote: PeerAddress) -> Result<Self, VeilidAPIError> {
-        Ok(Self {
+    pub fn new_no_local(remote: PeerAddress) -> Self {
+        Self {
             remote,
             local: None,
-        })
+        }
     }
     pub fn remote(&self) -> PeerAddress {
         self.remote

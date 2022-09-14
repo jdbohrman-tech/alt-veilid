@@ -149,8 +149,7 @@ impl RawTcpProtocolHandler {
         );
         let local_address = self.inner.lock().local_address;
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
-            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_address))
-                .map_err(|e| io::Error::new(io::ErrorKind::AddrNotAvailable, e))?,
+            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_address)),
             ps,
         ));
 
@@ -190,8 +189,7 @@ impl RawTcpProtocolHandler {
                     ProtocolType::TCP,
                 ),
                 SocketAddress::from_socket_addr(actual_local_address),
-            )
-            .map_err(|e| io::Error::new(io::ErrorKind::AddrNotAvailable, e))?,
+            ),
             ps,
         ));
 

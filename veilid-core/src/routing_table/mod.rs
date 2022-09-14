@@ -741,7 +741,7 @@ impl RoutingTable {
         signed_node_info: SignedNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
-        log_rtab!("register_node_with_signed_node_info: routing_domain: {:?}, node_id: {:?}, signed_node_info: {:?}, allow_invalid: {:?}", routing_domain, node_id, signed_node_info, allow_invalid );
+        //log_rtab!("register_node_with_signed_node_info: routing_domain: {:?}, node_id: {:?}, signed_node_info: {:?}, allow_invalid: {:?}", routing_domain, node_id, signed_node_info, allow_invalid );
 
         // validate signed node info is not something malicious
         if node_id == self.node_id() {
@@ -858,6 +858,9 @@ impl RoutingTable {
             let mut dead = true;
             if let Some(nr) = self.lookup_node_ref(*e) {
                 if let Some(last_connection) = nr.last_connection() {
+
+                    
+
                     out.push((*e, RecentPeersEntry { last_connection }));
                     dead = false;
                 }

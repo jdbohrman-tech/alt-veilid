@@ -1,6 +1,6 @@
 use super::*;
 use futures_util::{FutureExt, StreamExt};
-use std::io;
+use std::{io, sync::Arc};
 use stop_token::prelude::*;
 
 cfg_if::cfg_if! {
@@ -81,8 +81,12 @@ pub struct NetworkConnectionStats {
     last_message_recv_time: Option<u64>,
 }
 
+
+pub type NetworkConnectionId = u64;
+
 #[derive(Debug)]
 pub struct NetworkConnection {
+    connection_id: NetworkConnectionId,
     descriptor: ConnectionDescriptor,
     processor: Option<MustJoinHandle<()>>,
     established_time: u64,
@@ -92,11 +96,12 @@ pub struct NetworkConnection {
 }
 
 impl NetworkConnection {
-    pub(super) fn dummy(descriptor: ConnectionDescriptor) -> Self {
+    pub(super) fn dummy(id: NetworkConnectionId, descriptor: ConnectionDescriptor) -> Self {
         // Create handle for sending (dummy is immediately disconnected)
         let (sender, _receiver) = flume::bounded(intf::get_concurrency() as usize);
 
         Self {
+            connection_id: id,
             descriptor,
             processor: None,
             established_time: intf::get_timestamp(),
@@ -113,14 +118,10 @@ impl NetworkConnection {
         connection_manager: ConnectionManager,
         manager_stop_token: StopToken,
         protocol_connection: ProtocolNetworkConnection,
+        connection_id: NetworkConnectionId,
     ) -> Self {
         // Get timeout
         let network_manager = connection_manager.network_manager();
-        let inactivity_timeout = network_manager
-            .config()
-            .get()
-            .network
-            .connection_inactivity_timeout_ms;
 
         // Get descriptor
         let descriptor = protocol_connection.descriptor();
@@ -142,15 +143,16 @@ impl NetworkConnection {
             connection_manager,
             local_stop_token,
             manager_stop_token,
+            connection_id,
             descriptor.clone(),
             receiver,
             protocol_connection,
-            inactivity_timeout,
             stats.clone(),
         ));
 
         // Return the connection
         Self {
+            connection_id,
             descriptor,
             processor: Some(processor),
             established_time: intf::get_timestamp(),
@@ -160,12 +162,16 @@ impl NetworkConnection {
         }
     }
 
+    pub fn connection_id(&self) -> NetworkConnectionId {
+        self.connection_id
+    }
+
     pub fn connection_descriptor(&self) -> ConnectionDescriptor {
         self.descriptor.clone()
     }
 
     pub fn get_handle(&self) -> ConnectionHandle {
-        ConnectionHandle::new(self.descriptor.clone(), self.sender.clone())
+        ConnectionHandle::new(self.connection_id, self.descriptor.clone(), self.sender.clone())
     }
 
     pub fn close(&mut self) {
@@ -215,15 +221,15 @@ impl NetworkConnection {
         connection_manager: ConnectionManager,
         local_stop_token: StopToken,
         manager_stop_token: StopToken,
+        connection_id: NetworkConnectionId,
         descriptor: ConnectionDescriptor,
         receiver: flume::Receiver<Vec<u8>>,
         protocol_connection: ProtocolNetworkConnection,
-        connection_inactivity_timeout_ms: u32,
         stats: Arc<Mutex<NetworkConnectionStats>>,
     ) -> SendPinBoxFuture<()> {
         Box::pin(async move {
             log_net!(
-                "== Starting process_connection loop for {:?}",
+                "== Starting process_connection loop for id={}, {:?}", connection_id,
                 descriptor.green()
             );
 
@@ -235,7 +241,7 @@ impl NetworkConnection {
             // Push mutable timer so we can reset it
             // Normally we would use an io::timeout here, but WASM won't support that, so we use a mutable sleep future
             let new_timer = || {
-                intf::sleep(connection_inactivity_timeout_ms).then(|_| async {
+                intf::sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
                     log_net!("== Connection timeout on {:?}", descriptor.green());
                     RecvLoopAction::Timeout
@@ -317,7 +323,7 @@ impl NetworkConnection {
                     .timeout_at(local_stop_token.clone())
                     .timeout_at(manager_stop_token.clone())
                     .await
-                    .and_then(std::convert::identity)   // flatten
+                    .and_then(std::convert::identity)   // flatten stoptoken timeouts
                 {
                     Ok(Some(RecvLoopAction::Send)) => {
                         // Don't reset inactivity timer if we're only sending
@@ -350,7 +356,7 @@ impl NetworkConnection {
 
             // Let the connection manager know the receive loop exited
             connection_manager
-                .report_connection_finished(descriptor)
+                .report_connection_finished(connection_id)
                 .await;
         })
     }
