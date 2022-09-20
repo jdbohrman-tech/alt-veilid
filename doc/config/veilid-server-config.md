@@ -12,23 +12,55 @@ status: Draft
 `veilid-server` may be run using configuration from both command-line arguments
 and the `veilid-server.conf` file.
 
-### Global Directives
+## Global Directives
 
-| Directive                 | Description                                       |
-|---------------------------|---------------------------------------------------|
-| [daemon](#daemon)         | Run `veilid-server` in the background             |
-| [client_api](#client_api) ||
+| Directive                     | Description                                       |
+|-------------------------------|---------------------------------------------------|
+| [daemon](#daemon)             | Run `veilid-server` in the background             |
+| [client\_api](#client_api)    ||
+| [auto\_attach](#auto_attach)  ||
+| [logging](#logging)           ||
+| [testing](#testing)           ||
+| [core](#core)                 ||
 
 
-#### daemon
+### daemon
 
 ```yaml
 daemon:
     enabled: false
+```
+
+### client_api
+
+```yaml
 client_api:
     enabled: true
     listen_address: 'localhost:5959'
+```
+
+| Parameter                           | Description |
+|-------------------------------------|-------------|
+| [enabled](#enabled)                 ||
+| [listen\_address](#listen_address)  ||
+
+#### enabled
+
+**TODO**
+
+#### listen\_address
+
+**TODO**
+
+### auto\_attach
+
+```yaml
 auto_attach: true
+```
+
+### logging
+
+```yaml
 logging:
     system:
         enabled: false
@@ -48,8 +80,18 @@ logging:
         enabled: false
         level: 'trace'
         grpc_endpoint: 'localhost:4317'
+```
+
+### testing
+
+```yaml
 testing:
     subnode_index: 0
+```
+
+### core
+
+```yaml
 core:
     protected_store:
         allow_insecure_fallback: true
