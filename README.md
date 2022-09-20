@@ -150,7 +150,7 @@ cargo run -- --help
 
 `veilid-server` has a wealth of configuration options. Further documentation on
 the format of the `veilid-server.conf` file may be found [in the project /doc
-directory](./doc/config/config.md).
+directory](./doc/config/veilid-server-config.md).
 
 When running `veilid-server` in a Unix-like environment, the application will
 look for its config file under `/etc/veilid-server/`. If the config file is not

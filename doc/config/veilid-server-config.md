@@ -19,6 +19,9 @@ and the `veilid-server.conf` file.
 | [daemon](#daemon)         | Run `veilid-server` in the background             |
 | [client_api](#client_api) ||
 
+
+#### daemon
+
 ```yaml
 daemon:
     enabled: false
