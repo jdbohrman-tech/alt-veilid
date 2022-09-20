@@ -146,6 +146,21 @@ In order to see what options are available:
 cargo run -- --help
 ```
 
+#### Configuration
+
+`veilid-server` has a wealth of configuration options. Further documentation on
+the format of the `veilid-server.conf` file may be found [in the project /doc
+directory](./doc/config/config.md).
+
+When running `veilid-server` in a Unix-like environment, the application will
+look for its config file under `/etc/veilid-server/`. If the config file is not
+found in this location, `veilid-server` will follow the XDG user directory spec
+and look in `~/.config/veilid-server`.
+
+When running under Windows, the `veilid-server.conf` file may be created at
+`C:\Users\<user>\AppData\Roaming\Veilid\Veilid\`, and when running under macOS,
+at `/Users/<user>/Library/Application Support/org.Veilid.Veilid`.
+
 ### Veilid CLI
 
 In order to connect to your local `veilid-server`:
