@@ -333,6 +333,9 @@ pub struct VeilidConfigInner {
     pub network: VeilidConfigNetwork,
 }
 
+/// The Veilid Configuration
+///
+/// Veilid is configured 
 #[derive(Clone)]
 pub struct VeilidConfig {
     inner: Arc<RwLock<VeilidConfigInner>>,

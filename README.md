@@ -129,7 +129,9 @@ cd veilid-flutter
 
 **TODO**
 
-## Veilid Server
+## Running the Application(s)
+
+### Veilid Server
 
 In order to run the `veilid-server` locally:
 
@@ -144,7 +146,7 @@ In order to see what options are available:
 cargo run -- --help
 ```
 
-## Veilid CLI
+### Veilid CLI
 
 In order to connect to your local `veilid-server`:
 
@@ -157,4 +159,29 @@ Similar to `veilid-server`, you may see CLI options by typing:
 
 ```shell
 cargo run -- --help
+```
+
+## Building the Application
+
+### Linux Packages
+
+Veilid server and cli can be built locally using the
+[Earthly](https://earthly.dev/) framework. After [installing earthly on your
+local machine](https://earthly.dev/get-earthly), you may use the `earthly` cli
+to initiate a build:
+
+```shell
+earthly +package-linux
+```
+
+This will assemble all dependencies and build `.deb` packages for both amd64 and
+arm64 platforms. Earthly, built on Docker, caches build layers, so after a
+longer first build, subsequent builds should be much quicker.
+
+During development, you may want to kick off specific build steps. To see a list
+of the build steps configured, consult the `Earthfile`, or you may use the
+`earthly` cli:
+
+```shell
+earthly ls
 ```
