@@ -192,11 +192,6 @@ impl RoutingTable {
         Self::with_routing_domain(&*inner, domain, |rd| rd.relay_node())
     }
 
-    pub fn set_relay_node(&self, domain: RoutingDomain, opt_relay_node: Option<NodeRef>) {
-        let mut inner = self.inner.write();
-        Self::with_routing_domain_mut(&mut *inner, domain, |rd| rd.set_relay_node(opt_relay_node));
-    }
-
     pub fn has_dial_info(&self, domain: RoutingDomain) -> bool {
         let inner = self.inner.read();
         Self::with_routing_domain(&*inner, domain, |rd| !rd.dial_info_details().is_empty())
@@ -299,46 +294,6 @@ impl RoutingTable {
         RoutingDomainEditor::new(self.clone(), domain)
     }
 
-    #[instrument(level = "debug", skip(self), err)]
-    pub fn register_dial_info(
-        &self,
-        domain: RoutingDomain,
-        dial_info: DialInfo,
-        class: DialInfoClass,
-    ) -> EyreResult<()> {
-        if !self.ensure_dial_info_is_valid(domain, &dial_info) {
-            return Err(eyre!(
-                "dial info '{}' is not valid in routing domain '{:?}'",
-                dial_info,
-                domain
-            ));
-        }
-
-        let mut inner = self.inner.write();
-        Self::with_routing_domain_mut(&mut *inner, domain, |rd| {
-            rd.add_dial_info_detail(DialInfoDetail {
-                dial_info: dial_info.clone(),
-                class,
-            });
-        });
-
-        info!(
-            "{:?} Dial Info: {}",
-            domain,
-            NodeDialInfo {
-                node_id: NodeId::new(inner.node_id),
-                dial_info
-            }
-            .to_string(),
-        );
-        debug!("    Class: {:?}", class);
-
-        Self::reset_all_seen_our_node_info(&mut *inner, domain);
-        Self::reset_all_updated_since_last_network_change(&mut *inner);
-
-        Ok(())
-    }
-
     fn reset_all_seen_our_node_info(inner: &mut RoutingTableInner, routing_domain: RoutingDomain) {
         let cur_ts = intf::get_timestamp();
         Self::with_entries(&*inner, cur_ts, BucketEntryState::Dead, |_, v| {
@@ -355,18 +310,6 @@ impl RoutingTable {
             v.with_mut(|e| e.set_updated_since_last_network_change(false));
             Option::<()>::None
         });
-    }
-
-    pub fn clear_dial_info_details(&self, routing_domain: RoutingDomain) {
-        trace!("clearing dial info domain: {:?}", routing_domain);
-
-        let mut inner = self.inner.write();
-        Self::with_routing_domain_mut(&mut *inner, routing_domain, |rd| {
-            rd.clear_dial_info_details();
-        });
-
-        // Public dial info changed, go through all nodes and reset their 'seen our node info' bit
-        Self::reset_all_seen_our_node_info(&mut *inner, routing_domain);
     }
 
     pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
@@ -858,9 +801,6 @@ impl RoutingTable {
             let mut dead = true;
             if let Some(nr) = self.lookup_node_ref(*e) {
                 if let Some(last_connection) = nr.last_connection() {
-
-                    
-
                     out.push((*e, RecentPeersEntry { last_connection }));
                     dead = false;
                 }

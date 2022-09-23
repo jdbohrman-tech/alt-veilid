@@ -34,32 +34,56 @@ pub const PEEK_DETECT_LEN: usize = 64;
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {
+    /// true if the low-level network is running
     network_started: bool,
+    /// set if the network needs to be restarted due to a low level configuration change
+    /// such as dhcp release or change of address or interfaces being added or removed
     network_needs_restart: bool,
+    /// the calculated protocol configuration for inbound/outbound protocols
     protocol_config: Option<ProtocolConfig>,
+    /// set of statically configured protocols with public dialinfo
     static_public_dialinfo: ProtocolTypeSet,
+    /// network class per routing domain
     network_class: [Option<NetworkClass>; RoutingDomain::count()],
+    /// join handles for all the low level network background tasks
     join_handles: Vec<MustJoinHandle<()>>,
+    /// stop source for shutting down the low level network background tasks
     stop_source: Option<StopSource>,
+    /// port we are binding raw udp listen to
     udp_port: u16,
+    /// port we are binding raw tcp listen to
     tcp_port: u16,
+    /// port we are binding websocket listen to
     ws_port: u16,
+    /// port we are binding secure websocket listen to
     wss_port: u16,
+    /// does our network have ipv4 on any network?
     enable_ipv4: bool,
+    /// does our network have ipv6 on the global internet?
     enable_ipv6_global: bool,
+    /// does our network have ipv6 on the local network?
     enable_ipv6_local: bool,
-    // public dial info check
+    /// set if we need to calculate our public dial info again
     needs_public_dial_info_check: bool,
+    /// set during the actual execution of the public dial info check to ensure we don't do it more than once
     doing_public_dial_info_check: bool,
+    /// the punishment closure to enax
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
-    // udp
+    /// udp socket record for bound-first sockets, which are used to guarantee a port is available before
+    /// creating a 'reuseport' socket there. we don't want to pick ports that other programs are using
     bound_first_udp: BTreeMap<u16, Option<(socket2::Socket, socket2::Socket)>>,
+    /// mapping of protocol handlers to accept messages from a set of bound socket addresses
     inbound_udp_protocol_handlers: BTreeMap<SocketAddr, RawUdpProtocolHandler>,
+    /// outbound udp protocol handler for udpv4
     outbound_udpv4_protocol_handler: Option<RawUdpProtocolHandler>,
+    /// outbound udp protocol handler for udpv6
     outbound_udpv6_protocol_handler: Option<RawUdpProtocolHandler>,
-    //tcp
+    /// tcp socket record for bound-first sockets, which are used to guarantee a port is available before
+    /// creating a 'reuseport' socket there. we don't want to pick ports that other programs are using
     bound_first_tcp: BTreeMap<u16, Option<(socket2::Socket, socket2::Socket)>>,
+    /// TLS handling socket controller
     tls_acceptor: Option<TlsAcceptor>,
+    /// Multiplexer record for protocols on low level TCP sockets
     listener_states: BTreeMap<SocketAddr, Arc<RwLock<ListenerState>>>,
 }
 
@@ -712,18 +736,32 @@ impl Network {
             protocol_config
         };
 
+        // Start editing routing table
+        let mut editor_public_internet = self
+            .unlocked_inner
+            .routing_table
+            .edit_routing_domain(RoutingDomain::PublicInternet);
+        let mut editor_local_network = self
+            .unlocked_inner
+            .routing_table
+            .edit_routing_domain(RoutingDomain::LocalNetwork);
+
         // start listeners
         if protocol_config.inbound.contains(ProtocolType::UDP) {
-            self.start_udp_listeners().await?;
+            self.start_udp_listeners(&mut editor_public_internet, &mut editor_local_network)
+                .await?;
         }
         if protocol_config.inbound.contains(ProtocolType::WS) {
-            self.start_ws_listeners().await?;
+            self.start_ws_listeners(&mut editor_public_internet, &mut editor_local_network)
+                .await?;
         }
         if protocol_config.inbound.contains(ProtocolType::WSS) {
-            self.start_wss_listeners().await?;
+            self.start_wss_listeners(&mut editor_public_internet, &mut editor_local_network)
+                .await?;
         }
         if protocol_config.inbound.contains(ProtocolType::TCP) {
-            self.start_tcp_listeners().await?;
+            self.start_tcp_listeners(&mut editor_public_internet, &mut editor_local_network)
+                .await?;
         }
 
         // release caches of available listener ports
@@ -747,6 +785,10 @@ impl Network {
 
         info!("network started");
         self.inner.lock().network_started = true;
+
+        // commit routing table edits
+        editor_public_internet.commit().await;
+        editor_local_network.commit().await;
 
         Ok(())
     }
@@ -792,9 +834,16 @@ impl Network {
         while unord.next().await.is_some() {}
 
         debug!("clearing dial info");
-        // Drop all dial info
-        routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
-        routing_table.clear_dial_info_details(RoutingDomain::LocalNetwork);
+
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
+        editor.disable_node_info_updates();
+        editor.clear_dial_info_details();
+        editor.commit().await;
+
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
+        editor.disable_node_info_updates();
+        editor.clear_dial_info_details();
+        editor.commit().await;
 
         // Reset state including network class
         *self.inner.lock() = Self::new_inner();

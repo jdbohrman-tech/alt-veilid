@@ -608,7 +608,6 @@ impl Network {
             (protocol_config, existing_network_class, tcp_same_port)
         };
         let routing_table = self.routing_table();
-        let network_manager = self.network_manager();
 
         // Process all protocol and address combinations
         let mut futures = FuturesUnordered::new();
@@ -771,6 +770,7 @@ impl Network {
         // If a network class could be determined
         // see about updating our public dial info
         let mut changed = false;
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
         if new_network_class.is_some() {
             // Get existing public dial info
             let existing_public_dial_info: HashSet<DialInfoDetail> = routing_table
@@ -814,13 +814,9 @@ impl Network {
             // Is the public dial info different?
             if existing_public_dial_info != new_public_dial_info {
                 // If so, clear existing public dial info and re-register the new public dial info
-                routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
+                editor.clear_dial_info_details();
                 for did in new_public_dial_info {
-                    if let Err(e) = routing_table.register_dial_info(
-                        RoutingDomain::PublicInternet,
-                        did.dial_info,
-                        did.class,
-                    ) {
+                    if let Err(e) = editor.register_dial_info(did.dial_info, did.class) {
                         log_net!(error "Failed to register detected public dial info: {}", e);
                     }
                 }
@@ -836,7 +832,7 @@ impl Network {
             }
         } else if existing_network_class.is_some() {
             // Network class could not be determined
-            routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
+            editor.clear_dial_info_details();
             self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] = None;
             changed = true;
             log_net!(debug "network class cleared");
@@ -849,9 +845,7 @@ impl Network {
             }
         } else {
             // Send updates to everyone
-            network_manager
-                .send_node_info_updates(RoutingDomain::PublicInternet, true)
-                .await;
+            editor.commit().await;
         }
 
         Ok(())

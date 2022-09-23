@@ -184,7 +184,7 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
-    pub fn get_connection_ids_by_remote(&self, remote: PeerAddress) -> Vec<NetworkConnectionId> {
+    pub fn _get_connection_ids_by_remote(&self, remote: PeerAddress) -> Vec<NetworkConnectionId> {
         let inner = self.inner.lock();
         inner
             .ids_by_remote

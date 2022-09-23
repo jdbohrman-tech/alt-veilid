@@ -500,7 +500,9 @@ impl NetworkManager {
         let routing_table = self.routing_table();
         let node_info = routing_table.get_own_node_info(RoutingDomain::PublicInternet);
         let network_class = self.get_network_class(RoutingDomain::PublicInternet);
-        let mut node_info_changed = false;
+
+        // Get routing domain editor
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
 
         // Do we know our network class yet?
         if let Some(network_class) = network_class {
@@ -511,16 +513,14 @@ impl NetworkManager {
                     // Relay node is dead or no longer needed
                     if matches!(state, BucketEntryState::Dead) {
                         info!("Relay node died, dropping relay {}", relay_node);
-                        routing_table.set_relay_node(RoutingDomain::PublicInternet, None);
-                        node_info_changed = true;
+                        editor.clear_relay_node();
                         false
                     } else if !node_info.requires_relay() {
                         info!(
                             "Relay node no longer required, dropping relay {}",
                             relay_node
                         );
-                        routing_table.set_relay_node(RoutingDomain::PublicInternet, None);
-                        node_info_changed = true;
+                        editor.clear_relay_node();
                         false
                     } else {
                         true
@@ -544,8 +544,7 @@ impl NetworkManager {
                             false,
                         ) {
                             info!("Outbound relay node selected: {}", nr);
-                            routing_table.set_relay_node(RoutingDomain::PublicInternet, Some(nr));
-                            node_info_changed = true;
+                            editor.set_relay_node(nr);
                         }
                     }
                 // Otherwise we must need an inbound relay
@@ -555,18 +554,14 @@ impl NetworkManager {
                         routing_table.find_inbound_relay(RoutingDomain::PublicInternet, cur_ts)
                     {
                         info!("Inbound relay node selected: {}", nr);
-                        routing_table.set_relay_node(RoutingDomain::PublicInternet, Some(nr));
-                        node_info_changed = true;
+                        editor.set_relay_node(nr);
                     }
                 }
             }
         }
 
-        // Re-send our node info if we selected a relay
-        if node_info_changed {
-            self.send_node_info_updates(RoutingDomain::PublicInternet, true)
-                .await;
-        }
+        // Commit the changes
+        editor.commit().await;
 
         Ok(())
     }
