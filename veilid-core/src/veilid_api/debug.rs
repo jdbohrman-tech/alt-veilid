@@ -45,6 +45,16 @@ fn get_address_type(text: &str) -> Option<AddressType> {
         None
     }
 }
+fn get_routing_domain(text: &str) -> Option<RoutingDomain> {
+    let lctext = text.to_ascii_lowercase();
+    if "publicinternet".starts_with(&lctext) {
+        Some(RoutingDomain::PublicInternet)
+    } else if "localnetwork".starts_with(&lctext) {
+        Some(RoutingDomain::LocalNetwork)
+    } else {
+        None
+    }
+}
 
 fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     value: &str,
@@ -294,25 +304,41 @@ impl VeilidAPI {
             None => return Ok("Node id not found in routing table".to_owned()),
         };
 
-        if args.len() >= 2 {
-            let pt = get_debug_argument_at(
+        let mut ai = 1;
+        let mut routing_domain = None;
+        while ai < args.len() {
+            if let Ok(pt) = get_debug_argument_at(
                 &args,
-                1,
+                ai,
                 "debug_contact",
                 "protocol_type",
                 get_protocol_type,
-            )?;
-            nr.merge_filter(DialInfoFilter::all().with_protocol_type(pt));
-            if args.len() >= 3 {
-                let at = get_debug_argument_at(
-                    &args,
-                    2,
-                    "debug_contact",
-                    "address_type",
-                    get_address_type,
-                )?;
-                nr.merge_filter(DialInfoFilter::all().with_address_type(at));
+            ) {
+                nr.merge_filter(NodeRefFilter::new().with_protocol_type(pt));
+            } else if let Ok(at) =
+                get_debug_argument_at(&args, ai, "debug_contact", "address_type", get_address_type)
+            {
+                nr.merge_filter(NodeRefFilter::new().with_address_type(at));
+            } else if let Ok(rd) = get_debug_argument_at(
+                &args,
+                ai,
+                "debug_contact",
+                "routing_domain",
+                get_routing_domain,
+            ) {
+                if routing_domain.is_none() {
+                    routing_domain = Some(rd);
+                } else {
+                    return Ok("Multiple routing domains specified".to_owned());
+                }
+            } else {
+                return Ok(format!("Invalid argument specified: {}", args[ai]));
             }
+            ai += 1;
+        }
+
+        if let Some(routing_domain) = routing_domain {
+            nr.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain))
         }
 
         let cm = network_manager.get_contact_method(nr);
@@ -321,33 +347,51 @@ impl VeilidAPI {
     }
 
     async fn debug_ping(&self, args: String) -> Result<String, VeilidAPIError> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rpc = netman.rpc_processor();
+
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let node_id = get_debug_argument_at(&args, 0, "debug_ping", "node_id", get_dht_key)?;
 
-        let routing_table = self.network_manager()?.routing_table();
         let mut nr = match routing_table.lookup_node_ref(node_id) {
             Some(nr) => nr,
             None => return Ok("Node id not found in routing table".to_owned()),
         };
 
-        if args.len() >= 2 {
-            let pt =
-                get_debug_argument_at(&args, 1, "debug_ping", "protocol_type", get_protocol_type)?;
-            nr.merge_filter(DialInfoFilter::all().with_protocol_type(pt));
-            if args.len() >= 3 {
-                let at = get_debug_argument_at(
-                    &args,
-                    2,
-                    "debug_ping",
-                    "address_type",
-                    get_address_type,
-                )?;
-                nr.merge_filter(DialInfoFilter::all().with_address_type(at));
+        let mut ai = 1;
+        let mut routing_domain = None;
+        while ai < args.len() {
+            if let Ok(pt) =
+                get_debug_argument_at(&args, ai, "debug_ping", "protocol_type", get_protocol_type)
+            {
+                nr.merge_filter(NodeRefFilter::new().with_protocol_type(pt));
+            } else if let Ok(at) =
+                get_debug_argument_at(&args, ai, "debug_ping", "address_type", get_address_type)
+            {
+                nr.merge_filter(NodeRefFilter::new().with_address_type(at));
+            } else if let Ok(rd) = get_debug_argument_at(
+                &args,
+                ai,
+                "debug_ping",
+                "routing_domain",
+                get_routing_domain,
+            ) {
+                if routing_domain.is_none() {
+                    routing_domain = Some(rd);
+                } else {
+                    return Ok("Multiple routing domains specified".to_owned());
+                }
+            } else {
+                return Ok(format!("Invalid argument specified: {}", args[ai]));
             }
+            ai += 1;
         }
 
-        let rpc = self.network_manager()?.rpc_processor();
+        if let Some(routing_domain) = routing_domain {
+            nr.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain))
+        }
 
         // Dump routing table entry
         let out = match rpc
@@ -383,7 +427,7 @@ impl VeilidAPI {
         attach
         detach
         restart network
-        ping <node_id> [protocol_type [address_type]]
+        ping <node_id> [protocol_type][address_type][routing_domain]
         contact <node_id> [protocol_type [address_type]]
     "#
         .to_owned())

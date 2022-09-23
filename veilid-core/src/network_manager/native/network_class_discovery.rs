@@ -118,20 +118,24 @@ impl DiscoveryContext {
 
         // Build an filter that matches our protocol and address type
         // and excludes relays so we can get an accurate external address
-        let dial_info_filter = DialInfoFilter::global()
+        let dial_info_filter = DialInfoFilter::all()
             .with_protocol_type(protocol_type)
             .with_address_type(address_type);
-        let inbound_dial_info_entry_filter =
-            RoutingTable::make_inbound_dial_info_entry_filter(dial_info_filter.clone());
+        let inbound_dial_info_entry_filter = RoutingTable::make_inbound_dial_info_entry_filter(
+            RoutingDomain::PublicInternet,
+            dial_info_filter.clone(),
+        );
         let disallow_relays_filter = move |e: &BucketEntryInner| {
-            if let Some(n) = e.node_info() {
+            if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
                 n.relay_peer_info.is_none()
             } else {
                 false
             }
         };
-        let filter =
-            RoutingTable::combine_filters(inbound_dial_info_entry_filter, disallow_relays_filter);
+        let filter = RoutingTable::combine_entry_filters(
+            inbound_dial_info_entry_filter,
+            disallow_relays_filter,
+        );
 
         // Find public nodes matching this filter
         let peers = self
@@ -153,7 +157,11 @@ impl DiscoveryContext {
                     continue;
                 }
             }
-            peer.set_filter(Some(dial_info_filter.clone()));
+            peer.set_filter(Some(
+                NodeRefFilter::new()
+                    .with_routing_domain(RoutingDomain::PublicInternet)
+                    .with_dial_info_filter(dial_info_filter.clone()),
+            ));
             if let Some(sa) = self.request_public_address(peer.clone()).await {
                 return Some((sa, peer));
             }
@@ -169,7 +177,7 @@ impl DiscoveryContext {
         protocol_type: ProtocolType,
         address_type: AddressType,
     ) -> Vec<SocketAddress> {
-        let filter = DialInfoFilter::local()
+        let filter = DialInfoFilter::all()
             .with_protocol_type(protocol_type)
             .with_address_type(address_type);
         self.routing_table
@@ -340,19 +348,21 @@ impl DiscoveryContext {
             )
         };
 
+        // Attempt a port mapping via all available and enabled mechanisms
+        // Try this before the direct mapping in the event that we are restarting
+        // and may not have recorded a mapping created the last time
+        if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
+            // Got a port mapping, let's use it
+            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
+        }
         // Do a validate_dial_info on the external address from a redirected node
-        if self
+        else if self
             .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
             .await
         {
             // Add public dial info with Direct dialinfo class
             self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Direct);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
-        }
-        // Attempt a port mapping via all available and enabled mechanisms
-        else if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
-            // Got a port mapping, let's use it
-            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
             self.set_detected_network_class(NetworkClass::InboundCapable);
         } else {
             // Add public dial info with Blocked dialinfo class
@@ -376,8 +386,19 @@ impl DiscoveryContext {
             )
         };
 
+        // Attempt a port mapping via all available and enabled mechanisms
+        // Try this before the direct mapping in the event that we are restarting
+        // and may not have recorded a mapping created the last time
+        if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
+            // Got a port mapping, let's use it
+            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
+            self.set_detected_network_class(NetworkClass::InboundCapable);
+
+            // No more retries
+            return Ok(true);
+        }
         // Do a validate_dial_info on the external address from a redirected node
-        if self
+        else if self
             .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
             .await
         {
@@ -386,17 +407,9 @@ impl DiscoveryContext {
             self.set_detected_network_class(NetworkClass::InboundCapable);
             return Ok(true);
         }
-        // Attempt a port mapping via all available and enabled mechanisms
-        else if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
-            // Got a port mapping, let's use it
-            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
 
-            // No more retries
-            return Ok(true);
-        }
-
-        // Port mapping was not possible, let's see what kind of NAT we have
+        // Port mapping was not possible, and things aren't accessible directly.
+        // Let's see what kind of NAT we have
 
         // Does a redirected dial info validation from a different address and a random port find us?
         if self
@@ -583,7 +596,8 @@ impl Network {
         let (protocol_config, existing_network_class, tcp_same_port) = {
             let inner = self.inner.lock();
             let protocol_config = inner.protocol_config.unwrap_or_default();
-            let existing_network_class = inner.network_class;
+            let existing_network_class =
+                inner.network_class[RoutingDomain::PublicInternet as usize];
             let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
                 && protocol_config.inbound.contains(ProtocolType::WS)
             {
@@ -594,7 +608,6 @@ impl Network {
             (protocol_config, existing_network_class, tcp_same_port)
         };
         let routing_table = self.routing_table();
-        let network_manager = self.network_manager();
 
         // Process all protocol and address combinations
         let mut futures = FuturesUnordered::new();
@@ -757,11 +770,12 @@ impl Network {
         // If a network class could be determined
         // see about updating our public dial info
         let mut changed = false;
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
         if new_network_class.is_some() {
             // Get existing public dial info
             let existing_public_dial_info: HashSet<DialInfoDetail> = routing_table
                 .all_filtered_dial_info_details(
-                    Some(RoutingDomain::PublicInternet),
+                    RoutingDomain::PublicInternet.into(),
                     &DialInfoFilter::all(),
                 )
                 .into_iter()
@@ -800,13 +814,9 @@ impl Network {
             // Is the public dial info different?
             if existing_public_dial_info != new_public_dial_info {
                 // If so, clear existing public dial info and re-register the new public dial info
-                routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
+                editor.clear_dial_info_details();
                 for did in new_public_dial_info {
-                    if let Err(e) = routing_table.register_dial_info(
-                        RoutingDomain::PublicInternet,
-                        did.dial_info,
-                        did.class,
-                    ) {
+                    if let Err(e) = editor.register_dial_info(did.dial_info, did.class) {
                         log_net!(error "Failed to register detected public dial info: {}", e);
                     }
                 }
@@ -815,14 +825,15 @@ impl Network {
 
             // Is the network class different?
             if existing_network_class != new_network_class {
-                self.inner.lock().network_class = new_network_class;
+                self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] =
+                    new_network_class;
                 changed = true;
-                log_net!(debug "network class changed to {:?}", new_network_class);
+                log_net!(debug "PublicInternet network class changed to {:?}", new_network_class);
             }
         } else if existing_network_class.is_some() {
             // Network class could not be determined
-            routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
-            self.inner.lock().network_class = None;
+            editor.clear_dial_info_details();
+            self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] = None;
             changed = true;
             log_net!(debug "network class cleared");
         }
@@ -834,7 +845,7 @@ impl Network {
             }
         } else {
             // Send updates to everyone
-            network_manager.send_node_info_updates(true).await;
+            editor.commit().await;
         }
 
         Ok(())

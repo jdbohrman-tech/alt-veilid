@@ -99,7 +99,6 @@ core:
         upnp: true
         natpmp: false
         detect_address_changes: true
-        enable_local_peer_scope: false
         restricted_nat_retries: 0
         tls:
             certificate_path: '%CERTIFICATE_PATH%'
@@ -589,7 +588,6 @@ pub struct Network {
     pub upnp: bool,
     pub natpmp: bool,
     pub detect_address_changes: bool,
-    pub enable_local_peer_scope: bool,
     pub restricted_nat_retries: u32,
     pub tls: Tls,
     pub application: Application,
@@ -986,7 +984,6 @@ impl Settings {
         set_config_value!(inner.core.network.upnp, value);
         set_config_value!(inner.core.network.natpmp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
-        set_config_value!(inner.core.network.enable_local_peer_scope, value);
         set_config_value!(inner.core.network.restricted_nat_retries, value);
         set_config_value!(inner.core.network.tls.certificate_path, value);
         set_config_value!(inner.core.network.tls.private_key_path, value);
@@ -1186,9 +1183,6 @@ impl Settings {
                 "network.natpmp" => Ok(Box::new(inner.core.network.natpmp)),
                 "network.detect_address_changes" => {
                     Ok(Box::new(inner.core.network.detect_address_changes))
-                }
-                "network.enable_local_peer_scope" => {
-                    Ok(Box::new(inner.core.network.enable_local_peer_scope))
                 }
                 "network.restricted_nat_retries" => {
                     Ok(Box::new(inner.core.network.restricted_nat_retries))
@@ -1513,7 +1507,6 @@ mod tests {
         assert_eq!(s.core.network.upnp, true);
         assert_eq!(s.core.network.natpmp, false);
         assert_eq!(s.core.network.detect_address_changes, true);
-        assert_eq!(s.core.network.enable_local_peer_scope, false);
         assert_eq!(s.core.network.restricted_nat_retries, 0u32);
         //
         assert_eq!(

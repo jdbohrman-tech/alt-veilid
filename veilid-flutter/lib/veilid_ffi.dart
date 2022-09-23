@@ -36,11 +36,17 @@ typedef _InitializeVeilidCoreDart = void Function(Pointer<Utf8>);
 typedef _ChangeLogLevelC = Void Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef _ChangeLogLevelDart = void Function(Pointer<Utf8>, Pointer<Utf8>);
 // fn startup_veilid_core(port: i64, config: FfiStr)
-typedef _StartupVeilidCoreC = Void Function(Int64, Pointer<Utf8>);
-typedef _StartupVeilidCoreDart = void Function(int, Pointer<Utf8>);
+typedef _StartupVeilidCoreC = Void Function(Int64, Int64, Pointer<Utf8>);
+typedef _StartupVeilidCoreDart = void Function(int, int, Pointer<Utf8>);
 // fn get_veilid_state(port: i64)
 typedef _GetVeilidStateC = Void Function(Int64);
 typedef _GetVeilidStateDart = void Function(int);
+// fn attach(port: i64)
+typedef _AttachC = Void Function(Int64);
+typedef _AttachDart = void Function(int);
+// fn detach(port: i64)
+typedef _DetachC = Void Function(Int64);
+typedef _DetachDart = void Function(int);
 // fn debug(port: i64, log_level: FfiStr)
 typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
 typedef _DebugDart = void Function(int, Pointer<Utf8>);
@@ -193,6 +199,51 @@ Future<void> processFutureVoid(Future<dynamic> future) {
   });
 }
 
+Future<Stream<T>> processFutureStream<T>(
+    Stream<T> returnStream, Future<dynamic> future) {
+  return future.then((value) {
+    final list = value as List<dynamic>;
+    switch (list[0] as int) {
+      case messageOk:
+        {
+          if (list[1] != null) {
+            throw VeilidAPIExceptionInternal(
+                "Unexpected MESSAGE_OK value '${list[1]}' where null expected");
+          }
+          return returnStream;
+        }
+      case messageErr:
+        {
+          throw VeilidAPIExceptionInternal("Internal API Error: ${list[1]}");
+        }
+      case messageOkJson:
+        {
+          var ret = jsonDecode(list[1] as String);
+          if (ret != null) {
+            throw VeilidAPIExceptionInternal(
+                "Unexpected MESSAGE_OK_JSON value '$ret' where null expected");
+          }
+          return returnStream;
+        }
+      case messageErrJson:
+        {
+          throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
+        }
+      default:
+        {
+          throw VeilidAPIExceptionInternal(
+              "Unexpected async return message type: ${list[0]}");
+        }
+    }
+  }).catchError((e) {
+    // Wrap all other errors in VeilidAPIExceptionInternal
+    throw VeilidAPIExceptionInternal(e.toString());
+  }, test: (e) {
+    // Pass errors that are already VeilidAPIException through without wrapping
+    return e is! VeilidAPIException;
+  });
+}
+
 Stream<T> processStreamJson<T>(
     T Function(Map<String, dynamic>) jsonConstructor, ReceivePort port) async* {
   try {
@@ -249,6 +300,8 @@ class VeilidFFI implements Veilid {
   final _ChangeLogLevelDart _changeLogLevel;
   final _StartupVeilidCoreDart _startupVeilidCore;
   final _GetVeilidStateDart _getVeilidState;
+  final _AttachDart _attach;
+  final _DetachDart _detach;
   final _ShutdownVeilidCoreDart _shutdownVeilidCore;
   final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
@@ -269,6 +322,8 @@ class VeilidFFI implements Veilid {
         _getVeilidState =
             dylib.lookupFunction<_GetVeilidStateC, _GetVeilidStateDart>(
                 'get_veilid_state'),
+        _attach = dylib.lookupFunction<_AttachC, _AttachDart>('attach'),
+        _detach = dylib.lookupFunction<_DetachC, _DetachDart>('detach'),
         _shutdownVeilidCore =
             dylib.lookupFunction<_ShutdownVeilidCoreC, _ShutdownVeilidCoreDart>(
                 'shutdown_veilid_core'),
@@ -308,15 +363,20 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Stream<VeilidUpdate> startupVeilidCore(VeilidConfig config) {
+  Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config) {
     var nativeConfig =
         jsonEncode(config.json, toEncodable: veilidApiToEncodable)
             .toNativeUtf8();
+    final recvStreamPort = ReceivePort("veilid_api_stream");
+    final sendStreamPort = recvStreamPort.sendPort;
     final recvPort = ReceivePort("startup_veilid_core");
     final sendPort = recvPort.sendPort;
-    _startupVeilidCore(sendPort.nativePort, nativeConfig);
+    _startupVeilidCore(
+        sendPort.nativePort, sendStreamPort.nativePort, nativeConfig);
     malloc.free(nativeConfig);
-    return processStreamJson(VeilidUpdate.fromJson, recvPort);
+    return processFutureStream(
+        processStreamJson(VeilidUpdate.fromJson, recvStreamPort),
+        recvPort.first);
   }
 
   @override
@@ -325,6 +385,22 @@ class VeilidFFI implements Veilid {
     final sendPort = recvPort.sendPort;
     _getVeilidState(sendPort.nativePort);
     return processFutureJson(VeilidState.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<void> attach() async {
+    final recvPort = ReceivePort("attach");
+    final sendPort = recvPort.sendPort;
+    _attach(sendPort.nativePort);
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<void> detach() async {
+    final recvPort = ReceivePort("detach");
+    final sendPort = recvPort.sendPort;
+    _detach(sendPort.nativePort);
+    return processFutureVoid(recvPort.first);
   }
 
   @override

@@ -12,6 +12,7 @@ use tools::*;
 
 mod client_api_connection;
 mod command_processor;
+mod peers_table_view;
 mod settings;
 mod tools;
 mod ui;

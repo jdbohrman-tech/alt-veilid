@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:veilid/veilid.dart';
 import 'package:flutter_loggy/flutter_loggy.dart';
@@ -12,7 +11,7 @@ import 'package:loggy/loggy.dart';
 import 'config.dart';
 
 // Loggy tools
-const LogLevel traceLevel = LogLevel('trace', 1);
+const LogLevel traceLevel = LogLevel('Trace', 1);
 
 class ConsolePrinter extends LoggyPrinter {
   ConsolePrinter(this.childPrinter) : super();
@@ -162,21 +161,30 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   }
 
   Future<void> processUpdateLog(VeilidUpdateLog update) async {
+    StackTrace? stackTrace;
+    Object? error;
+    final backtrace = update.backtrace;
+    if (backtrace != null) {
+      stackTrace =
+          StackTrace.fromString("$backtrace\n${StackTrace.current.toString()}");
+      error = 'embedded stack trace for ${update.logLevel} ${update.message}';
+    }
+
     switch (update.logLevel) {
       case VeilidLogLevel.error:
-        loggy.error(update.message);
+        loggy.error(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.warn:
-        loggy.warning(update.message);
+        loggy.warning(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.info:
-        loggy.info(update.message);
+        loggy.info(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.debug:
-        loggy.debug(update.message);
+        loggy.debug(update.message, error, stackTrace);
         break;
       case VeilidLogLevel.trace:
-        loggy.trace(update.message);
+        loggy.trace(update.message, error, stackTrace);
         break;
     }
   }
@@ -188,7 +196,7 @@ class _MyAppState extends State<MyApp> with UiLoggy {
         if (update is VeilidUpdateLog) {
           await processUpdateLog(update);
         } else {
-          loggy.trace("Update: " + update.json.toString());
+          loggy.trace("Update: ${update.json}");
         }
       }
     }
@@ -218,12 +226,14 @@ class _MyAppState extends State<MyApp> with UiLoggy {
                   onPressed: _updateStream != null
                       ? null
                       : () async {
-                          var updateStream = Veilid.instance.startupVeilidCore(
-                              await getDefaultVeilidConfig());
+                          var updateStream = await Veilid.instance
+                              .startupVeilidCore(
+                                  await getDefaultVeilidConfig());
                           setState(() {
                             _updateStream = updateStream;
                             _updateProcessor = processUpdates();
                           });
+                          await Veilid.instance.attach();
                         },
                   child: const Text('Startup'),
                 ),

@@ -8,15 +8,13 @@ impl RPCProcessor {
         self,
         dest: Destination,
         key: DHTKey,
-        safety_route: Option<&SafetyRouteSpec>,
-        respond_to: RespondTo,
     ) -> Result<NetworkResult<Answer<Vec<PeerInfo>>>, RPCError> {
-        let find_node_q = RPCOperationFindNodeQ { node_id: key };
-        let question = RPCQuestion::new(respond_to, RPCQuestionDetail::FindNodeQ(find_node_q));
+        let find_node_q_detail =
+            RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ { node_id: key });
+        let find_node_q = RPCQuestion::new(RespondTo::Sender, find_node_q_detail);
 
         // Send the find_node request
-        let waitable_reply =
-            network_result_try!(self.question(dest, question, safety_route).await?);
+        let waitable_reply = network_result_try!(self.question(dest, find_node_q).await?);
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
@@ -35,7 +33,10 @@ impl RPCProcessor {
 
         // Verify peers are in the correct peer scope
         for peer_info in &find_node_a.peers {
-            if !self.filter_peer_scope(&peer_info.signed_node_info.node_info) {
+            if !self.filter_node_info(
+                RoutingDomain::PublicInternet,
+                &peer_info.signed_node_info.node_info,
+            ) {
                 return Err(RPCError::invalid_format(
                     "find_node response has invalid peer scope",
                 ));
@@ -61,19 +62,16 @@ impl RPCProcessor {
 
         // add node information for the requesting node to our routing table
         let routing_table = self.routing_table();
+        let rt2 = routing_table.clone();
+        let rt3 = routing_table.clone();
 
         // find N nodes closest to the target node in our routing table
-        let own_peer_info = routing_table.get_own_peer_info();
-        let own_peer_info_is_valid = own_peer_info.signed_node_info.is_valid();
-
         let closest_nodes = routing_table.find_closest_nodes(
             find_node_q.node_id,
             // filter
-            Some(move |_k, v| {
-                RoutingTable::filter_has_valid_signed_node_info(v, own_peer_info_is_valid)
-            }),
+            move |_k, v| rt2.filter_has_valid_signed_node_info(RoutingDomain::PublicInternet, v),
             // transform
-            move |k, v| RoutingTable::transform_to_peer_info(k, v, &own_peer_info),
+            move |k, v| rt3.transform_to_peer_info(RoutingDomain::PublicInternet, k, v),
         );
 
         // Make status answer
@@ -83,11 +81,7 @@ impl RPCProcessor {
 
         // Send status answer
         let res = self
-            .answer(
-                msg,
-                RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)),
-                None,
-            )
+            .answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))
             .await?;
         tracing::Span::current().record("res", &tracing::field::display(res));
         Ok(())

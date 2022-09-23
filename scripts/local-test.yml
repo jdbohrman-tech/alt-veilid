@@ -3,5 +3,4 @@ core:
   network:
     dht:
       min_peer_count: 1
-    enable_local_peer_scope: true
     bootstrap: []

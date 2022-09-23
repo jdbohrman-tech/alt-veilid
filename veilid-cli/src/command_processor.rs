@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 use veilid_core::xx::{Eventual, EventualCommon};
-use veilid_core::VeilidConfigLogLevel;
+use veilid_core::*;
 
 pub fn convert_loglevel(s: &str) -> Result<VeilidConfigLogLevel, String> {
     match s.to_ascii_lowercase().as_str() {
@@ -111,7 +111,8 @@ attach              - attach the server to the Veilid network
 detach              - detach the server from the Veilid network
 debug               - send a debugging command to the Veilid server
 change_log_level    - change the log level for a tracing layer
-"#,
+"#
+            .to_owned(),
         );
         let ui = self.ui();
         ui.send_callback(callback);
@@ -202,7 +203,7 @@ change_log_level    - change the log level for a tracing layer
             let log_level = match convert_loglevel(&rest.unwrap_or_default()) {
                 Ok(v) => v,
                 Err(e) => {
-                    error!("failed to change log level: {}", e);
+                    ui.add_node_event(format!("Failed to change log level: {}", e));
                     ui.send_callback(callback);
                     return;
                 }
@@ -210,12 +211,14 @@ change_log_level    - change the log level for a tracing layer
 
             match capi.server_change_log_level(layer, log_level).await {
                 Ok(()) => {
-                    info!("Log level changed");
-                    ui.send_callback(callback);
+                    ui.display_string_dialog("Success", "Log level changed", callback);
                 }
                 Err(e) => {
-                    error!("Server command 'change_log_level' failed: {}", e);
-                    ui.send_callback(callback);
+                    ui.display_string_dialog(
+                        "Server command 'change_log_level' failed",
+                        e.to_string(),
+                        callback,
+                    );
                 }
             }
         });
@@ -320,14 +323,25 @@ change_log_level    - change the log level for a tracing layer
     }
 
     pub fn update_network_status(&mut self, network: veilid_core::VeilidStateNetwork) {
-        self.inner_mut()
-            .ui
-            .set_network_status(network.started, network.bps_down, network.bps_up);
+        self.inner_mut().ui.set_network_status(
+            network.started,
+            network.bps_down,
+            network.bps_up,
+            network.peers,
+        );
     }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidStateLog) {
-        let message = format!("{}: {}", log.log_level, log.message);
-        self.inner().ui.add_node_event(&message);
+        self.inner().ui.add_node_event(format!(
+            "{}: {}{}",
+            log.log_level,
+            log.message,
+            if let Some(bt) = log.backtrace {
+                format!("\nBacktrace:\n{}", bt)
+            } else {
+                "".to_owned()
+            }
+        ));
     }
 
     pub fn update_shutdown(&mut self) {

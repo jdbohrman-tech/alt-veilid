@@ -32,7 +32,7 @@ impl RPCProcessor {
 
         // Send the validate_dial_info request
         // This can only be sent directly, as relays can not validate dial info
-        network_result_value_or_log!(debug self.statement(Destination::Direct(peer), statement, None)
+        network_result_value_or_log!(debug self.statement(Destination::direct(peer), statement)
             .await? => {
                 return Ok(false);
             }
@@ -81,6 +81,7 @@ impl RPCProcessor {
             // an ipv6 address
             let routing_table = self.routing_table();
             let sender_id = msg.header.envelope.get_sender_id();
+            let routing_domain = msg.header.routing_domain;
             let node_count = {
                 let c = self.config.get();
                 c.network.dht.max_find_node_count as usize
@@ -88,15 +89,18 @@ impl RPCProcessor {
 
             // Filter on nodes that can validate dial info, and can reach a specific dial info
             let outbound_dial_info_entry_filter =
-                RoutingTable::make_outbound_dial_info_entry_filter(dial_info.clone());
+                RoutingTable::make_outbound_dial_info_entry_filter(
+                    routing_domain,
+                    dial_info.clone(),
+                );
             let will_validate_dial_info_filter = |e: &BucketEntryInner| {
-                if let Some(status) = &e.peer_stats().status {
-                    status.will_validate_dial_info
+                if let Some(status) = &e.node_status(routing_domain) {
+                    status.will_validate_dial_info()
                 } else {
                     true
                 }
             };
-            let filter = RoutingTable::combine_filters(
+            let filter = RoutingTable::combine_entry_filters(
                 outbound_dial_info_entry_filter,
                 will_validate_dial_info_filter,
             );
@@ -126,7 +130,7 @@ impl RPCProcessor {
 
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info
-                network_result_value_or_log!(debug self.statement(Destination::Direct(peer), statement, None)
+                network_result_value_or_log!(debug self.statement(Destination::direct(peer), statement)
                     .await? => {
                         return Ok(());
                     }

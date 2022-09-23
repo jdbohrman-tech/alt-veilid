@@ -7,15 +7,13 @@ impl RPCProcessor {
     pub async fn rpc_call_signal(
         self,
         dest: Destination,
-        safety_route: Option<&SafetyRouteSpec>,
         signal_info: SignalInfo,
     ) -> Result<NetworkResult<()>, RPCError> {
-        //let signed_node_info = self.routing_table().get_own_signed_node_info();
         let signal = RPCOperationSignal { signal_info };
         let statement = RPCStatement::new(RPCStatementDetail::Signal(signal));
 
         // Send the signal request
-        network_result_try!(self.statement(dest, statement, safety_route).await?);
+        network_result_try!(self.statement(dest, statement).await?);
 
         Ok(NetworkResult::value(()))
     }

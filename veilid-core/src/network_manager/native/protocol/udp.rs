@@ -25,16 +25,10 @@ impl RawUdpProtocolHandler {
                 ProtocolType::UDP,
             );
             let local_socket_addr = self.socket.local_addr()?;
-            let descriptor = match ConnectionDescriptor::new(
+            let descriptor = ConnectionDescriptor::new(
                 peer_addr,
                 SocketAddress::from_socket_addr(local_socket_addr),
-            ) {
-                Ok(d) => d,
-                Err(_) => {
-                    log_net!(debug "{}({}) at {}@{}:{}: {:?}", "Invalid peer scope".green(), "received message from invalid peer scope", file!(), line!(), column!(), peer_addr);
-                    continue;
-                }
-            };
+            );
 
             break (size, descriptor);
         };
@@ -62,8 +56,7 @@ impl RawUdpProtocolHandler {
         let descriptor = ConnectionDescriptor::new(
             peer_addr,
             SocketAddress::from_socket_addr(local_socket_addr),
-        )
-        .map_err(|e| io::Error::new(io::ErrorKind::AddrNotAvailable, e))?;
+        );
 
         let len = network_result_try!(self
             .socket

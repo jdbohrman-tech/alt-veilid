@@ -40,3 +40,59 @@ pub fn serialize_json<T: Serialize + Debug>(val: T) -> String {
         }
     }
 }
+
+pub mod json_as_string {
+    use std::fmt::Display;
+    use std::str::FromStr;
+
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Display,
+        S: Serializer,
+    {
+        serializer.collect_str(value)
+    }
+
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: FromStr,
+        T::Err: Display,
+        D: Deserializer<'de>,
+    {
+        String::deserialize(deserializer)?
+            .parse()
+            .map_err(de::Error::custom)
+    }
+}
+
+pub mod opt_json_as_string {
+    use std::fmt::Display;
+    use std::str::FromStr;
+
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<T, S>(value: &Option<T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Display,
+        S: Serializer,
+    {
+        match value {
+            Some(v) => serializer.collect_str(v),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+    where
+        T: FromStr,
+        T::Err: Display,
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            None => Ok(None),
+            Some(v) => Ok(Some(v.parse::<T>().map_err(de::Error::custom)?)),
+        }
+    }
+}

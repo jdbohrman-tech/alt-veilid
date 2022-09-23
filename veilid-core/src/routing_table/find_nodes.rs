@@ -15,38 +15,47 @@ pub struct MappedPortInfo {
 impl RoutingTable {
     // Makes a filter that finds nodes with a matching inbound dialinfo
     pub fn make_inbound_dial_info_entry_filter(
+        routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
     ) -> impl FnMut(&BucketEntryInner) -> bool {
         // does it have matching public dial info?
         move |e| {
-            e.node_info()
-                .map(|n| {
-                    n.first_filtered_dial_info_detail(|did| did.matches_filter(&dial_info_filter))
-                        .is_some()
-                })
-                .unwrap_or(false)
+            if let Some(ni) = e.node_info(routing_domain) {
+                if ni
+                    .first_filtered_dial_info_detail(|did| did.matches_filter(&dial_info_filter))
+                    .is_some()
+                {
+                    return true;
+                }
+            }
+            false
         }
     }
 
     // Makes a filter that finds nodes capable of dialing a particular outbound dialinfo
     pub fn make_outbound_dial_info_entry_filter(
+        routing_domain: RoutingDomain,
         dial_info: DialInfo,
     ) -> impl FnMut(&BucketEntryInner) -> bool {
         // does the node's outbound capabilities match the dialinfo?
         move |e| {
-            e.node_info()
-                .map(|n| {
-                    let mut dif = DialInfoFilter::all();
-                    dif = dif.with_protocol_type_set(n.outbound_protocols);
-                    dif = dif.with_address_type_set(n.address_types);
-                    dial_info.matches_filter(&dif)
-                })
-                .unwrap_or(false)
+            if let Some(ni) = e.node_info(routing_domain) {
+                let dif = DialInfoFilter::all()
+                    .with_protocol_type_set(ni.outbound_protocols)
+                    .with_address_type_set(ni.address_types);
+                if dial_info.matches_filter(&dif) {
+                    return true;
+                }
+            }
+            false
         }
     }
 
     // Make a filter that wraps another filter
-    pub fn combine_filters<F, G>(mut f1: F, mut f2: G) -> impl FnMut(&BucketEntryInner) -> bool
+    pub fn combine_entry_filters<F, G>(
+        mut f1: F,
+        mut f2: G,
+    ) -> impl FnMut(&BucketEntryInner) -> bool
     where
         F: FnMut(&BucketEntryInner) -> bool,
         G: FnMut(&BucketEntryInner) -> bool,
@@ -75,18 +84,21 @@ impl RoutingTable {
             // count
             node_count,
             // filter
-            Some(move |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(|e| {
-                    // skip nodes on our local network here
-                    if e.local_node_info().is_some() {
+                    // skip nodes on local network
+                    if e.node_info(RoutingDomain::LocalNetwork).is_some() {
                         return false;
                     }
-
+                    // skip nodes not on public internet
+                    if e.node_info(RoutingDomain::PublicInternet).is_none() {
+                        return false;
+                    }
                     // skip nodes that dont match entry filter
                     entry_filter(e)
                 })
-            }),
+            },
             // transform
             |k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
@@ -109,37 +121,34 @@ impl RoutingTable {
             // count
             protocol_types.len() * 2 * max_per_type,
             // filter
-            Some(move |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            move |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(|e| {
                     // skip nodes on our local network here
-                    if e.local_node_info().is_some() {
+                    if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
                         return false;
                     }
 
                     // does it have some dial info we need?
-                    let filter = |n: NodeInfo| {
+                    let filter = |n: &NodeInfo| {
                         let mut keep = false;
-                        for did in n.dial_info_detail_list {
-                            if did.dial_info.is_global() {
-                                if matches!(did.dial_info.address_type(), AddressType::IPV4) {
-                                    for (n, protocol_type) in protocol_types.iter().enumerate() {
-                                        if nodes_proto_v4[n] < max_per_type
-                                            && did.dial_info.protocol_type() == *protocol_type
-                                        {
-                                            nodes_proto_v4[n] += 1;
-                                            keep = true;
-                                        }
+                        for did in &n.dial_info_detail_list {
+                            if matches!(did.dial_info.address_type(), AddressType::IPV4) {
+                                for (n, protocol_type) in protocol_types.iter().enumerate() {
+                                    if nodes_proto_v4[n] < max_per_type
+                                        && did.dial_info.protocol_type() == *protocol_type
+                                    {
+                                        nodes_proto_v4[n] += 1;
+                                        keep = true;
                                     }
-                                } else if matches!(did.dial_info.address_type(), AddressType::IPV6)
-                                {
-                                    for (n, protocol_type) in protocol_types.iter().enumerate() {
-                                        if nodes_proto_v6[n] < max_per_type
-                                            && did.dial_info.protocol_type() == *protocol_type
-                                        {
-                                            nodes_proto_v6[n] += 1;
-                                            keep = true;
-                                        }
+                                }
+                            } else if matches!(did.dial_info.address_type(), AddressType::IPV6) {
+                                for (n, protocol_type) in protocol_types.iter().enumerate() {
+                                    if nodes_proto_v6[n] < max_per_type
+                                        && did.dial_info.protocol_type() == *protocol_type
+                                    {
+                                        nodes_proto_v6[n] += 1;
+                                        keep = true;
                                     }
                                 }
                             }
@@ -147,9 +156,11 @@ impl RoutingTable {
                         keep
                     };
 
-                    e.node_info().map(filter).unwrap_or(false)
+                    e.node_info(RoutingDomain::PublicInternet)
+                        .map(filter)
+                        .unwrap_or(false)
                 })
-            }),
+            },
             // transform
             |k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
@@ -157,50 +168,30 @@ impl RoutingTable {
         )
     }
 
-    // Get our own node's peer info (public node info) so we can share it with other nodes
-    pub fn get_own_peer_info(&self) -> PeerInfo {
-        PeerInfo::new(NodeId::new(self.node_id()), self.get_own_signed_node_info())
-    }
-
-    pub fn get_own_signed_node_info(&self) -> SignedNodeInfo {
-        let node_id = NodeId::new(self.node_id());
-        let secret = self.node_id_secret();
-        SignedNodeInfo::with_secret(self.get_own_node_info(), node_id, &secret).unwrap()
-    }
-
-    pub fn get_own_node_info(&self) -> NodeInfo {
-        let netman = self.network_manager();
-        let relay_node = netman.relay_node();
-        let pc = netman.get_protocol_config();
-        NodeInfo {
-            network_class: netman.get_network_class().unwrap_or(NetworkClass::Invalid),
-            outbound_protocols: pc.outbound,
-            address_types: pc.family_global,
-            min_version: MIN_VERSION,
-            max_version: MAX_VERSION,
-            dial_info_detail_list: self.dial_info_details(RoutingDomain::PublicInternet),
-            relay_peer_info: relay_node.and_then(|rn| rn.peer_info().map(Box::new)),
-        }
-    }
-
     pub fn filter_has_valid_signed_node_info(
+        &self,
+        routing_domain: RoutingDomain,
         v: Option<Arc<BucketEntry>>,
-        own_peer_info_is_valid: bool,
     ) -> bool {
         match v {
-            None => own_peer_info_is_valid,
-            Some(entry) => entry.with(|e| e.has_valid_signed_node_info()),
+            None => self.has_valid_own_node_info(routing_domain),
+            Some(entry) => entry.with(|e| {
+                e.signed_node_info(routing_domain.into())
+                    .map(|sni| sni.has_valid_signature())
+                    .unwrap_or(false)
+            }),
         }
     }
 
     pub fn transform_to_peer_info(
+        &self,
+        routing_domain: RoutingDomain,
         k: DHTKey,
         v: Option<Arc<BucketEntry>>,
-        own_peer_info: &PeerInfo,
     ) -> PeerInfo {
         match v {
-            None => own_peer_info.clone(),
-            Some(entry) => entry.with(|e| e.peer_info(k).unwrap()),
+            None => self.get_own_peer_info(routing_domain),
+            Some(entry) => entry.with(|e| e.make_peer_info(k, routing_domain).unwrap()),
         }
     }
 
@@ -221,7 +212,7 @@ impl RoutingTable {
         T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let inner = self.inner.read();
-        let self_node_id = inner.node_id;
+        let self_node_id = self.unlocked_inner.node_id;
 
         // collect all the nodes for sorting
         let mut nodes =
@@ -258,7 +249,7 @@ impl RoutingTable {
     pub fn find_fastest_nodes<T, F, O>(
         &self,
         node_count: usize,
-        mut filter: Option<F>,
+        mut filter: F,
         transform: T,
     ) -> Vec<O>
     where
@@ -276,7 +267,7 @@ impl RoutingTable {
                     if entry.with(|e| e.state(cur_ts) == BucketEntryState::Dead) {
                         false
                     } else {
-                        filter.as_mut().map(|f| f(k, v)).unwrap_or(true)
+                        filter(k, v)
                     }
                 } else {
                     // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
@@ -340,23 +331,23 @@ impl RoutingTable {
     pub fn find_closest_nodes<F, T, O>(
         &self,
         node_id: DHTKey,
-        mut filter: Option<F>,
+        filter: F,
         mut transform: T,
     ) -> Vec<O>
     where
-        T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
         F: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
         let node_count = {
-            let c = self.config.get();
+            let c = self.unlocked_inner.config.get();
             c.network.dht.max_find_node_count as usize
         };
         let out = self.find_peers_with_sort_and_filter(
             node_count,
             cur_ts,
             // filter
-            |k, v| filter.as_mut().map(|f| f(k, v)).unwrap_or(true),
+            filter,
             // sort
             |(a_key, a_entry), (b_key, b_entry)| {
                 // same nodes are always the same
@@ -402,7 +393,7 @@ impl RoutingTable {
         let mut protocol_to_port =
             BTreeMap::<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>::new();
         let our_dids = self.all_filtered_dial_info_details(
-            Some(RoutingDomain::PublicInternet),
+            RoutingDomain::PublicInternet.into(),
             &DialInfoFilter::all(),
         );
         for did in our_dids {
@@ -425,7 +416,7 @@ impl RoutingTable {
         }
     }
 
-    fn make_relay_node_filter(&self) -> impl Fn(&BucketEntryInner) -> bool {
+    fn make_public_internet_relay_node_filter(&self) -> impl Fn(&BucketEntryInner) -> bool {
         // Get all our outbound protocol/address types
         let outbound_dif = self
             .network_manager()
@@ -433,12 +424,8 @@ impl RoutingTable {
         let mapped_port_info = self.get_mapped_port_info();
 
         move |e: &BucketEntryInner| {
-            // Ensure this node is not on our local network
-            let has_local_dial_info = e
-                .local_node_info()
-                .map(|l| l.has_dial_info())
-                .unwrap_or(false);
-            if has_local_dial_info {
+            // Ensure this node is not on the local network
+            if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
                 return false;
             }
 
@@ -447,7 +434,7 @@ impl RoutingTable {
             let mut low_level_protocol_ports = mapped_port_info.low_level_protocol_ports.clone();
 
             let can_serve_as_relay = e
-                .node_info()
+                .node_info(RoutingDomain::PublicInternet)
                 .map(|n| {
                     let dids =
                         n.all_filtered_dial_info_details(|did| did.matches_filter(&outbound_dif));
@@ -471,9 +458,18 @@ impl RoutingTable {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn find_inbound_relay(&self, cur_ts: u64) -> Option<NodeRef> {
+    pub fn find_inbound_relay(
+        &self,
+        routing_domain: RoutingDomain,
+        cur_ts: u64,
+    ) -> Option<NodeRef> {
         // Get relay filter function
-        let relay_node_filter = self.make_relay_node_filter();
+        let relay_node_filter = match routing_domain {
+            RoutingDomain::PublicInternet => self.make_public_internet_relay_node_filter(),
+            RoutingDomain::LocalNetwork => {
+                unimplemented!();
+            }
+        };
 
         // Go through all entries and find fastest entry that matches filter function
         let inner = self.inner.read();
@@ -485,9 +481,9 @@ impl RoutingTable {
             let v2 = v.clone();
             v.with(|e| {
                 // Ensure we have the node's status
-                if let Some(node_status) = e.peer_stats().status.clone() {
+                if let Some(node_status) = e.node_status(routing_domain) {
                     // Ensure the node will relay
-                    if node_status.will_relay {
+                    if node_status.will_relay() {
                         // Compare against previous candidate
                         if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
                             // Less is faster
@@ -534,6 +530,7 @@ impl RoutingTable {
 
             // register the node if it's new
             if let Some(nr) = self.register_node_with_signed_node_info(
+                RoutingDomain::PublicInternet,
                 p.node_id.key,
                 p.signed_node_info.clone(),
                 false,
@@ -555,12 +552,7 @@ impl RoutingTable {
         let res = network_result_try!(
             rpc_processor
                 .clone()
-                .rpc_call_find_node(
-                    Destination::Direct(node_ref.clone()),
-                    node_id,
-                    None,
-                    rpc_processor.make_respond_to_sender(node_ref.clone()),
-                )
+                .rpc_call_find_node(Destination::direct(node_ref), node_id)
                 .await?
         );
 

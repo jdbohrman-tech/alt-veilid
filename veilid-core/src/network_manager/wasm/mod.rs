@@ -160,7 +160,7 @@ impl Network {
         // Handle connection-oriented protocols
 
         // Try to send to the exact existing connection if one exists
-        if let Some(conn) = self.connection_manager().get_connection(descriptor).await {
+        if let Some(conn) = self.connection_manager().get_connection(descriptor) {
             // connection exists, send over it
             match conn.send_async(data).await {
                 ConnectionHandleSendResult::Sent => {
@@ -292,11 +292,15 @@ impl Network {
 
     //////////////////////////////////////////
     
-    pub fn set_needs_public_dial_info_check(&self) {
+    pub fn set_needs_public_dial_info_check(&self, _punishment: Option<Box<dyn FnOnce() + Send + 'static>>) {
         //
     }
 
-    pub fn get_network_class(&self) -> Option<NetworkClass> {
+    pub fn doing_public_dial_info_check(&self) -> bool {
+        false
+    }
+
+    pub fn get_network_class(&self, _routing_domain: RoutingDomain) -> Option<NetworkClass> {
         // xxx eventually detect tor browser?
         return if self.inner.lock().network_started {
             Some(NetworkClass::WebApp)

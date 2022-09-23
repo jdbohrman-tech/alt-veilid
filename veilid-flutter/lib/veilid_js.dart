@@ -35,7 +35,7 @@ class VeilidJS implements Veilid {
   }
 
   @override
-  Stream<VeilidUpdate> startupVeilidCore(VeilidConfig config) async* {
+  Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config) async {
     var streamController = StreamController<VeilidUpdate>();
     updateCallback(String update) {
       var updateJson = jsonDecode(update);
@@ -51,13 +51,24 @@ class VeilidJS implements Veilid {
       js.allowInterop(updateCallback),
       jsonEncode(config.json, toEncodable: veilidApiToEncodable)
     ]));
-    yield* streamController.stream;
+
+    return streamController.stream;
   }
 
   @override
   Future<VeilidState> getVeilidState() async {
     return VeilidState.fromJson(jsonDecode(await _wrapApiPromise(
         js_util.callMethod(wasm, "get_veilid_state", []))));
+  }
+
+  @override
+  Future<void> attach() async {
+    return _wrapApiPromise(js_util.callMethod(wasm, "attach", []));
+  }
+
+  @override
+  Future<void> detach() async {
+    return _wrapApiPromise(js_util.callMethod(wasm, "detach", []));
   }
 
   @override

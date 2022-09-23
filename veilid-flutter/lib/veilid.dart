@@ -741,7 +741,6 @@ class VeilidConfigNetwork {
   bool upnp;
   bool natpmp;
   bool detectAddressChanges;
-  bool enableLocalPeerScope;
   int restrictedNatRetries;
   VeilidConfigTLS tls;
   VeilidConfigApplication application;
@@ -767,7 +766,6 @@ class VeilidConfigNetwork {
     required this.upnp,
     required this.natpmp,
     required this.detectAddressChanges,
-    required this.enableLocalPeerScope,
     required this.restrictedNatRetries,
     required this.tls,
     required this.application,
@@ -795,7 +793,6 @@ class VeilidConfigNetwork {
       'upnp': upnp,
       'natpmp': natpmp,
       'detect_address_changes': detectAddressChanges,
-      'enable_local_peer_scope': enableLocalPeerScope,
       'restricted_nat_retries': restrictedNatRetries,
       'tls': tls.json,
       'application': application.json,
@@ -826,7 +823,6 @@ class VeilidConfigNetwork {
         upnp = json['upnp'],
         natpmp = json['natpmp'],
         detectAddressChanges = json['detect_address_changes'],
-        enableLocalPeerScope = json['enable_local_peer_scope'],
         restrictedNatRetries = json['restricted_nat_retries'],
         tls = VeilidConfigTLS.fromJson(json['tls']),
         application = VeilidConfigApplication.fromJson(json['application']),
@@ -991,6 +987,243 @@ class VeilidConfig {
         network = VeilidConfigNetwork.fromJson(json['network']);
 }
 
+////////////
+
+class LatencyStats {
+  BigInt fastest;
+  BigInt average;
+  BigInt slowest;
+
+  LatencyStats({
+    required this.fastest,
+    required this.average,
+    required this.slowest,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'fastest': fastest.toString(),
+      'average': average.toString(),
+      'slowest': slowest.toString(),
+    };
+  }
+
+  LatencyStats.fromJson(Map<String, dynamic> json)
+      : fastest = BigInt.parse(json['fastest']),
+        average = BigInt.parse(json['average']),
+        slowest = BigInt.parse(json['slowest']);
+}
+
+////////////
+
+class TransferStats {
+  BigInt total;
+  BigInt maximum;
+  BigInt average;
+  BigInt minimum;
+
+  TransferStats({
+    required this.total,
+    required this.maximum,
+    required this.average,
+    required this.minimum,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'total': total.toString(),
+      'maximum': maximum.toString(),
+      'average': average.toString(),
+      'minimum': minimum.toString(),
+    };
+  }
+
+  TransferStats.fromJson(Map<String, dynamic> json)
+      : total = BigInt.parse(json['total']),
+        maximum = BigInt.parse(json['maximum']),
+        average = BigInt.parse(json['average']),
+        minimum = BigInt.parse(json['minimum']);
+}
+
+////////////
+
+class TransferStatsDownUp {
+  TransferStats down;
+  TransferStats up;
+
+  TransferStatsDownUp({
+    required this.down,
+    required this.up,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'down': down.json,
+      'up': up.json,
+    };
+  }
+
+  TransferStatsDownUp.fromJson(Map<String, dynamic> json)
+      : down = TransferStats.fromJson(json['down']),
+        up = TransferStats.fromJson(json['up']);
+}
+
+////////////
+
+class RPCStats {
+  int messagesSent;
+  int messagesRcvd;
+  int questionsInFlight;
+  BigInt? lastQuestion;
+  BigInt? lastSeenTs;
+  BigInt? firstConsecutiveSeenTs;
+  int recentLostAnswers;
+  int failedToSend;
+
+  RPCStats({
+    required this.messagesSent,
+    required this.messagesRcvd,
+    required this.questionsInFlight,
+    required this.lastQuestion,
+    required this.lastSeenTs,
+    required this.firstConsecutiveSeenTs,
+    required this.recentLostAnswers,
+    required this.failedToSend,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'messages_sent': messagesSent,
+      'messages_rcvd': messagesRcvd,
+      'questions_in_flight': questionsInFlight,
+      'last_question': lastQuestion?.toString(),
+      'last_seen_ts': lastSeenTs?.toString(),
+      'first_consecutive_seen_ts': firstConsecutiveSeenTs?.toString(),
+      'recent_lost_answers': recentLostAnswers,
+      'failed_to_send': failedToSend,
+    };
+  }
+
+  RPCStats.fromJson(Map<String, dynamic> json)
+      : messagesSent = json['messages_sent'],
+        messagesRcvd = json['messages_rcvd'],
+        questionsInFlight = json['questions_in_flight'],
+        lastQuestion = json['last_question'] != null
+            ? BigInt.parse(json['last_question'])
+            : null,
+        lastSeenTs = json['last_seen_ts'] != null
+            ? BigInt.parse(json['last_seen_ts'])
+            : null,
+        firstConsecutiveSeenTs = json['first_consecutive_seen_ts'] != null
+            ? BigInt.parse(json['first_consecutive_seen_ts'])
+            : null,
+        recentLostAnswers = json['recent_lost_answers'],
+        failedToSend = json['failed_to_send'];
+}
+
+////////////
+
+class PeerStats {
+  BigInt timeAdded;
+  RPCStats rpcStats;
+  LatencyStats? latency;
+  TransferStatsDownUp transfer;
+
+  PeerStats({
+    required this.timeAdded,
+    required this.rpcStats,
+    required this.latency,
+    required this.transfer,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'time_added': timeAdded.toString(),
+      'rpc_stats': rpcStats.json,
+      'latency': latency?.json,
+      'transfer': transfer.json,
+    };
+  }
+
+  PeerStats.fromJson(Map<String, dynamic> json)
+      : timeAdded = BigInt.parse(json['time_added']),
+        rpcStats = RPCStats.fromJson(json['rpc_stats']),
+        latency = json['latency'] != null
+            ? LatencyStats.fromJson(json['latency'])
+            : null,
+        transfer = TransferStatsDownUp.fromJson(json['transfer']);
+}
+
+////////////
+
+class PeerTableData {
+  String nodeId;
+  PeerAddress peerAddress;
+  PeerStats peerStats;
+
+  PeerTableData({
+    required this.nodeId,
+    required this.peerAddress,
+    required this.peerStats,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'node_id': nodeId,
+      'peer_address': peerAddress.json,
+      'peer_stats': peerStats.json,
+    };
+  }
+
+  PeerTableData.fromJson(Map<String, dynamic> json)
+      : nodeId = json['node_id'],
+        peerAddress = PeerAddress.fromJson(json['peer_address']),
+        peerStats = PeerStats.fromJson(json['peer_stats']);
+}
+
+//////////////////////////////////////
+/// AttachmentState
+
+enum ProtocolType {
+  udp,
+  tcp,
+  ws,
+  wss,
+}
+
+extension ProtocolTypeExt on ProtocolType {
+  String get json {
+    return name.toUpperCase();
+  }
+}
+
+ProtocolType protocolTypeFromJson(String j) {
+  return ProtocolType.values.byName(j.toLowerCase());
+}
+
+////////////
+
+class PeerAddress {
+  ProtocolType protocolType;
+  String socketAddress;
+
+  PeerAddress({
+    required this.protocolType,
+    required this.socketAddress,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'protocol_type': protocolType.json,
+      'socket_address': socketAddress,
+    };
+  }
+
+  PeerAddress.fromJson(Map<String, dynamic> json)
+      : protocolType = protocolTypeFromJson(json['protocol_type']),
+        socketAddress = json['socket_address'];
+}
+
 //////////////////////////////////////
 /// VeilidUpdate
 
@@ -1000,16 +1233,18 @@ abstract class VeilidUpdate {
       case "Log":
         {
           return VeilidUpdateLog(
-              veilidLogLevelFromJson(json["log_level"]), json["message"]);
+              logLevel: veilidLogLevelFromJson(json["log_level"]),
+              message: json["message"],
+              backtrace: json["backtrace"]);
         }
       case "Attachment":
         {
-          return VeilidUpdateAttachment(attachmentStateFromJson(json["state"]));
+          return VeilidUpdateAttachment(
+              state: VeilidStateAttachment.fromJson(json));
         }
       case "Network":
         {
-          return VeilidUpdateNetwork(
-              json["started"], json["bps_up"], json["bps_down"]);
+          return VeilidUpdateNetwork(state: VeilidStateNetwork.fromJson(json));
         }
       default:
         {
@@ -1024,8 +1259,13 @@ abstract class VeilidUpdate {
 class VeilidUpdateLog implements VeilidUpdate {
   final VeilidLogLevel logLevel;
   final String message;
+  final String? backtrace;
   //
-  VeilidUpdateLog(this.logLevel, this.message);
+  VeilidUpdateLog({
+    required this.logLevel,
+    required this.message,
+    required this.backtrace,
+  });
 
   @override
   Map<String, dynamic> get json {
@@ -1033,39 +1273,34 @@ class VeilidUpdateLog implements VeilidUpdate {
       'kind': "Log",
       'log_level': logLevel.json,
       'message': message,
+      'backtrace': backtrace
     };
   }
 }
 
 class VeilidUpdateAttachment implements VeilidUpdate {
-  final AttachmentState state;
+  final VeilidStateAttachment state;
   //
-  VeilidUpdateAttachment(this.state);
+  VeilidUpdateAttachment({required this.state});
 
   @override
   Map<String, dynamic> get json {
-    return {
-      'kind': "Attachment",
-      'state': state.json,
-    };
+    var jsonRep = state.json;
+    jsonRep['kind'] = "Attachment";
+    return jsonRep;
   }
 }
 
 class VeilidUpdateNetwork implements VeilidUpdate {
-  final bool started;
-  final int bpsDown;
-  final int bpsUp;
+  final VeilidStateNetwork state;
   //
-  VeilidUpdateNetwork(this.started, this.bpsDown, this.bpsUp);
+  VeilidUpdateNetwork({required this.state});
 
   @override
   Map<String, dynamic> get json {
-    return {
-      'kind': "Network",
-      'started': started,
-      'bps_down': bpsDown,
-      'bps_up': bpsUp
-    };
+    var jsonRep = state.json;
+    jsonRep['kind'] = "Network";
+    return jsonRep;
   }
 }
 
@@ -1079,6 +1314,12 @@ class VeilidStateAttachment {
 
   VeilidStateAttachment.fromJson(Map<String, dynamic> json)
       : state = attachmentStateFromJson(json['state']);
+
+  Map<String, dynamic> get json {
+    return {
+      'state': state.json,
+    };
+  }
 }
 
 //////////////////////////////////////
@@ -1086,11 +1327,31 @@ class VeilidStateAttachment {
 
 class VeilidStateNetwork {
   final bool started;
+  final BigInt bpsDown;
+  final BigInt bpsUp;
+  final List<PeerTableData> peers;
 
-  VeilidStateNetwork(this.started);
+  VeilidStateNetwork(
+      {required this.started,
+      required this.bpsDown,
+      required this.bpsUp,
+      required this.peers});
 
   VeilidStateNetwork.fromJson(Map<String, dynamic> json)
-      : started = json['started'];
+      : started = json['started'],
+        bpsDown = BigInt.parse(json['bps_down']),
+        bpsUp = BigInt.parse(json['bps_up']),
+        peers = List<PeerTableData>.from(
+            json['peers'].map((j) => PeerTableData.fromJson(j)));
+
+  Map<String, dynamic> get json {
+    return {
+      'started': started,
+      'bps_down': bpsDown.toString(),
+      'bps_up': bpsUp.toString(),
+      'peers': peers.map((p) => p.json).toList(),
+    };
+  }
 }
 
 //////////////////////////////////////
@@ -1100,11 +1361,13 @@ class VeilidState {
   final VeilidStateAttachment attachment;
   final VeilidStateNetwork network;
 
-  VeilidState(this.attachment, this.network);
-
   VeilidState.fromJson(Map<String, dynamic> json)
       : attachment = VeilidStateAttachment.fromJson(json['attachment']),
         network = VeilidStateNetwork.fromJson(json['network']);
+
+  Map<String, dynamic> get json {
+    return {'attachment': attachment.json, 'network': network.json};
+  }
 }
 
 //////////////////////////////////////
@@ -1303,8 +1566,10 @@ abstract class Veilid {
 
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson);
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel);
-  Stream<VeilidUpdate> startupVeilidCore(VeilidConfig config);
+  Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config);
   Future<VeilidState> getVeilidState();
+  Future<void> attach();
+  Future<void> detach();
   Future<void> shutdownVeilidCore();
   Future<String> debug(String command);
   String veilidVersionString();

@@ -18,21 +18,12 @@ impl RPCQuestion {
     pub fn detail(&self) -> &RPCQuestionDetail {
         &self.detail
     }
-    // pub fn into_detail(self) -> RPCQuestionDetail {
-    //     self.detail
-    // }
-    // pub fn into_respond_to_detail(self) -> (RespondTo, RPCQuestionDetail) {
-    //     (self.respond_to, self.detail)
-    // }
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
-    pub fn decode(
-        reader: &veilid_capnp::question::Reader,
-        sender_node_id: &DHTKey,
-    ) -> Result<RPCQuestion, RPCError> {
+    pub fn decode(reader: &veilid_capnp::question::Reader) -> Result<RPCQuestion, RPCError> {
         let rt_reader = reader.get_respond_to();
-        let respond_to = RespondTo::decode(&rt_reader, sender_node_id)?;
+        let respond_to = RespondTo::decode(&rt_reader)?;
         let d_reader = reader.get_detail();
         let detail = RPCQuestionDetail::decode(&d_reader)?;
         Ok(RPCQuestion { respond_to, detail })

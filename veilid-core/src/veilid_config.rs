@@ -226,7 +226,6 @@ pub struct VeilidConfigNetwork {
     pub upnp: bool,
     pub natpmp: bool,
     pub detect_address_changes: bool,
-    pub enable_local_peer_scope: bool,
     pub restricted_nat_retries: u32,
     pub tls: VeilidConfigTLS,
     pub application: VeilidConfigApplication,
@@ -448,7 +447,6 @@ impl VeilidConfig {
             get_config!(inner.network.upnp);
             get_config!(inner.network.natpmp);
             get_config!(inner.network.detect_address_changes);
-            get_config!(inner.network.enable_local_peer_scope);
             get_config!(inner.network.restricted_nat_retries);
             get_config!(inner.network.tls.certificate_path);
             get_config!(inner.network.tls.private_key_path);

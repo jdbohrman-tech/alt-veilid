@@ -8,14 +8,21 @@ impl RPCProcessor {
         self,
         peer: NodeRef,
     ) -> Result<NetworkResult<Answer<SenderInfo>>, RPCError> {
-        let node_status = self.network_manager().generate_node_status();
+        let routing_domain = match peer.best_routing_domain() {
+            Some(rd) => rd,
+            None => {
+                return Ok(NetworkResult::no_connection_other(
+                    "no routing domain for peer",
+                ))
+            }
+        };
+        let node_status = self.network_manager().generate_node_status(routing_domain);
         let status_q = RPCOperationStatusQ { node_status };
-        let respond_to = self.make_respond_to_sender(peer.clone());
-        let question = RPCQuestion::new(respond_to, RPCQuestionDetail::StatusQ(status_q));
+        let question = RPCQuestion::new(RespondTo::Sender, RPCQuestionDetail::StatusQ(status_q));
 
         // Send the info request
         let waitable_reply = network_result_try!(
-            self.question(Destination::Direct(peer.clone()), question, None)
+            self.question(Destination::direct(peer.clone()), question)
                 .await?
         );
 
@@ -37,28 +44,48 @@ impl RPCProcessor {
             _ => return Err(RPCError::invalid_format("not an answer")),
         };
 
+        // Ensure the returned node status is the kind for the routing domain we asked for
+        match routing_domain {
+            RoutingDomain::PublicInternet => {
+                if !matches!(status_a.node_status, NodeStatus::PublicInternet(_)) {
+                    return Ok(NetworkResult::invalid_message(
+                        "node status doesn't match PublicInternet routing domain",
+                    ));
+                }
+            }
+            RoutingDomain::LocalNetwork => {
+                if !matches!(status_a.node_status, NodeStatus::LocalNetwork(_)) {
+                    return Ok(NetworkResult::invalid_message(
+                        "node status doesn't match LocalNetwork routing domain",
+                    ));
+                }
+            }
+        }
+
         // Update latest node status in routing table
-        peer.operate_mut(|e| {
-            e.update_node_status(status_a.node_status.clone());
-        });
+        peer.update_node_status(status_a.node_status);
 
         // Report sender_info IP addresses to network manager
+        // Don't need to validate these addresses for the current routing domain
+        // the address itself is irrelevant, and the remote node can lie anyway
         if let Some(socket_address) = status_a.sender_info.socket_address {
             match send_data_kind {
-                SendDataKind::Direct(connection_descriptor) => {
-                    match connection_descriptor.peer_scope() {
-                        PeerScope::Global => self.network_manager().report_global_socket_address(
+                SendDataKind::Direct(connection_descriptor) => match routing_domain {
+                    RoutingDomain::PublicInternet => self
+                        .network_manager()
+                        .report_public_internet_socket_address(
                             socket_address,
                             connection_descriptor,
                             peer,
                         ),
-                        PeerScope::Local => self.network_manager().report_local_socket_address(
+                    RoutingDomain::LocalNetwork => {
+                        self.network_manager().report_local_network_socket_address(
                             socket_address,
                             connection_descriptor,
                             peer,
-                        ),
+                        )
                     }
-                }
+                },
                 SendDataKind::Indirect => {
                     // Do nothing in this case, as the socket address returned here would be for any node other than ours
                 }
@@ -77,6 +104,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), err)]
     pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
         let connection_descriptor = msg.header.connection_descriptor;
+        let routing_domain = msg.header.routing_domain;
 
         // Get the question
         let status_q = match msg.operation.kind() {
@@ -87,16 +115,30 @@ impl RPCProcessor {
             _ => panic!("not a question"),
         };
 
+        // Ensure the node status from the question is the kind for the routing domain we received the request in
+        match routing_domain {
+            RoutingDomain::PublicInternet => {
+                if !matches!(status_q.node_status, NodeStatus::PublicInternet(_)) {
+                    log_rpc!(debug "node status doesn't match PublicInternet routing domain");
+                    return Ok(());
+                }
+            }
+            RoutingDomain::LocalNetwork => {
+                if !matches!(status_q.node_status, NodeStatus::LocalNetwork(_)) {
+                    log_rpc!(debug "node status doesn't match LocalNetwork routing domain");
+                    return Ok(());
+                }
+            }
+        }
+
         // update node status for the requesting node to our routing table
         if let Some(sender_nr) = msg.opt_sender_nr.clone() {
             // Update latest node status in routing table for the statusq sender
-            sender_nr.operate_mut(|e| {
-                e.update_node_status(status_q.node_status.clone());
-            });
+            sender_nr.update_node_status(status_q.node_status.clone());
         }
 
         // Make status answer
-        let node_status = self.network_manager().generate_node_status();
+        let node_status = self.network_manager().generate_node_status(routing_domain);
 
         // Get the peer address in the returned sender info
         let sender_info = SenderInfo {
@@ -110,11 +152,7 @@ impl RPCProcessor {
 
         // Send status answer
         let res = self
-            .answer(
-                msg,
-                RPCAnswer::new(RPCAnswerDetail::StatusA(status_a)),
-                None,
-            )
+            .answer(msg, RPCAnswer::new(RPCAnswerDetail::StatusA(status_a)))
             .await?;
         tracing::Span::current().record("res", &tracing::field::display(res));
         Ok(())
