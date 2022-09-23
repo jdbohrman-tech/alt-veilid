@@ -1,0 +1,28 @@
+* {
+  font-family: sans-serif;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+}
+
+#content {
+  width: 500px;
+  background-color: #eeeeee;
+  padding: 5px;
+}
+
+.section-toc, .subsection-toc {
+  list-style: none;
+}
+
+.section-name {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+code {
+  font-family: monospace;
+  font-weight: bold;
+}

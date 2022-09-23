@@ -750,6 +750,16 @@ impl Settings {
         Ok(())
     }
 
+    /// Determine default config path
+    ///
+    /// In a unix-like environment, veilid-server will look for its config file
+    /// in /etc/veilid-server. If a config is not found in this location, it will
+    /// follow the XDG user directory spec, and look in `~/.config/veilid-server/`.
+    ///
+    /// For Windows, a user-local config may be created at 
+    /// `C:\Users\<user>\AppData\Roaming\Veilid\Veilid`, and for macOS, at
+    /// `/Users/<user>/Library/Application Support/org.Veilid.Veilid`
+    ///
     pub fn get_default_config_path() -> PathBuf {
         #[cfg(unix)]
         {

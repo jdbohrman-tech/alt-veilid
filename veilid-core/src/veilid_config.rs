@@ -6,6 +6,16 @@ use serde::*;
 pub type ConfigCallbackReturn = Result<Box<dyn core::any::Any + Send>, VeilidAPIError>;
 pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sync>;
 
+/// Enable and configure HTTPS access to the Veilid node
+///
+/// ```yaml
+/// https:
+///     enabled: false
+///     listen_address: ':5150'
+///     path: 'app'
+///     url: 'https://localhost:5150'
+/// ```
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigHTTPS {
     pub enabled: bool,
@@ -14,6 +24,16 @@ pub struct VeilidConfigHTTPS {
     pub url: Option<String>, // Fixed URL is not optional for TLS-based protocols and is dynamically validated
 }
 
+/// Enable and configure HTTP access to the Veilid node
+///
+/// ```yaml
+/// http:
+///     enabled: false
+///     listen_address: ':5150'
+///     path: 'app"
+///     url: 'https://localhost:5150'
+/// ```
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigHTTP {
     pub enabled: bool,
@@ -22,12 +42,28 @@ pub struct VeilidConfigHTTP {
     pub url: Option<String>,
 }
 
+/// Application configuration
+///
+/// Configure web access to the Prograssive Web App (PWA)
+///
+/// To be implemented...
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigApplication {
     pub https: VeilidConfigHTTPS,
     pub http: VeilidConfigHTTP,
 }
 
+/// Enable and configure UDP
+///
+/// ```yaml
+/// udp:
+///     enabled: true
+///     socket_pool_size: 0
+///     listen_address: ':5150'
+///     public_address: ''
+/// ```
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigUDP {
     pub enabled: bool,
@@ -36,6 +72,16 @@ pub struct VeilidConfigUDP {
     pub public_address: Option<String>,
 }
 
+/// Enable and configure TCP
+///
+/// ```yaml
+/// tcp:
+///     connect: true
+///     listen: true
+///     max_connections: 32
+///     listen_address: ':5150'
+///     public_address: ''
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigTCP {
     pub connect: bool,
@@ -45,6 +91,17 @@ pub struct VeilidConfigTCP {
     pub public_address: Option<String>,
 }
 
+/// Enable and configure Web Sockets
+///
+/// ```yaml
+/// ws:
+///     connect: true
+///     listen: true
+///     max_connections: 16
+///     listen_address: ':5150'
+///     path: 'ws'
+///     url: 'ws://localhost:5150/ws'
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigWS {
     pub connect: bool,
@@ -55,6 +112,17 @@ pub struct VeilidConfigWS {
     pub url: Option<String>,
 }
 
+/// Enable and configure Secure Web Sockets
+///
+/// ```yaml
+/// wss:
+///     connect: true
+///     listen: false 
+///     max_connections: 16
+///     listen_address: ':5150'
+///     path: 'ws'
+///     url: ''
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigWSS {
     pub connect: bool,
@@ -65,6 +133,13 @@ pub struct VeilidConfigWSS {
     pub url: Option<String>, // Fixed URL is not optional for TLS-based protocols and is dynamically validated
 }
 
+/// Configure Network Protocols
+///
+/// Veilid can communicate over UDP, TCP, and Web Sockets.
+///
+/// All protocols are available by default, and the Veilid node will
+/// sort out which protocol is used for each peer connection.
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigProtocol {
     pub udp: VeilidConfigUDP,
@@ -73,6 +148,14 @@ pub struct VeilidConfigProtocol {
     pub wss: VeilidConfigWSS,
 }
 
+/// Configure TLS
+///
+/// ```yaml
+/// tls:
+///     certificate_path: /path/to/cert
+///     private_key_path: /path/to/private/key
+///     connection_initial_timeout_ms: 2000
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigTLS {
     pub certificate_path: String,
@@ -80,6 +163,8 @@ pub struct VeilidConfigTLS {
     pub connection_initial_timeout_ms: u32,
 }
 
+/// Configure the Distributed Hash Table (DHT)
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigDHT {
     pub resolve_node_timeout_ms: Option<u32>,
@@ -97,6 +182,8 @@ pub struct VeilidConfigDHT {
     pub validate_dial_info_receipt_time_ms: u32,
 }
 
+/// Configure RPC
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
@@ -107,6 +194,8 @@ pub struct VeilidConfigRPC {
     pub max_route_hop_count: u8,
 }
 
+/// Configure the network routing table
+///
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VeilidConfigRoutingTable {
     pub limit_over_attached: u32,
@@ -243,6 +332,9 @@ pub struct VeilidConfigInner {
     pub network: VeilidConfigNetwork,
 }
 
+/// The Veilid Configuration
+///
+/// Veilid is configured 
 #[derive(Clone)]
 pub struct VeilidConfig {
     inner: Arc<RwLock<VeilidConfigInner>>,
