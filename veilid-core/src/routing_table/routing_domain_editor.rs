@@ -72,10 +72,10 @@ impl RoutingDomainEditor {
     pub async fn commit(self) {
         let mut changed = false;
         {
+            let node_id = self.routing_table.node_id();
+
             let mut inner = self.routing_table.inner.write();
             let inner = &mut *inner;
-            let node_id = inner.node_id;
-
             RoutingTable::with_routing_domain_mut(inner, self.routing_domain, |detail| {
                 for change in self.changes {
                     match change {

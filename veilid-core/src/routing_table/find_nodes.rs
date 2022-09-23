@@ -212,7 +212,7 @@ impl RoutingTable {
         T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let inner = self.inner.read();
-        let self_node_id = inner.node_id;
+        let self_node_id = self.unlocked_inner.node_id;
 
         // collect all the nodes for sorting
         let mut nodes =
@@ -340,7 +340,7 @@ impl RoutingTable {
     {
         let cur_ts = intf::get_timestamp();
         let node_count = {
-            let c = self.config.get();
+            let c = self.unlocked_inner.config.get();
             c.network.dht.max_find_node_count as usize
         };
         let out = self.find_peers_with_sort_and_filter(

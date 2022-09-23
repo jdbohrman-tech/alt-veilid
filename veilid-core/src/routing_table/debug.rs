@@ -6,7 +6,7 @@ impl RoutingTable {
         let inner = self.inner.read();
         out += "Routing Table Info:\n";
 
-        out += &format!("   Node Id: {}\n", inner.node_id.encode());
+        out += &format!("   Node Id: {}\n", self.unlocked_inner.node_id.encode());
         out += &format!(
             "   Self Latency Stats Accounting: {:#?}\n\n",
             inner.self_latency_stats_accounting

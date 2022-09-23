@@ -37,9 +37,10 @@ impl RoutingTable {
         _last_ts: u64,
         cur_ts: u64,
     ) -> EyreResult<()> {
+        let kick_queue: Vec<usize> = core::mem::take(&mut *self.unlocked_inner.kick_queue.lock())
+            .into_iter()
+            .collect();
         let mut inner = self.inner.write();
-        let kick_queue: Vec<usize> = inner.kick_queue.iter().map(|v| *v).collect();
-        inner.kick_queue.clear();
         for idx in kick_queue {
             Self::kick_bucket(&mut *inner, idx)
         }
