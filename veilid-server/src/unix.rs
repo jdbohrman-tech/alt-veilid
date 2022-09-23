@@ -26,6 +26,7 @@ async fn handle_signals(mut signals: Signals) {
     }
 }
 
+#[warn(missing_docs)]
 #[instrument(err)]
 pub fn run_daemon(settings: Settings, _matches: ArgMatches) -> EyreResult<()> {
     let daemon = {
