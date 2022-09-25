@@ -24,7 +24,7 @@ impl RPCProcessor {
         let signal = match msg.operation.into_kind() {
             RPCOperationKind::Statement(s) => match s.into_detail() {
                 RPCStatementDetail::Signal(s) => s,
-                _ => panic!("not a node info update"),
+                _ => panic!("not a signal"),
             },
             _ => panic!("not a statement"),
         };

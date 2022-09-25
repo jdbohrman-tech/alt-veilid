@@ -40,6 +40,7 @@ impl RPCQuestion {
 pub enum RPCQuestionDetail {
     StatusQ(RPCOperationStatusQ),
     FindNodeQ(RPCOperationFindNodeQ),
+    AppCallQ(RPCOperationAppCallQ),
     GetValueQ(RPCOperationGetValueQ),
     SetValueQ(RPCOperationSetValueQ),
     WatchValueQ(RPCOperationWatchValueQ),
@@ -55,6 +56,7 @@ impl RPCQuestionDetail {
         match self {
             RPCQuestionDetail::StatusQ(_) => "StatusQ",
             RPCQuestionDetail::FindNodeQ(_) => "FindNodeQ",
+            RPCQuestionDetail::AppCallQ(_) => "AppCallQ",
             RPCQuestionDetail::GetValueQ(_) => "GetValueQ",
             RPCQuestionDetail::SetValueQ(_) => "SetValueQ",
             RPCQuestionDetail::WatchValueQ(_) => "WatchValueQ",
@@ -80,6 +82,11 @@ impl RPCQuestionDetail {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationFindNodeQ::decode(&op_reader)?;
                 RPCQuestionDetail::FindNodeQ(out)
+            }
+            veilid_capnp::question::detail::Which::AppCallQ(r) => {
+                let op_reader = r.map_err(RPCError::protocol)?;
+                let out = RPCOperationAppCallQ::decode(&op_reader)?;
+                RPCQuestionDetail::AppCallQ(out)
             }
             veilid_capnp::question::detail::GetValueQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
@@ -131,6 +138,7 @@ impl RPCQuestionDetail {
         match self {
             RPCQuestionDetail::StatusQ(d) => d.encode(&mut builder.reborrow().init_status_q()),
             RPCQuestionDetail::FindNodeQ(d) => d.encode(&mut builder.reborrow().init_find_node_q()),
+            RPCQuestionDetail::AppCallQ(d) => d.encode(&mut builder.reborrow().init_app_call_q()),
             RPCQuestionDetail::GetValueQ(d) => d.encode(&mut builder.reborrow().init_get_value_q()),
             RPCQuestionDetail::SetValueQ(d) => d.encode(&mut builder.reborrow().init_set_value_q()),
             RPCQuestionDetail::WatchValueQ(d) => {

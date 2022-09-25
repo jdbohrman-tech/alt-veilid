@@ -294,6 +294,19 @@ struct OperationNodeInfoUpdate {
     signedNodeInfo          @0  :SignedNodeInfo;        # Our signed node info
 }
 
+
+struct OperationAppCallQ {
+    message                    @0  :Data;                  # Opaque request to application
+}
+
+struct OperationAppCallA {
+    message                    @0  :Data;                  # Opaque response from application
+}
+
+struct OperationAppMessage {
+    message                    @0  :Data;                  # Opaque message to application
+}
+
 struct OperationGetValueQ {
     key                     @0  :ValueKey;              # key for value to get
 }
@@ -445,11 +458,12 @@ struct Question {
         watchValueQ         @6  :OperationWatchValueQ;
         supplyBlockQ        @7  :OperationSupplyBlockQ;
         findBlockQ          @8  :OperationFindBlockQ;
+        appCallQ            @9  :OperationAppCallQ;
         
         # Tunnel operations
-        startTunnelQ        @9 :OperationStartTunnelQ;
-        completeTunnelQ     @10 :OperationCompleteTunnelQ;
-        cancelTunnelQ       @11 :OperationCancelTunnelQ; 
+        startTunnelQ        @10 :OperationStartTunnelQ;
+        completeTunnelQ     @11 :OperationCompleteTunnelQ;
+        cancelTunnelQ       @12 :OperationCancelTunnelQ; 
     }
 }
 
@@ -465,6 +479,7 @@ struct Statement {
         valueChanged        @3  :OperationValueChanged;
         signal              @4  :OperationSignal;
         returnReceipt       @5  :OperationReturnReceipt;
+        appMessage          @6  :OperationAppMessage;
     }
 }
 
@@ -480,12 +495,13 @@ struct Answer {
         setValueA           @3  :OperationSetValueA;
         watchValueA         @4  :OperationWatchValueA;    
         supplyBlockA        @5  :OperationSupplyBlockA; 
-        findBlockA          @6  :OperationFindBlockA; 
+        findBlockA          @6  :OperationFindBlockA;
+        appCallA            @7  :OperationAppCallA;
     
         # Tunnel operations
-        startTunnelA        @7  :OperationStartTunnelA;
-        completeTunnelA     @8  :OperationCompleteTunnelA;
-        cancelTunnelA       @9  :OperationCancelTunnelA;
+        startTunnelA        @8  :OperationStartTunnelA;
+        completeTunnelA     @9  :OperationCompleteTunnelA;
+        cancelTunnelA       @10  :OperationCancelTunnelA;
     }
 }
 

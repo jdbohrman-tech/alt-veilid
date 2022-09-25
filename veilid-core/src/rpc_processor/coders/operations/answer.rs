@@ -11,9 +11,6 @@ impl RPCAnswer {
     pub fn new(detail: RPCAnswerDetail) -> Self {
         Self { detail }
     }
-    // pub fn detail(&self) -> &RPCAnswerDetail {
-    //     &self.detail
-    // }
     pub fn into_detail(self) -> RPCAnswerDetail {
         self.detail
     }
@@ -35,6 +32,7 @@ impl RPCAnswer {
 pub enum RPCAnswerDetail {
     StatusA(RPCOperationStatusA),
     FindNodeA(RPCOperationFindNodeA),
+    AppCallA(RPCOperationAppCallA),
     GetValueA(RPCOperationGetValueA),
     SetValueA(RPCOperationSetValueA),
     WatchValueA(RPCOperationWatchValueA),
@@ -50,6 +48,7 @@ impl RPCAnswerDetail {
         match self {
             RPCAnswerDetail::StatusA(_) => "StatusA",
             RPCAnswerDetail::FindNodeA(_) => "FindNodeA",
+            RPCAnswerDetail::AppCallA(_) => "AppCallA",
             RPCAnswerDetail::GetValueA(_) => "GetValueA",
             RPCAnswerDetail::SetValueA(_) => "SetValueA",
             RPCAnswerDetail::WatchValueA(_) => "WatchValueA",
@@ -75,6 +74,11 @@ impl RPCAnswerDetail {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationFindNodeA::decode(&op_reader)?;
                 RPCAnswerDetail::FindNodeA(out)
+            }
+            veilid_capnp::answer::detail::AppCallA(r) => {
+                let op_reader = r.map_err(RPCError::protocol)?;
+                let out = RPCOperationAppCallA::decode(&op_reader)?;
+                RPCAnswerDetail::AppCallA(out)
             }
             veilid_capnp::answer::detail::GetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
@@ -126,6 +130,7 @@ impl RPCAnswerDetail {
         match self {
             RPCAnswerDetail::StatusA(d) => d.encode(&mut builder.reborrow().init_status_a()),
             RPCAnswerDetail::FindNodeA(d) => d.encode(&mut builder.reborrow().init_find_node_a()),
+            RPCAnswerDetail::AppCallA(d) => d.encode(&mut builder.reborrow().init_app_call_a()),
             RPCAnswerDetail::GetValueA(d) => d.encode(&mut builder.reborrow().init_get_value_a()),
             RPCAnswerDetail::SetValueA(d) => d.encode(&mut builder.reborrow().init_set_value_a()),
             RPCAnswerDetail::WatchValueA(d) => {

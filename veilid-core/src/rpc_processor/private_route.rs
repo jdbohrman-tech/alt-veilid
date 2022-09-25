@@ -11,7 +11,7 @@ impl RPCProcessor {
         let pr_hopcount = private_route.hop_count as usize;
         let sr_hopcount = safety_route_spec.hops.len();
         let hopcount = 1 + sr_hopcount + pr_hopcount;
-        if hopcount > self.inner.lock().max_route_hop_count {
+        if hopcount > self.unlocked_inner.max_route_hop_count {
             return Err(RPCError::internal("hop count too long for route"));
         }
 

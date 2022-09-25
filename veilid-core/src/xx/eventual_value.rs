@@ -61,6 +61,14 @@ pub struct EventualValueFuture<T: Unpin> {
     eventual: EventualValue<T>,
 }
 
+impl<T: Unpin> core::fmt::Debug for EventualValueFuture<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("EventualValueFuture")
+            .field("id", &self.id)
+            .finish()
+    }
+}
+
 impl<T: Unpin> Future for EventualValueFuture<T> {
     type Output = EventualValue<T>;
     fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> task::Poll<Self::Output> {

@@ -3,8 +3,6 @@ use super::*;
 #[derive(ThisError, Debug, Clone, PartialOrd, PartialEq, Eq, Ord)]
 #[must_use]
 pub enum RPCError {
-    #[error("[RPCError: Unreachable({0})]")]
-    Unreachable(DHTKey),
     #[error("[RPCError: Unimplemented({0})]")]
     Unimplemented(String),
     #[error("[RPCError: InvalidFormat({0})]")]
@@ -18,9 +16,6 @@ pub enum RPCError {
 }
 
 impl RPCError {
-    pub fn unreachable(key: DHTKey) -> Self {
-        Self::Unreachable(key)
-    }
     pub fn unimplemented<X: ToString>(x: X) -> Self {
         Self::Unimplemented(x.to_string())
     }
@@ -50,5 +45,17 @@ impl RPCError {
     }
     pub fn map_network<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
         move |x| Self::Network(format!("{}: {}", message.to_string(), x.to_string()))
+    }
+}
+
+impl From<RPCError> for VeilidAPIError {
+    fn from(e: RPCError) -> Self {
+        match e {
+            RPCError::Unimplemented(message) => VeilidAPIError::Unimplemented { message },
+            RPCError::InvalidFormat(message) => VeilidAPIError::Generic { message },
+            RPCError::Protocol(message) => VeilidAPIError::Generic { message },
+            RPCError::Internal(message) => VeilidAPIError::Internal { message },
+            RPCError::Network(message) => VeilidAPIError::Generic { message },
+        }
     }
 }

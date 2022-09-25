@@ -22,7 +22,9 @@ impl RoutingTable {
         move |e| {
             if let Some(ni) = e.node_info(routing_domain) {
                 if ni
-                    .first_filtered_dial_info_detail(|did| did.matches_filter(&dial_info_filter))
+                    .first_filtered_dial_info_detail(DialInfoDetail::NO_SORT, |did| {
+                        did.matches_filter(&dial_info_filter)
+                    })
                     .is_some()
                 {
                     return true;
@@ -436,8 +438,10 @@ impl RoutingTable {
             let can_serve_as_relay = e
                 .node_info(RoutingDomain::PublicInternet)
                 .map(|n| {
-                    let dids =
-                        n.all_filtered_dial_info_details(|did| did.matches_filter(&outbound_dif));
+                    let dids = n.all_filtered_dial_info_details(
+                        Some(DialInfoDetail::reliable_sort), // By default, choose reliable protocol for relay
+                        |did| did.matches_filter(&outbound_dif),
+                    );
                     for did in &dids {
                         let pt = did.dial_info.protocol_type();
                         let at = did.dial_info.address_type();

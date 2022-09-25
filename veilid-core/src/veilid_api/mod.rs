@@ -1,8 +1,13 @@
 #![allow(dead_code)]
 
 mod debug;
+mod privacy;
+mod routing_context;
 mod serialize_helpers;
+
 pub use debug::*;
+pub use privacy::*;
+pub use routing_context::*;
 pub use serialize_helpers::*;
 
 use crate::*;
@@ -15,17 +20,17 @@ pub use alloc::string::ToString;
 pub use attachment_manager::AttachmentManager;
 pub use core::str::FromStr;
 pub use dht::Crypto;
-pub use dht::{generate_secret, sign, verify, DHTKey, DHTKeySecret, DHTSignature};
+pub use dht::{generate_secret, sign, verify, DHTKey, DHTKeySecret, DHTSignature, Nonce};
 pub use intf::BlockStore;
 pub use intf::ProtectedStore;
 pub use intf::TableStore;
 pub use network_manager::NetworkManager;
 pub use routing_table::RoutingTable;
-//pub use rpc_processor::RPCProcessor;
 
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
 use enumset::*;
+use rpc_processor::RPCProcessor;
 use serde::*;
 use xx::*;
 
@@ -68,8 +73,8 @@ pub enum VeilidAPIError {
     Shutdown,
     #[error("Node not found: {node_id}")]
     NodeNotFound { node_id: NodeId },
-    #[error("No dial info: {node_id}")]
-    NoDialInfo { node_id: NodeId },
+    #[error("No connection: {message}")]
+    NoConnection { message: String },
     #[error("No peer info: {node_id}")]
     NoPeerInfo { node_id: NodeId },
     #[error("Internal: {message}")]
@@ -106,8 +111,8 @@ impl VeilidAPIError {
     pub fn node_not_found(node_id: NodeId) -> Self {
         Self::NodeNotFound { node_id }
     }
-    pub fn no_dial_info(node_id: NodeId) -> Self {
-        Self::NoDialInfo { node_id }
+    pub fn no_connection(message: String) -> Self {
+        Self::NoConnection { message }
     }
     pub fn no_peer_info(node_id: NodeId) -> Self {
         Self::NoPeerInfo { node_id }
@@ -216,10 +221,28 @@ impl fmt::Display for VeilidLogLevel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct VeilidStateLog {
+pub struct VeilidLog {
     pub log_level: VeilidLogLevel,
     pub message: String,
     pub backtrace: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VeilidAppMessage {
+    /// Some(sender) if the message was sent directly, None if received via a private/safety route
+    pub sender: Option<NodeId>,
+    /// The content of the message to deliver to the application
+    pub message: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VeilidAppCall {
+    /// Some(sender) if the request was sent directly, None if received via a private/safety route
+    pub sender: Option<NodeId>,
+    /// The content of the request to deliver to the application
+    pub message: Vec<u8>,
+    /// The id to reply to
+    pub id: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -247,7 +270,9 @@ pub struct VeilidStateNetwork {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum VeilidUpdate {
-    Log(VeilidStateLog),
+    Log(VeilidLog),
+    AppMessage(VeilidAppMessage),
+    AppCall(VeilidAppCall),
     Attachment(VeilidStateAttachment),
     Network(VeilidStateNetwork),
     Shutdown,
@@ -380,6 +405,24 @@ impl MatchesDialInfoFilter for DialInfoDetail {
     }
 }
 
+impl DialInfoDetail {
+    pub fn reliable_sort(a: &DialInfoDetail, b: &DialInfoDetail) -> core::cmp::Ordering {
+        if a.class < b.class {
+            return core::cmp::Ordering::Less;
+        }
+        if a.class > b.class {
+            return core::cmp::Ordering::Greater;
+        }
+        DialInfo::reliable_sort(&a.dial_info, &b.dial_info)
+    }
+    pub const NO_SORT: std::option::Option<
+        for<'r, 's> fn(
+            &'r veilid_api::DialInfoDetail,
+            &'s veilid_api::DialInfoDetail,
+        ) -> std::cmp::Ordering,
+    > = None::<fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>;
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Hash)]
 pub enum NetworkClass {
     InboundCapable = 0, // I = Inbound capable without relay, may require signal
@@ -471,29 +514,59 @@ pub struct NodeInfo {
 }
 
 impl NodeInfo {
-    pub fn first_filtered_dial_info_detail<F>(&self, filter: F) -> Option<DialInfoDetail>
+    pub fn first_filtered_dial_info_detail<S, F>(
+        &self,
+        sort: Option<S>,
+        filter: F,
+    ) -> Option<DialInfoDetail>
     where
+        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
         F: Fn(&DialInfoDetail) -> bool,
     {
-        for did in &self.dial_info_detail_list {
-            if filter(did) {
-                return Some(did.clone());
+        if let Some(sort) = sort {
+            let mut dids = self.dial_info_detail_list.clone();
+            dids.sort_by(sort);
+            for did in dids {
+                if filter(&did) {
+                    return Some(did);
+                }
             }
-        }
+        } else {
+            for did in &self.dial_info_detail_list {
+                if filter(did) {
+                    return Some(did.clone());
+                }
+            }
+        };
         None
     }
 
-    pub fn all_filtered_dial_info_details<F>(&self, filter: F) -> Vec<DialInfoDetail>
+    pub fn all_filtered_dial_info_details<S, F>(
+        &self,
+        sort: Option<S>,
+        filter: F,
+    ) -> Vec<DialInfoDetail>
     where
+        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
         F: Fn(&DialInfoDetail) -> bool,
     {
         let mut dial_info_detail_list = Vec::new();
 
-        for did in &self.dial_info_detail_list {
-            if filter(did) {
-                dial_info_detail_list.push(did.clone());
+        if let Some(sort) = sort {
+            let mut dids = self.dial_info_detail_list.clone();
+            dids.sort_by(sort);
+            for did in dids {
+                if filter(&did) {
+                    dial_info_detail_list.push(did);
+                }
             }
-        }
+        } else {
+            for did in &self.dial_info_detail_list {
+                if filter(did) {
+                    dial_info_detail_list.push(did.clone());
+                }
+            }
+        };
         dial_info_detail_list
     }
 
@@ -597,6 +670,38 @@ impl ProtocolType {
         match self {
             ProtocolType::UDP => LowLevelProtocolType::UDP,
             ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS => LowLevelProtocolType::TCP,
+        }
+    }
+    pub fn sort_order(&self, reliable: bool) -> usize {
+        match self {
+            ProtocolType::UDP => {
+                if reliable {
+                    3
+                } else {
+                    0
+                }
+            }
+            ProtocolType::TCP => {
+                if reliable {
+                    0
+                } else {
+                    1
+                }
+            }
+            ProtocolType::WS => {
+                if reliable {
+                    1
+                } else {
+                    2
+                }
+            }
+            ProtocolType::WSS => {
+                if reliable {
+                    2
+                } else {
+                    3
+                }
+            }
         }
     }
 }
@@ -1372,6 +1477,24 @@ impl DialInfo {
             }
         }
     }
+
+    pub fn reliable_sort(a: &DialInfo, b: &DialInfo) -> core::cmp::Ordering {
+        let ca = a.protocol_type().sort_order(true);
+        let cb = b.protocol_type().sort_order(true);
+        if ca < cb {
+            return core::cmp::Ordering::Less;
+        }
+        if ca > cb {
+            return core::cmp::Ordering::Greater;
+        }
+        match (a, b) {
+            (DialInfo::UDP(a), DialInfo::UDP(b)) => a.cmp(b),
+            (DialInfo::TCP(a), DialInfo::TCP(b)) => a.cmp(b),
+            (DialInfo::WS(a), DialInfo::WS(b)) => a.cmp(b),
+            (DialInfo::WSS(a), DialInfo::WSS(b)) => a.cmp(b),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl MatchesDialInfoFilter for DialInfo {
@@ -1712,128 +1835,6 @@ pub struct PartialTunnel {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RouteHopSpec {
-    pub dial_info: NodeDialInfo,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct PrivateRouteSpec {
-    //
-    pub public_key: DHTKey,
-    pub secret_key: DHTKeySecret,
-    pub hops: Vec<RouteHopSpec>,
-}
-
-impl PrivateRouteSpec {
-    pub fn new() -> Self {
-        let (pk, sk) = generate_secret();
-        PrivateRouteSpec {
-            public_key: pk,
-            secret_key: sk,
-            hops: Vec::new(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct SafetyRouteSpec {
-    pub public_key: DHTKey,
-    pub secret_key: DHTKeySecret,
-    pub hops: Vec<RouteHopSpec>,
-}
-
-impl SafetyRouteSpec {
-    pub fn new() -> Self {
-        let (pk, sk) = generate_secret();
-        SafetyRouteSpec {
-            public_key: pk,
-            secret_key: sk,
-            hops: Vec::new(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RoutingContextOptions {
-    pub safety_route_spec: Option<SafetyRouteSpec>,
-    pub private_route_spec: Option<PrivateRouteSpec>,
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-pub struct RoutingContextInner {
-    api: VeilidAPI,
-    options: RoutingContextOptions,
-}
-
-impl Drop for RoutingContextInner {
-    fn drop(&mut self) {
-        // self.api
-        //     .borrow_mut()
-        //     .routing_contexts
-        //     //.remove(&self.id);
-    }
-}
-
-#[derive(Clone)]
-pub struct RoutingContext {
-    inner: Arc<Mutex<RoutingContextInner>>,
-}
-
-impl RoutingContext {
-    fn new(api: VeilidAPI, options: RoutingContextOptions) -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(RoutingContextInner { api, options })),
-        }
-    }
-
-    pub fn api(&self) -> VeilidAPI {
-        self.inner.lock().api.clone()
-    }
-
-    ///////////////////////////////////
-    ///
-
-    pub async fn get_value(&self, _value_key: ValueKey) -> Result<Vec<u8>, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    pub async fn set_value(
-        &self,
-        _value_key: ValueKey,
-        _value: Vec<u8>,
-    ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    pub async fn watch_value(
-        &self,
-        _value_key: ValueKey,
-        _callback: ValueChangeCallback,
-    ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    pub async fn cancel_watch_value(&self, _value_key: ValueKey) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    pub async fn find_block(&self, _block_id: BlockId) -> Result<Vec<u8>, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    pub async fn supply_block(&self, _block_id: BlockId) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    pub async fn signal(&self, _data: Vec<u8>) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct VeilidAPIInner {
     context: Option<VeilidCoreContext>,
 }
@@ -1930,14 +1931,13 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::not_initialized())
     }
-
-    // pub fn rpc_processor(&self) -> Result<RPCProcessor, VeilidAPIError> {
-    //     let inner = self.inner.lock();
-    //     if let Some(context) = &inner.context {
-    //         return Ok(context.attachment_manager.network_manager().rpc_processor());
-    //     }
-    //     Err(VeilidAPIError::NotInitialized)
-    // }
+    pub fn rpc_processor(&self) -> Result<RPCProcessor, VeilidAPIError> {
+        let inner = self.inner.lock();
+        if let Some(context) = &inner.context {
+            return Ok(context.attachment_manager.network_manager().rpc_processor());
+        }
+        Err(VeilidAPIError::NotInitialized)
+    }
 
     ////////////////////////////////////////////////////////////////
     // Attach/Detach
@@ -1979,60 +1979,6 @@ impl VeilidAPI {
     }
 
     ////////////////////////////////////////////////////////////////
-    // Direct Node Access (pretty much for testing only)
-
-    // #[instrument(level = "debug", err, skip(self))]
-    // pub async fn search_dht(&self, node_id: NodeId) -> Result<PeerInfo, VeilidAPIError> {
-    //     let rpc_processor = self.rpc_processor()?;
-    //     let config = self.config()?;
-    //     let (count, fanout, timeout) = {
-    //         let c = config.get();
-    //         (
-    //             c.network.dht.resolve_node_count,
-    //             c.network.dht.resolve_node_fanout,
-    //             c.network.dht.resolve_node_timeout_ms.map(ms_to_us),
-    //         )
-    //     };
-
-    //     let node_ref = rpc_processor
-    //         .search_dht_single_key(node_id.key, count, fanout, timeout)
-    //         .await
-    //         .map_err(map_rpc_error!())?;
-
-    //     let answer = node_ref.peer_info();
-    //     if let Some(answer) = answer {
-    //         Ok(answer)
-    //     } else {
-    //         Err(VeilidAPIError::NoPeerInfo {
-    //             node_id: NodeId::new(node_ref.node_id()),
-    //         })
-    //     }
-    // }
-
-    // #[instrument(level = "debug", err, skip(self))]
-    // pub async fn search_dht_multi(&self, node_id: NodeId) -> Result<Vec<PeerInfo>, VeilidAPIError> {
-    //     let rpc_processor = self.rpc_processor()?;
-    //     let config = self.config()?;
-    //     let (count, fanout, timeout) = {
-    //         let c = config.get();
-    //         (
-    //             c.network.dht.resolve_node_count,
-    //             c.network.dht.resolve_node_fanout,
-    //             c.network.dht.resolve_node_timeout_ms.map(ms_to_us),
-    //         )
-    //     };
-
-    //     let node_refs = rpc_processor
-    //         .search_dht_multi_key(node_id.key, count, fanout, timeout)
-    //         .await
-    //         .map_err(map_rpc_error!())?;
-
-    //     let answer = node_refs.iter().filter_map(|x| x.peer_info()).collect();
-
-    //     Ok(answer)
-    // }
-
-    ////////////////////////////////////////////////////////////////
     // Safety / Private Route Handling
 
     #[instrument(level = "debug", err, skip(self))]
@@ -2052,54 +1998,23 @@ impl VeilidAPI {
     }
 
     ////////////////////////////////////////////////////////////////
-    // Routing Contexts
-    //
-    // Safety route specified here is for _this_ node's anonymity as a sender, used via the 'route' operation
-    // Private route specified here is for _this_ node's anonymity as a receiver, passed out via the 'respond_to' field for replies
-
-    #[instrument(skip(self))]
-    pub async fn safe_private(
-        &self,
-        safety_route_spec: SafetyRouteSpec,
-        private_route_spec: PrivateRouteSpec,
-    ) -> RoutingContext {
-        self.routing_context(RoutingContextOptions {
-            safety_route_spec: Some(safety_route_spec),
-            private_route_spec: Some(private_route_spec),
-        })
-        .await
-    }
+    // Routing Context
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn safe_public(&self, safety_route_spec: SafetyRouteSpec) -> RoutingContext {
-        self.routing_context(RoutingContextOptions {
-            safety_route_spec: Some(safety_route_spec),
-            private_route_spec: None,
-        })
-        .await
+    pub fn routing_context(&self) -> RoutingContext {
+        RoutingContext::new(self.clone())
     }
 
-    #[instrument(level = "debug", skip(self))]
-    pub async fn unsafe_private(&self, private_route_spec: PrivateRouteSpec) -> RoutingContext {
-        self.routing_context(RoutingContextOptions {
-            safety_route_spec: None,
-            private_route_spec: Some(private_route_spec),
-        })
-        .await
-    }
+    ////////////////////////////////////////////////////////////////
+    // App Calls
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn unsafe_public(&self) -> RoutingContext {
-        self.routing_context(RoutingContextOptions {
-            safety_route_spec: None,
-            private_route_spec: None,
-        })
-        .await
-    }
-
-    #[instrument(level = "debug", skip(self))]
-    pub async fn routing_context(&self, options: RoutingContextOptions) -> RoutingContext {
-        RoutingContext::new(self.clone(), options)
+    pub async fn app_call_reply(&self, id: u64, message: Vec<u8>) -> Result<(), VeilidAPIError> {
+        let rpc_processor = self.rpc_processor()?;
+        rpc_processor
+            .app_call_reply(id, message)
+            .await
+            .map_err(|e| e.into())
     }
 
     ////////////////////////////////////////////////////////////////

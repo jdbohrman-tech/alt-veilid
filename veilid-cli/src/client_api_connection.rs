@@ -196,9 +196,9 @@ impl ClientApiConnection {
 
         // Wait until rpc system completion or disconnect was requested
         let res = rpc_jh.await;
-        #[cfg(feature="rt-tokio")]
+        #[cfg(feature = "rt-tokio")]
         let res = res.map_err(|e| format!("join error: {}", e))?;
-        res.map_err(|e| format!("client RPC system error: {}", e))  
+        res.map_err(|e| format!("client RPC system error: {}", e))
     }
 
     async fn handle_connection(&mut self) -> Result<(), String> {

@@ -42,6 +42,7 @@ pub enum RPCStatementDetail {
     ValueChanged(RPCOperationValueChanged),
     Signal(RPCOperationSignal),
     ReturnReceipt(RPCOperationReturnReceipt),
+    AppMessage(RPCOperationAppMessage),
 }
 
 impl RPCStatementDetail {
@@ -53,6 +54,7 @@ impl RPCStatementDetail {
             RPCStatementDetail::ValueChanged(_) => "ValueChanged",
             RPCStatementDetail::Signal(_) => "Signal",
             RPCStatementDetail::ReturnReceipt(_) => "ReturnReceipt",
+            RPCStatementDetail::AppMessage(_) => "AppMessage",
         }
     }
     pub fn decode(
@@ -91,6 +93,11 @@ impl RPCStatementDetail {
                 let out = RPCOperationReturnReceipt::decode(&op_reader)?;
                 RPCStatementDetail::ReturnReceipt(out)
             }
+            veilid_capnp::statement::detail::AppMessage(r) => {
+                let op_reader = r.map_err(RPCError::protocol)?;
+                let out = RPCOperationAppMessage::decode(&op_reader)?;
+                RPCStatementDetail::AppMessage(out)
+            }
         };
         Ok(out)
     }
@@ -112,6 +119,9 @@ impl RPCStatementDetail {
             RPCStatementDetail::Signal(d) => d.encode(&mut builder.reborrow().init_signal()),
             RPCStatementDetail::ReturnReceipt(d) => {
                 d.encode(&mut builder.reborrow().init_return_receipt())
+            }
+            RPCStatementDetail::AppMessage(d) => {
+                d.encode(&mut builder.reborrow().init_app_message())
             }
         }
     }

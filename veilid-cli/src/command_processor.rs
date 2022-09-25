@@ -331,7 +331,7 @@ change_log_level    - change the log level for a tracing layer
         );
     }
 
-    pub fn update_log(&mut self, log: veilid_core::VeilidStateLog) {
+    pub fn update_log(&mut self, log: veilid_core::VeilidLog) {
         self.inner().ui.add_node_event(format!(
             "{}: {}{}",
             log.log_level,

@@ -358,7 +358,15 @@ impl NetworkManager {
             self.routing_table(),
             connection_manager.clone(),
         );
-        let rpc_processor = RPCProcessor::new(self.clone());
+        let rpc_processor = RPCProcessor::new(
+            self.clone(),
+            self.unlocked_inner
+                .update_callback
+                .read()
+                .as_ref()
+                .unwrap()
+                .clone(),
+        );
         let receipt_manager = ReceiptManager::new(self.clone());
         *self.unlocked_inner.components.write() = Some(NetworkComponents {
             net: net.clone(),

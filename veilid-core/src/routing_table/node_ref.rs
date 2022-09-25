@@ -71,6 +71,7 @@ pub struct NodeRef {
     node_id: DHTKey,
     entry: Arc<BucketEntry>,
     filter: Option<NodeRefFilter>,
+    reliable: bool,
     #[cfg(feature = "tracking")]
     track_id: usize,
 }
@@ -89,6 +90,7 @@ impl NodeRef {
             node_id,
             entry,
             filter,
+            reliable: true,
             #[cfg(feature = "tracking")]
             track_id: entry.track(),
         }
@@ -124,6 +126,10 @@ impl NodeRef {
 
     pub fn set_filter(&mut self, filter: Option<NodeRefFilter>) {
         self.filter = filter
+    }
+
+    pub fn set_reliable(&mut self) {
+        self.reliable = true;
     }
 
     pub fn merge_filter(&mut self, filter: NodeRefFilter) {
@@ -267,11 +273,17 @@ impl NodeRef {
         let routing_domain_set = self.routing_domain_set();
         let dial_info_filter = self.dial_info_filter();
 
+        let sort = if self.reliable {
+            Some(DialInfoDetail::reliable_sort)
+        } else {
+            None
+        };
+
         self.operate(|_rt, e| {
             for routing_domain in routing_domain_set {
                 if let Some(ni) = e.node_info(routing_domain) {
                     let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
-                    if let Some(did) = ni.first_filtered_dial_info_detail(filter) {
+                    if let Some(did) = ni.first_filtered_dial_info_detail(sort, filter) {
                         return Some(did);
                     }
                 }
@@ -284,12 +296,18 @@ impl NodeRef {
         let routing_domain_set = self.routing_domain_set();
         let dial_info_filter = self.dial_info_filter();
 
+        let sort = if self.reliable {
+            Some(DialInfoDetail::reliable_sort)
+        } else {
+            None
+        };
+
         let mut out = Vec::new();
         self.operate(|_rt, e| {
             for routing_domain in routing_domain_set {
                 if let Some(ni) = e.node_info(routing_domain) {
                     let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
-                    if let Some(did) = ni.first_filtered_dial_info_detail(filter) {
+                    if let Some(did) = ni.first_filtered_dial_info_detail(sort, filter) {
                         out.push(did);
                     }
                 }
@@ -390,6 +408,7 @@ impl Clone for NodeRef {
             node_id: self.node_id,
             entry: self.entry.clone(),
             filter: self.filter.clone(),
+            reliable: self.reliable,
             #[cfg(feature = "tracking")]
             track_id: e.track(),
         }

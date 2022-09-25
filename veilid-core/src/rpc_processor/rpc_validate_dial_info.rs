@@ -10,13 +10,7 @@ impl RPCProcessor {
         redirect: bool,
     ) -> Result<bool, RPCError> {
         let network_manager = self.network_manager();
-        let receipt_time = ms_to_us(
-            self.config
-                .get()
-                .network
-                .dht
-                .validate_dial_info_receipt_time_ms,
-        );
+        let receipt_time = ms_to_us(self.unlocked_inner.validate_dial_info_receipt_time_ms);
 
         // Generate receipt and waitable eventual so we can see if we get the receipt back
         let (receipt, eventual_value) = network_manager

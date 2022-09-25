@@ -1232,10 +1232,18 @@ abstract class VeilidUpdate {
     switch (json["kind"]) {
       case "Log":
         {
-          return VeilidUpdateLog(
+          return VeilidLog(
               logLevel: veilidLogLevelFromJson(json["log_level"]),
               message: json["message"],
               backtrace: json["backtrace"]);
+        }
+      case "AppMessage":
+        {
+          return VeilidAppMessage();
+        }
+      case "AppCall":
+        {
+          return VeilidAppCall();
         }
       case "Attachment":
         {
@@ -1256,12 +1264,12 @@ abstract class VeilidUpdate {
   Map<String, dynamic> get json;
 }
 
-class VeilidUpdateLog implements VeilidUpdate {
+class VeilidLog implements VeilidUpdate {
   final VeilidLogLevel logLevel;
   final String message;
   final String? backtrace;
   //
-  VeilidUpdateLog({
+  VeilidLog({
     required this.logLevel,
     required this.message,
     required this.backtrace,
