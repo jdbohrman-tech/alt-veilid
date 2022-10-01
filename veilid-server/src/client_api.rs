@@ -236,6 +236,25 @@ impl veilid_server::Server for VeilidServerImpl {
         encode_api_result(&result, &mut results.get().init_result());
         Promise::ok(())
     }
+
+    #[instrument(level = "trace", skip_all)]
+    fn app_call_reply(
+        &mut self,
+        params: veilid_server::AppCallReplyParams,
+        mut results: veilid_server::AppCallReplyResults,
+    ) -> Promise<(), ::capnp::Error> {
+        trace!("VeilidServerImpl::app_call_reply");
+
+        let id = pry!(params.get()).get_id();
+        let message = pry!(pry!(params.get()).get_message()).to_owned();
+
+        let veilid_api = self.veilid_api.clone();
+        Promise::from_future(async move {
+            let result = veilid_api.app_call_reply(id, message).await;
+            encode_api_result(&result, &mut results.get().init_result());
+            Ok(())
+        })
+    }
 }
 
 // --- Client API Server-Side ---------------------------------

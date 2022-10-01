@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:change_case/change_case.dart';
 
@@ -1239,11 +1241,13 @@ abstract class VeilidUpdate {
         }
       case "AppMessage":
         {
-          return VeilidAppMessage();
+          return VeilidAppMessage(
+              sender: json["sender"], message: json["message"]);
         }
       case "AppCall":
         {
-          return VeilidAppCall();
+          return VeilidAppCall(
+              sender: json["sender"], message: json["message"], id: json["id"]);
         }
       case "Attachment":
         {
@@ -1282,6 +1286,49 @@ class VeilidLog implements VeilidUpdate {
       'log_level': logLevel.json,
       'message': message,
       'backtrace': backtrace
+    };
+  }
+}
+
+class VeilidAppMessage implements VeilidUpdate {
+  final String? sender;
+  final Uint8List message;
+
+  //
+  VeilidAppMessage({
+    required this.sender,
+    required this.message,
+  });
+
+  @override
+  Map<String, dynamic> get json {
+    return {
+      'kind': "AppMessage",
+      'sender': sender,
+      'message': base64UrlEncode(message)
+    };
+  }
+}
+
+class VeilidAppCall implements VeilidUpdate {
+  final String? sender;
+  final Uint8List message;
+  final String id;
+
+  //
+  VeilidAppCall({
+    required this.sender,
+    required this.message,
+    required this.id,
+  });
+
+  @override
+  Map<String, dynamic> get json {
+    return {
+      'kind': "AppMessage",
+      'sender': sender,
+      'message': base64UrlEncode(message),
+      'id': id,
     };
   }
 }
@@ -1580,6 +1627,7 @@ abstract class Veilid {
   Future<void> detach();
   Future<void> shutdownVeilidCore();
   Future<String> debug(String command);
+  Future<void> appCallReply(String id, Uint8List message);
   String veilidVersionString();
   VeilidVersion veilidVersion();
 }

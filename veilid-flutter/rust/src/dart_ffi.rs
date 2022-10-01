@@ -328,6 +328,26 @@ pub extern "C" fn debug(port: i64, command: FfiStr) {
 }
 
 #[no_mangle]
+pub extern "C" fn app_call_reply(port: i64, id: FfiStr, message: FfiStr) {
+    let id = id.into_opt_string().unwrap_or_default();
+    let message = message.into_opt_string().unwrap_or_default();
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let id = match id.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(e, "id", id))
+            }
+        };
+        let message = data_encoding::BASE64URL_NOPAD
+            .decode(message.as_bytes())
+            .map_err(|e| veilid_core::VeilidAPIError::invalid_argument(e, "message", message))?;
+        let veilid_api = get_veilid_api().await?;
+        veilid_api.app_call_reply(id, message).await?;
+        APIRESULT_VOID
+    });
+}
+
+#[no_mangle]
 pub extern "C" fn veilid_version_string() -> *mut c_char {
     veilid_core::veilid_version_string().into_ffi_value()
 }

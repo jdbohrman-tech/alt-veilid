@@ -76,6 +76,12 @@ impl veilid_client::Server for VeilidClientImpl {
             VeilidUpdate::Log(log) => {
                 self.comproc.update_log(log);
             }
+            VeilidUpdate::AppMessage(msg) => {
+                self.comproc.update_app_message(msg);
+            }
+            VeilidUpdate::AppCall(call) => {
+                self.comproc.update_app_call(call);
+            }
             VeilidUpdate::Attachment(attachment) => {
                 self.comproc.update_attachment(attachment);
             }
@@ -355,6 +361,29 @@ impl ClientApiConnection {
         request.get().set_layer(&layer);
         let log_level_json = veilid_core::serialize_json(&log_level);
         request.get().set_log_level(&log_level_json);
+        let response = request.send().promise.await.map_err(map_to_string)?;
+        let reader = response
+            .get()
+            .map_err(map_to_string)?
+            .get_result()
+            .map_err(map_to_string)?;
+        let res: Result<(), VeilidAPIError> = decode_api_result(&reader);
+        res.map_err(map_to_string)
+    }
+
+    pub async fn server_appcall_reply(&mut self, id: u64, msg: Vec<u8>) -> Result<(), String> {
+        trace!("ClientApiConnection::appcall_reply");
+        let server = {
+            let inner = self.inner.borrow();
+            inner
+                .server
+                .as_ref()
+                .ok_or_else(|| "Not connected, ignoring change_log_level request".to_owned())?
+                .clone()
+        };
+        let mut request = server.borrow().app_call_reply_request();
+        request.get().set_id(id);
+        request.get().set_message(&msg);
         let response = request.send().promise.await.map_err(map_to_string)?;
         let reader = response
             .get()

@@ -41,6 +41,23 @@ pub fn serialize_json<T: Serialize + Debug>(val: T) -> String {
     }
 }
 
+pub mod json_as_base64 {
+    use data_encoding::BASE64URL_NOPAD;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S: Serializer>(v: &Vec<u8>, s: S) -> Result<S::Ok, S::Error> {
+        let base64 = BASE64URL_NOPAD.encode(v);
+        String::serialize(&base64, s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
+        let base64 = String::deserialize(d)?;
+        BASE64URL_NOPAD
+            .decode(base64.as_bytes())
+            .map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
 pub mod json_as_string {
     use std::fmt::Display;
     use std::str::FromStr;

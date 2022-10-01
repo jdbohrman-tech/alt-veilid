@@ -20,6 +20,7 @@ serde_json = "^1"
 serde = "^1"
 futures-util = { version = "^0", default_features = false, features = ["alloc"] }
 cfg-if = "^1"
+data-encoding = { version = "^2" }
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

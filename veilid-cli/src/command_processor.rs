@@ -49,6 +49,7 @@ struct CommandProcessorInner {
     autoreconnect: bool,
     server_addr: Option<SocketAddr>,
     connection_waker: Eventual,
+    last_call_id: Option<u64>,
 }
 
 type Handle<T> = Rc<RefCell<T>>;
@@ -70,6 +71,7 @@ impl CommandProcessor {
                 autoreconnect: settings.autoreconnect,
                 server_addr: None,
                 connection_waker: Eventual::new(),
+                last_call_id: None,
             })),
         }
     }
@@ -111,6 +113,7 @@ attach              - attach the server to the Veilid network
 detach              - detach the server from the Veilid network
 debug               - send a debugging command to the Veilid server
 change_log_level    - change the log level for a tracing layer
+reply               - reply to an AppCall not handled directly by the server
 "#
             .to_owned(),
         );
@@ -225,6 +228,66 @@ change_log_level    - change the log level for a tracing layer
         Ok(())
     }
 
+    pub fn cmd_reply(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
+        trace!("CommandProcessor::cmd_reply");
+
+        let mut capi = self.capi();
+        let ui = self.ui();
+        let some_last_id = self.inner_mut().last_call_id.take();
+        spawn_detached_local(async move {
+            let (first, second) = Self::word_split(&rest.clone().unwrap_or_default());
+            let (id, msg) = if let Some(second) = second {
+                let id = match u64::from_str(&first) {
+                    Err(e) => {
+                        ui.add_node_event(format!("invalid appcall id: {}", e));
+                        ui.send_callback(callback);
+                        return;
+                    }
+                    Ok(v) => v,
+                };
+                (id, second)
+            } else {
+                let id = match some_last_id {
+                    None => {
+                        ui.add_node_event("must specify last call id".to_owned());
+                        ui.send_callback(callback);
+                        return;
+                    }
+                    Some(v) => v,
+                };
+                (id, rest.unwrap_or_default())
+            };
+            let msg = if msg[0..1] == "#".to_owned() {
+                match hex::decode(msg[1..].as_bytes().to_vec()) {
+                    Err(e) => {
+                        ui.add_node_event(format!("invalid hex message: {}", e));
+                        ui.send_callback(callback);
+                        return;
+                    }
+                    Ok(v) => v,
+                }
+            } else {
+                msg[1..].as_bytes().to_vec()
+            };
+            let msglen = msg.len();
+            match capi.server_appcall_reply(id, msg).await {
+                Ok(()) => {
+                    ui.add_node_event(format!("reply sent to {} : {} bytes", id, msglen));
+                    ui.send_callback(callback);
+                    return;
+                }
+                Err(e) => {
+                    ui.display_string_dialog(
+                        "Server command 'appcall_reply' failed",
+                        e.to_string(),
+                        callback,
+                    );
+                }
+            }
+        });
+        Ok(())
+    }
+
     pub fn run_command(&self, command_line: &str, callback: UICallback) -> Result<(), String> {
         //
         let (cmd, rest) = Self::word_split(command_line);
@@ -238,6 +301,7 @@ change_log_level    - change the log level for a tracing layer
             "detach" => self.cmd_detach(callback),
             "debug" => self.cmd_debug(rest, callback),
             "change_log_level" => self.cmd_change_log_level(rest, callback),
+            "reply" => self.cmd_reply(rest, callback),
             _ => {
                 let ui = self.ui();
                 ui.send_callback(callback);
@@ -344,6 +408,49 @@ change_log_level    - change the log level for a tracing layer
         ));
     }
 
+    pub fn update_app_message(&mut self, msg: veilid_core::VeilidAppMessage) {
+        // check is message body is ascii printable
+        let mut printable = true;
+        for c in &msg.message {
+            if *c < 32 || *c > 126 {
+                printable = false;
+            }
+        }
+
+        let strmsg = if printable {
+            String::from_utf8_lossy(&msg.message).to_string()
+        } else {
+            hex::encode(&msg.message)
+        };
+
+        self.inner()
+            .ui
+            .add_node_event(format!("AppMessage ({:?}): {}", msg.sender, strmsg));
+    }
+
+    pub fn update_app_call(&mut self, call: veilid_core::VeilidAppCall) {
+        // check is message body is ascii printable
+        let mut printable = true;
+        for c in &call.message {
+            if *c < 32 || *c > 126 {
+                printable = false;
+            }
+        }
+
+        let strmsg = if printable {
+            String::from_utf8_lossy(&call.message).to_string()
+        } else {
+            format!("#{}", hex::encode(&call.message))
+        };
+
+        self.inner().ui.add_node_event(format!(
+            "AppCall ({:?}) id = {:016x} : {}",
+            call.sender, call.id, strmsg
+        ));
+
+        self.inner_mut().last_call_id = Some(call.id);
+    }
+
     pub fn update_shutdown(&mut self) {
         // Do nothing with this, we'll process shutdown when rpc connection closes
     }
@@ -381,7 +488,6 @@ change_log_level    - change the log level for a tracing layer
     // calls into client_api_connection
     ////////////////////////////////////////////
     pub fn attach(&mut self) {
-        trace!("CommandProcessor::attach");
         let mut capi = self.capi();
 
         spawn_detached_local(async move {
@@ -392,7 +498,6 @@ change_log_level    - change the log level for a tracing layer
     }
 
     pub fn detach(&mut self) {
-        trace!("CommandProcessor::detach");
         let mut capi = self.capi();
 
         spawn_detached_local(async move {
