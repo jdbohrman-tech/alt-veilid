@@ -72,6 +72,7 @@ impl ConnectionTable {
         }
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub async fn join(&self) {
         let mut unord = {
             let mut inner = self.inner.lock();
@@ -90,6 +91,7 @@ impl ConnectionTable {
         while unord.next().await.is_some() {}
     }
 
+    #[instrument(level = "trace", skip(self), ret, err)]
     pub fn add_connection(
         &self,
         network_connection: NetworkConnection,
@@ -156,6 +158,7 @@ impl ConnectionTable {
         Ok(out_conn)
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection_by_id(&self, id: NetworkConnectionId) -> Option<ConnectionHandle> {
         let mut inner = self.inner.lock();
         let protocol_index = *inner.protocol_index_by_id.get(&id)?;
@@ -163,6 +166,7 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection_by_descriptor(
         &self,
         descriptor: ConnectionDescriptor,
@@ -175,6 +179,7 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn get_last_connection_by_remote(&self, remote: PeerAddress) -> Option<ConnectionHandle> {
         let mut inner = self.inner.lock();
 
@@ -184,7 +189,8 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
-    pub fn _get_connection_ids_by_remote(&self, remote: PeerAddress) -> Vec<NetworkConnectionId> {
+    #[instrument(level = "trace", skip(self), ret)]
+    pub fn get_connection_ids_by_remote(&self, remote: PeerAddress) -> Vec<NetworkConnectionId> {
         let inner = self.inner.lock();
         inner
             .ids_by_remote
@@ -219,6 +225,7 @@ impl ConnectionTable {
         inner.conn_by_id.iter().fold(0, |acc, c| acc + c.len())
     }
 
+    #[instrument(level = "trace", skip(inner), ret)]
     fn remove_connection_records(
         inner: &mut ConnectionTableInner,
         id: NetworkConnectionId,
@@ -251,6 +258,7 @@ impl ConnectionTable {
         conn
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn remove_connection_by_id(&self, id: NetworkConnectionId) -> Option<NetworkConnection> {
         let mut inner = self.inner.lock();
 

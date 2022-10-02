@@ -70,6 +70,8 @@ pub fn run_all_tests() {
     exec_test_crypto();
     info!("TEST: exec_test_envelope_receipt");
     exec_test_envelope_receipt();
+    info!("TEST: exec_test_async_tag_lock");
+    exec_test_async_tag_lock();
 
     info!("Finished unit tests");
 }
@@ -133,6 +135,11 @@ fn exec_test_crypto() {
 fn exec_test_envelope_receipt() {
     block_on(async {
         test_envelope_receipt::test_all().await;
+    })
+}
+fn exec_test_async_tag_lock() {
+    block_on(async {
+        test_async_tag_lock::test_all().await;
     })
 }
 ///////////////////////////////////////////////////////////////////////////
@@ -222,6 +229,13 @@ cfg_if! {
         fn run_test_envelope_receipt() {
             setup();
             exec_test_envelope_receipt();
+        }
+
+        #[test]
+        #[serial]
+        fn run_test_async_tag_lock() {
+            setup();
+            exec_test_async_tag_lock();
         }
     }
 }

@@ -39,119 +39,125 @@ impl NetworkManager {
         // Get bootstrap nodes from hostnames concurrently
         let mut unord = FuturesUnordered::new();
         for bsname in bsnames {
-            unord.push(async move {
-                // look up boostrap node txt records
-                let bsnirecords = match intf::txt_lookup(&bsname).await {
-                    Err(e) => {
-                        warn!("bootstrap node txt lookup failed for {}: {}", bsname, e);
-                        return None;
-                    }
-                    Ok(v) => v,
-                };
-                // for each record resolve into key/bootstraprecord pairs
-                let mut bootstrap_records: Vec<(DHTKey, BootstrapRecord)> = Vec::new();
-                for bsnirecord in bsnirecords {
-                    // Bootstrap TXT Record Format Version 0:
-                    // txt_version,min_version,max_version,nodeid,hostname,dialinfoshort*
-                    //
-                    // Split bootstrap node record by commas. Example:
-                    // 0,0,0,7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ,bootstrap-1.dev.veilid.net,T5150,U5150,W5150/ws
-                    let records: Vec<String> = bsnirecord
-                        .trim()
-                        .split(',')
-                        .map(|x| x.trim().to_owned())
-                        .collect();
-                    if records.len() < 6 {
-                        warn!("invalid number of fields in bootstrap txt record");
-                        continue;
-                    }
-
-                    // Bootstrap TXT record version
-                    let txt_version: u8 = match records[0].parse::<u8>() {
-                        Ok(v) => v,
+            unord.push(
+                async move {
+                    // look up boostrap node txt records
+                    let bsnirecords = match intf::txt_lookup(&bsname).await {
                         Err(e) => {
-                            warn!(
+                            warn!("bootstrap node txt lookup failed for {}: {}", bsname, e);
+                            return None;
+                        }
+                        Ok(v) => v,
+                    };
+                    // for each record resolve into key/bootstraprecord pairs
+                    let mut bootstrap_records: Vec<(DHTKey, BootstrapRecord)> = Vec::new();
+                    for bsnirecord in bsnirecords {
+                        // Bootstrap TXT Record Format Version 0:
+                        // txt_version,min_version,max_version,nodeid,hostname,dialinfoshort*
+                        //
+                        // Split bootstrap node record by commas. Example:
+                        // 0,0,0,7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ,bootstrap-1.dev.veilid.net,T5150,U5150,W5150/ws
+                        let records: Vec<String> = bsnirecord
+                            .trim()
+                            .split(',')
+                            .map(|x| x.trim().to_owned())
+                            .collect();
+                        if records.len() < 6 {
+                            warn!("invalid number of fields in bootstrap txt record");
+                            continue;
+                        }
+
+                        // Bootstrap TXT record version
+                        let txt_version: u8 = match records[0].parse::<u8>() {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
                                 "invalid txt_version specified in bootstrap node txt record: {}",
                                 e
                             );
+                                continue;
+                            }
+                        };
+                        if txt_version != BOOTSTRAP_TXT_VERSION {
+                            warn!("unsupported bootstrap txt record version");
                             continue;
                         }
-                    };
-                    if txt_version != BOOTSTRAP_TXT_VERSION {
-                        warn!("unsupported bootstrap txt record version");
-                        continue;
-                    }
 
-                    // Min/Max wire protocol version
-                    let min_version: u8 = match records[1].parse::<u8>() {
-                        Ok(v) => v,
-                        Err(e) => {
-                            warn!(
+                        // Min/Max wire protocol version
+                        let min_version: u8 = match records[1].parse::<u8>() {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
                                 "invalid min_version specified in bootstrap node txt record: {}",
                                 e
                             );
-                            continue;
-                        }
-                    };
-                    let max_version: u8 = match records[2].parse::<u8>() {
-                        Ok(v) => v,
-                        Err(e) => {
-                            warn!(
+                                continue;
+                            }
+                        };
+                        let max_version: u8 = match records[2].parse::<u8>() {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
                                 "invalid max_version specified in bootstrap node txt record: {}",
                                 e
                             );
-                            continue;
-                        }
-                    };
-
-                    // Node Id
-                    let node_id_str = &records[3];
-                    let node_id_key = match DHTKey::try_decode(node_id_str) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            warn!(
-                                "Invalid node id in bootstrap node record {}: {}",
-                                node_id_str, e
-                            );
-                            continue;
-                        }
-                    };
-
-                    // Hostname
-                    let hostname_str = &records[4];
-
-                    // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
-                    if self.routing_table().node_id() == node_id_key {
-                        continue;
-                    }
-
-                    // Resolve each record and store in node dial infos list
-                    let mut bootstrap_record = BootstrapRecord {
-                        min_version,
-                        max_version,
-                        dial_info_details: Vec::new(),
-                    };
-                    for rec in &records[5..] {
-                        let rec = rec.trim();
-                        let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
-                            Ok(dis) => dis,
-                            Err(e) => {
-                                warn!("Couldn't resolve bootstrap node dial info {}: {}", rec, e);
                                 continue;
                             }
                         };
 
-                        for di in dial_infos {
-                            bootstrap_record.dial_info_details.push(DialInfoDetail {
-                                dial_info: di,
-                                class: DialInfoClass::Direct,
-                            });
+                        // Node Id
+                        let node_id_str = &records[3];
+                        let node_id_key = match DHTKey::try_decode(node_id_str) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
+                                    "Invalid node id in bootstrap node record {}: {}",
+                                    node_id_str, e
+                                );
+                                continue;
+                            }
+                        };
+
+                        // Hostname
+                        let hostname_str = &records[4];
+
+                        // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
+                        if self.routing_table().node_id() == node_id_key {
+                            continue;
                         }
+
+                        // Resolve each record and store in node dial infos list
+                        let mut bootstrap_record = BootstrapRecord {
+                            min_version,
+                            max_version,
+                            dial_info_details: Vec::new(),
+                        };
+                        for rec in &records[5..] {
+                            let rec = rec.trim();
+                            let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
+                                Ok(dis) => dis,
+                                Err(e) => {
+                                    warn!(
+                                        "Couldn't resolve bootstrap node dial info {}: {}",
+                                        rec, e
+                                    );
+                                    continue;
+                                }
+                            };
+
+                            for di in dial_infos {
+                                bootstrap_record.dial_info_details.push(DialInfoDetail {
+                                    dial_info: di,
+                                    class: DialInfoClass::Direct,
+                                });
+                            }
+                        }
+                        bootstrap_records.push((node_id_key, bootstrap_record));
                     }
-                    bootstrap_records.push((node_id_key, bootstrap_record));
+                    Some(bootstrap_records)
                 }
-                Some(bootstrap_records)
-            });
+                .instrument(Span::current()),
+            );
         }
 
         let mut bsmap = BootstrapRecordMap::new();
@@ -172,6 +178,7 @@ impl NetworkManager {
     }
 
     // 'direct' bootstrap task routine for systems incapable of resolving TXT records, such as browser WASM
+    #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn direct_bootstrap_task_routine(
         self,
         stop_token: StopToken,
@@ -201,7 +208,8 @@ impl NetworkManager {
                     let routing_table = routing_table.clone();
                     unord.push(
                         // lets ask bootstrap to find ourselves now
-                        async move { routing_table.reverse_find_node(nr, true).await },
+                        async move { routing_table.reverse_find_node(nr, true).await }
+                            .instrument(Span::current()),
                     );
                 }
             }
@@ -300,23 +308,26 @@ impl NetworkManager {
             ) {
                 // Add this our futures to process in parallel
                 let routing_table = routing_table.clone();
-                unord.push(async move {
-                    // Need VALID signed peer info, so ask bootstrap to find_node of itself
-                    // which will ensure it has the bootstrap's signed peer info as part of the response
-                    let _ = routing_table.find_target(nr.clone()).await;
+                unord.push(
+                    async move {
+                        // Need VALID signed peer info, so ask bootstrap to find_node of itself
+                        // which will ensure it has the bootstrap's signed peer info as part of the response
+                        let _ = routing_table.find_target(nr.clone()).await;
 
-                    // Ensure we got the signed peer info
-                    if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
-                        log_net!(warn
-                            "bootstrap at {:?} did not return valid signed node info",
-                            nr
-                        );
-                        // If this node info is invalid, it will time out after being unpingable
-                    } else {
-                        // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                        routing_table.reverse_find_node(nr, true).await
+                        // Ensure we got the signed peer info
+                        if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
+                            log_net!(warn
+                                "bootstrap at {:?} did not return valid signed node info",
+                                nr
+                            );
+                            // If this node info is invalid, it will time out after being unpingable
+                        } else {
+                            // otherwise this bootstrap is valid, lets ask it to find ourselves now
+                            routing_table.reverse_find_node(nr, true).await
+                        }
                     }
-                });
+                    .instrument(Span::current()),
+                );
             }
         }
 
@@ -382,7 +393,11 @@ impl NetworkManager {
                         let nr_filtered =
                             nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
                         log_net!("--> Keepalive ping to {:?}", nr_filtered);
-                        unord.push(async move { rpc.rpc_call_status(nr_filtered).await }.boxed());
+                        unord.push(
+                            async move { rpc.rpc_call_status(nr_filtered).await }
+                                .instrument(Span::current())
+                                .boxed(),
+                        );
                         did_pings = true;
                     }
                 }
@@ -392,7 +407,11 @@ impl NetworkManager {
             // any mapped ports to preserve
             if !did_pings {
                 let rpc = rpc.clone();
-                unord.push(async move { rpc.rpc_call_status(nr).await }.boxed());
+                unord.push(
+                    async move { rpc.rpc_call_status(nr).await }
+                        .instrument(Span::current())
+                        .boxed(),
+                );
             }
         }
 
@@ -420,7 +439,11 @@ impl NetworkManager {
             let rpc = rpc.clone();
 
             // Just do a single ping with the best protocol for all the nodes
-            unord.push(async move { rpc.rpc_call_status(nr).await }.boxed());
+            unord.push(
+                async move { rpc.rpc_call_status(nr).await }
+                    .instrument(Span::current())
+                    .boxed(),
+            );
         }
 
         Ok(())
@@ -479,7 +502,10 @@ impl NetworkManager {
         );
         for nr in noderefs {
             let routing_table = routing_table.clone();
-            ord.push_back(async move { routing_table.reverse_find_node(nr, false).await });
+            ord.push_back(
+                async move { routing_table.reverse_find_node(nr, false).await }
+                    .instrument(Span::current()),
+            );
         }
 
         // do peer minimum search in order from fastest to slowest

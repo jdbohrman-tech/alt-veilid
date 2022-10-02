@@ -1636,6 +1636,13 @@ impl PeerAddress {
     }
 }
 
+/// Represents the 5-tuple of an established connection
+/// Not used to specify connections to create, that is reserved for DialInfo
+///
+/// ConnectionDescriptors should never be from unspecified local addresses for connection oriented protocols
+/// If the medium does not allow local addresses, None should have been used or 'new_no_local'
+/// If we are specifying only a port, then the socket's 'local_address()' should have been used, since an
+/// established connection is always from a real address to another real address.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ConnectionDescriptor {
     remote: PeerAddress,
@@ -1644,6 +1651,10 @@ pub struct ConnectionDescriptor {
 
 impl ConnectionDescriptor {
     pub fn new(remote: PeerAddress, local: SocketAddress) -> Self {
+        assert!(
+            !remote.protocol_type().is_connection_oriented() || !local.address().is_unspecified()
+        );
+
         Self {
             remote,
             local: Some(local),

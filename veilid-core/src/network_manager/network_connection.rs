@@ -16,6 +16,7 @@ cfg_if::cfg_if! {
                 &self,
                 stream: AsyncPeekStream,
                 peer_addr: SocketAddr,
+                local_addr: SocketAddr,
             ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>>;
         }
 
@@ -38,7 +39,7 @@ cfg_if::cfg_if! {
         }
 
         pub type NewProtocolAcceptHandler =
-            dyn Fn(VeilidConfig, bool, SocketAddr) -> Box<dyn ProtocolAcceptHandler> + Send;
+            dyn Fn(VeilidConfig, bool) -> Box<dyn ProtocolAcceptHandler> + Send;
     }
 }
 ///////////////////////////////////////////////////////////
@@ -91,7 +92,7 @@ pub struct NetworkConnection {
     processor: Option<MustJoinHandle<()>>,
     established_time: u64,
     stats: Arc<Mutex<NetworkConnectionStats>>,
-    sender: flume::Sender<Vec<u8>>,
+    sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
 }
 
@@ -120,9 +121,6 @@ impl NetworkConnection {
         protocol_connection: ProtocolNetworkConnection,
         connection_id: NetworkConnectionId,
     ) -> Self {
-        // Get timeout
-        let network_manager = connection_manager.network_manager();
-
         // Get descriptor
         let descriptor = protocol_connection.descriptor();
 
@@ -181,6 +179,7 @@ impl NetworkConnection {
         }
     }
 
+    #[instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret, err)]
     async fn send_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -194,6 +193,8 @@ impl NetworkConnection {
 
         Ok(NetworkResult::Value(out))
     }
+
+    #[instrument(level="trace", skip(stats), fields(ret.len), err)]
     async fn recv_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -203,6 +204,8 @@ impl NetworkConnection {
 
         let mut stats = stats.lock();
         stats.last_message_recv_time.max_assign(Some(ts));
+
+        tracing::Span::current().record("ret.len", out.len());
 
         Ok(NetworkResult::Value(out))
     }
@@ -223,7 +226,7 @@ impl NetworkConnection {
         manager_stop_token: StopToken,
         connection_id: NetworkConnectionId,
         descriptor: ConnectionDescriptor,
-        receiver: flume::Receiver<Vec<u8>>,
+        receiver: flume::Receiver<(Option<Id>, Vec<u8>)>,
         protocol_connection: ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
     ) -> SendPinBoxFuture<()> {
@@ -249,7 +252,7 @@ impl NetworkConnection {
             };
             let timer = MutableFuture::new(new_timer());
 
-            unord.push(system_boxed(timer.clone()));
+            unord.push(system_boxed(timer.clone().instrument(Span::current())));
 
             loop {
                 // Add another message sender future if necessary
@@ -257,13 +260,17 @@ impl NetworkConnection {
                     need_sender = false;
                     let sender_fut = receiver.recv_async().then(|res| async {
                         match res {
-                            Ok(message) => {
+                            Ok((span_id, message)) => {
+
+                                let recv_span = span!(parent: None, Level::TRACE, "process_connection recv");
+                                recv_span.follows_from(span_id);
+                    
                                 // send the packet
                                 if let Err(e) = Self::send_internal(
                                     &protocol_connection,
                                     stats.clone(),
                                     message,
-                                )
+                                ).instrument(recv_span)
                                 .await
                                 {
                                     // Sending the packet along can fail, if so, this connection is dead
@@ -280,7 +287,7 @@ impl NetworkConnection {
                             }
                         }
                     });
-                    unord.push(system_boxed(sender_fut));
+                    unord.push(system_boxed(sender_fut.instrument(Span::current())));
                 }
 
                 // Add another message receiver future if necessary
@@ -314,7 +321,7 @@ impl NetworkConnection {
                             }
                         });
 
-                    unord.push(system_boxed(receiver_fut));
+                    unord.push(system_boxed(receiver_fut.instrument(Span::current())));
                 }
 
                 // Process futures
@@ -358,7 +365,7 @@ impl NetworkConnection {
             connection_manager
                 .report_connection_finished(connection_id)
                 .await;
-        })
+        }.instrument(trace_span!("process_connection")))
     }
 }
 

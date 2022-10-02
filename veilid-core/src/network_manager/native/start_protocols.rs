@@ -387,7 +387,7 @@ impl Network {
                 ip_addrs,
                 ws_port,
                 false,
-                Box::new(|c, t, a| Box::new(WebsocketProtocolHandler::new(c, t, a))),
+                Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?;
         trace!("WS: listener started on {:#?}", socket_addresses);
@@ -496,7 +496,7 @@ impl Network {
                 ip_addrs,
                 wss_port,
                 true,
-                Box::new(|c, t, a| Box::new(WebsocketProtocolHandler::new(c, t, a))),
+                Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?;
         trace!("WSS: listener started on {:#?}", socket_addresses);
@@ -590,7 +590,7 @@ impl Network {
                 ip_addrs,
                 tcp_port,
                 false,
-                Box::new(move |c, _, a| Box::new(RawTcpProtocolHandler::new(c, a))),
+                Box::new(move |c, _| Box::new(RawTcpProtocolHandler::new(c))),
             )
             .await?;
         trace!("TCP: listener started on {:#?}", socket_addresses);

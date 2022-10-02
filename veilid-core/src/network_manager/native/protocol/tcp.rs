@@ -99,30 +99,20 @@ impl RawTcpNetworkConnection {
 ///////////////////////////////////////////////////////////
 ///
 
-struct RawTcpProtocolHandlerInner {
-    local_address: SocketAddr,
-}
-
 #[derive(Clone)]
 pub struct RawTcpProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {
     connection_initial_timeout_ms: u32,
-    inner: Arc<Mutex<RawTcpProtocolHandlerInner>>,
 }
 
 impl RawTcpProtocolHandler {
-    fn new_inner(local_address: SocketAddr) -> RawTcpProtocolHandlerInner {
-        RawTcpProtocolHandlerInner { local_address }
-    }
-
-    pub fn new(config: VeilidConfig, local_address: SocketAddr) -> Self {
+    pub fn new(config: VeilidConfig) -> Self {
         let c = config.get();
         let connection_initial_timeout_ms = c.network.connection_initial_timeout_ms;
         Self {
             connection_initial_timeout_ms,
-            inner: Arc::new(Mutex::new(Self::new_inner(local_address))),
         }
     }
 
@@ -131,6 +121,7 @@ impl RawTcpProtocolHandler {
         self,
         ps: AsyncPeekStream,
         socket_addr: SocketAddr,
+        local_addr: SocketAddr,
     ) -> io::Result<Option<ProtocolNetworkConnection>> {
         log_net!("TCP: on_accept_async: enter");
         let mut peekbuf: [u8; PEEK_DETECT_LEN] = [0u8; PEEK_DETECT_LEN];
@@ -147,9 +138,8 @@ impl RawTcpProtocolHandler {
             SocketAddress::from_socket_addr(socket_addr),
             ProtocolType::TCP,
         );
-        let local_address = self.inner.lock().local_address;
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
-            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_address)),
+            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ps,
         ));
 
@@ -158,7 +148,7 @@ impl RawTcpProtocolHandler {
         Ok(Some(conn))
     }
 
-    #[instrument(level = "trace", err)]
+    #[instrument(level = "trace", ret, err)]
     pub async fn connect(
         local_address: Option<SocketAddr>,
         socket_addr: SocketAddr,
@@ -202,7 +192,8 @@ impl ProtocolAcceptHandler for RawTcpProtocolHandler {
         &self,
         stream: AsyncPeekStream,
         peer_addr: SocketAddr,
+        local_addr: SocketAddr,
     ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>> {
-        Box::pin(self.clone().on_accept_async(stream, peer_addr))
+        Box::pin(self.clone().on_accept_async(stream, peer_addr, local_addr))
     }
 }

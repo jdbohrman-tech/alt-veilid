@@ -106,7 +106,7 @@ impl WebsocketNetworkConnection {
 pub struct WebsocketProtocolHandler {}
 
 impl WebsocketProtocolHandler {
-    #[instrument(level = "trace", err)]
+    #[instrument(level = "trace", ret, err)]
     pub async fn connect(
         dial_info: &DialInfo,
         timeout_ms: u32,

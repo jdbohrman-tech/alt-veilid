@@ -1,5 +1,6 @@
 // mod bump_port;
 mod async_peek_stream;
+mod async_tag_lock;
 mod clone_stream;
 mod eventual;
 mod eventual_base;
@@ -68,6 +69,7 @@ cfg_if! {
         pub use core::ops::{FnOnce, FnMut, Fn};
         pub use async_lock::Mutex as AsyncMutex;
         pub use async_lock::MutexGuard as AsyncMutexGuard;
+        pub use async_lock::MutexGuardArc as AsyncMutexGuardArc;
         pub use no_std_net::{ SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs, IpAddr, Ipv4Addr, Ipv6Addr };
         pub use async_executors::JoinHandle as LowLevelJoinHandle;
     } else {
@@ -98,10 +100,12 @@ cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 pub use async_std::sync::Mutex as AsyncMutex;
                 pub use async_std::sync::MutexGuard as AsyncMutexGuard;
+                pub use async_std::sync::MutexGuardArc as AsyncMutexGuardArc;
                 pub use async_std::task::JoinHandle as LowLevelJoinHandle;
             } else if #[cfg(feature="rt-tokio")] {
                 pub use tokio::sync::Mutex as AsyncMutex;
                 pub use tokio::sync::MutexGuard as AsyncMutexGuard;
+                pub use tokio::sync::OwnedMutexGuard as AsyncMutexGuardArc;
                 pub use tokio::task::JoinHandle as LowLevelJoinHandle;
             } else {
                 #[compile_error("must use an executor")]
@@ -113,6 +117,7 @@ cfg_if! {
 
 // pub use bump_port::*;
 pub use async_peek_stream::*;
+pub use async_tag_lock::*;
 pub use clone_stream::*;
 pub use eventual::*;
 pub use eventual_base::{EventualCommon, EventualResolvedFuture};

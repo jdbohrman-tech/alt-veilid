@@ -74,3 +74,10 @@ async fn run_test_envelope_receipt() {
 
     test_envelope_receipt::test_all().await;
 }
+
+#[wasm_bindgen_test]
+async fn run_test_async_tag_lock() {
+    setup();
+
+    test_async_tag_lock::test_all().await;
+}

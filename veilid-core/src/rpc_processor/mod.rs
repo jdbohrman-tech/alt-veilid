@@ -147,8 +147,6 @@ pub struct RPCProcessorInner {
 }
 
 pub struct RPCProcessorUnlockedInner {
-    node_id: DHTKey,
-    node_id_secret: DHTKeySecret,
     timeout: u64,
     queue_size: u32,
     concurrency: u32,
@@ -183,8 +181,6 @@ impl RPCProcessor {
     ) -> RPCProcessorUnlockedInner {
         // make local copy of node id for easy access
         let c = config.get();
-        let node_id = c.network.node_id;
-        let node_id_secret = c.network.node_id_secret;
 
         // set up channel
         let mut concurrency = c.network.rpc.concurrency;
@@ -209,8 +205,6 @@ impl RPCProcessor {
         let validate_dial_info_receipt_time_ms = c.network.dht.validate_dial_info_receipt_time_ms;
 
         RPCProcessorUnlockedInner {
-            node_id,
-            node_id_secret,
             timeout,
             queue_size,
             concurrency,
@@ -947,16 +941,16 @@ impl RPCProcessor {
         stop_token: StopToken,
         receiver: flume::Receiver<(Option<Id>, RPCMessageEncoded)>,
     ) {
-        while let Ok(Ok((_span_id, msg))) =
+        while let Ok(Ok((span_id, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
         {
             let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker");
+            //let rpc_worker_span = span!(Level::TRACE, "rpc_worker");
             // fixme: causes crashes? "Missing otel data span extensions"??
-            //rpc_worker_span.follows_from(span_id);
-            let _enter = rpc_worker_span.enter();
-
+            rpc_worker_span.follows_from(span_id);
             let _ = self
                 .process_rpc_message(msg)
+                .instrument(rpc_worker_span)
                 .await
                 .map_err(logthru_rpc!("couldn't process rpc message"));
         }

@@ -140,6 +140,7 @@ impl ConnectionManager {
     // Internal routine to register new connection atomically.
     // Registers connection in the connection table for later access
     // and spawns a message processing loop for the connection
+    #[instrument(level = "trace", skip(self, inner), ret, err)]
     fn on_new_protocol_network_connection(
         &self,
         inner: &mut ConnectionManagerInner,
@@ -195,6 +196,7 @@ impl ConnectionManager {
     }
 
     // Returns a network connection if one already is established
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection(&self, descriptor: ConnectionDescriptor) -> Option<ConnectionHandle> {
         self.arc
             .connection_table
@@ -234,40 +236,43 @@ impl ConnectionManager {
         did_kill
     }
 
-    // Called when we want to create a new connection or get the current one that already exists
-    // This will kill off any connections that are in conflict with the new connection to be made
-    // in order to make room for the new connection in the system's connection table
-    // This routine needs to be atomic, or connections may exist in the table that are not established
+    /// Locak remote address
+    // async fn lock_remote_address(&self, remote_addr: SocketAddr) -> {
+
+    // }
+
+    /// Called when we want to create a new connection or get the current one that already exists
+    /// This will kill off any connections that are in conflict with the new connection to be made
+    /// in order to make room for the new connection in the system's connection table
+    /// This routine needs to be atomic, or connections may exist in the table that are not established
+    #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn get_or_create_connection(
         &self,
         local_addr: Option<SocketAddr>,
         dial_info: DialInfo,
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
-        log_net!(
+        warn!(
             "== get_or_create_connection local_addr={:?} dial_info={:?}",
             local_addr.green(),
             dial_info.green()
         );
 
+        // Make a connection descriptor for this dialinfo
+        let peer_address = dial_info.to_peer_address();
+
+        // Async lock on the remote address for atomicity
+        //let _lock_guard = self.lock_remote_address(peer_address.to_socket_addr());
+
         // Kill off any possibly conflicting connections
         let did_kill = self.kill_off_colliding_connections(&dial_info).await;
         let mut retry_count = if did_kill { 2 } else { 0 };
-
-        // Make a connection descriptor for this dialinfo
-        let peer_address = dial_info.to_peer_address();
-        let descriptor = match local_addr {
-            Some(la) => {
-                ConnectionDescriptor::new(peer_address, SocketAddress::from_socket_addr(la))
-            }
-            None => ConnectionDescriptor::new_no_local(peer_address),
-        };
 
         // If any connection to this remote exists that has the same protocol, return it
         // Any connection will do, we don't have to match the local address
         if let Some(conn) = self
             .arc
             .connection_table
-            .get_last_connection_by_remote(descriptor.remote())
+            .get_last_connection_by_remote(peer_address)
         {
             log_net!(
                 "== Returning existing connection local_addr={:?} peer_address={:?}",
@@ -378,6 +383,7 @@ impl ConnectionManager {
 
     // Callback from network connection receive loop when it exits
     // cleans up the entry in the connection table
+    #[instrument(level = "trace", skip(self))]
     pub(super) async fn report_connection_finished(&self, connection_id: u64) {
         // Get channel sender
         let sender = {
