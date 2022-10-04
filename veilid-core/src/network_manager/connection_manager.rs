@@ -289,28 +289,29 @@ impl ConnectionManager {
             .await;
             match result_net_res {
                 Ok(net_res) => {
-                    if net_res.is_value() || retry_count == 0 {
-                        break net_res;
-                    }
-                }
-                Err(e) => {
-                    if retry_count == 0 {
-                        // Try one last time to return a connection from the table, in case
-                        // an 'accept' happened at literally the same time as our connect
+                    // If the connection 'already exists', then try one last time to return a connection from the table, in case
+                    // an 'accept' happened at literally the same time as our connect
+                    if net_res.is_already_exists() {
                         if let Some(conn) = self
                             .arc
                             .connection_table
                             .get_last_connection_by_remote(peer_address)
                         {
                             log_net!(
-                                "== Returning existing connection in race local_addr={:?} peer_address={:?}",
-                                local_addr.green(),
-                                peer_address.green()
-                            );
+                                    "== Returning existing connection in race local_addr={:?} peer_address={:?}",
+                                    local_addr.green(),
+                                    peer_address.green()
+                                );
 
                             return Ok(NetworkResult::Value(conn));
                         }
-
+                    }
+                    if net_res.is_value() || retry_count == 0 {
+                        break net_res;
+                    }
+                }
+                Err(e) => {
+                    if retry_count == 0 {
                         return Err(e).wrap_err("failed to connect");
                     }
                 }

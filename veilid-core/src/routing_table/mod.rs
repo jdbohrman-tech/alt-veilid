@@ -125,7 +125,15 @@ impl RoutingTable {
             this.unlocked_inner
                 .rolling_transfers_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().rolling_transfers_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .rolling_transfers_task_routine(s, l, t)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "RoutingTable rolling transfers task routine"
+                            )),
+                    )
                 });
         }
 
@@ -135,7 +143,12 @@ impl RoutingTable {
             this.unlocked_inner
                 .kick_buckets_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().kick_buckets_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .kick_buckets_task_routine(s, l, t)
+                            .instrument(trace_span!(parent: None, "kick buckets task routine")),
+                    )
                 });
         }
         this

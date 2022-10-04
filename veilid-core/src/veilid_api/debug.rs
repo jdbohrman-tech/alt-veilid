@@ -406,6 +406,9 @@ impl VeilidAPI {
             NetworkResult::NoConnection(e) => {
                 return Ok(format!("NoConnection({})", e));
             }
+            NetworkResult::AlreadyExists(e) => {
+                return Ok(format!("AlreadyExists({})", e));
+            }
             NetworkResult::InvalidMessage(e) => {
                 return Ok(format!("InvalidMessage({})", e));
             }

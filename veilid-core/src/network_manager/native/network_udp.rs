@@ -54,7 +54,7 @@ impl Network {
 
                         loop {
                             match ph
-                                .recv_message(&mut data)
+                                .recv_message(&mut data).instrument(Span::current())
                                 .timeout_at(stop_token.clone())
                                 .await
                             {

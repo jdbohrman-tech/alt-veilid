@@ -223,7 +223,15 @@ impl NetworkManager {
             this.unlocked_inner
                 .rolling_transfers_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().rolling_transfers_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .rolling_transfers_task_routine(s, l, t)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "NetworkManager rolling transfers task routine"
+                            )),
+                    )
                 });
         }
         // Set relay management tick task
@@ -232,7 +240,12 @@ impl NetworkManager {
             this.unlocked_inner
                 .relay_management_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().relay_management_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .relay_management_task_routine(s, l, t)
+                            .instrument(trace_span!(parent: None, "relay management task routine")),
+                    )
                 });
         }
         // Set bootstrap tick task
@@ -240,7 +253,14 @@ impl NetworkManager {
             let this2 = this.clone();
             this.unlocked_inner
                 .bootstrap_task
-                .set_routine(move |s, _l, _t| Box::pin(this2.clone().bootstrap_task_routine(s)));
+                .set_routine(move |s, _l, _t| {
+                    Box::pin(
+                        this2
+                            .clone()
+                            .bootstrap_task_routine(s)
+                            .instrument(trace_span!(parent: None, "bootstrap task routine")),
+                    )
+                });
         }
         // Set peer minimum refresh tick task
         {
@@ -248,7 +268,15 @@ impl NetworkManager {
             this.unlocked_inner
                 .peer_minimum_refresh_task
                 .set_routine(move |s, _l, _t| {
-                    Box::pin(this2.clone().peer_minimum_refresh_task_routine(s))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .peer_minimum_refresh_task_routine(s)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "peer minimum refresh task routine"
+                            )),
+                    )
                 });
         }
         // Set ping validator tick task
@@ -257,7 +285,12 @@ impl NetworkManager {
             this.unlocked_inner
                 .ping_validator_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().ping_validator_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .ping_validator_task_routine(s, l, t)
+                            .instrument(trace_span!(parent: None, "ping validator task routine")),
+                    )
                 });
         }
         // Set public address check task
@@ -266,7 +299,15 @@ impl NetworkManager {
             this.unlocked_inner
                 .public_address_check_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().public_address_check_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .public_address_check_task_routine(s, l, t)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "public address check task routine"
+                            )),
+                    )
                 });
         }
         this

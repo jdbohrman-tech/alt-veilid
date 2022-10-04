@@ -130,11 +130,12 @@ impl RoutingContext {
         let answer = match rpc_processor.rpc_call_app_call(dest, request).await {
             Ok(NetworkResult::Value(v)) => v,
             Ok(NetworkResult::Timeout) => return Err(VeilidAPIError::Timeout),
-            Ok(NetworkResult::NoConnection(e)) => {
+            Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
                 return Err(VeilidAPIError::NoConnection {
                     message: e.to_string(),
                 })
             }
+
             Ok(NetworkResult::InvalidMessage(message)) => {
                 return Err(VeilidAPIError::Generic { message })
             }
@@ -159,7 +160,7 @@ impl RoutingContext {
         match rpc_processor.rpc_call_app_message(dest, message).await {
             Ok(NetworkResult::Value(())) => {}
             Ok(NetworkResult::Timeout) => return Err(VeilidAPIError::Timeout),
-            Ok(NetworkResult::NoConnection(e)) => {
+            Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
                 return Err(VeilidAPIError::NoConnection {
                     message: e.to_string(),
                 })

@@ -172,7 +172,8 @@ pub fn new_bound_first_tcp_socket(local_address: SocketAddr) -> io::Result<Socke
 }
 
 // Non-blocking connect is tricky when you want to start with a prepared socket
-#[instrument(level = "trace", ret, err)]
+// Errors should not be logged as they are valid conditions for this function
+#[instrument(level = "trace", ret)]
 pub async fn nonblocking_connect(
     socket: Socket,
     addr: SocketAddr,
@@ -184,9 +185,6 @@ pub async fn nonblocking_connect(
     // Make socket2 SockAddr
     let socket2_addr = socket2::SockAddr::from(addr);
 
-    // XXX
-    //let bind_local_addr = socket.local_addr().unwrap().as_socket().unwrap();
-
     // Connect to the remote address
     match socket.connect(&socket2_addr) {
         Ok(()) => Ok(()),
@@ -194,28 +192,7 @@ pub async fn nonblocking_connect(
         Err(err) if err.raw_os_error() == Some(libc::EINPROGRESS) => Ok(()),
         Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => Ok(()),
         Err(e) => Err(e),
-    }
-    .map_err(|e| {
-        // XXX
-        // warn!(
-        //     "DEBUGCONNECT XXXFAILXXX: bind={} local={} remote={}\nbacktrace={:?}",
-        //     bind_local_addr,
-        //     socket.local_addr().unwrap().as_socket().unwrap(),
-        //     addr,
-        //     backtrace::Backtrace::new(),
-        // );
-        e
-    })?;
-
-    // XXX
-    // warn!(
-    //     "DEBUGCONNECT: bind={} local={} remote={}\nbacktrace={:?}",
-    //     bind_local_addr,
-    //     socket.local_addr().unwrap().as_socket().unwrap(),
-    //     addr,
-    //     backtrace::Backtrace::new(),
-    // );
-
+    }?;
     let async_stream = Async::new(std::net::TcpStream::from(socket))?;
 
     // The stream becomes writable when connected

@@ -462,11 +462,13 @@ impl Network {
 
                 // receive single response
                 let mut out = vec![0u8; MAX_MESSAGE_SIZE];
-                let (recv_len, recv_addr) =
-                    network_result_try!(timeout(timeout_ms, h.recv_message(&mut out))
-                        .await
-                        .into_network_result())
-                    .wrap_err("recv_message failure")?;
+                let (recv_len, recv_addr) = network_result_try!(timeout(
+                    timeout_ms,
+                    h.recv_message(&mut out).instrument(Span::current())
+                )
+                .await
+                .into_network_result())
+                .wrap_err("recv_message failure")?;
 
                 let recv_socket_addr = recv_addr.remote_address().to_socket_addr();
                 self.network_manager()
