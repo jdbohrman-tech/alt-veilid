@@ -318,24 +318,29 @@ impl NodeRef {
     }
 
     pub fn last_connection(&self) -> Option<ConnectionDescriptor> {
-        // Get the last connection and the last time we saw anything with this connection
-        let (last_connection, last_seen) =
-            self.operate(|rti, e| e.last_connection(rti, self.filter.clone()))?;
+        // Get the last connections and the last time we saw anything with this connection
+        // Filtered first and then sorted by most recent
+        let last_connections = self.operate(|rti, e| e.last_connections(rti, self.filter.clone()));
 
-        // Should we check the connection table?
-        if last_connection.protocol_type().is_connection_oriented() {
-            // Look the connection up in the connection manager and see if it's still there
-            let connection_manager = self.routing_table.network_manager().connection_manager();
-            connection_manager.get_connection(last_connection)?;
-        } else {
-            // If this is not connection oriented, then we check our last seen time
-            // to see if this mapping has expired (beyond our timeout)
-            let cur_ts = intf::get_timestamp();
-            if (last_seen + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) < cur_ts {
-                return None;
+        // Do some checks to ensure these are possibly still 'live'
+        for (last_connection, last_seen) in last_connections {
+            // Should we check the connection table?
+            if last_connection.protocol_type().is_connection_oriented() {
+                // Look the connection up in the connection manager and see if it's still there
+                let connection_manager = self.routing_table.network_manager().connection_manager();
+                if connection_manager.get_connection(last_connection).is_some() {
+                    return Some(last_connection);
+                }
+            } else {
+                // If this is not connection oriented, then we check our last seen time
+                // to see if this mapping has expired (beyond our timeout)
+                let cur_ts = intf::get_timestamp();
+                if (last_seen + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts {
+                    return Some(last_connection);
+                }
             }
         }
-        Some(last_connection)
+        None
     }
 
     pub fn clear_last_connections(&self) {

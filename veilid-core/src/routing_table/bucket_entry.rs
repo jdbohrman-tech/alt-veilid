@@ -264,32 +264,62 @@ impl BucketEntryInner {
         self.last_connections.clear();
     }
 
-    // Gets the best 'last connection' that matches a set of routing domain, protocol types and address types
-    pub(super) fn last_connection(
+    // Gets the 'last connection' that matches a specific connection key
+    // pub(super) fn last_connection(
+    //     &self,
+    //     protocol_type: ProtocolType,
+    //     address_type: AddressType,
+    // ) -> Option<(ConnectionDescriptor, u64)> {
+    //     let key = LastConnectionKey(protocol_type, address_type);
+    //     self.last_connections.get(&key).cloned()
+    // }
+
+    // Gets all the 'last connections' that match a particular filter
+    pub(super) fn last_connections(
         &self,
         routing_table_inner: &RoutingTableInner,
-        node_ref_filter: Option<NodeRefFilter>,
-    ) -> Option<(ConnectionDescriptor, u64)> {
-        // Iterate peer scopes and protocol types and address type in order to ensure we pick the preferred protocols if all else is the same
-        let nrf = node_ref_filter.unwrap_or_default();
-        for pt in nrf.dial_info_filter.protocol_type_set {
-            for at in nrf.dial_info_filter.address_type_set {
-                let key = LastConnectionKey(pt, at);
-                if let Some(v) = self.last_connections.get(&key) {
-                    // Verify this connection could be in the filtered routing domain
-                    let address = v.0.remote_address().address();
-                    if let Some(rd) =
-                        RoutingTable::routing_domain_for_address_inner(routing_table_inner, address)
-                    {
-                        if nrf.routing_domain_set.contains(rd) {
-                            return Some(*v);
+        filter: Option<NodeRefFilter>,
+    ) -> Vec<(ConnectionDescriptor, u64)> {
+        let mut out: Vec<(ConnectionDescriptor, u64)> = self
+            .last_connections
+            .iter()
+            .filter_map(|(k, v)| {
+                let include = if let Some(filter) = &filter {
+                    let remote_address = v.0.remote_address().address();
+                    if let Some(routing_domain) = RoutingTable::routing_domain_for_address_inner(
+                        routing_table_inner,
+                        remote_address,
+                    ) {
+                        if filter.routing_domain_set.contains(routing_domain)
+                            && filter.dial_info_filter.protocol_type_set.contains(k.0)
+                            && filter.dial_info_filter.address_type_set.contains(k.1)
+                        {
+                            // matches filter
+                            true
+                        } else {
+                            // does not match filter
+                            false
                         }
+                    } else {
+                        // no valid routing domain
+                        false
                     }
+                } else {
+                    // no filter
+                    true
+                };
+                if include {
+                    Some(v.clone())
+                } else {
+                    None
                 }
-            }
-        }
-        None
+            })
+            .collect();
+        // Sort with newest timestamps first
+        out.sort_by(|a, b| b.1.cmp(&a.1));
+        out
     }
+
     pub fn set_min_max_version(&mut self, min_max_version: (u8, u8)) {
         self.min_max_version = Some(min_max_version);
     }

@@ -941,13 +941,12 @@ impl RPCProcessor {
         stop_token: StopToken,
         receiver: flume::Receiver<(Option<Id>, RPCMessageEncoded)>,
     ) {
-        while let Ok(Ok((span_id, msg))) =
+        while let Ok(Ok((_span_id, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
         {
-            let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker");
-            //let rpc_worker_span = span!(Level::TRACE, "rpc_worker");
-            // fixme: causes crashes? "Missing otel data span extensions"??
-            rpc_worker_span.follows_from(span_id);
+            let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
+            // xxx: causes crash (Missing otel data span extensions)
+            // rpc_worker_span.follows_from(span_id);
             let _ = self
                 .process_rpc_message(msg)
                 .instrument(rpc_worker_span)

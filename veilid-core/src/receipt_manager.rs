@@ -246,7 +246,7 @@ impl ReceiptManager {
             if let Some(callback) =
                 Self::perform_callback(ReceiptEvent::Expired, &mut expired_record_mut)
             {
-                callbacks.push(callback)
+                callbacks.push(callback.instrument(Span::current()))
             }
         }
 

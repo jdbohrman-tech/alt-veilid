@@ -127,8 +127,8 @@ where
                 let (_span_id, ret) = res.take_value().unwrap();
                 let end_ts = intf::get_timestamp();
 
-                // fixme: causes crashes? "Missing otel data span extensions"??
-                //Span::current().follows_from(span_id);
+                //xxx: causes crash (Missing otel data span extensions)
+                // Span::current().follows_from(span_id);
 
                 (ret, end_ts - start_ts)
             }))

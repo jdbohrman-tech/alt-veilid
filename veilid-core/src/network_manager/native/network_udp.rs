@@ -84,7 +84,7 @@ impl Network {
                                 }
                             }
                         }
-                    };
+                    }.instrument(Span::current());
 
                     protocol_handlers_unordered.push(ph_future);
                 }

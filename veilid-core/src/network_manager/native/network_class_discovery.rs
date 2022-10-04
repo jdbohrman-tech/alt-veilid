@@ -255,6 +255,13 @@ impl DiscoveryContext {
                 {
                     return Some(external_mapped_dial_info);
                 } else {
+                    warn!("UPNP port mapping succeeded but port {}/{} is still unreachable.\nYou may need to add a local firewall allowed port on this machine.\n",
+                        local_port, match llpt {
+                            LowLevelProtocolType::UDP => "udp",
+                            LowLevelProtocolType::TCP => "tcp",
+                        }
+                    );
+
                     // release the mapping if we're still unreachable
                     let _ = self
                         .net
@@ -628,6 +635,7 @@ impl Network {
                         }
                         Some(vec![udpv4_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check UDPv4"))
                     .boxed(),
                 );
             }
@@ -647,6 +655,7 @@ impl Network {
                         }
                         Some(vec![udpv6_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check UDPv6"))
                     .boxed(),
                 );
             }
@@ -669,6 +678,7 @@ impl Network {
                         }
                         Some(vec![tcpv4_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check TCPv4"))
                     .boxed(),
                 );
             }
@@ -688,6 +698,7 @@ impl Network {
                         }
                         Some(vec![wsv4_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check WSv4"))
                     .boxed(),
                 );
             }
@@ -710,6 +721,7 @@ impl Network {
                         }
                         Some(vec![tcpv6_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check TCPv6"))
                     .boxed(),
                 );
             }
@@ -729,6 +741,7 @@ impl Network {
                         }
                         Some(vec![wsv6_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check WSv6"))
                     .boxed(),
                 );
             }

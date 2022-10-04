@@ -109,11 +109,11 @@ impl Network {
         };
 
         // XXX
-        warn!(
-            "DEBUGACCEPT: local={} remote={}",
-            tcp_stream.local_addr().unwrap(),
-            tcp_stream.peer_addr().unwrap(),
-        );
+        // warn!(
+        //     "DEBUGACCEPT: local={} remote={}",
+        //     tcp_stream.local_addr().unwrap(),
+        //     tcp_stream.peer_addr().unwrap(),
+        // );
 
         let listener_state = listener_state.clone();
         let connection_manager = connection_manager.clone();

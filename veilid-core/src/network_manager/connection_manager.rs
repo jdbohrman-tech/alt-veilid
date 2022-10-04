@@ -26,6 +26,7 @@ struct ConnectionManagerArc {
     connection_initial_timeout_ms: u32,
     connection_inactivity_timeout_ms: u32,
     connection_table: ConnectionTable,
+    address_lock_table: AsyncTagLockTable<SocketAddr>,
     inner: Mutex<Option<ConnectionManagerInner>>,
 }
 impl core::fmt::Debug for ConnectionManagerArc {
@@ -69,6 +70,7 @@ impl ConnectionManager {
             connection_initial_timeout_ms,
             connection_inactivity_timeout_ms,
             connection_table: ConnectionTable::new(config),
+            address_lock_table: AsyncTagLockTable::new(),
             inner: Mutex::new(None),
         }
     }
@@ -196,7 +198,7 @@ impl ConnectionManager {
     }
 
     // Returns a network connection if one already is established
-    #[instrument(level = "trace", skip(self), ret)]
+    //#[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection(&self, descriptor: ConnectionDescriptor) -> Option<ConnectionHandle> {
         self.arc
             .connection_table
@@ -236,11 +238,6 @@ impl ConnectionManager {
         did_kill
     }
 
-    /// Locak remote address
-    // async fn lock_remote_address(&self, remote_addr: SocketAddr) -> {
-
-    // }
-
     /// Called when we want to create a new connection or get the current one that already exists
     /// This will kill off any connections that are in conflict with the new connection to be made
     /// in order to make room for the new connection in the system's connection table
@@ -251,17 +248,16 @@ impl ConnectionManager {
         local_addr: Option<SocketAddr>,
         dial_info: DialInfo,
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
-        warn!(
+        // Async lock on the remote address for atomicity per remote
+        let peer_address = dial_info.to_peer_address();
+        let remote_addr = peer_address.to_socket_addr();
+        let _lock_guard = self.arc.address_lock_table.lock_tag(remote_addr);
+
+        log_net!(
             "== get_or_create_connection local_addr={:?} dial_info={:?}",
             local_addr.green(),
             dial_info.green()
         );
-
-        // Make a connection descriptor for this dialinfo
-        let peer_address = dial_info.to_peer_address();
-
-        // Async lock on the remote address for atomicity
-        //let _lock_guard = self.lock_remote_address(peer_address.to_socket_addr());
 
         // Kill off any possibly conflicting connections
         let did_kill = self.kill_off_colliding_connections(&dial_info).await;
@@ -299,6 +295,22 @@ impl ConnectionManager {
                 }
                 Err(e) => {
                     if retry_count == 0 {
+                        // Try one last time to return a connection from the table, in case
+                        // an 'accept' happened at literally the same time as our connect
+                        if let Some(conn) = self
+                            .arc
+                            .connection_table
+                            .get_last_connection_by_remote(peer_address)
+                        {
+                            log_net!(
+                                "== Returning existing connection in race local_addr={:?} peer_address={:?}",
+                                local_addr.green(),
+                                peer_address.green()
+                            );
+
+                            return Ok(NetworkResult::Value(conn));
+                        }
+
                         return Err(e).wrap_err("failed to connect");
                     }
                 }

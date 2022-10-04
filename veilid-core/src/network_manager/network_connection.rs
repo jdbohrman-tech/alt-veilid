@@ -210,11 +210,13 @@ impl NetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
+    #[allow(dead_code)]
     pub fn stats(&self) -> NetworkConnectionStats {
         let stats = self.stats.lock();
         stats.clone()
     }
 
+    #[allow(dead_code)]
     pub fn established_time(&self) -> u64 {
         self.established_time
     }
@@ -260,10 +262,11 @@ impl NetworkConnection {
                     need_sender = false;
                     let sender_fut = receiver.recv_async().then(|res| async {
                         match res {
-                            Ok((span_id, message)) => {
+                            Ok((_span_id, message)) => {
 
-                                let recv_span = span!(parent: None, Level::TRACE, "process_connection recv");
-                                recv_span.follows_from(span_id);
+                                let recv_span = span!(Level::TRACE, "process_connection recv");
+                                // xxx: causes crash (Missing otel data span extensions)
+                                // recv_span.follows_from(span_id);
                     
                                 // send the packet
                                 if let Err(e) = Self::send_internal(

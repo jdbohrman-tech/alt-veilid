@@ -144,7 +144,7 @@ impl ConnectionTable {
         let mut out_conn = None;
         if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
             if let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].remove_lru() {
-                debug!("connection lru out: {:?}", lru_conn);
+                log_net!(debug "connection lru out: {:?}", lru_conn);
                 out_conn = Some(lru_conn);
                 Self::remove_connection_records(&mut *inner, lruk);
             }
@@ -158,7 +158,8 @@ impl ConnectionTable {
         Ok(out_conn)
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
+    //#[instrument(level = "trace", skip(self), ret)]
+    #[allow(dead_code)]
     pub fn get_connection_by_id(&self, id: NetworkConnectionId) -> Option<ConnectionHandle> {
         let mut inner = self.inner.lock();
         let protocol_index = *inner.protocol_index_by_id.get(&id)?;
@@ -166,7 +167,7 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
+    //#[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection_by_descriptor(
         &self,
         descriptor: ConnectionDescriptor,
@@ -179,7 +180,7 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
+    //#[instrument(level = "trace", skip(self), ret)]
     pub fn get_last_connection_by_remote(&self, remote: PeerAddress) -> Option<ConnectionHandle> {
         let mut inner = self.inner.lock();
 
@@ -189,7 +190,8 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
+    //#[instrument(level = "trace", skip(self), ret)]
+    #[allow(dead_code)]
     pub fn get_connection_ids_by_remote(&self, remote: PeerAddress) -> Vec<NetworkConnectionId> {
         let inner = self.inner.lock();
         inner

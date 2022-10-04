@@ -185,7 +185,7 @@ pub async fn nonblocking_connect(
     let socket2_addr = socket2::SockAddr::from(addr);
 
     // XXX
-    let bind_local_addr = socket.local_addr().unwrap().as_socket().unwrap();
+    //let bind_local_addr = socket.local_addr().unwrap().as_socket().unwrap();
 
     // Connect to the remote address
     match socket.connect(&socket2_addr) {
@@ -197,24 +197,24 @@ pub async fn nonblocking_connect(
     }
     .map_err(|e| {
         // XXX
-        warn!(
-            "DEBUGCONNECT XXXFAILXXX: bind={} local={} remote={}\nbacktrace={:?}",
-            bind_local_addr,
-            socket.local_addr().unwrap().as_socket().unwrap(),
-            addr,
-            backtrace::Backtrace::new(),
-        );
+        // warn!(
+        //     "DEBUGCONNECT XXXFAILXXX: bind={} local={} remote={}\nbacktrace={:?}",
+        //     bind_local_addr,
+        //     socket.local_addr().unwrap().as_socket().unwrap(),
+        //     addr,
+        //     backtrace::Backtrace::new(),
+        // );
         e
     })?;
 
     // XXX
-    warn!(
-        "DEBUGCONNECT: bind={} local={} remote={}\nbacktrace={:?}",
-        bind_local_addr,
-        socket.local_addr().unwrap().as_socket().unwrap(),
-        addr,
-        backtrace::Backtrace::new(),
-    );
+    // warn!(
+    //     "DEBUGCONNECT: bind={} local={} remote={}\nbacktrace={:?}",
+    //     bind_local_addr,
+    //     socket.local_addr().unwrap().as_socket().unwrap(),
+    //     addr,
+    //     backtrace::Backtrace::new(),
+    // );
 
     let async_stream = Async::new(std::net::TcpStream::from(socket))?;
 
