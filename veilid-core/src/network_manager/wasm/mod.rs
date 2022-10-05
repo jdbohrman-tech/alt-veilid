@@ -10,25 +10,34 @@ use std::io;
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {
-    network_manager: NetworkManager,
     network_started: bool,
     network_needs_restart: bool,
     protocol_config: Option<ProtocolConfig>,
+}
+
+struct NetworkUnlockedInner {
+    network_manager: NetworkManager,
 }
 
 #[derive(Clone)]
 pub struct Network {
     config: VeilidConfig,
     inner: Arc<Mutex<NetworkInner>>,
+    unlocked_inner: Arc<NetworkUnlockedInner>,
 }
 
 impl Network {
-    fn new_inner(network_manager: NetworkManager) -> NetworkInner {
+    fn new_inner() -> NetworkInner {
         NetworkInner {
-            network_manager,
             network_started: false,
             network_needs_restart: false,
             protocol_config: None, //join_handle: None,
+        }
+    }
+
+    fn new_unlocked_inner(network_manager: NetworkManager) -> NetworkUnlockedInner {
+        NetworkUnlockedInner {
+            network_manager
         }
     }
 
@@ -39,15 +48,16 @@ impl Network {
     ) -> Self {
         Self {
             config: network_manager.config(),
-            inner: Arc::new(Mutex::new(Self::new_inner(network_manager))),
+            inner: Arc::new(Mutex::new(Self::new_inner())),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(network_manager))
         }
     }
 
     fn network_manager(&self) -> NetworkManager {
-        self.inner.lock().network_manager.clone()
+        self.unlocked_inner.network_manager.clone()
     }
     fn connection_manager(&self) -> ConnectionManager {
-        self.inner.lock().network_manager.connection_manager()
+        self.unlocked_inner.network_manager.connection_manager()
     }
 
     /////////////////////////////////////////////////////////////////
@@ -269,15 +279,22 @@ impl Network {
         trace!("stopping network");
 
         // Reset state
-        let network_manager = self.inner.lock().network_manager.clone();
+        let network_manager = self.network_manager();
         let routing_table = network_manager.routing_table();
 
         // Drop all dial info
-        routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
-        routing_table.clear_dial_info_details(RoutingDomain::LocalNetwork);
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
+        editor.disable_node_info_updates();
+        editor.clear_dial_info_details();
+        editor.commit().await;
+
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
+        editor.disable_node_info_updates();
+        editor.clear_dial_info_details();
+        editor.commit().await;
 
         // Cancels all async background tasks by dropping join handles
-        *self.inner.lock() = Self::new_inner(network_manager);
+        *self.inner.lock() = Self::new_inner();
 
         trace!("network stopped");
     }

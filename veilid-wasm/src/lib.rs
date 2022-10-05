@@ -10,6 +10,7 @@ use alloc::*;
 use core::any::{Any, TypeId};
 use core::cell::RefCell;
 use futures_util::FutureExt;
+use gloo_utils::format::JsValueSerdeExt;
 use js_sys::*;
 use lazy_static::*;
 use send_wrapper::*;
@@ -306,5 +307,5 @@ pub fn veilid_version() -> JsValue {
         minor,
         patch,
     };
-    JsValue::from_serde(&vv).unwrap()
+    <JsValue as JsValueSerdeExt>::from_serde(&vv).unwrap()
 }

@@ -1920,6 +1920,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "gloo-utils"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40913a05c8297adca04392f707b1e73b12ba7b8eab7244a4961580b1fd34063c"
+dependencies = [
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "grpcio"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5448,6 +5461,7 @@ dependencies = [
  "console_error_panic_hook",
  "data-encoding",
  "futures-util",
+ "gloo-utils",
  "js-sys",
  "lazy_static",
  "send_wrapper 0.6.0",

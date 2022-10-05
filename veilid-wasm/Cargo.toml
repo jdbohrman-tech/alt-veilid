@@ -27,6 +27,7 @@ lazy_static = "^1"
 send_wrapper = "^0"
 futures-util = { version = "^0", default_features = false, features = ["alloc"] }
 data-encoding = { version = "^2" }
+gloo-utils = { version = "^0", features = ["serde"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "^0"
