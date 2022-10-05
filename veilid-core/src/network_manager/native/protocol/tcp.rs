@@ -87,11 +87,11 @@ impl RawTcpNetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
-    #[instrument(level = "trace", err, skip(self), fields(network_result))]
+    // #[instrument(level = "trace", err, skip(self), fields(network_result))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let mut stream = self.stream.clone();
         let out = Self::recv_internal(&mut stream).await?;
-        tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        //tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 }

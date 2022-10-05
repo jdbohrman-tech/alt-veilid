@@ -54,7 +54,7 @@ impl Network {
 
                         loop {
                             match ph
-                                .recv_message(&mut data).instrument(Span::current())
+                                .recv_message(&mut data)
                                 .timeout_at(stop_token.clone())
                                 .await
                             {
@@ -84,7 +84,7 @@ impl Network {
                                 }
                             }
                         }
-                    }.instrument(Span::current());
+                    };
 
                     protocol_handlers_unordered.push(ph_future);
                 }

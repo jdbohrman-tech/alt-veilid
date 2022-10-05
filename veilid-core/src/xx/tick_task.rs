@@ -15,6 +15,7 @@ pub struct TickTask<E: Send + 'static> {
     routine: OnceCell<Box<TickTaskRoutine<E>>>,
     stop_source: AsyncMutex<Option<StopSource>>,
     single_future: MustJoinSingleFuture<Result<(), E>>,
+    running: Arc<AtomicBool>,
 }
 
 impl<E: Send + 'static> TickTask<E> {
@@ -25,6 +26,7 @@ impl<E: Send + 'static> TickTask<E> {
             routine: OnceCell::new(),
             stop_source: AsyncMutex::new(None),
             single_future: MustJoinSingleFuture::new(),
+            running: Arc::new(AtomicBool::new(false)),
         }
     }
     pub fn new_ms(tick_period_ms: u32) -> Self {
@@ -34,6 +36,7 @@ impl<E: Send + 'static> TickTask<E> {
             routine: OnceCell::new(),
             stop_source: AsyncMutex::new(None),
             single_future: MustJoinSingleFuture::new(),
+            running: Arc::new(AtomicBool::new(false)),
         }
     }
     pub fn new(tick_period_sec: u32) -> Self {
@@ -43,6 +46,7 @@ impl<E: Send + 'static> TickTask<E> {
             routine: OnceCell::new(),
             stop_source: AsyncMutex::new(None),
             single_future: MustJoinSingleFuture::new(),
+            running: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -51,6 +55,10 @@ impl<E: Send + 'static> TickTask<E> {
         routine: impl Fn(StopToken, u64, u64) -> SendPinBoxFuture<Result<(), E>> + Send + Sync + 'static,
     ) {
         self.routine.set(Box::new(routine)).map_err(drop).unwrap();
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.running.load(core::sync::atomic::Ordering::Relaxed)
     }
 
     pub async fn stop(&self) -> Result<(), E> {
@@ -107,15 +115,16 @@ impl<E: Send + 'static> TickTask<E> {
 
         // Run the singlefuture
         let stop_source = StopSource::new();
-        match self
-            .single_future
-            .single_spawn(self.routine.get().unwrap()(
-                stop_source.token(),
-                last_timestamp_us,
-                now,
-            ))
-            .await
-        {
+        let stop_token = stop_source.token();
+        let running = self.running.clone();
+        let routine = self.routine.get().unwrap()(stop_token, last_timestamp_us, now);
+        let wrapped_routine = Box::pin(async move {
+            running.store(true, core::sync::atomic::Ordering::Relaxed);
+            let out = routine.await;
+            running.store(false, core::sync::atomic::Ordering::Relaxed);
+            out
+        });
+        match self.single_future.single_spawn(wrapped_routine).await {
             // We should have already consumed the result of the last run, or there was none
             // and we should definitely have run, because the prior 'check()' operation
             // should have ensured the singlefuture was ready to run

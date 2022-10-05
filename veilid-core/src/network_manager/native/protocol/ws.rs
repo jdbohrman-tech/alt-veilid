@@ -93,7 +93,7 @@ where
         Ok(out)
     }
 
-    #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
+    // #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let out = match self.stream.clone().next().await {
             Some(Ok(Message::Binary(v))) => {
@@ -120,7 +120,7 @@ where
             )),
         };
 
-        tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        // tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 }

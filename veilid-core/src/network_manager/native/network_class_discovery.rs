@@ -382,17 +382,6 @@ impl DiscoveryContext {
     // If we know we are behind NAT check what kind
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn protocol_process_nat(&self) -> EyreResult<bool> {
-        let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
-            let inner = self.inner.lock();
-            (
-                inner.node_1.as_ref().unwrap().clone(),
-                inner.external_1_dial_info.as_ref().unwrap().clone(),
-                inner.external_1_address.unwrap(),
-                inner.protocol_type.unwrap(),
-                inner.address_type.unwrap(),
-            )
-        };
-
         // Attempt a port mapping via all available and enabled mechanisms
         // Try this before the direct mapping in the event that we are restarting
         // and may not have recorded a mapping created the last time
@@ -404,8 +393,30 @@ impl DiscoveryContext {
             // No more retries
             return Ok(true);
         }
+
+        // XXX: is this necessary?
+        // Redo our external_1 dial info detection because a failed port mapping attempt
+        // may cause it to become invalid
+        // Get our external address from some fast node, call it node 1
+        // if !self.protocol_get_external_address_1().await {
+        //     // If we couldn't get an external address, then we should just try the whole network class detection again later
+        //     return Ok(false);
+        // }
+
+        // Get the external dial info for our use here
+        let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
+            let inner = self.inner.lock();
+            (
+                inner.node_1.as_ref().unwrap().clone(),
+                inner.external_1_dial_info.as_ref().unwrap().clone(),
+                inner.external_1_address.unwrap(),
+                inner.protocol_type.unwrap(),
+                inner.address_type.unwrap(),
+            )
+        };
+
         // Do a validate_dial_info on the external address from a redirected node
-        else if self
+        if self
             .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
             .await
         {

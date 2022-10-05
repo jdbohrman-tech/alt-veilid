@@ -610,12 +610,15 @@ impl NetworkManager {
             let c = self.config.get();
             c.network.dht.min_peer_count as usize
         };
+
         // If none, then add the bootstrap nodes to it
         if live_public_internet_entry_count == 0 {
             self.unlocked_inner.bootstrap_task.tick().await?;
         }
         // If we still don't have enough peers, find nodes until we do
-        else if live_public_internet_entry_count < min_peer_count {
+        else if !self.unlocked_inner.bootstrap_task.is_running()
+            && live_public_internet_entry_count < min_peer_count
+        {
             self.unlocked_inner.peer_minimum_refresh_task.tick().await?;
         }
 
