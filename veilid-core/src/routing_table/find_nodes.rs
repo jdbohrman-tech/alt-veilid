@@ -435,9 +435,6 @@ impl RoutingTable {
             // as we need to be able to use the relay for keepalives for all nat mappings
             let mut low_level_protocol_ports = mapped_port_info.low_level_protocol_ports.clone();
 
-            info!("outbound_dif: {:?}", outbound_dif);
-            info!("low_level_protocol_ports: {:?}", low_level_protocol_ports);
-
             let can_serve_as_relay = e
                 .node_info(RoutingDomain::PublicInternet)
                 .map(|n| {

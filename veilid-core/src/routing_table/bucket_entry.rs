@@ -439,14 +439,17 @@ impl BucketEntryInner {
         }
     }
 
-    fn needs_constant_ping(&self, cur_ts: u64, interval: u64) -> bool {
-        // If we have not either seen the node, nor asked it a question in the last 'interval'
-        // then we should ping it
-        let latest_contact_time = self
-            .peer_stats
+    /// Return the last time we either saw a node, or asked it a question
+    fn latest_contact_time(&self) -> Option<u64> {
+        self.peer_stats
             .rpc_stats
             .last_seen_ts
-            .max(self.peer_stats.rpc_stats.last_question);
+            .max(self.peer_stats.rpc_stats.last_question)
+    }
+
+    fn needs_constant_ping(&self, cur_ts: u64, interval: u64) -> bool {
+        // If we have not either seen the node in the last 'interval' then we should ping it
+        let latest_contact_time = self.latest_contact_time();
 
         match latest_contact_time {
             None => true,
@@ -468,14 +471,19 @@ impl BucketEntryInner {
             return self.needs_constant_ping(cur_ts, KEEPALIVE_PING_INTERVAL_SECS as u64);
         }
 
+        // If we don't have node status for this node, then we should ping it to get some node status
+        for routing_domain in RoutingDomainSet::all() {
+            if self.has_node_info(routing_domain.into()) {
+                if self.node_status(routing_domain).is_none() {
+                    return true;
+                }
+            }
+        }
+
         match state {
             BucketEntryState::Reliable => {
                 // If we are in a reliable state, we need a ping on an exponential scale
-                let latest_contact_time = self
-                    .peer_stats
-                    .rpc_stats
-                    .last_seen_ts
-                    .max(self.peer_stats.rpc_stats.last_question);
+                let latest_contact_time = self.latest_contact_time();
 
                 match latest_contact_time {
                     None => {
