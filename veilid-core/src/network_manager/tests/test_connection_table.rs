@@ -52,6 +52,7 @@ pub async fn test_add_get_remove() {
     );
 
     let c1 = NetworkConnection::dummy(1, a1);
+    let c1b = NetworkConnection::dummy(10, a1);
     let c1h = c1.get_handle();
     let c2 = NetworkConnection::dummy(2, a2);
     let c3 = NetworkConnection::dummy(3, a3);
@@ -65,6 +66,7 @@ pub async fn test_add_get_remove() {
     assert_eq!(table.connection_count(), 0);
     assert_eq!(table.get_connection_by_descriptor(a1), None);
     table.add_connection(c1).unwrap();
+    assert!(table.add_connection(c1b).is_err());
 
     assert_eq!(table.connection_count(), 1);
     assert!(table.remove_connection_by_id(4).is_none());

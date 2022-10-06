@@ -353,7 +353,7 @@ impl NetworkManager {
         let node_refs = routing_table.get_nodes_needing_ping(RoutingDomain::PublicInternet, cur_ts);
 
         // Look up any NAT mappings we may need to try to preserve with keepalives
-        let mut mapped_port_info = routing_table.get_mapped_port_info();
+        let mut mapped_port_info = routing_table.get_low_level_port_info();
 
         // Get the PublicInternet relay if we are using one
         let opt_relay_nr = routing_table.relay_node(RoutingDomain::PublicInternet);
@@ -558,7 +558,8 @@ impl NetworkManager {
 
             // Do we need a relay?
             if !has_relay && node_info.requires_relay() {
-                // Do we need an outbound relay?
+                // Do we want an outbound relay?
+                let mut got_outbound_relay = false;
                 if network_class.outbound_wants_relay() {
                     // The outbound relay is the host of the PWA
                     if let Some(outbound_relay_peerinfo) = intf::get_outbound_relay_peer().await {
@@ -571,10 +572,11 @@ impl NetworkManager {
                         ) {
                             info!("Outbound relay node selected: {}", nr);
                             editor.set_relay_node(nr);
+                            got_outbound_relay = true;
                         }
                     }
-                // Otherwise we must need an inbound relay
-                } else {
+                }
+                if !got_outbound_relay {
                     // Find a node in our routing table that is an acceptable inbound relay
                     if let Some(nr) =
                         routing_table.find_inbound_relay(RoutingDomain::PublicInternet, cur_ts)

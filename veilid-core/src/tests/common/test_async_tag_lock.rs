@@ -35,20 +35,20 @@ pub async fn test_simple_single_contention() {
 
     let g1 = table.lock_tag(a1).await;
 
-    println!("locked");
+    info!("locked");
     let t1 = intf::spawn(async move {
         // move the guard into the task
         let _g1_take = g1;
         // hold the guard for a bit
-        println!("waiting");
+        info!("waiting");
         intf::sleep(1000).await;
         // release the guard
-        println!("released");
+        info!("released");
     });
 
     // wait to lock again, will contend until spawned task exits
     let _g1_b = table.lock_tag(a1).await;
-    println!("locked");
+    info!("locked");
 
     // Ensure task is joined
     t1.await;
@@ -67,24 +67,24 @@ pub async fn test_simple_double_contention() {
     let g1 = table.lock_tag(a1).await;
     let g2 = table.lock_tag(a2).await;
 
-    println!("locked");
+    info!("locked");
     let t1 = intf::spawn(async move {
-        // move the guard into the task
+        // move the guard into the tas
         let _g1_take = g1;
         // hold the guard for a bit
-        println!("waiting");
+        info!("waiting");
         intf::sleep(1000).await;
         // release the guard
-        println!("released");
+        info!("released");
     });
     let t2 = intf::spawn(async move {
         // move the guard into the task
         let _g2_take = g2;
         // hold the guard for a bit
-        println!("waiting");
+        info!("waiting");
         intf::sleep(500).await;
         // release the guard
-        println!("released");
+        info!("released");
     });
 
     // wait to lock again, will contend until spawned task exits
@@ -92,7 +92,7 @@ pub async fn test_simple_double_contention() {
     // wait to lock again, should complete immediately
     let _g2_b = table.lock_tag(a2).await;
 
-    println!("locked");
+    info!("locked");
 
     // Ensure tasks are joined
     t1.await;
@@ -112,36 +112,36 @@ pub async fn test_parallel_single_contention() {
     let t1 = intf::spawn(async move {
         // lock the tag
         let _g = table1.lock_tag(a1).await;
-        println!("locked t1");
+        info!("locked t1");
         // hold the guard for a bit
-        println!("waiting t1");
+        info!("waiting t1");
         intf::sleep(500).await;
         // release the guard
-        println!("released t1");
+        info!("released t1");
     });
 
     let table2 = table.clone();
     let t2 = intf::spawn(async move {
         // lock the tag
         let _g = table2.lock_tag(a1).await;
-        println!("locked t2");
+        info!("locked t2");
         // hold the guard for a bit
-        println!("waiting t2");
+        info!("waiting t2");
         intf::sleep(500).await;
         // release the guard
-        println!("released t2");
+        info!("released t2");
     });
 
     let table3 = table.clone();
     let t3 = intf::spawn(async move {
         // lock the tag
         let _g = table3.lock_tag(a1).await;
-        println!("locked t3");
+        info!("locked t3");
         // hold the guard for a bit
-        println!("waiting t3");
+        info!("waiting t3");
         intf::sleep(500).await;
         // release the guard
-        println!("released t3");
+        info!("released t3");
     });
 
     // Ensure tasks are joined

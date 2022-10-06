@@ -1,18 +1,33 @@
 use super::*;
+use core::fmt::Debug;
 use core::hash::Hash;
 
+#[derive(Debug)]
 pub struct AsyncTagLockGuard<T>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Debug,
 {
     table: AsyncTagLockTable<T>,
     tag: T,
     _guard: AsyncMutexGuardArc<()>,
 }
 
+impl<T> AsyncTagLockGuard<T>
+where
+    T: Hash + Eq + Clone + Debug,
+{
+    fn new(table: AsyncTagLockTable<T>, tag: T, guard: AsyncMutexGuardArc<()>) -> Self {
+        Self {
+            table,
+            tag,
+            _guard: guard,
+        }
+    }
+}
+
 impl<T> Drop for AsyncTagLockGuard<T>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Debug,
 {
     fn drop(&mut self) {
         let mut inner = self.table.inner.lock();
@@ -33,7 +48,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct AsyncTagLockTableEntry {
     mutex: Arc<AsyncMutex<()>>,
     waiters: usize,
@@ -41,7 +56,7 @@ struct AsyncTagLockTableEntry {
 
 struct AsyncTagLockTableInner<T>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Debug,
 {
     table: HashMap<T, AsyncTagLockTableEntry>,
 }
@@ -49,14 +64,14 @@ where
 #[derive(Clone)]
 pub struct AsyncTagLockTable<T>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Debug,
 {
     inner: Arc<Mutex<AsyncTagLockTableInner<T>>>,
 }
 
 impl<T> fmt::Debug for AsyncTagLockTable<T>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("AsyncTagLockTable").finish()
@@ -65,7 +80,7 @@ where
 
 impl<T> AsyncTagLockTable<T>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Debug,
 {
     pub fn new() -> Self {
         Self {
@@ -111,16 +126,12 @@ where
                 // tokio version
                 guard = mutex.lock_owned().await;
             } else {
-                // async_std and wasm async_mutex version
+                // async-std and wasm async-lock version
                 guard = mutex.lock_arc().await;
             }
         }
 
         // Return the locked guard
-        AsyncTagLockGuard {
-            table: self.clone(),
-            tag,
-            _guard: guard,
-        }
+        AsyncTagLockGuard::new(self.clone(), tag, guard)
     }
 }

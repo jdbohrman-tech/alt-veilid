@@ -251,7 +251,8 @@ impl ConnectionManager {
         // Async lock on the remote address for atomicity per remote
         let peer_address = dial_info.to_peer_address();
         let remote_addr = peer_address.to_socket_addr();
-        let _lock_guard = self.arc.address_lock_table.lock_tag(remote_addr);
+
+        let _lock_guard = self.arc.address_lock_table.lock_tag(remote_addr).await;
 
         log_net!(
             "== get_or_create_connection local_addr={:?} dial_info={:?}",
@@ -369,7 +370,7 @@ impl ConnectionManager {
 
     // Called by low-level network when any connection-oriented protocol connection appears
     // either from incoming connections.
-    #[cfg_attr(target_os = "wasm32", allow(dead_code))]
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(super) async fn on_accepted_protocol_network_connection(
         &self,
         protocol_connection: ProtocolNetworkConnection,

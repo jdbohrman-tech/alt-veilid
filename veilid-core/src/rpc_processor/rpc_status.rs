@@ -8,6 +8,7 @@ impl RPCProcessor {
         self,
         peer: NodeRef,
     ) -> Result<NetworkResult<Answer<SenderInfo>>, RPCError> {
+        info!("ping to {:?}", peer);
         let routing_domain = match peer.best_routing_domain() {
             Some(rd) => rd,
             None => {
@@ -43,6 +44,7 @@ impl RPCProcessor {
             },
             _ => return Err(RPCError::invalid_format("not an answer")),
         };
+        info!("qwer");
 
         // Ensure the returned node status is the kind for the routing domain we asked for
         match routing_domain {
@@ -61,6 +63,8 @@ impl RPCProcessor {
                 }
             }
         }
+
+        info!("zxzxv");
 
         // Update latest node status in routing table
         peer.update_node_status(status_a.node_status);

@@ -90,13 +90,7 @@ fi
 rustup target add aarch64-apple-darwin aarch64-apple-ios x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
 # install cargo packages
-cargo install wasm-bindgen-cli
-
-# install bitcode compatible ios toolchain
-# echo Manual Step:
-# echo   install +ios-arm64-1.57.0 toolchain for bitcode from https://github.com/getditto/rust-bitcode/releases/latest and unzip
-# echo   xattr -d -r com.apple.quarantine .
-# echo   ./install.sh
+cargo install wasm-bindgen-cli wasm-pack
 
 # ensure we have command line tools
 xcode-select --install

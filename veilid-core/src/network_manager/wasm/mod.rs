@@ -16,7 +16,10 @@ struct NetworkInner {
 }
 
 struct NetworkUnlockedInner {
+    // Accessors
+    routing_table: RoutingTable,
     network_manager: NetworkManager,
+    connection_manager: ConnectionManager,
 }
 
 #[derive(Clone)]
@@ -35,9 +38,15 @@ impl Network {
         }
     }
 
-    fn new_unlocked_inner(network_manager: NetworkManager) -> NetworkUnlockedInner {
+    fn new_unlocked_inner(
+        network_manager: NetworkManager,
+        routing_table: RoutingTable,
+        connection_manager: ConnectionManager,
+    ) -> NetworkUnlockedInner {
         NetworkUnlockedInner {
-            network_manager
+            network_manager,
+            routing_table,
+            connection_manager
         }
     }
 
@@ -49,15 +58,18 @@ impl Network {
         Self {
             config: network_manager.config(),
             inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(network_manager))
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(network_manager, routing_table, connection_manager))
         }
     }
 
     fn network_manager(&self) -> NetworkManager {
         self.unlocked_inner.network_manager.clone()
     }
+    fn routing_table(&self) -> RoutingTable {
+        self.unlocked_inner.routing_table.clone()
+    }
     fn connection_manager(&self) -> ConnectionManager {
-        self.unlocked_inner.network_manager.connection_manager()
+        self.unlocked_inner.connection_manager.clone()
     }
 
     /////////////////////////////////////////////////////////////////
@@ -279,8 +291,7 @@ impl Network {
         trace!("stopping network");
 
         // Reset state
-        let network_manager = self.network_manager();
-        let routing_table = network_manager.routing_table();
+        let routing_table = self.routing_table();
 
         // Drop all dial info
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
@@ -299,7 +310,7 @@ impl Network {
         trace!("network stopped");
     }
 
-    pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
+    pub fn is_usable_interface_address(&self, _addr: IpAddr) -> bool {
         false
     }
 

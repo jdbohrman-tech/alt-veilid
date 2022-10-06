@@ -112,7 +112,7 @@ impl WebsocketProtocolHandler {
         timeout_ms: u32,
     ) -> io::Result<NetworkResult<ProtocolNetworkConnection>> {
         // Split dial info up
-        let (tls, scheme) = match dial_info {
+        let (_tls, scheme) = match dial_info {
             DialInfo::WS(_) => (false, "ws"),
             DialInfo::WSS(_) => (true, "wss"),
             _ => panic!("invalid dialinfo for WS/WSS protocol"),

@@ -7,7 +7,7 @@ use crate::*;
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
-pub struct MappedPortInfo {
+pub struct LowLevelPortInfo {
     pub low_level_protocol_ports: LowLevelProtocolPorts,
     pub protocol_to_port: ProtocolToPortMapping,
 }
@@ -389,7 +389,7 @@ impl RoutingTable {
     // Only one protocol per low level protocol/port combination is required
     // For example, if WS/WSS and TCP protocols are on the same low-level TCP port, only TCP keepalives will be required
     // and we do not need to do WS/WSS keepalive as well. If they are on different ports, then we will need WS/WSS keepalives too.
-    pub fn get_mapped_port_info(&self) -> MappedPortInfo {
+    pub fn get_low_level_port_info(&self) -> LowLevelPortInfo {
         let mut low_level_protocol_ports =
             BTreeSet::<(LowLevelProtocolType, AddressType, u16)>::new();
         let mut protocol_to_port =
@@ -412,7 +412,7 @@ impl RoutingTable {
                 ),
             );
         }
-        MappedPortInfo {
+        LowLevelPortInfo {
             low_level_protocol_ports,
             protocol_to_port,
         }
@@ -423,7 +423,7 @@ impl RoutingTable {
         let outbound_dif = self
             .network_manager()
             .get_outbound_dial_info_filter(RoutingDomain::PublicInternet);
-        let mapped_port_info = self.get_mapped_port_info();
+        let mapped_port_info = self.get_low_level_port_info();
 
         move |e: &BucketEntryInner| {
             // Ensure this node is not on the local network
@@ -434,6 +434,9 @@ impl RoutingTable {
             // Disqualify nodes that don't cover all our inbound ports for tcp and udp
             // as we need to be able to use the relay for keepalives for all nat mappings
             let mut low_level_protocol_ports = mapped_port_info.low_level_protocol_ports.clone();
+
+            info!("outbound_dif: {:?}", outbound_dif);
+            info!("low_level_protocol_ports: {:?}", low_level_protocol_ports);
 
             let can_serve_as_relay = e
                 .node_info(RoutingDomain::PublicInternet)
