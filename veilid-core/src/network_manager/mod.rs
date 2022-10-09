@@ -38,6 +38,7 @@ use xx::*;
 ////////////////////////////////////////////////////////////////////////////////////////
 
 pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
 pub const IPADDR_MAX_INACTIVE_DURATION_US: u64 = 300_000_000u64; // 5 minutes
@@ -148,11 +149,6 @@ struct NetworkManagerInner {
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
         BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, u64>>,
-    protocol_config: Option<ProtocolConfig>,
-    public_inbound_dial_info_filter: Option<DialInfoFilter>,
-    local_inbound_dial_info_filter: Option<DialInfoFilter>,
-    public_outbound_dial_info_filter: Option<DialInfoFilter>,
-    local_outbound_dial_info_filter: Option<DialInfoFilter>,
 }
 
 struct NetworkManagerUnlockedInner {
@@ -163,6 +159,7 @@ struct NetworkManagerUnlockedInner {
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     relay_management_task: TickTask<EyreReport>,
+    private_route_management_task: TickTask<EyreReport>,
     bootstrap_task: TickTask<EyreReport>,
     peer_minimum_refresh_task: TickTask<EyreReport>,
     ping_validator_task: TickTask<EyreReport>,
@@ -186,11 +183,6 @@ impl NetworkManager {
             client_whitelist: LruCache::new_unbounded(),
             public_address_check_cache: BTreeMap::new(),
             public_address_inconsistencies_table: BTreeMap::new(),
-            protocol_config: None,
-            public_inbound_dial_info_filter: None,
-            local_inbound_dial_info_filter: None,
-            public_outbound_dial_info_filter: None,
-            local_outbound_dial_info_filter: None,
         }
     }
     fn new_unlocked_inner(config: VeilidConfig) -> NetworkManagerUnlockedInner {
@@ -201,6 +193,7 @@ impl NetworkManager {
             update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
+            private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
             bootstrap_task: TickTask::new(1),
             peer_minimum_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
             ping_validator_task: TickTask::new(1),
@@ -245,6 +238,23 @@ impl NetworkManager {
                             .clone()
                             .relay_management_task_routine(s, l, t)
                             .instrument(trace_span!(parent: None, "relay management task routine")),
+                    )
+                });
+        }
+        // Set private route management tick task
+        {
+            let this2 = this.clone();
+            this.unlocked_inner
+                .private_route_management_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(
+                        this2
+                            .clone()
+                            .private_route_management_task_routine(s, l, t)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "private route management task routine"
+                            )),
                     )
                 });
         }
@@ -434,41 +444,6 @@ impl NetworkManager {
             return Err(e);
         }
 
-        // Store copy of protocol config and dial info filters
-        {
-            let pc = self.net().get_protocol_config().unwrap();
-
-            let mut inner = self.inner.lock();
-
-            inner.public_inbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.inbound)
-                    .with_address_type_set(pc.family_global),
-            );
-            inner.local_inbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.inbound)
-                    .with_address_type_set(pc.family_local),
-            );
-            inner.public_outbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.outbound)
-                    .with_address_type_set(pc.family_global),
-            );
-            inner.local_outbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.outbound)
-                    .with_address_type_set(pc.family_local),
-            );
-
-            inner.protocol_config = Some(pc);
-        }
-
-        // Inform routing table entries that our dial info has changed
-        for rd in RoutingDomain::all() {
-            self.send_node_info_updates(rd, true).await;
-        }
-
         // Inform api clients that things have changed
         self.send_network_update();
 
@@ -527,12 +502,7 @@ impl NetworkManager {
         // reset the state
         debug!("resetting network manager state");
         {
-            let mut inner = self.inner.lock();
-            inner.public_inbound_dial_info_filter = None;
-            inner.local_inbound_dial_info_filter = None;
-            inner.public_outbound_dial_info_filter = None;
-            inner.local_outbound_dial_info_filter = None;
-            inner.protocol_config = None;
+            *self.inner.lock() = NetworkManager::new_inner();
         }
 
         // send update
@@ -640,15 +610,6 @@ impl NetworkManager {
         Ok(())
     }
 
-    // Return what network class we are in
-    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        if let Some(components) = self.unlocked_inner.components.read().as_ref() {
-            components.net.get_network_class(routing_domain)
-        } else {
-            None
-        }
-    }
-
     // Get our node's capabilities
     fn generate_public_internet_node_status(&self) -> PublicInternetNodeStatus {
         let node_info = self
@@ -692,58 +653,6 @@ impl NetworkManager {
                 NodeStatus::LocalNetwork(self.generate_local_network_node_status())
             }
         }
-    }
-
-    // Return what protocols we have enabled
-    pub fn get_protocol_config(&self) -> ProtocolConfig {
-        let inner = self.inner.lock();
-        inner.protocol_config.as_ref().unwrap().clone()
-    }
-
-    // Return a dial info filter for what we can receive
-    pub fn get_inbound_dial_info_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
-        let inner = self.inner.lock();
-        match routing_domain {
-            RoutingDomain::PublicInternet => inner
-                .public_inbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-            RoutingDomain::LocalNetwork => inner
-                .local_inbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-        }
-    }
-    pub fn get_inbound_node_ref_filter(&self, routing_domain: RoutingDomain) -> NodeRefFilter {
-        let dif = self.get_inbound_dial_info_filter(routing_domain);
-        NodeRefFilter::new()
-            .with_routing_domain(routing_domain)
-            .with_dial_info_filter(dif)
-    }
-
-    // Return a dial info filter for what we can send out
-    pub fn get_outbound_dial_info_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
-        let inner = self.inner.lock();
-        match routing_domain {
-            RoutingDomain::PublicInternet => inner
-                .public_outbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-            RoutingDomain::LocalNetwork => inner
-                .local_outbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-        }
-    }
-    pub fn get_outbound_node_ref_filter(&self, routing_domain: RoutingDomain) -> NodeRefFilter {
-        let dif = self.get_outbound_dial_info_filter(routing_domain);
-        NodeRefFilter::new()
-            .with_routing_domain(routing_domain)
-            .with_dial_info_filter(dif)
     }
 
     // Generates a multi-shot/normal receipt
@@ -890,7 +799,7 @@ impl NetworkManager {
                 };
 
                 // Get the udp direct dialinfo for the hole punch
-                let outbound_nrf = self
+                let outbound_nrf = routing_table
                     .get_outbound_node_ref_filter(RoutingDomain::PublicInternet)
                     .with_protocol_type(ProtocolType::UDP);
                 peer_nr.set_filter(Some(outbound_nrf));
@@ -1027,7 +936,10 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), ret)]
     fn get_contact_method_public(&self, target_node_ref: NodeRef) -> ContactMethod {
         // Scope noderef down to protocols we can do outbound
-        let public_outbound_nrf = self.get_outbound_node_ref_filter(RoutingDomain::PublicInternet);
+        let routing_table = self.routing_table();
+
+        let public_outbound_nrf =
+            routing_table.get_outbound_node_ref_filter(RoutingDomain::PublicInternet);
         let target_node_ref = target_node_ref.filtered_clone(public_outbound_nrf.clone());
 
         // Get the best match internet dial info if we have it
@@ -1047,16 +959,14 @@ impl NetworkManager {
                 // Can we reach the inbound relay?
                 if inbound_relay_nr.first_filtered_dial_info_detail().is_some() {
                     // Can we receive anything inbound ever?
-                    let our_network_class = self
+                    let our_network_class = routing_table
                         .get_network_class(RoutingDomain::PublicInternet)
                         .unwrap_or(NetworkClass::Invalid);
                     if matches!(our_network_class, NetworkClass::InboundCapable) {
-                        let routing_table = self.routing_table();
-
                         ///////// Reverse connection
 
                         // Get the best match dial info for an reverse inbound connection
-                        let reverse_dif = self
+                        let reverse_dif = routing_table
                             .get_inbound_dial_info_filter(RoutingDomain::PublicInternet)
                             .filtered(
                                 &target_node_ref
@@ -1090,7 +1000,7 @@ impl NetworkManager {
                             udp_target_nr.first_filtered_dial_info_detail()
                         {
                             // Does the self node have a direct udp dialinfo the target can reach?
-                            let inbound_udp_dif = self
+                            let inbound_udp_dif = routing_table
                                 .get_inbound_dial_info_filter(RoutingDomain::PublicInternet)
                                 .filtered(
                                     &target_node_ref
@@ -1151,7 +1061,10 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), ret)]
     fn get_contact_method_local(&self, target_node_ref: NodeRef) -> ContactMethod {
         // Scope noderef down to protocols we can do outbound
-        let local_outbound_nrf = self.get_outbound_node_ref_filter(RoutingDomain::LocalNetwork);
+        let routing_table = self.routing_table();
+
+        let local_outbound_nrf =
+            routing_table.get_outbound_node_ref_filter(RoutingDomain::LocalNetwork);
         let target_node_ref = target_node_ref.filtered_clone(local_outbound_nrf);
 
         // Get the best matching local direct dial info if we have it
@@ -1865,7 +1778,7 @@ impl NetworkManager {
         let mut bad_public_address_detection_punishment: Option<
             Box<dyn FnOnce() + Send + 'static>,
         > = None;
-        let public_internet_network_class = net
+        let public_internet_network_class = routing_table
             .get_network_class(RoutingDomain::PublicInternet)
             .unwrap_or(NetworkClass::Invalid);
         let needs_public_address_detection =

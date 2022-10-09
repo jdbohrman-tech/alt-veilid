@@ -9,35 +9,17 @@ pub struct RouteHopSpec {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct PrivateRouteSpec {
+pub struct RouteSpec {
     //
     pub public_key: DHTKey,
     pub secret_key: DHTKeySecret,
     pub hops: Vec<RouteHopSpec>,
 }
 
-impl PrivateRouteSpec {
+impl RouteSpec {
     pub fn new() -> Self {
         let (pk, sk) = generate_secret();
-        PrivateRouteSpec {
-            public_key: pk,
-            secret_key: sk,
-            hops: Vec::new(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct SafetyRouteSpec {
-    pub public_key: DHTKey,
-    pub secret_key: DHTKeySecret,
-    pub hops: Vec<RouteHopSpec>,
-}
-
-impl SafetyRouteSpec {
-    pub fn new() -> Self {
-        let (pk, sk) = generate_secret();
-        SafetyRouteSpec {
+        RouteSpec {
             public_key: pk,
             secret_key: sk,
             hops: Vec::new(),

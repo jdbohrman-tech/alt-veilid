@@ -132,6 +132,28 @@ impl BucketEntryInner {
         }
     }
 
+    // Less is more reliable then older
+    pub fn cmp_oldest_reliable(cur_ts: u64, e1: &Self, e2: &Self) -> std::cmp::Ordering {
+        // Reverse compare so most reliable is at front
+        let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
+        if ret != std::cmp::Ordering::Equal {
+            return ret;
+        }
+
+        // Lower timestamp to the front, recent or no timestamp is at the end
+        if let Some(e1_ts) = &e1.peer_stats.rpc_stats.first_consecutive_seen_ts {
+            if let Some(e2_ts) = &e2.peer_stats.rpc_stats.first_consecutive_seen_ts {
+                e1_ts.cmp(&e2_ts)
+            } else {
+                std::cmp::Ordering::Less
+            }
+        } else if e2.peer_stats.rpc_stats.first_consecutive_seen_ts.is_some() {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    }
+
     pub fn sort_fastest_reliable_fn(cur_ts: u64) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
@@ -645,20 +667,26 @@ impl BucketEntry {
         }
     }
 
-    pub(super) fn with<F, R>(&self, f: F) -> R
+    // Note, that this requires -also- holding the RoutingTable read lock, as an
+    // immutable reference to RoutingTableInner must be passed in to get this
+    // This ensures that an operation on the routing table can not change entries
+    // while it is being read from
+    pub(super) fn with<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
     where
-        F: FnOnce(&BucketEntryInner) -> R,
+        F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> R,
     {
         let inner = self.inner.read();
-        f(&*inner)
+        f(rti, &*inner)
     }
 
-    pub(super) fn with_mut<F, R>(&self, f: F) -> R
+    // Note, that this requires -also- holding the RoutingTable write lock, as a
+    // mutable reference to RoutingTableInner must be passed in to get this
+    pub(super) fn with_mut<F, R>(&self, rti: &mut RoutingTableInner, f: F) -> R
     where
-        F: FnOnce(&mut BucketEntryInner) -> R,
+        F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> R,
     {
         let mut inner = self.inner.write();
-        f(&mut *inner)
+        f(rti, &mut *inner)
     }
 }
 

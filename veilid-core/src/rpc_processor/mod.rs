@@ -544,7 +544,8 @@ impl RPCProcessor {
         }
         // Don't do this if our own signed node info isn't valid yet
         let routing_table = self.routing_table();
-        if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
+        let network_manager = self.network_manager();
+        if !RoutingTable::has_valid_own_node_info(network_manager, RoutingDomain::PublicInternet) {
             return None;
         }
 

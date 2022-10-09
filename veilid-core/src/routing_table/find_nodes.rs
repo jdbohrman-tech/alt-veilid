@@ -17,9 +17,9 @@ impl RoutingTable {
     pub fn make_inbound_dial_info_entry_filter(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
-    ) -> impl FnMut(&BucketEntryInner) -> bool {
+    ) -> impl FnMut(&RoutingTableInner, &BucketEntryInner) -> bool {
         // does it have matching public dial info?
-        move |e| {
+        move |_rti, e| {
             if let Some(ni) = e.node_info(routing_domain) {
                 if ni
                     .first_filtered_dial_info_detail(DialInfoDetail::NO_SORT, |did| {
@@ -35,12 +35,12 @@ impl RoutingTable {
     }
 
     // Makes a filter that finds nodes capable of dialing a particular outbound dialinfo
-    pub fn make_outbound_dial_info_entry_filter(
+    pub fn make_outbound_dial_info_entry_filter<'s>(
         routing_domain: RoutingDomain,
         dial_info: DialInfo,
-    ) -> impl FnMut(&BucketEntryInner) -> bool {
+    ) -> impl FnMut(&RoutingTableInner, &'s BucketEntryInner) -> bool {
         // does the node's outbound capabilities match the dialinfo?
-        move |e| {
+        move |_rti, e| {
             if let Some(ni) = e.node_info(routing_domain) {
                 let dif = DialInfoFilter::all()
                     .with_protocol_type_set(ni.outbound_protocols)
@@ -54,19 +54,19 @@ impl RoutingTable {
     }
 
     // Make a filter that wraps another filter
-    pub fn combine_entry_filters<F, G>(
+    pub fn combine_entry_filters<'a, 'b, F, G>(
         mut f1: F,
         mut f2: G,
-    ) -> impl FnMut(&BucketEntryInner) -> bool
+    ) -> impl FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool
     where
-        F: FnMut(&BucketEntryInner) -> bool,
-        G: FnMut(&BucketEntryInner) -> bool,
+        F: FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool,
+        G: FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool,
     {
-        move |e| {
-            if !f1(e) {
+        move |rti, e| {
+            if !f1(rti, e) {
                 return false;
             }
-            if !f2(e) {
+            if !f2(rti, e) {
                 return false;
             }
             true
@@ -74,21 +74,21 @@ impl RoutingTable {
     }
 
     // Retrieve the fastest nodes in the routing table matching an entry filter
-    pub fn find_fast_public_nodes_filtered<F>(
+    pub fn find_fast_public_nodes_filtered<'r, 'e, F>(
         &self,
         node_count: usize,
         mut entry_filter: F,
     ) -> Vec<NodeRef>
     where
-        F: FnMut(&BucketEntryInner) -> bool,
+        F: FnMut(&'r RoutingTableInner, &'e BucketEntryInner) -> bool,
     {
         self.find_fastest_nodes(
             // count
             node_count,
             // filter
-            |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |rti, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
-                entry.with(|e| {
+                entry.with(rti, |rti, e| {
                     // skip nodes on local network
                     if e.node_info(RoutingDomain::LocalNetwork).is_some() {
                         return false;
@@ -98,11 +98,11 @@ impl RoutingTable {
                         return false;
                     }
                     // skip nodes that dont match entry filter
-                    entry_filter(e)
+                    entry_filter(rti, e)
                 })
             },
             // transform
-            |k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
             },
         )
@@ -123,9 +123,9 @@ impl RoutingTable {
             // count
             protocol_types.len() * 2 * max_per_type,
             // filter
-            move |_k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            move |rti, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
-                entry.with(|e| {
+                entry.with(rti, |_rti, e| {
                     // skip nodes on our local network here
                     if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
                         return false;
@@ -164,20 +164,21 @@ impl RoutingTable {
                 })
             },
             // transform
-            |k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
             },
         )
     }
 
-    pub fn filter_has_valid_signed_node_info(
-        &self,
+    pub fn filter_has_valid_signed_node_info_inner(
+        inner: &RoutingTableInner,
         routing_domain: RoutingDomain,
+        has_valid_own_node_info: bool,
         v: Option<Arc<BucketEntry>>,
     ) -> bool {
         match v {
-            None => self.has_valid_own_node_info(routing_domain),
-            Some(entry) => entry.with(|e| {
+            None => has_valid_own_node_info,
+            Some(entry) => entry.with(inner, |_rti, e| {
                 e.signed_node_info(routing_domain.into())
                     .map(|sni| sni.has_valid_signature())
                     .unwrap_or(false)
@@ -185,15 +186,18 @@ impl RoutingTable {
         }
     }
 
-    pub fn transform_to_peer_info(
-        &self,
+    pub fn transform_to_peer_info_inner(
+        inner: &RoutingTableInner,
         routing_domain: RoutingDomain,
+        own_peer_info: PeerInfo,
         k: DHTKey,
         v: Option<Arc<BucketEntry>>,
     ) -> PeerInfo {
         match v {
-            None => self.get_own_peer_info(routing_domain),
-            Some(entry) => entry.with(|e| e.make_peer_info(k, routing_domain).unwrap()),
+            None => own_peer_info,
+            Some(entry) => entry.with(inner, |_rti, e| {
+                e.make_peer_info(k, routing_domain).unwrap()
+            }),
         }
     }
 
@@ -206,14 +210,16 @@ impl RoutingTable {
         mut transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        F: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
         C: FnMut(
+            &RoutingTableInner,
             &(DHTKey, Option<Arc<BucketEntry>>),
             &(DHTKey, Option<Arc<BucketEntry>>),
         ) -> core::cmp::Ordering,
-        T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let inner = self.inner.read();
+        let inner = &*inner;
         let self_node_id = self.unlocked_inner.node_id;
 
         // collect all the nodes for sorting
@@ -221,27 +227,32 @@ impl RoutingTable {
             Vec::<(DHTKey, Option<Arc<BucketEntry>>)>::with_capacity(inner.bucket_entry_count + 1);
 
         // add our own node (only one of there with the None entry)
-        if filter(self_node_id, None) {
+        if filter(inner, self_node_id, None) {
             nodes.push((self_node_id, None));
         }
 
         // add all nodes from buckets
-        Self::with_entries(&*inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
-            // Apply filter
-            if filter(k, Some(v.clone())) {
-                nodes.push((k, Some(v.clone())));
-            }
-            Option::<()>::None
-        });
+        Self::with_entries(
+            &*inner,
+            cur_ts,
+            BucketEntryState::Unreliable,
+            |rti, k, v| {
+                // Apply filter
+                if filter(rti, k, Some(v.clone())) {
+                    nodes.push((k, Some(v.clone())));
+                }
+                Option::<()>::None
+            },
+        );
 
         // sort by preference for returning nodes
-        nodes.sort_by(compare);
+        nodes.sort_by(|a, b| compare(inner, a, b));
 
         // return transformed vector for filtered+sorted nodes
         let cnt = usize::min(node_count, nodes.len());
         let mut out = Vec::<O>::with_capacity(cnt);
         for node in nodes {
-            let val = transform(node.0, node.1);
+            let val = transform(inner, node.0, node.1);
             out.push(val);
         }
 
@@ -255,21 +266,21 @@ impl RoutingTable {
         transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
+        F: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        T: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
         let out = self.find_peers_with_sort_and_filter(
             node_count,
             cur_ts,
             // filter
-            |k, v| {
+            |rti, k, v| {
                 if let Some(entry) = &v {
                     // always filter out dead nodes
-                    if entry.with(|e| e.state(cur_ts) == BucketEntryState::Dead) {
+                    if entry.with(rti, |_rti, e| e.state(cur_ts) == BucketEntryState::Dead) {
                         false
                     } else {
-                        filter(k, v)
+                        filter(rti, k, v)
                     }
                 } else {
                     // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
@@ -277,7 +288,7 @@ impl RoutingTable {
                 }
             },
             // sort
-            |(a_key, a_entry), (b_key, b_entry)| {
+            |rti, (a_key, a_entry), (b_key, b_entry)| {
                 // same nodes are always the same
                 if a_key == b_key {
                     return core::cmp::Ordering::Equal;
@@ -292,8 +303,8 @@ impl RoutingTable {
                 // reliable nodes come first
                 let ae = a_entry.as_ref().unwrap();
                 let be = b_entry.as_ref().unwrap();
-                ae.with(|ae| {
-                    be.with(|be| {
+                ae.with(rti, |rti, ae| {
+                    be.with(rti, |_rti, be| {
                         let ra = ae.check_reliable(cur_ts);
                         let rb = be.check_reliable(cur_ts);
                         if ra != rb {
@@ -337,8 +348,8 @@ impl RoutingTable {
         mut transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(DHTKey, Option<Arc<BucketEntry>>) -> O,
+        F: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        T: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
         let node_count = {
@@ -351,7 +362,7 @@ impl RoutingTable {
             // filter
             filter,
             // sort
-            |(a_key, a_entry), (b_key, b_entry)| {
+            |rti, (a_key, a_entry), (b_key, b_entry)| {
                 // same nodes are always the same
                 if a_key == b_key {
                     return core::cmp::Ordering::Equal;
@@ -360,10 +371,10 @@ impl RoutingTable {
                 // reliable nodes come first, pessimistically treating our own node as unreliable
                 let ra = a_entry
                     .as_ref()
-                    .map_or(false, |x| x.with(|x| x.check_reliable(cur_ts)));
+                    .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
                 let rb = b_entry
                     .as_ref()
-                    .map_or(false, |x| x.with(|x| x.check_reliable(cur_ts)));
+                    .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
                 if ra != rb {
                     if ra {
                         return core::cmp::Ordering::Less;
@@ -420,9 +431,7 @@ impl RoutingTable {
 
     fn make_public_internet_relay_node_filter(&self) -> impl Fn(&BucketEntryInner) -> bool {
         // Get all our outbound protocol/address types
-        let outbound_dif = self
-            .network_manager()
-            .get_outbound_dial_info_filter(RoutingDomain::PublicInternet);
+        let outbound_dif = self.get_outbound_dial_info_filter(RoutingDomain::PublicInternet);
         let mapped_port_info = self.get_low_level_port_info();
 
         move |e: &BucketEntryInner| {
@@ -481,9 +490,9 @@ impl RoutingTable {
         let mut best_inbound_relay: Option<(DHTKey, Arc<BucketEntry>)> = None;
 
         // Iterate all known nodes for candidates
-        Self::with_entries(inner, cur_ts, BucketEntryState::Unreliable, |k, v| {
+        Self::with_entries(inner, cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
             let v2 = v.clone();
-            v.with(|e| {
+            v.with(rti, |rti, e| {
                 // Ensure we have the node's status
                 if let Some(node_status) = e.node_status(routing_domain) {
                     // Ensure the node will relay
@@ -491,7 +500,7 @@ impl RoutingTable {
                         // Compare against previous candidate
                         if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
                             // Less is faster
-                            let better = best_inbound_relay.1.with(|best| {
+                            let better = best_inbound_relay.1.with(rti, |_rti, best| {
                                 BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
                                     == std::cmp::Ordering::Less
                             });

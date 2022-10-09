@@ -16,15 +16,21 @@ use serde::{Deserialize, Serialize};
 
 //////////////////////////////////////////////////////////////////////
 
+/// Length of a DHT key in bytes
 #[allow(dead_code)]
 pub const DHT_KEY_LENGTH: usize = 32;
+/// Length of a DHT key in bytes after encoding to base64url
 #[allow(dead_code)]
 pub const DHT_KEY_LENGTH_ENCODED: usize = 43;
+/// Length of a DHT secret in bytes
 #[allow(dead_code)]
 pub const DHT_KEY_SECRET_LENGTH: usize = 32;
+/// Length of a DHT secret in bytes after encoding to base64url
 #[allow(dead_code)]
 pub const DHT_KEY_SECRET_LENGTH_ENCODED: usize = 43;
+/// Length of a DHT signature in bytes
 #[allow(dead_code)]
+/// Length of a DHT signature in bytes after encoding to base64url
 pub const DHT_SIGNATURE_LENGTH: usize = 64;
 #[allow(dead_code)]
 pub const DHT_SIGNATURE_LENGTH_ENCODED: usize = 86;

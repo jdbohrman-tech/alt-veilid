@@ -87,7 +87,7 @@ impl RPCProcessor {
                     routing_domain,
                     dial_info.clone(),
                 );
-            let will_validate_dial_info_filter = |e: &BucketEntryInner| {
+            let will_validate_dial_info_filter = |_rti, e: &BucketEntryInner| {
                 if let Some(status) = &e.node_status(routing_domain) {
                     status.will_validate_dial_info()
                 } else {

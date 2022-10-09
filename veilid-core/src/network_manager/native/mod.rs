@@ -40,11 +40,9 @@ struct NetworkInner {
     /// such as dhcp release or change of address or interfaces being added or removed
     network_needs_restart: bool,
     /// the calculated protocol configuration for inbound/outbound protocols
-    protocol_config: Option<ProtocolConfig>,
+    protocol_config: ProtocolConfig,
     /// set of statically configured protocols with public dialinfo
     static_public_dialinfo: ProtocolTypeSet,
-    /// network class per routing domain
-    network_class: [Option<NetworkClass>; RoutingDomain::count()],
     /// join handles for all the low level network background tasks
     join_handles: Vec<MustJoinHandle<()>>,
     /// stop source for shutting down the low level network background tasks
@@ -120,9 +118,8 @@ impl Network {
             needs_public_dial_info_check: false,
             doing_public_dial_info_check: false,
             public_dial_info_check_punishment: None,
-            protocol_config: None,
+            protocol_config: Default::default(),
             static_public_dialinfo: ProtocolTypeSet::empty(),
-            network_class: [None, None],
             join_handles: Vec::new(),
             stop_source: None,
             udp_port: 0u16,
@@ -620,7 +617,7 @@ impl Network {
 
     /////////////////////////////////////////////////////////////////
 
-    pub fn get_protocol_config(&self) -> Option<ProtocolConfig> {
+    pub fn get_protocol_config(&self) -> ProtocolConfig {
         self.inner.lock().protocol_config
     }
 
@@ -734,7 +731,8 @@ impl Network {
                     family_local,
                 }
             };
-            inner.protocol_config = Some(protocol_config);
+            inner.protocol_config = protocol_config;
+
             protocol_config
         };
 
@@ -771,26 +769,36 @@ impl Network {
         // that we have ports available to us
         self.free_bound_first_ports();
 
-        // If we have static public dialinfo, upgrade our network class
+        // set up the routing table's network config
+        // if we have static public dialinfo, upgrade our network class
+
+        editor_public_internet.setup_network(
+            protocol_config.inbound,
+            protocol_config.outbound,
+            protocol_config.family_global,
+        );
+        editor_local_network.setup_network(
+            protocol_config.inbound,
+            protocol_config.outbound,
+            protocol_config.family_local,
+        );
         let detect_address_changes = {
             let c = self.config.get();
             c.network.detect_address_changes
         };
-
         if !detect_address_changes {
-            let mut inner = self.inner.lock();
+            let inner = self.inner.lock();
             if !inner.static_public_dialinfo.is_empty() {
-                inner.network_class[RoutingDomain::PublicInternet as usize] =
-                    Some(NetworkClass::InboundCapable);
+                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
             }
         }
-
-        info!("network started");
-        self.inner.lock().network_started = true;
 
         // commit routing table edits
         editor_public_internet.commit().await;
         editor_local_network.commit().await;
+
+        info!("network started");
+        self.inner.lock().network_started = true;
 
         Ok(())
     }
@@ -873,11 +881,6 @@ impl Network {
         inner.doing_public_dial_info_check
     }
 
-    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        let inner = self.inner.lock();
-        inner.network_class[routing_domain as usize]
-    }
-
     //////////////////////////////////////////
 
     #[instrument(level = "trace", skip(self), err)]
@@ -939,6 +942,7 @@ impl Network {
         // If we need to figure out our network class, tick the task for it
         if detect_address_changes {
             let public_internet_network_class = self
+                .routing_table()
                 .get_network_class(RoutingDomain::PublicInternet)
                 .unwrap_or(NetworkClass::Invalid);
             let needs_public_dial_info_check = self.needs_public_dial_info_check();

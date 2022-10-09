@@ -7,8 +7,8 @@ pub enum Destination {
     Direct {
         /// The node to send to
         target: NodeRef,
-        /// An optional safety route specification to send from for sender privacy
-        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
+        /// Require safety route or not
+        safety: bool,
     },
     /// Send to node for relay purposes
     Relay {
@@ -16,15 +16,17 @@ pub enum Destination {
         relay: NodeRef,
         /// The final destination the relay should send to
         target: DHTKey,
-        /// An optional safety route specification to send from for sender privacy
-        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
+        /// Require safety route or not
+        safety: bool,
     },
     /// Send to private route (privateroute)
     PrivateRoute {
         /// A private route to send to
         private_route: PrivateRoute,
-        /// An optional safety route specification to send from for sender privacy
-        safety_route_spec: Option<Arc<SafetyRouteSpec>>,
+        /// Require safety route or not
+        safety: bool,
+        /// Prefer reliability or not
+        reliable: bool,
     },
 }
 
@@ -32,115 +34,47 @@ impl Destination {
     pub fn direct(target: NodeRef) -> Self {
         Self::Direct {
             target,
-            safety_route_spec: None,
+            safety: false,
         }
     }
     pub fn relay(relay: NodeRef, target: DHTKey) -> Self {
         Self::Relay {
             relay,
             target,
-            safety_route_spec: None,
+            safety: false,
         }
     }
-    pub fn private_route(private_route: PrivateRoute) -> Self {
+    pub fn private_route(private_route: PrivateRoute, reliable: bool) -> Self {
         Self::PrivateRoute {
             private_route,
-            safety_route_spec: None,
+            safety: false,
+            reliable,
         }
     }
-    // pub fn target_id(&self) -> DHTKey {
-    //     match self {
-    //         Destination::Direct {
-    //             target,
-    //             safety_route_spec,
-    //         } => target.node_id(),
-    //         Destination::Relay {
-    //             relay,
-    //             target,
-    //             safety_route_spec,
-    //         } => *target,
-    //         Destination::PrivateRoute {
-    //             private_route,
-    //             safety_route_spec,
-    //         } => {}
-    //     }
-    // }
 
-    // pub fn best_routing_domain(&self) -> RoutingDomain {
-    //     match self {
-    //         Destination::Direct {
-    //             target,
-    //             safety_route_spec,
-    //         } => {
-    //             if safety_route_spec.is_some() {
-    //                 RoutingDomain::PublicInternet
-    //             } else {
-    //                 target
-    //                     .best_routing_domain()
-    //                     .unwrap_or(RoutingDomain::PublicInternet)
-    //             }
-    //         }
-    //         Destination::Relay {
-    //             relay,
-    //             target,
-    //             safety_route_spec,
-    //         } => {
-    //             if safety_route_spec.is_some() {
-    //                 RoutingDomain::PublicInternet
-    //             } else {
-    //                 relay
-    //                     .best_routing_domain()
-    //                     .unwrap_or(RoutingDomain::PublicInternet)
-    //             }
-    //         }
-    //         Destination::PrivateRoute {
-    //             private_route: _,
-    //             safety_route_spec: _,
-    //         } => RoutingDomain::PublicInternet,
-    //     }
-    // }
-
-    pub fn safety_route_spec(&self) -> Option<Arc<SafetyRouteSpec>> {
+    pub fn with_safety(self) -> Self {
         match self {
-            Destination::Direct {
-                target: _,
-                safety_route_spec,
-            } => safety_route_spec.clone(),
-            Destination::Relay {
-                relay: _,
-                target: _,
-                safety_route_spec,
-            } => safety_route_spec.clone(),
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_route_spec,
-            } => safety_route_spec.clone(),
-        }
-    }
-    pub fn with_safety_route_spec(self, safety_route_spec: Arc<SafetyRouteSpec>) -> Self {
-        match self {
-            Destination::Direct {
+            Destination::Direct { target, safety: _ } => Self::Direct {
                 target,
-                safety_route_spec: _,
-            } => Self::Direct {
-                target,
-                safety_route_spec: Some(safety_route_spec),
+                safety: true,
             },
             Destination::Relay {
                 relay,
                 target,
-                safety_route_spec: _,
+                safety: _,
             } => Self::Relay {
                 relay,
                 target,
-                safety_route_spec: Some(safety_route_spec),
+                safety: true,
             },
             Destination::PrivateRoute {
                 private_route,
-                safety_route_spec: _,
+                safety: _,
+                reliable,
             } => Self::PrivateRoute {
                 private_route,
-                safety_route_spec: Some(safety_route_spec),
+                safety: true,
+                reliable,
             },
         }
     }
@@ -149,39 +83,29 @@ impl Destination {
 impl fmt::Display for Destination {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Destination::Direct {
-                target,
-                safety_route_spec,
-            } => {
-                let sr = safety_route_spec
-                    .as_ref()
-                    .map(|_sr| "+SR".to_owned())
-                    .unwrap_or_default();
+            Destination::Direct { target, safety } => {
+                let sr = if *safety { "+SR" } else { "" };
 
-                write!(f, "{:?}{}", target, sr)
+                write!(f, "{}{}", target, sr)
             }
             Destination::Relay {
                 relay,
                 target,
-                safety_route_spec,
+                safety,
             } => {
-                let sr = safety_route_spec
-                    .as_ref()
-                    .map(|_sr| "+SR".to_owned())
-                    .unwrap_or_default();
+                let sr = if *safety { "+SR" } else { "" };
 
-                write!(f, "{:?}@{:?}{}", target.encode(), relay, sr)
+                write!(f, "{}@{}{}", target.encode(), relay, sr)
             }
             Destination::PrivateRoute {
                 private_route,
-                safety_route_spec,
+                safety,
+                reliable,
             } => {
-                let sr = safety_route_spec
-                    .as_ref()
-                    .map(|_sr| "+SR".to_owned())
-                    .unwrap_or_default();
+                let sr = if *safety { "+SR" } else { "" };
+                let rl = if *reliable { "+RL" } else { "" };
 
-                write!(f, "{}{}", private_route, sr)
+                write!(f, "{}{}{}", private_route, sr, rl)
             }
         }
     }

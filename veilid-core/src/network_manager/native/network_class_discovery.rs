@@ -125,7 +125,7 @@ impl DiscoveryContext {
             RoutingDomain::PublicInternet,
             dial_info_filter.clone(),
         );
-        let disallow_relays_filter = move |e: &BucketEntryInner| {
+        let disallow_relays_filter = move |_rti, e: &BucketEntryInner| {
             if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
                 n.relay_peer_info.is_none()
             } else {
@@ -610,12 +610,14 @@ impl Network {
         _l: u64,
         _t: u64,
     ) -> EyreResult<()> {
+        let routing_table = self.routing_table();
+
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let (protocol_config, existing_network_class, tcp_same_port) = {
             let inner = self.inner.lock();
-            let protocol_config = inner.protocol_config.unwrap_or_default();
+            let protocol_config = inner.protocol_config;
             let existing_network_class =
-                inner.network_class[RoutingDomain::PublicInternet as usize];
+                routing_table.get_network_class(RoutingDomain::PublicInternet);
             let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
                 && protocol_config.inbound.contains(ProtocolType::WS)
             {
@@ -625,7 +627,6 @@ impl Network {
             };
             (protocol_config, existing_network_class, tcp_same_port)
         };
-        let routing_table = self.routing_table();
 
         // Process all protocol and address combinations
         let mut futures = FuturesUnordered::new();
@@ -849,17 +850,16 @@ impl Network {
 
             // Is the network class different?
             if existing_network_class != new_network_class {
-                self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] =
-                    new_network_class;
+                editor.set_network_class(new_network_class);
                 changed = true;
                 log_net!(debug "PublicInternet network class changed to {:?}", new_network_class);
             }
         } else if existing_network_class.is_some() {
             // Network class could not be determined
             editor.clear_dial_info_details();
-            self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] = None;
+            editor.set_network_class(None);
             changed = true;
-            log_net!(debug "network class cleared");
+            log_net!(debug "PublicInternet network class cleared");
         }
 
         // Punish nodes that told us our public address had changed when it didn't

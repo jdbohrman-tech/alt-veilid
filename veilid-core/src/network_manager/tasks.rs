@@ -495,8 +495,8 @@ impl NetworkManager {
         // even the unreliable ones, and ask them to find nodes close to our node too
         let noderefs = routing_table.find_fastest_nodes(
             min_peer_count,
-            |_k, _v| true,
-            |k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |_rti, _k, _v| true,
+            |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(routing_table.clone(), k, v.unwrap().clone(), None)
             },
         );
@@ -525,7 +525,7 @@ impl NetworkManager {
         // Get our node's current node info and network class and do the right thing
         let routing_table = self.routing_table();
         let node_info = routing_table.get_own_node_info(RoutingDomain::PublicInternet);
-        let network_class = self.get_network_class(RoutingDomain::PublicInternet);
+        let network_class = routing_table.get_network_class(RoutingDomain::PublicInternet);
 
         // Get routing domain editor
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
@@ -586,6 +586,34 @@ impl NetworkManager {
                     }
                 }
             }
+        }
+
+        // Commit the changes
+        editor.commit().await;
+
+        Ok(())
+    }
+
+    // Keep private routes assigned and accessible
+    #[instrument(level = "trace", skip(self), err)]
+    pub(super) async fn private_route_management_task_routine(
+        self,
+        _stop_token: StopToken,
+        _last_ts: u64,
+        cur_ts: u64,
+    ) -> EyreResult<()> {
+        // Get our node's current node info and network class and do the right thing
+        let routing_table = self.routing_table();
+        let node_info = routing_table.get_own_node_info(RoutingDomain::PublicInternet);
+        let network_class = routing_table.get_network_class(RoutingDomain::PublicInternet);
+
+        // Get routing domain editor
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
+
+        // Do we know our network class yet?
+        if let Some(network_class) = network_class {
+
+            // see if we have any routes that need extending
         }
 
         // Commit the changes

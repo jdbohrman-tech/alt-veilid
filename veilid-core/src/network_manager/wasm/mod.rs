@@ -12,7 +12,7 @@ use std::io;
 struct NetworkInner {
     network_started: bool,
     network_needs_restart: bool,
-    protocol_config: Option<ProtocolConfig>,
+    protocol_config: ProtocolConfig,
 }
 
 struct NetworkUnlockedInner {
@@ -34,7 +34,7 @@ impl Network {
         NetworkInner {
             network_started: false,
             network_needs_restart: false,
-            protocol_config: None, //join_handle: None,
+            protocol_config: Default::default(),
         }
     }
 
@@ -247,7 +247,7 @@ impl Network {
 
     pub async fn startup(&self) -> EyreResult<()> {
         // get protocol config
-        self.inner.lock().protocol_config = Some({
+        self.inner.lock().protocol_config = {
             let c = self.config.get();
             let inbound = ProtocolTypeSet::new();
             let mut outbound = ProtocolTypeSet::new();
@@ -269,7 +269,7 @@ impl Network {
                 family_global,
                 family_local,
             }
-        });
+        };
 
         self.inner.lock().network_started = true;
         Ok(())
@@ -337,7 +337,7 @@ impl Network {
         };
     }
 
-    pub fn get_protocol_config(&self) -> Option<ProtocolConfig> {
+    pub fn get_protocol_config(&self) -> ProtocolConfig {
         self.inner.lock().protocol_config.clone()
     }
 

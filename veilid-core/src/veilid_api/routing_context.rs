@@ -10,10 +10,8 @@ pub enum Target {
 pub struct RoutingContextInner {}
 
 pub struct RoutingContextUnlockedInner {
-    /// Safety route specified here is for _this_ node's anonymity as a sender, used via the 'route' operation
-    safety_route_spec: Option<Arc<SafetyRouteSpec>>,
-    /// Private route specified here is for _this_ node's anonymity as a receiver, passed out via the 'respond_to' field for replies
-    private_route_spec: Option<Arc<PrivateRouteSpec>>,
+    /// Enforce use of private routing
+    privacy: bool,
     /// Choose reliable protocols over unreliable/faster protocols when available
     reliable: bool,
 }
@@ -43,24 +41,18 @@ impl RoutingContext {
             api,
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_route_spec: None,
-                private_route_spec: None,
+                privacy: false,
                 reliable: false,
             }),
         }
     }
 
-    pub fn with_privacy(
-        self,
-        safety_route_spec: SafetyRouteSpec,
-        private_route_spec: PrivateRouteSpec,
-    ) -> Self {
+    pub fn with_privacy(self) -> Self {
         Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_route_spec: Some(Arc::new(safety_route_spec)),
-                private_route_spec: Some(Arc::new(private_route_spec)),
+                privacy: true,
                 reliable: self.unlocked_inner.reliable,
             }),
         }
@@ -71,8 +63,7 @@ impl RoutingContext {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_route_spec: self.unlocked_inner.safety_route_spec.clone(),
-                private_route_spec: self.unlocked_inner.private_route_spec.clone(),
+                privacy: self.unlocked_inner.privacy,
                 reliable: true,
             }),
         }
@@ -102,12 +93,13 @@ impl RoutingContext {
                 }
                 Ok(rpc_processor::Destination::Direct {
                     target: nr,
-                    safety_route_spec: self.unlocked_inner.safety_route_spec.clone(),
+                    safety: self.unlocked_inner.privacy,
                 })
             }
             Target::PrivateRoute(pr) => Ok(rpc_processor::Destination::PrivateRoute {
                 private_route: pr,
-                safety_route_spec: self.unlocked_inner.safety_route_spec.clone(),
+                safety: self.unlocked_inner.privacy,
+                reliable: self.unlocked_inner.reliable,
             }),
         }
     }

@@ -2003,25 +2003,6 @@ impl VeilidAPI {
     }
 
     ////////////////////////////////////////////////////////////////
-    // Safety / Private Route Handling
-
-    #[instrument(level = "debug", err, skip(self))]
-    pub async fn new_safety_route_spec(
-        &self,
-        _hops: u8,
-    ) -> Result<SafetyRouteSpec, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    #[instrument(level = "debug", err, skip(self))]
-    pub async fn new_private_route_spec(
-        &self,
-        _hops: u8,
-    ) -> Result<PrivateRouteSpec, VeilidAPIError> {
-        panic!("unimplemented");
-    }
-
-    ////////////////////////////////////////////////////////////////
     // Routing Context
 
     #[instrument(level = "debug", skip(self))]

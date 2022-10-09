@@ -48,13 +48,6 @@ impl Bucket {
         // newest_entry is updated by kick_bucket()
     }
 
-    pub(super) fn roll_transfers(&self, last_ts: u64, cur_ts: u64) {
-        // Called every ROLLING_TRANSFERS_INTERVAL_SECS
-        for (_k, v) in &self.entries {
-            v.with_mut(|e| e.roll_transfers(last_ts, cur_ts));
-        }
-    }
-
     pub(super) fn entry(&self, key: &DHTKey) -> Option<Arc<BucketEntry>> {
         self.entries.get(key).cloned()
     }
@@ -63,7 +56,11 @@ impl Bucket {
         self.entries.iter()
     }
 
-    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<DHTKey>> {
+    pub(super) fn kick(
+        &self,
+        inner: &mut RoutingTableInner,
+        bucket_depth: usize,
+    ) -> Option<BTreeSet<DHTKey>> {
         // Get number of entries to attempt to purge from bucket
         let bucket_len = self.entries.len();
 
@@ -87,8 +84,8 @@ impl Bucket {
             if a.0 == b.0 {
                 return core::cmp::Ordering::Equal;
             }
-            a.1.with(|ea| {
-                b.1.with(|eb| {
+            a.1.with(inner, |rti, ea| {
+                b.1.with(rti, |_rti, eb| {
                     let astate = state_ordering(ea.state(cur_ts));
                     let bstate = state_ordering(eb.state(cur_ts));
                     // first kick dead nodes, then unreliable nodes

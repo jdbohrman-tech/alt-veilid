@@ -103,7 +103,7 @@ impl NodeRef {
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> T,
     {
         let inner = &*self.routing_table.inner.read();
-        self.entry.with(|e| f(inner, e))
+        self.entry.with(inner, f)
     }
 
     pub(super) fn operate_mut<T, F>(&self, f: F) -> T
@@ -111,7 +111,7 @@ impl NodeRef {
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> T,
     {
         let inner = &mut *self.routing_table.inner.write();
-        self.entry.with_mut(|e| f(inner, e))
+        self.entry.with_mut(inner, f)
     }
 
     // Filtering
