@@ -1,32 +1,5 @@
 use super::*;
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// Privacy Specs
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RouteHopSpec {
-    pub dial_info: NodeDialInfo,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RouteSpec {
-    //
-    pub public_key: DHTKey,
-    pub secret_key: DHTKeySecret,
-    pub hops: Vec<RouteHopSpec>,
-}
-
-impl RouteSpec {
-    pub fn new() -> Self {
-        let (pk, sk) = generate_secret();
-        RouteSpec {
-            public_key: pk,
-            secret_key: sk,
-            hops: Vec::new(),
-        }
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Compiled Privacy Objects
 
@@ -37,8 +10,26 @@ pub struct RouteHopData {
 }
 
 #[derive(Clone, Debug)]
+pub enum RouteNode {
+    NodeId(DHTKey),
+    PeerInfo(PeerInfo),
+}
+impl fmt::Display for RouteNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                RouteNode::NodeId(x) => x.encode(),
+                RouteNode::PeerInfo(pi) => pi.node_id.key.encode(),
+            }
+        )
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct RouteHop {
-    pub dial_info: NodeDialInfo,
+    pub node: RouteNode,
     pub next_hop: Option<RouteHopData>,
 }
 
@@ -46,7 +37,7 @@ pub struct RouteHop {
 pub struct PrivateRoute {
     pub public_key: DHTKey,
     pub hop_count: u8,
-    pub hops: Option<RouteHop>,
+    pub first_hop: Option<RouteHop>,
 }
 
 impl PrivateRoute {
@@ -54,7 +45,7 @@ impl PrivateRoute {
         Self {
             public_key,
             hop_count: 0,
-            hops: None,
+            first_hop: None,
         }
     }
 }
@@ -66,8 +57,8 @@ impl fmt::Display for PrivateRoute {
             "PR({:?}+{}{})",
             self.public_key,
             self.hop_count,
-            if let Some(hops) = &self.hops {
-                format!("->{}", hops.dial_info)
+            if let Some(first_hop) = &self.first_hop {
+                format!("->{}", first_hop.node)
             } else {
                 "".to_owned()
             }

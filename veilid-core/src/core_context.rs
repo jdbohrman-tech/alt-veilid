@@ -103,7 +103,7 @@ impl ServicesContext {
         // Set up attachment manager
         trace!("init attachment manager");
         let update_callback = self.update_callback.clone();
-        let attachment_manager = AttachmentManager::new(self.config.clone(), table_store, crypto);
+        let attachment_manager = AttachmentManager::new(self.config.clone(), protected_store, table_store, block_store, crypto);
         if let Err(e) = attachment_manager.init(update_callback).await {
             self.shutdown().await;
             return Err(e);

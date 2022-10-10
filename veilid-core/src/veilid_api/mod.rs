@@ -647,6 +647,14 @@ impl NodeInfo {
 
 #[allow(clippy::derive_hash_xor_eq)]
 #[derive(Debug, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumSetType)]
+pub enum Direction {
+    Inbound,
+    Outbound,
+}
+pub type DirectionSet = EnumSet<Direction>;
+
+#[allow(clippy::derive_hash_xor_eq)]
+#[derive(Debug, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumSetType)]
 // Keep member order appropriate for sorting < preference
 // Must match DialInfo order
 pub enum LowLevelProtocolType {

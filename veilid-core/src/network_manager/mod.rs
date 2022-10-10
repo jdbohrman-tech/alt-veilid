@@ -152,6 +152,12 @@ struct NetworkManagerInner {
 }
 
 struct NetworkManagerUnlockedInner {
+    // Handles
+    config: VeilidConfig,
+    protected_store: ProtectedStore,
+    table_store: TableStore,
+    block_store: BlockStore,
+    crypto: Crypto,
     // Accessors
     routing_table: RwLock<Option<RoutingTable>>,
     components: RwLock<Option<NetworkComponents>>,
@@ -169,9 +175,6 @@ struct NetworkManagerUnlockedInner {
 
 #[derive(Clone)]
 pub struct NetworkManager {
-    config: VeilidConfig,
-    table_store: TableStore,
-    crypto: Crypto,
     inner: Arc<Mutex<NetworkManagerInner>>,
     unlocked_inner: Arc<NetworkManagerUnlockedInner>,
 }
@@ -185,9 +188,20 @@ impl NetworkManager {
             public_address_inconsistencies_table: BTreeMap::new(),
         }
     }
-    fn new_unlocked_inner(config: VeilidConfig) -> NetworkManagerUnlockedInner {
+    fn new_unlocked_inner(
+        config: VeilidConfig,
+        protected_store: ProtectedStore,
+        table_store: TableStore,
+        block_store: BlockStore,
+        crypto: Crypto,
+    ) -> NetworkManagerUnlockedInner {
         let c = config.get();
         NetworkManagerUnlockedInner {
+            config,
+            protected_store,
+            table_store,
+            block_store,
+            crypto,
             routing_table: RwLock::new(None),
             components: RwLock::new(None),
             update_callback: RwLock::new(None),
@@ -202,13 +216,22 @@ impl NetworkManager {
         }
     }
 
-    pub fn new(config: VeilidConfig, table_store: TableStore, crypto: Crypto) -> Self {
+    pub fn new(
+        config: VeilidConfig,
+        protected_store: ProtectedStore,
+        table_store: TableStore,
+        block_store: BlockStore,
+        crypto: Crypto,
+    ) -> Self {
         let this = Self {
-            config: config.clone(),
-            table_store,
-            crypto,
             inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(config)),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(
+                config,
+                protected_store,
+                table_store,
+                block_store,
+                crypto,
+            )),
         };
         // Set rolling transfers tick task
         {
@@ -323,13 +346,25 @@ impl NetworkManager {
         this
     }
     pub fn config(&self) -> VeilidConfig {
-        self.config.clone()
+        self.unlocked_inner.config.clone()
+    }
+    pub fn with_config<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&VeilidConfigInner) -> R,
+    {
+        f(&*self.unlocked_inner.config.get())
+    }
+    pub fn protected_store(&self) -> ProtectedStore {
+        self.unlocked_inner.protected_store.clone()
     }
     pub fn table_store(&self) -> TableStore {
-        self.table_store.clone()
+        self.unlocked_inner.table_store.clone()
+    }
+    pub fn block_store(&self) -> BlockStore {
+        self.unlocked_inner.block_store.clone()
     }
     pub fn crypto(&self) -> Crypto {
-        self.crypto.clone()
+        self.unlocked_inner.crypto.clone()
     }
     pub fn routing_table(&self) -> RoutingTable {
         self.unlocked_inner
@@ -540,7 +575,7 @@ impl NetworkManager {
     }
 
     pub fn purge_client_whitelist(&self) {
-        let timeout_ms = self.config.get().network.client_whitelist_timeout_ms;
+        let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
         let mut inner = self.inner.lock();
         let cutoff_timestamp = intf::get_timestamp() - ((timeout_ms as u64) * 1000u64);
         // Remove clients from the whitelist that haven't been since since our whitelist timeout
@@ -576,10 +611,7 @@ impl NetworkManager {
             RoutingDomain::PublicInternet.into(),
             BucketEntryState::Unreliable,
         );
-        let min_peer_count = {
-            let c = self.config.get();
-            c.network.dht.min_peer_count as usize
-        };
+        let min_peer_count = self.with_config(|c| c.network.dht.min_peer_count as usize);
 
         // If none, then add the bootstrap nodes to it
         if live_public_internet_entry_count == 0 {
@@ -857,7 +889,7 @@ impl NetworkManager {
         // Encode envelope
         let envelope = Envelope::new(version, ts, nonce, node_id, dest_node_id);
         envelope
-            .to_encrypted_data(self.crypto.clone(), body.as_ref(), &node_id_secret)
+            .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret)
             .wrap_err("envelope failed to encode")
     }
 
@@ -1095,6 +1127,11 @@ impl NetworkManager {
         }
     }
 
+    /// Get the contact method required for node A to reach node B
+    pub fn get_node_contact_method(node_a: &NodeInfo, node_b: &NodeInfo) -> ContactMethod {
+        unimplemented!();
+    }
+
     // Send a reverse connection signal and wait for the return receipt over it
     // Then send the data across the new connection
     // Only usable for PublicInternet routing domain
@@ -1106,8 +1143,13 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
         // Build a return receipt for the signal
-        let receipt_timeout =
-            ms_to_us(self.config.get().network.reverse_connection_receipt_time_ms);
+        let receipt_timeout = ms_to_us(
+            self.unlocked_inner
+                .config
+                .get()
+                .network
+                .reverse_connection_receipt_time_ms,
+        );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 
         // Get our peer info
@@ -1188,7 +1230,13 @@ impl NetworkManager {
             .unwrap_or_default());
 
         // Build a return receipt for the signal
-        let receipt_timeout = ms_to_us(self.config.get().network.hole_punch_receipt_time_ms);
+        let receipt_timeout = ms_to_us(
+            self.unlocked_inner
+                .config
+                .get()
+                .network
+                .hole_punch_receipt_time_ms,
+        );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
         // Get our peer info
         let peer_info = self
@@ -1404,10 +1452,7 @@ impl NetworkManager {
     // Direct bootstrap request
     #[instrument(level = "trace", err, skip(self))]
     pub async fn boot_request(&self, dial_info: DialInfo) -> EyreResult<Vec<PeerInfo>> {
-        let timeout_ms = {
-            let c = self.config.get();
-            c.network.rpc.timeout_ms
-        };
+        let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
         let out_data: Vec<u8> = network_result_value_or_log!(debug self
@@ -1502,13 +1547,12 @@ impl NetworkManager {
         };
 
         // Get timestamp range
-        let (tsbehind, tsahead) = {
-            let c = self.config.get();
+        let (tsbehind, tsahead) = self.with_config(|c| {
             (
                 c.network.rpc.max_timestamp_behind_ms.map(ms_to_us),
                 c.network.rpc.max_timestamp_ahead_ms.map(ms_to_us),
             )
-        };
+        });
 
         // Validate timestamp isn't too old
         let ts = intf::get_timestamp();
@@ -1742,11 +1786,14 @@ impl NetworkManager {
         }
 
         let routing_table = self.routing_table();
-        let c = self.config.get();
-        let detect_address_changes = c.network.detect_address_changes;
+        let (detect_address_changes, ip6_prefix_size) = self.with_config(|c| {
+            (
+                c.network.detect_address_changes,
+                c.network.max_connections_per_ip6_prefix_size as usize,
+            )
+        });
 
         // Get the ip(block) this report is coming from
-        let ip6_prefix_size = c.network.max_connections_per_ip6_prefix_size as usize;
         let ipblock = ip_to_ipblock(
             ip6_prefix_size,
             connection_descriptor.remote_address().to_ip_addr(),

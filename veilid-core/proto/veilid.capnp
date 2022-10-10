@@ -132,8 +132,11 @@ struct RouteHopData {
 }
 
 struct RouteHop {
-    dialInfo                @0  :NodeDialInfo;          # dial info for this hop
-    nextHop                 @1  :RouteHopData;          # Optional: next hop in encrypted blob 
+    node :union {                                       
+        nodeId              @0  :NodeID;                # node id only for established routes
+        peerInfo            @1  :PeerInfo;              # full peer info for this hop to establish the route
+    }
+    nextHop                 @2  :RouteHopData;          # Optional: next hop in encrypted blob 
                                                         # Null means no next hop, at destination (only used in private route, safety routes must enclose a stub private route)
 }
 
