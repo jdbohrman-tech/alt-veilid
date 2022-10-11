@@ -32,6 +32,8 @@ struct RouteSpecDetail {
     last_checked_ts: Option<u64>,
     /// Directions this route is guaranteed to work in
     directions: DirectionSet,
+    /// Reliability
+    reliable: bool,
 }
 
 /// The core representation of the RouteSpecStore that can be serialized
@@ -60,10 +62,19 @@ pub struct RouteSpecStore {
     cache: RouteSpecStoreCache,
 }
 
-fn route_spec_to_hop_cache(spec: Arc<RouteSpec>) -> Vec<u8> {
-    let mut cache: Vec<u8> = Vec::with_capacity(spec.hops.len() * DHT_KEY_LENGTH);
-    for hop in spec.hops {
-        cache.extend_from_slice(&hop.dial_info.node_id.key.bytes);
+fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {
+    let mut cache: Vec<u8> = Vec::with_capacity(hops.len() * DHT_KEY_LENGTH);
+    for hop in hops {
+        cache.extend_from_slice(&hop.bytes);
+    }
+    cache
+}
+
+/// get the hop cache key for a particular route permutation
+fn route_permutation_to_hop_cache(nodes: &[(DHTKey, NodeInfo)], perm: &[usize]) -> Vec<u8> {
+    let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * DHT_KEY_LENGTH);
+    for n in perm {
+        cache.extend_from_slice(&nodes[*n].0.bytes)
     }
     cache
 }
@@ -104,7 +115,7 @@ where
         return f(&permutation);
     }
 
-    // heaps algorithm
+    // heaps algorithm, but skipping the first element
     fn heaps_permutation<F>(permutation: &mut [usize], size: usize, f: F) -> bool
     where
         F: FnMut(&[usize]) -> bool,
@@ -131,15 +142,6 @@ where
 
     // recurse
     heaps_permutation(&mut permutation, hop_count - 1, f)
-}
-
-/// get the hop cache key for a particular route permutation
-fn route_permutation_to_hop_cache(nodes: &[(DHTKey, NodeInfo)], perm: &[usize]) -> Vec<u8> {
-    let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * DHT_KEY_LENGTH);
-    for n in perm {
-        cache.extend_from_slice(&nodes[*n].0.bytes)
-    }
-    cache
 }
 
 impl RouteSpecStore {
@@ -329,15 +331,16 @@ impl RouteSpecStore {
         }
 
         // Now go through nodes and try to build a route we haven't seen yet
-        let mut route_nodes: Vec<usize> = Vec::with_capacity(hop_count);
+        let mut route_nodes: Vec<usize> = Vec::new();
+        let mut cache_key: Vec<u8> = Vec::new();
         for start in 0..(nodes.len() - hop_count) {
             // Try the permutations available starting with 'start'
             let done = with_route_permutations(hop_count, start, |permutation: &[usize]| {
                 // Get the route cache key
-                let key = route_permutation_to_hop_cache(&nodes, permutation);
+                cache_key = route_permutation_to_hop_cache(&nodes, permutation);
 
                 // Skip routes we have already seen
-                if self.cache.hop_cache.contains(&key) {
+                if self.cache.hop_cache.contains(&cache_key) {
                     return false;
                 }
 
@@ -417,18 +420,89 @@ impl RouteSpecStore {
             created_ts: cur_ts,
             last_checked_ts: None,
             directions,
+            reliable,
         };
 
+        // Keep route in spec store
         self.content.details.insert(public_key, rsd);
-
-        // xxx insert into cache too
+        if !self.cache.hop_cache.insert(cache_key) {
+            panic!("route should never be inserted twice");
+        }
+        for h in &hops {
+            self.cache
+                .used_nodes
+                .entry(*h)
+                .and_modify(|e| *e += 1)
+                .or_insert(1);
+        }
+        self.cache
+            .used_end_nodes
+            .entry(*hops.last().unwrap())
+            .and_modify(|e| *e += 1)
+            .or_insert(1);
 
         Some(public_key)
     }
 
-    pub fn release_route(&mut self, spec: Arc<RouteSpec>) {}
+    pub fn release_route(&mut self, public_key: DHTKey) {
+        if let Some(detail) = self.content.details.remove(&public_key) {
+            // Remove from hop cache
+            let cache_key = route_hops_to_hop_cache(&detail.hops);
+            if !self.cache.hop_cache.remove(&cache_key) {
+                panic!("hop cache should have contained cache key");
+            }
+            // Remove from used nodes cache
+            for h in &detail.hops {
+                match self.cache.used_nodes.entry(*h) {
+                    std::collections::hash_map::Entry::Occupied(o) => {
+                        *o.get_mut() -= 1;
+                        if *o.get() == 0 {
+                            o.remove();
+                        }
+                    }
+                    std::collections::hash_map::Entry::Vacant(_) => {
+                        panic!("used_nodes cache should have contained hop");
+                    }
+                }
+            }
+            // Remove from end nodes cache
+            match self.cache.used_nodes.entry(*detail.hops.last().unwrap()) {
+                std::collections::hash_map::Entry::Occupied(o) => {
+                    *o.get_mut() -= 1;
+                    if *o.get() == 0 {
+                        o.remove();
+                    }
+                }
+                std::collections::hash_map::Entry::Vacant(_) => {
+                    panic!("used_nodes cache should have contained hop");
+                }
+            }
+        } else {
+            panic!("can't release route that was never allocated");
+        }
+    }
 
-    pub fn best_route(&mut self, reliable: bool) -> Arc<RouteSpec> {}
+    pub fn best_route(
+        &mut self,
+        reliable: bool,
+        min_hop_count: usize,
+        max_hop_count: usize,
+        directions: DirectionSet,
+    ) -> Option<DHTKey> {
+        for detail in &self.content.details {
+            if detail.1.reliable == reliable
+                && detail.1.hops.len() >= min_hop_count
+                && detail.1.hops.len() <= max_hop_count
+                && detail.1.directions.is_subset(directions)
+            {
+                return Some(*detail.0);
+            }
+        }
+        None
+    }
+
+    /// xxx add route compiler here
+    ///
 
     /// Mark route as published
     /// When first deserialized, routes must be re-published in order to ensure they remain
