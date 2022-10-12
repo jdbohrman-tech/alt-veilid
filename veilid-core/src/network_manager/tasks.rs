@@ -224,7 +224,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn bootstrap_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
         let (bootstrap, bootstrap_nodes) = {
-            let c = self.config.get();
+            let c = self.unlocked_inner.config.get();
             (
                 c.network.bootstrap.clone(),
                 c.network.bootstrap_nodes.clone(),
@@ -487,7 +487,7 @@ impl NetworkManager {
         let routing_table = self.routing_table();
         let mut ord = FuturesOrdered::new();
         let min_peer_count = {
-            let c = self.config.get();
+            let c = self.unlocked_inner.config.get();
             c.network.dht.min_peer_count as usize
         };
 

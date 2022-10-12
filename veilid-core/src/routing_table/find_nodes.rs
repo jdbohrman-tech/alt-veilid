@@ -74,13 +74,13 @@ impl RoutingTable {
     }
 
     // Retrieve the fastest nodes in the routing table matching an entry filter
-    pub fn find_fast_public_nodes_filtered<'r, 'e, F>(
+    pub fn find_fast_public_nodes_filtered<'a, 'b, F>(
         &self,
         node_count: usize,
         mut entry_filter: F,
     ) -> Vec<NodeRef>
     where
-        F: FnMut(&'r RoutingTableInner, &'e BucketEntryInner) -> bool,
+        F: FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool,
     {
         self.find_fastest_nodes(
             // count
@@ -201,7 +201,7 @@ impl RoutingTable {
         }
     }
 
-    pub fn find_peers_with_sort_and_filter<F, C, T, O>(
+    pub fn find_peers_with_sort_and_filter<'a, 'b, F, C, T, O>(
         &self,
         node_count: usize,
         cur_ts: u64,
@@ -210,13 +210,13 @@ impl RoutingTable {
         mut transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
         C: FnMut(
-            &RoutingTableInner,
-            &(DHTKey, Option<Arc<BucketEntry>>),
-            &(DHTKey, Option<Arc<BucketEntry>>),
+            &'a RoutingTableInner,
+            &'b (DHTKey, Option<Arc<BucketEntry>>),
+            &'b (DHTKey, Option<Arc<BucketEntry>>),
         ) -> core::cmp::Ordering,
-        T: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let inner = self.inner.read();
         let inner = &*inner;
@@ -259,15 +259,15 @@ impl RoutingTable {
         out
     }
 
-    pub fn find_fastest_nodes<T, F, O>(
+    pub fn find_fastest_nodes<'a, T, F, O>(
         &self,
         node_count: usize,
         mut filter: F,
         transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
         let out = self.find_peers_with_sort_and_filter(
@@ -341,15 +341,15 @@ impl RoutingTable {
         out
     }
 
-    pub fn find_closest_nodes<F, T, O>(
+    pub fn find_closest_nodes<'a, F, T, O>(
         &self,
         node_id: DHTKey,
         filter: F,
         mut transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
         let node_count = {
