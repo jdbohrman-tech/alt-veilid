@@ -926,7 +926,7 @@ impl FromStr for SocketAddress {
 
 //////////////////////////////////////////////////////////////////
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DialInfoFilter {
     pub protocol_type_set: ProtocolTypeSet,
     pub address_type_set: AddressTypeSet,

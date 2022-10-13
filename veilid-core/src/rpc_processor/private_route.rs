@@ -1,6 +1,9 @@
 use super::*;
 
 impl RPCProcessor {
+
+xxx move this into route spec store
+
     //////////////////////////////////////////////////////////////////////
     fn compile_safety_route(
         &self,

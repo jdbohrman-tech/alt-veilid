@@ -274,6 +274,10 @@ impl RouteSpecStore {
             bail!("Not allocating route longer than max route hop count");
         }
 
+        // Lock routing table for reading, make sure things don't change
+        // because we want to iterate the table without changes being made to it
+        let rti = routing_table.inner.read();
+
         // Get list of all nodes, and sort them for selection
         let cur_ts = intf::get_timestamp();
         let dial_info_sort = if reliable {
@@ -409,19 +413,25 @@ impl RouteSpecStore {
                 if directions.contains(Direction::Outbound) {
                     let our_node_info =
                         routing_table.get_own_node_info(RoutingDomain::PublicInternet);
-                    let mut previous_node_info = &our_node_info;
+                    let our_node_id = routing_table.node_id();
+                    let mut previous_node = &(our_node_id, our_node_info);
                     let mut reachable = true;
                     for n in permutation {
-                        let current_node_info = &nodes.get(*n).as_ref().unwrap().1;
-                        let cm = NetworkManager::get_node_contact_method(
-                            previous_node_info,
-                            current_node_info,
+                        let current_node = nodes.get(*n).unwrap();
+                        let cm = routing_table.get_contact_method(
+                            RoutingDomain::PublicInternet,
+                            &previous_node.0,
+                            &previous_node.1,
+                            &current_node.0,
+                            &current_node.1,
+                            DialInfoFilter::all(),
+                            reliable,
                         );
                         if matches!(cm, ContactMethod::Unreachable) {
                             reachable = false;
                             break;
                         }
-                        previous_node_info = current_node_info;
+                        previous_node = current_node;
                     }
                     if !reachable {
                         return false;
@@ -430,19 +440,25 @@ impl RouteSpecStore {
                 if directions.contains(Direction::Inbound) {
                     let our_node_info =
                         routing_table.get_own_node_info(RoutingDomain::PublicInternet);
-                    let mut next_node_info = &our_node_info;
+                    let our_node_id = routing_table.node_id();
+                    let mut next_node = &(our_node_id, our_node_info);
                     let mut reachable = true;
                     for n in permutation.iter().rev() {
-                        let current_node_info = &nodes.get(*n).as_ref().unwrap().1;
-                        let cm = NetworkManager::get_node_contact_method(
-                            current_node_info,
-                            next_node_info,
+                        let current_node = nodes.get(*n).unwrap();
+                        let cm = routing_table.get_contact_method(
+                            RoutingDomain::PublicInternet,
+                            &next_node.0,
+                            &next_node.1,
+                            &current_node.0,
+                            &current_node.1,
+                            DialInfoFilter::all(),
+                            reliable,
                         );
                         if matches!(cm, ContactMethod::Unreachable) {
                             reachable = false;
                             break;
                         }
-                        next_node_info = current_node_info;
+                        next_node = current_node;
                     }
                     if !reachable {
                         return false;

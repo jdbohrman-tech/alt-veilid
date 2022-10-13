@@ -6,7 +6,7 @@ use alloc::fmt;
 // We should ping them with some frequency and 30 seconds is typical timeout
 const CONNECTIONLESS_TIMEOUT_SECS: u32 = 29;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NodeRefFilter {
     pub routing_domain_set: RoutingDomainSet,
     pub dial_info_filter: DialInfoFilter,
@@ -130,6 +130,9 @@ impl NodeRef {
 
     pub fn set_reliable(&mut self) {
         self.reliable = true;
+    }
+    pub fn reliable(&self) -> bool {
+        self.reliable
     }
 
     pub fn merge_filter(&mut self, filter: NodeRefFilter) {

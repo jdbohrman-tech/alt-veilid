@@ -323,6 +323,110 @@ impl RoutingTable {
         true
     }
 
+    /// Look up the best way for two nodes to reach each other over a specific routing domain
+    #[instrument(level = "trace", skip(self), ret)]
+    pub fn get_contact_method(
+        &self,
+        routing_domain: RoutingDomain,
+        node_a_id: &DHTKey,
+        node_a: &NodeInfo,
+        node_b_id: &DHTKey,
+        node_b: &NodeInfo,
+        dial_info_filter: DialInfoFilter,
+        reliable: bool,
+    ) -> ContactMethod {
+        let inner = &*self.inner.read();
+        Self::with_routing_domain(inner, routing_domain, |rdd| {
+            rdd.get_contact_method(
+                inner,
+                node_a_id,
+                node_a,
+                node_b_id,
+                node_b,
+                dial_info_filter,
+                reliable,
+            )
+        })
+    }
+
+    // Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
+    #[instrument(level = "trace", skip(self), ret)]
+    pub(crate) fn get_node_contact_method(
+        &self,
+        target_node_ref: NodeRef,
+    ) -> EyreResult<NodeContactMethod> {
+        // Lock the routing table for read to ensure the table doesn't change
+        let inner = &*self.inner.read();
+
+        // Figure out the best routing domain to get the contact method over
+        let routing_domain = match target_node_ref.best_routing_domain() {
+            Some(rd) => rd,
+            None => {
+                log_net!("no routing domain for node {:?}", target_node_ref);
+                return Ok(NodeContactMethod::Unreachable);
+            }
+        };
+
+        // Node A is our own node
+        let node_a = self.get_own_node_info(routing_domain);
+        let node_a_id = self.node_id();
+
+        // Node B is the target node
+        let node_b = target_node_ref.operate(|_rti, e| e.node_info(routing_domain).unwrap());
+        let node_b_id = target_node_ref.node_id();
+
+        // Dial info filter comes from the target node ref
+        let dial_info_filter = target_node_ref.dial_info_filter();
+        let reliable = target_node_ref.reliable();
+
+        let cm = self.get_contact_method(
+            routing_domain,
+            &node_a_id,
+            &node_a,
+            &node_b_id,
+            node_b,
+            dial_info_filter,
+            reliable,
+        );
+
+        // Translate the raw contact method to a referenced contact method
+        Ok(match cm {
+            ContactMethod::Unreachable => NodeContactMethod::Unreachable,
+            ContactMethod::Existing => NodeContactMethod::Existing,
+            ContactMethod::Direct(di) => NodeContactMethod::Direct(di),
+            ContactMethod::SignalReverse(relay_key, target_key) => {
+                let relay_nr = self
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                if target_node_ref.node_id() != target_key {
+                    bail!("target noderef didn't match target key");
+                }
+                NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
+            }
+            ContactMethod::SignalHolePunch(relay_key, target_key) => {
+                let relay_nr = self
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                if target_node_ref.node_id() != target_key {
+                    bail!("target noderef didn't match target key");
+                }
+                NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref)
+            }
+            ContactMethod::InboundRelay(relay_key) => {
+                let relay_nr = self
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                NodeContactMethod::InboundRelay(relay_nr)
+            }
+            ContactMethod::OutboundRelay(relay_key) => {
+                let relay_nr = self
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                NodeContactMethod::OutboundRelay(relay_nr)
+            }
+        })
+    }
+
     #[instrument(level = "debug", skip(self))]
     pub fn edit_routing_domain(&self, domain: RoutingDomain) -> RoutingDomainEditor {
         RoutingDomainEditor::new(self.clone(), domain)
@@ -487,8 +591,8 @@ impl RoutingTable {
         }
     }
 
-    // Attempt to empty the routing table
-    // should only be performed when there are no node_refs (detached)
+    /// Attempt to empty the routing table
+    /// should only be performed when there are no node_refs (detached)
     pub fn purge_buckets(&self) {
         let mut inner = self.inner.write();
         let inner = &mut *inner;
@@ -505,7 +609,7 @@ impl RoutingTable {
         );
     }
 
-    // Attempt to remove last_connections from entries
+    /// Attempt to remove last_connections from entries
     pub fn purge_last_connections(&self) {
         let mut inner = self.inner.write();
         let inner = &mut *inner;
@@ -526,8 +630,8 @@ impl RoutingTable {
         );
     }
 
-    // Attempt to settle buckets and remove entries down to the desired number
-    // which may not be possible due extant NodeRefs
+    /// Attempt to settle buckets and remove entries down to the desired number
+    /// which may not be possible due extant NodeRefs
     fn kick_bucket(inner: &mut RoutingTableInner, idx: usize) {
         let bucket = &mut inner.buckets[idx];
         let bucket_depth = Self::bucket_depth(idx);
@@ -702,9 +806,9 @@ impl RoutingTable {
         self.unlocked_inner.kick_queue.lock().insert(idx);
     }
 
-    // Create a node reference, possibly creating a bucket entry
-    // the 'update_func' closure is called on the node, and, if created,
-    // in a locked fashion as to ensure the bucket entry state is always valid
+    /// Create a node reference, possibly creating a bucket entry
+    /// the 'update_func' closure is called on the node, and, if created,
+    /// in a locked fashion as to ensure the bucket entry state is always valid
     pub fn create_node_ref<F>(&self, node_id: DHTKey, update_func: F) -> Option<NodeRef>
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner),
@@ -759,6 +863,7 @@ impl RoutingTable {
         Some(noderef)
     }
 
+    /// Resolve an existing routing table entry and return a reference to it
     pub fn lookup_node_ref(&self, node_id: DHTKey) -> Option<NodeRef> {
         if node_id == self.unlocked_inner.node_id {
             log_rtab!(debug "can't look up own node id in routing table");
@@ -772,9 +877,26 @@ impl RoutingTable {
             .map(|e| NodeRef::new(self.clone(), node_id, e, None))
     }
 
-    // Shortcut function to add a node to our routing table if it doesn't exist
-    // and add the dial info we have for it. Returns a noderef filtered to
-    // the routing domain in which this node was registered for convenience.
+    /// Resolve an existing routing table entry and return a filtered reference to it
+    pub fn lookup_and_filter_noderef(
+        &self,
+        node_id: DHTKey,
+        routing_domain_set: RoutingDomainSet,
+        dial_info_filter: DialInfoFilter,
+    ) -> Option<NodeRef> {
+        let nr = self.lookup_node_ref(node_id)?;
+        Some(
+            nr.filtered_clone(
+                NodeRefFilter::new()
+                    .with_dial_info_filter(dial_info_filter)
+                    .with_routing_domain_set(routing_domain_set),
+            ),
+        )
+    }
+
+    /// Shortcut function to add a node to our routing table if it doesn't exist
+    /// and add the dial info we have for it. Returns a noderef filtered to
+    /// the routing domain in which this node was registered for convenience.
     pub fn register_node_with_signed_node_info(
         &self,
         routing_domain: RoutingDomain,
@@ -821,8 +943,8 @@ impl RoutingTable {
         })
     }
 
-    // Shortcut function to add a node to our routing table if it doesn't exist
-    // and add the last peer address we have for it, since that's pretty common
+    /// Shortcut function to add a node to our routing table if it doesn't exist
+    /// and add the last peer address we have for it, since that's pretty common
     pub fn register_node_with_existing_connection(
         &self,
         node_id: DHTKey,
@@ -840,8 +962,8 @@ impl RoutingTable {
         out
     }
 
-    // Ticks about once per second
-    // to run tick tasks which may run at slower tick rates as configured
+    /// Ticks about once per second
+    /// to run tick tasks which may run at slower tick rates as configured
     pub async fn tick(&self) -> EyreResult<()> {
         // Do rolling transfers every ROLLING_TRANSFERS_INTERVAL_SECS secs
         self.unlocked_inner.rolling_transfers_task.tick().await?;

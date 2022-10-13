@@ -341,7 +341,9 @@ impl VeilidAPI {
             nr.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain))
         }
 
-        let cm = network_manager.get_contact_method(nr);
+        let cm = routing_table
+            .get_node_contact_method(nr)
+            .map_err(VeilidAPIError::internal)?;
 
         Ok(format!("{:#?}", cm))
     }
