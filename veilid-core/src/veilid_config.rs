@@ -117,7 +117,7 @@ pub struct VeilidConfigWS {
 /// ```yaml
 /// wss:
 ///     connect: true
-///     listen: false 
+///     listen: false
 ///     max_connections: 16
 ///     listen_address: ':5150'
 ///     path: 'ws'
@@ -192,6 +192,7 @@ pub struct VeilidConfigRPC {
     pub max_timestamp_ahead_ms: Option<u32>,
     pub timeout_ms: u32,
     pub max_route_hop_count: u8,
+    pub default_route_hop_count: u8,
 }
 
 /// Configure the network routing table
@@ -334,7 +335,7 @@ pub struct VeilidConfigInner {
 
 /// The Veilid Configuration
 ///
-/// Veilid is configured 
+/// Veilid is configured
 #[derive(Clone)]
 pub struct VeilidConfig {
     inner: Arc<RwLock<VeilidConfigInner>>,
@@ -444,6 +445,7 @@ impl VeilidConfig {
             get_config!(inner.network.rpc.max_timestamp_ahead_ms);
             get_config!(inner.network.rpc.timeout_ms);
             get_config!(inner.network.rpc.max_route_hop_count);
+            get_config!(inner.network.rpc.default_route_hop_count);
             get_config!(inner.network.upnp);
             get_config!(inner.network.natpmp);
             get_config!(inner.network.detect_address_changes);
@@ -634,6 +636,33 @@ impl VeilidConfig {
                 );
             }
         }
+        if inner.network.rpc.max_route_hop_count == 0 {
+            apibail_generic!(
+                "max route hop count must be >= 1 in 'network.rpc.max_route_hop_count'"
+            );
+        }
+        if inner.network.rpc.max_route_hop_count > 7 {
+            apibail_generic!(
+                "max route hop count must be <= 7 in 'network.rpc.max_route_hop_count'"
+            );
+        }
+        if inner.network.rpc.default_route_hop_count == 0 {
+            apibail_generic!(
+                "default route hop count must be >= 1 in 'network.rpc.default_route_hop_count'"
+            );
+        }
+        if inner.network.rpc.default_route_hop_count > inner.network.rpc.max_route_hop_count {
+            apibail_generic!(
+                "default route hop count must be <= max route hop count in 'network.rpc.default_route_hop_count <= network.rpc.max_route_hop_count'"
+            );
+        }
+        if inner.network.rpc.queue_size < 256 {
+            apibail_generic!("rpc queue size must be >= 256 in 'network.rpc.queue_size'");
+        }
+        if inner.network.rpc.timeout_ms < 1000 {
+            apibail_generic!("rpc timeout must be >= 1000 in 'network.rpc.timeout_ms'");
+        }
+
         Ok(())
     }
 

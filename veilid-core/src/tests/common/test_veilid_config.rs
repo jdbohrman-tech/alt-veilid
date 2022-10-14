@@ -208,6 +208,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.rpc.max_timestamp_ahead_ms" => Ok(Box::new(Some(10_000u32))),
         "network.rpc.timeout_ms" => Ok(Box::new(10_000u32)),
         "network.rpc.max_route_hop_count" => Ok(Box::new(7u8)),
+        "network.rpc.default_route_hop_count" => Ok(Box::new(2u8)),
         "network.dht.resolve_node_timeout_ms" => Ok(Box::new(Option::<u32>::None)),
         "network.dht.resolve_node_count" => Ok(Box::new(20u32)),
         "network.dht.resolve_node_fanout" => Ok(Box::new(3u32)),
@@ -325,6 +326,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.rpc.queue_size, 128u32);
     assert_eq!(inner.network.rpc.timeout_ms, 10_000u32);
     assert_eq!(inner.network.rpc.max_route_hop_count, 7u8);
+    assert_eq!(inner.network.rpc.default_route_hop_count, 2u8);
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);
     assert_eq!(inner.network.routing_table.limit_attached_strong, 16u32);

@@ -90,7 +90,7 @@ pub struct RoutingTable {
 }
 
 impl RoutingTable {
-    fn new_inner() -> RoutingTableInner {
+    fn new_inner(config: VeilidConfig) -> RoutingTableInner {
         RoutingTableInner {
             buckets: Vec::new(),
             public_internet_routing_domain: PublicInternetRoutingDomainDetail::default(),
@@ -100,7 +100,7 @@ impl RoutingTable {
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
-            route_spec_store: RouteSpecStore::new(),
+            route_spec_store: RouteSpecStore::new(config),
         }
     }
     fn new_unlocked_inner(
@@ -121,7 +121,7 @@ impl RoutingTable {
     pub fn new(network_manager: NetworkManager) -> Self {
         let config = network_manager.config();
         let this = Self {
-            inner: Arc::new(RwLock::new(Self::new_inner())),
+            inner: Arc::new(RwLock::new(Self::new_inner(config.clone()))),
             unlocked_inner: Arc::new(Self::new_unlocked_inner(config, network_manager)),
         };
         // Set rolling transfers tick task
@@ -215,6 +215,22 @@ impl RoutingTable {
             RoutingDomain::PublicInternet => f(&mut inner.public_internet_routing_domain),
             RoutingDomain::LocalNetwork => f(&mut inner.local_network_routing_domain),
         }
+    }
+
+    pub fn with_route_spec_store_mut<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut RouteSpecStore) -> R,
+    {
+        let inner = self.inner.write();
+        f(&mut inner.route_spec_store)
+    }
+
+    pub fn with_route_spec_store<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&RouteSpecStore) -> R,
+    {
+        let inner = self.inner.read();
+        f(&inner.route_spec_store)
     }
 
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {
@@ -564,7 +580,7 @@ impl RoutingTable {
             error!("kick_buckets_task not stopped: {}", e);
         }
 
-        *self.inner.write() = Self::new_inner();
+        *self.inner.write() = Self::new_inner(self.unlocked_inner.config.clone());
 
         debug!("finished routing table terminate");
     }

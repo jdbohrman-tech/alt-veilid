@@ -229,6 +229,7 @@ rpc:
     max_timestamp_ahead_ms: 10000
     timeout_ms: 10000
     max_route_hop_count: 7
+    default_route_hop_count: 2
 ```
 
 #### core:network:dht

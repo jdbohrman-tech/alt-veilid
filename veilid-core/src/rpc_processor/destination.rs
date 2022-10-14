@@ -8,6 +8,7 @@ pub enum Destination {
         /// The node to send to
         target: NodeRef,
         /// Require safety route or not
+        xxx convert back to safety spec, bubble up to api
         safety: bool,
     },
     /// Send to node for relay purposes

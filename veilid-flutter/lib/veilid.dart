@@ -657,6 +657,7 @@ class VeilidConfigRPC {
   int? maxTimestampAheadMs;
   int timeoutMs;
   int maxRouteHopCount;
+  int defaultRouteHopCount;
 
   VeilidConfigRPC(
       {required this.concurrency,
@@ -664,7 +665,8 @@ class VeilidConfigRPC {
       this.maxTimestampBehindMs,
       this.maxTimestampAheadMs,
       required this.timeoutMs,
-      required this.maxRouteHopCount});
+      required this.maxRouteHopCount,
+      required this.defaultRouteHopCount});
 
   Map<String, dynamic> get json {
     return {
@@ -674,6 +676,7 @@ class VeilidConfigRPC {
       'max_timestamp_ahead_ms': maxTimestampAheadMs,
       'timeout_ms': timeoutMs,
       'max_route_hop_count': maxRouteHopCount,
+      'default_route_hop_count': defaultRouteHopCount,
     };
   }
 
@@ -683,7 +686,8 @@ class VeilidConfigRPC {
         maxTimestampBehindMs = json['max_timestamp_behind_ms'],
         maxTimestampAheadMs = json['max_timestamp_ahead_ms'],
         timeoutMs = json['timeout_ms'],
-        maxRouteHopCount = json['max_route_hop_count'];
+        maxRouteHopCount = json['max_route_hop_count'],
+        defaultRouteHopCount = json['default_route_hop_count'];
 }
 
 ////////////

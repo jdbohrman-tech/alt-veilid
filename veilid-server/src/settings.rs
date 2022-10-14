@@ -82,6 +82,7 @@ core:
             max_timestamp_ahead_ms: 10000
             timeout_ms: 10000
             max_route_hop_count: 7
+            default_route_hop_count: 2
         dht:
             resolve_node_timeout:
             resolve_node_count: 20
@@ -539,6 +540,7 @@ pub struct Rpc {
     pub max_timestamp_ahead_ms: Option<u32>,
     pub timeout_ms: u32,
     pub max_route_hop_count: u8,
+    pub default_route_hop_count: u8,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -756,7 +758,7 @@ impl Settings {
     /// in /etc/veilid-server. If a config is not found in this location, it will
     /// follow the XDG user directory spec, and look in `~/.config/veilid-server/`.
     ///
-    /// For Windows, a user-local config may be created at 
+    /// For Windows, a user-local config may be created at
     /// `C:\Users\<user>\AppData\Roaming\Veilid\Veilid`, and for macOS, at
     /// `/Users/<user>/Library/Application Support/org.Veilid.Veilid`
     ///
@@ -965,6 +967,7 @@ impl Settings {
         set_config_value!(inner.core.network.rpc.max_timestamp_ahead_ms, value);
         set_config_value!(inner.core.network.rpc.timeout_ms, value);
         set_config_value!(inner.core.network.rpc.max_route_hop_count, value);
+        set_config_value!(inner.core.network.rpc.default_route_hop_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_timeout_ms, value);
         set_config_value!(inner.core.network.dht.resolve_node_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_fanout, value);
@@ -1141,6 +1144,9 @@ impl Settings {
                 "network.rpc.timeout_ms" => Ok(Box::new(inner.core.network.rpc.timeout_ms)),
                 "network.rpc.max_route_hop_count" => {
                     Ok(Box::new(inner.core.network.rpc.max_route_hop_count))
+                }
+                "network.rpc.default_route_hop_count" => {
+                    Ok(Box::new(inner.core.network.rpc.default_route_hop_count))
                 }
                 "network.dht.resolve_node_timeout_ms" => {
                     Ok(Box::new(inner.core.network.dht.resolve_node_timeout_ms))
@@ -1486,6 +1492,7 @@ mod tests {
         assert_eq!(s.core.network.rpc.max_timestamp_ahead_ms, Some(10_000u32));
         assert_eq!(s.core.network.rpc.timeout_ms, 10_000u32);
         assert_eq!(s.core.network.rpc.max_route_hop_count, 7);
+        assert_eq!(s.core.network.rpc.default_route_hop_count, 2);
         //
         assert_eq!(s.core.network.dht.resolve_node_timeout_ms, None);
         assert_eq!(s.core.network.dht.resolve_node_count, 20u32);

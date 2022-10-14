@@ -133,10 +133,10 @@ impl<T> Answer<T> {
 }
 
 struct RenderedOperation {
-    message: Vec<u8>,          // The rendered operation bytes
-    node_id: DHTKey,           // Node id we're sending to
-    node_ref: Option<NodeRef>, // Node to send envelope to (may not be destination node id in case of relay)
-    hop_count: usize,          // Total safety + private route hop count
+    message: Vec<u8>,  // The rendered operation bytes
+    node_id: DHTKey,   // Destination node id we're sending to
+    node_ref: NodeRef, // Node to send envelope to (may not be destination node id in case of relay)
+    hop_count: usize,  // Total safety + private route hop count
 }
 /////////////////////////////////////////////////////////////////////
 
@@ -151,6 +151,7 @@ pub struct RPCProcessorUnlockedInner {
     queue_size: u32,
     concurrency: u32,
     max_route_hop_count: usize,
+    default_route_hop_count: usize,
     validate_dial_info_receipt_time_ms: u32,
     update_callback: UpdateCallback,
     waiting_rpc_table: OperationWaiter<RPCMessage>,
@@ -187,20 +188,12 @@ impl RPCProcessor {
         let mut queue_size = c.network.rpc.queue_size;
         let mut timeout = ms_to_us(c.network.rpc.timeout_ms);
         let mut max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
+        let mut default_route_hop_count = c.network.rpc.default_route_hop_count as usize;
         if concurrency == 0 {
             concurrency = intf::get_concurrency() / 2;
             if concurrency == 0 {
                 concurrency = 1;
             }
-        }
-        if queue_size == 0 {
-            queue_size = 1024;
-        }
-        if timeout == 0 {
-            timeout = 10000000;
-        }
-        if max_route_hop_count == 0 {
-            max_route_hop_count = 7usize;
         }
         let validate_dial_info_receipt_time_ms = c.network.dht.validate_dial_info_receipt_time_ms;
 
@@ -209,6 +202,7 @@ impl RPCProcessor {
             queue_size,
             concurrency,
             max_route_hop_count,
+            default_route_hop_count,
             validate_dial_info_receipt_time_ms,
             update_callback,
             waiting_rpc_table: OperationWaiter::new(),
@@ -403,6 +397,65 @@ impl RPCProcessor {
         out
     }
 
+    // Wrap an operation with a private route inside a safety route
+    pub(super) fn wrap_with_route(
+        &self,
+        safety_spec: SafetySpec,
+        private_route: PrivateRoute,
+        message_data: Vec<u8>,
+    ) -> Result<RenderedOperation, RPCError> {
+        let compiled_route: CompiledRoute = self.routing_table().with_route_spec_store(|rss| {
+            // Compile the safety route with the private route
+            rss.compile_safety_route(safety_spec, private_route)
+        })?;
+
+        // Verify hop count isn't larger than out maximum routed hop count
+        if compiled_route.safety_route.hop_count as usize > self.unlocked_inner.max_route_hop_count
+        {
+            return Err(RPCError::internal("hop count too long for route"))
+                .map_err(logthru_rpc!(warn));
+        }
+
+        // Encrypt routed operation
+        // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
+        let nonce = Crypto::get_random_nonce();
+        let dh_secret = self
+            .crypto
+            .cached_dh(&private_route.public_key, &compiled_route.secret)
+            .map_err(RPCError::map_internal("dh failed"))?;
+        let enc_msg_data = Crypto::encrypt_aead(&message_data, &nonce, &dh_secret, None)
+            .map_err(RPCError::map_internal("encryption failed"))?;
+
+        // Make the routed operation
+        let operation = RoutedOperation::new(nonce, enc_msg_data);
+
+        // Prepare route operation
+        let route = RPCOperationRoute {
+            safety_route,
+            operation,
+        };
+        let operation =
+            RPCOperation::new_statement(RPCStatement::new(RPCStatementDetail::Route(route)), None);
+
+        // Convert message to bytes and return it
+        let mut route_msg = ::capnp::message::Builder::new_default();
+        let mut route_operation = route_msg.init_root::<veilid_capnp::operation::Builder>();
+        operation.encode(&mut route_operation)?;
+        let out = builder_to_vec(route_msg)?;
+
+        // out_node_id = sr
+        // .hops
+        // .first()
+        // .ok_or_else(RPCError::else_internal("no hop in safety route"))?
+        // .dial_info
+        // .node_id
+        // .key;
+
+        //out_hop_count = 1 + sr.hops.len();
+
+        Ok(out)
+    }
+
     /// Produce a byte buffer that represents the wire encoding of the entire
     /// unencrypted envelope body for a RPC message. This incorporates
     /// wrapping a private and/or safety route if they are specified.
@@ -412,14 +465,11 @@ impl RPCProcessor {
         dest: Destination,
         operation: &RPCOperation,
     ) -> Result<RenderedOperation, RPCError> {
-        let out_node_id; // Envelope Node Id
-        let mut out_node_ref: Option<NodeRef> = None; // Node to send envelope to
-        let out_hop_count: usize; // Total safety + private route hop count
-        let out_message; // Envelope data
+        let out: RenderedOperation;
 
         // Encode message to a builder and make a message reader for it
         // Then produce the message as an unencrypted byte buffer
-        let message_vec = {
+        let message = {
             let mut msg_builder = ::capnp::message::Builder::new_default();
             let mut op_builder = msg_builder.init_root::<veilid_capnp::operation::Builder>();
             operation.encode(&mut op_builder)?;
@@ -430,12 +480,12 @@ impl RPCProcessor {
         match dest {
             Destination::Direct {
                 target: ref node_ref,
-                ref safety_route_spec,
+                safety,
             }
             | Destination::Relay {
                 relay: ref node_ref,
                 target: _,
-                ref safety_route_spec,
+                safety,
             } => {
                 // Send to a node without a private route
                 // --------------------------------------
@@ -444,7 +494,7 @@ impl RPCProcessor {
                 let (node_ref, node_id) = if let Destination::Relay {
                     relay: _,
                     target: ref dht_key,
-                    safety_route_spec: _,
+                    safety: _,
                 } = dest
                 {
                     (node_ref.clone(), dht_key.clone())
@@ -454,83 +504,40 @@ impl RPCProcessor {
                 };
 
                 // Handle the existence of safety route
-                match safety_route_spec.as_ref() {
-                    None => {
+                match safety {
+                    false => {
                         // If no safety route is being used, and we're not sending to a private
                         // route, we can use a direct envelope instead of routing
-                        out_message = message_vec;
-
-                        // Message goes directly to the node
-                        out_node_id = node_id;
-                        out_node_ref = Some(node_ref);
-                        out_hop_count = 1;
+                        out = RenderedOperation {
+                            message,
+                            node_id,
+                            node_ref,
+                            hop_count: 1,
+                        };
                     }
-                    Some(sr) => {
+                    true => {
                         // No private route was specified for the request
                         // but we are using a safety route, so we must create an empty private route
                         let private_route = PrivateRoute::new_stub(node_id);
 
-                        // first
-                        out_node_id = sr
-                            .hops
-                            .first()
-                            .ok_or_else(RPCError::else_internal("no hop in safety route"))?
-                            .dial_info
-                            .node_id
-                            .key;
-                        out_message =
-                            self.wrap_with_route(Some(sr.clone()), private_route, message_vec)?;
-                        out_hop_count = 1 + sr.hops.len();
+                        // Wrap with safety route
+                        out = self.wrap_with_route(true, private_route, message)?;
                     }
                 };
             }
             Destination::PrivateRoute {
                 private_route,
-                safety_route_spec,
+                safety,
+                reliable,
             } => {
                 // Send to private route
                 // ---------------------
                 // Reply with 'route' operation
-                out_node_id = match safety_route_spec {
-                    None => {
-                        // If no safety route, the first node is the first hop of the private route
-                        out_hop_count = private_route.hop_count as usize;
-                        let out_node_id = match &private_route.hops {
-                            Some(rh) => rh.dial_info.node_id.key,
-                            _ => return Err(RPCError::internal("private route has no hops")),
-                        };
-                        out_message = self.wrap_with_route(None, private_route, message_vec)?;
-                        out_node_id
-                    }
-                    Some(sr) => {
-                        // If safety route is in use, first node is the first hop of the safety route
-                        out_hop_count = 1 + sr.hops.len() + (private_route.hop_count as usize);
-                        let out_node_id = sr
-                            .hops
-                            .first()
-                            .ok_or_else(RPCError::else_internal("no hop in safety route"))?
-                            .dial_info
-                            .node_id
-                            .key;
-                        out_message = self.wrap_with_route(Some(sr), private_route, message_vec)?;
-                        out_node_id
-                    }
-                }
+                out = self.wrap_with_route(safety, private_route, message)?;
             }
         }
 
-        // Verify hop count isn't larger than out maximum routed hop count
-        if out_hop_count > self.unlocked_inner.max_route_hop_count {
-            return Err(RPCError::internal("hop count too long for route"))
-                .map_err(logthru_rpc!(warn));
-        }
-
-        Ok(RenderedOperation {
-            message: out_message,
-            node_id: out_node_id,
-            node_ref: out_node_ref,
-            hop_count: out_hop_count,
-        })
+        Ok(out)
     }
 
     // Get signed node info to package with RPC messages to improve

@@ -2,6 +2,24 @@ use super::*;
 use crate::veilid_api::*;
 use serde::*;
 
+/// Options for safety routes (sender privacy)
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct SafetySpec {
+    /// 0 = no safety route, just use node's node id, more hops is safer but slower
+    pub hop_count: usize,
+    /// prefer more reliable protocols and relays over faster ones
+    pub reliable: bool,
+}
+
+/// Compiled route (safety route + private route)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompiledRoute {
+    /// The safety route attached to the private route
+    safety_route: SafetyRoute,
+    /// The secret used to encrypt the message payload
+    secret: DHTKeySecret,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct RouteSpecDetail {
     /// Secret key
@@ -30,6 +48,8 @@ struct RouteSpecDetail {
     created_ts: u64,
     /// Timestamp of when the route was last checked for validity
     last_checked_ts: Option<u64>,
+    /// Timestamp of when the route was last used for anything
+    last_used_ts: Option<u64>,
     /// Directions this route is guaranteed to work in
     directions: DirectionSet,
     /// Reliability
@@ -56,10 +76,14 @@ pub struct RouteSpecStoreCache {
 
 #[derive(Debug)]
 pub struct RouteSpecStore {
+    /// Maximum number of hops in a route
+    max_route_hop_count: usize,
+    /// Default number of hops in a route
+    default_route_hop_count: usize,
     /// Serialize RouteSpecStore content
     content: RouteSpecStoreContent,
     /// RouteSpecStore cache
-    cache: RouteSpecStoreCache,
+    cache: Mutex<RouteSpecStoreCache>,
 }
 
 fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {
@@ -145,8 +169,17 @@ where
 }
 
 impl RouteSpecStore {
-    pub fn new() -> Self {
+    pub fn new(config: VeilidConfig) -> Self {
+        let (max_route_hop_count, default_route_hop_count) = {
+            let c = config.get();
+            let max_route_hop_count = c.network.rpc.max_route_hop_count;
+            let default_route_hop_count = c.network.rpc.max_route_hop_count;
+            (max_route_hop_count.into(), default_route_hop_count.into())
+        };
+
         Self {
+            max_route_hop_count,
+            default_route_hop_count,
             content: RouteSpecStoreContent {
                 details: HashMap::new(),
             },
@@ -155,11 +188,20 @@ impl RouteSpecStore {
     }
 
     pub async fn load(routing_table: RoutingTable) -> EyreResult<RouteSpecStore> {
+        let (max_route_hop_count, default_route_hop_count) = {
+            let c = routing_table.unlocked_inner.config.get();
+            let max_route_hop_count = c.network.rpc.max_route_hop_count;
+            let default_route_hop_count = c.network.rpc.max_route_hop_count;
+            (max_route_hop_count.into(), default_route_hop_count.into())
+        };
+
         // Get cbor blob from table store
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         let content = rsstdb.load_cbor(0, b"content").await?.unwrap_or_default();
         let mut rss = RouteSpecStore {
+            max_route_hop_count,
+            default_route_hop_count,
             content,
             cache: Default::default(),
         };
@@ -259,18 +301,11 @@ impl RouteSpecStore {
     ) -> EyreResult<Option<DHTKey>> {
         use core::cmp::Ordering;
 
-        let max_route_hop_count = {
-            let config = routing_table.network_manager().config();
-            let c = config.get();
-            let max_route_hop_count = c.network.rpc.max_route_hop_count;
-            max_route_hop_count.into()
-        };
-
-        if hop_count < 2 {
-            bail!("Not allocating route less than two hops in length");
+        if hop_count < 1 {
+            bail!("Not allocating route less than one hop in length");
         }
 
-        if hop_count > max_route_hop_count {
+        if hop_count > self.max_route_hop_count {
             bail!("Not allocating route longer than max route hop count");
         }
 
@@ -497,6 +532,7 @@ impl RouteSpecStore {
             published: false,
             created_ts: cur_ts,
             last_checked_ts: None,
+            last_used_ts: None,
             directions,
             reliable,
         };
@@ -568,8 +604,117 @@ impl RouteSpecStore {
         None
     }
 
-    /// xxx add route compiler here
-    ///
+    //////////////////////////////////////////////////////////////////////
+
+    /// Compiles a safety route to the private route, with caching
+    pub fn compile_safety_route(
+        &self,
+        safety_spec: SafetySpec,
+        private_route: PrivateRoute,
+    ) -> Result<CompiledRoute, RPCError> {
+        // xxx implement caching first!
+        // xxx implement, ensure we handle hops == 0 for our safetyspec
+
+        // Ensure the total hop count isn't too long for our config
+        let pr_hopcount = private_route.hop_count as usize;
+        let sr_hopcount = safety_route_spec.hops.len();
+        let hopcount = 1 + sr_hopcount + pr_hopcount;
+        if hopcount > self.max_route_hop_count {
+            return Err(RPCError::internal("hop count too long for route"));
+        }
+
+        // Create hops
+        let hops = if sr_hopcount == 0 {
+            SafetyRouteHops::Private(private_route)
+        } else {
+            // start last blob-to-encrypt data off as private route
+            let mut blob_data = {
+                let mut pr_message = ::capnp::message::Builder::new_default();
+                let mut pr_builder = pr_message.init_root::<veilid_capnp::private_route::Builder>();
+                encode_private_route(&private_route, &mut pr_builder)?;
+                let mut blob_data = builder_to_vec(pr_message)?;
+
+                // append the private route tag so we know how to decode it later
+                blob_data.push(1u8);
+                blob_data
+            };
+
+            // Encode each hop from inside to outside
+            // skips the outermost hop since that's entering the
+            // safety route and does not include the dialInfo
+            // (outer hop is a RouteHopData, not a RouteHop).
+            // Each loop mutates 'nonce', and 'blob_data'
+            let mut nonce = Crypto::get_random_nonce();
+            for h in (1..sr_hopcount).rev() {
+                // Get blob to encrypt for next hop
+                blob_data = {
+                    // Encrypt the previous blob ENC(nonce, DH(PKhop,SKsr))
+                    let dh_secret = self
+                        .crypto
+                        .cached_dh(
+                            &safety_route_spec.hops[h].dial_info.node_id.key,
+                            &safety_route_spec.secret_key,
+                        )
+                        .map_err(RPCError::map_internal("dh failed"))?;
+                    let enc_msg_data =
+                        Crypto::encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
+                            .map_err(RPCError::map_internal("encryption failed"))?;
+
+                    // Make route hop data
+                    let route_hop_data = RouteHopData {
+                        nonce,
+                        blob: enc_msg_data,
+                    };
+
+                    // Make route hop
+                    let route_hop = RouteHop {
+                        dial_info: safety_route_spec.hops[h].dial_info.clone(),
+                        next_hop: Some(route_hop_data),
+                    };
+
+                    // Make next blob from route hop
+                    let mut rh_message = ::capnp::message::Builder::new_default();
+                    let mut rh_builder = rh_message.init_root::<veilid_capnp::route_hop::Builder>();
+                    encode_route_hop(&route_hop, &mut rh_builder)?;
+                    let mut blob_data = builder_to_vec(rh_message)?;
+
+                    // Append the route hop tag so we know how to decode it later
+                    blob_data.push(0u8);
+                    blob_data
+                };
+
+                // Make another nonce for the next hop
+                nonce = Crypto::get_random_nonce();
+            }
+
+            // Encode first RouteHopData
+            let dh_secret = self
+                .crypto
+                .cached_dh(
+                    &safety_route_spec.hops[0].dial_info.node_id.key,
+                    &safety_route_spec.secret_key,
+                )
+                .map_err(RPCError::map_internal("dh failed"))?;
+            let enc_msg_data = Crypto::encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
+                .map_err(RPCError::map_internal("encryption failed"))?;
+
+            let route_hop_data = RouteHopData {
+                nonce,
+                blob: enc_msg_data,
+            };
+
+            SafetyRouteHops::Data(route_hop_data)
+        };
+
+        // Build safety route
+        let safety_route = SafetyRoute {
+            public_key: safety_route_spec.public_key,
+            hop_count: safety_route_spec.hops.len() as u8,
+            hops,
+        };
+
+        Ok(safety_route)
+    }
 
     /// Mark route as published
     /// When first deserialized, routes must be re-published in order to ensure they remain
@@ -581,6 +726,11 @@ impl RouteSpecStore {
     /// Mark route as checked
     pub fn touch_route_checked(&mut self, key: &DHTKey, cur_ts: u64) {
         self.detail_mut(&key).last_checked_ts = Some(cur_ts);
+    }
+
+    /// Mark route as used
+    pub fn touch_route_used(&mut self, key: &DHTKey, cur_ts: u64) {
+        self.detail_mut(&key).last_used_ts = Some(cur_ts);
     }
 
     /// Record latency on the route
