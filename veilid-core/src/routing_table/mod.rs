@@ -219,18 +219,18 @@ impl RoutingTable {
 
     pub fn with_route_spec_store_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut RouteSpecStore) -> R,
+        F: FnOnce(&mut RouteSpecStore, &mut RoutingTableInner) -> R,
     {
-        let inner = self.inner.write();
-        f(&mut inner.route_spec_store)
+        let inner = &mut *self.inner.write();
+        f(&mut inner.route_spec_store, inner)
     }
 
     pub fn with_route_spec_store<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&RouteSpecStore) -> R,
+        F: FnOnce(&RouteSpecStore, &RoutingTableInner) -> R,
     {
-        let inner = self.inner.read();
-        f(&inner.route_spec_store)
+        let inner = &*self.inner.read();
+        f(&inner.route_spec_store, inner)
     }
 
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {
@@ -339,6 +339,30 @@ impl RoutingTable {
         true
     }
 
+    #[instrument(level = "trace", skip(inner), ret)]
+    fn get_contact_method_inner(
+        inner: &RoutingTableInner,
+        routing_domain: RoutingDomain,
+        node_a_id: &DHTKey,
+        node_a: &NodeInfo,
+        node_b_id: &DHTKey,
+        node_b: &NodeInfo,
+        dial_info_filter: DialInfoFilter,
+        reliable: bool,
+    ) -> ContactMethod {
+        Self::with_routing_domain(inner, routing_domain, |rdd| {
+            rdd.get_contact_method(
+                inner,
+                node_a_id,
+                node_a,
+                node_b_id,
+                node_b,
+                dial_info_filter,
+                reliable,
+            )
+        })
+    }
+
     /// Look up the best way for two nodes to reach each other over a specific routing domain
     #[instrument(level = "trace", skip(self), ret)]
     pub fn get_contact_method(
@@ -352,17 +376,16 @@ impl RoutingTable {
         reliable: bool,
     ) -> ContactMethod {
         let inner = &*self.inner.read();
-        Self::with_routing_domain(inner, routing_domain, |rdd| {
-            rdd.get_contact_method(
-                inner,
-                node_a_id,
-                node_a,
-                node_b_id,
-                node_b,
-                dial_info_filter,
-                reliable,
-            )
-        })
+        Self::get_contact_method_inner(
+            inner,
+            routing_domain,
+            node_a_id,
+            node_a,
+            node_b_id,
+            node_b,
+            dial_info_filter,
+            reliable,
+        )
     }
 
     // Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
@@ -384,11 +407,11 @@ impl RoutingTable {
         };
 
         // Node A is our own node
-        let node_a = self.get_own_node_info(routing_domain);
+        let node_a = get_own_node_info_inner(inner, routing_domain);
         let node_a_id = self.node_id();
 
         // Node B is the target node
-        let node_b = target_node_ref.operate(|_rti, e| e.node_info(routing_domain).unwrap());
+        let node_b = target_node_ref.xxx operate(|_rti, e| e.node_info(routing_domain).unwrap());
         let node_b_id = target_node_ref.node_id();
 
         // Dial info filter comes from the target node ref
@@ -411,8 +434,7 @@ impl RoutingTable {
             ContactMethod::Existing => NodeContactMethod::Existing,
             ContactMethod::Direct(di) => NodeContactMethod::Direct(di),
             ContactMethod::SignalReverse(relay_key, target_key) => {
-                let relay_nr = self
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                let relay_nr = Self::lookup_and_filter_noderef_inner(inner, self.clone(), relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if target_node_ref.node_id() != target_key {
                     bail!("target noderef didn't match target key");
@@ -420,8 +442,7 @@ impl RoutingTable {
                 NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
             }
             ContactMethod::SignalHolePunch(relay_key, target_key) => {
-                let relay_nr = self
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                let relay_nr = Self::lookup_and_filter_noderef_inner(inner, self.clone(), relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if target_node_ref.node_id() != target_key {
                     bail!("target noderef didn't match target key");
@@ -429,14 +450,12 @@ impl RoutingTable {
                 NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref)
             }
             ContactMethod::InboundRelay(relay_key) => {
-                let relay_nr = self
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                let relay_nr = Self::lookup_and_filter_noderef_nner(inner, self.clone(), relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 NodeContactMethod::InboundRelay(relay_nr)
             }
             ContactMethod::OutboundRelay(relay_key) => {
-                let relay_nr = self
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                let relay_nr = Self::lookup_and_filter_noderef(inner, self.clone(), relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 NodeContactMethod::OutboundRelay(relay_nr)
             }
@@ -486,12 +505,18 @@ impl RoutingTable {
     }
 
     /// Return a copy of our node's nodeinfo
-    pub fn get_own_node_info(&self, routing_domain: RoutingDomain) -> NodeInfo {
-        let inner = &*self.inner.read();
+    fn get_own_node_info_inner(
+        inner: &RoutingTableInner,
+        routing_domain: RoutingDomain,
+    ) -> NodeInfo {
         Self::with_routing_domain(inner, routing_domain, |rdd| {
             rdd.common()
                 .with_peer_info(|pi| pi.signed_node_info.node_info.clone())
         })
+    }
+    pub fn get_own_node_info(&self, routing_domain: RoutingDomain) -> NodeInfo {
+        let inner = &*self.inner.read();
+        Self::get_own_node_info_inner(inner, routing_domain)
     }
 
     /// Return our currently registered network class
@@ -880,6 +905,15 @@ impl RoutingTable {
     }
 
     /// Resolve an existing routing table entry and return a reference to it
+    fn lookup_node_ref_inner(inner: &RoutingTableInner, routing_table: RoutingTable, node_id: DHTKey) -> Option<NodeRef> {
+    {
+        let idx = routing_table.find_bucket_index(node_id);
+        let bucket = &inner.buckets[idx];
+        bucket
+            .entry(&node_id)
+            .map(|e| NodeRef::new(routing_table, node_id, e, None))
+    }
+
     pub fn lookup_node_ref(&self, node_id: DHTKey) -> Option<NodeRef> {
         if node_id == self.unlocked_inner.node_id {
             log_rtab!(debug "can't look up own node id in routing table");

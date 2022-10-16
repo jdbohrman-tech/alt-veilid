@@ -218,17 +218,36 @@ impl RoutingTable {
         ) -> core::cmp::Ordering,
         T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
-        let inner = self.inner.read();
-        let inner = &*inner;
-        let self_node_id = self.unlocked_inner.node_id;
+        let inner = &*self.inner.read();
+        Self::find_peers_with_sort_and_filter_inner(
+            inner, node_count, cur_ts, filter, compare, transform,
+        )
+    }
 
+    pub fn find_peers_with_sort_and_filter_inner<'a, 'b, F, C, T, O>(
+        inner: &RoutingTableInner,
+        node_count: usize,
+        cur_ts: u64,
+        mut filter: F,
+        compare: C,
+        mut transform: T,
+    ) -> Vec<O>
+    where
+        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
+        C: FnMut(
+            &'a RoutingTableInner,
+            &'b (DHTKey, Option<Arc<BucketEntry>>),
+            &'b (DHTKey, Option<Arc<BucketEntry>>),
+        ) -> core::cmp::Ordering,
+        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+    {
         // collect all the nodes for sorting
         let mut nodes =
             Vec::<(DHTKey, Option<Arc<BucketEntry>>)>::with_capacity(inner.bucket_entry_count + 1);
 
         // add our own node (only one of there with the None entry)
-        if filter(inner, self_node_id, None) {
-            nodes.push((self_node_id, None));
+        if filter(inner, inner.node_id, None) {
+            nodes.push((inner.node_id, None));
         }
 
         // add all nodes from buckets

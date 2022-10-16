@@ -409,13 +409,6 @@ impl RPCProcessor {
             rss.compile_safety_route(safety_spec, private_route)
         })?;
 
-        // Verify hop count isn't larger than out maximum routed hop count
-        if compiled_route.safety_route.hop_count as usize > self.unlocked_inner.max_route_hop_count
-        {
-            return Err(RPCError::internal("hop count too long for route"))
-                .map_err(logthru_rpc!(warn));
-        }
-
         // Encrypt routed operation
         // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
         let nonce = Crypto::get_random_nonce();
@@ -613,17 +606,6 @@ impl RPCProcessor {
             hop_count,
         } = self.render_operation(dest, &operation)?;
 
-        // If we need to resolve the first hop, do it
-        let node_ref = match node_ref {
-            None => match self.resolve_node(node_id).await? {
-                None => {
-                    return Ok(NetworkResult::no_connection_other(node_id));
-                }
-                Some(nr) => nr,
-            },
-            Some(nr) => nr,
-        };
-
         // Calculate answer timeout
         // Timeout is number of hops times the timeout per hop
         let timeout = self.unlocked_inner.timeout * (hop_count as u64);
@@ -686,17 +668,6 @@ impl RPCProcessor {
             node_ref,
             hop_count: _,
         } = self.render_operation(dest, &operation)?;
-
-        // If we need to resolve the first hop, do it
-        let node_ref = match node_ref {
-            None => match self.resolve_node(node_id).await? {
-                None => {
-                    return Ok(NetworkResult::no_connection_other(node_id));
-                }
-                Some(nr) => nr,
-            },
-            Some(nr) => nr,
-        };
 
         // Send statement
         let bytes = message.len() as u64;
@@ -781,17 +752,6 @@ impl RPCProcessor {
             node_ref,
             hop_count: _,
         } = self.render_operation(dest, &operation)?;
-
-        // If we need to resolve the first hop, do it
-        let node_ref = match node_ref {
-            None => match self.resolve_node(node_id).await? {
-                None => {
-                    return Ok(NetworkResult::no_connection_other(node_id));
-                }
-                Some(nr) => nr,
-            },
-            Some(nr) => nr,
-        };
 
         // Send the reply
         let bytes = message.len() as u64;

@@ -228,7 +228,7 @@ rpc:
     max_timestamp_behind_ms: 10000
     max_timestamp_ahead_ms: 10000
     timeout_ms: 10000
-    max_route_hop_count: 7
+    max_route_hop_count: 4
     default_route_hop_count: 2
 ```
 

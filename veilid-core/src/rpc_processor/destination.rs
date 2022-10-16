@@ -8,8 +8,7 @@ pub enum Destination {
         /// The node to send to
         target: NodeRef,
         /// Require safety route or not
-        xxx convert back to safety spec, bubble up to api
-        safety: bool,
+        safety: Option<SafetySpec>,
     },
     /// Send to node for relay purposes
     Relay {
@@ -18,14 +17,14 @@ pub enum Destination {
         /// The final destination the relay should send to
         target: DHTKey,
         /// Require safety route or not
-        safety: bool,
+        safety: Option<SafetySpec>,
     },
     /// Send to private route (privateroute)
     PrivateRoute {
         /// A private route to send to
         private_route: PrivateRoute,
         /// Require safety route or not
-        safety: bool,
+        safety: Option<SafetySpec>,
         /// Prefer reliability or not
         reliable: bool,
     },
@@ -35,29 +34,29 @@ impl Destination {
     pub fn direct(target: NodeRef) -> Self {
         Self::Direct {
             target,
-            safety: false,
+            safety: None,
         }
     }
     pub fn relay(relay: NodeRef, target: DHTKey) -> Self {
         Self::Relay {
             relay,
             target,
-            safety: false,
+            safety: None,
         }
     }
     pub fn private_route(private_route: PrivateRoute, reliable: bool) -> Self {
         Self::PrivateRoute {
             private_route,
-            safety: false,
+            safety: None,
             reliable,
         }
     }
 
-    pub fn with_safety(self) -> Self {
+    pub fn with_safety(self, spec: SafetySpec) -> Self {
         match self {
             Destination::Direct { target, safety: _ } => Self::Direct {
                 target,
-                safety: true,
+                safety: Some(spec),
             },
             Destination::Relay {
                 relay,
@@ -66,7 +65,7 @@ impl Destination {
             } => Self::Relay {
                 relay,
                 target,
-                safety: true,
+                safety: Some(spec),
             },
             Destination::PrivateRoute {
                 private_route,
@@ -74,7 +73,7 @@ impl Destination {
                 reliable,
             } => Self::PrivateRoute {
                 private_route,
-                safety: true,
+                safety: Some(spec),
                 reliable,
             },
         }
@@ -85,7 +84,7 @@ impl fmt::Display for Destination {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Destination::Direct { target, safety } => {
-                let sr = if *safety { "+SR" } else { "" };
+                let sr = if safety.is_some() { "+SR" } else { "" };
 
                 write!(f, "{}{}", target, sr)
             }
@@ -94,7 +93,7 @@ impl fmt::Display for Destination {
                 target,
                 safety,
             } => {
-                let sr = if *safety { "+SR" } else { "" };
+                let sr = if safety.is_some() { "+SR" } else { "" };
 
                 write!(f, "{}@{}{}", target.encode(), relay, sr)
             }
@@ -103,7 +102,7 @@ impl fmt::Display for Destination {
                 safety,
                 reliable,
             } => {
-                let sr = if *safety { "+SR" } else { "" };
+                let sr = if safety.is_some() { "+SR" } else { "" };
                 let rl = if *reliable { "+RL" } else { "" };
 
                 write!(f, "{}{}{}", private_route, sr, rl)

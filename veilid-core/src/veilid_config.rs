@@ -641,9 +641,9 @@ impl VeilidConfig {
                 "max route hop count must be >= 1 in 'network.rpc.max_route_hop_count'"
             );
         }
-        if inner.network.rpc.max_route_hop_count > 7 {
+        if inner.network.rpc.max_route_hop_count > 5 {
             apibail_generic!(
-                "max route hop count must be <= 7 in 'network.rpc.max_route_hop_count'"
+                "max route hop count must be <= 5 in 'network.rpc.max_route_hop_count'"
             );
         }
         if inner.network.rpc.default_route_hop_count == 0 {
