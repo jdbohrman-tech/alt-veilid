@@ -122,8 +122,7 @@ impl RoutingDomainEditor {
             let node_id = self.routing_table.node_id();
 
             let mut inner = self.routing_table.inner.write();
-            let inner = &mut *inner;
-            RoutingTable::with_routing_domain_mut(inner, self.routing_domain, |detail| {
+            inner.with_routing_domain_mut(self.routing_domain, |detail| {
                 for change in self.changes {
                     match change {
                         RoutingDomainChange::ClearDialInfoDetails => {
@@ -225,8 +224,8 @@ impl RoutingDomainEditor {
                 }
             });
             if changed {
-                RoutingTable::reset_all_seen_our_node_info(inner, self.routing_domain);
-                RoutingTable::reset_all_updated_since_last_network_change(inner);
+                inner.reset_all_seen_our_node_info(self.routing_domain);
+                inner.reset_all_updated_since_last_network_change();
             }
         }
         if changed && self.send_node_info_updates {

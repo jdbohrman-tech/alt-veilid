@@ -14,7 +14,7 @@ pub struct SafetySpec {
 }
 
 /// Compiled route (safety route + private route)
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct CompiledRoute {
     /// The safety route attached to the private route
     safety_route: SafetyRoute,
@@ -78,10 +78,6 @@ pub struct RouteSpecStoreCache {
 
 #[derive(Debug)]
 pub struct RouteSpecStore {
-    /// Our node id
-    node_id: DHTKey,
-    /// Our node id secret
-    node_id_secret: DHTKeySecret,
     /// Maximum number of hops in a route
     max_route_hop_count: usize,
     /// Default number of hops in a route
@@ -179,8 +175,6 @@ impl RouteSpecStore {
         let c = config.get();
 
         Self {
-            node_id: c.network.node_id,
-            node_id_secret: c.network.node_id_secret,
             max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
             default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
             content: RouteSpecStoreContent {
@@ -198,8 +192,6 @@ impl RouteSpecStore {
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         let content = rsstdb.load_cbor(0, b"content").await?.unwrap_or_default();
         let mut rss = RouteSpecStore {
-            node_id: c.network.node_id,
-            node_id_secret: c.network.node_id_secret,
             max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
             default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
             content,
@@ -295,6 +287,7 @@ impl RouteSpecStore {
     pub fn allocate_route(
         &mut self,
         rti: &RoutingTableInner,
+        routing_table: RoutingTable,
         reliable: bool,
         hop_count: usize,
         directions: DirectionSet,
@@ -413,20 +406,12 @@ impl RouteSpecStore {
         };
 
         // Pull the whole routing table in sorted order
-        let node_count = RoutingTable::get_entry_count_inner(
-            rti,
+        let node_count = rti.get_entry_count(
             RoutingDomain::PublicInternet.into(),
             BucketEntryState::Unreliable,
         );
-        let nodes = RoutingTable::find_peers_with_sort_and_filter_inner(
-            rti,
-            self.node_id,
-            node_count,
-            cur_ts,
-            filter,
-            compare,
-            transform,
-        );
+        let nodes =
+            rti.find_peers_with_sort_and_filter(node_count, cur_ts, filter, compare, transform);
 
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
         if nodes.len() < hop_count {
@@ -450,15 +435,13 @@ impl RouteSpecStore {
 
                 // Ensure this route is viable by checking that each node can contact the next one
                 if directions.contains(Direction::Outbound) {
-                    let our_node_info =
-                        RoutingTable::get_own_node_info_inner(rti, RoutingDomain::PublicInternet);
-                    let our_node_id = self.node_id;
+                    let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
+                    let our_node_id = rti.node_id();
                     let mut previous_node = &(our_node_id, our_node_info);
                     let mut reachable = true;
                     for n in permutation {
                         let current_node = nodes.get(*n).unwrap();
-                        let cm = RoutingTable::get_contact_method_inner(
-                            rti,
+                        let cm = rti.get_contact_method(
                             RoutingDomain::PublicInternet,
                             &previous_node.0,
                             &previous_node.1,
@@ -478,15 +461,13 @@ impl RouteSpecStore {
                     }
                 }
                 if directions.contains(Direction::Inbound) {
-                    let our_node_info =
-                        RoutingTable::get_own_node_info_inner(rti, RoutingDomain::PublicInternet);
-                    let our_node_id = self.node_id;
+                    let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
+                    let our_node_id = rti.node_id();
                     let mut next_node = &(our_node_id, our_node_info);
                     let mut reachable = true;
                     for n in permutation.iter().rev() {
                         let current_node = nodes.get(*n).unwrap();
-                        let cm = RoutingTable::get_contact_method_inner(
-                            rti,
+                        let cm = rti.get_contact_method(
                             RoutingDomain::PublicInternet,
                             &next_node.0,
                             &next_node.1,
@@ -522,7 +503,7 @@ impl RouteSpecStore {
         let hops = route_nodes.iter().map(|v| nodes[*v].0).collect();
         let hop_node_refs = route_nodes
             .iter()
-            .map(|v| routing_table.lookup_node_ref(nodes[*v].0).unwrap())
+            .map(|v| rti.lookup_node_ref(routing_table, nodes[*v].0).unwrap())
             .collect();
 
         let (public_key, secret_key) = generate_secret();
@@ -613,12 +594,15 @@ impl RouteSpecStore {
     //////////////////////////////////////////////////////////////////////
 
     /// Compiles a safety route to the private route, with caching
+    /// Returns an Err() if the parameters are wrong
+    /// Returns Ok(None) if no allocation could happen at this time (not an error)
     pub fn compile_safety_route(
         &mut self,
         rti: &RoutingTableInner,
+        routing_table: RoutingTable,
         safety_spec: SafetySpec,
         private_route: PrivateRoute,
-    ) -> Result<CompiledRoute, RPCError> {
+    ) -> Result<Option<CompiledRoute>, RPCError> {
         let pr_hopcount = private_route.hop_count as usize;
         if pr_hopcount > self.max_route_hop_count {
             return Err(RPCError::internal("private route hop count too long"));
@@ -647,7 +631,20 @@ impl RouteSpecStore {
                 self.detail_mut(&sr_pubkey).unwrap()
             } else {
                 // No route found, gotta allocate one
-                self.allocate_route(rti)
+                let sr_pubkey = match self
+                    .allocate_route(
+                        rti,
+                        routing_table,
+                        safety_spec.reliable,
+                        safety_spec.hop_count,
+                        Direction::Outbound.into(),
+                    )
+                    .map_err(RPCError::internal)?
+                {
+                    Some(pk) => pk,
+                    None => return Ok(None),
+                };
+                self.detail_mut(&sr_pubkey).unwrap()
             }
         };
 
@@ -787,7 +784,9 @@ impl RouteSpecStore {
             .detail_mut(&key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .latency_stats_accounting;
-        self.detail_mut(&key).latency_stats = lsa.record_latency(latency);
+        self.detail_mut(&key)
+            .ok_or_else(|| eyre!("route does not exist"))?
+            .latency_stats = lsa.record_latency(latency);
         Ok(())
     }
 

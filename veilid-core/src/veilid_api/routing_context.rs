@@ -11,7 +11,7 @@ pub struct RoutingContextInner {}
 
 pub struct RoutingContextUnlockedInner {
     /// Enforce use of private routing
-    privacy: bool,
+    privacy: usize,
     /// Choose reliable protocols over unreliable/faster protocols when available
     reliable: bool,
 }
@@ -41,21 +41,45 @@ impl RoutingContext {
             api,
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                privacy: false,
+                privacy: 0,
                 reliable: false,
             }),
         }
     }
 
-    pub fn with_privacy(self) -> Self {
-        Self {
+    pub fn with_default_privacy(self) -> Result<Self, VeilidAPIError> {
+        let config = self.api.config()?;
+        let c = config.get();
+        Ok(Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                privacy: true,
+                privacy: c.network.rpc.default_route_hop_count as usize,
                 reliable: self.unlocked_inner.reliable,
             }),
-        }
+        })
+    }
+    pub fn with_privacy(self, hops: usize) -> Result<Self, VeilidAPIError> {
+        let config = self.api.config()?;
+        let c = config.get();
+
+        let privacy = if hops > 0 && hops <= c.network.rpc.max_route_hop_count as usize {
+            hops
+        } else {
+            return Err(VeilidAPIError::invalid_argument(
+                "hops value is too large",
+                "hops",
+                hops,
+            ));
+        };
+        Ok(Self {
+            api: self.api.clone(),
+            inner: Arc::new(Mutex::new(RoutingContextInner {})),
+            unlocked_inner: Arc::new(RoutingContextUnlockedInner {
+                privacy,
+                reliable: self.unlocked_inner.reliable,
+            }),
+        })
     }
 
     pub fn with_reliability(self) -> Self {
@@ -93,12 +117,20 @@ impl RoutingContext {
                 }
                 Ok(rpc_processor::Destination::Direct {
                     target: nr,
-                    safety: self.unlocked_inner.privacy,
+                    safety_spec: Some(routing_table::SafetySpec {
+                        preferred_route: None,
+                        hop_count: self.unlocked_inner.privacy,
+                        reliable: self.unlocked_inner.reliable,
+                    }),
                 })
             }
             Target::PrivateRoute(pr) => Ok(rpc_processor::Destination::PrivateRoute {
                 private_route: pr,
-                safety: self.unlocked_inner.privacy,
+                safety_spec: Some(routing_table::SafetySpec {
+                    preferred_route: None,
+                    hop_count: self.unlocked_inner.privacy,
+                    reliable: self.unlocked_inner.reliable,
+                }),
                 reliable: self.unlocked_inner.reliable,
             }),
         }

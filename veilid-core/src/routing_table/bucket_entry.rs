@@ -286,20 +286,10 @@ impl BucketEntryInner {
         self.last_connections.clear();
     }
 
-    // Gets the 'last connection' that matches a specific connection key
-    // pub(super) fn last_connection(
-    //     &self,
-    //     protocol_type: ProtocolType,
-    //     address_type: AddressType,
-    // ) -> Option<(ConnectionDescriptor, u64)> {
-    //     let key = LastConnectionKey(protocol_type, address_type);
-    //     self.last_connections.get(&key).cloned()
-    // }
-
     // Gets all the 'last connections' that match a particular filter
     pub(super) fn last_connections(
         &self,
-        routing_table_inner: &RoutingTableInner,
+        rti: &RoutingTableInner,
         filter: Option<NodeRefFilter>,
     ) -> Vec<(ConnectionDescriptor, u64)> {
         let mut out: Vec<(ConnectionDescriptor, u64)> = self
@@ -308,10 +298,7 @@ impl BucketEntryInner {
             .filter_map(|(k, v)| {
                 let include = if let Some(filter) = &filter {
                     let remote_address = v.0.remote_address().address();
-                    if let Some(routing_domain) = RoutingTable::routing_domain_for_address_inner(
-                        routing_table_inner,
-                        remote_address,
-                    ) {
+                    if let Some(routing_domain) = rti.routing_domain_for_address(remote_address) {
                         if filter.routing_domain_set.contains(routing_domain)
                             && filter.dial_info_filter.protocol_type_set.contains(k.0)
                             && filter.dial_info_filter.address_type_set.contains(k.1)

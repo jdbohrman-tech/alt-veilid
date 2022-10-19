@@ -1,7 +1,6 @@
 mod coders;
 mod destination;
 mod operation_waiter;
-mod private_route;
 mod rpc_app_call;
 mod rpc_app_message;
 mod rpc_cancel_tunnel;
@@ -24,7 +23,6 @@ mod rpc_watch_value;
 
 pub use destination::*;
 pub use operation_waiter::*;
-pub use private_route::*;
 pub use rpc_error::*;
 
 use super::*;
@@ -398,7 +396,7 @@ impl RPCProcessor {
     }
 
     // Wrap an operation with a private route inside a safety route
-    pub(super) fn wrap_with_route(
+    pub(super) fn wrap_with_route(xxx continue here
         &self,
         safety_spec: SafetySpec,
         private_route: PrivateRoute,
@@ -406,7 +404,7 @@ impl RPCProcessor {
     ) -> Result<RenderedOperation, RPCError> {
         let compiled_route: CompiledRoute = self.routing_table().with_route_spec_store(|rss| {
             // Compile the safety route with the private route
-            rss.compile_safety_route(safety_spec, private_route)
+            rss.compile_safety_route(self.safety_spec, private_route)
         })?;
 
         // Encrypt routed operation

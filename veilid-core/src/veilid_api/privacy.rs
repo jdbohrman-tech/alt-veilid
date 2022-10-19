@@ -11,7 +11,7 @@ pub struct RouteHopData {
 
 #[derive(Clone, Debug)]
 pub enum RouteNode {
-    NodeId(DHTKey),
+    NodeId(NodeId),
     PeerInfo(PeerInfo),
 }
 impl fmt::Display for RouteNode {
@@ -20,7 +20,7 @@ impl fmt::Display for RouteNode {
             f,
             "{}",
             match self {
-                RouteNode::NodeId(x) => x.encode(),
+                RouteNode::NodeId(x) => x.key.encode(),
                 RouteNode::PeerInfo(pi) => pi.node_id.key.encode(),
             }
         )

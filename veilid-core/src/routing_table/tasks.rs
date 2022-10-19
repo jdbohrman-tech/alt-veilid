@@ -47,7 +47,7 @@ impl RoutingTable {
             .collect();
         let mut inner = self.inner.write();
         for idx in kick_queue {
-            Self::kick_bucket(&mut *inner, idx)
+            inner.kick_bucket(idx)
         }
         Ok(())
     }

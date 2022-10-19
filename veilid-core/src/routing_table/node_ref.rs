@@ -97,7 +97,6 @@ impl NodeRef {
     }
 
     // Operate on entry accessors
-
     pub(super) fn operate<T, F>(&self, f: F) -> T
     where
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> T,
@@ -216,6 +215,9 @@ impl NodeRef {
     // Per-RoutingDomain accessors
     pub fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
         self.operate(|_rti, e| e.make_peer_info(self.node_id(), routing_domain))
+    }
+    pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<NodeInfo> {
+        self.operate(|_rti, e| e.node_info(routing_domain).cloned())
     }
     pub fn signed_node_info_has_valid_signature(&self, routing_domain: RoutingDomain) -> bool {
         self.operate(|_rti, e| {
@@ -371,26 +373,26 @@ impl NodeRef {
 
     pub fn stats_question_sent(&self, ts: u64, bytes: u64, expects_answer: bool) {
         self.operate_mut(|rti, e| {
-            rti.self_transfer_stats_accounting.add_up(bytes);
+            rti.transfer_stats_accounting().add_up(bytes);
             e.question_sent(ts, bytes, expects_answer);
         })
     }
     pub fn stats_question_rcvd(&self, ts: u64, bytes: u64) {
         self.operate_mut(|rti, e| {
-            rti.self_transfer_stats_accounting.add_down(bytes);
+            rti.transfer_stats_accounting().add_down(bytes);
             e.question_rcvd(ts, bytes);
         })
     }
     pub fn stats_answer_sent(&self, bytes: u64) {
         self.operate_mut(|rti, e| {
-            rti.self_transfer_stats_accounting.add_up(bytes);
+            rti.transfer_stats_accounting().add_up(bytes);
             e.answer_sent(bytes);
         })
     }
     pub fn stats_answer_rcvd(&self, send_ts: u64, recv_ts: u64, bytes: u64) {
         self.operate_mut(|rti, e| {
-            rti.self_transfer_stats_accounting.add_down(bytes);
-            rti.self_latency_stats_accounting
+            rti.transfer_stats_accounting().add_down(bytes);
+            rti.latency_stats_accounting()
                 .record_latency(recv_ts - send_ts);
             e.answer_rcvd(send_ts, recv_ts, bytes);
         })

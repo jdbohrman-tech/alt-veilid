@@ -72,8 +72,7 @@ impl RPCProcessor {
             find_node_q.node_id,
             // filter
             |rti, _k, v| {
-                RoutingTable::filter_has_valid_signed_node_info_inner(
-                    rti,
+                rti.filter_has_valid_signed_node_info(
                     RoutingDomain::PublicInternet,
                     has_valid_own_node_info,
                     v,
@@ -81,11 +80,9 @@ impl RPCProcessor {
             },
             // transform
             |rti, k, v| {
-                let own_peer_info = own_peer_info.clone();
-                RoutingTable::transform_to_peer_info_inner(
-                    rti,
+                rti.transform_to_peer_info(
                     RoutingDomain::PublicInternet,
-                    own_peer_info,
+                    own_peer_info.clone(),
                     k,
                     v,
                 )
