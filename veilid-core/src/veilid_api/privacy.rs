@@ -48,6 +48,19 @@ impl PrivateRoute {
             first_hop: None,
         }
     }
+    pub fn simplify(self) -> Self {
+        Self {
+            public_key: self.public_key,
+            hop_count: self.hop_count,
+            first_hop: self.first_hop.map(|h| RouteHop {
+                node: match h.node {
+                    RouteNode::NodeId(ni) => RouteNode::NodeId(ni),
+                    RouteNode::PeerInfo(pi) => RouteNode::NodeId(pi.node_id),
+                },
+                next_hop: h.next_hop,
+            }),
+        }
+    }
 }
 
 impl fmt::Display for PrivateRoute {
@@ -77,6 +90,16 @@ pub struct SafetyRoute {
     pub public_key: DHTKey,
     pub hop_count: u8,
     pub hops: SafetyRouteHops,
+}
+
+impl SafetyRoute {
+    pub fn new_stub(public_key: DHTKey, private_route: PrivateRoute) -> Self {
+        Self {
+            public_key,
+            hop_count: 0,
+            hops: SafetyRouteHops::Private(private_route),
+        }
+    }
 }
 
 impl fmt::Display for SafetyRoute {

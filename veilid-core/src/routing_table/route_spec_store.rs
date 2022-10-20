@@ -17,9 +17,9 @@ pub struct SafetySpec {
 #[derive(Clone, Debug)]
 pub struct CompiledRoute {
     /// The safety route attached to the private route
-    safety_route: SafetyRoute,
+    pub safety_route: SafetyRoute,
     /// The secret used to encrypt the message payload
-    secret: DHTKeySecret,
+    pub secret: DHTKeySecret,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -600,7 +600,7 @@ impl RouteSpecStore {
         &mut self,
         rti: &RoutingTableInner,
         routing_table: RoutingTable,
-        safety_spec: SafetySpec,
+        safety_spec: Option<SafetySpec>,
         private_route: PrivateRoute,
     ) -> Result<Option<CompiledRoute>, RPCError> {
         let pr_hopcount = private_route.hop_count as usize;
@@ -608,7 +608,18 @@ impl RouteSpecStore {
             return Err(RPCError::internal("private route hop count too long"));
         }
 
+        // See if we are using a safety route, if not, short circuit this operation
+        if safety_spec.is_none() {
+            // Safety route stub with the node's public key as the safety route key since it's the 0th hop
+            return Ok(Some(CompiledRoute {
+                safety_route: SafetyRoute::new_stub(routing_table.node_id(), private_route),
+                secret: routing_table.node_id_secret(),
+            }));
+        }
+        let safety_spec = safety_spec.unwrap();
+
         // See if the preferred route is here
+        let safety_route_public_key;
         let opt_safety_rsd: Option<&mut RouteSpecDetail> =
             if let Some(preferred_route) = safety_spec.preferred_route {
                 self.detail_mut(&preferred_route)
@@ -650,19 +661,21 @@ impl RouteSpecStore {
 
         // xxx implement caching first!
 
-        // xxx implement, ensure we handle hops == 0 for our safetyspec
-
         // Ensure the total hop count isn't too long for our config
         let sr_hopcount = safety_spec.hop_count;
-        if sr_hopcount > self.max_route_hop_count {
-            return Err(RPCError::internal("private route hop count too long"));
+        if sr_hopcount == 0 {
+            return Err(RPCError::internal("safety route hop count is zero"));
         }
-        let total_hopcount = sr_hopcount + pr_hopcount;
+        if sr_hopcount > self.max_route_hop_count {
+            return Err(RPCError::internal("safety route hop count too long"));
+        }
+
+        // See if we can optimize this compilation yet
+        // We don't want to include full nodeinfo if we don't have to
+        //let optimize = safety_rsd.
 
         // Create hops
-        let hops = if sr_hopcount == 0 {
-            SafetyRouteHops::Private(private_route)
-        } else {
+        let hops = {
             // start last blob-to-encrypt data off as private route
             let mut blob_data = {
                 let mut pr_message = ::capnp::message::Builder::new_default();
@@ -681,16 +694,13 @@ impl RouteSpecStore {
             // (outer hop is a RouteHopData, not a RouteHop).
             // Each loop mutates 'nonce', and 'blob_data'
             let mut nonce = Crypto::get_random_nonce();
+            let crypto = routing_table.network_manager().crypto();
             for h in (1..sr_hopcount).rev() {
                 // Get blob to encrypt for next hop
                 blob_data = {
                     // Encrypt the previous blob ENC(nonce, DH(PKhop,SKsr))
-                    let dh_secret = self
-                        .crypto
-                        .cached_dh(
-                            &safety_route_spec.hops[h].dial_info.node_id.key,
-                            &safety_route_spec.secret_key,
-                        )
+                    let dh_secret = crypto
+                        .cached_dh(&safety_rsd.hops[h], &safety_rsd.secret_key)
                         .map_err(RPCError::map_internal("dh failed"))?;
                     let enc_msg_data =
                         Crypto::encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
@@ -704,7 +714,7 @@ impl RouteSpecStore {
 
                     // Make route hop
                     let route_hop = RouteHop {
-                        dial_info: safety_route_spec.hops[h].dial_info.clone(),
+                        node: safety_route_spec.hops[h].dial_info.clone(),
                         next_hop: Some(route_hop_data),
                     };
 
@@ -744,12 +754,15 @@ impl RouteSpecStore {
 
         // Build safety route
         let safety_route = SafetyRoute {
-            public_key: safety_route_spec.public_key,
-            hop_count: safety_route_spec.hops.len() as u8,
+            public_key: safety_rsd.
+            hop_count: safety_spec.hop_count as u8,
             hops,
         };
 
-        Ok(safety_route)
+        Ok(Some(CompiledRoute {
+            safety_route,
+            secret: todo!(),
+        }))
     }
 
     /// Mark route as published
