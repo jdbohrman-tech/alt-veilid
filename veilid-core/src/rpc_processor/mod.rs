@@ -402,6 +402,7 @@ impl RPCProcessor {
         &self,
         safety_spec: Option<SafetySpec>,
         private_route: PrivateRoute,
+        reliable: bool,
         message_data: Vec<u8>,
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
@@ -411,7 +412,7 @@ impl RPCProcessor {
         let compiled_route: CompiledRoute =
             match self.routing_table().with_route_spec_store_mut(|rss, rti| {
                 // Compile the safety route with the private route
-                rss.compile_safety_route(rti, routing_table, safety_spec, private_route)
+                rss.compile_safety_route(rti, routing_table, safety_spec, private_route, reliable)
             })? {
                 Some(cr) => cr,
                 None => {
@@ -455,6 +456,7 @@ impl RPCProcessor {
         let out_node_id = compiled_route.first_hop.node_id();
         let out_hop_count = (1 + sr_hop_count + pr_hop_count) as usize;
 
+        
         let out = RenderedOperation {
             message: out_message,
             node_id: out_node_id,
@@ -537,12 +539,12 @@ impl RPCProcessor {
             Destination::PrivateRoute {
                 private_route,
                 safety_spec,
-                reliable,
+                reliable, xxxx does this need to be here? what about None safety spec, reliable is in there, does it need to not be? or something?
             } => {
                 // Send to private route
                 // ---------------------
                 // Reply with 'route' operation
-                out = self.wrap_with_route(safety_spec, private_route, message)?;
+                out = self.wrap_with_route(safety_spec, private_route, reliable, message)?;
             }
         }
 

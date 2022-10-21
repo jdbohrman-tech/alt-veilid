@@ -179,7 +179,7 @@ pub trait RoutingDomainDetail {
         node_b_id: &DHTKey,
         node_b: &NodeInfo,
         dial_info_filter: DialInfoFilter,
-        reliable: bool,
+        sequencing: Sequencing,
     ) -> ContactMethod;
 }
 
@@ -204,7 +204,7 @@ fn first_filtered_dial_info_detail(
     from_node: &NodeInfo,
     to_node: &NodeInfo,
     dial_info_filter: &DialInfoFilter,
-    reliable: bool,
+    reliable: bool, xxx continue here
 ) -> Option<DialInfoDetail> {
     let direct_dial_info_filter = dial_info_filter.clone().filtered(
         &DialInfoFilter::all()
@@ -214,7 +214,7 @@ fn first_filtered_dial_info_detail(
 
     // Get first filtered dialinfo
     let sort = if reliable {
-        Some(DialInfoDetail::reliable_sort)
+        Some(DialInfoDetail::ordered_sequencing_sort)
     } else {
         None
     };
@@ -428,7 +428,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
 
         // Get first filtered dialinfo
         let sort = if reliable {
-            Some(DialInfoDetail::reliable_sort)
+            Some(DialInfoDetail::ordered_sequencing_sort)
         } else {
             None
         };

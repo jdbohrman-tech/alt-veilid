@@ -263,7 +263,7 @@ impl RoutingTable {
         node_b_id: &DHTKey,
         node_b: &NodeInfo,
         dial_info_filter: DialInfoFilter,
-        reliable: bool,
+        sequencing: Sequencing,
     ) -> ContactMethod {
         self.inner.read().get_contact_method(
             routing_domain,
@@ -272,7 +272,7 @@ impl RoutingTable {
             node_b_id,
             node_b,
             dial_info_filter,
-            reliable,
+            sequencing,
         )
     }
 
@@ -836,7 +836,7 @@ impl RoutingTable {
                 .node_info(RoutingDomain::PublicInternet)
                 .map(|n| {
                     let dids = n.all_filtered_dial_info_details(
-                        Some(DialInfoDetail::reliable_sort), // By default, choose reliable protocol for relay
+                        Some(DialInfoDetail::ordered_sequencing_sort), // By default, choose connection-oriented protocol for relay
                         |did| did.matches_filter(&outbound_dif),
                     );
                     for did in &dids {
@@ -889,6 +889,7 @@ impl RoutingTable {
                         if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
                             // Less is faster
                             let better = best_inbound_relay.1.with(rti, |_rti, best| {
+                                // choose low latency stability for relays
                                 BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
                                     == std::cmp::Ordering::Less
                             });

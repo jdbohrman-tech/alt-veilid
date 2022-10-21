@@ -9,8 +9,10 @@ pub struct SafetySpec {
     pub preferred_route: Option<DHTKey>,
     /// 0 = no safety route, just use node's node id, more hops is safer but slower
     pub hop_count: usize,
-    /// prefer more reliable protocols and relays over faster ones
-    pub reliable: bool,
+    /// prefer reliability over speed
+    pub stability: Stability,
+    /// prefer connection-oriented sequenced protocols
+    pub sequencing: Sequencing,
 }
 
 /// Compiled route (safety route + private route)
@@ -59,8 +61,10 @@ struct RouteSpecDetail {
     last_used_ts: Option<u64>,
     /// Directions this route is guaranteed to work in
     directions: DirectionSet,
-    /// Reliability
-    reliable: bool,
+    /// Stability preference (prefer reliable nodes over faster)
+    stability: Stability,
+    /// Sequencing preference (connection oriented protocols vs datagram)
+    sequencing: Sequencing,
 }
 
 /// The core representation of the RouteSpecStore that can be serialized
@@ -81,6 +85,7 @@ pub struct RouteSpecStoreCache {
     hop_cache: HashSet<Vec<u8>>,
 }
 
+/// The routing table's storage for private/safety routes
 #[derive(Debug)]
 pub struct RouteSpecStore {
     /// Maximum number of hops in a route
@@ -91,6 +96,15 @@ pub struct RouteSpecStore {
     content: RouteSpecStoreContent,
     /// RouteSpecStore cache
     cache: RouteSpecStoreCache,
+}
+
+/// The choice of safety route including in compiled routes
+#[derive(Debug, Clone)]
+pub enum SafetySelection {
+    /// Don't use a safety route, only specify the sequencing preference
+    Unsafe(Sequencing),
+    /// Use a safety route and parameters specified by a SafetySpec
+    Safe(SafetySpec),
 }
 
 fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {
@@ -293,7 +307,8 @@ impl RouteSpecStore {
         &mut self,
         rti: &RoutingTableInner,
         routing_table: RoutingTable,
-        reliable: bool,
+        stability: Stability,
+        sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
     ) -> EyreResult<Option<DHTKey>> {
@@ -327,7 +342,7 @@ impl RouteSpecStore {
             // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
             v.with(rti, |_rti, e| {
                 let node_info_ok = if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
-                    ni.has_any_dial_info()
+                    ni.has_sequencing_matched_dial_info(sequencing)
                 } else {
                     false
                 };
@@ -383,13 +398,16 @@ impl RouteSpecStore {
 
             // always prioritize reliable nodes, but sort by oldest or fastest
             let cmpout = v1.1.as_ref().unwrap().with(rti, |rti, e1| {
-                v2.1.as_ref().unwrap().with(rti, |_rti, e2| {
-                    if reliable {
-                        BucketEntryInner::cmp_oldest_reliable(cur_ts, e1, e2)
-                    } else {
-                        BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2)
-                    }
-                })
+                v2.1.as_ref()
+                    .unwrap()
+                    .with(rti, |_rti, e2| match stability {
+                        Stability::LowLatency => {
+                            BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2)
+                        }
+                        Stability::Reliable => {
+                            BucketEntryInner::cmp_oldest_reliable(cur_ts, e1, e2)
+                        }
+                    })
             });
             cmpout
         };
@@ -448,7 +466,7 @@ impl RouteSpecStore {
                             &current_node.0,
                             &current_node.1,
                             DialInfoFilter::all(),
-                            reliable,
+                            sequencing,
                         );
                         if matches!(cm, ContactMethod::Unreachable) {
                             reachable = false;
@@ -474,7 +492,7 @@ impl RouteSpecStore {
                             &current_node.0,
                             &current_node.1,
                             DialInfoFilter::all(),
-                            reliable,
+                            sequencing,
                         );
                         if matches!(cm, ContactMethod::Unreachable) {
                             reachable = false;
@@ -525,7 +543,8 @@ impl RouteSpecStore {
             last_checked_ts: None,
             last_used_ts: None,
             directions,
-            reliable,
+            stability,
+            sequencing,
         };
 
         // Add to cache
@@ -575,15 +594,18 @@ impl RouteSpecStore {
         }
     }
 
+    /// Find first matching unpublished route that fits into the selection criteria
     pub fn first_unpublished_route(
         &mut self,
-        reliable: bool,
         min_hop_count: usize,
         max_hop_count: usize,
+        stability: Stability,
+        sequencing: Sequencing,
         directions: DirectionSet,
     ) -> Option<DHTKey> {
         for detail in &self.content.details {
-            if detail.1.reliable == reliable
+            if detail.1.stability >= stability
+                && detail.1.sequencing >= sequencing
                 && detail.1.hops.len() >= min_hop_count
                 && detail.1.hops.len() <= max_hop_count
                 && detail.1.directions.is_subset(directions)
@@ -602,46 +624,54 @@ impl RouteSpecStore {
     /// Returns Ok(None) if no allocation could happen at this time (not an error)
     pub fn compile_safety_route(
         &mut self,
-        rti: &RoutingTableInner,
+        rti: &mut RoutingTableInner,
         routing_table: RoutingTable,
-        safety_spec: Option<SafetySpec>,
+        safety_selection: SafetySelection,
         private_route: PrivateRoute,
     ) -> Result<Option<CompiledRoute>, RPCError> {
         let pr_hopcount = private_route.hop_count as usize;
-        if pr_hopcount > self.max_route_hop_count {
+        let max_route_hop_count = self.max_route_hop_count;
+        if pr_hopcount > max_route_hop_count {
             return Err(RPCError::internal("private route hop count too long"));
         }
 
         // See if we are using a safety route, if not, short circuit this operation
-        if safety_spec.is_none() {
-            // Safety route stub with the node's public key as the safety route key since it's the 0th hop
-            if private_route.first_hop.is_none() {
-                return Err(RPCError::internal("can't compile zero length route"));
-            }
-            let first_hop = private_route.first_hop.as_ref().unwrap();
-            let opt_first_hop_noderef = match &first_hop.node {
-                RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table, id.key),
-                RouteNode::PeerInfo(pi) => rti.register_node_with_signed_node_info(
-                    routing_table.clone(),
-                    RoutingDomain::PublicInternet,
-                    pi.node_id.key,
-                    pi.signed_node_info,
-                    false,
-                ),
-            };
-            if opt_first_hop_noderef.is_none() {
-                // Can't reach this private route any more
-                log_rtab!(debug "can't reach private route any more");
-                return Ok(None);
-            }
+        let safety_spec = match safety_selection {
+            SafetySelection::Unsafe(sequencing) => {
+                // Safety route stub with the node's public key as the safety route key since it's the 0th hop
+                if private_route.first_hop.is_none() {
+                    return Err(RPCError::internal("can't compile zero length route"));
+                }
+                let first_hop = private_route.first_hop.as_ref().unwrap();
+                let opt_first_hop = match &first_hop.node {
+                    RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table.clone(), id.key),
+                    RouteNode::PeerInfo(pi) => rti.register_node_with_signed_node_info(
+                        routing_table.clone(),
+                        RoutingDomain::PublicInternet,
+                        pi.node_id.key,
+                        pi.signed_node_info.clone(),
+                        false,
+                    ),
+                };
+                if opt_first_hop.is_none() {
+                    // Can't reach this private route any more
+                    log_rtab!(debug "can't reach private route any more");
+                    return Ok(None);
+                }
+                let mut first_hop = opt_first_hop.unwrap();
 
-            return Ok(Some(CompiledRoute {
-                safety_route: SafetyRoute::new_stub(routing_table.node_id(), private_route),
-                secret: routing_table.node_id_secret(),
-                first_hop: opt_first_hop_noderef.unwrap(),
-            }));
-        }
-        let safety_spec = safety_spec.unwrap();
+                // Set sequencing requirement
+                first_hop.set_sequencing(sequencing);
+
+                // Return the compiled safety route
+                return Ok(Some(CompiledRoute {
+                    safety_route: SafetyRoute::new_stub(routing_table.node_id(), private_route),
+                    secret: routing_table.node_id_secret(),
+                    first_hop,
+                }));
+            }
+            SafetySelection::Safe(safety_spec) => safety_spec,
+        };
 
         // See if the preferred route is here
         let opt_safety_rsd: Option<(&mut RouteSpecDetail, DHTKey)> =
@@ -658,9 +688,10 @@ impl RouteSpecStore {
         } else {
             // Select a safety route from the pool or make one if we don't have one that matches
             if let Some(sr_pubkey) = self.first_unpublished_route(
-                safety_spec.reliable,
                 safety_spec.hop_count,
                 safety_spec.hop_count,
+                safety_spec.stability,
+                safety_spec.sequencing,
                 Direction::Outbound.into(),
             ) {
                 // Found a route to use
@@ -671,7 +702,8 @@ impl RouteSpecStore {
                     .allocate_route(
                         rti,
                         routing_table.clone(),
-                        safety_spec.reliable,
+                        safety_spec.stability,
+                        safety_spec.sequencing,
                         safety_spec.hop_count,
                         Direction::Outbound.into(),
                     )
@@ -689,7 +721,7 @@ impl RouteSpecStore {
         if sr_hopcount == 0 {
             return Err(RPCError::internal("safety route hop count is zero"));
         }
-        if sr_hopcount > self.max_route_hop_count {
+        if sr_hopcount > max_route_hop_count {
             return Err(RPCError::internal("safety route hop count too long"));
         }
 
@@ -747,7 +779,7 @@ impl RouteSpecStore {
                                 let node_id = safety_rsd.hops[h];
                                 let pi = rti
                                     .with_node_entry(node_id, |entry| {
-                                        entry.with(rti, |rti, e| {
+                                        entry.with(rti, |_rti, e| {
                                             e.make_peer_info(node_id, RoutingDomain::PublicInternet)
                                         })
                                     })
@@ -800,14 +832,21 @@ impl RouteSpecStore {
             hops,
         };
 
+        let mut first_hop = safety_rsd.hop_node_refs.first().unwrap().clone();
+
+        // Ensure sequencing requirement is set on first hop
+        first_hop.set_sequencing(safety_spec.sequencing);
+
+        // Build compiled route
         let compiled_route = CompiledRoute {
             safety_route,
             secret: safety_rsd.secret_key,
-            first_hop: safety_rsd.hop_node_refs.first().unwrap().clone(),
+            first_hop,
         };
 
         // xxx: add cache here
 
+        // Return compiled route
         Ok(Some(compiled_route))
     }
 

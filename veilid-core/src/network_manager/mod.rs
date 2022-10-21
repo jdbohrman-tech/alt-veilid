@@ -1182,7 +1182,7 @@ impl NetworkManager {
 
         // Dial info filter comes from the target node ref
         let dial_info_filter = target_node_ref.dial_info_filter();
-        let reliable = target_node_ref.reliable();
+        let sequencing = target_node_ref.sequencing();
 
         let cm = routing_table.get_contact_method(
             routing_domain,
@@ -1191,7 +1191,7 @@ impl NetworkManager {
             &node_b_id,
             &node_b,
             dial_info_filter,
-            reliable,
+            sequencing,
         );
 
         // Translate the raw contact method to a referenced contact method

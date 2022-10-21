@@ -71,7 +71,7 @@ pub struct NodeRef {
     node_id: DHTKey,
     entry: Arc<BucketEntry>,
     filter: Option<NodeRefFilter>,
-    reliable: bool,
+    sequencing: Sequencing,
     #[cfg(feature = "tracking")]
     track_id: usize,
 }
@@ -90,7 +90,7 @@ impl NodeRef {
             node_id,
             entry,
             filter,
-            reliable: false,
+            sequencing: Sequencing::NoPreference,
             #[cfg(feature = "tracking")]
             track_id: entry.track(),
         }
@@ -127,11 +127,11 @@ impl NodeRef {
         self.filter = filter
     }
 
-    pub fn set_reliable(&mut self) {
-        self.reliable = true;
+    pub fn set_sequencing(&mut self, sequencing: Sequencing) {
+        self.sequencing = sequencing;
     }
-    pub fn reliable(&self) -> bool {
-        self.reliable
+    pub fn sequencing(&self) -> Sequencing {
+        self.sequencing
     }
 
     pub fn merge_filter(&mut self, filter: NodeRefFilter) {
@@ -278,10 +278,18 @@ impl NodeRef {
         let routing_domain_set = self.routing_domain_set();
         let dial_info_filter = self.dial_info_filter();
 
-        let sort = if self.reliable {
-            Some(DialInfoDetail::reliable_sort)
-        } else {
-            None
+        let (sort, dial_info_filter) = match self.sequencing {
+            Sequencing::NoPreference => (None, dial_info_filter),
+            Sequencing::PreferOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter,
+            ),
+            Sequencing::EnsureOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter.filtered(
+                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+                ),
+            ),
         };
 
         self.operate(|_rt, e| {
@@ -301,10 +309,18 @@ impl NodeRef {
         let routing_domain_set = self.routing_domain_set();
         let dial_info_filter = self.dial_info_filter();
 
-        let sort = if self.reliable {
-            Some(DialInfoDetail::reliable_sort)
-        } else {
-            None
+        let (sort, dial_info_filter) = match self.sequencing {
+            Sequencing::NoPreference => (None, dial_info_filter),
+            Sequencing::PreferOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter,
+            ),
+            Sequencing::EnsureOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter.filtered(
+                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+                ),
+            ),
         };
 
         let mut out = Vec::new();
@@ -418,20 +434,20 @@ impl Clone for NodeRef {
             node_id: self.node_id,
             entry: self.entry.clone(),
             filter: self.filter.clone(),
-            reliable: self.reliable,
+            sequencing: self.sequencing,
             #[cfg(feature = "tracking")]
             track_id: e.track(),
         }
     }
 }
 
-impl PartialEq for NodeRef {
-    fn eq(&self, other: &Self) -> bool {
-        self.node_id == other.node_id
-    }
-}
+// impl PartialEq for NodeRef {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.node_id == other.node_id
+//     }
+// }
 
-impl Eq for NodeRef {}
+// impl Eq for NodeRef {}
 
 impl fmt::Display for NodeRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -444,6 +460,7 @@ impl fmt::Debug for NodeRef {
         f.debug_struct("NodeRef")
             .field("node_id", &self.node_id)
             .field("filter", &self.filter)
+            .field("sequencing", &self.sequencing)
             .finish()
     }
 }

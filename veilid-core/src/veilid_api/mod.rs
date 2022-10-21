@@ -405,6 +405,21 @@ impl DialInfoClass {
     }
 }
 
+// Ordering here matters, >= is used to check strength of sequencing requirement
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum Sequencing {
+    NoPreference,
+    PreferOrdered,
+    EnsureOrdered,
+}
+
+// Ordering here matters, >= is used to check strength of stability requirement
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum Stability {
+    LowLatency,
+    Reliable,
+}
+
 // Keep member order appropriate for sorting < preference
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 pub struct DialInfoDetail {
@@ -419,14 +434,14 @@ impl MatchesDialInfoFilter for DialInfoDetail {
 }
 
 impl DialInfoDetail {
-    pub fn reliable_sort(a: &DialInfoDetail, b: &DialInfoDetail) -> core::cmp::Ordering {
+    pub fn ordered_sequencing_sort(a: &DialInfoDetail, b: &DialInfoDetail) -> core::cmp::Ordering {
         if a.class < b.class {
             return core::cmp::Ordering::Less;
         }
         if a.class > b.class {
             return core::cmp::Ordering::Greater;
         }
-        DialInfo::reliable_sort(&a.dial_info, &b.dial_info)
+        DialInfo::ordered_sequencing_sort(&a.dial_info, &b.dial_info)
     }
     pub const NO_SORT: std::option::Option<
         for<'r, 's> fn(
@@ -592,6 +607,39 @@ impl NodeInfo {
                 .unwrap_or_default()
     }
 
+    pub fn has_sequencing_matched_dial_info(&self, sequencing: Sequencing) -> bool {
+        // Check our dial info
+        for did in &self.dial_info_detail_list {
+            match sequencing {
+                Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
+                Sequencing::EnsureOrdered => {
+                    if did.dial_info.protocol_type().is_connection_oriented() {
+                        return true;
+                    }
+                }
+            }
+        }
+        // Check our relay if we have one
+        return self
+            .relay_peer_info
+            .as_ref()
+            .map(|rpi| {
+                let relay_ni = &rpi.signed_node_info.node_info;
+                for did in relay_ni.dial_info_detail_list {
+                    match sequencing {
+                        Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
+                        Sequencing::EnsureOrdered => {
+                            if did.dial_info.protocol_type().is_connection_oriented() {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            })
+            .unwrap_or_default();
+    }
+
     pub fn has_direct_dial_info(&self) -> bool {
         !self.dial_info_detail_list.is_empty()
     }
@@ -693,37 +741,40 @@ impl ProtocolType {
             ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS => LowLevelProtocolType::TCP,
         }
     }
-    pub fn sort_order(&self, reliable: bool) -> usize {
+    pub fn sort_order(&self, sequencing: Sequencing) -> usize {
         match self {
             ProtocolType::UDP => {
-                if reliable {
+                if sequencing != Sequencing::NoPreference {
                     3
                 } else {
                     0
                 }
             }
             ProtocolType::TCP => {
-                if reliable {
+                if sequencing != Sequencing::NoPreference {
                     0
                 } else {
                     1
                 }
             }
             ProtocolType::WS => {
-                if reliable {
+                if sequencing != Sequencing::NoPreference {
                     1
                 } else {
                     2
                 }
             }
             ProtocolType::WSS => {
-                if reliable {
+                if sequencing != Sequencing::NoPreference {
                     2
                 } else {
                     3
                 }
             }
         }
+    }
+    pub fn all_ordered_set() -> ProtocolTypeSet {
+        ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS
     }
 }
 pub type ProtocolTypeSet = EnumSet<ProtocolType>;
@@ -1499,7 +1550,7 @@ impl DialInfo {
         }
     }
 
-    pub fn reliable_sort(a: &DialInfo, b: &DialInfo) -> core::cmp::Ordering {
+    pub fn ordered_sequencing_sort(a: &DialInfo, b: &DialInfo) -> core::cmp::Ordering {
         let ca = a.protocol_type().sort_order(true);
         let cb = b.protocol_type().sort_order(true);
         if ca < cb {

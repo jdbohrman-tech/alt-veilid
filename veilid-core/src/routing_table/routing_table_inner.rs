@@ -224,7 +224,7 @@ impl RoutingTableInner {
         node_b_id: &DHTKey,
         node_b: &NodeInfo,
         dial_info_filter: DialInfoFilter,
-        reliable: bool,
+        sequencing: Sequencing,
     ) -> ContactMethod {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.get_contact_method(
@@ -234,7 +234,7 @@ impl RoutingTableInner {
                 node_b_id,
                 node_b,
                 dial_info_filter,
-                reliable,
+                sequencing,
             )
         })
     }
