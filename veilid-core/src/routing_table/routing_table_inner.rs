@@ -68,10 +68,10 @@ impl RoutingTableInner {
         self.unlocked_inner.config.clone()
     }
 
-    pub fn transfer_stats_accounting(&mut self) -> &TransferStatsAccounting {
+    pub fn transfer_stats_accounting(&mut self) -> &mut TransferStatsAccounting {
         &mut self.self_transfer_stats_accounting
     }
-    pub fn latency_stats_accounting(&mut self) -> &LatencyStatsAccounting {
+    pub fn latency_stats_accounting(&mut self) -> &mut LatencyStatsAccounting {
         &mut self.self_latency_stats_accounting
     }
 
@@ -616,7 +616,7 @@ impl RoutingTableInner {
     /// Resolve an existing routing table entry and return a reference to it
     pub fn lookup_node_ref(&self, outer_self: RoutingTable, node_id: DHTKey) -> Option<NodeRef> {
         if node_id == self.unlocked_inner.node_id {
-            log_rtab!(debug "can't look up own node id in routing table");
+            log_rtab!(error "can't look up own node id in routing table");
             return None;
         }
         let idx = self.find_bucket_index(node_id);
@@ -642,6 +642,23 @@ impl RoutingTableInner {
                     .with_routing_domain_set(routing_domain_set),
             ),
         )
+    }
+
+    /// Resolve an existing routing table entry and call a function on its entry without using a noderef
+    pub fn with_node_entry<F, R>(&self, node_id: DHTKey, f: F) -> Option<R>
+    where
+        F: FnOnce(Arc<BucketEntry>) -> R,
+    {
+        if node_id == self.unlocked_inner.node_id {
+            log_rtab!(error "can't look up own node id in routing table");
+            return None;
+        }
+        let idx = self.find_bucket_index(node_id);
+        let bucket = &self.buckets[idx];
+        if let Some(e) = bucket.entry(&node_id) {
+            return Some(f(e));
+        }
+        None
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist

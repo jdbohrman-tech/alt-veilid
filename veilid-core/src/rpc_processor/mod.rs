@@ -55,8 +55,8 @@ struct RPCMessageHeader {
     connection_descriptor: ConnectionDescriptor,
     /// The routing domain the message was sent through
     routing_domain: RoutingDomain,
-    /// The private route the message was received through
-    private_route: Option<DHTKey>,
+    // The private route the message was received through
+    //private_route: Option<DHTKey>,
 }
 
 #[derive(Debug)]
@@ -87,7 +87,7 @@ pub(crate) struct RPCMessage {
     opt_sender_nr: Option<NodeRef>,
 }
 
-fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
+pub fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
 where
     T: capnp::message::Allocator + 'a,
 {
@@ -185,10 +185,10 @@ impl RPCProcessor {
 
         // set up channel
         let mut concurrency = c.network.rpc.concurrency;
-        let mut queue_size = c.network.rpc.queue_size;
-        let mut timeout = ms_to_us(c.network.rpc.timeout_ms);
-        let mut max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
-        let mut default_route_hop_count = c.network.rpc.default_route_hop_count as usize;
+        let queue_size = c.network.rpc.queue_size;
+        let timeout = ms_to_us(c.network.rpc.timeout_ms);
+        let max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
+        let default_route_hop_count = c.network.rpc.default_route_hop_count as usize;
         if concurrency == 0 {
             concurrency = intf::get_concurrency() / 2;
             if concurrency == 0 {
@@ -405,8 +405,11 @@ impl RPCProcessor {
         message_data: Vec<u8>,
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
+        let pr_hop_count = private_route.hop_count;
+        let pr_pubkey = private_route.public_key;
+
         let compiled_route: CompiledRoute =
-            match self.routing_table().with_route_spec_store(|rss, rti| {
+            match self.routing_table().with_route_spec_store_mut(|rss, rti| {
                 // Compile the safety route with the private route
                 rss.compile_safety_route(rti, routing_table, safety_spec, private_route)
             })? {
@@ -423,7 +426,7 @@ impl RPCProcessor {
         let nonce = Crypto::get_random_nonce();
         let dh_secret = self
             .crypto
-            .cached_dh(&private_route.public_key, &compiled_route.secret)
+            .cached_dh(&pr_pubkey, &compiled_route.secret)
             .map_err(RPCError::map_internal("dh failed"))?;
         let enc_msg_data = Crypto::encrypt_aead(&message_data, &nonce, &dh_secret, None)
             .map_err(RPCError::map_internal("encryption failed"))?;
@@ -432,6 +435,7 @@ impl RPCProcessor {
         let operation = RoutedOperation::new(nonce, enc_msg_data);
 
         // Prepare route operation
+        let sr_hop_count = compiled_route.safety_route.hop_count;
         let route_operation = RPCOperationRoute {
             safety_route: compiled_route.safety_route,
             operation,
@@ -448,17 +452,8 @@ impl RPCProcessor {
         let out_message = builder_to_vec(route_msg)?;
 
         // Get the first hop this is going to
-        let out_node_id = compiled_route
-            .safety_route
-            .hops
-            .first()
-            .ok_or_else(RPCError::else_internal("no hop in safety route"))?
-            .dial_info
-            .node_id
-            .key;
-
-        let out_hop_count =
-            (1 + compiled_route.safety_route.hop_count + private_route.hop_count) as usize;
+        let out_node_id = compiled_route.first_hop.node_id();
+        let out_hop_count = (1 + sr_hop_count + pr_hop_count) as usize;
 
         let out = RenderedOperation {
             message: out_message,
@@ -560,20 +555,21 @@ impl RPCProcessor {
     // as far as we can tell this is the only domain that will really benefit
     fn get_sender_signed_node_info(&self, dest: &Destination) -> Option<SignedNodeInfo> {
         // Don't do this if the sender is to remain private
-        if dest.safety_route_spec().is_some() {
+        // Otherwise we would be attaching the original sender's identity to the final destination,
+        // thus defeating the purpose of the safety route entirely :P
+        if dest.get_safety_spec().is_some() {
             return None;
         }
         // Don't do this if our own signed node info isn't valid yet
         let routing_table = self.routing_table();
-        let network_manager = self.network_manager();
-        if !RoutingTable::has_valid_own_node_info(network_manager, RoutingDomain::PublicInternet) {
+        if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
             return None;
         }
 
         match dest {
             Destination::Direct {
                 target,
-                safety_route_spec: _,
+                safety_spec: _,
             } => {
                 // If the target has seen our node info already don't do this
                 if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
@@ -584,7 +580,7 @@ impl RPCProcessor {
             Destination::Relay {
                 relay: _,
                 target,
-                safety_route_spec: _,
+                safety_spec: _,
             } => {
                 if let Some(target) = routing_table.lookup_node_ref(*target) {
                     if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
@@ -597,7 +593,8 @@ impl RPCProcessor {
             }
             Destination::PrivateRoute {
                 private_route: _,
-                safety_route_spec: _,
+                safety_spec: _,
+                reliable: _,
             } => None,
         }
     }
@@ -742,7 +739,14 @@ impl RPCProcessor {
                     Destination::relay(peer_noderef, sender_id)
                 }
             }
-            RespondTo::PrivateRoute(pr) => Destination::private_route(pr.clone()),
+            RespondTo::PrivateRoute(pr) => Destination::private_route(
+                pr.clone(),
+                request
+                    .header
+                    .connection_descriptor
+                    .protocol_type()
+                    .is_connection_oriented(),
+            ),
         }
     }
 

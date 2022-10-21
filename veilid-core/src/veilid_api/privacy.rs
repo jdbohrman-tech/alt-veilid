@@ -116,5 +116,3 @@ impl fmt::Display for SafetyRoute {
         )
     }
 }
-
-// xxx impl to_blob and from_blob using capnp here

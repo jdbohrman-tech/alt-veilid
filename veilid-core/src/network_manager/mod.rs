@@ -197,7 +197,7 @@ impl NetworkManager {
         block_store: BlockStore,
         crypto: Crypto,
     ) -> NetworkManagerUnlockedInner {
-        let c = config.get();
+        let min_peer_refresh_time_ms = config.get().network.dht.min_peer_refresh_time_ms;
         NetworkManagerUnlockedInner {
             config,
             protected_store,
@@ -211,7 +211,7 @@ impl NetworkManager {
             relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
             private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
             bootstrap_task: TickTask::new(1),
-            peer_minimum_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
+            peer_minimum_refresh_task: TickTask::new_ms(min_peer_refresh_time_ms),
             ping_validator_task: TickTask::new(1),
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
             node_info_update_single_future: MustJoinSingleFuture::new(),

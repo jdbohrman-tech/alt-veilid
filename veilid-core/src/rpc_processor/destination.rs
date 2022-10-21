@@ -81,6 +81,25 @@ impl Destination {
             },
         }
     }
+
+    pub fn get_safety_spec(&self) -> &Option<SafetySpec> {
+        match self {
+            Destination::Direct {
+                target: _,
+                safety_spec,
+            } => safety_spec,
+            Destination::Relay {
+                relay: _,
+                target: _,
+                safety_spec,
+            } => safety_spec,
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_spec,
+                reliable: _,
+            } => safety_spec,
+        }
+    }
 }
 
 impl fmt::Display for Destination {

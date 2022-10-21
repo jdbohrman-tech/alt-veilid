@@ -57,7 +57,7 @@ impl Bucket {
     }
 
     pub(super) fn kick(
-        &self,
+        &mut self,
         inner: &mut RoutingTableInner,
         bucket_depth: usize,
     ) -> Option<BTreeSet<DHTKey>> {

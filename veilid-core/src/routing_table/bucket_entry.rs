@@ -658,7 +658,7 @@ impl BucketEntry {
     // immutable reference to RoutingTableInner must be passed in to get this
     // This ensures that an operation on the routing table can not change entries
     // while it is being read from
-    pub(super) fn with<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
+    pub fn with<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
     where
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> R,
     {
@@ -668,7 +668,7 @@ impl BucketEntry {
 
     // Note, that this requires -also- holding the RoutingTable write lock, as a
     // mutable reference to RoutingTableInner must be passed in to get this
-    pub(super) fn with_mut<F, R>(&self, rti: &mut RoutingTableInner, f: F) -> R
+    pub fn with_mut<F, R>(&self, rti: &mut RoutingTableInner, f: F) -> R
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> R,
     {
