@@ -7,7 +7,7 @@ use routing_table::*;
 use stop_token::future::FutureExt;
 use xx::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },

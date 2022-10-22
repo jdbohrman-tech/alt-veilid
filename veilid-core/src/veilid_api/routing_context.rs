@@ -10,10 +10,8 @@ pub enum Target {
 pub struct RoutingContextInner {}
 
 pub struct RoutingContextUnlockedInner {
-    /// Enforce use of private routing
-    privacy: usize,
-    /// Choose reliable protocols over unreliable/faster protocols when available
-    reliable: bool,
+    /// Safety routing requirements
+    safety_selection: SafetySelection,
 }
 
 impl Drop for RoutingContextInner {
@@ -41,8 +39,7 @@ impl RoutingContext {
             api,
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                privacy: 0,
-                reliable: false,
+                safety_selection: SafetySelection::Unsafe(Sequencing::NoPreference),
             }),
         }
     }
@@ -54,42 +51,52 @@ impl RoutingContext {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                privacy: c.network.rpc.default_route_hop_count as usize,
-                reliable: self.unlocked_inner.reliable,
+                safety_selection: SafetySelection::Safe(SafetySpec {
+                    preferred_route: None,
+                    hop_count: c.network.rpc.default_route_hop_count as usize,
+                    stability: Stability::LowLatency,
+                    sequencing: Sequencing::NoPreference,
+                }),
             }),
         })
     }
-    pub fn with_privacy(self, hops: usize) -> Result<Self, VeilidAPIError> {
-        let config = self.api.config()?;
-        let c = config.get();
-
-        let privacy = if hops > 0 && hops <= c.network.rpc.max_route_hop_count as usize {
-            hops
-        } else {
-            return Err(VeilidAPIError::invalid_argument(
-                "hops value is too large",
-                "hops",
-                hops,
-            ));
-        };
+    pub fn with_privacy(self, safety_spec: SafetySpec) -> Result<Self, VeilidAPIError> {
         Ok(Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                privacy,
-                reliable: self.unlocked_inner.reliable,
+                safety_selection: SafetySelection::Safe(safety_spec),
             }),
         })
     }
 
-    pub fn with_reliability(self) -> Self {
+    pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
         Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                privacy: self.unlocked_inner.privacy,
-                reliable: true,
+                safety_selection: match self.unlocked_inner.safety_selection {
+                    SafetySelection::Unsafe(_) => SafetySelection::Unsafe(sequencing),
+                    SafetySelection::Safe(safety_spec) => SafetySelection::Safe(SafetySpec {
+                        preferred_route: safety_spec.preferred_route,
+                        hop_count: safety_spec.hop_count,
+                        stability: safety_spec.stability,
+                        sequencing,
+                    }),
+                },
             }),
+        }
+    }
+    pub fn sequencing(&self) -> Sequencing {
+        match self.unlocked_inner.safety_selection {
+            SafetySelection::Unsafe(sequencing) => sequencing,
+            SafetySelection::Safe(safety_spec) => safety_spec.sequencing,
+        }
+    }
+    pub fn safety_spec(&self) -> Option<SafetySpec> {
+        match self.unlocked_inner.safety_selection {
+            SafetySelection::Unsafe(_) => None,
+            SafetySelection::Safe(safety_spec) => Some(safety_spec.clone()),
         }
     }
 
@@ -111,27 +118,17 @@ impl RoutingContext {
                     Ok(None) => return Err(VeilidAPIError::NodeNotFound { node_id }),
                     Err(e) => return Err(e.into()),
                 };
-                // Apply reliability sort
-                if self.unlocked_inner.reliable {
-                    nr.set_reliable();
-                }
+                // Apply sequencing to match safety selection
+                nr.set_sequencing(self.sequencing());
+
                 Ok(rpc_processor::Destination::Direct {
                     target: nr,
-                    safety_spec: Some(routing_table::SafetySpec {
-                        preferred_route: None,
-                        hop_count: self.unlocked_inner.privacy,
-                        reliable: self.unlocked_inner.reliable,
-                    }),
+                    safety_selection: self.unlocked_inner.safety_selection,
                 })
             }
             Target::PrivateRoute(pr) => Ok(rpc_processor::Destination::PrivateRoute {
                 private_route: pr,
-                safety_spec: Some(routing_table::SafetySpec {
-                    preferred_route: None,
-                    hop_count: self.unlocked_inner.privacy,
-                    reliable: self.unlocked_inner.reliable,
-                }),
-                reliable: self.unlocked_inner.reliable,
+                safety_selection: self.unlocked_inner.safety_selection,
             }),
         }
     }

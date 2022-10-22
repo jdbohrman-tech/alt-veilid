@@ -8,7 +8,7 @@ pub enum Destination {
         /// The node to send to
         target: NodeRef,
         /// Require safety route or not
-        safety_spec: Option<SafetySpec>,
+        safety_selection: SafetySelection,
     },
     /// Send to node for relay purposes
     Relay {
@@ -17,16 +17,14 @@ pub enum Destination {
         /// The final destination the relay should send to
         target: DHTKey,
         /// Require safety route or not
-        safety_spec: Option<SafetySpec>,
+        safety_selection: SafetySelection,
     },
     /// Send to private route (privateroute)
     PrivateRoute {
         /// A private route to send to
         private_route: PrivateRoute,
         /// Require safety route or not
-        safety_spec: Option<SafetySpec>,
-        /// Prefer reliability or not
-        reliable: bool,
+        safety_selection: SafetySelection,
     },
 }
 
@@ -34,70 +32,66 @@ impl Destination {
     pub fn direct(target: NodeRef) -> Self {
         Self::Direct {
             target,
-            safety_spec: None,
+            safety_selection: SafetySelection::Unsafe(target.sequencing()),
         }
     }
     pub fn relay(relay: NodeRef, target: DHTKey) -> Self {
         Self::Relay {
             relay,
             target,
-            safety_spec: None,
+            safety_selection: SafetySelection::Unsafe(relay.sequencing()),
         }
     }
-    pub fn private_route(private_route: PrivateRoute, reliable: bool) -> Self {
+    pub fn private_route(private_route: PrivateRoute, safety_selection: SafetySelection) -> Self {
         Self::PrivateRoute {
             private_route,
-            safety_spec: None,
-            reliable,
+            safety_selection,
         }
     }
 
-    pub fn with_safety(self, safety_spec: SafetySpec) -> Self {
+    pub fn with_safety(self, safety_selection: SafetySelection) -> Self {
         match self {
             Destination::Direct {
                 target,
-                safety_spec: _,
+                safety_selection: _,
             } => Self::Direct {
                 target,
-                safety_spec: Some(safety_spec),
+                safety_selection,
             },
             Destination::Relay {
                 relay,
                 target,
-                safety_spec: _,
+                safety_selection: _,
             } => Self::Relay {
                 relay,
                 target,
-                safety_spec: Some(safety_spec),
+                safety_selection,
             },
             Destination::PrivateRoute {
                 private_route,
-                safety_spec: _,
-                reliable,
+                safety_selection: _,
             } => Self::PrivateRoute {
                 private_route,
-                safety_spec: Some(safety_spec),
-                reliable,
+                safety_selection,
             },
         }
     }
 
-    pub fn get_safety_spec(&self) -> &Option<SafetySpec> {
+    pub fn get_safety_selection(&self) -> &SafetySelection {
         match self {
             Destination::Direct {
                 target: _,
-                safety_spec,
-            } => safety_spec,
+                safety_selection,
+            } => safety_selection,
             Destination::Relay {
                 relay: _,
                 target: _,
-                safety_spec,
-            } => safety_spec,
+                safety_selection,
+            } => safety_selection,
             Destination::PrivateRoute {
                 private_route: _,
-                safety_spec,
-                reliable: _,
-            } => safety_spec,
+                safety_selection,
+            } => safety_selection,
         }
     }
 }
@@ -107,30 +101,40 @@ impl fmt::Display for Destination {
         match self {
             Destination::Direct {
                 target,
-                safety_spec,
+                safety_selection,
             } => {
-                let sr = if safety_spec.is_some() { "+SR" } else { "" };
+                let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
+                    "+SR"
+                } else {
+                    ""
+                };
 
                 write!(f, "{}{}", target, sr)
             }
             Destination::Relay {
                 relay,
                 target,
-                safety_spec,
+                safety_selection,
             } => {
-                let sr = if safety_spec.is_some() { "+SR" } else { "" };
+                let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
+                    "+SR"
+                } else {
+                    ""
+                };
 
                 write!(f, "{}@{}{}", target.encode(), relay, sr)
             }
             Destination::PrivateRoute {
                 private_route,
-                safety_spec,
-                reliable,
+                safety_selection,
             } => {
-                let sr = if safety_spec.is_some() { "+SR" } else { "" };
-                let rl = if *reliable { "+RL" } else { "" };
+                let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
+                    "+SR"
+                } else {
+                    ""
+                };
 
-                write!(f, "{}{}{}", private_route, sr, rl)
+                write!(f, "{}{}", private_route, sr)
             }
         }
     }

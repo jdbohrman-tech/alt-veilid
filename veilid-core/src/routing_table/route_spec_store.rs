@@ -2,18 +2,6 @@ use super::*;
 use crate::veilid_api::*;
 use serde::*;
 
-/// Options for safety routes (sender privacy)
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct SafetySpec {
-    /// preferred safety route if it still exists
-    pub preferred_route: Option<DHTKey>,
-    /// 0 = no safety route, just use node's node id, more hops is safer but slower
-    pub hop_count: usize,
-    /// prefer reliability over speed
-    pub stability: Stability,
-    /// prefer connection-oriented sequenced protocols
-    pub sequencing: Sequencing,
-}
 
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]
@@ -96,15 +84,6 @@ pub struct RouteSpecStore {
     content: RouteSpecStoreContent,
     /// RouteSpecStore cache
     cache: RouteSpecStoreCache,
-}
-
-/// The choice of safety route including in compiled routes
-#[derive(Debug, Clone)]
-pub enum SafetySelection {
-    /// Don't use a safety route, only specify the sequencing preference
-    Unsafe(Sequencing),
-    /// Use a safety route and parameters specified by a SafetySpec
-    Safe(SafetySpec),
 }
 
 fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {

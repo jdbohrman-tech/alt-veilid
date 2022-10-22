@@ -400,9 +400,8 @@ impl RPCProcessor {
     // Wrap an operation with a private route inside a safety route
     pub(super) fn wrap_with_route(
         &self,
-        safety_spec: Option<SafetySpec>,
+        safety_selection: SafetySelection,
         private_route: PrivateRoute,
-        reliable: bool,
         message_data: Vec<u8>,
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
@@ -412,7 +411,7 @@ impl RPCProcessor {
         let compiled_route: CompiledRoute =
             match self.routing_table().with_route_spec_store_mut(|rss, rti| {
                 // Compile the safety route with the private route
-                rss.compile_safety_route(rti, routing_table, safety_spec, private_route, reliable)
+                rss.compile_safety_route(rti, routing_table, safety_selection, private_route)
             })? {
                 Some(cr) => cr,
                 None => {
@@ -456,7 +455,6 @@ impl RPCProcessor {
         let out_node_id = compiled_route.first_hop.node_id();
         let out_hop_count = (1 + sr_hop_count + pr_hop_count) as usize;
 
-        
         let out = RenderedOperation {
             message: out_message,
             node_id: out_node_id,
@@ -491,12 +489,12 @@ impl RPCProcessor {
         match dest {
             Destination::Direct {
                 target: ref node_ref,
-                safety_spec,
+                safety_selection,
             }
             | Destination::Relay {
                 relay: ref node_ref,
                 target: _,
-                safety_spec,
+                safety_selection,
             } => {
                 // Send to a node without a private route
                 // --------------------------------------
@@ -505,7 +503,7 @@ impl RPCProcessor {
                 let (node_ref, node_id) = if let Destination::Relay {
                     relay: _,
                     target: ref dht_key,
-                    safety_spec: _,
+                    safety_selection: _,
                 } = dest
                 {
                     (node_ref.clone(), dht_key.clone())
@@ -515,8 +513,13 @@ impl RPCProcessor {
                 };
 
                 // Handle the existence of safety route
-                match safety_spec {
-                    None => {
+                match safety_selection {
+                    SafetySelection::Unsafe(sequencing) => {
+                        // Apply safety selection sequencing requirement if it is more strict than the node_ref's sequencing requirement
+                        if sequencing > node_ref.sequencing() {
+                            node_ref.set_sequencing(sequencing)
+                        }
+
                         // If no safety route is being used, and we're not sending to a private
                         // route, we can use a direct envelope instead of routing
                         out = NetworkResult::value(RenderedOperation {
@@ -526,25 +529,24 @@ impl RPCProcessor {
                             hop_count: 1,
                         });
                     }
-                    Some(safety_spec) => {
+                    SafetySelection::Safe(_) => {
                         // No private route was specified for the request
                         // but we are using a safety route, so we must create an empty private route
                         let private_route = PrivateRoute::new_stub(node_id);
 
                         // Wrap with safety route
-                        out = self.wrap_with_route(Some(safety_spec), private_route, message)?;
+                        out = self.wrap_with_route(safety_selection, private_route, message)?;
                     }
                 };
             }
             Destination::PrivateRoute {
                 private_route,
-                safety_spec,
-                reliable, xxxx does this need to be here? what about None safety spec, reliable is in there, does it need to not be? or something?
+                safety_selection,
             } => {
                 // Send to private route
                 // ---------------------
                 // Reply with 'route' operation
-                out = self.wrap_with_route(safety_spec, private_route, reliable, message)?;
+                out = self.wrap_with_route(safety_selection, private_route, message)?;
             }
         }
 
@@ -559,8 +561,11 @@ impl RPCProcessor {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
-        if dest.get_safety_spec().is_some() {
-            return None;
+        match dest.get_safety_selection() {
+            SafetySelection::Unsafe(_) => {}
+            SafetySelection::Safe(_) => {
+                return None;
+            }
         }
         // Don't do this if our own signed node info isn't valid yet
         let routing_table = self.routing_table();
@@ -571,7 +576,7 @@ impl RPCProcessor {
         match dest {
             Destination::Direct {
                 target,
-                safety_spec: _,
+                safety_selection: _,
             } => {
                 // If the target has seen our node info already don't do this
                 if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
@@ -582,7 +587,7 @@ impl RPCProcessor {
             Destination::Relay {
                 relay: _,
                 target,
-                safety_spec: _,
+                safety_selection: _,
             } => {
                 if let Some(target) = routing_table.lookup_node_ref(*target) {
                     if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
@@ -595,8 +600,7 @@ impl RPCProcessor {
             }
             Destination::PrivateRoute {
                 private_route: _,
-                safety_spec: _,
-                reliable: _,
+                safety_selection: _,
             } => None,
         }
     }
@@ -741,6 +745,7 @@ impl RPCProcessor {
                     Destination::relay(peer_noderef, sender_id)
                 }
             }
+            //xxx needs to know what route the request came in on in order to reply over that same route as the preferred safety route
             RespondTo::PrivateRoute(pr) => Destination::private_route(
                 pr.clone(),
                 request

@@ -204,21 +204,34 @@ fn first_filtered_dial_info_detail(
     from_node: &NodeInfo,
     to_node: &NodeInfo,
     dial_info_filter: &DialInfoFilter,
-    reliable: bool, xxx continue here
+    sequencing: Sequencing,
 ) -> Option<DialInfoDetail> {
-    let direct_dial_info_filter = dial_info_filter.clone().filtered(
+    let dial_info_filter = dial_info_filter.clone().filtered(
         &DialInfoFilter::all()
             .with_address_type_set(from_node.address_types)
             .with_protocol_type_set(from_node.outbound_protocols),
     );
 
     // Get first filtered dialinfo
-    let sort = if reliable {
-        Some(DialInfoDetail::ordered_sequencing_sort)
-    } else {
-        None
+    let (sort, dial_info_filter) = match sequencing {
+        Sequencing::NoPreference => (None, dial_info_filter),
+        Sequencing::PreferOrdered => (
+            Some(DialInfoDetail::ordered_sequencing_sort),
+            dial_info_filter,
+        ),
+        Sequencing::EnsureOrdered => (
+            Some(DialInfoDetail::ordered_sequencing_sort),
+            dial_info_filter.filtered(
+                &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+            ),
+        ),
     };
-    let direct_filter = |did: &DialInfoDetail| did.matches_filter(&direct_dial_info_filter);
+    // If the filter is dead then we won't be able to connect
+    if dial_info_filter.is_dead() {
+        return None;
+    }
+
+    let direct_filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
 
     // Get the best match dial info for node B if we have it
     to_node.first_filtered_dial_info_detail(sort, direct_filter)
@@ -242,11 +255,11 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         node_b_id: &DHTKey,
         node_b: &NodeInfo,
         dial_info_filter: DialInfoFilter,
-        reliable: bool,
+        sequencing: Sequencing,
     ) -> ContactMethod {
         // Get the best match dial info for node B if we have it
         if let Some(target_did) =
-            first_filtered_dial_info_detail(node_a, node_b, &dial_info_filter, reliable)
+            first_filtered_dial_info_detail(node_a, node_b, &dial_info_filter, sequencing)
         {
             // Do we need to signal before going inbound?
             if !target_did.class.requires_signal() {
@@ -267,7 +280,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                     node_a,
                     &inbound_relay.signed_node_info.node_info,
                     &dial_info_filter,
-                    reliable,
+                    sequencing,
                 )
                 .is_some()
                 {
@@ -280,7 +293,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                             node_b,
                             node_a,
                             &dial_info_filter,
-                            reliable,
+                            sequencing,
                         ) {
                             // Ensure we aren't on the same public IP address (no hairpin nat)
                             if reverse_did.dial_info.to_ip_addr()
@@ -306,14 +319,14 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                             node_a,
                             node_b,
                             &udp_dial_info_filter,
-                            reliable,
+                            sequencing,
                         ) {
                             // Does node A have a direct udp dialinfo that node B can reach?
                             if let Some(reverse_udp_did) = first_filtered_dial_info_detail(
                                 node_b,
                                 node_a,
                                 &udp_dial_info_filter,
-                                reliable,
+                                sequencing,
                             ) {
                                 // Ensure we aren't on the same public IP address (no hairpin nat)
                                 if reverse_udp_did.dial_info.to_ip_addr()
@@ -341,7 +354,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 node_a,
                 &inbound_relay.signed_node_info.node_info,
                 &dial_info_filter,
-                reliable,
+                sequencing,
             )
             .is_some()
             {
@@ -412,7 +425,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         _node_b_id: &DHTKey,
         node_b: &NodeInfo,
         dial_info_filter: DialInfoFilter,
-        reliable: bool,
+        sequencing: Sequencing,
     ) -> ContactMethod {
         // Scope the filter down to protocols node A can do outbound
         let dial_info_filter = dial_info_filter.filtered(
@@ -421,17 +434,25 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
                 .with_protocol_type_set(node_a.outbound_protocols),
         );
 
+        // Get first filtered dialinfo
+        let (sort, dial_info_filter) = match sequencing {
+            Sequencing::NoPreference => (None, dial_info_filter),
+            Sequencing::PreferOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter,
+            ),
+            Sequencing::EnsureOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter.filtered(
+                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+                ),
+            ),
+        };
         // If the filter is dead then we won't be able to connect
         if dial_info_filter.is_dead() {
             return ContactMethod::Unreachable;
         }
 
-        // Get first filtered dialinfo
-        let sort = if reliable {
-            Some(DialInfoDetail::ordered_sequencing_sort)
-        } else {
-            None
-        };
         let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
 
         let opt_target_did = node_b.first_filtered_dial_info_detail(sort, filter);

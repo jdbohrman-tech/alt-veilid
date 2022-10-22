@@ -420,6 +420,28 @@ pub enum Stability {
     Reliable,
 }
 
+/// The choice of safety route including in compiled routes
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum SafetySelection {
+    /// Don't use a safety route, only specify the sequencing preference
+    Unsafe(Sequencing),
+    /// Use a safety route and parameters specified by a SafetySpec
+    Safe(SafetySpec),
+}
+
+/// Options for safety routes (sender privacy)
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct SafetySpec {
+    /// preferred safety route if it still exists
+    pub preferred_route: Option<DHTKey>,
+    /// 0 = no safety route, just use node's node id, more hops is safer but slower
+    pub hop_count: usize,
+    /// prefer reliability over speed
+    pub stability: Stability,
+    /// prefer connection-oriented sequenced protocols
+    pub sequencing: Sequencing,
+}
+
 // Keep member order appropriate for sorting < preference
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
 pub struct DialInfoDetail {
@@ -1551,8 +1573,8 @@ impl DialInfo {
     }
 
     pub fn ordered_sequencing_sort(a: &DialInfo, b: &DialInfo) -> core::cmp::Ordering {
-        let ca = a.protocol_type().sort_order(true);
-        let cb = b.protocol_type().sort_order(true);
+        let ca = a.protocol_type().sort_order(Sequencing::EnsureOrdered);
+        let cb = b.protocol_type().sort_order(Sequencing::EnsureOrdered);
         if ca < cb {
             return core::cmp::Ordering::Less;
         }
