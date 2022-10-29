@@ -30,7 +30,7 @@ impl fmt::Display for RouteNode {
 #[derive(Clone, Debug)]
 pub struct RouteHop {
     pub node: RouteNode,
-    pub next_hop: Option<RouteHopData>,
+    pub next_hop: RouteHopData,
 }
 
 #[derive(Clone, Debug)]
@@ -81,7 +81,9 @@ impl fmt::Display for PrivateRoute {
 
 #[derive(Clone, Debug)]
 pub enum SafetyRouteHops {
+    /// Has >= 1 safety route hops
     Data(RouteHopData),
+    /// Has 0 safety route hops
     Private(PrivateRoute),
 }
 

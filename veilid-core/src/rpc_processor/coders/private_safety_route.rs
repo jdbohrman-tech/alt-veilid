@@ -60,10 +60,10 @@ pub fn encode_route_hop(
             encode_peer_info(&pi, &mut pi_builder)?;
         }
     }
-    if let Some(rhd) = &route_hop.next_hop {
-        let mut rhd_builder = builder.reborrow().init_next_hop();
-        encode_route_hop_data(rhd, &mut rhd_builder)?;
-    }
+
+    let mut rhd_builder = builder.reborrow().init_next_hop();
+    encode_route_hop_data(&route_hop.next_hop, &mut rhd_builder)?;
+
     Ok(())
 }
 
@@ -83,14 +83,10 @@ pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<Rout
         }
     };
 
-    let next_hop = if reader.has_next_hop() {
-        let rhd_reader = reader
-            .get_next_hop()
-            .map_err(RPCError::map_protocol("invalid next hop in route hop"))?;
-        Some(decode_route_hop_data(&rhd_reader)?)
-    } else {
-        None
-    };
+    let rhd_reader = reader
+        .get_next_hop()
+        .map_err(RPCError::map_protocol("invalid next hop in route hop"))?;
+    let next_hop = decode_route_hop_data(&rhd_reader)?;
 
     Ok(RouteHop { node, next_hop })
 }

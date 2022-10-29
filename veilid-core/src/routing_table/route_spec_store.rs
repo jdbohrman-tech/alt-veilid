@@ -2,7 +2,6 @@ use super::*;
 use crate::veilid_api::*;
 use serde::*;
 
-
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]
 pub struct CompiledRoute {
@@ -771,7 +770,7 @@ impl RouteSpecStore {
                                 RouteNode::PeerInfo(pi.unwrap())
                             }
                         },
-                        next_hop: Some(route_hop_data),
+                        next_hop: route_hop_data,
                     };
 
                     // Make next blob from route hop
