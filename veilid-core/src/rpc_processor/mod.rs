@@ -40,23 +40,48 @@ use stop_token::future::FutureExt;
 
 type OperationId = u64;
 
-/// The decoded header of an RPC message
 #[derive(Debug, Clone)]
-struct RPCMessageHeader {
-    /// Time the message was received, not sent
-    timestamp: u64,
+struct RPCMessageHeaderDetailDirect {
     /// The decoded header of the envelope
     envelope: Envelope,
-    /// The length in bytes of the rpc message body
-    body_len: u64,
     /// The noderef of the peer that sent the message (not the original sender). Ensures node doesn't get evicted from routing table until we're done with it
     peer_noderef: NodeRef,
     /// The connection from the peer sent the message (not the original sender)
     connection_descriptor: ConnectionDescriptor,
     /// The routing domain the message was sent through
     routing_domain: RoutingDomain,
-    // The private route the message was received through
-    //private_route: Option<DHTKey>,
+}
+
+#[derive(Debug, Clone)]
+struct RPCMessageHeaderDetailPrivateRoute {
+    
+    /// The private route we received the rpc over
+    private_route: DHTKey,
+    // The safety selection for replying to this private routed rpc
+    safety_selection: SafetySelection,
+}
+
+#[derive(Debug, Clone)]
+enum RPCMessageHeaderDetail {
+    Direct(RPCMessageHeaderDetailDirect),
+    PrivateRoute(RPCMessageHeaderDetailPrivateRoute),
+}
+
+/// The decoded header of an RPC message
+#[derive(Debug, Clone)]
+struct RPCMessageHeader {
+    
+    version: u8,
+    min_version: u8,
+    max_version: u8,
+    timestamp: u64,???? do we need a header for private routed messages? write process_rpc_message
+
+    /// Time the message was received, not sent
+    timestamp: u64,
+    /// The length in bytes of the rpc message body
+    body_len: u64,
+    /// The header detail depending on which way the message was received
+    detail: RPCMessageHeaderDetail,
 }
 
 #[derive(Debug)]
@@ -532,7 +557,17 @@ impl RPCProcessor {
                     SafetySelection::Safe(_) => {
                         // No private route was specified for the request
                         // but we are using a safety route, so we must create an empty private route
-                        let private_route = PrivateRoute::new_stub(node_id);
+                        let peer_info = match node_ref.make_peer_info(RoutingDomain::PublicInternet)
+                        {
+                            None => {
+                                return Ok(NetworkResult::no_connection_other(
+                                    "No PublicInternet peer info for stub private route",
+                                ))
+                            }
+                            Some(pi) => pi,
+                        };
+                        let private_route =
+                            PrivateRoute::new_stub(node_id, RouteNode::PeerInfo(peer_info));
 
                         // Wrap with safety route
                         out = self.wrap_with_route(safety_selection, private_route, message)?;
@@ -719,7 +754,7 @@ impl RPCProcessor {
     }
 
     // Convert the 'RespondTo' into a 'Destination' for a response
-    fn get_respond_to_destination(&self, request: &RPCMessage) -> Destination {
+    fn get_respond_to_destination(&self, request: &RPCMessage) -> NetworkResult<Destination> {
         // Get the question 'respond to'
         let respond_to = match request.operation.kind() {
             RPCOperationKind::Question(q) => q.respond_to(),
@@ -731,29 +766,47 @@ impl RPCProcessor {
         // To where should we respond?
         match respond_to {
             RespondTo::Sender => {
+                // Parse out the header detail from the question
+                let detail = match &request.header.detail {
+                    RPCMessageHeaderDetail::Direct(detail) => detail,
+                    RPCMessageHeaderDetail::PrivateRoute(_) => {
+                        // If this was sent via a private route, we don't know what the sender was, so drop this
+                        return NetworkResult::invalid_message(
+                            "not responding directly to question from private route",
+                        );
+                    }
+                };
+
                 // Reply directly to the request's source
-                let sender_id = request.header.envelope.get_sender_id();
+                let sender_id = detail.envelope.get_sender_id();
 
                 // This may be a different node's reference than the 'sender' in the case of a relay
-                let peer_noderef = request.header.peer_noderef.clone();
+                let peer_noderef = detail.peer_noderef.clone();
 
                 // If the sender_id is that of the peer, then this is a direct reply
                 // else it is a relayed reply through the peer
                 if peer_noderef.node_id() == sender_id {
-                    Destination::direct(peer_noderef)
+                    NetworkResult::value(Destination::direct(peer_noderef))
                 } else {
-                    Destination::relay(peer_noderef, sender_id)
+                    NetworkResult::value(Destination::relay(peer_noderef, sender_id))
                 }
             }
-            //xxx needs to know what route the request came in on in order to reply over that same route as the preferred safety route
-            RespondTo::PrivateRoute(pr) => Destination::private_route(
-                pr.clone(),
-                request
-                    .header
-                    .connection_descriptor
-                    .protocol_type()
-                    .is_connection_oriented(),
-            ),
+            RespondTo::PrivateRoute(pr) => {
+                let detail = match &request.header.detail {
+                    RPCMessageHeaderDetail::Direct(_) => {
+                        // If this was sent directly, don't respond to a private route as this could give away this node's safety routes
+                        return NetworkResult::invalid_message(
+                            "not responding to private route from direct question",
+                        );
+                    }
+                    RPCMessageHeaderDetail::PrivateRoute(detail) => detail,
+                };
+
+                NetworkResult::value(Destination::private_route(
+                    pr.clone(),
+                    detail.safety_selection.clone(),
+                ))
+            }
         }
     }
 
@@ -766,7 +819,7 @@ impl RPCProcessor {
         answer: RPCAnswer,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Extract destination from respond_to
-        let dest = self.get_respond_to_destination(&request);
+        let dest = network_result_try!(self.get_respond_to_destination(&request));
 
         // Get sender info if we should send that
         let opt_sender_info = self.get_sender_signed_node_info(&dest);
@@ -956,22 +1009,57 @@ impl RPCProcessor {
     }
 
     #[instrument(level = "trace", skip(self, body), err)]
-    pub fn enqueue_message(
+    pub fn enqueue_direct_message(
         &self,
         envelope: Envelope,
-        body: Vec<u8>,
         peer_noderef: NodeRef,
         connection_descriptor: ConnectionDescriptor,
         routing_domain: RoutingDomain,
+        body: Vec<u8>,
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
+                detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
+                    envelope,
+                    peer_noderef,
+                    connection_descriptor,
+                    routing_domain,
+                }),
                 timestamp: intf::get_timestamp(),
-                envelope,
                 body_len: body.len() as u64,
-                peer_noderef,
-                connection_descriptor,
-                routing_domain,
+            },
+            data: RPCMessageData { contents: body },
+        };
+        let send_channel = {
+            let inner = self.inner.lock();
+            inner.send_channel.as_ref().unwrap().clone()
+        };
+        let span_id = Span::current().id();
+        send_channel
+            .try_send((span_id, msg))
+            .wrap_err("failed to enqueue received RPC message")?;
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self, body), err)]
+    pub fn enqueue_private_route_message(
+        &self,
+
+        xx need rpc version somewhere! the rpc version to decode should be packaged in with the body, and the allocator should ensure the version is compatible at the end node. can append to body, and then pop the last u8.
+        xx try to write the whole process_rpc_message pipeline first
+
+        private_route: DHTKey,
+        safety_selection: SafetySelection,
+        body: Vec<u8>,
+    ) -> EyreResult<()> {
+        let msg = RPCMessageEncoded {
+            header: RPCMessageHeader {
+                detail: RPCMessageHeaderDetail::PrivateRoute(RPCMessageHeaderDetailPrivateRoute {
+                    private_route,
+                    safety_selection,
+                }),
+                timestamp: intf::get_timestamp(),
+                body_len: body.len() as u64,
             },
             data: RPCMessageData { contents: body },
         };

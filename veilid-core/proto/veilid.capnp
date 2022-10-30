@@ -126,9 +126,11 @@ struct SignalInfoReverseConnect {
 struct RouteHopData {         
     nonce                   @0  :Nonce;                 # nonce for encrypted blob
     blob                    @1  :Data;                  # encrypted blob with ENC(nonce,DH(PK,SK))
-                                                        #   can be one of: 
-                                                        #     if more hops remain in this route: RouteHop (0 byte appended as key)
-                                                        #     if end of safety route and starting private route: PrivateRoute (1 byte appended as key)
+                                                        # if this is a safety route RouteHopData, there is a single byte tag appended to the end of the encrypted blob
+                                                        # it can be one of: 
+                                                        #     if more hops remain in this route: RouteHop (0 byte appended as tag)
+                                                        #     if end of safety route and starting private route: PrivateRoute (1 byte appended as tag)
+                                                        # if this is a private route RouteHopData, only can decode to RouteHop, no tag is appended
 }
 
 struct RouteHop {
@@ -136,14 +138,15 @@ struct RouteHop {
         nodeId              @0  :NodeID;                # node id only for established routes
         peerInfo            @1  :PeerInfo;              # full peer info for this hop to establish the route
     }
-    nextHop                 @2  :RouteHopData;          # Next hop in encrypted blob
+    nextHop                 @2  :RouteHopData;          # Optional: if the private route is a stub, it contains no route hop data, just the target node for the routed operation.
+                                                        # if this is a safety route routehop, this field is not optional and must exist
 }
 
 struct PrivateRoute {
     publicKey               @0  :RoutePublicKey;        # private route public key (unique per private route)
     hopCount                @1  :UInt8;                 # Count of hops left in the private route (for timeout calculation purposes only)
     firstHop                @2  :RouteHop;              # Optional: first hop in the private route, if empty, this is the last hop and payload should be decrypted and processed.
-}
+} 
 
 struct SafetyRoute {
     publicKey               @0  :RoutePublicKey;        # safety route public key (unique per safety route)
@@ -151,7 +154,6 @@ struct SafetyRoute {
     hops :union {
         data                @2  :RouteHopData;          # safety route has more hops
         private             @3  :PrivateRoute;          # safety route has ended and private route follows
-        xxx find better representation for privateroute stub (going straight to node)
     }
 }
 

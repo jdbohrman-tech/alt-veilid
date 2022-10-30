@@ -17,9 +17,9 @@ pub struct CompiledRoute {
 struct RouteSpecDetail {
     /// Secret key
     #[serde(skip)]
-    secret_key: DHTKeySecret,
+    pub secret_key: DHTKeySecret,
     /// Route hops
-    hops: Vec<DHTKey>,
+    pub hops: Vec<DHTKey>,
     /// Route noderefs
     #[serde(skip)]
     hop_node_refs: Vec<NodeRef>,
@@ -273,6 +273,9 @@ impl RouteSpecStore {
         }
     }
 
+    fn detail(&self, public_key: &DHTKey) -> Option<&RouteSpecDetail> {
+        self.content.details.get(&public_key)
+    }
     fn detail_mut(&mut self, public_key: &DHTKey) -> Option<&mut RouteSpecDetail> {
         self.content.details.get_mut(&public_key)
     }
@@ -534,6 +537,13 @@ impl RouteSpecStore {
         Ok(Some(public_key))
     }
 
+    pub fn with_route_spec_detail<F, R>(&self, public_key: &DHTKey, f: F) -> Option<R>
+    where
+        F: FnOnce(&RouteSpecDetail) -> R,
+    {
+        self.detail(&public_key).map(|rsd| f(rsd))
+    }
+
     pub fn release_route(&mut self, public_key: DHTKey) {
         if let Some(detail) = self.content.details.remove(&public_key) {
             // Remove from hop cache
@@ -770,7 +780,7 @@ impl RouteSpecStore {
                                 RouteNode::PeerInfo(pi.unwrap())
                             }
                         },
-                        next_hop: route_hop_data,
+                        next_hop: Some(route_hop_data),
                     };
 
                     // Make next blob from route hop

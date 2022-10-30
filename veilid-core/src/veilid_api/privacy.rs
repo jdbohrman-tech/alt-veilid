@@ -30,7 +30,7 @@ impl fmt::Display for RouteNode {
 #[derive(Clone, Debug)]
 pub struct RouteHop {
     pub node: RouteNode,
-    pub next_hop: RouteHopData,
+    pub next_hop: Option<RouteHopData>,
 }
 
 #[derive(Clone, Debug)]
@@ -41,13 +41,29 @@ pub struct PrivateRoute {
 }
 
 impl PrivateRoute {
-    pub fn new_stub(public_key: DHTKey) -> Self {
+    /// Empty private route is the form used when receiving the last hop
+    pub fn new_empty(public_key: DHTKey) -> Self {
         Self {
             public_key,
             hop_count: 0,
             first_hop: None,
         }
     }
+    /// Stub route is the form used when no privacy is required, but you need to specify the destination for a safety route
+    pub fn new_stub(public_key: DHTKey, node: RouteNode) -> Self {
+        Self {
+            public_key,
+            hop_count: 1,
+            first_hop: Some(RouteHop {
+                node,
+                next_hop: None,
+            }),
+        }
+    }
+    /// Switch from full node info to simple node id
+    /// Only simplified single hop, primarily useful for stubs
+    /// Published routes with >= 1 hops should be in NodeId form already, as they have
+    /// already been connectivity-verified by the time the route is published
     pub fn simplify(self) -> Self {
         Self {
             public_key: self.public_key,

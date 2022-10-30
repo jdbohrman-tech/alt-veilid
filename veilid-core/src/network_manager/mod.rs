@@ -1569,12 +1569,12 @@ impl NetworkManager {
         // xxx: deal with spoofing and flooding here?
 
         // Pass message to RPC system
-        rpc.enqueue_message(
+        rpc.enqueue_direct_message(
             envelope,
-            body,
             source_noderef,
             connection_descriptor,
             routing_domain,
+            body,
         )?;
 
         // Inform caller that we dealt with the envelope locally
