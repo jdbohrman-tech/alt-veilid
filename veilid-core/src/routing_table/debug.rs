@@ -58,8 +58,8 @@ impl RoutingTable {
             out += &format!(
                 "{},{},{},{},{}",
                 BOOTSTRAP_TXT_VERSION,
-                MIN_VERSION,
-                MAX_VERSION,
+                MIN_CRYPTO_VERSION,
+                MAX_CRYPTO_VERSION,
                 self.node_id().encode(),
                 some_hostname.unwrap()
             );

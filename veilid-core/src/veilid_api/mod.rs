@@ -19,8 +19,8 @@ pub use crate::xx::{
 pub use alloc::string::ToString;
 pub use attachment_manager::AttachmentManager;
 pub use core::str::FromStr;
-pub use dht::Crypto;
-pub use dht::{generate_secret, sign, verify, DHTKey, DHTKeySecret, DHTSignature, Nonce};
+pub use crypto::Crypto;
+pub use crypto::{generate_secret, sign, verify, DHTKey, DHTKeySecret, DHTSignature, Nonce};
 pub use intf::BlockStore;
 pub use intf::ProtectedStore;
 pub use intf::TableStore;

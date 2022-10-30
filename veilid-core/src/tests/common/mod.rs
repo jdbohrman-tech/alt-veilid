@@ -7,5 +7,5 @@ pub mod test_veilid_core;
 
 use super::*;
 
-pub use dht::tests::*;
+pub use crypto::tests::*;
 pub use network_manager::tests::*;

@@ -708,7 +708,7 @@ impl VeilidConfig {
         // If we have a node id from storage, check it
         if node_id.valid && node_id_secret.valid {
             // Validate node id
-            if !dht::validate_key(&node_id, &node_id_secret) {
+            if !crypto::validate_key(&node_id, &node_id_secret) {
                 apibail_generic!("node id secret and node id key don't match");
             }
         }

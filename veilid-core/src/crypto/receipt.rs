@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![allow(clippy::absurd_extreme_comparisons)]
-use super::envelope::{MAX_VERSION, MIN_VERSION};
-use super::key::*;
+use super::*;
 use crate::xx::*;
 use crate::*;
 use core::convert::TryInto;
@@ -90,9 +89,9 @@ impl Receipt {
 
         // Check version
         let version = data[0x04];
-        if version > MAX_VERSION || version < MIN_VERSION {
+        if version > MAX_CRYPTO_VERSION || version < MIN_CRYPTO_VERSION {
             return Err(VeilidAPIError::parse_error(
-                "unsupported protocol version",
+                "unsupported cryptography version",
                 version,
             ));
         }

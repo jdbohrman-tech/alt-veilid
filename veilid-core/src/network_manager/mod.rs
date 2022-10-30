@@ -22,7 +22,7 @@ pub use network_connection::*;
 ////////////////////////////////////////////////////////////////////////////////////////
 use connection_handle::*;
 use connection_limits::*;
-use dht::*;
+use crypto::*;
 use futures_util::stream::{FuturesOrdered, FuturesUnordered, StreamExt};
 use hashlink::LruCache;
 use intf::*;
@@ -783,11 +783,7 @@ impl NetworkManager {
 
     // Process a received signal
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn handle_signal(
-        &self,
-        _sender_id: DHTKey,
-        signal_info: SignalInfo,
-    ) -> EyreResult<NetworkResult<()>> {
+    pub async fn handle_signal(&self, signal_info: SignalInfo) -> EyreResult<NetworkResult<()>> {
         match signal_info {
             SignalInfo::ReverseConnect { receipt, peer_info } => {
                 let routing_table = self.routing_table();
@@ -923,7 +919,7 @@ impl NetworkManager {
         // and if so, get the max version we can use
         let version = if let Some((node_min, node_max)) = node_ref.min_max_version() {
             #[allow(clippy::absurd_extreme_comparisons)]
-            if node_min > MAX_VERSION || node_max < MIN_VERSION {
+            if node_min > MAX_CRYPTO_VERSION || node_max < MIN_CRYPTO_VERSION {
                 bail!(
                     "can't talk to this node {} because version is unsupported: ({},{})",
                     via_node_id,
@@ -931,9 +927,9 @@ impl NetworkManager {
                     node_max
                 );
             }
-            cmp::min(node_max, MAX_VERSION)
+            cmp::min(node_max, MAX_CRYPTO_VERSION)
         } else {
-            MAX_VERSION
+            MAX_CRYPTO_VERSION
         };
 
         // Build the envelope to send

@@ -126,8 +126,8 @@ impl RoutingDomainDetailCommon {
                         network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
                         outbound_protocols: self.outbound_protocols,
                         address_types: self.address_types,
-                        min_version: MIN_VERSION,
-                        max_version: MAX_VERSION,
+                        min_version: MIN_CRYPTO_VERSION,
+                        max_version: MAX_CRYPTO_VERSION,
                         dial_info_detail_list: self.dial_info_details.clone(),
                         relay_peer_info: self
                             .relay_node

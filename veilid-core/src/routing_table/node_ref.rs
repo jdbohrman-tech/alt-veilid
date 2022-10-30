@@ -1,5 +1,5 @@
 use super::*;
-use crate::dht::*;
+use crate::crypto::*;
 use alloc::fmt;
 
 // Connectionless protocols like UDP are dependent on a NAT translation timeout

@@ -1,6 +1,6 @@
 use crate::*;
 use core::fmt;
-use dht::*;
+use crypto::*;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use network_manager::*;
 use routing_table::*;

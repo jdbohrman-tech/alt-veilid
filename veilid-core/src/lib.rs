@@ -22,7 +22,7 @@ mod api_tracing_layer;
 mod attachment_manager;
 mod callback_state_machine;
 mod core_context;
-mod dht;
+mod crypto;
 mod intf;
 mod network_manager;
 mod receipt_manager;

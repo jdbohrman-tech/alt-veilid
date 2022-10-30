@@ -9,7 +9,7 @@ mod routing_table_inner;
 mod stats_accounting;
 mod tasks;
 
-use crate::dht::*;
+use crate::crypto::*;
 use crate::network_manager::*;
 use crate::rpc_processor::*;
 use crate::xx::*;

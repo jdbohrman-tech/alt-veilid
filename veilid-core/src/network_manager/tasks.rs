@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::dht::*;
+use crate::crypto::*;
 use crate::xx::*;
 use futures_util::FutureExt;
 use stop_token::future::FutureExt as StopFutureExt;
@@ -265,8 +265,8 @@ impl NetworkManager {
                 bsmap
                     .entry(node_id)
                     .or_insert_with(|| BootstrapRecord {
-                        min_version: MIN_VERSION,
-                        max_version: MAX_VERSION,
+                        min_version: MIN_CRYPTO_VERSION,
+                        max_version: MAX_CRYPTO_VERSION,
                         dial_info_details: Vec::new(),
                     })
                     .dial_info_details
@@ -299,8 +299,8 @@ impl NetworkManager {
                     network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
                     outbound_protocols: ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
                     address_types: AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
-                    min_version: v.min_version, // Minimum protocol version specified in txt record
-                    max_version: v.max_version, // Maximum protocol version specified in txt record
+                    min_version: v.min_version, // Minimum crypto version specified in txt record
+                    max_version: v.max_version, // Maximum crypto version specified in txt record
                     dial_info_detail_list: v.dial_info_details, // Dial info is as specified in the bootstrap list
                     relay_peer_info: None, // Bootstraps never require a relay themselves
                 }),

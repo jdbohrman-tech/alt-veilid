@@ -258,9 +258,10 @@ struct PeerInfo {
 }
 
 struct RoutedOperation {
-    signatures              @0  :List(Signature);       # signatures from nodes that have handled the private route
-    nonce                   @1  :Nonce;                 # nonce Xmsg 
-    data                    @2  :Data;                  # Operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
+    version                 @0  :UInt8;                 # crypto version in use for the data
+    signatures              @1  :List(Signature);       # signatures from nodes that have handled the private route
+    nonce                   @2  :Nonce;                 # nonce Xmsg
+    data                    @3  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
 }
 
 struct OperationStatusQ {

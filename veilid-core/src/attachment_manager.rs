@@ -1,5 +1,5 @@
 use crate::callback_state_machine::*;
-use crate::dht::Crypto;
+use crate::crypto::Crypto;
 use crate::network_manager::*;
 use crate::routing_table::*;
 use crate::xx::*;

@@ -49,9 +49,9 @@ struct RouteSpecDetail {
     /// Directions this route is guaranteed to work in
     directions: DirectionSet,
     /// Stability preference (prefer reliable nodes over faster)
-    stability: Stability,
+    pub stability: Stability,
     /// Sequencing preference (connection oriented protocols vs datagram)
-    sequencing: Sequencing,
+    pub sequencing: Sequencing,
 }
 
 /// The core representation of the RouteSpecStore that can be serialized
@@ -616,11 +616,11 @@ impl RouteSpecStore {
         routing_table: RoutingTable,
         safety_selection: SafetySelection,
         private_route: PrivateRoute,
-    ) -> Result<Option<CompiledRoute>, RPCError> {
+    ) -> EyreResult<Option<CompiledRoute>> {
         let pr_hopcount = private_route.hop_count as usize;
         let max_route_hop_count = self.max_route_hop_count;
         if pr_hopcount > max_route_hop_count {
-            return Err(RPCError::internal("private route hop count too long"));
+            bail!("private route hop count too long");
         }
 
         // See if we are using a safety route, if not, short circuit this operation
@@ -628,7 +628,7 @@ impl RouteSpecStore {
             SafetySelection::Unsafe(sequencing) => {
                 // Safety route stub with the node's public key as the safety route key since it's the 0th hop
                 if private_route.first_hop.is_none() {
-                    return Err(RPCError::internal("can't compile zero length route"));
+                    bail!("can't compile zero length route");
                 }
                 let first_hop = private_route.first_hop.as_ref().unwrap();
                 let opt_first_hop = match &first_hop.node {
@@ -707,10 +707,10 @@ impl RouteSpecStore {
         // Ensure the total hop count isn't too long for our config
         let sr_hopcount = safety_spec.hop_count;
         if sr_hopcount == 0 {
-            return Err(RPCError::internal("safety route hop count is zero"));
+            bail!("safety route hop count is zero");
         }
         if sr_hopcount > max_route_hop_count {
-            return Err(RPCError::internal("safety route hop count too long"));
+            bail!("safety route hop count too long");
         }
 
         // See if we can optimize this compilation yet
@@ -746,10 +746,10 @@ impl RouteSpecStore {
                     // Encrypt the previous blob ENC(nonce, DH(PKhop,SKsr))
                     let dh_secret = crypto
                         .cached_dh(&safety_rsd.hops[h], &safety_rsd.secret_key)
-                        .map_err(RPCError::map_internal("dh failed"))?;
+                        .wrap_err("dh failed")?;
                     let enc_msg_data =
                         Crypto::encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
-                            .map_err(RPCError::map_internal("encryption failed"))?;
+                            .wrap_err("encryption failed")?;
 
                     // Make route hop data
                     let route_hop_data = RouteHopData {
@@ -759,26 +759,23 @@ impl RouteSpecStore {
 
                     // Make route hop
                     let route_hop = RouteHop {
-                        node: match optimize {
+                        node: if optimize {
                             // Optimized, no peer info, just the dht key
-                            true => RouteNode::NodeId(NodeId::new(safety_rsd.hops[h])),
+                            RouteNode::NodeId(NodeId::new(safety_rsd.hops[h]))
+                        } else {
                             // Full peer info, required until we are sure the route has been fully established
-                            false => {
-                                let node_id = safety_rsd.hops[h];
-                                let pi = rti
-                                    .with_node_entry(node_id, |entry| {
-                                        entry.with(rti, |_rti, e| {
-                                            e.make_peer_info(node_id, RoutingDomain::PublicInternet)
-                                        })
+                            let node_id = safety_rsd.hops[h];
+                            let pi = rti
+                                .with_node_entry(node_id, |entry| {
+                                    entry.with(rti, |_rti, e| {
+                                        e.make_peer_info(node_id, RoutingDomain::PublicInternet)
                                     })
-                                    .flatten();
-                                if pi.is_none() {
-                                    return Err(RPCError::internal(
-                                        "peer info should exist for route but doesn't",
-                                    ));
-                                }
-                                RouteNode::PeerInfo(pi.unwrap())
+                                })
+                                .flatten();
+                            if pi.is_none() {
+                                bail!("peer info should exist for route but doesn't");
                             }
+                            RouteNode::PeerInfo(pi.unwrap())
                         },
                         next_hop: Some(route_hop_data),
                     };
@@ -836,6 +833,86 @@ impl RouteSpecStore {
 
         // Return compiled route
         Ok(Some(compiled_route))
+    }
+
+    /// Assemble private route for publication
+    pub fn assemble_private_route(
+        &mut self,
+        rti: &RoutingTableInner,
+        routing_table: RoutingTable,
+        key: &DHTKey,
+    ) -> EyreResult<PrivateRoute> {
+        let rsd = self
+            .detail(&key)
+            .ok_or_else(|| eyre!("route does not exist"))?;
+
+        // See if we can optimize this compilation yet
+        // We don't want to include full nodeinfo if we don't have to
+        let optimize = rsd.reachable;
+
+        // Make innermost route hop to our own node
+        let mut route_hop = RouteHop {
+            node: if optimize {
+                RouteNode::NodeId(NodeId::new(routing_table.node_id()))
+            } else {
+                RouteNode::PeerInfo(rti.get_own_peer_info(RoutingDomain::PublicInternet))
+            },
+            next_hop: None,
+        };
+
+        let crypto = routing_table.network_manager().crypto();
+        // Loop for each hop
+        let hop_count = rsd.hops.len();
+        for h in (0..hop_count).rev() {
+            let nonce = Crypto::get_random_nonce();
+
+            let blob_data = {
+                let mut rh_message = ::capnp::message::Builder::new_default();
+                let mut rh_builder = rh_message.init_root::<veilid_capnp::route_hop::Builder>();
+                encode_route_hop(&route_hop, &mut rh_builder)?;
+                builder_to_vec(rh_message)?
+            };
+
+            // Encrypt the previous blob ENC(nonce, DH(PKhop,SKpr))
+            let dh_secret = crypto
+                .cached_dh(&rsd.hops[h], &rsd.secret_key)
+                .wrap_err("dh failed")?;
+            let enc_msg_data = Crypto::encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
+                .wrap_err("encryption failed")?;
+            let route_hop_data = RouteHopData {
+                nonce,
+                blob: enc_msg_data,
+            };
+
+            route_hop = RouteHop {
+                node: if optimize {
+                    // Optimized, no peer info, just the dht key
+                    RouteNode::NodeId(NodeId::new(rsd.hops[h]))
+                } else {
+                    // Full peer info, required until we are sure the route has been fully established
+                    let node_id = rsd.hops[h];
+                    let pi = rti
+                        .with_node_entry(node_id, |entry| {
+                            entry.with(rti, |_rti, e| {
+                                e.make_peer_info(node_id, RoutingDomain::PublicInternet)
+                            })
+                        })
+                        .flatten();
+                    if pi.is_none() {
+                        bail!("peer info should exist for route but doesn't",);
+                    }
+                    RouteNode::PeerInfo(pi.unwrap())
+                },
+                next_hop: Some(route_hop_data),
+            }
+        }
+
+        let private_route = PrivateRoute {
+            public_key: key.clone(),
+            hop_count: hop_count.try_into().unwrap(),
+            first_hop: Some(route_hop),
+        };
+        Ok(private_route)
     }
 
     /// Mark route as published

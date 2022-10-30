@@ -72,8 +72,8 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip_all, err)]
     async fn process_route_private_route_hop(
         &self,
-        route: RPCOperationRoute,
-        private_route: PrivateRoute,
+        mut route: RPCOperationRoute,
+        next_private_route: PrivateRoute,
     ) -> Result<(), RPCError> {
         // Make sure hop count makes sense
         if route.safety_route.hop_count != 0 {
@@ -81,19 +81,14 @@ impl RPCProcessor {
                 "Safety hop count should be zero if switched to private route",
             ));
         }
-        if private_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
+        if next_private_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
             return Err(RPCError::protocol(
                 "Private route hop count too high to process",
             ));
         }
-        if private_route.hop_count == 0 {
-            return Err(RPCError::protocol(
-                "Private route hop count should not be zero if there are more hops",
-            ));
-        }
 
         // Get private route first hop (this is validated to not be None before calling this function)
-        let first_hop = private_route.first_hop.as_ref().unwrap();
+        let first_hop = next_private_route.first_hop.as_ref().unwrap();
 
         // Get next hop node ref
         let next_hop_nr = match &first_hop.node {
@@ -121,12 +116,21 @@ impl RPCProcessor {
             }
         }?;
 
+        // Sign the operation if this is not our last hop
+        // as the last hop is already signed by the envelope
+        if next_private_route.hop_count != 0 {
+            let node_id = self.routing_table.node_id();
+            let node_id_secret = self.routing_table.node_id_secret();
+            let sig = sign(&node_id, &node_id_secret, &route.operation.data).map_err(RPCError::internal)?;
+            route.operation.signatures.push(sig);
+        }
+
         // Pass along the route
         let next_hop_route = RPCOperationRoute {
             safety_route: SafetyRoute {
                 public_key: route.safety_route.public_key,
                 hop_count: 0,
-                hops: SafetyRouteHops::Private(private_route),
+                hops: SafetyRouteHops::Private(next_private_route),
             },
             operation: route.operation,
         };
@@ -146,12 +150,13 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip_all, err)]
     async fn process_routed_operation(
         &self,
-        sender_id: DHTKey,
-        route: RPCOperationRoute,
+        detail: RPCMessageHeaderDetailDirect,
+        routed_operation: RoutedOperation,
+        safety_route: &SafetyRoute,
         private_route: &PrivateRoute,
     ) -> Result<(), RPCError> {
         // Make sure hop count makes sense
-        if route.safety_route.hop_count != 0 {
+        if safety_route.hop_count != 0 {
             return Err(RPCError::protocol(
                 "Safety hop count should be zero if switched to private route",
             ));
@@ -162,21 +167,29 @@ impl RPCProcessor {
             ));
         }
 
-        let routed_operation = &route.operation;
-
-        // Get sequencing preference
-        if route.
-
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
         let opt_pr_info = if private_route.public_key == self.routing_table.node_id() {
             // the private route was a stub to our own node's secret
-            // return our secret key
+            // return our secret key and an appropriate safety selection
+            // Get sequencing preference
+            let sequencing = if detail
+                .connection_descriptor
+                .protocol_type()
+                .is_connection_oriented()
+            {
+                Sequencing::EnsureOrdered
+            } else {
+                Sequencing::NoPreference
+            };
             Some((
-                self.routing_table.node_id_secret(), // Figure out how we'd reply to this if it were a question
+                self.routing_table.node_id_secret(), 
                 SafetySelection::Unsafe(sequencing),
             ))
         } else {
+            // Get sender id
+            let sender_id = detail.envelope.get_sender_id();
+
             // Look up the private route and ensure it's one in our spec store
             let opt_signatures_valid = self.routing_table.with_route_spec_store(|rss, rti| {
                 rss.with_route_spec_detail(&private_route.public_key, |rsd| {
@@ -207,10 +220,15 @@ impl RPCProcessor {
                             }
                         }
                     }
-                    // Correct signatures
+                    // We got the correct signatures, return a key ans
                     Some((
                         rsd.secret_key,
-                        SafetySelection::Safe(SafetySpec { preferred_route: todo!(), hop_count: todo!(), stability: todo!(), sequencing: todo!() })
+                        SafetySelection::Safe(SafetySpec { 
+                            preferred_route: Some(private_route.public_key), 
+                            hop_count: rsd.hops.len(),
+                            stability: rsd.stability,
+                            sequencing: rsd.sequencing,
+                        })
                     ))
                 })
             });
@@ -229,7 +247,7 @@ impl RPCProcessor {
         // xxx: punish nodes that send messages that fail to decrypt eventually
         let dh_secret = self
             .crypto
-            .cached_dh(&route.safety_route.public_key, &secret_key)
+            .cached_dh(&safety_route.public_key, &secret_key)
             .map_err(RPCError::protocol)?;
         let body = Crypto::decrypt_aead(
             &routed_operation.data,
@@ -250,12 +268,14 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, msg), err)]
     pub(crate) async fn process_route(&self, msg: RPCMessage) -> Result<(), RPCError> {
-        // xxx do not process latency for routed messages
-        
         // Get header detail, must be direct and not inside a route itself
-        let (envelope, peer_noderef, connection_descriptor, routing_domain) = match msg.header.detail {
-            RPCMessageHeaderDetail::Direct { envelope, peer_noderef, connection_descriptor, routing_domain } => (envelope, peer_noderef, connection_descriptor, routing_domain),
-            RPCMessageHeaderDetail::PrivateRoute { private_route, safety_selection } => { return Err(RPCError::protocol("route operation can not be inside route")) },
+        let detail = match msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => detail,
+            RPCMessageHeaderDetail::PrivateRoute(_) => {
+                return Err(RPCError::protocol(
+                    "route operation can not be inside route",
+                ))
+            }
         };
 
         // Get the statement
@@ -266,6 +286,14 @@ impl RPCProcessor {
             },
             _ => panic!("not a statement"),
         };
+
+        // Process routed operation version
+        // xxx switch this to a Crypto trait factory method per issue#140
+        if route.operation.version != MAX_CRYPTO_VERSION {
+            return Err(RPCError::protocol(
+                "routes operation crypto is not valid version",
+            ));
+        }
 
         // See what kind of safety route we have going on here
         match route.safety_route.hops {
@@ -312,12 +340,8 @@ impl RPCProcessor {
                             .await?;
                     } else {
                         // Private route is empty, process routed operation
-                        self.process_routed_operation(
-                            envelope.get_sender_id(),
-                            route,
-                            &private_route,
-                        )
-                        .await?;
+                        self.process_routed_operation(detail, route.operation, &route.safety_route, &private_route)
+                            .await?;
                     }
                 } else if blob_tag == 0 {
                     // RouteHop
@@ -373,21 +397,17 @@ impl RPCProcessor {
                     };
 
                     // Make next PrivateRoute and pass it on
-                    let private_route = PrivateRoute {
+                    let next_private_route = PrivateRoute {
                         public_key: private_route.public_key,
                         hop_count: private_route.hop_count - 1,
                         first_hop: opt_next_first_hop,
                     };
-                    self.process_route_private_route_hop(route, private_route)
+                    self.process_route_private_route_hop(route, next_private_route)
                         .await?;
                 } else {
                     // No hops left, time to process the routed operation
-                    self.process_routed_operation(
-                        msg.header.envelope.get_sender_id(),
-                        route,
-                        private_route,
-                    )
-                    .await?;
+                    self.process_routed_operation(detail, route.operation, &route.safety_route, private_route)
+                        .await?;
                 }
             }
         }

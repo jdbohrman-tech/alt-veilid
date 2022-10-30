@@ -3,7 +3,7 @@
 
 mod test_async_peek_stream;
 
-use crate::dht::tests::*;
+use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
 use crate::tests::common::*;
 use crate::xx::*;

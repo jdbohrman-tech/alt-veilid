@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![allow(clippy::absurd_extreme_comparisons)]
-use super::crypto::*;
-use super::key::*;
+use super::*;
 use crate::xx::*;
 use crate::*;
 use core::convert::TryInto;
@@ -38,8 +37,6 @@ use core::convert::TryInto;
 pub const MAX_ENVELOPE_SIZE: usize = 65507;
 pub const MIN_ENVELOPE_SIZE: usize = 0x6A + 0x40; // Header + Signature
 pub const ENVELOPE_MAGIC: &[u8; 4] = b"VLID";
-pub const MIN_VERSION: u8 = 0u8;
-pub const MAX_VERSION: u8 = 0u8;
 pub type EnvelopeNonce = [u8; 24];
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -64,12 +61,12 @@ impl Envelope {
         assert!(sender_id.valid);
         assert!(recipient_id.valid);
 
-        assert!(version >= MIN_VERSION);
-        assert!(version <= MAX_VERSION);
+        assert!(version >= MIN_CRYPTO_VERSION);
+        assert!(version <= MAX_CRYPTO_VERSION);
         Self {
             version,
-            min_version: MIN_VERSION,
-            max_version: MAX_VERSION,
+            min_version: MIN_CRYPTO_VERSION,
+            max_version: MAX_CRYPTO_VERSION,
             timestamp,
             nonce,
             sender_id,
@@ -94,9 +91,9 @@ impl Envelope {
 
         // Check version
         let version = data[0x04];
-        if version > MAX_VERSION || version < MIN_VERSION {
+        if version > MAX_CRYPTO_VERSION || version < MIN_CRYPTO_VERSION {
             return Err(VeilidAPIError::parse_error(
-                "unsupported protocol version",
+                "unsupported cryptography version",
                 version,
             ));
         }

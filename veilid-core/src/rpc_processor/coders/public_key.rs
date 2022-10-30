@@ -1,4 +1,4 @@
-use crate::dht::*;
+use crate::crypto::*;
 use crate::*;
 use core::convert::TryInto;
 use rpc_processor::*;

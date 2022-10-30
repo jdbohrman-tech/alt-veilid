@@ -19,7 +19,7 @@ impl RPCOperationKind {
 
     pub fn decode(
         kind_reader: &veilid_capnp::operation::kind::Reader,
-        sender_node_id: &DHTKey,
+        opt_sender_node_id: Option<&DHTKey>,
     ) -> Result<Self, RPCError> {
         let which_reader = kind_reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
@@ -30,7 +30,7 @@ impl RPCOperationKind {
             }
             veilid_capnp::operation::kind::Which::Statement(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCStatement::decode(&q_reader, sender_node_id)?;
+                let out = RPCStatement::decode(&q_reader, opt_sender_node_id)?;
                 RPCOperationKind::Statement(out)
             }
             veilid_capnp::operation::kind::Which::Answer(r) => {
@@ -111,22 +111,26 @@ impl RPCOperation {
 
     pub fn decode(
         operation_reader: &veilid_capnp::operation::Reader,
-        sender_node_id: &DHTKey,
+        opt_sender_node_id: Option<&DHTKey>,
     ) -> Result<Self, RPCError> {
         let op_id = operation_reader.get_op_id();
 
         let sender_node_info = if operation_reader.has_sender_node_info() {
-            let sni_reader = operation_reader
-                .get_sender_node_info()
-                .map_err(RPCError::protocol)?;
-            let sni = decode_signed_node_info(&sni_reader, sender_node_id, true)?;
-            Some(sni)
+            if let Some(sender_node_id) = opt_sender_node_id {
+                let sni_reader = operation_reader
+                    .get_sender_node_info()
+                    .map_err(RPCError::protocol)?;
+                let sni = decode_signed_node_info(&sni_reader, sender_node_id, true)?;
+                Some(sni)
+            } else {
+                None
+            }
         } else {
             None
         };
 
         let kind_reader = operation_reader.get_kind();
-        let kind = RPCOperationKind::decode(&kind_reader, sender_node_id)?;
+        let kind = RPCOperationKind::decode(&kind_reader, opt_sender_node_id)?;
 
         Ok(RPCOperation {
             op_id,

@@ -27,7 +27,7 @@ pub use operation_waiter::*;
 pub use rpc_error::*;
 
 use super::*;
-use crate::dht::*;
+use crate::crypto::*;
 use crate::xx::*;
 use capnp::message::ReaderSegments;
 use futures_util::StreamExt;
@@ -54,7 +54,6 @@ struct RPCMessageHeaderDetailDirect {
 
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailPrivateRoute {
-    
     /// The private route we received the rpc over
     private_route: DHTKey,
     // The safety selection for replying to this private routed rpc
@@ -70,12 +69,6 @@ enum RPCMessageHeaderDetail {
 /// The decoded header of an RPC message
 #[derive(Debug, Clone)]
 struct RPCMessageHeader {
-    
-    version: u8,
-    min_version: u8,
-    max_version: u8,
-    timestamp: u64,???? do we need a header for private routed messages? write process_rpc_message
-
     /// Time the message was received, not sent
     timestamp: u64,
     /// The length in bytes of the rpc message body
@@ -83,6 +76,8 @@ struct RPCMessageHeader {
     /// The header detail depending on which way the message was received
     detail: RPCMessageHeaderDetail,
 }
+
+impl RPCMessageHeader {}
 
 #[derive(Debug)]
 struct RPCMessageData {
@@ -437,6 +432,7 @@ impl RPCProcessor {
             match self.routing_table().with_route_spec_store_mut(|rss, rti| {
                 // Compile the safety route with the private route
                 rss.compile_safety_route(rti, routing_table, safety_selection, private_route)
+                    .map_err(RPCError::internal)
             })? {
                 Some(cr) => cr,
                 None => {
@@ -448,6 +444,7 @@ impl RPCProcessor {
 
         // Encrypt routed operation
         // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
+        // xxx use factory method, get version from somewhere...
         let nonce = Crypto::get_random_nonce();
         let dh_secret = self
             .crypto
@@ -457,7 +454,8 @@ impl RPCProcessor {
             .map_err(RPCError::map_internal("encryption failed"))?;
 
         // Make the routed operation
-        let operation = RoutedOperation::new(nonce, enc_msg_data);
+        // xxx: replace MAX_CRYPTO_VERSION with the version from the factory
+        let operation = RoutedOperation::new(MAX_CRYPTO_VERSION, nonce, enc_msg_data);
 
         // Prepare route operation
         let sr_hop_count = compiled_route.safety_route.hop_count;
@@ -864,59 +862,79 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
     #[instrument(level = "trace", skip(self, encoded_msg), err)]
-    async fn process_rpc_message_version_0(
-        &self,
-        encoded_msg: RPCMessageEncoded,
-    ) -> Result<(), RPCError> {
-        // Get the routing domain this message came over
-        let routing_domain = encoded_msg.header.routing_domain;
+    async fn process_rpc_message(&self, encoded_msg: RPCMessageEncoded) -> Result<(), RPCError> {
+        // Decode operation appropriately based on header detail
+        let msg = match &encoded_msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => {
+                // Get the routing domain this message came over
+                let routing_domain = detail.routing_domain;
 
-        // Decode the operation
-        let sender_node_id = encoded_msg.header.envelope.get_sender_id();
+                // Decode the operation
+                let sender_node_id = detail.envelope.get_sender_id();
 
-        // Decode the RPC message
-        let operation = {
-            let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());
-            let op_reader = reader
-                .get_root::<veilid_capnp::operation::Reader>()
-                .map_err(RPCError::protocol)
-                .map_err(logthru_rpc!())?;
-            RPCOperation::decode(&op_reader, &sender_node_id)?
-        };
+                // Decode the RPC message
+                let operation = {
+                    let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());
+                    let op_reader = reader
+                        .get_root::<veilid_capnp::operation::Reader>()
+                        .map_err(RPCError::protocol)
+                        .map_err(logthru_rpc!())?;
+                    RPCOperation::decode(&op_reader, Some(&sender_node_id))?
+                };
 
-        // Get the sender noderef, incorporating and 'sender node info'
-        let mut opt_sender_nr: Option<NodeRef> = None;
-        if let Some(sender_node_info) = operation.sender_node_info() {
-            // Sender NodeInfo was specified, update our routing table with it
-            if !self.filter_node_info(routing_domain, &sender_node_info.node_info) {
-                return Err(RPCError::invalid_format(
-                    "sender signednodeinfo has invalid peer scope",
-                ));
+                // Get the sender noderef, incorporating and 'sender node info'
+                let mut opt_sender_nr: Option<NodeRef> = None;
+                if let Some(sender_node_info) = operation.sender_node_info() {
+                    // Sender NodeInfo was specified, update our routing table with it
+                    if !self.filter_node_info(routing_domain, &sender_node_info.node_info) {
+                        return Err(RPCError::invalid_format(
+                            "sender signednodeinfo has invalid peer scope",
+                        ));
+                    }
+                    opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
+                        routing_domain,
+                        sender_node_id,
+                        sender_node_info.clone(),
+                        false,
+                    );
+                }
+
+                // look up sender node, in case it's different than our peer due to relaying
+                if opt_sender_nr.is_none() {
+                    opt_sender_nr = self.routing_table().lookup_node_ref(sender_node_id)
+                }
+
+                // Mark this sender as having seen our node info over this routing domain
+                // because it managed to reach us over that routing domain
+                if let Some(sender_nr) = &opt_sender_nr {
+                    sender_nr.set_seen_our_node_info(routing_domain);
+                }
+
+                // Make the RPC message
+                RPCMessage {
+                    header: encoded_msg.header,
+                    operation,
+                    opt_sender_nr,
+                }
             }
-            opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
-                routing_domain,
-                sender_node_id,
-                sender_node_info.clone(),
-                false,
-            );
-        }
+            RPCMessageHeaderDetail::PrivateRoute(detail) => {
+                // Decode the RPC message
+                let operation = {
+                    let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());
+                    let op_reader = reader
+                        .get_root::<veilid_capnp::operation::Reader>()
+                        .map_err(RPCError::protocol)
+                        .map_err(logthru_rpc!())?;
+                    RPCOperation::decode(&op_reader, None)?
+                };
 
-        // look up sender node, in case it's different than our peer due to relaying
-        if opt_sender_nr.is_none() {
-            opt_sender_nr = self.routing_table().lookup_node_ref(sender_node_id)
-        }
-
-        // Mark this sender as having seen our node info over this routing domain
-        // because it managed to reach us over that routing domain
-        if let Some(sender_nr) = &opt_sender_nr {
-            sender_nr.set_seen_our_node_info(routing_domain);
-        }
-
-        // Make the RPC message
-        let msg = RPCMessage {
-            header: encoded_msg.header,
-            operation,
-            opt_sender_nr,
+                // Make the RPC message
+                RPCMessage {
+                    header: encoded_msg.header,
+                    operation,
+                    opt_sender_nr: None,
+                }
+            }
         };
 
         // Process stats
@@ -940,7 +958,7 @@ impl RPCProcessor {
         };
 
         // Log rpc receive
-        debug!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id(), desc = msg.operation.kind().desc(), sender_id = ?sender_node_id);
+        debug!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id(), desc = msg.operation.kind().desc(), header = ?msg.header);
 
         // Process specific message kind
         match msg.operation.kind() {
@@ -974,18 +992,6 @@ impl RPCProcessor {
                     .complete_op_waiter(msg.operation.op_id(), msg)
                     .await
             }
-        }
-    }
-
-    #[instrument(level = "trace", skip(self, msg), err)]
-    async fn process_rpc_message(&self, msg: RPCMessageEncoded) -> Result<(), RPCError> {
-        if msg.header.envelope.get_version() == 0 {
-            self.process_rpc_message_version_0(msg).await
-        } else {
-            Err(RPCError::Internal(format!(
-                "unsupported envelope version: {}, newest supported is version 0",
-                msg.header.envelope.get_version()
-            )))
         }
     }
 
@@ -1044,10 +1050,6 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_private_route_message(
         &self,
-
-        xx need rpc version somewhere! the rpc version to decode should be packaged in with the body, and the allocator should ensure the version is compatible at the end node. can append to body, and then pop the last u8.
-        xx try to write the whole process_rpc_message pipeline first
-
         private_route: DHTKey,
         safety_selection: SafetySelection,
         body: Vec<u8>,
