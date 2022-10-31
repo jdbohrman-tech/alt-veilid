@@ -103,8 +103,15 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), err)]
     pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
-        let connection_descriptor = msg.header.connection_descriptor;
-        let routing_domain = msg.header.routing_domain;
+        let detail = match &msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => detail,
+            RPCMessageHeaderDetail::PrivateRoute(_) => {
+                return Err(RPCError::protocol("status_q must be direct"));
+            }
+        };
+
+        let connection_descriptor = detail.connection_descriptor;
+        let routing_domain = detail.routing_domain;
 
         // Get the question
         let status_q = match msg.operation.kind() {

@@ -191,18 +191,8 @@ impl RoutingTable {
         self.inner.read().routing_domain_for_address(address)
     }
 
-    pub fn with_route_spec_store_mut<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&mut RouteSpecStore, &mut RoutingTableInner) -> R,
-    {
-        self.inner.write().with_route_spec_store_mut(f)
-    }
-
-    pub fn with_route_spec_store<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&RouteSpecStore, &RoutingTableInner) -> R,
-    {
-        self.inner.read().with_route_spec_store(f)
+    pub fn route_spec_store(&self) -> RouteSpecStore {
+        self.inner.read().route_spec_store.clone()
     }
 
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {

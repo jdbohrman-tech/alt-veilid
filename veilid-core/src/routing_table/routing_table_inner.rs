@@ -35,6 +35,7 @@ pub struct RoutingTableInner {
 
 impl RoutingTableInner {
     pub fn new(unlocked_inner: Arc<RoutingTableUnlockedInner>) -> RoutingTableInner {
+        let config = unlocked_inner.config.clone();
         RoutingTableInner {
             unlocked_inner,
             buckets: Vec::new(),
@@ -45,7 +46,7 @@ impl RoutingTableInner {
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
-            route_spec_store: RouteSpecStore::new(unlocked_inner.config.clone()),
+            route_spec_store: RouteSpecStore::new(config),
         }
     }
 
@@ -103,20 +104,6 @@ impl RoutingTableInner {
             RoutingDomain::PublicInternet => f(&mut self.public_internet_routing_domain),
             RoutingDomain::LocalNetwork => f(&mut self.local_network_routing_domain),
         }
-    }
-
-    pub fn with_route_spec_store_mut<F, R>(&mut self, f: F) -> R
-    where
-        F: FnOnce(&mut RouteSpecStore, &mut RoutingTableInner) -> R,
-    {
-        f(&mut self.route_spec_store, self)
-    }
-
-    pub fn with_route_spec_store<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&RouteSpecStore, &RoutingTableInner) -> R,
-    {
-        f(&self.route_spec_store, self)
     }
 
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {
@@ -382,8 +369,8 @@ impl RoutingTableInner {
             "Starting routing table buckets purge. Table currently has {} nodes",
             self.bucket_entry_count
         );
-        for bucket in &self.buckets {
-            bucket.kick(self, 0);
+        for bucket in &mut self.buckets {
+            bucket.kick(0);
         }
         log_rtab!(debug
              "Routing table buckets purge complete. Routing table now has {} nodes",
@@ -399,11 +386,12 @@ impl RoutingTableInner {
         );
         for bucket in &self.buckets {
             for entry in bucket.entries() {
-                entry.1.with_mut(self, |_rti, e| {
+                entry.1.with_mut_inner(|e| {
                     e.clear_last_connections();
                 });
             }
         }
+
         log_rtab!(debug
              "Routing table last_connections purge complete. Routing table now has {} nodes",
              self.bucket_entry_count
@@ -416,7 +404,7 @@ impl RoutingTableInner {
         let bucket = &mut self.buckets[idx];
         let bucket_depth = Self::bucket_depth(idx);
 
-        if let Some(dead_node_ids) = bucket.kick(self, bucket_depth) {
+        if let Some(dead_node_ids) = bucket.kick(bucket_depth) {
             // Remove counts
             self.bucket_entry_count -= dead_node_ids.len();
             log_rtab!(debug "Routing table now has {} nodes", self.bucket_entry_count);

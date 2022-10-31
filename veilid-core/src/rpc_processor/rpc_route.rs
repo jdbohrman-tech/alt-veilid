@@ -170,8 +170,13 @@ impl RPCProcessor {
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
         let opt_pr_info = if private_route.public_key == self.routing_table.node_id() {
-            // the private route was a stub to our own node's secret
-            // return our secret key and an appropriate safety selection
+            // The private route was a stub
+            // Return our secret key and an appropriate safety selection
+            //
+            // Note: it is important that we never respond with a safety route to questions that come
+            // in without a private route. Giving away a safety route when the node id is known is 
+            // a privacy violation!
+            
             // Get sequencing preference
             let sequencing = if detail
                 .connection_descriptor
@@ -191,46 +196,45 @@ impl RPCProcessor {
             let sender_id = detail.envelope.get_sender_id();
 
             // Look up the private route and ensure it's one in our spec store
-            let opt_signatures_valid = self.routing_table.with_route_spec_store(|rss, rti| {
-                rss.with_route_spec_detail(&private_route.public_key, |rsd| {
-                    // Ensure we have the right number of signatures
-                    if routed_operation.signatures.len() != rsd.hops.len() - 1 {
-                        // Wrong number of signatures
-                        log_rpc!(debug "wrong number of signatures ({} should be {}) for routed operation on private route {}", routed_operation.signatures.len(), rsd.hops.len() - 1, private_route.public_key);    
-                        return None;
-                    }
-                    // Validate signatures to ensure the route was handled by the nodes and not messed with
-                    for (hop_n, hop_public_key) in rsd.hops.iter().enumerate() {
-                        // The last hop is not signed, as the whole packet is signed
-                        if hop_n == routed_operation.signatures.len() {
-                            // Verify the node we received the routed operation from is the last hop in our route
-                            if *hop_public_key != sender_id {
-                                log_rpc!(debug "received routed operation from the wrong hop ({} should be {}) on private route {}", hop_public_key.encode(), sender_id.encode(), private_route.public_key);    
-                                return None;
-                            }
-                        } else {
-                            // Verify a signature for a hop node along the route
-                            if let Err(e) = verify(
-                                hop_public_key,
-                                &routed_operation.data,
-                                &routed_operation.signatures[hop_n],
-                            ) {
-                                log_rpc!(debug "failed to verify signature for hop {} at {} on private route {}", hop_n, hop_public_key, private_route.public_key);
-                                return None;
-                            }
+            let rss= self.routing_table.route_spec_store();
+            let opt_signatures_valid = rss.with_route_spec_detail(&private_route.public_key, |rsd| {
+                // Ensure we have the right number of signatures
+                if routed_operation.signatures.len() != rsd.hops.len() - 1 {
+                    // Wrong number of signatures
+                    log_rpc!(debug "wrong number of signatures ({} should be {}) for routed operation on private route {}", routed_operation.signatures.len(), rsd.hops.len() - 1, private_route.public_key);    
+                    return None;
+                }
+                // Validate signatures to ensure the route was handled by the nodes and not messed with
+                for (hop_n, hop_public_key) in rsd.hops.iter().enumerate() {
+                    // The last hop is not signed, as the whole packet is signed
+                    if hop_n == routed_operation.signatures.len() {
+                        // Verify the node we received the routed operation from is the last hop in our route
+                        if *hop_public_key != sender_id {
+                            log_rpc!(debug "received routed operation from the wrong hop ({} should be {}) on private route {}", hop_public_key.encode(), sender_id.encode(), private_route.public_key);    
+                            return None;
+                        }
+                    } else {
+                        // Verify a signature for a hop node along the route
+                        if let Err(e) = verify(
+                            hop_public_key,
+                            &routed_operation.data,
+                            &routed_operation.signatures[hop_n],
+                        ) {
+                            log_rpc!(debug "failed to verify signature for hop {} at {} on private route {}", hop_n, hop_public_key, private_route.public_key);
+                            return None;
                         }
                     }
-                    // We got the correct signatures, return a key ans
-                    Some((
-                        rsd.secret_key,
-                        SafetySelection::Safe(SafetySpec { 
-                            preferred_route: Some(private_route.public_key), 
-                            hop_count: rsd.hops.len(),
-                            stability: rsd.stability,
-                            sequencing: rsd.sequencing,
-                        })
-                    ))
-                })
+                }
+                // We got the correct signatures, return a key ans
+                Some((
+                    rsd.secret_key,
+                    SafetySelection::Safe(SafetySpec { 
+                        preferred_route: Some(private_route.public_key), 
+                        hop_count: rsd.hops.len(),
+                        stability: rsd.stability,
+                        sequencing: rsd.sequencing,
+                    })
+                ))
             });
             opt_signatures_valid.ok_or_else(|| {
                 RPCError::protocol("routed operation received on unallocated private route")

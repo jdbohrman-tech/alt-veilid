@@ -72,17 +72,26 @@ pub struct RouteSpecStoreCache {
     hop_cache: HashSet<Vec<u8>>,
 }
 
-/// The routing table's storage for private/safety routes
 #[derive(Debug)]
-pub struct RouteSpecStore {
-    /// Maximum number of hops in a route
-    max_route_hop_count: usize,
-    /// Default number of hops in a route
-    default_route_hop_count: usize,
+pub struct RouteSpecStoreInner {
     /// Serialize RouteSpecStore content
     content: RouteSpecStoreContent,
     /// RouteSpecStore cache
     cache: RouteSpecStoreCache,
+}
+#[derive(Debug)]
+pub struct RouteSpecStoreUnlockedInner {
+    /// Maximum number of hops in a route
+    max_route_hop_count: usize,
+    /// Default number of hops in a route
+    default_route_hop_count: usize,
+}
+
+/// The routing table's storage for private/safety routes
+#[derive(Clone, Debug)]
+pub struct RouteSpecStore {
+    inner: Arc<Mutex<RouteSpecStoreInner>>,
+    unlocked_inner: Arc<RouteSpecStoreUnlockedInner>,
 }
 
 fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {
@@ -167,17 +176,24 @@ where
     heaps_permutation(&mut permutation, hop_count - 1, f)
 }
 
+xxx get routing table handle into routespecstore
+xxx first figure out when new/load get called, does routing table need 'init' or can we just pick the right time to load the cache? what about flushing the cache ? we don't 'save' it yet, that should probably get flushed at the same time as the DH cache.
+
 impl RouteSpecStore {
     pub fn new(config: VeilidConfig) -> Self {
         let c = config.get();
 
         Self {
-            max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
-            default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
-            content: RouteSpecStoreContent {
-                details: HashMap::new(),
-            },
-            cache: Default::default(),
+            unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
+                max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
+                default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
+            }),
+            inner: Arc::new(Mutex::new(RouteSpecStoreInner {
+                content: RouteSpecStoreContent {
+                    details: HashMap::new(),
+                },
+                cache: Default::default(),
+            })),
         }
     }
 
@@ -187,18 +203,13 @@ impl RouteSpecStore {
         // Get cbor blob from table store
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        let content = rsstdb.load_cbor(0, b"content").await?.unwrap_or_default();
-        let mut rss = RouteSpecStore {
-            max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
-            default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
-            content,
-            cache: Default::default(),
-        };
+        let mut content: RouteSpecStoreContent =
+            rsstdb.load_cbor(0, b"content").await?.unwrap_or_default();
 
         // Load secrets from pstore
         let pstore = routing_table.network_manager().protected_store();
         let mut dead_keys = Vec::new();
-        for (k, v) in &mut rss.content.details {
+        for (k, v) in &mut content.details {
             if let Some(secret_key) = pstore
                 .load_user_secret(&format!("RouteSpecStore_{}", k.encode()))
                 .await?
@@ -217,23 +228,39 @@ impl RouteSpecStore {
         }
         for k in dead_keys {
             log_rtab!(debug "killing off private route: {}", k.encode());
-            rss.content.details.remove(&k);
+            content.details.remove(&k);
         }
 
+        let mut inner = RouteSpecStoreInner {
+            content,
+            cache: Default::default(),
+        };
+
         // Rebuild the routespecstore cache
-        rss.rebuild_cache();
+        Self::rebuild_cache(&mut inner);
+
+        let rss = RouteSpecStore {
+            unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
+                max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
+                default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
+            }),
+            inner: Arc::new(Mutex::new(inner)),
+        };
+
         Ok(rss)
     }
 
     pub async fn save(&self, routing_table: RoutingTable) -> EyreResult<()> {
+        let inner = self.inner.lock();
+
         // Save all the fields we care about to the cbor blob in table storage
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        rsstdb.store_cbor(0, b"content", &self.content).await?;
+        rsstdb.store_cbor(0, b"content", &inner.content).await?;
 
         // Keep secrets in protected store as well
         let pstore = routing_table.network_manager().protected_store();
-        for (k, v) in &self.content.details {
+        for (k, v) in &inner.content.details {
             if pstore
                 .save_user_secret(
                     &format!("RouteSpecStore_{}", k.encode()),
@@ -266,18 +293,24 @@ impl RouteSpecStore {
             .or_insert(1);
     }
 
-    fn rebuild_cache(&mut self) {
-        for v in self.content.details.values() {
+    fn rebuild_cache(inner: &mut RouteSpecStoreInner) {
+        for v in inner.content.details.values() {
             let cache_key = route_hops_to_hop_cache(&v.hops);
-            Self::add_to_cache(&mut self.cache, cache_key, &v);
+            Self::add_to_cache(&mut inner.cache, cache_key, &v);
         }
     }
 
-    fn detail(&self, public_key: &DHTKey) -> Option<&RouteSpecDetail> {
-        self.content.details.get(&public_key)
+    fn detail<'a>(
+        inner: &'a RouteSpecStoreInner,
+        public_key: &DHTKey,
+    ) -> Option<&'a RouteSpecDetail> {
+        inner.content.details.get(public_key)
     }
-    fn detail_mut(&mut self, public_key: &DHTKey) -> Option<&mut RouteSpecDetail> {
-        self.content.details.get_mut(&public_key)
+    fn detail_mut<'a>(
+        inner: &'a mut RouteSpecStoreInner,
+        public_key: &DHTKey,
+    ) -> Option<&'a mut RouteSpecDetail> {
+        inner.content.details.get_mut(public_key)
     }
 
     /// Create a new route
@@ -285,7 +318,7 @@ impl RouteSpecStore {
     /// The route is not yet tested for its reachability
     /// Returns None if no route could be allocated at this time
     pub fn allocate_route(
-        &mut self,
+        &self,
         rti: &RoutingTableInner,
         routing_table: RoutingTable,
         stability: Stability,
@@ -294,12 +327,13 @@ impl RouteSpecStore {
         directions: DirectionSet,
     ) -> EyreResult<Option<DHTKey>> {
         use core::cmp::Ordering;
+        let mut inner = self.inner.lock();
 
         if hop_count < 1 {
             bail!("Not allocating route less than one hop in length");
         }
 
-        if hop_count > self.max_route_hop_count {
+        if hop_count > self.unlocked_inner.max_route_hop_count {
             bail!("Not allocating route longer than max route hop count");
         }
 
@@ -342,13 +376,13 @@ impl RouteSpecStore {
                        v2: &(DHTKey, Option<Arc<BucketEntry>>)|
          -> Ordering {
             // deprioritize nodes that we have already used as end points
-            let e1_used_end = self
+            let e1_used_end = inner
                 .cache
                 .used_end_nodes
                 .get(&v1.0)
                 .cloned()
                 .unwrap_or_default();
-            let e2_used_end = self
+            let e2_used_end = inner
                 .cache
                 .used_end_nodes
                 .get(&v2.0)
@@ -360,13 +394,13 @@ impl RouteSpecStore {
             }
 
             // deprioritize nodes we have used already anywhere
-            let e1_used = self
+            let e1_used = inner
                 .cache
                 .used_nodes
                 .get(&v1.0)
                 .cloned()
                 .unwrap_or_default();
-            let e2_used = self
+            let e2_used = inner
                 .cache
                 .used_nodes
                 .get(&v2.0)
@@ -428,7 +462,7 @@ impl RouteSpecStore {
                 cache_key = route_permutation_to_hop_cache(&nodes, permutation);
 
                 // Skip routes we have already seen
-                if self.cache.hop_cache.contains(&cache_key) {
+                if inner.cache.hop_cache.contains(&cache_key) {
                     return false;
                 }
 
@@ -529,10 +563,10 @@ impl RouteSpecStore {
         };
 
         // Add to cache
-        Self::add_to_cache(&mut self.cache, cache_key, &rsd);
+        Self::add_to_cache(&mut inner.cache, cache_key, &rsd);
 
         // Keep route in spec store
-        self.content.details.insert(public_key, rsd);
+        inner.content.details.insert(public_key, rsd);
 
         Ok(Some(public_key))
     }
@@ -541,19 +575,21 @@ impl RouteSpecStore {
     where
         F: FnOnce(&RouteSpecDetail) -> R,
     {
-        self.detail(&public_key).map(|rsd| f(rsd))
+        let inner = self.inner.lock();
+        Self::detail(&*inner, &public_key).map(f)
     }
 
-    pub fn release_route(&mut self, public_key: DHTKey) {
-        if let Some(detail) = self.content.details.remove(&public_key) {
+    pub fn release_route(&self, public_key: DHTKey) {
+        let mut inner = self.inner.lock();
+        if let Some(detail) = inner.content.details.remove(&public_key) {
             // Remove from hop cache
             let cache_key = route_hops_to_hop_cache(&detail.hops);
-            if !self.cache.hop_cache.remove(&cache_key) {
+            if !inner.cache.hop_cache.remove(&cache_key) {
                 panic!("hop cache should have contained cache key");
             }
             // Remove from used nodes cache
             for h in &detail.hops {
-                match self.cache.used_nodes.entry(*h) {
+                match inner.cache.used_nodes.entry(*h) {
                     std::collections::hash_map::Entry::Occupied(mut o) => {
                         *o.get_mut() -= 1;
                         if *o.get() == 0 {
@@ -566,7 +602,7 @@ impl RouteSpecStore {
                 }
             }
             // Remove from end nodes cache
-            match self.cache.used_nodes.entry(*detail.hops.last().unwrap()) {
+            match inner.cache.used_nodes.entry(*detail.hops.last().unwrap()) {
                 std::collections::hash_map::Entry::Occupied(mut o) => {
                     *o.get_mut() -= 1;
                     if *o.get() == 0 {
@@ -584,14 +620,16 @@ impl RouteSpecStore {
 
     /// Find first matching unpublished route that fits into the selection criteria
     pub fn first_unpublished_route(
-        &mut self,
+        &self,
         min_hop_count: usize,
         max_hop_count: usize,
         stability: Stability,
         sequencing: Sequencing,
         directions: DirectionSet,
     ) -> Option<DHTKey> {
-        for detail in &self.content.details {
+        let inner = self.inner.lock();
+
+        for detail in &inner.content.details {
             if detail.1.stability >= stability
                 && detail.1.sequencing >= sequencing
                 && detail.1.hops.len() >= min_hop_count
@@ -611,14 +649,16 @@ impl RouteSpecStore {
     /// Returns an Err() if the parameters are wrong
     /// Returns Ok(None) if no allocation could happen at this time (not an error)
     pub fn compile_safety_route(
-        &mut self,
+        &self,
         rti: &mut RoutingTableInner,
         routing_table: RoutingTable,
         safety_selection: SafetySelection,
         private_route: PrivateRoute,
     ) -> EyreResult<Option<CompiledRoute>> {
+        let inner = &mut *self.inner.lock();
+
         let pr_hopcount = private_route.hop_count as usize;
-        let max_route_hop_count = self.max_route_hop_count;
+        let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
         if pr_hopcount > max_route_hop_count {
             bail!("private route hop count too long");
         }
@@ -664,8 +704,7 @@ impl RouteSpecStore {
         // See if the preferred route is here
         let opt_safety_rsd: Option<(&mut RouteSpecDetail, DHTKey)> =
             if let Some(preferred_route) = safety_spec.preferred_route {
-                self.detail_mut(&preferred_route)
-                    .map(|rsd| (rsd, preferred_route))
+                Self::detail_mut(inner, &preferred_route).map(|rsd| (rsd, preferred_route))
             } else {
                 // Preferred safety route was not requested
                 None
@@ -683,7 +722,7 @@ impl RouteSpecStore {
                 Direction::Outbound.into(),
             ) {
                 // Found a route to use
-                (self.detail_mut(&sr_pubkey).unwrap(), sr_pubkey)
+                (Self::detail_mut(inner, &sr_pubkey).unwrap(), sr_pubkey)
             } else {
                 // No route found, gotta allocate one
                 let sr_pubkey = match self
@@ -700,7 +739,7 @@ impl RouteSpecStore {
                     Some(pk) => pk,
                     None => return Ok(None),
                 };
-                (self.detail_mut(&sr_pubkey).unwrap(), sr_pubkey)
+                (Self::detail_mut(inner, &sr_pubkey).unwrap(), sr_pubkey)
             }
         };
 
@@ -837,14 +876,14 @@ impl RouteSpecStore {
 
     /// Assemble private route for publication
     pub fn assemble_private_route(
-        &mut self,
+        &self,
         rti: &RoutingTableInner,
         routing_table: RoutingTable,
         key: &DHTKey,
     ) -> EyreResult<PrivateRoute> {
-        let rsd = self
-            .detail(&key)
-            .ok_or_else(|| eyre!("route does not exist"))?;
+        let inner = &*self.inner.lock();
+
+        let rsd = Self::detail(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
@@ -919,7 +958,8 @@ impl RouteSpecStore {
     /// When first deserialized, routes must be re-published in order to ensure they remain
     /// in the RouteSpecStore.
     pub fn mark_route_published(&mut self, key: &DHTKey) -> EyreResult<()> {
-        self.detail_mut(&key)
+        let inner = &mut *self.inner.lock();
+        Self::detail_mut(inner, &key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .published = true;
         Ok(())
@@ -929,7 +969,8 @@ impl RouteSpecStore {
     /// When first deserialized, routes must be re-tested for reachability
     /// This can be used to determine if routes need to be sent with full peerinfo or can just use a node id
     pub fn mark_route_reachable(&mut self, key: &DHTKey) -> EyreResult<()> {
-        self.detail_mut(&key)
+        let inner = &mut *self.inner.lock();
+        Self::detail_mut(inner, &key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .published = true;
         Ok(())
@@ -937,7 +978,8 @@ impl RouteSpecStore {
 
     /// Mark route as checked
     pub fn touch_route_checked(&mut self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
-        self.detail_mut(&key)
+        let inner = &mut *self.inner.lock();
+        Self::detail_mut(inner, &key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .last_checked_ts = Some(cur_ts);
         Ok(())
@@ -945,7 +987,8 @@ impl RouteSpecStore {
 
     /// Mark route as used
     pub fn touch_route_used(&mut self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
-        self.detail_mut(&key)
+        let inner = &mut *self.inner.lock();
+        Self::detail_mut(inner, &key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .last_used_ts = Some(cur_ts);
         Ok(())
@@ -953,20 +996,17 @@ impl RouteSpecStore {
 
     /// Record latency on the route
     pub fn record_latency(&mut self, key: &DHTKey, latency: u64) -> EyreResult<()> {
-        let lsa = &mut self
-            .detail_mut(&key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .latency_stats_accounting;
-        self.detail_mut(&key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .latency_stats = lsa.record_latency(latency);
+        let inner = &mut *self.inner.lock();
+
+        let rsd = Self::detail_mut(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+        rsd.latency_stats = rsd.latency_stats_accounting.record_latency(latency);
         Ok(())
     }
 
     /// Get the calculated latency stats
     pub fn latency_stats(&mut self, key: &DHTKey) -> EyreResult<LatencyStats> {
-        Ok(self
-            .detail_mut(&key)
+        let inner = &mut *self.inner.lock();
+        Ok(Self::detail_mut(inner, &key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .latency_stats
             .clone())
@@ -974,27 +1014,24 @@ impl RouteSpecStore {
 
     /// Add download transfers to route
     pub fn add_down(&mut self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
-        let tsa = &mut self
-            .detail_mut(&key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .transfer_stats_accounting;
-        tsa.add_down(bytes);
+        let inner = &mut *self.inner.lock();
+        let rsd = Self::detail_mut(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+        rsd.transfer_stats_accounting.add_down(bytes);
         Ok(())
     }
 
     /// Add upload transfers to route
     pub fn add_up(&mut self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
-        let tsa = &mut self
-            .detail_mut(&key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .transfer_stats_accounting;
-        tsa.add_up(bytes);
+        let inner = &mut *self.inner.lock();
+        let rsd = Self::detail_mut(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+        rsd.transfer_stats_accounting.add_up(bytes);
         Ok(())
     }
 
     /// Process transfer statistics to get averages
     pub fn roll_transfers(&mut self, last_ts: u64, cur_ts: u64) {
-        for rsd in self.content.details.values_mut() {
+        let inner = &mut *self.inner.lock();
+        for rsd in inner.content.details.values_mut() {
             rsd.transfer_stats_accounting.roll_transfers(
                 last_ts,
                 cur_ts,

@@ -56,11 +56,7 @@ impl Bucket {
         self.entries.iter()
     }
 
-    pub(super) fn kick(
-        &mut self,
-        inner: &mut RoutingTableInner,
-        bucket_depth: usize,
-    ) -> Option<BTreeSet<DHTKey>> {
+    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<DHTKey>> {
         // Get number of entries to attempt to purge from bucket
         let bucket_len = self.entries.len();
 
@@ -84,8 +80,8 @@ impl Bucket {
             if a.0 == b.0 {
                 return core::cmp::Ordering::Equal;
             }
-            a.1.with(inner, |rti, ea| {
-                b.1.with(rti, |_rti, eb| {
+            a.1.with_inner(|ea| {
+                b.1.with_inner(|eb| {
                     let astate = state_ordering(ea.state(cur_ts));
                     let bstate = state_ordering(eb.state(cur_ts));
                     // first kick dead nodes, then unreliable nodes

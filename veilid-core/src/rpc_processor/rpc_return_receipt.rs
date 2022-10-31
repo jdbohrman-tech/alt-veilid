@@ -33,11 +33,23 @@ impl RPCProcessor {
 
         // Handle it
         let network_manager = self.network_manager();
-        network_result_value_or_log!(debug
-            network_manager
-                .handle_in_band_receipt(receipt, msg.header.peer_noderef)
-                .await => {}
-        );
+
+        match msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => {
+                network_result_value_or_log!(debug
+                    network_manager
+                        .handle_in_band_receipt(receipt, detail.peer_noderef)
+                        .await => {}
+                );
+            }
+            RPCMessageHeaderDetail::PrivateRoute(detail) => {
+                network_result_value_or_log!(debug
+                    network_manager
+                        .handle_private_receipt(receipt)
+                        .await => {}
+                );
+            }
+        }
 
         Ok(())
     }

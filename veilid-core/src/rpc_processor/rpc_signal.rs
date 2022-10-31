@@ -32,7 +32,7 @@ impl RPCProcessor {
         // Handle it
         let network_manager = self.network_manager();
         network_result_value_or_log!(debug network_manager
-            .handle_signal(msg.header.envelope.get_sender_id(), signal.signal_info)
+            .handle_signal(signal.signal_info)
             .await
             .map_err(RPCError::network)? => {
                 return Ok(());

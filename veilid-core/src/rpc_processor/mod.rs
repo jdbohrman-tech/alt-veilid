@@ -425,22 +425,23 @@ impl RPCProcessor {
         message_data: Vec<u8>,
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
+
         let pr_hop_count = private_route.hop_count;
         let pr_pubkey = private_route.public_key;
 
-        let compiled_route: CompiledRoute =
-            match self.routing_table().with_route_spec_store_mut(|rss, rti| {
-                // Compile the safety route with the private route
-                rss.compile_safety_route(rti, routing_table, safety_selection, private_route)
-                    .map_err(RPCError::internal)
-            })? {
-                Some(cr) => cr,
-                None => {
-                    return Ok(NetworkResult::no_connection_other(
-                        "private route could not be compiled at this time",
-                    ))
-                }
-            };
+        // Compile the safety route with the private route
+        let compiled_route: CompiledRoute = match rss
+            .compile_safety_route(rti, routing_table, safety_selection, private_route)
+            .map_err(RPCError::internal)?
+        {
+            Some(cr) => cr,
+            None => {
+                return Ok(NetworkResult::no_connection_other(
+                    "private route could not be compiled at this time",
+                ))
+            }
+        };
 
         // Encrypt routed operation
         // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
@@ -917,7 +918,7 @@ impl RPCProcessor {
                     opt_sender_nr,
                 }
             }
-            RPCMessageHeaderDetail::PrivateRoute(detail) => {
+            RPCMessageHeaderDetail::PrivateRoute(_) => {
                 // Decode the RPC message
                 let operation = {
                     let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());

@@ -52,11 +52,11 @@ pub fn encode_route_hop(
     let node_builder = builder.reborrow().init_node();
     match &route_hop.node {
         RouteNode::NodeId(ni) => {
-            let ni_builder = node_builder.init_node_id();
+            let mut ni_builder = node_builder.init_node_id();
             encode_public_key(&ni.key, &mut ni_builder)?;
         }
         RouteNode::PeerInfo(pi) => {
-            let pi_builder = node_builder.init_peer_info();
+            let mut pi_builder = node_builder.init_peer_info();
             encode_peer_info(&pi, &mut pi_builder)?;
         }
     }

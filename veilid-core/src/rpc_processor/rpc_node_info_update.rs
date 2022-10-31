@@ -31,8 +31,14 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
     pub(crate) async fn process_node_info_update(&self, msg: RPCMessage) -> Result<(), RPCError> {
-        let sender_node_id = msg.header.envelope.get_sender_id();
-        let routing_domain = msg.header.routing_domain;
+        let detail = match msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => detail,
+            RPCMessageHeaderDetail::PrivateRoute(_) => {
+                return Err(RPCError::protocol("node_info_update must be direct"));
+            }
+        };
+        let sender_node_id = detail.envelope.get_sender_id();
+        let routing_domain = detail.routing_domain;
 
         // Get the statement
         let node_info_update = match msg.operation.into_kind() {

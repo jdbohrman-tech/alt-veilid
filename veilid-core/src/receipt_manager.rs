@@ -11,8 +11,16 @@ use xx::*;
 pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },
+    ReturnedPrivate,
     Expired,
     Cancelled,
+}
+
+#[derive(Clone, Debug)]
+pub enum ReceiptReturned {
+    OutOfBand,
+    InBand { inbound_noderef: NodeRef },
+    Private,
 }
 
 pub trait ReceiptCallback: Send + 'static {
@@ -394,17 +402,17 @@ impl ReceiptManager {
     pub async fn handle_receipt(
         &self,
         receipt: Receipt,
-        inbound_noderef: Option<NodeRef>,
+        receipt_returned: ReceiptReturned,
     ) -> NetworkResult<()> {
         let receipt_nonce = receipt.get_nonce();
         let extra_data = receipt.get_extra_data();
 
         log_rpc!(debug "<<== RECEIPT {} <- {}{}",
             receipt_nonce.encode(),
-            if let Some(nr) = &inbound_noderef {
-                nr.to_string()
-            } else {
-                "DIRECT".to_owned()
+            match receipt_returned {
+                ReceiptReturned::OutOfBand => "OutOfBand".to_owned(),
+                ReceiptReturned::InBand { ref inbound_noderef } => format!("InBand({})", inbound_noderef),
+                ReceiptReturned::Private => "Private".to_owned(),
             },
             if extra_data.is_empty() {
                 "".to_owned()
@@ -435,10 +443,14 @@ impl ReceiptManager {
             record_mut.returns_so_far += 1;
 
             // Get the receipt event to return
-            let receipt_event = if let Some(inbound_noderef) = inbound_noderef {
-                ReceiptEvent::ReturnedInBand { inbound_noderef }
-            } else {
-                ReceiptEvent::ReturnedOutOfBand
+            let receipt_event = match receipt_returned {
+                ReceiptReturned::OutOfBand => ReceiptEvent::ReturnedOutOfBand,
+                ReceiptReturned::InBand {
+                    ref inbound_noderef,
+                } => ReceiptEvent::ReturnedInBand {
+                    inbound_noderef: inbound_noderef.clone(),
+                },
+                ReceiptReturned::Private => ReceiptEvent::ReturnedPrivate,
             };
 
             let callback_future = Self::perform_callback(receipt_event, &mut record_mut);

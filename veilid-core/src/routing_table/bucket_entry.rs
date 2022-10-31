@@ -675,6 +675,24 @@ impl BucketEntry {
         let mut inner = self.inner.write();
         f(rti, &mut *inner)
     }
+
+    // Internal inner access for RoutingTableInner only
+    pub(super) fn with_inner<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&BucketEntryInner) -> R,
+    {
+        let inner = self.inner.read();
+        f(&*inner)
+    }
+
+    // Internal inner access for RoutingTableInner only
+    pub(super) fn with_mut_inner<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut BucketEntryInner) -> R,
+    {
+        let mut inner = self.inner.write();
+        f(&mut *inner)
+    }
 }
 
 impl Drop for BucketEntry {

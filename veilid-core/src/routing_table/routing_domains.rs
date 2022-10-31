@@ -116,7 +116,7 @@ impl RoutingDomainDetailCommon {
     where
         F: FnOnce(&PeerInfo) -> R,
     {
-        let cpi = self.cached_peer_info.lock();
+        let mut cpi = self.cached_peer_info.lock();
         if cpi.is_none() {
             // Regenerate peer info
             let pi = PeerInfo::new(
@@ -131,6 +131,7 @@ impl RoutingDomainDetailCommon {
                         dial_info_detail_list: self.dial_info_details.clone(),
                         relay_peer_info: self
                             .relay_node
+                            .as_ref()
                             .and_then(|rn| rn.make_peer_info(self.routing_domain).map(Box::new)),
                     },
                     NodeId::new(self.node_id),
@@ -268,7 +269,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             }
 
             // Get the target's inbound relay, it must have one or it is not reachable
-            if let Some(inbound_relay) = node_b.relay_peer_info {
+            if let Some(inbound_relay) = &node_b.relay_peer_info {
                 // Note that relay_peer_info could be node_a, in which case a connection already exists
                 // and we shouldn't have even gotten here
                 if inbound_relay.node_id.key == *node_a_id {
@@ -348,7 +349,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             }
         }
         // If the node B has no direct dial info, it needs to have an inbound relay
-        else if let Some(inbound_relay) = node_b.relay_peer_info {
+        else if let Some(inbound_relay) = &node_b.relay_peer_info {
             // Can we reach the full relay?
             if first_filtered_dial_info_detail(
                 node_a,
@@ -363,7 +364,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         }
 
         // If node A can't reach the node by other means, it may need to use its own relay
-        if let Some(outbound_relay) = node_a.relay_peer_info {
+        if let Some(outbound_relay) = &node_a.relay_peer_info {
             return ContactMethod::OutboundRelay(outbound_relay.node_id.key);
         }
 

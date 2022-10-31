@@ -30,16 +30,18 @@ pub enum Destination {
 
 impl Destination {
     pub fn direct(target: NodeRef) -> Self {
+        let sequencing = target.sequencing();
         Self::Direct {
             target,
-            safety_selection: SafetySelection::Unsafe(target.sequencing()),
+            safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
     pub fn relay(relay: NodeRef, target: DHTKey) -> Self {
+        let sequencing = relay.sequencing();
         Self::Relay {
             relay,
             target,
-            safety_selection: SafetySelection::Unsafe(relay.sequencing()),
+            safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
     pub fn private_route(private_route: PrivateRoute, safety_selection: SafetySelection) -> Self {

@@ -34,7 +34,7 @@ impl RPCProcessor {
 
         // Wait for receipt
         match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedInBand { inbound_noderef: _ } => {
+            ReceiptEvent::ReturnedPrivate | ReceiptEvent::ReturnedInBand { inbound_noderef: _ } => {
                 log_net!(debug "validate_dial_info receipt should be returned out-of-band".green());
                 Ok(false)
             }
@@ -54,6 +54,13 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
     pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> Result<(), RPCError> {
+        let detail = match msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => detail,
+            RPCMessageHeaderDetail::PrivateRoute(_) => {
+                return Err(RPCError::protocol("validate_dial_info must be direct"));
+            }
+        };
+
         // Get the statement
         let RPCOperationValidateDialInfo {
             dial_info,
@@ -74,8 +81,8 @@ impl RPCProcessor {
             // Use the address type though, to ensure we reach an ipv6 capable node if this is
             // an ipv6 address
             let routing_table = self.routing_table();
-            let sender_id = msg.header.envelope.get_sender_id();
-            let routing_domain = msg.header.routing_domain;
+            let sender_id = detail.envelope.get_sender_id();
+            let routing_domain = detail.routing_domain;
             let node_count = {
                 let c = self.config.get();
                 c.network.dht.max_find_node_count as usize
@@ -140,8 +147,6 @@ impl RPCProcessor {
             .send_out_of_band_receipt(dial_info.clone(), receipt)
             .await
             .map_err(RPCError::network)?;
-
-        //        tracing::Span::current().record("res", &tracing::field::display(res));
 
         Ok(())
     }
