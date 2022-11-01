@@ -432,7 +432,7 @@ impl RPCProcessor {
 
         // Compile the safety route with the private route
         let compiled_route: CompiledRoute = match rss
-            .compile_safety_route(rti, routing_table, safety_selection, private_route)
+            .compile_safety_route(safety_selection, private_route)
             .map_err(RPCError::internal)?
         {
             Some(cr) => cr,

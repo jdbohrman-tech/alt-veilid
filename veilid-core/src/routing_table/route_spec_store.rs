@@ -55,7 +55,7 @@ struct RouteSpecDetail {
 }
 
 /// The core representation of the RouteSpecStore that can be serialized
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RouteSpecStoreContent {
     /// All of the routes we have allocated so far
     details: HashMap<DHTKey, RouteSpecDetail>,
@@ -79,12 +79,23 @@ pub struct RouteSpecStoreInner {
     /// RouteSpecStore cache
     cache: RouteSpecStoreCache,
 }
-#[derive(Debug)]
+
 pub struct RouteSpecStoreUnlockedInner {
+    /// Handle to routing table
+    routing_table: RoutingTable,
     /// Maximum number of hops in a route
     max_route_hop_count: usize,
     /// Default number of hops in a route
     default_route_hop_count: usize,
+}
+
+impl fmt::Debug for RouteSpecStoreUnlockedInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RouteSpecStoreUnlockedInner")
+            .field("max_route_hop_count", &self.max_route_hop_count)
+            .field("default_route_hop_count", &self.default_route_hop_count)
+            .finish()
+    }
 }
 
 /// The routing table's storage for private/safety routes
@@ -176,17 +187,16 @@ where
     heaps_permutation(&mut permutation, hop_count - 1, f)
 }
 
-xxx get routing table handle into routespecstore
-xxx first figure out when new/load get called, does routing table need 'init' or can we just pick the right time to load the cache? what about flushing the cache ? we don't 'save' it yet, that should probably get flushed at the same time as the DH cache.
-
 impl RouteSpecStore {
-    pub fn new(config: VeilidConfig) -> Self {
+    pub fn new(routing_table: RoutingTable) -> Self {
+        let config = routing_table.network_manager().config();
         let c = config.get();
 
         Self {
             unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
                 max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
                 default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
+                routing_table,
             }),
             inner: Arc::new(Mutex::new(RouteSpecStoreInner {
                 content: RouteSpecStoreContent {
@@ -243,6 +253,7 @@ impl RouteSpecStore {
             unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
                 max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
                 default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
+                routing_table,
             }),
             inner: Arc::new(Mutex::new(inner)),
         };
@@ -250,17 +261,28 @@ impl RouteSpecStore {
         Ok(rss)
     }
 
-    pub async fn save(&self, routing_table: RoutingTable) -> EyreResult<()> {
-        let inner = self.inner.lock();
+    pub async fn save(&self) -> EyreResult<()> {
+        let content = {
+            let inner = self.inner.lock();
+            inner.content.clone()
+        };
 
         // Save all the fields we care about to the cbor blob in table storage
-        let table_store = routing_table.network_manager().table_store();
+        let table_store = self
+            .unlocked_inner
+            .routing_table
+            .network_manager()
+            .table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        rsstdb.store_cbor(0, b"content", &inner.content).await?;
+        rsstdb.store_cbor(0, b"content", &content).await?;
 
         // Keep secrets in protected store as well
-        let pstore = routing_table.network_manager().protected_store();
-        for (k, v) in &inner.content.details {
+        let pstore = self
+            .unlocked_inner
+            .routing_table
+            .network_manager()
+            .protected_store();
+        for (k, v) in &content.details {
             if pstore
                 .save_user_secret(
                     &format!("RouteSpecStore_{}", k.encode()),
@@ -319,15 +341,28 @@ impl RouteSpecStore {
     /// Returns None if no route could be allocated at this time
     pub fn allocate_route(
         &self,
+        stability: Stability,
+        sequencing: Sequencing,
+        hop_count: usize,
+        directions: DirectionSet,
+    ) -> EyreResult<Option<DHTKey>> {
+        let inner = &mut *self.inner.lock();
+        let routing_table = self.unlocked_inner.routing_table.clone();
+        let rti = &mut *routing_table.inner.write();
+
+        self.allocate_route_inner(inner, rti, stability, sequencing, hop_count, directions)
+    }
+
+    fn allocate_route_inner(
+        &self,
+        inner: &mut RouteSpecStoreInner,
         rti: &RoutingTableInner,
-        routing_table: RoutingTable,
         stability: Stability,
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
     ) -> EyreResult<Option<DHTKey>> {
         use core::cmp::Ordering;
-        let mut inner = self.inner.lock();
 
         if hop_count < 1 {
             bail!("Not allocating route less than one hop in length");
@@ -537,7 +572,7 @@ impl RouteSpecStore {
         let hop_node_refs = route_nodes
             .iter()
             .map(|v| {
-                rti.lookup_node_ref(routing_table.clone(), nodes[*v].0)
+                rti.lookup_node_ref(self.unlocked_inner.routing_table.clone(), nodes[*v].0)
                     .unwrap()
             })
             .collect();
@@ -650,12 +685,12 @@ impl RouteSpecStore {
     /// Returns Ok(None) if no allocation could happen at this time (not an error)
     pub fn compile_safety_route(
         &self,
-        rti: &mut RoutingTableInner,
-        routing_table: RoutingTable,
         safety_selection: SafetySelection,
         private_route: PrivateRoute,
     ) -> EyreResult<Option<CompiledRoute>> {
         let inner = &mut *self.inner.lock();
+        let routing_table = self.unlocked_inner.routing_table.clone();
+        let rti = &mut *routing_table.inner.write();
 
         let pr_hopcount = private_route.hop_count as usize;
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
@@ -726,9 +761,9 @@ impl RouteSpecStore {
             } else {
                 // No route found, gotta allocate one
                 let sr_pubkey = match self
-                    .allocate_route(
+                    .allocate_route_inner(
+                        inner,
                         rti,
-                        routing_table.clone(),
                         safety_spec.stability,
                         safety_spec.sequencing,
                         safety_spec.hop_count,

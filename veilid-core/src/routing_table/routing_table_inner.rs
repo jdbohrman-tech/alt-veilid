@@ -30,12 +30,11 @@ pub struct RoutingTableInner {
     /// Peers we have recently communicated with
     pub(super) recent_peers: LruCache<DHTKey, RecentPeersEntry>,
     /// Storage for private/safety RouteSpecs
-    pub(super) route_spec_store: RouteSpecStore,
+    pub(super) route_spec_store: Option<RouteSpecStore>,
 }
 
 impl RoutingTableInner {
     pub fn new(unlocked_inner: Arc<RoutingTableUnlockedInner>) -> RoutingTableInner {
-        let config = unlocked_inner.config.clone();
         RoutingTableInner {
             unlocked_inner,
             buckets: Vec::new(),
@@ -46,7 +45,7 @@ impl RoutingTableInner {
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
-            route_spec_store: RouteSpecStore::new(config),
+            route_spec_store: None,
         }
     }
 
@@ -331,12 +330,11 @@ impl RoutingTableInner {
             let bucket = Bucket::new(routing_table.clone());
             self.buckets.push(bucket);
         }
+
         Ok(())
     }
 
-    pub fn terminate(&mut self) {
-        //
-    }
+    pub fn terminate(&mut self) {}
 
     pub fn configure_local_network_routing_domain(
         &mut self,
@@ -448,15 +446,20 @@ impl RoutingTableInner {
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
+        let mut entryvec = Vec::with_capacity(self.bucket_entry_count);
         for bucket in &self.buckets {
             for entry in bucket.entries() {
                 if entry.1.with(self, |_rti, e| e.state(cur_ts) >= min_state) {
-                    if let Some(out) = f(self, *entry.0, entry.1.clone()) {
-                        return Some(out);
-                    }
+                    entryvec.push((*entry.0, entry.1.clone()));
                 }
             }
         }
+        for entry in entryvec {
+            if let Some(out) = f(self, entry.0, entry.1) {
+                return Some(out);
+            }
+        }
+
         None
     }
 
@@ -469,15 +472,20 @@ impl RoutingTableInner {
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
+        let mut entryvec = Vec::with_capacity(self.bucket_entry_count);
         for bucket in &self.buckets {
             for entry in bucket.entries() {
                 if entry.1.with(self, |_rti, e| e.state(cur_ts) >= min_state) {
-                    if let Some(out) = f(self, *entry.0, entry.1.clone()) {
-                        return Some(out);
-                    }
+                    entryvec.push((*entry.0, entry.1.clone()));
                 }
             }
         }
+        for entry in entryvec {
+            if let Some(out) = f(self, entry.0, entry.1) {
+                return Some(out);
+            }
+        }
+
         None
     }
 
@@ -777,7 +785,7 @@ impl RoutingTableInner {
         out
     }
 
-    pub fn touch_recent_peer(&self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
+    pub fn touch_recent_peer(&mut self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
         self.recent_peers
             .insert(node_id, RecentPeersEntry { last_connection });
     }
@@ -786,14 +794,14 @@ impl RoutingTableInner {
     // Find Nodes
 
     // Retrieve the fastest nodes in the routing table matching an entry filter
-    pub fn find_fast_public_nodes_filtered<'a, 'b, F>(
+    pub fn find_fast_public_nodes_filtered<F>(
         &self,
         outer_self: RoutingTable,
         node_count: usize,
         mut entry_filter: F,
     ) -> Vec<NodeRef>
     where
-        F: FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool,
+        F: FnMut(&RoutingTableInner, &BucketEntryInner) -> bool,
     {
         self.find_fastest_nodes(
             // count

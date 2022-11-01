@@ -94,16 +94,16 @@ impl RPCProcessor {
                     routing_domain,
                     dial_info.clone(),
                 );
-            let will_validate_dial_info_filter = |_rti, e: &BucketEntryInner| {
+            let will_validate_dial_info_filter = Box::new(move |_rti, e: &BucketEntryInner| {
                 if let Some(status) = &e.node_status(routing_domain) {
                     status.will_validate_dial_info()
                 } else {
                     true
                 }
-            };
+            });
             let filter = RoutingTable::combine_entry_filters(
                 outbound_dial_info_entry_filter,
-                will_validate_dial_info_filter,
+                will_validate_dial_info_filter, fuck this shit. do it tomorrow.
             );
 
             // Find nodes matching filter to redirect this to

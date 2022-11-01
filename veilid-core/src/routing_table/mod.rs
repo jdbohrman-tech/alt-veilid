@@ -150,8 +150,25 @@ impl RoutingTable {
 
     /// Called to initialize the routing table after it is created
     pub async fn init(&self) -> EyreResult<()> {
+        debug!("starting routing table init");
+
+        // Set up routespecstore
+        debug!("starting route spec store init");
+        let route_spec_store = match RouteSpecStore::load(self.clone()).await {
+            Ok(v) => v,
+            Err(e) => {
+                log_rtab!(warn "Error loading route spec store: {}. Resetting.", e);
+                RouteSpecStore::new(self.clone())
+            }
+        };
+        debug!("finished route spec store init");
+
         let mut inner = self.inner.write();
         inner.init(self.clone());
+
+        inner.route_spec_store = Some(route_spec_store);
+
+        debug!("finished routing table init");
         Ok(())
     }
 
@@ -168,6 +185,16 @@ impl RoutingTable {
         if let Err(e) = self.unlocked_inner.kick_buckets_task.stop().await {
             error!("kick_buckets_task not stopped: {}", e);
         }
+
+        debug!("saving route spec store");
+        let rss = {
+            let mut inner = self.inner.write();
+            inner.route_spec_store.take()
+        };
+        if let Some(rss) = rss {
+            rss.save().await;
+        }
+        debug!("shutting down routing table");
 
         let mut inner = self.inner.write();
         inner.terminate();
@@ -192,7 +219,7 @@ impl RoutingTable {
     }
 
     pub fn route_spec_store(&self) -> RouteSpecStore {
-        self.inner.read().route_spec_store.clone()
+        self.inner.read().route_spec_store.as_ref().unwrap().clone()
     }
 
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {
@@ -521,9 +548,9 @@ impl RoutingTable {
     pub fn make_inbound_dial_info_entry_filter(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
-    ) -> impl FnMut(&RoutingTableInner, &BucketEntryInner) -> bool {
+    ) -> Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool> {
         // does it have matching public dial info?
-        move |_rti, e| {
+        Box::new(move |_rti, e| {
             if let Some(ni) = e.node_info(routing_domain) {
                 if ni
                     .first_filtered_dial_info_detail(DialInfoDetail::NO_SORT, |did| {
@@ -535,16 +562,16 @@ impl RoutingTable {
                 }
             }
             false
-        }
+        })
     }
 
     /// Makes a filter that finds nodes capable of dialing a particular outbound dialinfo
-    pub fn make_outbound_dial_info_entry_filter<'s>(
+    pub fn make_outbound_dial_info_entry_filter(
         routing_domain: RoutingDomain,
         dial_info: DialInfo,
-    ) -> impl FnMut(&RoutingTableInner, &'s BucketEntryInner) -> bool {
+    ) -> Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool> {
         // does the node's outbound capabilities match the dialinfo?
-        move |_rti, e| {
+        Box::new(move |_rti, e| {
             if let Some(ni) = e.node_info(routing_domain) {
                 let dif = DialInfoFilter::all()
                     .with_protocol_type_set(ni.outbound_protocols)
@@ -554,19 +581,15 @@ impl RoutingTable {
                 }
             }
             false
-        }
+        })
     }
 
     /// Make a filter that wraps another filter
-    pub fn combine_entry_filters<'a, 'b, F, G>(
-        mut f1: F,
-        mut f2: G,
-    ) -> impl FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool
-    where
-        F: FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool,
-        G: FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool,
-    {
-        move |rti, e| {
+    pub fn combine_entry_filters(
+        mut f1: Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool>,
+        mut f2: Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool>,
+    ) -> Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool> {
+        Box::new(move |rti, e| {
             if !f1(rti, e) {
                 return false;
             }
@@ -574,16 +597,16 @@ impl RoutingTable {
                 return false;
             }
             true
-        }
+        })
     }
 
-    pub fn find_fast_public_nodes_filtered<'a, 'b, F>(
+    pub fn find_fast_public_nodes_filtered<F>(
         &self,
         node_count: usize,
         mut entry_filter: F,
     ) -> Vec<NodeRef>
     where
-        F: FnMut(&'a RoutingTableInner, &'b BucketEntryInner) -> bool,
+        F: FnMut(&RoutingTableInner, &BucketEntryInner) -> bool,
     {
         self.inner
             .read()
