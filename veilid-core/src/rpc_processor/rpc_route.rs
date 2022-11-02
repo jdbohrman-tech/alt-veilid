@@ -227,7 +227,7 @@ impl RPCProcessor {
         ))?;
 
         // Pass message to RPC system
-        self.enqueue_private_route_message(private_route.public_key, safety_selection, body)
+        self.enqueue_private_routed_message(private_route.public_key, safety_selection, body)
             .map_err(RPCError::internal)?;
 
         Ok(())
@@ -238,7 +238,7 @@ impl RPCProcessor {
         // Get header detail, must be direct and not inside a route itself
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
-            RPCMessageHeaderDetail::PrivateRoute(_) => {
+            RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
                 return Err(RPCError::protocol(
                     "route operation can not be inside route",
                 ))

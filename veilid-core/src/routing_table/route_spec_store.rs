@@ -208,8 +208,15 @@ impl RouteSpecStore {
     }
 
     pub async fn load(routing_table: RoutingTable) -> EyreResult<RouteSpecStore> {
-        let config = routing_table.network_manager().config();
-        let c = config.get();
+        let (max_route_hop_count, default_route_hop_count) = {
+            let config = routing_table.network_manager().config();
+            let c = config.get();
+            (
+                c.network.rpc.max_route_hop_count as usize,
+                c.network.rpc.default_route_hop_count as usize,
+            )
+        };
+
         // Get cbor blob from table store
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
@@ -251,8 +258,8 @@ impl RouteSpecStore {
 
         let rss = RouteSpecStore {
             unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
-                max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
-                default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
+                max_route_hop_count,
+                default_route_hop_count,
                 routing_table,
             }),
             inner: Arc::new(Mutex::new(inner)),

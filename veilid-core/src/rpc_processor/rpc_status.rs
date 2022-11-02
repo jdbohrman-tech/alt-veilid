@@ -105,7 +105,7 @@ impl RPCProcessor {
     pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
         let detail = match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
-            RPCMessageHeaderDetail::PrivateRoute(_) => {
+            RPCMessageHeaderDetail::PrivateRouted(_) => {
                 return Err(RPCError::protocol("status_q must be direct"));
             }
         };

@@ -42,7 +42,7 @@ impl RPCProcessor {
                         .await => {}
                 );
             }
-            RPCMessageHeaderDetail::PrivateRoute(detail) => {
+            RPCMessageHeaderDetail::PrivateRouted(detail) => {
                 network_result_value_or_log!(debug
                     network_manager
                         .handle_private_receipt(receipt, detail.private_route)

@@ -1,14 +1,31 @@
 use super::*;
 
 impl RPCProcessor {
-    // Send FindNodeQ RPC request, receive FindNodeA answer
-    // Can be sent via all methods including relays and routes
+    /// Send FindNodeQ RPC request, receive FindNodeA answer
+    /// Can be sent via all methods including relays
+    /// Safety routes may be used, but never private routes.
+    /// Because this leaks information about the identity of the node itself,
+    /// replying to this request received over a private route will leak
+    /// the identity of the node and defeat the private route.
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn rpc_call_find_node(
         self,
         dest: Destination,
         key: DHTKey,
     ) -> Result<NetworkResult<Answer<Vec<PeerInfo>>>, RPCError> {
+        // Ensure destination never has a private route
+        if matches!(
+            dest,
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _
+            }
+        ) {
+            return Err(RPCError::internal(
+                "Never send find node requests over private routes",
+            ));
+        }
+
         let find_node_q_detail =
             RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ { node_id: key });
         let find_node_q = RPCQuestion::new(RespondTo::Sender, find_node_q_detail);
@@ -51,6 +68,23 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), err)]
     pub(crate) async fn process_find_node_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
+        // Ensure this never came over a private route
+        match msg.header.detail {
+            RPCMessageHeaderDetail::Direct(_) => todo!(),
+            RPCMessageHeaderDetail::PrivateRouted(_) => todo!(),
+        }
+        if matches!(
+            dest,
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _
+            }
+        ) {
+            return Err(RPCError::internal(
+                "Never send find node requests over private routes",
+            ));
+        }
+
         // Get the question
         let find_node_q = match msg.operation.kind() {
             RPCOperationKind::Question(q) => match q.detail() {

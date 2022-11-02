@@ -57,7 +57,7 @@ impl RPCProcessor {
     pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> Result<(), RPCError> {
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
-            RPCMessageHeaderDetail::PrivateRoute(_) => {
+            RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
                 return Err(RPCError::protocol("validate_dial_info must be direct"));
             }
         };

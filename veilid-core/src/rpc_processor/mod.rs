@@ -52,8 +52,16 @@ struct RPCMessageHeaderDetailDirect {
     routing_domain: RoutingDomain,
 }
 
+/// Header details for rpc messages received over only a safety route but not a private route
 #[derive(Debug, Clone)]
-struct RPCMessageHeaderDetailPrivateRoute {
+struct RPCMessageHeaderDetailSafetyRouted {
+    /// The sequencing used for this route
+    sequencing: Sequencing,
+}
+
+/// Header details for rpc messages received over a private route
+#[derive(Debug, Clone)]
+struct RPCMessageHeaderDetailPrivateRouted {
     /// The private route we received the rpc over
     private_route: DHTKey,
     // The safety selection for replying to this private routed rpc
@@ -63,7 +71,8 @@ struct RPCMessageHeaderDetailPrivateRoute {
 #[derive(Debug, Clone)]
 enum RPCMessageHeaderDetail {
     Direct(RPCMessageHeaderDetailDirect),
-    PrivateRoute(RPCMessageHeaderDetailPrivateRoute),
+    SafetyRouted(RPCMessageHeaderDetailSafetyRouted),
+    PrivateRouted(RPCMessageHeaderDetailPrivateRouted),
 }
 
 /// The decoded header of an RPC message
@@ -766,10 +775,11 @@ impl RPCProcessor {
                 // Parse out the header detail from the question
                 let detail = match &request.header.detail {
                     RPCMessageHeaderDetail::Direct(detail) => detail,
-                    RPCMessageHeaderDetail::PrivateRoute(_) => {
+                    RPCMessageHeaderDetail::SafetyRouted(_)
+                    | RPCMessageHeaderDetail::PrivateRouted(_) => {
                         // If this was sent via a private route, we don't know what the sender was, so drop this
                         return NetworkResult::invalid_message(
-                            "not responding directly to question from private route",
+                            "can't respond directly to non-direct question",
                         );
                     }
                 };
@@ -789,20 +799,29 @@ impl RPCProcessor {
                 }
             }
             RespondTo::PrivateRoute(pr) => {
-                let detail = match &request.header.detail {
+                match &request.header.detail {
                     RPCMessageHeaderDetail::Direct(_) => {
-                        // If this was sent directly, don't respond to a private route as this could give away this node's safety routes
+                        // If this was sent directly, we should only ever respond directly
                         return NetworkResult::invalid_message(
                             "not responding to private route from direct question",
                         );
                     }
-                    RPCMessageHeaderDetail::PrivateRoute(detail) => detail,
-                };
-
-                NetworkResult::value(Destination::private_route(
-                    pr.clone(),
-                    detail.safety_selection.clone(),
-                ))
+                    RPCMessageHeaderDetail::SafetyRouted(detail) => {
+                        // If this was sent via a safety route, but no received over our private route, don't respond with a safety route,
+                        // it would give away which safety routes belong to this node
+                        NetworkResult::value(Destination::private_route(
+                            pr.clone(),
+                            SafetySelection::Unsafe(detail.sequencing),
+                        ))
+                    }
+                    RPCMessageHeaderDetail::PrivateRouted(detail) => {
+                        // If this was received over our private route, it's okay to respond to a private route via our safety route
+                        NetworkResult::value(Destination::private_route(
+                            pr.clone(),
+                            detail.safety_selection.clone(),
+                        ))
+                    }
+                }
             }
         }
     }
@@ -916,7 +935,7 @@ impl RPCProcessor {
                     opt_sender_nr,
                 }
             }
-            RPCMessageHeaderDetail::PrivateRoute(_) => {
+            RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
                 // Decode the RPC message
                 let operation = {
                     let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());
@@ -1047,7 +1066,38 @@ impl RPCProcessor {
     }
 
     #[instrument(level = "trace", skip(self, body), err)]
-    pub fn enqueue_private_route_message(
+    pub fn enqueue_safety_routed_message(
+        &self, xxx keep pushing this through
+        private_route: DHTKey,
+        safety_selection: SafetySelection,
+        body: Vec<u8>,
+    ) -> EyreResult<()> {
+        let msg = RPCMessageEncoded {
+            header: RPCMessageHeader {
+                detail: RPCMessageHeaderDetail::PrivateRouted(
+                    RPCMessageHeaderDetailPrivateRouted {
+                        private_route,
+                        safety_selection,
+                    },
+                ),
+                timestamp: intf::get_timestamp(),
+                body_len: body.len() as u64,
+            },
+            data: RPCMessageData { contents: body },
+        };
+        let send_channel = {
+            let inner = self.inner.lock();
+            inner.send_channel.as_ref().unwrap().clone()
+        };
+        let span_id = Span::current().id();
+        send_channel
+            .try_send((span_id, msg))
+            .wrap_err("failed to enqueue received RPC message")?;
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self, body), err)]
+    pub fn enqueue_private_routed_message(
         &self,
         private_route: DHTKey,
         safety_selection: SafetySelection,
@@ -1055,10 +1105,12 @@ impl RPCProcessor {
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::PrivateRoute(RPCMessageHeaderDetailPrivateRoute {
-                    private_route,
-                    safety_selection,
-                }),
+                detail: RPCMessageHeaderDetail::PrivateRouted(
+                    RPCMessageHeaderDetailPrivateRouted {
+                        private_route,
+                        safety_selection,
+                    },
+                ),
                 timestamp: intf::get_timestamp(),
                 body_len: body.len() as u64,
             },
