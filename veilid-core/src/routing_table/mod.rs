@@ -25,8 +25,6 @@ pub use routing_domains::*;
 pub use routing_table_inner::*;
 pub use stats_accounting::*;
 
-const RECENT_PEERS_TABLE_SIZE: usize = 64;
-
 //////////////////////////////////////////////////////////////////////////
 
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
@@ -36,6 +34,8 @@ pub struct LowLevelPortInfo {
     pub low_level_protocol_ports: LowLevelProtocolPorts,
     pub protocol_to_port: ProtocolToPortMapping,
 }
+pub type RoutingTableEntryFilter =
+    Box<dyn for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool + Send>;
 
 #[derive(Clone, Debug, Default)]
 pub struct RoutingTableHealth {
@@ -47,7 +47,7 @@ pub struct RoutingTableHealth {
     pub dead_entry_count: usize,
 }
 
-struct RoutingTableUnlockedInner {
+pub(super) struct RoutingTableUnlockedInner {
     // Accessors
     config: VeilidConfig,
     network_manager: NetworkManager,
@@ -164,7 +164,7 @@ impl RoutingTable {
         debug!("finished route spec store init");
 
         let mut inner = self.inner.write();
-        inner.init(self.clone());
+        inner.init(self.clone())?;
 
         inner.route_spec_store = Some(route_spec_store);
 
@@ -192,7 +192,9 @@ impl RoutingTable {
             inner.route_spec_store.take()
         };
         if let Some(rss) = rss {
-            rss.save().await;
+            if let Err(e) = rss.save().await {
+                error!("couldn't save route spec store: {}", e);
+            }
         }
         debug!("shutting down routing table");
 
@@ -545,23 +547,30 @@ impl RoutingTable {
     }
 
     /// Makes a filter that finds nodes with a matching inbound dialinfo
-    pub fn make_inbound_dial_info_entry_filter(
+    pub fn make_inbound_dial_info_entry_filter<'a>(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
-    ) -> Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool> {
+    ) -> RoutingTableEntryFilter {
         // does it have matching public dial info?
-        Box::new(move |_rti, e| {
-            if let Some(ni) = e.node_info(routing_domain) {
-                if ni
-                    .first_filtered_dial_info_detail(DialInfoDetail::NO_SORT, |did| {
-                        did.matches_filter(&dial_info_filter)
-                    })
+        Box::new(move |rti, _k, e| {
+            if let Some(e) = e {
+                e.with(rti, |_rti, e| {
+                    if let Some(ni) = e.node_info(routing_domain) {
+                        if ni
+                            .first_filtered_dial_info_detail(DialInfoDetail::NO_SORT, |did| {
+                                did.matches_filter(&dial_info_filter)
+                            })
+                            .is_some()
+                        {
+                            return true;
+                        }
+                    }
+                    false
+                })
+            } else {
+                rti.first_filtered_dial_info_detail(routing_domain.into(), &dial_info_filter)
                     .is_some()
-                {
-                    return true;
-                }
             }
-            false
         })
     }
 
@@ -569,48 +578,36 @@ impl RoutingTable {
     pub fn make_outbound_dial_info_entry_filter(
         routing_domain: RoutingDomain,
         dial_info: DialInfo,
-    ) -> Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool> {
+    ) -> RoutingTableEntryFilter {
         // does the node's outbound capabilities match the dialinfo?
-        Box::new(move |_rti, e| {
-            if let Some(ni) = e.node_info(routing_domain) {
-                let dif = DialInfoFilter::all()
-                    .with_protocol_type_set(ni.outbound_protocols)
-                    .with_address_type_set(ni.address_types);
-                if dial_info.matches_filter(&dif) {
-                    return true;
-                }
+        Box::new(move |rti, _k, e| {
+            if let Some(e) = e {
+                e.with(rti, |_rti, e| {
+                    if let Some(ni) = e.node_info(routing_domain) {
+                        let dif = DialInfoFilter::all()
+                            .with_protocol_type_set(ni.outbound_protocols)
+                            .with_address_type_set(ni.address_types);
+                        if dial_info.matches_filter(&dif) {
+                            return true;
+                        }
+                    }
+                    false
+                })
+            } else {
+                let dif = rti.get_outbound_dial_info_filter(routing_domain);
+                dial_info.matches_filter(&dif)
             }
-            false
         })
     }
 
-    /// Make a filter that wraps another filter
-    pub fn combine_entry_filters(
-        mut f1: Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool>,
-        mut f2: Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool>,
-    ) -> Box<dyn FnMut(&RoutingTableInner, &BucketEntryInner) -> bool> {
-        Box::new(move |rti, e| {
-            if !f1(rti, e) {
-                return false;
-            }
-            if !f2(rti, e) {
-                return false;
-            }
-            true
-        })
-    }
-
-    pub fn find_fast_public_nodes_filtered<F>(
+    pub fn find_fast_public_nodes_filtered(
         &self,
         node_count: usize,
-        mut entry_filter: F,
-    ) -> Vec<NodeRef>
-    where
-        F: FnMut(&RoutingTableInner, &BucketEntryInner) -> bool,
-    {
+        filters: VecDeque<RoutingTableEntryFilter>,
+    ) -> Vec<NodeRef> {
         self.inner
             .read()
-            .find_fast_public_nodes_filtered(self.clone(), node_count, entry_filter)
+            .find_fast_public_nodes_filtered(self.clone(), node_count, filters)
     }
 
     /// Retrieve up to N of each type of protocol capable nodes
@@ -621,14 +618,12 @@ impl RoutingTable {
             ProtocolType::WS,
             ProtocolType::WSS,
         ];
+        let protocol_types_len = protocol_types.len();
         let mut nodes_proto_v4 = vec![0usize, 0usize, 0usize, 0usize];
         let mut nodes_proto_v6 = vec![0usize, 0usize, 0usize, 0usize];
 
-        self.find_fastest_nodes(
-            // count
-            protocol_types.len() * 2 * max_per_type,
-            // filter
-            move |rti, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+        let filter = Box::new(
+            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(rti, |_rti, e| {
                     // skip nodes on our local network here
@@ -668,64 +663,68 @@ impl RoutingTable {
                         .unwrap_or(false)
                 })
             },
-            // transform
+        ) as RoutingTableEntryFilter;
+
+        let filters = VecDeque::from([filter]);
+
+        self.find_fastest_nodes(
+            protocol_types_len * 2 * max_per_type,
+            filters,
             |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
             },
         )
     }
 
-    pub fn find_peers_with_sort_and_filter<'a, 'b, F, C, T, O>(
+    pub fn find_peers_with_sort_and_filter<C, T, O>(
         &self,
         node_count: usize,
         cur_ts: u64,
-        mut filter: F,
+        filters: VecDeque<RoutingTableEntryFilter>,
         compare: C,
-        mut transform: T,
+        transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        C: FnMut(
+        C: for<'a, 'b> FnMut(
             &'a RoutingTableInner,
             &'b (DHTKey, Option<Arc<BucketEntry>>),
             &'b (DHTKey, Option<Arc<BucketEntry>>),
         ) -> core::cmp::Ordering,
-        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
-            .find_peers_with_sort_and_filter(node_count, cur_ts, filter, compare, transform)
+            .find_peers_with_sort_and_filter(node_count, cur_ts, filters, compare, transform)
     }
 
-    pub fn find_fastest_nodes<'a, T, F, O>(
+    pub fn find_fastest_nodes<'a, T, O>(
         &self,
         node_count: usize,
-        mut filter: F,
+        filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
-            .find_fastest_nodes(node_count, filter, transform)
+            .find_fastest_nodes(node_count, filters, transform)
     }
 
-    pub fn find_closest_nodes<'a, F, T, O>(
+    pub fn find_closest_nodes<'a, T, O>(
         &self,
         node_id: DHTKey,
-        filter: F,
-        mut transform: T,
+        filters: VecDeque<RoutingTableEntryFilter>,
+        transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
-            .find_closest_nodes(node_id, filter, transform)
+            .find_closest_nodes(node_id, filters, transform)
     }
+
     #[instrument(level = "trace", skip(self), ret)]
     pub fn register_find_node_answer(&self, peers: Vec<PeerInfo>) -> Vec<NodeRef> {
         let node_id = self.node_id();

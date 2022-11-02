@@ -11,7 +11,7 @@ use xx::*;
 pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },
-    ReturnedPrivate,
+    ReturnedPrivate { private_route: DHTKey },
     Expired,
     Cancelled,
 }
@@ -20,7 +20,7 @@ pub enum ReceiptEvent {
 pub enum ReceiptReturned {
     OutOfBand,
     InBand { inbound_noderef: NodeRef },
-    Private,
+    Private { private_route: DHTKey },
 }
 
 pub trait ReceiptCallback: Send + 'static {
@@ -412,7 +412,7 @@ impl ReceiptManager {
             match receipt_returned {
                 ReceiptReturned::OutOfBand => "OutOfBand".to_owned(),
                 ReceiptReturned::InBand { ref inbound_noderef } => format!("InBand({})", inbound_noderef),
-                ReceiptReturned::Private => "Private".to_owned(),
+                ReceiptReturned::Private { ref private_route } => format!("Private({})", private_route),
             },
             if extra_data.is_empty() {
                 "".to_owned()
@@ -450,7 +450,9 @@ impl ReceiptManager {
                 } => ReceiptEvent::ReturnedInBand {
                     inbound_noderef: inbound_noderef.clone(),
                 },
-                ReceiptReturned::Private => ReceiptEvent::ReturnedPrivate,
+                ReceiptReturned::Private { ref private_route } => ReceiptEvent::ReturnedPrivate {
+                    private_route: private_route.clone(),
+                },
             };
 
             let callback_future = Self::perform_callback(receipt_event, &mut record_mut);

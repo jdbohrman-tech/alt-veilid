@@ -2,7 +2,7 @@ use super::*;
 
 /// Mechanism required to contact another node
 #[derive(Clone, Debug)]
-pub(crate) enum ContactMethod {
+pub enum ContactMethod {
     /// Node is not reachable by any means
     Unreachable,
     /// Connection should have already existed

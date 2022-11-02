@@ -62,22 +62,26 @@ impl RPCProcessor {
 
         // add node information for the requesting node to our routing table
         let routing_table = self.routing_table();
-        let network_manager = self.network_manager();
         let has_valid_own_node_info =
             routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet);
         let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
 
         // find N nodes closest to the target node in our routing table
-        let closest_nodes = routing_table.find_closest_nodes(
-            find_node_q.node_id,
-            // filter
-            |rti, _k, v| {
+
+        let filter = Box::new(
+            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 rti.filter_has_valid_signed_node_info(
                     RoutingDomain::PublicInternet,
                     has_valid_own_node_info,
                     v,
                 )
             },
+        ) as RoutingTableEntryFilter;
+        let filters = VecDeque::from([filter]);
+
+        let closest_nodes = routing_table.find_closest_nodes(
+            find_node_q.node_id,
+            filters,
             // transform
             |rti, k, v| {
                 rti.transform_to_peer_info(

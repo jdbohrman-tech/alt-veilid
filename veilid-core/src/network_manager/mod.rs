@@ -788,6 +788,7 @@ impl NetworkManager {
     pub async fn handle_private_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
+        private_route: DHTKey,
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
@@ -799,7 +800,7 @@ impl NetworkManager {
         };
 
         receipt_manager
-            .handle_receipt(receipt, ReceiptReturned::Private)
+            .handle_receipt(receipt, ReceiptReturned::Private { private_route })
             .await
     }
 
@@ -1023,7 +1024,8 @@ impl NetworkManager {
 
         // Wait for the return receipt
         let inbound_nr = match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedPrivate | ReceiptEvent::ReturnedOutOfBand => {
+            ReceiptEvent::ReturnedPrivate { private_route: _ }
+            | ReceiptEvent::ReturnedOutOfBand => {
                 return Ok(NetworkResult::invalid_message(
                     "reverse connect receipt should be returned in-band",
                 ));
@@ -1124,7 +1126,8 @@ impl NetworkManager {
 
         // Wait for the return receipt
         let inbound_nr = match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedPrivate | ReceiptEvent::ReturnedOutOfBand => {
+            ReceiptEvent::ReturnedPrivate { private_route: _ }
+            | ReceiptEvent::ReturnedOutOfBand => {
                 return Ok(NetworkResult::invalid_message(
                     "hole punch receipt should be returned in-band",
                 ));

@@ -34,7 +34,7 @@ pub struct RoutingTableInner {
 }
 
 impl RoutingTableInner {
-    pub fn new(unlocked_inner: Arc<RoutingTableUnlockedInner>) -> RoutingTableInner {
+    pub(super) fn new(unlocked_inner: Arc<RoutingTableUnlockedInner>) -> RoutingTableInner {
         RoutingTableInner {
             unlocked_inner,
             buckets: Vec::new(),
@@ -794,22 +794,16 @@ impl RoutingTableInner {
     // Find Nodes
 
     // Retrieve the fastest nodes in the routing table matching an entry filter
-    pub fn find_fast_public_nodes_filtered<F>(
+    pub fn find_fast_public_nodes_filtered(
         &self,
         outer_self: RoutingTable,
         node_count: usize,
-        mut entry_filter: F,
-    ) -> Vec<NodeRef>
-    where
-        F: FnMut(&RoutingTableInner, &BucketEntryInner) -> bool,
-    {
-        self.find_fastest_nodes(
-            // count
-            node_count,
-            // filter
-            |rti, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+        mut filters: VecDeque<RoutingTableEntryFilter>,
+    ) -> Vec<NodeRef> {
+        let public_node_filter = Box::new(
+            |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
-                entry.with(rti, |rti, e| {
+                entry.with(rti, |_rti, e| {
                     // skip nodes on local network
                     if e.node_info(RoutingDomain::LocalNetwork).is_some() {
                         return false;
@@ -818,12 +812,16 @@ impl RoutingTableInner {
                     if e.node_info(RoutingDomain::PublicInternet).is_none() {
                         return false;
                     }
-                    // skip nodes that dont match entry filter
-                    entry_filter(rti, e)
+                    true
                 })
             },
-            // transform
-            |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
+        ) as RoutingTableEntryFilter;
+        filters.push_front(public_node_filter);
+
+        self.find_fastest_nodes(
+            node_count,
+            filters,
+            |_rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(outer_self.clone(), k, v.unwrap().clone(), None)
             },
         )
@@ -858,37 +856,42 @@ impl RoutingTableInner {
         }
     }
 
-    pub fn find_peers_with_sort_and_filter<'a, 'b, F, C, T, O>(
+    pub fn find_peers_with_sort_and_filter<C, T, O>(
         &self,
         node_count: usize,
         cur_ts: u64,
-        mut filter: F,
-        compare: C,
+        mut filters: VecDeque<RoutingTableEntryFilter>,
+        mut compare: C,
         mut transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        C: FnMut(
+        C: for<'a, 'b> FnMut(
             &'a RoutingTableInner,
             &'b (DHTKey, Option<Arc<BucketEntry>>),
             &'b (DHTKey, Option<Arc<BucketEntry>>),
         ) -> core::cmp::Ordering,
-        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         // collect all the nodes for sorting
         let mut nodes =
             Vec::<(DHTKey, Option<Arc<BucketEntry>>)>::with_capacity(self.bucket_entry_count + 1);
 
         // add our own node (only one of there with the None entry)
-        if filter(self, self.unlocked_inner.node_id, None) {
-            nodes.push((self.unlocked_inner.node_id, None));
+        for filter in &mut filters {
+            if filter(self, self.unlocked_inner.node_id, None) {
+                nodes.push((self.unlocked_inner.node_id, None));
+                break;
+            }
         }
 
         // add all nodes from buckets
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
             // Apply filter
-            if filter(rti, k, Some(v.clone())) {
-                nodes.push((k, Some(v.clone())));
+            for filter in &mut filters {
+                if filter(rti, k, Some(v.clone())) {
+                    nodes.push((k, Some(v.clone())));
+                    break;
+                }
             }
             Option::<()>::None
         });
@@ -907,97 +910,99 @@ impl RoutingTableInner {
         out
     }
 
-    pub fn find_fastest_nodes<'a, T, F, O>(
+    pub fn find_fastest_nodes<T, O>(
         &self,
         node_count: usize,
-        mut filter: F,
+        mut filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
-        let out = self.find_peers_with_sort_and_filter(
-            node_count,
-            cur_ts,
-            // filter
-            |rti, k, v| {
+
+        // Add filter to remove dead nodes always
+        let filter_dead = Box::new(
+            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 if let Some(entry) = &v {
                     // always filter out dead nodes
                     if entry.with(rti, |_rti, e| e.state(cur_ts) == BucketEntryState::Dead) {
                         false
                     } else {
-                        filter(rti, k, v)
+                        true
                     }
                 } else {
                     // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
                     false
                 }
             },
-            // sort
-            |rti, (a_key, a_entry), (b_key, b_entry)| {
-                // same nodes are always the same
-                if a_key == b_key {
-                    return core::cmp::Ordering::Equal;
-                }
-                // our own node always comes last (should not happen, here for completeness)
-                if a_entry.is_none() {
-                    return core::cmp::Ordering::Greater;
-                }
-                if b_entry.is_none() {
-                    return core::cmp::Ordering::Less;
-                }
-                // reliable nodes come first
-                let ae = a_entry.as_ref().unwrap();
-                let be = b_entry.as_ref().unwrap();
-                ae.with(rti, |rti, ae| {
-                    be.with(rti, |_rti, be| {
-                        let ra = ae.check_reliable(cur_ts);
-                        let rb = be.check_reliable(cur_ts);
-                        if ra != rb {
-                            if ra {
-                                return core::cmp::Ordering::Less;
-                            } else {
-                                return core::cmp::Ordering::Greater;
-                            }
-                        }
+        ) as RoutingTableEntryFilter;
+        filters.push_front(filter_dead);
 
-                        // latency is the next metric, closer nodes first
-                        let a_latency = match ae.peer_stats().latency.as_ref() {
-                            None => {
-                                // treat unknown latency as slow
-                                return core::cmp::Ordering::Greater;
-                            }
-                            Some(l) => l,
-                        };
-                        let b_latency = match be.peer_stats().latency.as_ref() {
-                            None => {
-                                // treat unknown latency as slow
-                                return core::cmp::Ordering::Less;
-                            }
-                            Some(l) => l,
-                        };
-                        // Sort by average latency
-                        a_latency.average.cmp(&b_latency.average)
-                    })
+        // Fastest sort
+        let sort = |rti: &RoutingTableInner,
+                    (a_key, a_entry): &(DHTKey, Option<Arc<BucketEntry>>),
+                    (b_key, b_entry): &(DHTKey, Option<Arc<BucketEntry>>)| {
+            // same nodes are always the same
+            if a_key == b_key {
+                return core::cmp::Ordering::Equal;
+            }
+            // our own node always comes last (should not happen, here for completeness)
+            if a_entry.is_none() {
+                return core::cmp::Ordering::Greater;
+            }
+            if b_entry.is_none() {
+                return core::cmp::Ordering::Less;
+            }
+            // reliable nodes come first
+            let ae = a_entry.as_ref().unwrap();
+            let be = b_entry.as_ref().unwrap();
+            ae.with(rti, |rti, ae| {
+                be.with(rti, |_rti, be| {
+                    let ra = ae.check_reliable(cur_ts);
+                    let rb = be.check_reliable(cur_ts);
+                    if ra != rb {
+                        if ra {
+                            return core::cmp::Ordering::Less;
+                        } else {
+                            return core::cmp::Ordering::Greater;
+                        }
+                    }
+
+                    // latency is the next metric, closer nodes first
+                    let a_latency = match ae.peer_stats().latency.as_ref() {
+                        None => {
+                            // treat unknown latency as slow
+                            return core::cmp::Ordering::Greater;
+                        }
+                        Some(l) => l,
+                    };
+                    let b_latency = match be.peer_stats().latency.as_ref() {
+                        None => {
+                            // treat unknown latency as slow
+                            return core::cmp::Ordering::Less;
+                        }
+                        Some(l) => l,
+                    };
+                    // Sort by average latency
+                    a_latency.average.cmp(&b_latency.average)
                 })
-            },
-            // transform,
-            transform,
-        );
+            })
+        };
+
+        let out =
+            self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform);
         out
     }
 
-    pub fn find_closest_nodes<'a, F, T, O>(
+    pub fn find_closest_nodes<T, O>(
         &self,
         node_id: DHTKey,
-        filter: F,
-        mut transform: T,
+        filters: VecDeque<RoutingTableEntryFilter>,
+        transform: T,
     ) -> Vec<O>
     where
-        F: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool,
-        T: FnMut(&'a RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = intf::get_timestamp();
         let node_count = {
@@ -1005,41 +1010,39 @@ impl RoutingTableInner {
             let c = config.get();
             c.network.dht.max_find_node_count as usize
         };
-        let out = self.find_peers_with_sort_and_filter(
-            node_count,
-            cur_ts,
-            // filter
-            filter,
-            // sort
-            |rti, (a_key, a_entry), (b_key, b_entry)| {
-                // same nodes are always the same
-                if a_key == b_key {
-                    return core::cmp::Ordering::Equal;
-                }
 
-                // reliable nodes come first, pessimistically treating our own node as unreliable
-                let ra = a_entry
-                    .as_ref()
-                    .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
-                let rb = b_entry
-                    .as_ref()
-                    .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
-                if ra != rb {
-                    if ra {
-                        return core::cmp::Ordering::Less;
-                    } else {
-                        return core::cmp::Ordering::Greater;
-                    }
-                }
+        // closest sort
+        let sort = |rti: &RoutingTableInner,
+                    (a_key, a_entry): &(DHTKey, Option<Arc<BucketEntry>>),
+                    (b_key, b_entry): &(DHTKey, Option<Arc<BucketEntry>>)| {
+            // same nodes are always the same
+            if a_key == b_key {
+                return core::cmp::Ordering::Equal;
+            }
 
-                // distance is the next metric, closer nodes first
-                let da = distance(a_key, &node_id);
-                let db = distance(b_key, &node_id);
-                da.cmp(&db)
-            },
-            // transform,
-            &mut transform,
-        );
+            // reliable nodes come first, pessimistically treating our own node as unreliable
+            let ra = a_entry
+                .as_ref()
+                .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
+            let rb = b_entry
+                .as_ref()
+                .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
+            if ra != rb {
+                if ra {
+                    return core::cmp::Ordering::Less;
+                } else {
+                    return core::cmp::Ordering::Greater;
+                }
+            }
+
+            // distance is the next metric, closer nodes first
+            let da = distance(a_key, &node_id);
+            let db = distance(b_key, &node_id);
+            da.cmp(&db)
+        };
+
+        let out =
+            self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform);
         log_rtab!(">> find_closest_nodes: node count = {}", out.len());
         out
     }

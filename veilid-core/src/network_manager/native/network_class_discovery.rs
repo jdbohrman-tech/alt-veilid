@@ -125,22 +125,24 @@ impl DiscoveryContext {
             RoutingDomain::PublicInternet,
             dial_info_filter.clone(),
         );
-        let disallow_relays_filter = move |_rti, e: &BucketEntryInner| {
-            if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
-                n.relay_peer_info.is_none()
-            } else {
-                false
-            }
-        };
-        let filter = RoutingTable::combine_entry_filters(
-            inbound_dial_info_entry_filter,
-            disallow_relays_filter,
-        );
+        let disallow_relays_filter = Box::new(
+            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+                let v = v.unwrap();
+                v.with(rti, |_rti, e| {
+                    if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
+                        n.relay_peer_info.is_none()
+                    } else {
+                        false
+                    }
+                })
+            },
+        ) as RoutingTableEntryFilter;
+        let filters = VecDeque::from([inbound_dial_info_entry_filter, disallow_relays_filter]);
 
         // Find public nodes matching this filter
         let peers = self
             .routing_table
-            .find_fast_public_nodes_filtered(node_count, filter);
+            .find_fast_public_nodes_filtered(node_count, filters);
         if peers.is_empty() {
             log_net!(
                 "no external address detection peers of type {:?}:{:?}",

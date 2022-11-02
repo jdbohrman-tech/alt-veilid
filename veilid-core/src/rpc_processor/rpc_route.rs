@@ -121,7 +121,8 @@ impl RPCProcessor {
         if next_private_route.hop_count != 0 {
             let node_id = self.routing_table.node_id();
             let node_id_secret = self.routing_table.node_id_secret();
-            let sig = sign(&node_id, &node_id_secret, &route.operation.data).map_err(RPCError::internal)?;
+            let sig = sign(&node_id, &node_id_secret, &route.operation.data)
+                .map_err(RPCError::internal)?;
             route.operation.signatures.push(sig);
         }
 
@@ -169,14 +170,16 @@ impl RPCProcessor {
 
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
-        let opt_pr_info = if private_route.public_key == self.routing_table.node_id() {
+        let (secret_key, safety_selection) = if private_route.public_key
+            == self.routing_table.node_id()
+        {
             // The private route was a stub
             // Return our secret key and an appropriate safety selection
             //
             // Note: it is important that we never respond with a safety route to questions that come
-            // in without a private route. Giving away a safety route when the node id is known is 
+            // in without a private route. Giving away a safety route when the node id is known is
             // a privacy violation!
-            
+
             // Get sequencing preference
             let sequencing = if detail
                 .connection_descriptor
@@ -187,65 +190,25 @@ impl RPCProcessor {
             } else {
                 Sequencing::NoPreference
             };
-            Some((
-                self.routing_table.node_id_secret(), 
+            (
+                self.routing_table.node_id_secret(),
                 SafetySelection::Unsafe(sequencing),
-            ))
+            )
         } else {
             // Get sender id
             let sender_id = detail.envelope.get_sender_id();
 
             // Look up the private route and ensure it's one in our spec store
-            let rss= self.routing_table.route_spec_store();
-            let opt_signatures_valid = rss.with_route_spec_detail(&private_route.public_key, |rsd| {
-                // Ensure we have the right number of signatures
-                if routed_operation.signatures.len() != rsd.hops.len() - 1 {
-                    // Wrong number of signatures
-                    log_rpc!(debug "wrong number of signatures ({} should be {}) for routed operation on private route {}", routed_operation.signatures.len(), rsd.hops.len() - 1, private_route.public_key);    
-                    return None;
-                }
-                // Validate signatures to ensure the route was handled by the nodes and not messed with
-                for (hop_n, hop_public_key) in rsd.hops.iter().enumerate() {
-                    // The last hop is not signed, as the whole packet is signed
-                    if hop_n == routed_operation.signatures.len() {
-                        // Verify the node we received the routed operation from is the last hop in our route
-                        if *hop_public_key != sender_id {
-                            log_rpc!(debug "received routed operation from the wrong hop ({} should be {}) on private route {}", hop_public_key.encode(), sender_id.encode(), private_route.public_key);    
-                            return None;
-                        }
-                    } else {
-                        // Verify a signature for a hop node along the route
-                        if let Err(e) = verify(
-                            hop_public_key,
-                            &routed_operation.data,
-                            &routed_operation.signatures[hop_n],
-                        ) {
-                            log_rpc!(debug "failed to verify signature for hop {} at {} on private route {}", hop_n, hop_public_key, private_route.public_key);
-                            return None;
-                        }
-                    }
-                }
-                // We got the correct signatures, return a key ans
-                Some((
-                    rsd.secret_key,
-                    SafetySelection::Safe(SafetySpec { 
-                        preferred_route: Some(private_route.public_key), 
-                        hop_count: rsd.hops.len(),
-                        stability: rsd.stability,
-                        sequencing: rsd.sequencing,
-                    })
-                ))
-            });
-            opt_signatures_valid.ok_or_else(|| {
-                RPCError::protocol("routed operation received on unallocated private route")
-            })?
+            let rss = self.routing_table.route_spec_store();
+            rss.validate_signatures(
+                &private_route.public_key,
+                &routed_operation.signatures,
+                &routed_operation.data,
+                sender_id,
+            )
+            .map_err(RPCError::protocol)?
+            .ok_or_else(|| RPCError::protocol("signatures did not validate for private route"))?
         };
-        if opt_pr_info.is_none() {
-            return Err(RPCError::protocol(
-                "signatures did not validate for private route",
-            ));
-        }
-        let (secret_key, safety_selection) = opt_pr_info.unwrap();
 
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually
@@ -344,8 +307,13 @@ impl RPCProcessor {
                             .await?;
                     } else {
                         // Private route is empty, process routed operation
-                        self.process_routed_operation(detail, route.operation, &route.safety_route, &private_route)
-                            .await?;
+                        self.process_routed_operation(
+                            detail,
+                            route.operation,
+                            &route.safety_route,
+                            &private_route,
+                        )
+                        .await?;
                     }
                 } else if blob_tag == 0 {
                     // RouteHop
@@ -410,8 +378,13 @@ impl RPCProcessor {
                         .await?;
                 } else {
                     // No hops left, time to process the routed operation
-                    self.process_routed_operation(detail, route.operation, &route.safety_route, private_route)
-                        .await?;
+                    self.process_routed_operation(
+                        detail,
+                        route.operation,
+                        &route.safety_route,
+                        private_route,
+                    )
+                    .await?;
                 }
             }
         }

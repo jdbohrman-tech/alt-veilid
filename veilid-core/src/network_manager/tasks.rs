@@ -495,7 +495,7 @@ impl NetworkManager {
         // even the unreliable ones, and ask them to find nodes close to our node too
         let noderefs = routing_table.find_fastest_nodes(
             min_peer_count,
-            |_rti, _k, _v| true,
+            VecDeque::new(),
             |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(routing_table.clone(), k, v.unwrap().clone(), None)
             },

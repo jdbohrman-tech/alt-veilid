@@ -171,7 +171,6 @@ pub struct RPCProcessorUnlockedInner {
     queue_size: u32,
     concurrency: u32,
     max_route_hop_count: usize,
-    default_route_hop_count: usize,
     validate_dial_info_receipt_time_ms: u32,
     update_callback: UpdateCallback,
     waiting_rpc_table: OperationWaiter<RPCMessage>,
@@ -208,7 +207,6 @@ impl RPCProcessor {
         let queue_size = c.network.rpc.queue_size;
         let timeout = ms_to_us(c.network.rpc.timeout_ms);
         let max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
-        let default_route_hop_count = c.network.rpc.default_route_hop_count as usize;
         if concurrency == 0 {
             concurrency = intf::get_concurrency() / 2;
             if concurrency == 0 {
@@ -222,7 +220,6 @@ impl RPCProcessor {
             queue_size,
             concurrency,
             max_route_hop_count,
-            default_route_hop_count,
             validate_dial_info_receipt_time_ms,
             update_callback,
             waiting_rpc_table: OperationWaiter::new(),
@@ -418,7 +415,7 @@ impl RPCProcessor {
     }
 
     // Wrap an operation with a private route inside a safety route
-    pub(super) fn wrap_with_route(
+    fn wrap_with_route(
         &self,
         safety_selection: SafetySelection,
         private_route: PrivateRoute,
@@ -540,6 +537,7 @@ impl RPCProcessor {
                 match safety_selection {
                     SafetySelection::Unsafe(sequencing) => {
                         // Apply safety selection sequencing requirement if it is more strict than the node_ref's sequencing requirement
+                        let mut node_ref = node_ref.clone();
                         if sequencing > node_ref.sequencing() {
                             node_ref.set_sequencing(sequencing)
                         }

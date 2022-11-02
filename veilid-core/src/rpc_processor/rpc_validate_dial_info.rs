@@ -34,7 +34,8 @@ impl RPCProcessor {
 
         // Wait for receipt
         match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedPrivate | ReceiptEvent::ReturnedInBand { inbound_noderef: _ } => {
+            ReceiptEvent::ReturnedPrivate { private_route: _ }
+            | ReceiptEvent::ReturnedInBand { inbound_noderef: _ } => {
                 log_net!(debug "validate_dial_info receipt should be returned out-of-band".green());
                 Ok(false)
             }
@@ -94,20 +95,26 @@ impl RPCProcessor {
                     routing_domain,
                     dial_info.clone(),
                 );
-            let will_validate_dial_info_filter = Box::new(move |_rti, e: &BucketEntryInner| {
-                if let Some(status) = &e.node_status(routing_domain) {
-                    status.will_validate_dial_info()
-                } else {
-                    true
-                }
-            });
-            let filter = RoutingTable::combine_entry_filters(
+            let will_validate_dial_info_filter = Box::new(
+                move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+                    let entry = v.unwrap();
+                    entry.with(rti, move |_rti, e| {
+                        if let Some(status) = &e.node_status(routing_domain) {
+                            status.will_validate_dial_info()
+                        } else {
+                            true
+                        }
+                    })
+                },
+            ) as RoutingTableEntryFilter;
+
+            let filters = VecDeque::from([
                 outbound_dial_info_entry_filter,
-                will_validate_dial_info_filter, fuck this shit. do it tomorrow.
-            );
+                will_validate_dial_info_filter,
+            ]);
 
             // Find nodes matching filter to redirect this to
-            let peers = routing_table.find_fast_public_nodes_filtered(node_count, filter);
+            let peers = routing_table.find_fast_public_nodes_filtered(node_count, filters);
             if peers.is_empty() {
                 return Err(RPCError::internal(format!(
                     "no peers able to reach dialinfo '{:?}'",

@@ -342,7 +342,7 @@ impl AttachmentManager {
     #[instrument(level = "trace", skip(self))]
     fn attach(&self) {
         // Create long-running connection maintenance routine
-        let inner = self.inner.lock();
+        let mut inner = self.inner.lock();
         if inner.attachment_maintainer_jh.is_some() {
             return;
         }

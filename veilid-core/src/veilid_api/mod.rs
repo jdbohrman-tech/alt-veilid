@@ -647,7 +647,7 @@ impl NodeInfo {
             .as_ref()
             .map(|rpi| {
                 let relay_ni = &rpi.signed_node_info.node_info;
-                for did in relay_ni.dial_info_detail_list {
+                for did in &relay_ni.dial_info_detail_list {
                     match sequencing {
                         Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
                         Sequencing::EnsureOrdered => {

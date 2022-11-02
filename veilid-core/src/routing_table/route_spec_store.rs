@@ -124,7 +124,7 @@ fn route_permutation_to_hop_cache(nodes: &[(DHTKey, NodeInfo)], perm: &[usize]) 
 
 /// number of route permutations is the number of unique orderings
 /// for a set of nodes, given that the first node is fixed
-fn get_route_permutation_count(hop_count: usize) -> usize {
+fn _get_route_permutation_count(hop_count: usize) -> usize {
     if hop_count == 0 {
         unreachable!();
     }
@@ -374,39 +374,43 @@ impl RouteSpecStore {
 
         // Get list of all nodes, and sort them for selection
         let cur_ts = intf::get_timestamp();
-        let filter = |rti, _k: DHTKey, v: Option<Arc<BucketEntry>>| -> bool {
-            // Exclude our own node from routes
-            if v.is_none() {
-                return false;
-            }
-            let v = v.unwrap();
+        let filter = Box::new(
+            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| -> bool {
+                // Exclude our own node from routes
+                if v.is_none() {
+                    return false;
+                }
+                let v = v.unwrap();
 
-            // Exclude nodes on our local network
-            let on_local_network = v.with(rti, |_rti, e| {
-                e.node_info(RoutingDomain::LocalNetwork).is_some()
-            });
-            if on_local_network {
-                return false;
-            }
+                // Exclude nodes on our local network
+                let on_local_network = v.with(rti, |_rti, e| {
+                    e.node_info(RoutingDomain::LocalNetwork).is_some()
+                });
+                if on_local_network {
+                    return false;
+                }
 
-            // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
-            v.with(rti, |_rti, e| {
-                let node_info_ok = if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
-                    ni.has_sequencing_matched_dial_info(sequencing)
-                } else {
-                    false
-                };
-                let node_status_ok = if let Some(ns) = e.node_status(RoutingDomain::PublicInternet)
-                {
-                    ns.will_route()
-                } else {
-                    false
-                };
+                // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
+                v.with(rti, move |_rti, e| {
+                    let node_info_ok = if let Some(ni) = e.node_info(RoutingDomain::PublicInternet)
+                    {
+                        ni.has_sequencing_matched_dial_info(sequencing)
+                    } else {
+                        false
+                    };
+                    let node_status_ok =
+                        if let Some(ns) = e.node_status(RoutingDomain::PublicInternet) {
+                            ns.will_route()
+                        } else {
+                            false
+                        };
 
-                node_info_ok && node_status_ok
-            })
-        };
-        let compare = |rti,
+                    node_info_ok && node_status_ok
+                })
+            },
+        ) as RoutingTableEntryFilter;
+        let filters = VecDeque::from([filter]);
+        let compare = |rti: &RoutingTableInner,
                        v1: &(DHTKey, Option<Arc<BucketEntry>>),
                        v2: &(DHTKey, Option<Arc<BucketEntry>>)|
          -> Ordering {
@@ -461,7 +465,10 @@ impl RouteSpecStore {
             });
             cmpout
         };
-        let transform = |rti, k: DHTKey, v: Option<Arc<BucketEntry>>| -> (DHTKey, NodeInfo) {
+        let transform = |rti: &RoutingTableInner,
+                         k: DHTKey,
+                         v: Option<Arc<BucketEntry>>|
+         -> (DHTKey, NodeInfo) {
             // Return the key and the nodeinfo for that key
             (
                 k,
@@ -479,7 +486,7 @@ impl RouteSpecStore {
             BucketEntryState::Unreliable,
         );
         let nodes =
-            rti.find_peers_with_sort_and_filter(node_count, cur_ts, filter, compare, transform);
+            rti.find_peers_with_sort_and_filter(node_count, cur_ts, filters, compare, transform);
 
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
         if nodes.len() < hop_count {
@@ -606,12 +613,49 @@ impl RouteSpecStore {
         Ok(Some(public_key))
     }
 
-    pub fn with_route_spec_detail<F, R>(&self, public_key: &DHTKey, f: F) -> Option<R>
-    where
-        F: FnOnce(&RouteSpecDetail) -> R,
-    {
-        let inner = self.inner.lock();
-        Self::detail(&*inner, &public_key).map(f)
+    pub fn validate_signatures(
+        &self,
+        public_key: &DHTKey,
+        signatures: &[DHTSignature],
+        data: &[u8],
+        last_hop_id: DHTKey,
+    ) -> EyreResult<Option<(DHTKeySecret, SafetySelection)>> {
+        let inner = &*self.inner.lock();
+        let rsd = Self::detail(inner, &public_key).ok_or_else(|| eyre!("route does not exist"))?;
+
+        // Ensure we have the right number of signatures
+        if signatures.len() != rsd.hops.len() - 1 {
+            // Wrong number of signatures
+            log_rpc!(debug "wrong number of signatures ({} should be {}) for routed operation on private route {}", signatures.len(), rsd.hops.len() - 1, public_key);
+            return Ok(None);
+        }
+        // Validate signatures to ensure the route was handled by the nodes and not messed with
+        for (hop_n, hop_public_key) in rsd.hops.iter().enumerate() {
+            // The last hop is not signed, as the whole packet is signed
+            if hop_n == signatures.len() {
+                // Verify the node we received the routed operation from is the last hop in our route
+                if *hop_public_key != last_hop_id {
+                    log_rpc!(debug "received routed operation from the wrong hop ({} should be {}) on private route {}", hop_public_key.encode(), last_hop_id.encode(), public_key);
+                    return Ok(None);
+                }
+            } else {
+                // Verify a signature for a hop node along the route
+                if let Err(e) = verify(hop_public_key, data, &signatures[hop_n]) {
+                    log_rpc!(debug "failed to verify signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
+                    return Ok(None);
+                }
+            }
+        }
+        // We got the correct signatures, return a key ans
+        Ok(Some((
+            rsd.secret_key,
+            SafetySelection::Safe(SafetySpec {
+                preferred_route: Some(*public_key),
+                hop_count: rsd.hops.len(),
+                stability: rsd.stability,
+                sequencing: rsd.sequencing,
+            }),
+        )))
     }
 
     pub fn release_route(&self, public_key: DHTKey) {
