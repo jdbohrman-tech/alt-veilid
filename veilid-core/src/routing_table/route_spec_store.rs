@@ -138,13 +138,17 @@ fn _get_route_permutation_count(hop_count: usize) -> usize {
     (3..hop_count).into_iter().fold(2usize, |acc, x| acc * x)
 }
 
+type PermFunc<'t> = Box<dyn Fn(&[usize]) -> Option<(Vec<usize>, Vec<u8>)> + Send + 't>;
+
 /// get the route permutation at particular 'perm' index, starting at the 'start' index
 /// for a set of 'hop_count' nodes. the first node is always fixed, and the maximum
 /// number of permutations is given by get_route_permutation_count()
-fn with_route_permutations<F>(hop_count: usize, start: usize, mut f: F) -> bool
-where
-    F: FnMut(&[usize]) -> bool,
-{
+
+fn with_route_permutations(
+    hop_count: usize,
+    start: usize,
+    f: &PermFunc,
+) -> Option<(Vec<usize>, Vec<u8>)> {
     if hop_count == 0 {
         unreachable!();
     }
@@ -159,20 +163,19 @@ where
     }
 
     // heaps algorithm, but skipping the first element
-    fn heaps_permutation<F>(permutation: &mut [usize], size: usize, mut f: F) -> bool
-    where
-        F: FnMut(&[usize]) -> bool,
-    {
+    fn heaps_permutation(
+        permutation: &mut [usize],
+        size: usize,
+        f: &PermFunc,
+    ) -> Option<(Vec<usize>, Vec<u8>)> {
         if size == 1 {
-            if f(&permutation) {
-                return true;
-            }
-            return false;
+            return f(&permutation);
         }
 
         for i in 0..size {
-            if heaps_permutation(permutation, size - 1, &mut f) {
-                return true;
+            let out = heaps_permutation(permutation, size - 1, f);
+            if out.is_some() {
+                return out;
             }
             if size % 2 == 1 {
                 permutation.swap(1, size);
@@ -180,7 +183,8 @@ where
                 permutation.swap(1 + i, size);
             }
         }
-        false
+
+        None
     }
 
     // recurse
@@ -502,77 +506,81 @@ impl RouteSpecStore {
         }
 
         // Now go through nodes and try to build a route we haven't seen yet
+        let perm_func = Box::new(|permutation: &[usize]| {
+            // Get the route cache key
+            let cache_key = route_permutation_to_hop_cache(&nodes, permutation);
+
+            // Skip routes we have already seen
+            if inner.cache.hop_cache.contains(&cache_key) {
+                return None;
+            }
+
+            // Ensure this route is viable by checking that each node can contact the next one
+            if directions.contains(Direction::Outbound) {
+                let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
+                let our_node_id = rti.node_id();
+                let mut previous_node = &(our_node_id, our_node_info);
+                let mut reachable = true;
+                for n in permutation {
+                    let current_node = nodes.get(*n).unwrap();
+                    let cm = rti.get_contact_method(
+                        RoutingDomain::PublicInternet,
+                        &previous_node.0,
+                        &previous_node.1,
+                        &current_node.0,
+                        &current_node.1,
+                        DialInfoFilter::all(),
+                        sequencing,
+                    );
+                    if matches!(cm, ContactMethod::Unreachable) {
+                        reachable = false;
+                        break;
+                    }
+                    previous_node = current_node;
+                }
+                if !reachable {
+                    return None;
+                }
+            }
+            if directions.contains(Direction::Inbound) {
+                let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
+                let our_node_id = rti.node_id();
+                let mut next_node = &(our_node_id, our_node_info);
+                let mut reachable = true;
+                for n in permutation.iter().rev() {
+                    let current_node = nodes.get(*n).unwrap();
+                    let cm = rti.get_contact_method(
+                        RoutingDomain::PublicInternet,
+                        &next_node.0,
+                        &next_node.1,
+                        &current_node.0,
+                        &current_node.1,
+                        DialInfoFilter::all(),
+                        sequencing,
+                    );
+                    if matches!(cm, ContactMethod::Unreachable) {
+                        reachable = false;
+                        break;
+                    }
+                    next_node = current_node;
+                }
+                if !reachable {
+                    return None;
+                }
+            }
+            // Keep this route
+            let route_nodes = permutation.to_vec();
+            Some((route_nodes, cache_key))
+        }) as PermFunc;
+
         let mut route_nodes: Vec<usize> = Vec::new();
         let mut cache_key: Vec<u8> = Vec::new();
+
         for start in 0..(nodes.len() - hop_count) {
             // Try the permutations available starting with 'start'
-            let done = with_route_permutations(hop_count, start, |permutation: &[usize]| {
-                // Get the route cache key
-                cache_key = route_permutation_to_hop_cache(&nodes, permutation);
-
-                // Skip routes we have already seen
-                if inner.cache.hop_cache.contains(&cache_key) {
-                    return false;
-                }
-
-                // Ensure this route is viable by checking that each node can contact the next one
-                if directions.contains(Direction::Outbound) {
-                    let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
-                    let our_node_id = rti.node_id();
-                    let mut previous_node = &(our_node_id, our_node_info);
-                    let mut reachable = true;
-                    for n in permutation {
-                        let current_node = nodes.get(*n).unwrap();
-                        let cm = rti.get_contact_method(
-                            RoutingDomain::PublicInternet,
-                            &previous_node.0,
-                            &previous_node.1,
-                            &current_node.0,
-                            &current_node.1,
-                            DialInfoFilter::all(),
-                            sequencing,
-                        );
-                        if matches!(cm, ContactMethod::Unreachable) {
-                            reachable = false;
-                            break;
-                        }
-                        previous_node = current_node;
-                    }
-                    if !reachable {
-                        return false;
-                    }
-                }
-                if directions.contains(Direction::Inbound) {
-                    let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
-                    let our_node_id = rti.node_id();
-                    let mut next_node = &(our_node_id, our_node_info);
-                    let mut reachable = true;
-                    for n in permutation.iter().rev() {
-                        let current_node = nodes.get(*n).unwrap();
-                        let cm = rti.get_contact_method(
-                            RoutingDomain::PublicInternet,
-                            &next_node.0,
-                            &next_node.1,
-                            &current_node.0,
-                            &current_node.1,
-                            DialInfoFilter::all(),
-                            sequencing,
-                        );
-                        if matches!(cm, ContactMethod::Unreachable) {
-                            reachable = false;
-                            break;
-                        }
-                        next_node = current_node;
-                    }
-                    if !reachable {
-                        return false;
-                    }
-                }
-                // Keep this route
-                route_nodes = permutation.to_vec();
-                true
-            });
-            if done {
+            if let Some((rn, ck)) = with_route_permutations(hop_count, start, &perm_func) {
+                route_nodes = rn;
+                cache_key = ck;
                 break;
             }
         }
@@ -610,6 +618,8 @@ impl RouteSpecStore {
             stability,
             sequencing,
         };
+
+        drop(perm_func);
 
         // Add to cache
         Self::add_to_cache(&mut inner.cache, cache_key, &rsd);

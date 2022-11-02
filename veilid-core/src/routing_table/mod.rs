@@ -34,8 +34,8 @@ pub struct LowLevelPortInfo {
     pub low_level_protocol_ports: LowLevelProtocolPorts,
     pub protocol_to_port: ProtocolToPortMapping,
 }
-pub type RoutingTableEntryFilter =
-    Box<dyn for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool + Send>;
+pub type RoutingTableEntryFilter<'t> =
+    Box<dyn FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
 
 #[derive(Clone, Debug, Default)]
 pub struct RoutingTableHealth {
@@ -550,7 +550,7 @@ impl RoutingTable {
     pub fn make_inbound_dial_info_entry_filter<'a>(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
-    ) -> RoutingTableEntryFilter {
+    ) -> RoutingTableEntryFilter<'a> {
         // does it have matching public dial info?
         Box::new(move |rti, _k, e| {
             if let Some(e) = e {
@@ -575,10 +575,10 @@ impl RoutingTable {
     }
 
     /// Makes a filter that finds nodes capable of dialing a particular outbound dialinfo
-    pub fn make_outbound_dial_info_entry_filter(
+    pub fn make_outbound_dial_info_entry_filter<'a>(
         routing_domain: RoutingDomain,
         dial_info: DialInfo,
-    ) -> RoutingTableEntryFilter {
+    ) -> RoutingTableEntryFilter<'a> {
         // does the node's outbound capabilities match the dialinfo?
         Box::new(move |rti, _k, e| {
             if let Some(e) = e {
