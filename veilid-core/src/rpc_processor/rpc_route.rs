@@ -148,8 +148,102 @@ impl RPCProcessor {
         Ok(())
     }
 
+    /// Process a routed operation that came in over a safety route but no private route
+    ///
+    /// Note: it is important that we never respond with a safety route to questions that come
+    /// in without a private route. Giving away a safety route when the node id is known is
+    /// a privacy violation!
     #[instrument(level = "trace", skip_all, err)]
-    async fn process_routed_operation(
+    fn process_safety_routed_operation(
+        &self,
+        detail: RPCMessageHeaderDetailDirect,
+        routed_operation: RoutedOperation,
+        safety_route: &SafetyRoute,
+    ) -> Result<(), RPCError> {
+        // Get sequencing preference
+        let sequencing = if detail
+            .connection_descriptor
+            .protocol_type()
+            .is_connection_oriented()
+        {
+            Sequencing::EnsureOrdered
+        } else {
+            Sequencing::NoPreference
+        };
+
+        // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
+        // xxx: punish nodes that send messages that fail to decrypt eventually? How to do this for safety routes?
+        let node_id_secret = self.routing_table.node_id_secret();
+        let dh_secret = self
+            .crypto
+            .cached_dh(&safety_route.public_key, &node_id_secret)
+            .map_err(RPCError::protocol)?;
+        let body = Crypto::decrypt_aead(
+            &routed_operation.data,
+            &routed_operation.nonce,
+            &dh_secret,
+            None,
+        )
+        .map_err(RPCError::map_internal(
+            "decryption of routed operation failed",
+        ))?;
+
+        // Pass message to RPC system
+        self.enqueue_safety_routed_message(sequencing, body)
+            .map_err(RPCError::internal)?;
+
+        Ok(())
+    }
+
+    /// Process a routed operation that came in over both a safety route and a private route
+    #[instrument(level = "trace", skip_all, err)]
+    fn process_private_routed_operation(
+        &self,
+        detail: RPCMessageHeaderDetailDirect,
+        routed_operation: RoutedOperation,
+        safety_route: &SafetyRoute,
+        private_route: &PrivateRoute,
+    ) -> Result<(), RPCError> {
+        // Get sender id
+        let sender_id = detail.envelope.get_sender_id();
+
+        // Look up the private route and ensure it's one in our spec store
+        let rss = self.routing_table.route_spec_store();
+        let (secret_key, safety_spec) = rss
+            .validate_signatures(
+                &private_route.public_key,
+                &routed_operation.signatures,
+                &routed_operation.data,
+                sender_id,
+            )
+            .map_err(RPCError::protocol)?
+            .ok_or_else(|| RPCError::protocol("signatures did not validate for private route"))?;
+
+        // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
+        // xxx: punish nodes that send messages that fail to decrypt eventually. How to do this for private routes?
+        let dh_secret = self
+            .crypto
+            .cached_dh(&safety_route.public_key, &secret_key)
+            .map_err(RPCError::protocol)?;
+        let body = Crypto::decrypt_aead(
+            &routed_operation.data,
+            &routed_operation.nonce,
+            &dh_secret,
+            None,
+        )
+        .map_err(RPCError::map_internal(
+            "decryption of routed operation failed",
+        ))?;
+
+        // Pass message to RPC system
+        self.enqueue_private_routed_message(private_route.public_key, safety_spec, body)
+            .map_err(RPCError::internal)?;
+
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip_all, err)]
+    fn process_routed_operation(
         &self,
         detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
@@ -170,67 +264,18 @@ impl RPCProcessor {
 
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
-        let (secret_key, safety_selection) = if private_route.public_key
-            == self.routing_table.node_id()
-        {
+        if private_route.public_key == self.routing_table.node_id() {
             // The private route was a stub
-            // Return our secret key and an appropriate safety selection
-            //
-            // Note: it is important that we never respond with a safety route to questions that come
-            // in without a private route. Giving away a safety route when the node id is known is
-            // a privacy violation!
-
-            // Get sequencing preference
-            let sequencing = if detail
-                .connection_descriptor
-                .protocol_type()
-                .is_connection_oriented()
-            {
-                Sequencing::EnsureOrdered
-            } else {
-                Sequencing::NoPreference
-            };
-            (
-                self.routing_table.node_id_secret(),
-                SafetySelection::Unsafe(sequencing),
-            )
+            self.process_safety_routed_operation(detail, routed_operation, safety_route)
         } else {
-            // Get sender id
-            let sender_id = detail.envelope.get_sender_id();
-
-            // Look up the private route and ensure it's one in our spec store
-            let rss = self.routing_table.route_spec_store();
-            rss.validate_signatures(
-                &private_route.public_key,
-                &routed_operation.signatures,
-                &routed_operation.data,
-                sender_id,
+            // Both safety and private routes used, should reply with a safety route
+            self.process_private_routed_operation(
+                detail,
+                routed_operation,
+                safety_route,
+                private_route,
             )
-            .map_err(RPCError::protocol)?
-            .ok_or_else(|| RPCError::protocol("signatures did not validate for private route"))?
-        };
-
-        // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
-        // xxx: punish nodes that send messages that fail to decrypt eventually
-        let dh_secret = self
-            .crypto
-            .cached_dh(&safety_route.public_key, &secret_key)
-            .map_err(RPCError::protocol)?;
-        let body = Crypto::decrypt_aead(
-            &routed_operation.data,
-            &routed_operation.nonce,
-            &dh_secret,
-            None,
-        )
-        .map_err(RPCError::map_internal(
-            "decryption of routed operation failed",
-        ))?;
-
-        // Pass message to RPC system
-        self.enqueue_private_routed_message(private_route.public_key, safety_selection, body)
-            .map_err(RPCError::internal)?;
-
-        Ok(())
+        }
     }
 
     #[instrument(level = "trace", skip(self, msg), err)]
@@ -312,8 +357,7 @@ impl RPCProcessor {
                             route.operation,
                             &route.safety_route,
                             &private_route,
-                        )
-                        .await?;
+                        )?;
                     }
                 } else if blob_tag == 0 {
                     // RouteHop
@@ -383,8 +427,7 @@ impl RPCProcessor {
                         route.operation,
                         &route.safety_route,
                         private_route,
-                    )
-                    .await?;
+                    )?;
                 }
             }
         }

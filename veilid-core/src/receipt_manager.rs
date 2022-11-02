@@ -11,6 +11,7 @@ use xx::*;
 pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },
+    ReturnedSafety,
     ReturnedPrivate { private_route: DHTKey },
     Expired,
     Cancelled,
@@ -20,6 +21,7 @@ pub enum ReceiptEvent {
 pub enum ReceiptReturned {
     OutOfBand,
     InBand { inbound_noderef: NodeRef },
+    Safety,
     Private { private_route: DHTKey },
 }
 
@@ -412,6 +414,7 @@ impl ReceiptManager {
             match receipt_returned {
                 ReceiptReturned::OutOfBand => "OutOfBand".to_owned(),
                 ReceiptReturned::InBand { ref inbound_noderef } => format!("InBand({})", inbound_noderef),
+                ReceiptReturned::Safety => "Safety".to_owned(),
                 ReceiptReturned::Private { ref private_route } => format!("Private({})", private_route),
             },
             if extra_data.is_empty() {
@@ -445,6 +448,7 @@ impl ReceiptManager {
             // Get the receipt event to return
             let receipt_event = match receipt_returned {
                 ReceiptReturned::OutOfBand => ReceiptEvent::ReturnedOutOfBand,
+                ReceiptReturned::Safety => ReceiptEvent::ReturnedSafety,
                 ReceiptReturned::InBand {
                     ref inbound_noderef,
                 } => ReceiptEvent::ReturnedInBand {

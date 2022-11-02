@@ -249,7 +249,7 @@ struct SignedNodeInfo {
 }
 
 struct SenderInfo {
-    socketAddress           @0  :SocketAddress;         # socket address was available for peer
+    socketAddress           @0  :SocketAddress;         # socket address that for the sending peer
 }
 
 struct PeerInfo {
@@ -265,12 +265,12 @@ struct RoutedOperation {
 }
 
 struct OperationStatusQ {
-    nodeStatus              @0  :NodeStatus;            # node status update about the statusq sender
+    nodeStatus              @0  :NodeStatus;            # Optional: node status update about the statusq sender
 }
 
 struct OperationStatusA {
-    nodeStatus              @0  :NodeStatus;            # returned node status
-    senderInfo              @1  :SenderInfo;            # info about StatusQ sender from the perspective of the replier
+    nodeStatus              @0  :NodeStatus;            # Optional: returned node status
+    senderInfo              @1  :SenderInfo;            # Optional: info about StatusQ sender from the perspective of the replier
 }
 
 struct OperationValidateDialInfo {

@@ -79,7 +79,7 @@ impl DiscoveryContext {
     async fn request_public_address(&self, node_ref: NodeRef) -> Option<SocketAddress> {
         let rpc = self.routing_table.rpc_processor();
 
-        let res = network_result_value_or_log!(debug match rpc.rpc_call_status(node_ref.clone()).await {
+        let res = network_result_value_or_log!(debug match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(error
@@ -98,7 +98,7 @@ impl DiscoveryContext {
             node_ref,
             res.answer
         );
-        res.answer.socket_address
+        res.answer.map(|si| si.socket_address)
     }
 
     // find fast peers with a particular address type, and ask them to tell us what our external address is

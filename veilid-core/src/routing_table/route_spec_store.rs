@@ -626,7 +626,7 @@ impl RouteSpecStore {
         signatures: &[DHTSignature],
         data: &[u8],
         last_hop_id: DHTKey,
-    ) -> EyreResult<Option<(DHTKeySecret, SafetySelection)>> {
+    ) -> EyreResult<Option<(DHTKeySecret, SafetySpec)>> {
         let inner = &*self.inner.lock();
         let rsd = Self::detail(inner, &public_key).ok_or_else(|| eyre!("route does not exist"))?;
 
@@ -656,12 +656,12 @@ impl RouteSpecStore {
         // We got the correct signatures, return a key ans
         Ok(Some((
             rsd.secret_key,
-            SafetySelection::Safe(SafetySpec {
+            SafetySpec {
                 preferred_route: Some(*public_key),
                 hop_count: rsd.hops.len(),
                 stability: rsd.stability,
                 sequencing: rsd.sequencing,
-            }),
+            },
         )))
     }
 

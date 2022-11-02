@@ -25,6 +25,7 @@ pub use coders::*;
 pub use destination::*;
 pub use operation_waiter::*;
 pub use rpc_error::*;
+pub use rpc_status::*;
 
 use super::*;
 use crate::crypto::*;
@@ -64,8 +65,8 @@ struct RPCMessageHeaderDetailSafetyRouted {
 struct RPCMessageHeaderDetailPrivateRouted {
     /// The private route we received the rpc over
     private_route: DHTKey,
-    // The safety selection for replying to this private routed rpc
-    safety_selection: SafetySelection,
+    // The safety spec for replying to this private routed rpc
+    safety_spec: SafetySpec,
 }
 
 #[derive(Debug, Clone)]
@@ -807,7 +808,7 @@ impl RPCProcessor {
                         );
                     }
                     RPCMessageHeaderDetail::SafetyRouted(detail) => {
-                        // If this was sent via a safety route, but no received over our private route, don't respond with a safety route,
+                        // If this was sent via a safety route, but not received over our private route, don't respond with a safety route,
                         // it would give away which safety routes belong to this node
                         NetworkResult::value(Destination::private_route(
                             pr.clone(),
@@ -818,7 +819,7 @@ impl RPCProcessor {
                         // If this was received over our private route, it's okay to respond to a private route via our safety route
                         NetworkResult::value(Destination::private_route(
                             pr.clone(),
-                            detail.safety_selection.clone(),
+                            SafetySelection::Safe(detail.safety_spec.clone()),
                         ))
                     }
                 }
@@ -1067,19 +1068,15 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_safety_routed_message(
-        &self, xxx keep pushing this through
-        private_route: DHTKey,
-        safety_selection: SafetySelection,
+        &self,
+        sequencing: Sequencing,
         body: Vec<u8>,
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::PrivateRouted(
-                    RPCMessageHeaderDetailPrivateRouted {
-                        private_route,
-                        safety_selection,
-                    },
-                ),
+                detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
+                    sequencing,
+                }),
                 timestamp: intf::get_timestamp(),
                 body_len: body.len() as u64,
             },
@@ -1100,7 +1097,7 @@ impl RPCProcessor {
     pub fn enqueue_private_routed_message(
         &self,
         private_route: DHTKey,
-        safety_selection: SafetySelection,
+        safety_spec: SafetySpec,
         body: Vec<u8>,
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
@@ -1108,7 +1105,7 @@ impl RPCProcessor {
                 detail: RPCMessageHeaderDetail::PrivateRouted(
                     RPCMessageHeaderDetailPrivateRouted {
                         private_route,
-                        safety_selection,
+                        safety_spec,
                     },
                 ),
                 timestamp: intf::get_timestamp(),

@@ -33,7 +33,7 @@ impl RPCProcessor {
     pub(crate) async fn process_node_info_update(&self, msg: RPCMessage) -> Result<(), RPCError> {
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
-            RPCMessageHeaderDetail::PrivateRouted(_) => {
+            RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
                 return Err(RPCError::protocol("node_info_update must be direct"));
             }
         };

@@ -35,7 +35,8 @@ impl RPCProcessor {
         // Wait for receipt
         match eventual_value.await.take_value().unwrap() {
             ReceiptEvent::ReturnedPrivate { private_route: _ }
-            | ReceiptEvent::ReturnedInBand { inbound_noderef: _ } => {
+            | ReceiptEvent::ReturnedInBand { inbound_noderef: _ }
+            | ReceiptEvent::ReturnedSafety => {
                 log_net!(debug "validate_dial_info receipt should be returned out-of-band".green());
                 Ok(false)
             }

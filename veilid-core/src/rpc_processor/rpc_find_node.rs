@@ -68,21 +68,14 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), err)]
     pub(crate) async fn process_find_node_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
-        // Ensure this never came over a private route
-        match msg.header.detail {
-            RPCMessageHeaderDetail::Direct(_) => todo!(),
-            RPCMessageHeaderDetail::PrivateRouted(_) => todo!(),
-        }
-        if matches!(
-            dest,
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_selection: _
+        // Ensure this never came over a private route, safety route is okay though
+        match &msg.header.detail {
+            RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
+            RPCMessageHeaderDetail::PrivateRouted(_) => {
+                return Err(RPCError::protocol(
+                    "not processing find node request over private route",
+                ))
             }
-        ) {
-            return Err(RPCError::internal(
-                "Never send find node requests over private routes",
-            ));
         }
 
         // Get the question

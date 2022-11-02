@@ -42,6 +42,13 @@ impl RPCProcessor {
                         .await => {}
                 );
             }
+            RPCMessageHeaderDetail::SafetyRouted(_) => {
+                network_result_value_or_log!(debug
+                    network_manager
+                        .handle_safety_receipt(receipt)
+                        .await => {}
+                );
+            }
             RPCMessageHeaderDetail::PrivateRouted(detail) => {
                 network_result_value_or_log!(debug
                     network_manager

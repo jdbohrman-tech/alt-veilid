@@ -3,6 +3,7 @@
 
 use super::*;
 use routing_table::*;
+use rpc_processor::*;
 
 fn get_bucket_entry_state(text: &str) -> Option<BucketEntryState> {
     if text == "dead" {
@@ -397,7 +398,7 @@ impl VeilidAPI {
 
         // Dump routing table entry
         let out = match rpc
-            .rpc_call_status(nr)
+            .rpc_call_status(Destination::direct(nr))
             .await
             .map_err(VeilidAPIError::internal)?
         {

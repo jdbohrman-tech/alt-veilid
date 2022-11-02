@@ -343,7 +343,7 @@ impl NetworkManager {
         &self,
         cur_ts: u64,
         unord: &mut FuturesUnordered<
-            SendPinBoxFuture<Result<NetworkResult<Answer<SenderInfo>>, RPCError>>,
+            SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
         >,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
@@ -394,7 +394,7 @@ impl NetworkManager {
                             nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
                         log_net!("--> Keepalive ping to {:?}", nr_filtered);
                         unord.push(
-                            async move { rpc.rpc_call_status(nr_filtered).await }
+                            async move { rpc.rpc_call_status(Destination::direct(nr_filtered)).await }
                                 .instrument(Span::current())
                                 .boxed(),
                         );
@@ -408,7 +408,7 @@ impl NetworkManager {
             if !did_pings {
                 let rpc = rpc.clone();
                 unord.push(
-                    async move { rpc.rpc_call_status(nr).await }
+                    async move { rpc.rpc_call_status(Destination::direct(nr)).await }
                         .instrument(Span::current())
                         .boxed(),
                 );
@@ -425,7 +425,7 @@ impl NetworkManager {
         &self,
         cur_ts: u64,
         unord: &mut FuturesUnordered<
-            SendPinBoxFuture<Result<NetworkResult<Answer<SenderInfo>>, RPCError>>,
+            SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
         >,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
@@ -440,7 +440,7 @@ impl NetworkManager {
 
             // Just do a single ping with the best protocol for all the nodes
             unord.push(
-                async move { rpc.rpc_call_status(nr).await }
+                async move { rpc.rpc_call_status(Destination::direct(nr)).await }
                     .instrument(Span::current())
                     .boxed(),
             );

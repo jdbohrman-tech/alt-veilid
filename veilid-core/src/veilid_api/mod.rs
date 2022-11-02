@@ -366,11 +366,6 @@ impl BlockId {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct SenderInfo {
-    pub socket_address: Option<SocketAddress>,
-}
-
 // Keep member order appropriate for sorting < preference
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Hash)]
 pub enum DialInfoClass {
@@ -420,7 +415,7 @@ pub enum Stability {
     Reliable,
 }
 
-/// The choice of safety route including in compiled routes
+/// The choice of safety route to include in compiled routes
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum SafetySelection {
     /// Don't use a safety route, only specify the sequencing preference
