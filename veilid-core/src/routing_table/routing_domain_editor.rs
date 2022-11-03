@@ -9,10 +9,6 @@ enum RoutingDomainChange {
     AddDialInfoDetail {
         dial_info_detail: DialInfoDetail,
     },
-    SetupNode {
-        node_id: DHTKey,
-        node_id_secret: DHTKeySecret,
-    },
     SetupNetwork {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
@@ -84,13 +80,6 @@ impl RoutingDomainEditor {
         Ok(())
     }
     #[instrument(level = "debug", skip(self))]
-    pub fn setup_node(&mut self, node_id: DHTKey, node_id_secret: DHTKeySecret) {
-        self.changes.push(RoutingDomainChange::SetupNode {
-            node_id,
-            node_id_secret,
-        })
-    }
-    #[instrument(level = "debug", skip(self))]
     pub fn setup_network(
         &mut self,
         outbound_protocols: ProtocolTypeSet,
@@ -158,18 +147,6 @@ impl RoutingDomainEditor {
                                 }
                                 .to_string(),
                             );
-                            changed = true;
-                        }
-                        RoutingDomainChange::SetupNode {
-                            node_id,
-                            node_id_secret,
-                        } => {
-                            debug!(
-                                "[{:?}] setup node: {}",
-                                self.routing_domain,
-                                node_id.encode()
-                            );
-                            detail.common_mut().setup_node(node_id, node_id_secret);
                             changed = true;
                         }
                         RoutingDomainChange::SetupNetwork {

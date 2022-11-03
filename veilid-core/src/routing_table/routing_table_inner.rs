@@ -248,7 +248,7 @@ impl RoutingTableInner {
     /// Return a copy of our node's peerinfo
     pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
         self.with_routing_domain(routing_domain, |rdd| {
-            rdd.common().with_peer_info(|pi| pi.clone())
+            rdd.common().with_peer_info(self, |pi| pi.clone())
         })
     }
 
@@ -256,7 +256,7 @@ impl RoutingTableInner {
     pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedNodeInfo {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common()
-                .with_peer_info(|pi| pi.signed_node_info.clone())
+                .with_peer_info(self, |pi| pi.signed_node_info.clone())
         })
     }
 
@@ -264,7 +264,7 @@ impl RoutingTableInner {
     pub fn get_own_node_info(&self, routing_domain: RoutingDomain) -> NodeInfo {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common()
-                .with_peer_info(|pi| pi.signed_node_info.node_info.clone())
+                .with_peer_info(self, |pi| pi.signed_node_info.node_info.clone())
         })
     }
 

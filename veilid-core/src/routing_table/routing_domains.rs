@@ -22,8 +22,6 @@ pub enum ContactMethod {
 #[derive(Debug)]
 pub struct RoutingDomainDetailCommon {
     routing_domain: RoutingDomain,
-    node_id: DHTKey,
-    node_id_secret: DHTKeySecret,
     network_class: Option<NetworkClass>,
     outbound_protocols: ProtocolTypeSet,
     inbound_protocols: ProtocolTypeSet,
@@ -38,8 +36,6 @@ impl RoutingDomainDetailCommon {
     pub fn new(routing_domain: RoutingDomain) -> Self {
         Self {
             routing_domain,
-            node_id: Default::default(),
-            node_id_secret: Default::default(),
             network_class: Default::default(),
             outbound_protocols: Default::default(),
             inbound_protocols: Default::default(),
@@ -50,12 +46,6 @@ impl RoutingDomainDetailCommon {
         }
     }
 
-    // Set from routing table
-    pub(super) fn setup_node(&mut self, node_id: DHTKey, node_id_secret: DHTKeySecret) {
-        self.node_id = node_id;
-        self.node_id_secret = node_id_secret;
-        self.clear_cache();
-    }
     // Set from network manager
     pub(super) fn setup_network(
         &mut self,
@@ -66,16 +56,12 @@ impl RoutingDomainDetailCommon {
         self.outbound_protocols = outbound_protocols;
         self.inbound_protocols = inbound_protocols;
         self.address_types = address_types;
+        self.clear_cache();
     }
 
-    pub fn node_id(&self) -> DHTKey {
-        self.node_id
-    }
-    pub fn node_id_secret(&self) -> DHTKeySecret {
-        self.node_id_secret
-    }
     pub(super) fn set_network_class(&mut self, network_class: Option<NetworkClass>) {
         self.network_class = network_class;
+        self.clear_cache();
     }
     pub fn network_class(&self) -> Option<NetworkClass> {
         self.network_class
@@ -95,24 +81,27 @@ impl RoutingDomainDetailCommon {
     pub(super) fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
         self.relay_node = opt_relay_node.map(|nr| {
             nr.filtered_clone(NodeRefFilter::new().with_routing_domain(self.routing_domain))
-        })
+        });
+        self.clear_cache();
     }
     pub fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details
     }
     pub(super) fn clear_dial_info_details(&mut self) {
         self.dial_info_details.clear();
+        self.clear_cache();
     }
     pub(super) fn add_dial_info_detail(&mut self, did: DialInfoDetail) {
         self.dial_info_details.push(did);
         self.dial_info_details.sort();
+        self.clear_cache();
     }
 
     pub fn has_valid_own_node_info(&self) -> bool {
         self.network_class.unwrap_or(NetworkClass::Invalid) != NetworkClass::Invalid
     }
 
-    pub fn with_peer_info<F, R>(&self, f: F) -> R
+    pub fn with_peer_info<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
     where
         F: FnOnce(&PeerInfo) -> R,
     {
@@ -120,7 +109,7 @@ impl RoutingDomainDetailCommon {
         if cpi.is_none() {
             // Regenerate peer info
             let pi = PeerInfo::new(
-                NodeId::new(self.node_id),
+                NodeId::new(rti.unlocked_inner.node_id),
                 SignedNodeInfo::with_secret(
                     NodeInfo {
                         network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
@@ -134,8 +123,8 @@ impl RoutingDomainDetailCommon {
                             .as_ref()
                             .and_then(|rn| rn.make_peer_info(self.routing_domain).map(Box::new)),
                     },
-                    NodeId::new(self.node_id),
-                    &self.node_id_secret,
+                    NodeId::new(rti.unlocked_inner.node_id),
+                    &rti.unlocked_inner.node_id_secret,
                 )
                 .unwrap(),
             );
