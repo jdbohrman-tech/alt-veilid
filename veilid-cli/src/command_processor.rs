@@ -102,6 +102,12 @@ impl CommandProcessor {
         }
     }
 
+    pub fn cancel_command(&self) {
+        trace!("CommandProcessor::cancel_command");
+        let capi = self.capi();
+        capi.cancel();
+    }
+
     pub fn cmd_help(&self, _rest: Option<String>, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_help");
         self.ui().add_node_event(

@@ -306,11 +306,18 @@ impl UI {
     fn run_command(s: &mut Cursive, text: &str) -> Result<(), String> {
         // disable ui
         Self::enable_command_ui(s, false);
+
         // run command
+        s.set_global_callback(cursive::event::Event::Key(Key::Esc), |s| {
+            let cmdproc = Self::command_processor(s);
+            cmdproc.cancel_command();
+        });
+
         let cmdproc = Self::command_processor(s);
         cmdproc.run_command(
             text,
             Box::new(|s| {
+                s.set_global_callback(cursive::event::Event::Key(Key::Esc), UI::quit_handler);
                 Self::enable_command_ui(s, true);
             }),
         )

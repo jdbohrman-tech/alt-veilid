@@ -3,6 +3,7 @@ use crate::tools::*;
 use crate::veilid_client_capnp::*;
 use capnp::capability::Promise;
 use capnp_rpc::{pry, rpc_twoparty_capnp, twoparty, Disconnector, RpcSystem};
+use futures::future::FutureExt;
 use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use std::net::SocketAddr;
@@ -101,6 +102,7 @@ struct ClientApiConnectionInner {
     disconnector: Option<Disconnector<rpc_twoparty_capnp::Side>>,
     server: Option<Rc<RefCell<veilid_server::Client>>>,
     disconnect_requested: bool,
+    cancel_eventual: Eventual,
 }
 
 type Handle<T> = Rc<RefCell<T>>;
@@ -119,9 +121,19 @@ impl ClientApiConnection {
                 disconnector: None,
                 server: None,
                 disconnect_requested: false,
+                cancel_eventual: Eventual::new(),
             })),
         }
     }
+
+    pub fn cancel(&self) {
+        let eventual = {
+            let inner = self.inner.borrow();
+            inner.cancel_eventual.clone()
+        };
+        eventual.resolve(); // don't need to await this
+    }
+
     async fn process_veilid_state<'a>(
         &'a mut self,
         veilid_state: VeilidState,
@@ -264,6 +276,34 @@ impl ClientApiConnection {
         }
     }
 
+    pub fn cancellable<T>(&mut self, p: Promise<T, capnp::Error>) -> Promise<T, capnp::Error>
+    where
+        T: 'static,
+    {
+        let (mut cancel_instance, cancel_eventual) = {
+            let inner = self.inner.borrow();
+            (
+                inner.cancel_eventual.instance_empty().fuse(),
+                inner.cancel_eventual.clone(),
+            )
+        };
+        let mut p = p.fuse();
+
+        Promise::from_future(async move {
+            let out = select! {
+                a = p => {
+                    a
+                },
+                _ = cancel_instance => {
+                    Err(capnp::Error::failed("cancelled".into()))
+                }
+            };
+            drop(cancel_instance);
+            cancel_eventual.reset();
+            out
+        })
+    }
+
     pub async fn server_attach(&mut self) -> Result<(), String> {
         trace!("ClientApiConnection::server_attach");
         let server = {
@@ -275,7 +315,10 @@ impl ClientApiConnection {
                 .clone()
         };
         let request = server.borrow().attach_request();
-        let response = request.send().promise.await.map_err(map_to_string)?;
+        let response = self
+            .cancellable(request.send().promise)
+            .await
+            .map_err(map_to_string)?;
         let reader = response
             .get()
             .map_err(map_to_string)?
@@ -296,7 +339,10 @@ impl ClientApiConnection {
                 .clone()
         };
         let request = server.borrow().detach_request();
-        let response = request.send().promise.await.map_err(map_to_string)?;
+        let response = self
+            .cancellable(request.send().promise)
+            .await
+            .map_err(map_to_string)?;
         let reader = response
             .get()
             .map_err(map_to_string)?
@@ -317,7 +363,10 @@ impl ClientApiConnection {
                 .clone()
         };
         let request = server.borrow().shutdown_request();
-        let response = request.send().promise.await.map_err(map_to_string)?;
+        let response = self
+            .cancellable(request.send().promise)
+            .await
+            .map_err(map_to_string)?;
         response.get().map(drop).map_err(map_to_string)
     }
 
@@ -333,7 +382,10 @@ impl ClientApiConnection {
         };
         let mut request = server.borrow().debug_request();
         request.get().set_command(&what);
-        let response = request.send().promise.await.map_err(map_to_string)?;
+        let response = self
+            .cancellable(request.send().promise)
+            .await
+            .map_err(map_to_string)?;
         let reader = response
             .get()
             .map_err(map_to_string)?
@@ -361,7 +413,10 @@ impl ClientApiConnection {
         request.get().set_layer(&layer);
         let log_level_json = veilid_core::serialize_json(&log_level);
         request.get().set_log_level(&log_level_json);
-        let response = request.send().promise.await.map_err(map_to_string)?;
+        let response = self
+            .cancellable(request.send().promise)
+            .await
+            .map_err(map_to_string)?;
         let reader = response
             .get()
             .map_err(map_to_string)?
@@ -384,7 +439,10 @@ impl ClientApiConnection {
         let mut request = server.borrow().app_call_reply_request();
         request.get().set_id(id);
         request.get().set_message(&msg);
-        let response = request.send().promise.await.map_err(map_to_string)?;
+        let response = self
+            .cancellable(request.send().promise)
+            .await
+            .map_err(map_to_string)?;
         let reader = response
             .get()
             .map_err(map_to_string)?

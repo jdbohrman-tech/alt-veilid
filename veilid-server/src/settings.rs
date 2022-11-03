@@ -41,6 +41,8 @@ logging:
         enabled: false
         level: 'trace'
         grpc_endpoint: 'localhost:4317'
+    console:
+        enabled: false
 testing:
     subnode_index: 0
 core:
@@ -417,6 +419,11 @@ pub struct Terminal {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct Console {
+    pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct File {
     pub enabled: bool,
     pub path: String,
@@ -456,6 +463,7 @@ pub struct Logging {
     pub file: File,
     pub api: Api,
     pub otlp: Otlp,
+    pub console: Console,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -922,6 +930,7 @@ impl Settings {
         set_config_value!(inner.logging.otlp.enabled, value);
         set_config_value!(inner.logging.otlp.level, value);
         set_config_value!(inner.logging.otlp.grpc_endpoint, value);
+        set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         set_config_value!(inner.core.protected_store.allow_insecure_fallback, value);
         set_config_value!(
@@ -1443,6 +1452,7 @@ mod tests {
             s.logging.otlp.grpc_endpoint,
             NamedSocketAddrs::from_str("localhost:4317").unwrap()
         );
+        assert_eq!(s.logging.console.enabled, false);
         assert_eq!(s.testing.subnode_index, 0);
 
         assert_eq!(

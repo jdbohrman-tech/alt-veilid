@@ -12,9 +12,9 @@ path = "src/main.rs"
 
 [features]
 default = [ "rt-tokio" ]
-rt-async-std = [ "veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys"]
-rt-tokio = [ "veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio"]
-tracking = ["veilid-core/tracking"]
+rt-async-std = [ "veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys" ]
+rt-tokio = [ "veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio", "console-subscriber" ]
+tracking = [ "veilid-core/tracking" ]
 
 [dependencies]
 veilid-core = { path = "../veilid-core" }
@@ -27,11 +27,13 @@ opentelemetry = { version = "^0" }
 opentelemetry-otlp = { version = "^0" }
 opentelemetry-semantic-conventions = "^0"
 async-std = { version = "^1", features = ["unstable"], optional = true }
-tokio = { version = "^1", features = ["full"], optional = true }
+tokio = { version = "^1", features = ["full", "tracing"], optional = true }
+console-subscriber = { version = "^0", optional = true }
 tokio-stream = { version = "^0", features = ["net"], optional = true }
 tokio-util = { version = "^0", features = ["compat"], optional = true}
 async-tungstenite = { version = "^0", features = ["async-tls"] }
 color-eyre = { version = "^0", default-features = false }
+backtrace = "^0"
 clap = "^3"
 directories = "^4"
 capnp = "^0"
