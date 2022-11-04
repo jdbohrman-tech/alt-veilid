@@ -185,7 +185,7 @@ impl ProtectedStore {
         }
     }
 
-    #[instrument(level = "trace", skip(self, value), ret, err)]
+    #[instrument(level = "trace", skip(self, value))]
     pub async fn save_user_secret_cbor<T>(&self, key: &str, value: &T) -> EyreResult<bool>
     where
         T: Serialize,
@@ -194,7 +194,7 @@ impl ProtectedStore {
         self.save_user_secret(&key, &v).await
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", skip(self))]
     pub async fn load_user_secret_cbor<T>(&self, key: &str) -> EyreResult<Option<T>>
     where
         T: for<'de> Deserialize<'de>,

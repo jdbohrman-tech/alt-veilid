@@ -282,7 +282,7 @@ impl RouteSpecStore {
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         rsstdb.store_cbor(0, b"content", &content).await?;
 
-        // Keep secrets in protected store as well
+        // // Keep secrets in protected store as well
         let pstore = self
             .unlocked_inner
             .routing_table
