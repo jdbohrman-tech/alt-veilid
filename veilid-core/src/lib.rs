@@ -64,12 +64,14 @@ pub fn veilid_version() -> (u32, u32, u32) {
 #[cfg(target_os = "android")]
 pub use intf::utils::android::{veilid_core_setup_android, veilid_core_setup_android_no_log};
 
-pub static DEFAULT_LOG_IGNORE_LIST: [&str; 19] = [
+pub static DEFAULT_LOG_IGNORE_LIST: [&str; 21] = [
     "mio",
     "h2",
     "hyper",
     "tower",
     "tonic",
+    "tokio",
+    "runtime",
     "tokio_util",
     "want",
     "serial_test",
