@@ -25,7 +25,7 @@ pub use intf::BlockStore;
 pub use intf::ProtectedStore;
 pub use intf::TableStore;
 pub use network_manager::NetworkManager;
-pub use routing_table::RoutingTable;
+pub use routing_table::{NodeRef, NodeRefBase, RoutingTable};
 
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};

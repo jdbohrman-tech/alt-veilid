@@ -720,7 +720,7 @@ impl RoutingTableInner {
         });
         if let Some(nr) = &out {
             // set the most recent node address for connection finding and udp replies
-            nr.set_last_connection(descriptor, timestamp);
+            nr.locked(self).set_last_connection(descriptor, timestamp);
         }
         out
     }
@@ -841,11 +841,15 @@ impl RoutingTableInner {
             Vec::<(DHTKey, Option<Arc<BucketEntry>>)>::with_capacity(self.bucket_entry_count + 1);
 
         // add our own node (only one of there with the None entry)
+        let mut filtered = false;
         for filter in &mut filters {
-            if filter(self, self.unlocked_inner.node_id, None) {
-                nodes.push((self.unlocked_inner.node_id, None));
+            if !filter(self, self.unlocked_inner.node_id, None) {
+                filtered = true;
                 break;
             }
+        }
+        if !filtered {
+            nodes.push((self.unlocked_inner.node_id, None));
         }
 
         // add all nodes from buckets
