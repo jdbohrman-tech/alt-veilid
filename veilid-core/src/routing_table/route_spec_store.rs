@@ -339,9 +339,11 @@ impl RouteSpecStore {
 
     /// Purge the route spec store
     pub async fn purge(&self) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-        inner.content = Default::default();
-        inner.cache = Default::default();
+        {
+            let inner = &mut *self.inner.lock();
+            inner.content = Default::default();
+            inner.cache = Default::default();
+        }
         self.save().await
     }
 
