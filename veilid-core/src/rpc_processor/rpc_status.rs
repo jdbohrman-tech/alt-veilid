@@ -149,7 +149,6 @@ impl RPCProcessor {
                                         )
                                     }
                                 }
-                                opt_sender_info = Some(sender_info.clone());
                             }
                             SendDataKind::Indirect => {
                                 // Do nothing in this case, as the socket address returned here would be for any node other than ours
@@ -158,6 +157,7 @@ impl RPCProcessor {
                                 // Do nothing in this case, as an existing connection could not have a different public address or it would have been reset
                             }
                         };
+                        opt_sender_info = Some(sender_info.clone());
                     }
                 }
             }

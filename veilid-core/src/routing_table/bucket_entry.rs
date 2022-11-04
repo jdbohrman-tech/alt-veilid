@@ -181,20 +181,23 @@ impl BucketEntryInner {
 
         // See if we have an existing signed_node_info to update or not
         if let Some(current_sni) = opt_current_sni {
-            // If the timestamp hasn't changed or is less, ignore this update
-            if signed_node_info.timestamp <= current_sni.timestamp {
-                // If we received a node update with the same timestamp
-                // we can make this node live again, but only if our network has recently changed
-                // which may make nodes that were unreachable now reachable with the same dialinfo
-                if !self.updated_since_last_network_change
-                    && signed_node_info.timestamp == current_sni.timestamp
-                {
-                    // No need to update the signednodeinfo though since the timestamp is the same
-                    // Touch the node and let it try to live again
-                    self.updated_since_last_network_change = true;
-                    self.touch_last_seen(intf::get_timestamp());
+            // Always allow overwriting invalid/unsigned node
+            if current_sni.has_valid_signature() {
+                // If the timestamp hasn't changed or is less, ignore this update
+                if signed_node_info.timestamp <= current_sni.timestamp {
+                    // If we received a node update with the same timestamp
+                    // we can make this node live again, but only if our network has recently changed
+                    // which may make nodes that were unreachable now reachable with the same dialinfo
+                    if !self.updated_since_last_network_change
+                        && signed_node_info.timestamp == current_sni.timestamp
+                    {
+                        // No need to update the signednodeinfo though since the timestamp is the same
+                        // Touch the node and let it try to live again
+                        self.updated_since_last_network_change = true;
+                        self.touch_last_seen(intf::get_timestamp());
+                    }
+                    return;
                 }
-                return;
             }
         }
 
