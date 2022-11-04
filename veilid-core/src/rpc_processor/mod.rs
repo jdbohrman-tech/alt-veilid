@@ -90,8 +90,14 @@ struct RPCMessageHeader {
 impl RPCMessageHeader {}
 
 #[derive(Debug)]
-struct RPCMessageData {
+pub struct RPCMessageData {
     contents: Vec<u8>, // rpc messages must be a canonicalized single segment
+}
+
+impl RPCMessageData {
+    pub fn new(contents: Vec<u8>) -> Self {
+        Self { contents }
+    }
 }
 
 impl ReaderSegments for RPCMessageData {

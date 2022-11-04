@@ -2,6 +2,7 @@ use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
 use keyring_manager::*;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 pub struct ProtectedStoreInner {
@@ -31,14 +32,17 @@ impl ProtectedStore {
     #[instrument(level = "trace", skip(self), err)]
     pub async fn delete_all(&self) -> EyreResult<()> {
         // Delete all known keys
-        if self.remove_user_secret_string("node_id").await? {
+        if self.remove_user_secret("node_id").await? {
             debug!("deleted protected_store key 'node_id'");
         }
-        if self.remove_user_secret_string("node_id_secret").await? {
+        if self.remove_user_secret("node_id_secret").await? {
             debug!("deleted protected_store key 'node_id_secret'");
         }
-        if self.remove_user_secret_string("_test_key").await? {
+        if self.remove_user_secret("_test_key").await? {
             debug!("deleted protected_store key '_test_key'");
+        }
+        if self.remove_user_secret("RouteSpecStore").await? {
+            debug!("deleted protected_store key 'RouteSpecStore'");
         }
         Ok(())
     }
@@ -139,19 +143,30 @@ impl ProtectedStore {
         }
     }
 
-    #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn remove_user_secret_string(&self, key: &str) -> EyreResult<bool> {
-        let inner = self.inner.lock();
-        match inner
-            .keyring_manager
-            .as_ref()
-            .ok_or_else(|| eyre!("Protected store not initialized"))?
-            .with_keyring(&self.service_name(), key, |kr| kr.delete_value())
-        {
-            Ok(_) => Ok(true),
-            Err(KeyringError::NoPasswordFound) => Ok(false),
-            Err(e) => Err(eyre!("Failed to remove user secret: {}", e)),
-        }
+    #[instrument(level = "trace", skip(self, value), ret, err)]
+    pub async fn save_user_secret_cbor<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    where
+        T: Serialize,
+    {
+        let v = serde_cbor::to_vec(value).wrap_err("couldn't store as CBOR")?;
+        self.save_user_secret(&key, &v).await
+    }
+
+    #[instrument(level = "trace", skip(self), err)]
+    pub async fn load_user_secret_cbor<T>(&self, key: &str) -> EyreResult<Option<T>>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        let out = self.load_user_secret(key).await?;
+        let b = match out {
+            Some(v) => v,
+            None => {
+                return Ok(None);
+            }
+        };
+
+        let obj = serde_cbor::from_slice::<T>(&b).wrap_err("failed to deserialize")?;
+        Ok(Some(obj))
     }
 
     #[instrument(level = "trace", skip(self, value), ret, err)]
@@ -195,6 +210,16 @@ impl ProtectedStore {
 
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn remove_user_secret(&self, key: &str) -> EyreResult<bool> {
-        self.remove_user_secret_string(key).await
+        let inner = self.inner.lock();
+        match inner
+            .keyring_manager
+            .as_ref()
+            .ok_or_else(|| eyre!("Protected store not initialized"))?
+            .with_keyring(&self.service_name(), key, |kr| kr.delete_value())
+        {
+            Ok(_) => Ok(true),
+            Err(KeyringError::NoPasswordFound) => Ok(false),
+            Err(e) => Err(eyre!("Failed to remove user secret: {}", e)),
+        }
     }
 }

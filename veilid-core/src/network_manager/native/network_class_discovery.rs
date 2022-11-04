@@ -883,15 +883,11 @@ impl Network {
         l: u64,
         t: u64,
     ) -> EyreResult<()> {
-        // Note that we are doing the public dial info check
-        // We don't have to check this for concurrency, since this routine is run in a TickTask/SingleFuture
-        self.inner.lock().doing_public_dial_info_check = true;
-
         // Do the public dial info check
         let out = self.do_public_dial_info_check(stop_token, l, t).await;
 
         // Done with public dial info check
-        self.inner.lock().doing_public_dial_info_check = false;
+        self.inner.lock().needs_public_dial_info_check = false;
 
         out
     }

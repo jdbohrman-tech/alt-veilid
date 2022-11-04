@@ -1747,7 +1747,7 @@ impl NetworkManager {
 
         // Ignore these reports if we are currently detecting public dial info
         let net = self.net();
-        if net.doing_public_dial_info_check() {
+        if net.needs_public_dial_info_check() {
             return;
         }
 

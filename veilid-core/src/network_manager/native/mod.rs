@@ -63,8 +63,6 @@ struct NetworkInner {
     enable_ipv6_local: bool,
     /// set if we need to calculate our public dial info again
     needs_public_dial_info_check: bool,
-    /// set during the actual execution of the public dial info check to ensure we don't do it more than once
-    doing_public_dial_info_check: bool,
     /// the punishment closure to enax
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     /// udp socket record for bound-first sockets, which are used to guarantee a port is available before
@@ -116,7 +114,6 @@ impl Network {
             network_started: false,
             network_needs_restart: false,
             needs_public_dial_info_check: false,
-            doing_public_dial_info_check: false,
             public_dial_info_check_punishment: None,
             protocol_config: Default::default(),
             static_public_dialinfo: ProtocolTypeSet::empty(),
@@ -871,14 +868,9 @@ impl Network {
         inner.public_dial_info_check_punishment = punishment;
     }
 
-    fn needs_public_dial_info_check(&self) -> bool {
+    pub fn needs_public_dial_info_check(&self) -> bool {
         let inner = self.inner.lock();
         inner.needs_public_dial_info_check
-    }
-
-    pub fn doing_public_dial_info_check(&self) -> bool {
-        let inner = self.inner.lock();
-        inner.doing_public_dial_info_check
     }
 
     //////////////////////////////////////////

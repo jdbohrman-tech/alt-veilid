@@ -16,12 +16,41 @@ fn get_bucket_entry_state(text: &str) -> Option<BucketEntryState> {
         None
     }
 }
+
+fn get_string(text: &str) -> Option<String> {
+    Some(text.to_owned())
+}
+
+fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
+    return move |text: &str| {
+        match DHTKey::try_decode(text).ok() {
+            Some(key) => {
+                let routes = rss.list_routes();
+                if routes.contains(&key) {
+                    return Some(key);
+                }
+            }
+            None => {
+                let routes = rss.list_routes();
+                for r in routes {
+                    let rkey = r.encode();
+                    if rkey.starts_with(text) {
+                        return Some(r);
+                    }
+                }
+            }
+        }
+        None
+    };
+}
+
 fn get_number(text: &str) -> Option<usize> {
     usize::from_str(text).ok()
 }
 fn get_dht_key(text: &str) -> Option<DHTKey> {
     DHTKey::try_decode(text).ok()
 }
+
 fn get_protocol_type(text: &str) -> Option<ProtocolType> {
     let lctext = text.to_ascii_lowercase();
     if lctext == "udp" {
@@ -36,6 +65,41 @@ fn get_protocol_type(text: &str) -> Option<ProtocolType> {
         None
     }
 }
+fn get_sequencing(text: &str) -> Option<Sequencing> {
+    let seqtext = text.to_ascii_lowercase();
+    if seqtext == "np" {
+        Some(Sequencing::NoPreference)
+    } else if seqtext == "ord" {
+        Some(Sequencing::PreferOrdered)
+    } else if seqtext == "*ord" {
+        Some(Sequencing::EnsureOrdered)
+    } else {
+        None
+    }
+}
+fn get_stability(text: &str) -> Option<Stability> {
+    let sttext = text.to_ascii_lowercase();
+    if sttext == "ll" {
+        Some(Stability::LowLatency)
+    } else if sttext == "rel" {
+        Some(Stability::Reliable)
+    } else {
+        None
+    }
+}
+fn get_direction_set(text: &str) -> Option<DirectionSet> {
+    let dstext = text.to_ascii_lowercase();
+    if dstext == "in" {
+        Some(Direction::Inbound.into())
+    } else if dstext == "out" {
+        Some(Direction::Outbound.into())
+    } else if dstext == "inout" {
+        Some(DirectionSet::all())
+    } else {
+        None
+    }
+}
+
 fn get_address_type(text: &str) -> Option<AddressType> {
     let lctext = text.to_ascii_lowercase();
     if lctext == "ipv4" {
@@ -251,6 +315,13 @@ impl VeilidAPI {
                     .purge_last_connections();
 
                 Ok("Connections purged".to_owned())
+            } else if args[0] == "routes" {
+                // Purge route spec store
+                let rss = self.network_manager()?.routing_table().route_spec_store();
+                match rss.purge().await {
+                    Ok(_) => Ok("Routes purged".to_owned()),
+                    Err(e) => Ok(format!("Routes purged but failed to save: {}", e)),
+                }
             } else {
                 Err(VeilidAPIError::InvalidArgument {
                     context: "debug_purge".to_owned(),
@@ -420,6 +491,191 @@ impl VeilidAPI {
         Ok(format!("{:#?}", out))
     }
 
+    async fn debug_route_allocate(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // [ord|*ord] [rel] [<count>] [in|out]
+
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+        let config = self.config().unwrap();
+        let default_route_hop_count = {
+            let c = config.get();
+            c.network.rpc.default_route_hop_count as usize
+        };
+
+        let mut ai = 1;
+        let mut sequencing = Sequencing::NoPreference;
+        let mut stability = Stability::LowLatency;
+        let mut hop_count = default_route_hop_count;
+        let mut directions = DirectionSet::all();
+
+        while ai < args.len() {
+            if let Ok(seq) =
+                get_debug_argument_at(&args, ai, "debug_route", "sequencing", get_sequencing)
+            {
+                sequencing = seq;
+            } else if let Ok(sta) =
+                get_debug_argument_at(&args, ai, "debug_route", "stability", get_stability)
+            {
+                stability = sta;
+            } else if let Ok(hc) =
+                get_debug_argument_at(&args, ai, "debug_route", "hop_count", get_number)
+            {
+                hop_count = hc;
+            } else if let Ok(ds) =
+                get_debug_argument_at(&args, ai, "debug_route", "direction_set", get_direction_set)
+            {
+                directions = ds;
+            } else {
+                return Ok(format!("Invalid argument specified: {}", args[ai]));
+            }
+            ai += 1;
+        }
+
+        // Allocate route
+        let out = match rss.allocate_route(stability, sequencing, hop_count, directions) {
+            Ok(Some(v)) => format!("{}", v.encode()),
+            Ok(None) => format!("<unavailable>"),
+            Err(e) => {
+                format!("Route allocation failed: {}", e)
+            }
+        };
+
+        Ok(out)
+    }
+    async fn debug_route_release(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <route id>
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+
+        // Release route
+        let out = match rss.release_route(route_id) {
+            Ok(()) => format!("Released"),
+            Err(e) => {
+                format!("Route release failed: {}", e)
+            }
+        };
+
+        Ok(out)
+    }
+    async fn debug_route_publish(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <route id> [full]
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+        let full = {
+            if args.len() > 2 {
+                let full_val = get_debug_argument_at(&args, 2, "debug_route", "full", get_string)?
+                    .to_ascii_lowercase();
+                if full_val == "full" {
+                    true
+                } else {
+                    return Err(VeilidAPIError::invalid_argument(
+                        "debug_route",
+                        "full",
+                        full_val,
+                    ));
+                }
+            } else {
+                false
+            }
+        };
+
+        // Publish route
+        let out = match rss.assemble_private_route(&route_id, Some(!full)) {
+            Ok(private_route) => {
+                if let Err(e) = rss.mark_route_published(&route_id, true) {
+                    return Ok(format!("Couldn't mark route published: {}", e));
+                }
+                // Convert to blob
+                let blob_data = RouteSpecStore::private_route_to_blob(&private_route)
+                    .map_err(VeilidAPIError::internal)?;
+                data_encoding::BASE64URL_NOPAD.encode(&blob_data)
+            }
+            Err(e) => {
+                format!("Couldn't assemble private route: {}", e)
+            }
+        };
+
+        Ok(out)
+    }
+    async fn debug_route_unpublish(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <route id>
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+
+        // Unpublish route
+        let out = if let Err(e) = rss.mark_route_published(&route_id, false) {
+            return Ok(format!("Couldn't mark route unpublished: {}", e));
+        } else {
+            "Route unpublished".to_owned()
+        };
+        Ok(out)
+    }
+    async fn debug_route_print(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <route id>
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+
+        match rss.debug_route(&route_id) {
+            Some(s) => Ok(s),
+            None => Ok("Route does not exist".to_owned()),
+        }
+    }
+    async fn debug_route_list(&self, _args: Vec<String>) -> Result<String, VeilidAPIError> {
+        //
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let routes = rss.list_routes();
+        let mut out = format!("Routes: (count = {}):\n", routes.len());
+        for r in routes {
+            out.push_str(&format!("{}\n", r.encode()));
+        }
+        Ok(out)
+    }
+    async fn debug_route_import(&self, _args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <blob>
+        let out = format!("");
+        return Ok(out);
+    }
+
+    async fn debug_route(&self, args: String) -> Result<String, VeilidAPIError> {
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+
+        let command = get_debug_argument_at(&args, 0, "debug_route", "command", get_string)?;
+
+        if command == "allocate" {
+            self.debug_route_allocate(args).await
+        } else if command == "release" {
+            self.debug_route_release(args).await
+        } else if command == "publish" {
+            self.debug_route_publish(args).await
+        } else if command == "unpublish" {
+            self.debug_route_unpublish(args).await
+        } else if command == "print" {
+            self.debug_route_print(args).await
+        } else if command == "list" {
+            self.debug_route_list(args).await
+        } else if command == "import" {
+            self.debug_route_import(args).await
+        } else {
+            Ok(">>> Unknown command\n".to_owned())
+        }
+    }
+
     pub async fn debug_help(&self, _args: String) -> Result<String, VeilidAPIError> {
         Ok(r#">>> Debug commands:
         help
@@ -435,6 +691,13 @@ impl VeilidAPI {
         restart network
         ping <node_id> [protocol_type][address_type][routing_domain]
         contact <node_id> [protocol_type [address_type]]
+        route allocate [ord|*ord] [rel] [<count>] [in|out]
+        route release <route id>
+        route publish <route id> [full]
+        route unpublish <route id>
+        route print <route id>
+        route list
+        route import <blob>
     "#
         .to_owned())
     }
@@ -476,6 +739,8 @@ impl VeilidAPI {
             self.debug_config(rest).await
         } else if arg == "restart" {
             self.debug_restart(rest).await
+        } else if arg == "route" {
+            self.debug_route(rest).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }

@@ -46,7 +46,7 @@ impl Network {
         NetworkUnlockedInner {
             network_manager,
             routing_table,
-            connection_manager
+            connection_manager,
         }
     }
 
@@ -58,7 +58,11 @@ impl Network {
         Self {
             config: network_manager.config(),
             inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(network_manager, routing_table, connection_manager))
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(
+                network_manager,
+                routing_table,
+                connection_manager,
+            )),
         }
     }
 
@@ -319,12 +323,15 @@ impl Network {
     }
 
     //////////////////////////////////////////
-    
-    pub fn set_needs_public_dial_info_check(&self, _punishment: Option<Box<dyn FnOnce() + Send + 'static>>) {
+
+    pub fn set_needs_public_dial_info_check(
+        &self,
+        _punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
+    ) {
         //
     }
 
-    pub fn doing_public_dial_info_check(&self) -> bool {
+    pub fn needs_public_dial_info_check(&self) -> bool {
         false
     }
 

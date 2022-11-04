@@ -155,7 +155,7 @@ fn with_route_permutations(
     // initial permutation
     let mut permutation: Vec<usize> = Vec::with_capacity(hop_count);
     for n in 0..hop_count {
-        permutation[n] = start + n;
+        permutation.push(start + n);
     }
     // if we have one hop or two, then there's only one permutation
     if hop_count == 1 || hop_count == 2 {
@@ -229,22 +229,17 @@ impl RouteSpecStore {
 
         // Load secrets from pstore
         let pstore = routing_table.network_manager().protected_store();
+        let out: Vec<(DHTKey, DHTKeySecret)> = pstore
+            .load_user_secret_cbor("RouteSpecStore")
+            .await?
+            .unwrap_or_default();
+
         let mut dead_keys = Vec::new();
-        for (k, v) in &mut content.details {
-            if let Some(secret_key) = pstore
-                .load_user_secret(&format!("RouteSpecStore_{}", k.encode()))
-                .await?
-            {
-                match secret_key.try_into() {
-                    Ok(s) => {
-                        v.secret_key = DHTKeySecret::new(s);
-                    }
-                    Err(_) => {
-                        dead_keys.push(*k);
-                    }
-                }
+        for (k, v) in out {
+            if let Some(rsd) = content.details.get_mut(&k) {
+                rsd.secret_key = v;
             } else {
-                dead_keys.push(*k);
+                dead_keys.push(k);
             }
         }
         for k in dead_keys {
@@ -293,17 +288,13 @@ impl RouteSpecStore {
             .routing_table
             .network_manager()
             .protected_store();
+
+        let mut out: Vec<(DHTKey, DHTKeySecret)> = Vec::with_capacity(content.details.len());
         for (k, v) in &content.details {
-            if pstore
-                .save_user_secret(
-                    &format!("RouteSpecStore_{}", k.encode()),
-                    &v.secret_key.bytes,
-                )
-                .await?
-            {
-                panic!("route spec should not already have secret key saved");
-            }
+            out.push((*k, v.secret_key));
         }
+
+        let _ = pstore.save_user_secret_cbor("RouteSpecStore", &out).await?; // ignore if this previously existed or not
 
         Ok(())
     }
@@ -344,6 +335,14 @@ impl RouteSpecStore {
         public_key: &DHTKey,
     ) -> Option<&'a mut RouteSpecDetail> {
         inner.content.details.get_mut(public_key)
+    }
+
+    /// Purge the route spec store
+    pub async fn purge(&self) -> EyreResult<()> {
+        let inner = &mut *self.inner.lock();
+        inner.content = Default::default();
+        inner.cache = Default::default();
+        self.save().await
     }
 
     /// Create a new route
@@ -675,7 +674,7 @@ impl RouteSpecStore {
         )))
     }
 
-    pub fn release_route(&self, public_key: DHTKey) {
+    pub fn release_route(&self, public_key: DHTKey) -> EyreResult<()> {
         let mut inner = self.inner.lock();
         if let Some(detail) = inner.content.details.remove(&public_key) {
             // Remove from hop cache
@@ -710,8 +709,9 @@ impl RouteSpecStore {
                 }
             }
         } else {
-            panic!("can't release route that was never allocated");
+            bail!("can't release route that was never allocated");
         }
+        Ok(())
     }
 
     /// Find first matching unpublished route that fits into the selection criteria
@@ -737,6 +737,22 @@ impl RouteSpecStore {
             }
         }
         None
+    }
+
+    /// List all routes
+    pub fn list_routes(&self) -> Vec<DHTKey> {
+        let inner = self.inner.lock();
+        let mut out = Vec::with_capacity(inner.content.details.len());
+        for detail in &inner.content.details {
+            out.push(*detail.0);
+        }
+        out
+    }
+
+    /// Get the debug description of a route
+    pub fn debug_route(&self, key: &DHTKey) -> Option<String> {
+        let inner = &*self.inner.lock();
+        Self::detail(inner, key).map(|rsd| format!("{:#?}", rsd))
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -973,17 +989,18 @@ impl RouteSpecStore {
     /// Assemble private route for publication
     pub fn assemble_private_route(
         &self,
-        rti: &RoutingTableInner,
-        routing_table: RoutingTable,
         key: &DHTKey,
+        optimize: Option<bool>,
     ) -> EyreResult<PrivateRoute> {
         let inner = &*self.inner.lock();
+        let routing_table = self.unlocked_inner.routing_table.clone();
+        let rti = &*routing_table.inner.read();
 
-        let rsd = Self::detail(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+        let rsd = Self::detail(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
-        let optimize = rsd.reachable;
+        let optimize = optimize.unwrap_or(rsd.reachable);
 
         // Make innermost route hop to our own node
         let mut route_hop = RouteHop {
@@ -1053,79 +1070,79 @@ impl RouteSpecStore {
     /// Mark route as published
     /// When first deserialized, routes must be re-published in order to ensure they remain
     /// in the RouteSpecStore.
-    pub fn mark_route_published(&mut self, key: &DHTKey) -> EyreResult<()> {
+    pub fn mark_route_published(&self, key: &DHTKey, published: bool) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
-        Self::detail_mut(inner, &key)
+        Self::detail_mut(inner, key)
             .ok_or_else(|| eyre!("route does not exist"))?
-            .published = true;
+            .published = published;
         Ok(())
     }
 
     /// Mark route as reachable
     /// When first deserialized, routes must be re-tested for reachability
     /// This can be used to determine if routes need to be sent with full peerinfo or can just use a node id
-    pub fn mark_route_reachable(&mut self, key: &DHTKey) -> EyreResult<()> {
+    pub fn mark_route_reachable(&self, key: &DHTKey, reachable: bool) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
-        Self::detail_mut(inner, &key)
+        Self::detail_mut(inner, key)
             .ok_or_else(|| eyre!("route does not exist"))?
-            .published = true;
+            .reachable = reachable;
         Ok(())
     }
 
     /// Mark route as checked
-    pub fn touch_route_checked(&mut self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
+    pub fn touch_route_checked(&self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
-        Self::detail_mut(inner, &key)
+        Self::detail_mut(inner, key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .last_checked_ts = Some(cur_ts);
         Ok(())
     }
 
     /// Mark route as used
-    pub fn touch_route_used(&mut self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
+    pub fn touch_route_used(&self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
-        Self::detail_mut(inner, &key)
+        Self::detail_mut(inner, key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .last_used_ts = Some(cur_ts);
         Ok(())
     }
 
     /// Record latency on the route
-    pub fn record_latency(&mut self, key: &DHTKey, latency: u64) -> EyreResult<()> {
+    pub fn record_latency(&self, key: &DHTKey, latency: u64) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
 
-        let rsd = Self::detail_mut(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+        let rsd = Self::detail_mut(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
         rsd.latency_stats = rsd.latency_stats_accounting.record_latency(latency);
         Ok(())
     }
 
     /// Get the calculated latency stats
-    pub fn latency_stats(&mut self, key: &DHTKey) -> EyreResult<LatencyStats> {
+    pub fn latency_stats(&self, key: &DHTKey) -> EyreResult<LatencyStats> {
         let inner = &mut *self.inner.lock();
-        Ok(Self::detail_mut(inner, &key)
+        Ok(Self::detail_mut(inner, key)
             .ok_or_else(|| eyre!("route does not exist"))?
             .latency_stats
             .clone())
     }
 
     /// Add download transfers to route
-    pub fn add_down(&mut self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
+    pub fn add_down(&self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
-        let rsd = Self::detail_mut(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+        let rsd = Self::detail_mut(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
         rsd.transfer_stats_accounting.add_down(bytes);
         Ok(())
     }
 
     /// Add upload transfers to route
-    pub fn add_up(&mut self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
+    pub fn add_up(&self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
-        let rsd = Self::detail_mut(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+        let rsd = Self::detail_mut(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
         rsd.transfer_stats_accounting.add_up(bytes);
         Ok(())
     }
 
     /// Process transfer statistics to get averages
-    pub fn roll_transfers(&mut self, last_ts: u64, cur_ts: u64) {
+    pub fn roll_transfers(&self, last_ts: u64, cur_ts: u64) {
         let inner = &mut *self.inner.lock();
         for rsd in inner.content.details.values_mut() {
             rsd.transfer_stats_accounting.roll_transfers(
@@ -1134,5 +1151,23 @@ impl RouteSpecStore {
                 &mut rsd.transfer_stats_down_up,
             );
         }
+    }
+
+    /// Convert private route to binary blob
+    pub fn private_route_to_blob(private_route: &PrivateRoute) -> EyreResult<Vec<u8>> {
+        let mut pr_message = ::capnp::message::Builder::new_default();
+        let mut pr_builder = pr_message.init_root::<veilid_capnp::private_route::Builder>();
+        encode_private_route(&private_route, &mut pr_builder)
+            .wrap_err("failed to encode private route")?;
+        builder_to_vec(pr_message).wrap_err("failed to convert builder to vec")
+    }
+
+    /// Convert binary blob to private route
+    pub fn blob_to_private_route(blob: Vec<u8>) -> EyreResult<PrivateRoute> {
+        let reader = ::capnp::message::Reader::new(RPCMessageData::new(blob), Default::default());
+        let pr_reader = reader
+            .get_root::<veilid_capnp::private_route::Reader>()
+            .wrap_err("failed to make reader for private_route")?;
+        decode_private_route(&pr_reader).wrap_err("failed to decode private route")
     }
 }
