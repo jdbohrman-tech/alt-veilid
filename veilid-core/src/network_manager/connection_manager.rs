@@ -232,7 +232,8 @@ impl ConnectionManager {
         });
         // Wait for the killed connections to end their recv loops
         let did_kill = !killed.is_empty();
-        for k in killed {
+        for mut k in killed {
+            k.close();
             k.await;
         }
         did_kill
