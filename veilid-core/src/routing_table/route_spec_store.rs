@@ -699,7 +699,11 @@ impl RouteSpecStore {
                 }
             }
             // Remove from end nodes cache
-            match inner.cache.used_nodes.entry(*detail.hops.last().unwrap()) {
+            match inner
+                .cache
+                .used_end_nodes
+                .entry(*detail.hops.last().unwrap())
+            {
                 std::collections::hash_map::Entry::Occupied(mut o) => {
                     *o.get_mut() -= 1;
                     if *o.get() == 0 {
@@ -707,7 +711,7 @@ impl RouteSpecStore {
                     }
                 }
                 std::collections::hash_map::Entry::Vacant(_) => {
-                    panic!("used_nodes cache should have contained hop");
+                    panic!("used_end_nodes cache should have contained hop");
                 }
             }
         } else {
@@ -1161,12 +1165,24 @@ impl RouteSpecStore {
         let mut pr_builder = pr_message.init_root::<veilid_capnp::private_route::Builder>();
         encode_private_route(&private_route, &mut pr_builder)
             .wrap_err("failed to encode private route")?;
-        builder_to_vec(pr_message).wrap_err("failed to convert builder to vec")
+
+        let mut buffer = vec![];
+        capnp::serialize_packed::write_message(&mut buffer, &pr_message)
+            .wrap_err("failed to convert builder to vec")?;
+        Ok(buffer)
+
+        //    builder_to_vec(pr_message).wrap_err("failed to convert builder to vec")
     }
 
     /// Convert binary blob to private route
     pub fn blob_to_private_route(blob: Vec<u8>) -> EyreResult<PrivateRoute> {
-        let reader = ::capnp::message::Reader::new(RPCMessageData::new(blob), Default::default());
+        let reader = capnp::serialize_packed::read_message(
+            blob.as_slice(),
+            capnp::message::ReaderOptions::new(),
+        )
+        .wrap_err("failed to make message reader")?;
+
+        //let reader = ::capnp::message::Reader::new(RPCMessageData::new(blob), Default::default());
         let pr_reader = reader
             .get_root::<veilid_capnp::private_route::Reader>()
             .wrap_err("failed to make reader for private_route")?;

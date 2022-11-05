@@ -2,8 +2,18 @@
 // Debugging
 
 use super::*;
+use data_encoding::BASE64URL_NOPAD;
 use routing_table::*;
 use rpc_processor::*;
+
+#[derive(Default, Debug)]
+struct DebugCache {
+    imported_routes: Vec<PrivateRoute>,
+}
+
+static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
+    imported_routes: Vec::new(),
+});
 
 fn get_bucket_entry_state(text: &str) -> Option<BucketEntryState> {
     if text == "dead" {
@@ -44,11 +54,147 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
     };
 }
 
+fn get_safety_selection(text: &str, rss: RouteSpecStore) -> Option<SafetySelection> {
+    if text.len() == 0 {
+        return None;
+    }
+    if &text[0..1] == "-" {
+        // Unsafe
+        let text = &text[1..];
+        let seq = get_sequencing(text).unwrap_or(Sequencing::NoPreference);
+        Some(SafetySelection::Unsafe(seq))
+    } else {
+        // Safe
+        let mut preferred_route = None;
+        let mut hop_count = 2;
+        let mut stability = Stability::LowLatency;
+        let mut sequencing = Sequencing::NoPreference;
+        for x in text.split(",") {
+            let x = x.trim();
+            if let Some(pr) = get_route_id(rss.clone())(x) {
+                preferred_route = Some(pr)
+            }
+            if let Some(n) = get_number(x) {
+                hop_count = n;
+            }
+            if let Some(s) = get_stability(x) {
+                stability = s;
+            }
+            if let Some(s) = get_sequencing(x) {
+                sequencing = s;
+            }
+        }
+        let ss = SafetySpec {
+            preferred_route,
+            hop_count,
+            stability,
+            sequencing,
+        };
+        Some(SafetySelection::Safe(ss))
+    }
+}
+
+fn get_node_ref_modifiers(mut node_ref: NodeRef) -> impl FnOnce(&str) -> Option<NodeRef> {
+    move |text| {
+        for m in text.split("/") {
+            if let Some(pt) = get_protocol_type(m) {
+                node_ref.merge_filter(NodeRefFilter::new().with_protocol_type(pt));
+            } else if let Some(at) = get_address_type(m) {
+                node_ref.merge_filter(NodeRefFilter::new().with_address_type(at));
+            } else if let Some(rd) = get_routing_domain(m) {
+                node_ref.merge_filter(NodeRefFilter::new().with_routing_domain(rd));
+            } else {
+                return None;
+            }
+        }
+        Some(node_ref)
+    }
+}
+
+fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Destination> {
+    move |text| {
+        // Safety selection
+        let (text, ss) = if let Some((first, second)) = text.split_once('+') {
+            let ss = get_safety_selection(second, routing_table.route_spec_store())?;
+            (first, Some(ss))
+        } else {
+            (text, None)
+        };
+        if text.len() == 0 {
+            return None;
+        }
+        if &text[0..1] == "#" {
+            // Private route
+            let text = &text[1..];
+            let n = get_number(text)?;
+            let dc = DEBUG_CACHE.lock();
+            let r = dc.imported_routes.get(n)?;
+            Some(Destination::private_route(
+                r.clone(),
+                ss.unwrap_or(SafetySelection::Unsafe(Sequencing::NoPreference)),
+            ))
+        } else {
+            let (text, mods) = text
+                .split_once('/')
+                .map(|x| (x.0, Some(x.1)))
+                .unwrap_or((text, None));
+            if let Some((first, second)) = text.split_once('@') {
+                // Relay
+                let relay_id = get_dht_key(second)?;
+                let mut relay_nr = routing_table.lookup_node_ref(relay_id)?;
+                let target_id = get_dht_key(first)?;
+
+                if let Some(mods) = mods {
+                    relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
+                }
+
+                let mut d = Destination::relay(relay_nr, target_id);
+                if let Some(ss) = ss {
+                    d = d.with_safety(ss)
+                }
+
+                Some(d)
+            } else {
+                // Direct
+                let target_id = get_dht_key(text)?;
+                let mut target_nr = routing_table.lookup_node_ref(target_id)?;
+
+                if let Some(mods) = mods {
+                    target_nr = get_node_ref_modifiers(target_nr)(mods)?;
+                }
+
+                let mut d = Destination::direct(target_nr);
+                if let Some(ss) = ss {
+                    d = d.with_safety(ss)
+                }
+
+                Some(d)
+            }
+        }
+    }
+}
+
 fn get_number(text: &str) -> Option<usize> {
     usize::from_str(text).ok()
 }
 fn get_dht_key(text: &str) -> Option<DHTKey> {
     DHTKey::try_decode(text).ok()
+}
+
+fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
+    move |text| {
+        let (text, mods) = text
+            .split_once('/')
+            .map(|x| (x.0, Some(x.1)))
+            .unwrap_or((text, None));
+
+        let node_id = get_dht_key(text)?;
+        let mut nr = routing_table.lookup_node_ref(node_id)?;
+        if let Some(mods) = mods {
+            nr = get_node_ref_modifiers(nr)(mods)?;
+        }
+        Some(nr)
+    }
 }
 
 fn get_protocol_type(text: &str) -> Option<ProtocolType> {
@@ -366,55 +512,19 @@ impl VeilidAPI {
     async fn debug_contact(&self, args: String) -> Result<String, VeilidAPIError> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
-        let node_id = get_debug_argument_at(&args, 0, "debug_contact", "node_id", get_dht_key)?;
-
         let network_manager = self.network_manager()?;
         let routing_table = network_manager.routing_table();
 
-        let mut nr = match routing_table.lookup_node_ref(node_id) {
-            Some(nr) => nr,
-            None => return Ok("Node id not found in routing table".to_owned()),
-        };
-
-        let mut ai = 1;
-        let mut routing_domain = None;
-        while ai < args.len() {
-            if let Ok(pt) = get_debug_argument_at(
-                &args,
-                ai,
-                "debug_contact",
-                "protocol_type",
-                get_protocol_type,
-            ) {
-                nr.merge_filter(NodeRefFilter::new().with_protocol_type(pt));
-            } else if let Ok(at) =
-                get_debug_argument_at(&args, ai, "debug_contact", "address_type", get_address_type)
-            {
-                nr.merge_filter(NodeRefFilter::new().with_address_type(at));
-            } else if let Ok(rd) = get_debug_argument_at(
-                &args,
-                ai,
-                "debug_contact",
-                "routing_domain",
-                get_routing_domain,
-            ) {
-                if routing_domain.is_none() {
-                    routing_domain = Some(rd);
-                } else {
-                    return Ok("Multiple routing domains specified".to_owned());
-                }
-            } else {
-                return Ok(format!("Invalid argument specified: {}", args[ai]));
-            }
-            ai += 1;
-        }
-
-        if let Some(routing_domain) = routing_domain {
-            nr.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain))
-        }
+        let node_ref = get_debug_argument_at(
+            &args,
+            0,
+            "debug_contact",
+            "node_ref",
+            get_node_ref(routing_table),
+        )?;
 
         let cm = network_manager
-            .get_node_contact_method(nr)
+            .get_node_contact_method(node_ref)
             .map_err(VeilidAPIError::internal)?;
 
         Ok(format!("{:#?}", cm))
@@ -427,49 +537,17 @@ impl VeilidAPI {
 
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
-        let node_id = get_debug_argument_at(&args, 0, "debug_ping", "node_id", get_dht_key)?;
-
-        let mut nr = match routing_table.lookup_node_ref(node_id) {
-            Some(nr) => nr,
-            None => return Ok("Node id not found in routing table".to_owned()),
-        };
-
-        let mut ai = 1;
-        let mut routing_domain = None;
-        while ai < args.len() {
-            if let Ok(pt) =
-                get_debug_argument_at(&args, ai, "debug_ping", "protocol_type", get_protocol_type)
-            {
-                nr.merge_filter(NodeRefFilter::new().with_protocol_type(pt));
-            } else if let Ok(at) =
-                get_debug_argument_at(&args, ai, "debug_ping", "address_type", get_address_type)
-            {
-                nr.merge_filter(NodeRefFilter::new().with_address_type(at));
-            } else if let Ok(rd) = get_debug_argument_at(
-                &args,
-                ai,
-                "debug_ping",
-                "routing_domain",
-                get_routing_domain,
-            ) {
-                if routing_domain.is_none() {
-                    routing_domain = Some(rd);
-                } else {
-                    return Ok("Multiple routing domains specified".to_owned());
-                }
-            } else {
-                return Ok(format!("Invalid argument specified: {}", args[ai]));
-            }
-            ai += 1;
-        }
-
-        if let Some(routing_domain) = routing_domain {
-            nr.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain))
-        }
+        let dest = get_debug_argument_at(
+            &args,
+            0,
+            "debug_ping",
+            "destination",
+            get_destination(routing_table),
+        )?;
 
         // Dump routing table entry
         let out = match rpc
-            .rpc_call_status(Destination::direct(nr))
+            .rpc_call_status(dest)
             .await
             .map_err(VeilidAPIError::internal)?
         {
@@ -595,7 +673,14 @@ impl VeilidAPI {
                 // Convert to blob
                 let blob_data = RouteSpecStore::private_route_to_blob(&private_route)
                     .map_err(VeilidAPIError::internal)?;
-                data_encoding::BASE64URL_NOPAD.encode(&blob_data)
+                let out = BASE64URL_NOPAD.encode(&blob_data);
+                info!(
+                    "Published route {} as {} bytes:\n{}",
+                    route_id.encode(),
+                    blob_data.len(),
+                    out
+                );
+                format!("Published route {}", route_id.encode())
             }
             Err(e) => {
                 format!("Couldn't assemble private route: {}", e)
@@ -646,9 +731,21 @@ impl VeilidAPI {
         }
         Ok(out)
     }
-    async fn debug_route_import(&self, _args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_import(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
         // <blob>
-        let out = format!("");
+
+        let blob = get_debug_argument_at(&args, 1, "debug_route", "blob", get_string)?;
+        let blob_dec = BASE64URL_NOPAD
+            .decode(blob.as_bytes())
+            .map_err(VeilidAPIError::generic)?;
+        let pr =
+            RouteSpecStore::blob_to_private_route(blob_dec).map_err(VeilidAPIError::generic)?;
+
+        let mut dc = DEBUG_CACHE.lock();
+        let n = dc.imported_routes.len();
+        let out = format!("Private route #{} imported: {}", n, pr.public_key);
+        dc.imported_routes.push(pr);
+
         return Ok(out);
     }
 
@@ -682,22 +779,34 @@ impl VeilidAPI {
         buckets [dead|reliable]
         dialinfo
         entries [dead|reliable] [limit]
-        entry <node_id>
+        entry <node>
         nodeinfo
         config [key [new value]]
         purge <buckets|connections>
         attach
         detach
         restart network
-        ping <node_id> [protocol_type][address_type][routing_domain]
-        contact <node_id> [protocol_type [address_type]]
+        ping <destination>
+        contact <node>[<modifiers>]
         route allocate [ord|*ord] [rel] [<count>] [in|out]
-        route release <route id>
-        route publish <route id> [full]
-        route unpublish <route id>
-        route print <route id>
-        route list
-        route import <blob>
+              release <route>
+              publish <route> [full]
+              unpublish <route>
+              print <route>
+              list
+              import <blob>
+
+        <destination> is:
+         * direct:  <node>[+<safety>][<modifiers>]
+         * relay:   <relay>@<target>[+<safety>][<modifiers>]
+         * private: #<id>[+<safety>]
+        <safety> is:
+         * unsafe: -[ord|*ord]
+         * safe: [route][,ord|*ord][,rel][,<count>]
+        <modifiers> is: [/<protocoltype>][/<addresstype>][/<routingdomain>]
+        <protocoltype> is: udp|tcp|ws|wss
+        <addresstype> is: ipv4|ipv6
+        <routingdomain> is: public|local
     "#
         .to_owned())
     }

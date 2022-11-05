@@ -30,7 +30,6 @@ pub use rpc_status::*;
 use super::*;
 use crate::crypto::*;
 use crate::xx::*;
-use capnp::message::ReaderSegments;
 use futures_util::StreamExt;
 use network_manager::*;
 use receipt_manager::*;
@@ -98,17 +97,27 @@ impl RPCMessageData {
     pub fn new(contents: Vec<u8>) -> Self {
         Self { contents }
     }
-}
 
-impl ReaderSegments for RPCMessageData {
-    fn get_segment(&self, idx: u32) -> Option<&[u8]> {
-        if idx > 0 {
-            None
-        } else {
-            Some(self.contents.as_slice())
-        }
+    pub fn get_reader(
+        &self,
+    ) -> Result<capnp::message::Reader<capnp::serialize::OwnedSegments>, RPCError> {
+        capnp::serialize_packed::read_message(
+            self.contents.as_slice(),
+            capnp::message::ReaderOptions::new(),
+        )
+        .map_err(RPCError::protocol)
     }
 }
+
+// impl ReaderSegments for RPCMessageData {
+//     fn get_segment(&self, idx: u32) -> Option<&[u8]> {
+//         if idx > 0 {
+//             None
+//         } else {
+//             Some(self.contents.as_slice())
+//         }
+//     }
+// }
 
 #[derive(Debug)]
 struct RPCMessageEncoded {
@@ -127,12 +136,17 @@ pub fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<
 where
     T: capnp::message::Allocator + 'a,
 {
-    let wordvec = builder
-        .into_reader()
-        .canonicalize()
+    let mut buffer = vec![];
+    capnp::serialize_packed::write_message(&mut buffer, &builder)
         .map_err(RPCError::protocol)
         .map_err(logthru_rpc!())?;
-    Ok(capnp::Word::words_to_bytes(wordvec.as_slice()).to_vec())
+    Ok(buffer)
+    // let wordvec = builder
+    //     .into_reader()
+    //     .canonicalize()
+    //     .map_err(RPCError::protocol)
+    //     .map_err(logthru_rpc!())?;
+    // Ok(capnp::Word::words_to_bytes(wordvec.as_slice()).to_vec())
 }
 
 // fn reader_to_vec<'a, T>(reader: &capnp::message::Reader<T>) -> Result<Vec<u8>, RPCError>
@@ -899,7 +913,7 @@ impl RPCProcessor {
 
                 // Decode the RPC message
                 let operation = {
-                    let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());
+                    let reader = encoded_msg.data.get_reader()?;
                     let op_reader = reader
                         .get_root::<veilid_capnp::operation::Reader>()
                         .map_err(RPCError::protocol)
@@ -945,7 +959,7 @@ impl RPCProcessor {
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
                 // Decode the RPC message
                 let operation = {
-                    let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());
+                    let reader = encoded_msg.data.get_reader()?;
                     let op_reader = reader
                         .get_root::<veilid_capnp::operation::Reader>()
                         .map_err(RPCError::protocol)

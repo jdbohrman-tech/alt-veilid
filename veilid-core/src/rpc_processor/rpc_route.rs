@@ -325,15 +325,8 @@ impl RPCProcessor {
                     .cached_dh(&route.safety_route.public_key, &node_id_secret)
                     .map_err(RPCError::protocol)?;
                 let dec_blob_data = Crypto::decrypt_aead(blob_data, &d.nonce, &dh_secret, None)
-                    .map_err(RPCError::map_internal(
-                        "decryption of safety route hop failed",
-                    ))?;
-                let dec_blob_reader = capnp::message::Reader::new(
-                    RPCMessageData {
-                        contents: dec_blob_data,
-                    },
-                    Default::default(),
-                );
+                    .map_err(RPCError::protocol)?;
+                let dec_blob_reader = RPCMessageData::new(dec_blob_data).get_reader()?;
 
                 // Decode the blob appropriately
                 if blob_tag == 1 {
@@ -387,15 +380,8 @@ impl RPCProcessor {
                             .map_err(RPCError::protocol)?;
                         let dec_blob_data =
                             Crypto::decrypt_aead(&next_hop.blob, &next_hop.nonce, &dh_secret, None)
-                                .map_err(RPCError::map_internal(
-                                    "decryption of private route hop failed",
-                                ))?;
-                        let dec_blob_reader = capnp::message::Reader::new(
-                            RPCMessageData {
-                                contents: dec_blob_data,
-                            },
-                            Default::default(),
-                        );
+                                .map_err(RPCError::protocol)?;
+                        let dec_blob_reader = RPCMessageData::new(dec_blob_data).get_reader()?;
 
                         // Decode next RouteHop
                         let route_hop = {
