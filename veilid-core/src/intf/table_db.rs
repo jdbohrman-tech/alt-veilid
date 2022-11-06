@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         use keyvaluedb_web::*;
+        use keyvaluedb::*;
     } else {
         use keyvaluedb_sqlite::*;
+        use keyvaluedb::*;
     }
 }
 
@@ -28,7 +30,7 @@ pub struct TableDB {
 }
 
 impl TableDB {
-    pub fn new(table: String, table_store: TableStore, database: Database) -> Self {
+    pub(super) fn new(table: String, table_store: TableStore, database: Database) -> Self {
         Self {
             inner: Arc::new(Mutex::new(TableDBInner {
                 table,
@@ -38,22 +40,24 @@ impl TableDB {
         }
     }
 
-    pub fn try_new_from_weak_inner(weak_inner: Weak<Mutex<TableDBInner>>) -> Option<Self> {
+    pub(super) fn try_new_from_weak_inner(weak_inner: Weak<Mutex<TableDBInner>>) -> Option<Self> {
         weak_inner.upgrade().map(|table_db_inner| Self {
             inner: table_db_inner,
         })
     }
 
-    pub fn weak_inner(&self) -> Weak<Mutex<TableDBInner>> {
+    pub(super) fn weak_inner(&self) -> Weak<Mutex<TableDBInner>> {
         Arc::downgrade(&self.inner)
     }
 
-    pub async fn get_column_count(&self) -> EyreResult<u32> {
+    /// Get the total number of columns in the TableDB
+    pub fn get_column_count(&self) -> EyreResult<u32> {
         let db = &self.inner.lock().database;
         db.num_columns().wrap_err("failed to get column count: {}")
     }
 
-    pub async fn get_keys(&self, col: u32) -> EyreResult<Vec<Box<[u8]>>> {
+    /// Get the list of keys in a column of the TableDB
+    pub fn get_keys(&self, col: u32) -> EyreResult<Vec<Box<[u8]>>> {
         let db = &self.inner.lock().database;
         let mut out: Vec<Box<[u8]>> = Vec::new();
         db.iter(col, None, &mut |kv| {
@@ -64,14 +68,25 @@ impl TableDB {
         Ok(out)
     }
 
-    pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> EyreResult<()> {
+    /// Start a TableDB write transaction. The transaction object must be committed or rolled back before dropping.
+    pub fn transact<'a>(&'a self) -> TableDBTransaction<'a> {
+        let dbt = {
+            let db = &self.inner.lock().database;
+            db.transaction()
+        };
+        TableDBTransaction::new(self, dbt)
+    }
+
+    /// Store a key with a value in a column in the TableDB. Performs a single transaction immediately.
+    pub fn store(&self, col: u32, key: &[u8], value: &[u8]) -> EyreResult<()> {
         let db = &self.inner.lock().database;
         let mut dbt = db.transaction();
         dbt.put(col, key, value);
         db.write(dbt).wrap_err("failed to store key")
     }
 
-    pub async fn store_cbor<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    /// Store a key in CBOR format with a value in a column in the TableDB. Performs a single transaction immediately.
+    pub fn store_cbor<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: Serialize,
     {
@@ -83,12 +98,14 @@ impl TableDB {
         db.write(dbt).wrap_err("failed to store key")
     }
 
-    pub async fn load(&self, col: u32, key: &[u8]) -> EyreResult<Option<Vec<u8>>> {
+    /// Read a key from a column in the TableDB immediately.
+    pub fn load(&self, col: u32, key: &[u8]) -> EyreResult<Option<Vec<u8>>> {
         let db = &self.inner.lock().database;
         db.get(col, key).wrap_err("failed to get key")
     }
 
-    pub async fn load_cbor<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    /// Read a key from a column in the TableDB immediately, in CBOR format.
+    pub fn load_cbor<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
     where
         T: for<'de> Deserialize<'de>,
     {
@@ -104,7 +121,8 @@ impl TableDB {
         Ok(Some(obj))
     }
 
-    pub async fn delete(&self, col: u32, key: &[u8]) -> EyreResult<bool> {
+    /// Delete key with from a column in the TableDB
+    pub fn delete(&self, col: u32, key: &[u8]) -> EyreResult<bool> {
         let db = &self.inner.lock().database;
         let found = db.get(col, key).wrap_err("failed to get key")?;
         match found {
@@ -115,6 +133,69 @@ impl TableDB {
                 db.write(dbt).wrap_err("failed to delete key")?;
                 Ok(true)
             }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// A TableDB transaction
+/// Atomically commits a group of writes or deletes to the TableDB
+pub struct TableDBTransaction<'a> {
+    db: &'a TableDB,
+    dbt: Option<DBTransaction>,
+    _phantom: core::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> TableDBTransaction<'a> {
+    fn new(db: &'a TableDB, dbt: DBTransaction) -> Self {
+        Self {
+            db,
+            dbt: Some(dbt),
+            _phantom: Default::default(),
+        }
+    }
+
+    /// Commit the transaction. Performs all actions atomically.
+    pub fn commit(mut self) -> EyreResult<()> {
+        self.db
+            .inner
+            .lock()
+            .database
+            .write(self.dbt.take().unwrap())
+            .wrap_err("commit failed")
+    }
+
+    /// Rollback the transaction. Does nothing to the TableDB.
+    pub fn rollback(mut self) {
+        self.dbt = None;
+    }
+
+    /// Store a key with a value in a column in the TableDB
+    pub fn store(&mut self, col: u32, key: &[u8], value: &[u8]) {
+        self.dbt.as_mut().unwrap().put(col, key, value);
+    }
+
+    /// Store a key in CBOR format with a value in a column in the TableDB
+    pub fn store_cbor<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    where
+        T: Serialize,
+    {
+        let v = serde_cbor::to_vec(value).wrap_err("couldn't store as CBOR")?;
+        self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        Ok(())
+    }
+
+    /// Delete key with from a column in the TableDB
+    pub fn delete(&mut self, col: u32, key: &[u8]) {
+        self.dbt.as_mut().unwrap().delete(col, key);
+    }
+}
+
+impl<'a> Drop for TableDBTransaction<'a> {
+    fn drop(&mut self) {
+        if self.dbt.is_some() {
+            warn!("Dropped transaction without commit or rollback");
         }
     }
 }

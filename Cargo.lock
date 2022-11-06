@@ -2756,15 +2756,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lru"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6e8aaa3f231bb4bd57b84b2d5dc3ae7f350265df8aa96492e0bc394a1571909"
-dependencies = [
- "hashbrown",
-]
-
-[[package]]
 name = "lru-cache"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5505,7 +5496,6 @@ dependencies = [
  "futures-util",
  "generic-array",
  "getrandom 0.2.8",
- "hashbrown",
  "hashlink 0.8.1",
  "hex",
  "ifstructs",
@@ -5515,11 +5505,11 @@ dependencies = [
  "js-sys",
  "json",
  "keyring-manager",
+ "keyvaluedb",
  "keyvaluedb-sqlite",
  "keyvaluedb-web",
  "lazy_static",
  "libc",
- "lru",
  "maplit",
  "ndk 0.6.0",
  "ndk-glue",

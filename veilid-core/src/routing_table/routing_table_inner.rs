@@ -323,18 +323,15 @@ impl RoutingTableInner {
         }
     }
 
-    pub fn init(&mut self, routing_table: RoutingTable) -> EyreResult<()> {
+    pub fn init_buckets(&mut self, routing_table: RoutingTable) {
         // Size the buckets (one per bit)
+        self.buckets.clear();
         self.buckets.reserve(DHT_KEY_LENGTH * 8);
         for _ in 0..DHT_KEY_LENGTH * 8 {
             let bucket = Bucket::new(routing_table.clone());
             self.buckets.push(bucket);
         }
-
-        Ok(())
     }
-
-    pub fn terminate(&mut self) {}
 
     pub fn configure_local_network_routing_domain(
         &mut self,

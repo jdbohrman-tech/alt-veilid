@@ -19,10 +19,8 @@ extern "C" {
 pub fn get_timestamp() -> u64 {
     if utils::is_browser() {
         return (Date::now() * 1000.0f64) as u64;
-    } else if utils::is_nodejs() {
-        return (Date::now() * 1000.0f64) as u64;
     } else {
-        panic!("WASM requires browser or nodejs environment");
+        panic!("WASM requires browser environment");
     }
 }
 
@@ -85,18 +83,22 @@ pub fn spawn<Out>(future: impl Future<Output = Out> + Send + 'static) -> MustJoi
 where
     Out: Send + 'static,
 {
-    MustJoinHandle::new(Bindgen
-        .spawn_handle(future)
-        .expect("wasm-bindgen-futures spawn should never error out"))
+    MustJoinHandle::new(
+        Bindgen
+            .spawn_handle(future)
+            .expect("wasm-bindgen-futures spawn should never error out"),
+    )
 }
 
 pub fn spawn_local<Out>(future: impl Future<Output = Out> + 'static) -> MustJoinHandle<Out>
 where
     Out: 'static,
 {
-    MustJoinHandle::new(Bindgen
-        .spawn_handle_local(future)
-        .expect("wasm-bindgen-futures spawn_local should never error out"))
+    MustJoinHandle::new(
+        Bindgen
+            .spawn_handle_local(future)
+            .expect("wasm-bindgen-futures spawn_local should never error out"),
+    )
 }
 
 // pub fn spawn_with_local_set<Out>(
@@ -114,9 +116,9 @@ where
 {
     Bindgen
         .spawn_handle_local(future)
-        .expect("wasm-bindgen-futures spawn_local should never error out").detach()
+        .expect("wasm-bindgen-futures spawn_local should never error out")
+        .detach()
 }
-
 
 pub fn interval<F, FUT>(freq_ms: u32, callback: F) -> SendPinBoxFuture<()>
 where
@@ -160,12 +162,12 @@ pub async fn get_outbound_relay_peer() -> Option<crate::veilid_api::PeerInfo> {
 
 // pub async fn get_pwa_web_server_config() -> {
 //     if utils::is_browser() {
-        
+
 //         let win = window().unwrap();
 //         let doc = win.document().unwrap();
 //         let html_document = document.dyn_into::<web_sys::HtmlDocument>().unwrap();
 //         let cookie = html_document.cookie().unwrap();
-        
+
 //         // let wait_millis = if millis > u32::MAX {
 //         //     i32::MAX
 //         // } else {
@@ -178,21 +180,13 @@ pub async fn get_outbound_relay_peer() -> Option<crate::veilid_api::PeerInfo> {
 //         // });
 
 //         // JsFuture::from(promise).await.unwrap();
-//     } else if utils::is_nodejs() {
-//         // let promise = Promise::new(&mut |yes, _| {
-//         //     nodejs_global_set_timeout_with_callback_and_timeout_and_arguments_0(&yes, millis)
-//         //         .unwrap();
-//         // });
-
-//         // JsFuture::from(promise).await.unwrap();
 //     } else {
-//         panic!("WASM requires browser or nodejs environment");
-//     }   
+//         panic!("WASM requires browser environment");
+//     }
 // }
 
-
 pub async fn txt_lookup<S: AsRef<str>>(_host: S) -> EyreResult<Vec<String>> {
-    bail!("wasm does not support txt lookup")   
+    bail!("wasm does not support txt lookup")
 }
 
 pub async fn ptr_lookup(_ip_addr: IpAddr) -> EyreResult<String> {

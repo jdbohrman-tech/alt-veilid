@@ -119,12 +119,12 @@ impl Crypto {
 
         // load caches if they are valid for this node id
         let mut db = table_store.open("crypto_caches", 1).await?;
-        let caches_valid = match db.load(0, b"node_id").await? {
+        let caches_valid = match db.load(0, b"node_id")? {
             Some(v) => v.as_slice() == node_id.bytes,
             None => false,
         };
         if caches_valid {
-            if let Some(b) = db.load(0, b"dh_cache").await? {
+            if let Some(b) = db.load(0, b"dh_cache")? {
                 let mut inner = self.inner.lock();
                 bytes_to_cache(&b, &mut inner.dh_cache);
             }
@@ -132,7 +132,7 @@ impl Crypto {
             drop(db);
             table_store.delete("crypto_caches").await?;
             db = table_store.open("crypto_caches", 1).await?;
-            db.store(0, b"node_id", &node_id.bytes).await?;
+            db.store(0, b"node_id", &node_id.bytes)?;
         }
 
         // Schedule flushing
@@ -159,7 +159,7 @@ impl Crypto {
         };
 
         let db = table_store.open("crypto_caches", 1).await?;
-        db.store(0, b"dh_cache", &cache_bytes).await?;
+        db.store(0, b"dh_cache", &cache_bytes)?;
         Ok(())
     }
 

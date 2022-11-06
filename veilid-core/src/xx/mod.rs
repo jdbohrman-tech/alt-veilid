@@ -41,61 +41,42 @@ pub type PinBoxFutureLifetime<'a, T> = PinBox<dyn Future<Output = T> + 'a>;
 pub type SendPinBoxFuture<T> = PinBox<dyn Future<Output = T> + Send + 'static>;
 pub type SendPinBoxFutureLifetime<'a, T> = PinBox<dyn Future<Output = T> + Send + 'a>;
 
+pub use std::borrow::{Cow, ToOwned};
+pub use std::boxed::Box;
+pub use std::cell::RefCell;
+pub use std::cmp;
+pub use std::collections::btree_map::BTreeMap;
+pub use std::collections::btree_set::BTreeSet;
+pub use std::collections::hash_map::HashMap;
+pub use std::collections::hash_set::HashSet;
+pub use std::collections::LinkedList;
+pub use std::collections::VecDeque;
+pub use std::convert::{TryFrom, TryInto};
+pub use std::fmt;
+pub use std::future::Future;
+pub use std::mem;
+pub use std::ops::{Fn, FnMut, FnOnce};
+pub use std::pin::Pin;
+pub use std::rc::Rc;
+pub use std::string::String;
+pub use std::sync::atomic::{AtomicBool, Ordering};
+pub use std::sync::{Arc, Weak};
+pub use std::task;
+pub use std::time::Duration;
+pub use std::vec::Vec;
+
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
-        pub use alloc::string::String;
-        pub use alloc::vec::Vec;
-        pub use alloc::collections::LinkedList;
-        pub use alloc::collections::VecDeque;
-        pub use alloc::collections::btree_map::BTreeMap;
-        pub use alloc::collections::btree_set::BTreeSet;
-        pub use hashbrown::hash_map::HashMap;
-        pub use hashbrown::hash_set::HashSet;
-        pub use alloc::boxed::Box;
-        pub use alloc::borrow::{Cow, ToOwned};
         pub use wasm_bindgen::prelude::*;
-        pub use core::cmp;
-        pub use core::convert::{TryFrom, TryInto};
-        pub use core::mem;
-        pub use core::fmt;
-        pub use alloc::rc::Rc;
-        pub use core::cell::RefCell;
-        pub use core::task;
-        pub use core::future::Future;
-        pub use core::time::Duration;
-        pub use core::pin::Pin;
-        pub use core::sync::atomic::{Ordering, AtomicBool};
-        pub use alloc::sync::{Arc, Weak};
-        pub use core::ops::{FnOnce, FnMut, Fn};
+
         pub use async_lock::Mutex as AsyncMutex;
         pub use async_lock::MutexGuard as AsyncMutexGuard;
         pub use async_lock::MutexGuardArc as AsyncMutexGuardArc;
-        pub use no_std_net::{ SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs, IpAddr, Ipv4Addr, Ipv6Addr };
         pub use async_executors::JoinHandle as LowLevelJoinHandle;
+
+        pub use no_std_net::{ SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs, IpAddr, Ipv4Addr, Ipv6Addr };
     } else {
-        pub use std::string::String;
-        pub use std::vec::Vec;
-        pub use std::collections::LinkedList;
-        pub use std::collections::VecDeque;
-        pub use std::collections::btree_map::BTreeMap;
-        pub use std::collections::btree_set::BTreeSet;
-        pub use std::collections::hash_map::HashMap;
-        pub use std::collections::hash_set::HashSet;
-        pub use std::boxed::Box;
-        pub use std::borrow::{Cow, ToOwned};
-        pub use std::cmp;
-        pub use std::convert::{TryFrom, TryInto};
-        pub use std::mem;
-        pub use std::fmt;
-        pub use std::sync::atomic::{Ordering, AtomicBool};
-        pub use std::sync::{Arc, Weak};
-        pub use std::rc::Rc;
-        pub use std::cell::RefCell;
-        pub use std::task;
-        pub use std::future::Future;
-        pub use std::time::Duration;
-        pub use std::pin::Pin;
-        pub use std::ops::{FnOnce, FnMut, Fn};
+
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 pub use async_std::sync::Mutex as AsyncMutex;

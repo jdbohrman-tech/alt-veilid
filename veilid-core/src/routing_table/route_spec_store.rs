@@ -225,7 +225,23 @@ impl RouteSpecStore {
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         let mut content: RouteSpecStoreContent =
-            rsstdb.load_cbor(0, b"content").await?.unwrap_or_default();
+            rsstdb.load_cbor(0, b"content")?.unwrap_or_default();
+
+        // Look up all route hop noderefs since we can't serialize those
+        let mut dead_keys = Vec::new();
+        for (k, rsd) in &mut content.details {
+            for h in &rsd.hops {
+                let Some(nr) = routing_table.lookup_node_ref(*h) else {
+                    dead_keys.push(*k);
+                    break;
+                };
+                rsd.hop_node_refs.push(nr);
+            }
+        }
+        for k in dead_keys {
+            log_rtab!(debug "no entry, killing off private route: {}", k.encode());
+            content.details.remove(&k);
+        }
 
         // Load secrets from pstore
         let pstore = routing_table.network_manager().protected_store();
@@ -280,7 +296,7 @@ impl RouteSpecStore {
             .network_manager()
             .table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        rsstdb.store_cbor(0, b"content", &content).await?;
+        rsstdb.store_cbor(0, b"content", &content)?;
 
         // // Keep secrets in protected store as well
         let pstore = self
@@ -1168,10 +1184,9 @@ impl RouteSpecStore {
 
         let mut buffer = vec![];
         capnp::serialize_packed::write_message(&mut buffer, &pr_message)
+            .map_err(RPCError::internal)
             .wrap_err("failed to convert builder to vec")?;
         Ok(buffer)
-
-        //    builder_to_vec(pr_message).wrap_err("failed to convert builder to vec")
     }
 
     /// Convert binary blob to private route
@@ -1180,11 +1195,12 @@ impl RouteSpecStore {
             blob.as_slice(),
             capnp::message::ReaderOptions::new(),
         )
+        .map_err(RPCError::internal)
         .wrap_err("failed to make message reader")?;
 
-        //let reader = ::capnp::message::Reader::new(RPCMessageData::new(blob), Default::default());
         let pr_reader = reader
             .get_root::<veilid_capnp::private_route::Reader>()
+            .map_err(RPCError::internal)
             .wrap_err("failed to make reader for private_route")?;
         decode_private_route(&pr_reader).wrap_err("failed to decode private route")
     }

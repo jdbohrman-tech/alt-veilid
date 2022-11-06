@@ -8,6 +8,8 @@ struct TableStoreInner {
     opened: BTreeMap<String, Weak<Mutex<TableDBInner>>>,
 }
 
+/// Veilid Table Storage
+/// Database for storing key value pairs persistently across runs
 #[derive(Clone)]
 pub struct TableStore {
     config: VeilidConfig,
@@ -20,31 +22,38 @@ impl TableStore {
             opened: BTreeMap::new(),
         }
     }
-    pub fn new(config: VeilidConfig) -> Self {
+    pub(crate) fn new(config: VeilidConfig) -> Self {
         Self {
             config,
             inner: Arc::new(Mutex::new(Self::new_inner())),
         }
     }
 
-    pub async fn delete_all(&self) -> EyreResult<()> {
-        // Delete all known keys
-        self.delete("crypto_caches").await?;
+    /// Delete all known tables
+    pub async fn delete_all(&self) {
+        if let Err(e) = self.delete("crypto_caches").await {
+            error!("failed to delete 'crypto_caches': {}", e);
+        }
+        if let Err(e) = self.delete("RouteSpecStore").await {
+            error!("failed to delete 'RouteSpecStore': {}", e);
+        }
+        if let Err(e) = self.delete("routing_table").await {
+            error!("failed to delete 'routing_table': {}", e);
+        }
+    }
+
+    pub(crate) async fn init(&self) -> EyreResult<()> {
         Ok(())
     }
 
-    pub async fn init(&self) -> EyreResult<()> {
-        Ok(())
-    }
-
-    pub async fn terminate(&self) {
+    pub(crate) async fn terminate(&self) {
         assert!(
             self.inner.lock().opened.is_empty(),
             "all open databases should have been closed"
         );
     }
 
-    pub fn on_table_db_drop(&self, table: String) {
+    pub(crate) fn on_table_db_drop(&self, table: String) {
         let mut inner = self.inner.lock();
         if inner.opened.remove(&table).is_none() {
             unreachable!("should have removed an item");
@@ -82,6 +91,8 @@ impl TableStore {
         })
     }
 
+    /// Get or create a TableDB database table. If the column count is greater than an
+    /// existing TableDB's column count, the database will be upgraded to add the missing columns
     pub async fn open(&self, name: &str, column_count: u32) -> EyreResult<TableDB> {
         let table_name = self.get_table_name(name)?;
 
@@ -121,6 +132,7 @@ impl TableStore {
         Ok(table_db)
     }
 
+    /// Delete a TableDB table by name
     pub async fn delete(&self, name: &str) -> EyreResult<bool> {
         let table_name = self.get_table_name(name)?;
 

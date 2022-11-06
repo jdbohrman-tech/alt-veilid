@@ -55,10 +55,7 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
 }
 
 fn get_safety_selection(text: &str, rss: RouteSpecStore) -> Option<SafetySelection> {
-    if text.len() == 0 {
-        return None;
-    }
-    if &text[0..1] == "-" {
+    if text.len() != 0 && &text[0..1] == "-" {
         // Unsafe
         let text = &text[1..];
         let seq = get_sequencing(text).unwrap_or(Sequencing::NoPreference);

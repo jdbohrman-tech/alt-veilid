@@ -8,6 +8,8 @@ pub struct Bucket {
 }
 pub(super) type EntriesIter<'a> = alloc::collections::btree_map::Iter<'a, DHTKey, Arc<BucketEntry>>;
 
+type BucketData = (Vec<(DHTKey, Vec<u8>)>, Option<DHTKey>);
+
 fn state_ordering(state: BucketEntryState) -> usize {
     match state {
         BucketEntryState::Dead => 0,
@@ -23,6 +25,32 @@ impl Bucket {
             entries: BTreeMap::new(),
             newest_entry: None,
         }
+    }
+
+    pub(super) fn load_bucket(&mut self, data: &[u8]) -> EyreResult<()> {
+        let bucket_data: BucketData =
+            serde_cbor::from_slice::<BucketData>(data).wrap_err("failed to deserialize bucket")?;
+
+        for (k, d) in bucket_data.0 {
+            let entryinner = serde_cbor::from_slice::<BucketEntryInner>(&d)
+                .wrap_err("failed to deserialize bucket entry")?;
+            self.entries
+                .insert(k, Arc::new(BucketEntry::new_with_inner(entryinner)));
+        }
+
+        self.newest_entry = bucket_data.1;
+
+        Ok(())
+    }
+    pub(super) fn save_bucket(&self) -> EyreResult<Vec<u8>> {
+        let mut entry_vec = Vec::new();
+        for (k, v) in &self.entries {
+            let entry_bytes = v.with_mut_inner(|e| serde_cbor::to_vec(e))?;
+            entry_vec.push((*k, entry_bytes));
+        }
+        let bucket_data: BucketData = (entry_vec, self.newest_entry.clone());
+        let out = serde_cbor::to_vec(&bucket_data)?;
+        Ok(out)
     }
 
     pub(super) fn add_entry(&mut self, node_id: DHTKey) -> NodeRef {

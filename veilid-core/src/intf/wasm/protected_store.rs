@@ -3,19 +3,10 @@ use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
 use js_sys::*;
+use send_wrapper::*;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen_futures::*;
 use web_sys::*;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(catch, js_name = setPassword, js_namespace = ["global", "wasmhost", "keytar"])]
-    fn keytar_setPassword(service: &str, account: &str, password: &str)
-        -> Result<Promise, JsValue>;
-    #[wasm_bindgen(catch, js_name = getPassword, js_namespace = ["global", "wasmhost", "keytar"])]
-    fn keytar_getPassword(service: &str, account: &str) -> Result<Promise, JsValue>;
-    #[wasm_bindgen(catch, js_name = deletePassword, js_namespace = ["global", "wasmhost", "keytar"])]
-    fn keytar_deletePassword(service: &str, account: &str) -> Result<Promise, JsValue>;
-}
 
 #[derive(Clone)]
 pub struct ProtectedStore {
@@ -71,33 +62,9 @@ impl ProtectedStore {
         }
     }
 
-    #[instrument(level = "trace", skip(self, value), ret, err)]
+    //#[instrument(level = "trace", skip(self, value), ret, err)]
     pub async fn save_user_secret_string(&self, key: &str, value: &str) -> EyreResult<bool> {
-        if is_nodejs() {
-            let prev = match JsFuture::from(
-                keytar_getPassword(self.keyring_name().as_str(), key)
-                    .map_err(map_jsvalue_error)
-                    .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(v) => v.is_truthy(),
-                Err(_) => false,
-            };
-
-            match JsFuture::from(
-                keytar_setPassword(self.keyring_name().as_str(), key, value)
-                    .map_err(map_jsvalue_error)
-                    .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(_) => {}
-                Err(_) => bail!("Failed to set password"),
-            }
-
-            Ok(prev)
-        } else if is_browser() {
+        if is_browser() {
             let win = match window() {
                 Some(w) => w,
                 None => {
@@ -139,24 +106,7 @@ impl ProtectedStore {
 
     #[instrument(level = "trace", skip(self), err)]
     pub async fn load_user_secret_string(&self, key: &str) -> EyreResult<Option<String>> {
-        if is_nodejs() {
-            let prev = match JsFuture::from(
-                keytar_getPassword(self.keyring_name().as_str(), key)
-                    .map_err(map_jsvalue_error)
-                    .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(p) => p,
-                Err(_) => JsValue::UNDEFINED,
-            };
-
-            if prev.is_undefined() || prev.is_null() {
-                return Ok(None);
-            }
-
-            Ok(prev.as_string())
-        } else if is_browser() {
+        if is_browser() {
             let win = match window() {
                 Some(w) => w,
                 None => {
@@ -252,18 +202,7 @@ impl ProtectedStore {
 
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn remove_user_secret(&self, key: &str) -> EyreResult<bool> {
-        if is_nodejs() {
-            match JsFuture::from(
-                keytar_deletePassword(self.keyring_name().as_str(), key)
-                    .map_err(map_jsvalue_error)
-                    .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(v) => Ok(v.is_truthy()),
-                Err(_) => bail!("Failed to delete"),
-            }
-        } else if is_browser() {
+        if is_browser() {
             let win = match window() {
                 Some(w) => w,
                 None => {

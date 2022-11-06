@@ -154,6 +154,20 @@ impl RoutingTable {
     pub async fn init(&self) -> EyreResult<()> {
         debug!("starting routing table init");
 
+        // Set up routing buckets
+        {
+            let mut inner = self.inner.write();
+            inner.init_buckets(self.clone());
+        }
+
+        // Load bucket entries from table db if possible
+        debug!("loading routing table entries");
+        if let Err(e) = self.load_buckets().await {
+            log_rtab!(warn "Error loading buckets from storage: {}. Resetting.", e);
+            let mut inner = self.inner.write();
+            inner.init_buckets(self.clone());
+        }
+
         // Set up routespecstore
         debug!("starting route spec store init");
         let route_spec_store = match RouteSpecStore::load(self.clone()).await {
@@ -165,10 +179,10 @@ impl RoutingTable {
         };
         debug!("finished route spec store init");
 
-        let mut inner = self.inner.write();
-        inner.init(self.clone())?;
-
-        inner.route_spec_store = Some(route_spec_store);
+        {
+            let mut inner = self.inner.write();
+            inner.route_spec_store = Some(route_spec_store);
+        }
 
         debug!("finished routing table init");
         Ok(())
@@ -188,6 +202,12 @@ impl RoutingTable {
             error!("kick_buckets_task not stopped: {}", e);
         }
 
+        // Load bucket entries from table db if possible
+        debug!("saving routing table entries");
+        if let Err(e) = self.save_buckets().await {
+            error!("failed to save routing table entries: {}", e);
+        }
+
         debug!("saving route spec store");
         let rss = {
             let mut inner = self.inner.write();
@@ -201,10 +221,65 @@ impl RoutingTable {
         debug!("shutting down routing table");
 
         let mut inner = self.inner.write();
-        inner.terminate();
         *inner = RoutingTableInner::new(self.unlocked_inner.clone());
 
         debug!("finished routing table terminate");
+    }
+
+    async fn save_buckets(&self) -> EyreResult<()> {
+        // Serialize all entries
+        let mut bucketvec: Vec<Vec<u8>> = Vec::new();
+        {
+            let inner = &*self.inner.read();
+            for bucket in &inner.buckets {
+                bucketvec.push(bucket.save_bucket()?)
+            }
+        }
+        let table_store = self.network_manager().table_store();
+        let tdb = table_store.open("routing_table", 1).await?;
+        let bucket_count = bucketvec.len();
+        let mut dbx = tdb.transact();
+        if let Err(e) = dbx.store_cbor(0, b"bucket_count", &bucket_count) {
+            dbx.rollback();
+            return Err(e);
+        }
+
+        for (n, b) in bucketvec.iter().enumerate() {
+            dbx.store(0, format!("bucket_{}", n).as_bytes(), b)
+        }
+        dbx.commit()?;
+        Ok(())
+    }
+
+    async fn load_buckets(&self) -> EyreResult<()> {
+        // Deserialize all entries
+        let inner = &mut *self.inner.write();
+
+        let tstore = self.network_manager().table_store();
+        let tdb = tstore.open("routing_table", 1).await?;
+        let Some(bucket_count): Option<usize> = tdb.load_cbor(0, b"bucket_count")? else {
+            log_rtab!(debug "no bucket count in saved routing table");
+            return Ok(());
+        };
+        if bucket_count != inner.buckets.len() {
+            // Must have the same number of buckets
+            warn!("bucket count is different, not loading routing table");
+            return Ok(());
+        }
+        let mut bucketdata_vec: Vec<Vec<u8>> = Vec::new();
+        for n in 0..bucket_count {
+            let Some(bucketdata): Option<Vec<u8>> =
+                tdb.load(0, format!("bucket_{}", n).as_bytes())? else {
+                    warn!("bucket data not loading, skipping loading routing table");
+                    return Ok(());
+                };
+            bucketdata_vec.push(bucketdata);
+        }
+        for n in 0..bucket_count {
+            inner.buckets[n].load_bucket(&bucketdata_vec[n])?;
+        }
+
+        Ok(())
     }
 
     /// Set up the local network routing domain with our local routing table configuration

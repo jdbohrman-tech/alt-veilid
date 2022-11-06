@@ -1,5 +1,6 @@
 use super::*;
 use core::sync::atomic::{AtomicU32, Ordering};
+use serde::{Deserialize, Serialize};
 
 /// Reliable pings are done with increased spacing between pings
 
@@ -42,7 +43,7 @@ pub enum BucketEntryState {
 struct LastConnectionKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -53,7 +54,7 @@ pub struct BucketEntryPublicInternet {
 }
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -63,19 +64,24 @@ pub struct BucketEntryLocalNetwork {
     node_status: Option<LocalNetworkNodeStatus>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryInner {
     min_max_version: Option<(u8, u8)>,
     updated_since_last_network_change: bool,
+    #[serde(skip)]
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
     public_internet: BucketEntryPublicInternet,
     local_network: BucketEntryLocalNetwork,
     peer_stats: PeerStats,
+    #[serde(skip)]
     latency_stats_accounting: LatencyStatsAccounting,
+    #[serde(skip)]
     transfer_stats_accounting: TransferStatsAccounting,
     #[cfg(feature = "tracking")]
+    #[serde(skip)]
     next_track_id: usize,
     #[cfg(feature = "tracking")]
+    #[serde(skip)]
     node_ref_tracks: HashMap<usize, backtrace::Backtrace>,
 }
 
@@ -654,6 +660,13 @@ impl BucketEntry {
                 #[cfg(feature = "tracking")]
                 node_ref_tracks: HashMap::new(),
             }),
+        }
+    }
+
+    pub(super) fn new_with_inner(inner: BucketEntryInner) -> Self {
+        Self {
+            ref_count: AtomicU32::new(0),
+            inner: RwLock::new(inner),
         }
     }
 
