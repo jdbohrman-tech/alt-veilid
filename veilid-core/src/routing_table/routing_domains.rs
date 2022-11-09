@@ -101,6 +101,45 @@ impl RoutingDomainDetailCommon {
         self.network_class.unwrap_or(NetworkClass::Invalid) != NetworkClass::Invalid
     }
 
+    fn make_peer_info(&self, rti: &RoutingTableInner) -> PeerInfo {
+        let node_info = NodeInfo {
+            network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
+            outbound_protocols: self.outbound_protocols,
+            address_types: self.address_types,
+            min_version: MIN_CRYPTO_VERSION,
+            max_version: MAX_CRYPTO_VERSION,
+            dial_info_detail_list: self.dial_info_details.clone(),
+        };
+
+        let relay_peer_info = self
+            .relay_node
+            .as_ref()
+            .and_then(|rn| rn.locked(rti).make_peer_info(self.routing_domain));
+
+        let signed_node_info = match relay_peer_info {
+            Some(relay_pi) => SignedNodeInfo::Relayed(
+                SignedRelayedNodeInfo::with_secret(
+                    NodeId::new(rti.unlocked_inner.node_id),
+                    node_info,
+                    relay_pi.node_id,
+                    relay_pi.signed_node_info,
+                    &rti.unlocked_inner.node_id_secret,
+                )
+                .unwrap(),
+            ),
+            None => SignedNodeInfo::Direct(
+                SignedDirectNodeInfo::with_secret(
+                    NodeId::new(rti.unlocked_inner.node_id),
+                    node_info,
+                    &rti.unlocked_inner.node_id_secret,
+                )
+                .unwrap(),
+            ),
+        };
+
+        PeerInfo::new(NodeId::new(rti.unlocked_inner.node_id), signed_node_info)
+    }
+
     pub fn with_peer_info<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
     where
         F: FnOnce(&PeerInfo) -> R,
@@ -110,7 +149,7 @@ impl RoutingDomainDetailCommon {
             // Regenerate peer info
             let pi = PeerInfo::new(
                 NodeId::new(rti.unlocked_inner.node_id),
-                SignedNodeInfo::with_secret(
+                SignedDirectNodeInfo::with_secret(
                     NodeInfo {
                         network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
                         outbound_protocols: self.outbound_protocols,
@@ -118,10 +157,11 @@ impl RoutingDomainDetailCommon {
                         min_version: MIN_CRYPTO_VERSION,
                         max_version: MAX_CRYPTO_VERSION,
                         dial_info_detail_list: self.dial_info_details.clone(),
-                        relay_peer_info: self
-                            .relay_node
-                            .as_ref()
-                            .and_then(|rn| rn.make_peer_info(self.routing_domain).map(Box::new)),
+                        relay_peer_info: self.relay_node.as_ref().and_then(|rn| {
+                            rn.locked(rti)
+                                .make_peer_info(self.routing_domain)
+                                .map(Box::new)
+                        }),
                     },
                     NodeId::new(rti.unlocked_inner.node_id),
                     &rti.unlocked_inner.node_id_secret,

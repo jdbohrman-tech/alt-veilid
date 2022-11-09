@@ -163,7 +163,7 @@ impl RoutingTable {
         // Load bucket entries from table db if possible
         debug!("loading routing table entries");
         if let Err(e) = self.load_buckets().await {
-            log_rtab!(warn "Error loading buckets from storage: {}. Resetting.", e);
+            log_rtab!(debug "Error loading buckets from storage: {:#?}. Resetting.", e);
             let mut inner = self.inner.write();
             inner.init_buckets(self.clone());
         }
@@ -173,7 +173,7 @@ impl RoutingTable {
         let route_spec_store = match RouteSpecStore::load(self.clone()).await {
             Ok(v) => v,
             Err(e) => {
-                log_rtab!(warn "Error loading route spec store: {}. Resetting.", e);
+                log_rtab!(debug "Error loading route spec store: {:#?}. Resetting.", e);
                 RouteSpecStore::new(self.clone())
             }
         };
@@ -239,7 +239,7 @@ impl RoutingTable {
         let tdb = table_store.open("routing_table", 1).await?;
         let bucket_count = bucketvec.len();
         let mut dbx = tdb.transact();
-        if let Err(e) = dbx.store_cbor(0, b"bucket_count", &bucket_count) {
+        if let Err(e) = dbx.store_frozen(0, b"bucket_count", &bucket_count) {
             dbx.rollback();
             return Err(e);
         }
@@ -253,14 +253,13 @@ impl RoutingTable {
 
     async fn load_buckets(&self) -> EyreResult<()> {
         // Deserialize all entries
-        let inner = &mut *self.inner.write();
-
         let tstore = self.network_manager().table_store();
         let tdb = tstore.open("routing_table", 1).await?;
-        let Some(bucket_count): Option<usize> = tdb.load_cbor(0, b"bucket_count")? else {
+        let Some(bucket_count): Option<usize> = tdb.load_rkyv(0, b"bucket_count")? else {
             log_rtab!(debug "no bucket count in saved routing table");
             return Ok(());
         };
+        let inner = &mut *self.inner.write();
         if bucket_count != inner.buckets.len() {
             // Must have the same number of buckets
             warn!("bucket count is different, not loading routing table");
@@ -275,8 +274,8 @@ impl RoutingTable {
                 };
             bucketdata_vec.push(bucketdata);
         }
-        for n in 0..bucket_count {
-            inner.buckets[n].load_bucket(&bucketdata_vec[n])?;
+        for (n, bucketdata) in bucketdata_vec.into_iter().enumerate() {
+            inner.buckets[n].load_bucket(bucketdata)?;
         }
 
         Ok(())
@@ -383,7 +382,7 @@ impl RoutingTable {
     }
 
     /// Return a copy of our node's signednodeinfo
-    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedNodeInfo {
+    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedDirectNodeInfo {
         self.inner.read().get_own_signed_node_info(routing_domain)
     }
 
@@ -526,7 +525,7 @@ impl RoutingTable {
         &self,
         routing_domain: RoutingDomain,
         node_id: DHTKey,
-        signed_node_info: SignedNodeInfo,
+        signed_node_info: SignedDirectNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
         self.inner.write().register_node_with_signed_node_info(

@@ -221,11 +221,11 @@ impl RouteSpecStore {
             )
         };
 
-        // Get cbor blob from table store
+        // Get frozen blob from table store
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         let mut content: RouteSpecStoreContent =
-            rsstdb.load_cbor(0, b"content")?.unwrap_or_default();
+            rsstdb.load_json(0, b"content")?.unwrap_or_default();
 
         // Look up all route hop noderefs since we can't serialize those
         let mut dead_keys = Vec::new();
@@ -246,7 +246,7 @@ impl RouteSpecStore {
         // Load secrets from pstore
         let pstore = routing_table.network_manager().protected_store();
         let out: Vec<(DHTKey, DHTKeySecret)> = pstore
-            .load_user_secret_cbor("RouteSpecStore")
+            .load_user_secret_rkyv("RouteSpecStore")
             .await?
             .unwrap_or_default();
 
@@ -289,14 +289,14 @@ impl RouteSpecStore {
             inner.content.clone()
         };
 
-        // Save all the fields we care about to the cbor blob in table storage
+        // Save all the fields we care about to the frozen blob in table storage
         let table_store = self
             .unlocked_inner
             .routing_table
             .network_manager()
             .table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        rsstdb.store_cbor(0, b"content", &content)?;
+        rsstdb.store_json(0, b"content", &content)?;
 
         // // Keep secrets in protected store as well
         let pstore = self
@@ -310,7 +310,9 @@ impl RouteSpecStore {
             out.push((*k, v.secret_key));
         }
 
-        let _ = pstore.save_user_secret_cbor("RouteSpecStore", &out).await?; // ignore if this previously existed or not
+        let _ = pstore
+            .save_user_secret_frozen("RouteSpecStore", &out)
+            .await?; // ignore if this previously existed or not
 
         Ok(())
     }

@@ -41,7 +41,7 @@ impl RPCOperationFindNodeA {
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p, true)?;
+            let peer_info = decode_peer_info(&p)?;
             peers.push(peer_info);
         }
 

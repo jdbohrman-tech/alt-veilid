@@ -173,7 +173,7 @@ struct ValueKey {
 # }
 
 struct ValueData {
-    data                    @0  :Data;                  # value or subvalue contents in CBOR format
+    data                    @0  :Data;                  # value or subvalue contents
     seq                     @1  :ValueSeqNum;           # sequence number of value
 }
 
@@ -181,9 +181,10 @@ struct ValueData {
 ##############################
 
 enum NetworkClass {
-    inboundCapable          @0;                         # I = Inbound capable without relay, may require signal
-    outboundOnly            @1;                         # O = Outbound only, inbound relay required except with reverse connect signal
-    webApp                  @2;                         # W = PWA, outbound relay is required in most cases
+    invalid                 @0;                         # X = Invalid network class, network is not yet set up
+    inboundCapable          @1;                         # I = Inbound capable without relay, may require signal
+    outboundOnly            @2;                         # O = Outbound only, inbound relay required except with reverse connect signal
+    webApp                  @3;                         # W = PWA, outbound relay is required in most cases
 }
 
 enum DialInfoClass {
@@ -232,6 +233,10 @@ struct AddressTypeSet {
     ipv6                    @1  :Bool;
 }
 
+struct SenderInfo {
+    socketAddress           @0  :SocketAddress;         # socket address that for the sending peer
+}
+
 struct NodeInfo {
     networkClass            @0  :NetworkClass;          # network class of this node
     outboundProtocols       @1  :ProtocolTypeSet;       # protocols that can go outbound
@@ -239,17 +244,27 @@ struct NodeInfo {
     minVersion              @3  :UInt8;                 # minimum protocol version for rpc
     maxVersion              @4  :UInt8;                 # maximum protocol version for rpc
     dialInfoDetailList      @5  :List(DialInfoDetail);  # inbound dial info details for this node
-    relayPeerInfo           @6  :PeerInfo;              # (optional) relay peer info for this node
+}
+
+struct SignedDirectNodeInfo {
+    nodeInfo                @0  :NodeInfo;              # node info
+    timestamp               @1  :UInt64;                # when signed node info was generated
+    signature               @2  :Signature;             # signature
+}
+
+struct SignedRelayedNodeInfo {
+    nodeInfo                @0  :NodeInfo;              # node info
+    relayId                 @1  :NodeID;                # node id for relay
+    relayInfo               @2  :SignedDirectNodeInfo;  # signed node info for relay
+    timestamp               @3  :UInt64;                # when signed node info was generated
+    signature               @4  :Signature;             # signature
 }
 
 struct SignedNodeInfo {
-    nodeInfo                @0  :NodeInfo;              # node info
-    signature               @1  :Signature;             # signature
-    timestamp               @2  :UInt64;                # when signed node info was generated
-}
-
-struct SenderInfo {
-    socketAddress           @0  :SocketAddress;         # socket address that for the sending peer
+    union {
+        direct              @0  :SignedDirectNodeInfo;  # node info for nodes reachable without a relay
+        relayed             @1  :SignedRelayedNodeInfo; # node info for nodes requiring a relay
+    }
 }
 
 struct PeerInfo {
@@ -326,7 +341,7 @@ struct OperationGetValueA {
 
 struct OperationSetValueQ {
     key                     @0  :ValueKey;              # key for value to update
-    value                   @1  :ValueData;             # value or subvalue contents in CBOR format (older or equal seq number gets dropped)
+    value                   @1  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
 }
 
 struct OperationSetValueA {
@@ -347,7 +362,7 @@ struct OperationWatchValueA {
 
 struct OperationValueChanged {
     key                     @0  :ValueKey;              # key for value that changed
-    value                   @1  :ValueData;             # value or subvalue contents in CBOR format with sequence number
+    value                   @1  :ValueData;             # value or subvalue contents with sequence number
 }
 
 struct OperationSupplyBlockQ {

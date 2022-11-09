@@ -47,7 +47,7 @@ impl RPCOperationFindBlockA {
                 .map_err(RPCError::map_internal("too many suppliers"))?,
         );
         for s in suppliers_reader.iter() {
-            let peer_info = decode_peer_info(&s, true)?;
+            let peer_info = decode_peer_info(&s)?;
             suppliers.push(peer_info);
         }
 
@@ -59,7 +59,7 @@ impl RPCOperationFindBlockA {
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p, true)?;
+            let peer_info = decode_peer_info(&p)?;
             peers.push(peer_info);
         }
 

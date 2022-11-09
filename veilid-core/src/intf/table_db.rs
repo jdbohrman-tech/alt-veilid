@@ -85,12 +85,25 @@ impl TableDB {
         db.write(dbt).wrap_err("failed to store key")
     }
 
-    /// Store a key in CBOR format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub fn store_cbor<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    /// Store a key in rkyv format with a value in a column in the TableDB. Performs a single transaction immediately.
+    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
-        T: Serialize,
+        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
-        let v = serde_cbor::to_vec(value).wrap_err("couldn't store as CBOR")?;
+        let v = to_rkyv(value)?;
+
+        let db = &self.inner.lock().database;
+        let mut dbt = db.transaction();
+        dbt.put(col, key, v.as_slice());
+        db.write(dbt).wrap_err("failed to store key")
+    }
+
+    /// Store a key in json format with a value in a column in the TableDB. Performs a single transaction immediately.
+    pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    where
+        T: serde::Serialize,
+    {
+        let v = serde_json::to_vec(value)?;
 
         let db = &self.inner.lock().database;
         let mut dbt = db.transaction();
@@ -104,10 +117,14 @@ impl TableDB {
         db.get(col, key).wrap_err("failed to get key")
     }
 
-    /// Read a key from a column in the TableDB immediately, in CBOR format.
-    pub fn load_cbor<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    /// Read an rkyv key from a column in the TableDB immediately
+    pub fn load_rkyv<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
     where
-        T: for<'de> Deserialize<'de>,
+        T: RkyvArchive,
+        <T as RkyvArchive>::Archived:
+            for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+        <T as RkyvArchive>::Archived:
+            rkyv::Deserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {
         let db = &self.inner.lock().database;
         let out = db.get(col, key).wrap_err("failed to get key")?;
@@ -117,7 +134,24 @@ impl TableDB {
                 return Ok(None);
             }
         };
-        let obj = serde_cbor::from_slice::<T>(&b).wrap_err("failed to deserialize")?;
+        let obj = from_rkyv(b)?;
+        Ok(Some(obj))
+    }
+
+    /// Read an serde-json key from a column in the TableDB immediately
+    pub fn load_json<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        let db = &self.inner.lock().database;
+        let out = db.get(col, key).wrap_err("failed to get key")?;
+        let b = match out {
+            Some(v) => v,
+            None => {
+                return Ok(None);
+            }
+        };
+        let obj = serde_json::from_slice(&b)?;
         Ok(Some(obj))
     }
 
@@ -176,12 +210,22 @@ impl<'a> TableDBTransaction<'a> {
         self.dbt.as_mut().unwrap().put(col, key, value);
     }
 
-    /// Store a key in CBOR format with a value in a column in the TableDB
-    pub fn store_cbor<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    /// Store a key in rkyv format with a value in a column in the TableDB
+    pub fn store_rkyv<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    where
+        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
+    {
+        let v = to_rkyv(value)?;
+        self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        Ok(())
+    }
+
+    /// Store a key in rkyv format with a value in a column in the TableDB
+    pub fn store_json<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: Serialize,
     {
-        let v = serde_cbor::to_vec(value).wrap_err("couldn't store as CBOR")?;
+        let v = serde_json::to_vec(value)?;
         self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
         Ok(())
     }

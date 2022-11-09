@@ -12,7 +12,6 @@ use digest::generic_array::typenum::U64;
 use digest::{Digest, Output};
 use ed25519_dalek::{Keypair, PublicKey, Signature};
 use generic_array::GenericArray;
-use serde::{Deserialize, Serialize};
 
 //////////////////////////////////////////////////////////////////////
 
@@ -39,13 +38,14 @@ pub const DHT_SIGNATURE_LENGTH_ENCODED: usize = 86;
 
 macro_rules! byte_array_type {
     ($name:ident, $size:expr) => {
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+        #[archive_attr(repr(C), derive(CheckBytes))]
         pub struct $name {
             pub bytes: [u8; $size],
             pub valid: bool,
         }
 
-        impl Serialize for $name {
+        impl serde::Serialize for $name {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
@@ -56,16 +56,16 @@ macro_rules! byte_array_type {
                 } else {
                     s = "".to_owned();
                 }
-                s.serialize(serializer)
+                serde::Serialize::serialize(&s, serializer)
             }
         }
 
-        impl<'de> Deserialize<'de> for $name {
+        impl<'de> serde::Deserialize<'de> for $name {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
             where
                 D: serde::Deserializer<'de>,
             {
-                let s = String::deserialize(deserializer)?;
+                let s = <String as serde::Deserialize>::deserialize(deserializer)?;
                 if s == "" {
                     return Ok($name::default());
                 }

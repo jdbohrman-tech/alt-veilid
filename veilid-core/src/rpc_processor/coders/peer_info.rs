@@ -14,10 +14,7 @@ pub fn encode_peer_info(
     Ok(())
 }
 
-pub fn decode_peer_info(
-    reader: &veilid_capnp::peer_info::Reader,
-    allow_relay_peer_info: bool,
-) -> Result<PeerInfo, RPCError> {
+pub fn decode_peer_info(reader: &veilid_capnp::peer_info::Reader) -> Result<PeerInfo, RPCError> {
     let nid_reader = reader
         .reborrow()
         .get_node_id()
@@ -27,8 +24,7 @@ pub fn decode_peer_info(
         .get_signed_node_info()
         .map_err(RPCError::protocol)?;
     let node_id = NodeId::new(decode_public_key(&nid_reader));
-    let signed_node_info =
-        decode_signed_node_info(&sni_reader, &node_id.key, allow_relay_peer_info)?;
+    let signed_node_info = decode_signed_node_info(&sni_reader, &node_id.key)?;
 
     Ok(PeerInfo {
         node_id,

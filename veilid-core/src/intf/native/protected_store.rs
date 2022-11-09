@@ -2,7 +2,6 @@ use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
 use keyring_manager::*;
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 pub struct ProtectedStoreInner {
@@ -144,18 +143,31 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value))]
-    pub async fn save_user_secret_cbor<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    pub async fn save_user_secret_rkyv<T>(&self, key: &str, value: &T) -> EyreResult<bool>
     where
-        T: Serialize,
+        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
-        let v = serde_cbor::to_vec(value).wrap_err("couldn't store as CBOR")?;
+        let v = to_rkyv(value)?;
+        self.save_user_secret(&key, &v).await
+    }
+
+    #[instrument(level = "trace", skip(self, value))]
+    pub async fn save_user_secret_json<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    where
+        T: serde::Serialize,
+    {
+        let v = serde_json::to_vec(value)?;
         self.save_user_secret(&key, &v).await
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn load_user_secret_cbor<T>(&self, key: &str) -> EyreResult<Option<T>>
+    pub async fn load_user_secret_rkyv<T>(&self, key: &str) -> EyreResult<Option<T>>
     where
-        T: for<'de> Deserialize<'de>,
+        T: RkyvArchive,
+        <T as RkyvArchive>::Archived:
+            for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+        <T as RkyvArchive>::Archived:
+            rkyv::Deserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {
         let out = self.load_user_secret(key).await?;
         let b = match out {
@@ -165,7 +177,24 @@ impl ProtectedStore {
             }
         };
 
-        let obj = serde_cbor::from_slice::<T>(&b).wrap_err("failed to deserialize")?;
+        let obj = from_rkyv(b)?;
+        Ok(Some(obj))
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn load_user_secret_json<T>(&self, key: &str) -> EyreResult<Option<T>>
+    where
+        T: for<'de> serde::de::Deserialize<'de>,
+    {
+        let out = self.load_user_secret(key).await?;
+        let b = match out {
+            Some(v) => v,
+            None => {
+                return Ok(None);
+            }
+        };
+
+        let obj = serde_json::from_slice(&b)?;
         Ok(Some(obj))
     }
 

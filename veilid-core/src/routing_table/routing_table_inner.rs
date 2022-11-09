@@ -253,7 +253,7 @@ impl RoutingTableInner {
     }
 
     /// Return a copy of our node's signednodeinfo
-    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedNodeInfo {
+    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedDirectNodeInfo {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common()
                 .with_peer_info(self, |pi| pi.signed_node_info.clone())
@@ -662,7 +662,7 @@ impl RoutingTableInner {
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
         node_id: DHTKey,
-        signed_node_info: SignedNodeInfo,
+        signed_node_info: SignedDirectNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
         // validate signed node info is not something malicious
@@ -717,7 +717,8 @@ impl RoutingTableInner {
         });
         if let Some(nr) = &out {
             // set the most recent node address for connection finding and udp replies
-            nr.locked(self).set_last_connection(descriptor, timestamp);
+            nr.locked_mut(self)
+                .set_last_connection(descriptor, timestamp);
         }
         out
     }

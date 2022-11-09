@@ -77,7 +77,7 @@ pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<Rout
         veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
             let pi_reader = pi.map_err(RPCError::protocol)?;
             RouteNode::PeerInfo(
-                decode_peer_info(&pi_reader, true)
+                decode_peer_info(&pi_reader)
                     .map_err(RPCError::map_protocol("invalid peer info in route hop"))?,
             )
         }

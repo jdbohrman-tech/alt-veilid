@@ -31,18 +31,10 @@ pub fn encode_node_info(
         encode_dial_info_detail(&node_info.dial_info_detail_list[idx], &mut did_builder)?;
     }
 
-    if let Some(rpi) = &node_info.relay_peer_info {
-        let mut rpi_builder = builder.reborrow().init_relay_peer_info();
-        encode_peer_info(rpi, &mut rpi_builder)?;
-    }
-
     Ok(())
 }
 
-pub fn decode_node_info(
-    reader: &veilid_capnp::node_info::Reader,
-    allow_relay_peer_info: bool,
-) -> Result<NodeInfo, RPCError> {
+pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<NodeInfo, RPCError> {
     let network_class = decode_network_class(
         reader
             .reborrow()
@@ -81,22 +73,6 @@ pub fn decode_node_info(
         dial_info_detail_list.push(decode_dial_info_detail(&did)?)
     }
 
-    let relay_peer_info = if allow_relay_peer_info {
-        if reader.has_relay_peer_info() {
-            Some(Box::new(decode_peer_info(
-                &reader
-                    .reborrow()
-                    .get_relay_peer_info()
-                    .map_err(RPCError::protocol)?,
-                false,
-            )?))
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
     Ok(NodeInfo {
         network_class,
         outbound_protocols,
@@ -104,6 +80,5 @@ pub fn decode_node_info(
         min_version,
         max_version,
         dial_info_detail_list,
-        relay_peer_info,
     })
 }

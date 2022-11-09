@@ -9,7 +9,7 @@ use core::fmt;
 use serde::*;
 
 state_machine! {
-    derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)
+    derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,)
     pub Attachment(Detached)
 //---
     Detached(AttachRequested) => Attaching [StartAttachment],

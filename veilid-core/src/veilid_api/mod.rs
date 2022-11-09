@@ -30,7 +30,7 @@ pub use routing_table::{NodeRef, NodeRefBase, RoutingTable};
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
 use enumset::*;
-use rpc_processor::RPCProcessor;
+use rpc_processor::*;
 use serde::*;
 use xx::*;
 
@@ -60,7 +60,21 @@ macro_rules! apibail_parse {
     };
 }
 
-#[derive(ThisError, Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(
+    ThisError,
+    Clone,
+    Debug,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]
 pub enum VeilidAPIError {
     #[error("Not initialized")]
@@ -159,7 +173,21 @@ impl VeilidAPIError {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Copy,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum VeilidLogLevel {
     Error = 1,
     Warn,
@@ -220,14 +248,20 @@ impl fmt::Display for VeilidLogLevel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidLog {
     pub log_level: VeilidLogLevel,
     pub message: String,
     pub backtrace: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
@@ -237,7 +271,10 @@ pub struct VeilidAppMessage {
     pub message: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
@@ -250,19 +287,28 @@ pub struct VeilidAppCall {
     pub id: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidStateAttachment {
     pub state: AttachmentState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerTableData {
     pub node_id: DHTKey,
     pub peer_address: PeerAddress,
     pub peer_stats: PeerStats,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidStateNetwork {
     pub started: bool,
     #[serde(with = "json_as_string")]
@@ -272,7 +318,8 @@ pub struct VeilidStateNetwork {
     pub peers: Vec<PeerTableData>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]
 pub enum VeilidUpdate {
     Log(VeilidLog),
@@ -283,7 +330,8 @@ pub enum VeilidUpdate {
     Shutdown,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidState {
     pub attachment: VeilidStateAttachment,
     pub network: VeilidStateNetwork,
@@ -291,7 +339,21 @@ pub struct VeilidState {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-#[derive(Clone, Debug, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct NodeId {
     pub key: DHTKey,
 }
@@ -315,7 +377,21 @@ impl FromStr for NodeId {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueKey {
     pub key: DHTKey,
     pub subkey: Option<String>,
@@ -336,7 +412,21 @@ impl ValueKey {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
     pub data: Vec<u8>,
     pub seq: u32,
@@ -354,7 +444,21 @@ impl ValueData {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BlockId {
     pub key: DHTKey,
 }
@@ -367,7 +471,22 @@ impl BlockId {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Keep member order appropriate for sorting < preference
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Hash)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum DialInfoClass {
     Direct = 0, // D = Directly reachable with public IP and no firewall, with statically configured port
     Mapped = 1, // M = Directly reachable with via portmap behind any NAT or firewalled with dynamically negotiated port
@@ -401,7 +520,22 @@ impl DialInfoClass {
 }
 
 // Ordering here matters, >= is used to check strength of sequencing requirement
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Sequencing {
     NoPreference,
     PreferOrdered,
@@ -409,14 +543,44 @@ pub enum Sequencing {
 }
 
 // Ordering here matters, >= is used to check strength of stability requirement
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Stability {
     LowLatency,
     Reliable,
 }
 
 /// The choice of safety route to include in compiled routes
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum SafetySelection {
     /// Don't use a safety route, only specify the sequencing preference
     Unsafe(Sequencing),
@@ -425,7 +589,22 @@ pub enum SafetySelection {
 }
 
 /// Options for safety routes (sender privacy)
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
     /// preferred safety route if it still exists
     pub preferred_route: Option<DHTKey>,
@@ -438,7 +617,21 @@ pub struct SafetySpec {
 }
 
 // Keep member order appropriate for sorting < preference
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DialInfoDetail {
     pub class: DialInfoClass,
     pub dial_info: DialInfo,
@@ -468,7 +661,22 @@ impl DialInfoDetail {
     > = None::<fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>;
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Hash)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum NetworkClass {
     InboundCapable = 0, // I = Inbound capable without relay, may require signal
     OutboundOnly = 1, // O = Outbound only, inbound relay required except with reverse connect signal
@@ -493,7 +701,10 @@ impl NetworkClass {
 /// is returned by the StatusA call
 
 /// PublicInternet RoutingDomain Status
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PublicInternetNodeStatus {
     pub will_route: bool,
     pub will_tunnel: bool,
@@ -502,13 +713,17 @@ pub struct PublicInternetNodeStatus {
     pub will_validate_dial_info: bool,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct LocalNetworkNodeStatus {
     pub will_relay: bool,
     pub will_validate_dial_info: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum NodeStatus {
     PublicInternet(PublicInternetNodeStatus),
     LocalNetwork(LocalNetworkNodeStatus),
@@ -547,181 +762,57 @@ impl NodeStatus {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct NodeInfo {
     pub network_class: NetworkClass,
+    #[with(RkyvEnumSet)]
     pub outbound_protocols: ProtocolTypeSet,
+    #[with(RkyvEnumSet)]
     pub address_types: AddressTypeSet,
     pub min_version: u8,
     pub max_version: u8,
     pub dial_info_detail_list: Vec<DialInfoDetail>,
-    pub relay_peer_info: Option<Box<PeerInfo>>,
-}
-
-impl NodeInfo {
-    pub fn first_filtered_dial_info_detail<S, F>(
-        &self,
-        sort: Option<S>,
-        filter: F,
-    ) -> Option<DialInfoDetail>
-    where
-        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
-        F: Fn(&DialInfoDetail) -> bool,
-    {
-        if let Some(sort) = sort {
-            let mut dids = self.dial_info_detail_list.clone();
-            dids.sort_by(sort);
-            for did in dids {
-                if filter(&did) {
-                    return Some(did);
-                }
-            }
-        } else {
-            for did in &self.dial_info_detail_list {
-                if filter(did) {
-                    return Some(did.clone());
-                }
-            }
-        };
-        None
-    }
-
-    pub fn all_filtered_dial_info_details<S, F>(
-        &self,
-        sort: Option<S>,
-        filter: F,
-    ) -> Vec<DialInfoDetail>
-    where
-        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
-        F: Fn(&DialInfoDetail) -> bool,
-    {
-        let mut dial_info_detail_list = Vec::new();
-
-        if let Some(sort) = sort {
-            let mut dids = self.dial_info_detail_list.clone();
-            dids.sort_by(sort);
-            for did in dids {
-                if filter(&did) {
-                    dial_info_detail_list.push(did);
-                }
-            }
-        } else {
-            for did in &self.dial_info_detail_list {
-                if filter(did) {
-                    dial_info_detail_list.push(did.clone());
-                }
-            }
-        };
-        dial_info_detail_list
-    }
-
-    pub fn has_any_dial_info(&self) -> bool {
-        !self.dial_info_detail_list.is_empty()
-            || !self
-                .relay_peer_info
-                .as_ref()
-                .map(|rpi| rpi.signed_node_info.node_info.has_direct_dial_info())
-                .unwrap_or_default()
-    }
-
-    pub fn has_sequencing_matched_dial_info(&self, sequencing: Sequencing) -> bool {
-        // Check our dial info
-        for did in &self.dial_info_detail_list {
-            match sequencing {
-                Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
-                Sequencing::EnsureOrdered => {
-                    if did.dial_info.protocol_type().is_connection_oriented() {
-                        return true;
-                    }
-                }
-            }
-        }
-        // Check our relay if we have one
-        return self
-            .relay_peer_info
-            .as_ref()
-            .map(|rpi| {
-                let relay_ni = &rpi.signed_node_info.node_info;
-                for did in &relay_ni.dial_info_detail_list {
-                    match sequencing {
-                        Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
-                        Sequencing::EnsureOrdered => {
-                            if did.dial_info.protocol_type().is_connection_oriented() {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                false
-            })
-            .unwrap_or_default();
-    }
-
-    pub fn has_direct_dial_info(&self) -> bool {
-        !self.dial_info_detail_list.is_empty()
-    }
-
-    // Is some relay required either for signal or inbound relay or outbound relay?
-    pub fn requires_relay(&self) -> bool {
-        match self.network_class {
-            NetworkClass::InboundCapable => {
-                for did in &self.dial_info_detail_list {
-                    if did.class.requires_relay() {
-                        return true;
-                    }
-                }
-            }
-            NetworkClass::OutboundOnly => {
-                return true;
-            }
-            NetworkClass::WebApp => {
-                return true;
-            }
-            NetworkClass::Invalid => {}
-        }
-        false
-    }
-
-    // Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
-    pub fn can_signal(&self) -> bool {
-        // Must be inbound capable
-        if !matches!(self.network_class, NetworkClass::InboundCapable) {
-            return false;
-        }
-        // Do any of our dial info require signalling? if so, we can't offer signalling
-        for did in &self.dial_info_detail_list {
-            if did.class.requires_signal() {
-                return false;
-            }
-        }
-        true
-    }
-
-    // Can this node relay be an inbound relay?
-    pub fn can_inbound_relay(&self) -> bool {
-        // For now this is the same
-        self.can_signal()
-    }
-
-    // Is this node capable of validating dial info
-    pub fn can_validate_dial_info(&self) -> bool {
-        // For now this is the same
-        self.can_signal()
-    }
 }
 
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(Debug, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumSetType)]
+#[derive(
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    EnumSetType,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[enumset(repr = "u8")]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Direction {
     Inbound,
     Outbound,
 }
 pub type DirectionSet = EnumSet<Direction>;
 
-#[allow(clippy::derive_hash_xor_eq)]
-#[derive(Debug, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumSetType)]
 // Keep member order appropriate for sorting < preference
 // Must match DialInfo order
+#[allow(clippy::derive_hash_xor_eq)]
+#[derive(
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    EnumSetType,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[enumset(repr = "u8")]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum LowLevelProtocolType {
     UDP,
     TCP,
@@ -734,10 +825,23 @@ impl LowLevelProtocolType {
 }
 pub type LowLevelProtocolTypeSet = EnumSet<LowLevelProtocolType>;
 
-#[allow(clippy::derive_hash_xor_eq)]
-#[derive(Debug, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumSetType)]
 // Keep member order appropriate for sorting < preference
 // Must match DialInfo order
+#[allow(clippy::derive_hash_xor_eq)]
+#[derive(
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    EnumSetType,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[enumset(repr = "u8")]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum ProtocolType {
     UDP,
     TCP,
@@ -794,10 +898,24 @@ impl ProtocolType {
         ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS
     }
 }
+
 pub type ProtocolTypeSet = EnumSet<ProtocolType>;
 
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(Debug, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumSetType)]
+#[derive(
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    EnumSetType,
+)]
+#[enumset(repr = "u8")]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum AddressType {
     IPV4,
     IPV6,
@@ -806,7 +924,20 @@ pub type AddressTypeSet = EnumSet<AddressType>;
 
 // Routing domain here is listed in order of preference, keep in order
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(Debug, Ord, PartialOrd, Hash, Serialize, Deserialize, EnumSetType)]
+#[derive(
+    Debug,
+    Ord,
+    PartialOrd,
+    Hash,
+    EnumSetType,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[enumset(repr = "u8")]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum RoutingDomain {
     LocalNetwork = 0,
     PublicInternet = 1,
@@ -822,7 +953,22 @@ impl RoutingDomain {
 }
 pub type RoutingDomainSet = EnumSet<RoutingDomain>;
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Address {
     IPV4(Ipv4Addr),
     IPV6(Ipv6Addr),
@@ -937,8 +1083,22 @@ impl FromStr for Address {
 }
 
 #[derive(
-    Copy, Default, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
+    Copy,
+    Default,
+    Clone,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
 )]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SocketAddress {
     address: Address,
     port: u16,
@@ -994,9 +1154,24 @@ impl FromStr for SocketAddress {
 
 //////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DialInfoFilter {
+    #[with(RkyvEnumSet)]
     pub protocol_type_set: ProtocolTypeSet,
+    #[with(RkyvEnumSet)]
     pub address_type_set: AddressTypeSet,
 }
 
@@ -1063,32 +1238,106 @@ pub trait MatchesDialInfoFilter {
     fn matches_filter(&self, filter: &DialInfoFilter) -> bool;
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DialInfoUDP {
     pub socket_address: SocketAddress,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DialInfoTCP {
     pub socket_address: SocketAddress,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DialInfoWS {
     pub socket_address: SocketAddress,
     pub request: String,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DialInfoWSS {
     pub socket_address: SocketAddress,
     pub request: String,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
-#[serde(tag = "kind")]
 // Keep member order appropriate for sorting < preference
 // Must match ProtocolType order
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
+#[serde(tag = "kind")]
 pub enum DialInfo {
     UDP(DialInfoUDP),
     TCP(DialInfoTCP),
@@ -1601,55 +1850,61 @@ impl MatchesDialInfoFilter for DialInfo {
 //////////////////////////////////////////////////////////////////////////
 
 // Signed NodeInfo that can be passed around amongst peers and verifiable
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SignedNodeInfo {
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct SignedDirectNodeInfo {
     pub node_info: NodeInfo,
-    pub signature: DHTSignature,
     pub timestamp: u64,
+    pub signature: DHTSignature,
 }
 
-impl SignedNodeInfo {
+impl SignedDirectNodeInfo {
     pub fn new(
-        node_info: NodeInfo,
         node_id: NodeId,
-        signature: DHTSignature,
+        node_info: NodeInfo,
         timestamp: u64,
+        signature: DHTSignature,
     ) -> Result<Self, VeilidAPIError> {
-        let mut node_info_bytes = serde_cbor::to_vec(&node_info)
-            .map_err(|e| VeilidAPIError::parse_error("failed to encode node info as cbor", e))?;
-        let mut timestamp_bytes = serde_cbor::to_vec(&timestamp)
-            .map_err(|e| VeilidAPIError::parse_error("failed to encode timestamp as cbor", e))?;
-
-        node_info_bytes.append(&mut timestamp_bytes);
-
+        let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
         verify(&node_id.key, &node_info_bytes, &signature)?;
         Ok(Self {
             node_info,
-            signature,
             timestamp,
+            signature,
         })
     }
 
     pub fn with_secret(
-        node_info: NodeInfo,
         node_id: NodeId,
+        node_info: NodeInfo,
         secret: &DHTKeySecret,
     ) -> Result<Self, VeilidAPIError> {
         let timestamp = intf::get_timestamp();
-
-        let mut node_info_bytes = serde_cbor::to_vec(&node_info)
-            .map_err(|e| VeilidAPIError::parse_error("failed to encode node info as cbor", e))?;
-        let mut timestamp_bytes = serde_cbor::to_vec(&timestamp)
-            .map_err(|e| VeilidAPIError::parse_error("failed to encode timestamp as cbor", e))?;
-
-        node_info_bytes.append(&mut timestamp_bytes);
-
+        let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
         let signature = sign(&node_id.key, secret, &node_info_bytes)?;
         Ok(Self {
             node_info,
-            signature,
             timestamp,
+            signature,
         })
+    }
+
+    fn make_signature_bytes(
+        node_info: &NodeInfo,
+        timestamp: u64,
+    ) -> Result<Vec<u8>, VeilidAPIError> {
+        let mut node_info_bytes = Vec::new();
+
+        // Add nodeinfo to signature
+        let mut ni_msg = ::capnp::message::Builder::new_default();
+        let mut ni_builder = ni_msg.init_root::<veilid_capnp::node_info::Builder>();
+        encode_node_info(node_info, &mut ni_builder).map_err(VeilidAPIError::internal)?;
+        node_info_bytes.append(&mut builder_to_vec(ni_msg).map_err(VeilidAPIError::internal)?);
+
+        // Add timestamp to signature
+        node_info_bytes.append(&mut timestamp.to_le_bytes().to_vec());
+
+        Ok(node_info_bytes)
     }
 
     pub fn with_no_signature(node_info: NodeInfo) -> Self {
@@ -1665,7 +1920,136 @@ impl SignedNodeInfo {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Signed NodeInfo with a relay that can be passed around amongst peers and verifiable
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct SignedRelayedNodeInfo {
+    pub node_info: NodeInfo,
+    pub relay_id: NodeId,
+    pub relay_info: SignedDirectNodeInfo,
+    pub timestamp: u64,
+    pub signature: DHTSignature,
+}
+
+impl SignedRelayedNodeInfo {
+    pub fn new(
+        node_id: NodeId,
+        node_info: NodeInfo,
+        relay_id: NodeId,
+        relay_info: SignedDirectNodeInfo,
+        timestamp: u64,
+        signature: DHTSignature,
+    ) -> Result<Self, VeilidAPIError> {
+        let node_info_bytes =
+            Self::make_signature_bytes(&node_info, &relay_id, &relay_info, timestamp)?;
+        verify(&node_id.key, &node_info_bytes, &signature)?;
+        Ok(Self {
+            node_info,
+            relay_id,
+            relay_info,
+            signature,
+            timestamp,
+        })
+    }
+
+    pub fn with_secret(
+        node_id: NodeId,
+        node_info: NodeInfo,
+        relay_id: NodeId,
+        relay_info: SignedDirectNodeInfo,
+        secret: &DHTKeySecret,
+    ) -> Result<Self, VeilidAPIError> {
+        let timestamp = intf::get_timestamp();
+        let node_info_bytes =
+            Self::make_signature_bytes(&node_info, &relay_id, &relay_info, timestamp)?;
+        let signature = sign(&node_id.key, secret, &node_info_bytes)?;
+        Ok(Self {
+            node_info,
+            relay_id,
+            relay_info,
+            signature,
+            timestamp,
+        })
+    }
+
+    fn make_signature_bytes(
+        node_info: &NodeInfo,
+        relay_id: &NodeId,
+        relay_info: &SignedDirectNodeInfo,
+        timestamp: u64,
+    ) -> Result<Vec<u8>, VeilidAPIError> {
+        let mut sig_bytes = Vec::new();
+
+        // Add nodeinfo to signature
+        let mut ni_msg = ::capnp::message::Builder::new_default();
+        let mut ni_builder = ni_msg.init_root::<veilid_capnp::node_info::Builder>();
+        encode_node_info(node_info, &mut ni_builder).map_err(VeilidAPIError::internal)?;
+        sig_bytes.append(&mut builder_to_vec(ni_msg).map_err(VeilidAPIError::internal)?);
+
+        // Add relay id to signature
+        let mut rid_msg = ::capnp::message::Builder::new_default();
+        let mut rid_builder = rid_msg.init_root::<veilid_capnp::curve25519_public_key::Builder>();
+        encode_public_key(&relay_id.key, &mut rid_builder).map_err(VeilidAPIError::internal)?;
+        sig_bytes.append(&mut builder_to_vec(rid_msg).map_err(VeilidAPIError::internal)?);
+
+        // Add relay info to signature
+        let mut ri_msg = ::capnp::message::Builder::new_default();
+        let mut ri_builder = ri_msg.init_root::<veilid_capnp::signed_direct_node_info::Builder>();
+        encode_signed_direct_node_info(relay_info, &mut ri_builder)
+            .map_err(VeilidAPIError::internal)?;
+        sig_bytes.append(&mut builder_to_vec(ri_msg).map_err(VeilidAPIError::internal)?);
+
+        // Add timestamp to signature
+        sig_bytes.append(&mut timestamp.to_le_bytes().to_vec());
+
+        Ok(sig_bytes)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
+pub enum SignedNodeInfo {
+    Direct(SignedDirectNodeInfo),
+    Relayed(SignedRelayedNodeInfo),
+}
+
+impl SignedNodeInfo {
+    pub fn has_valid_signature(&self) -> bool {
+        match self {
+            SignedNodeInfo::Direct(d) => d.has_valid_signature(),
+            SignedNodeInfo::Relayed(r) => true,
+        }
+    }
+
+    pub fn timestamp(&self) -> u64 {
+        match self {
+            SignedNodeInfo::Direct(d) => d.timestamp,
+            SignedNodeInfo::Relayed(r) => r.timestamp,
+        }
+    }
+
+    pub fn node_info(&self) -> &NodeInfo {
+        match self {
+            SignedNodeInfo::Direct(d) => &d.node_info,
+            SignedNodeInfo::Relayed(r) => &r.node_info,
+        }
+    }
+    pub fn relay_id(&self) -> Option<NodeId> {
+        match self {
+            SignedNodeInfo::Direct(d) => None,
+            SignedNodeInfo::Relayed(r) => Some(r.relay_id.clone()),
+        }
+    }
+    pub fn relay_info(&self) -> Option<&NodeInfo> {
+        match self {
+            SignedNodeInfo::Direct(d) => None,
+            SignedNodeInfo::Relayed(r) => Some(&r.relay_info.node_info),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerInfo {
     pub node_id: NodeId,
     pub signed_node_info: SignedNodeInfo,
@@ -1680,7 +2064,177 @@ impl PeerInfo {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
+impl PeerInfo {
+    /*
+    pub fn first_filtered_dial_info_detail<S, F>(
+        &self,
+        sort: Option<S>,
+        filter: F,
+    ) -> Option<DialInfoDetail>
+    where
+        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
+        F: Fn(&DialInfoDetail) -> bool,
+    {
+        if let Some(sort) = sort {
+            let mut dids = self.dial_info_detail_list.clone();
+            dids.sort_by(sort);
+            for did in dids {
+                if filter(&did) {
+                    return Some(did);
+                }
+            }
+        } else {
+            for did in &self.dial_info_detail_list {
+                if filter(did) {
+                    return Some(did.clone());
+                }
+            }
+        };
+        None
+    }
+
+    pub fn all_filtered_dial_info_details<S, F>(
+        &self,
+        sort: Option<S>,
+        filter: F,
+    ) -> Vec<DialInfoDetail>
+    where
+        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
+        F: Fn(&DialInfoDetail) -> bool,
+    {
+        let mut dial_info_detail_list = Vec::new();
+
+        if let Some(sort) = sort {
+            let mut dids = self.dial_info_detail_list.clone();
+            dids.sort_by(sort);
+            for did in dids {
+                if filter(&did) {
+                    dial_info_detail_list.push(did);
+                }
+            }
+        } else {
+            for did in &self.dial_info_detail_list {
+                if filter(did) {
+                    dial_info_detail_list.push(did.clone());
+                }
+            }
+        };
+        dial_info_detail_list
+    }
+
+    pub fn has_any_dial_info(&self) -> bool {
+        !self.dial_info_detail_list.is_empty()
+            || !self
+                .relay_peer_info
+                .as_ref()
+                .map(|rpi| rpi.signed_node_info.node_info.has_direct_dial_info())
+                .unwrap_or_default()
+    }
+
+    pub fn has_sequencing_matched_dial_info(&self, sequencing: Sequencing) -> bool {
+        // Check our dial info
+        for did in &self.dial_info_detail_list {
+            match sequencing {
+                Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
+                Sequencing::EnsureOrdered => {
+                    if did.dial_info.protocol_type().is_connection_oriented() {
+                        return true;
+                    }
+                }
+            }
+        }
+        // Check our relay if we have one
+        return self
+            .relay_peer_info
+            .as_ref()
+            .map(|rpi| {
+                let relay_ni = &rpi.signed_node_info.node_info;
+                for did in &relay_ni.dial_info_detail_list {
+                    match sequencing {
+                        Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
+                        Sequencing::EnsureOrdered => {
+                            if did.dial_info.protocol_type().is_connection_oriented() {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            })
+            .unwrap_or_default();
+    }
+
+    pub fn has_direct_dial_info(&self) -> bool {
+        !self.dial_info_detail_list.is_empty()
+    }
+
+    // Is some relay required either for signal or inbound relay or outbound relay?
+    pub fn requires_relay(&self) -> bool {
+        match self.network_class {
+            NetworkClass::InboundCapable => {
+                for did in &self.dial_info_detail_list {
+                    if did.class.requires_relay() {
+                        return true;
+                    }
+                }
+            }
+            NetworkClass::OutboundOnly => {
+                return true;
+            }
+            NetworkClass::WebApp => {
+                return true;
+            }
+            NetworkClass::Invalid => {}
+        }
+        false
+    }
+
+    // Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
+    pub fn can_signal(&self) -> bool {
+        // Must be inbound capable
+        if !matches!(self.network_class, NetworkClass::InboundCapable) {
+            return false;
+        }
+        // Do any of our dial info require signalling? if so, we can't offer signalling
+        for did in &self.dial_info_detail_list {
+            if did.class.requires_signal() {
+                return false;
+            }
+        }
+        true
+    }
+
+    // Can this node relay be an inbound relay?
+    pub fn can_inbound_relay(&self) -> bool {
+        // For now this is the same
+        self.can_signal()
+    }
+
+    // Is this node capable of validating dial info
+    pub fn can_validate_dial_info(&self) -> bool {
+        // For now this is the same
+        self.can_signal()
+    }
+
+    */
+}
+
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    Eq,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerAddress {
     protocol_type: ProtocolType,
     #[serde(with = "json_as_string")]
@@ -1719,7 +2273,22 @@ impl PeerAddress {
 /// If the medium does not allow local addresses, None should have been used or 'new_no_local'
 /// If we are specifying only a port, then the socket's 'local_address()' should have been used, since an
 /// established connection is always from a real address to another real address.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ConnectionDescriptor {
     remote: PeerAddress,
     local: Option<SocketAddress>,
@@ -1778,7 +2347,21 @@ impl MatchesDialInfoFilter for ConnectionDescriptor {
 
 //////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct NodeDialInfo {
     pub node_id: NodeId,
     pub dial_info: DialInfo,
@@ -1813,7 +2396,19 @@ impl FromStr for NodeDialInfo {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct LatencyStats {
     #[serde(with = "json_as_string")]
     pub fastest: u64, // fastest latency in the ROLLING_LATENCIES_SIZE last latencies
@@ -1823,7 +2418,19 @@ pub struct LatencyStats {
     pub slowest: u64, // slowest latency in the ROLLING_LATENCIES_SIZE last latencies
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TransferStats {
     #[serde(with = "json_as_string")]
     pub total: u64, // total amount transferred ever
@@ -1835,13 +2442,37 @@ pub struct TransferStats {
     pub minimum: u64, // minimum rate over the ROLLING_TRANSFERS_SIZE last amounts
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TransferStatsDownUp {
     pub down: TransferStats,
     pub up: TransferStats,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct RPCStats {
     pub messages_sent: u32, // number of rpcs that have been sent in the total_time range
     pub messages_rcvd: u32, // number of rpcs that have been received in the total_time range
@@ -1856,7 +2487,19 @@ pub struct RPCStats {
     pub failed_to_send: u32, // number of messages that have failed to send since we last successfully sent one
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerStats {
     #[serde(with = "json_as_string")]
     pub time_added: u64, // when the peer was added to the routing table
@@ -1870,7 +2513,8 @@ pub type ValueChangeCallback =
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum SignalInfo {
     HolePunch {
         // UDP Hole Punch Request
@@ -1887,13 +2531,41 @@ pub enum SignalInfo {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum TunnelMode {
     Raw,
     Turn,
 }
 
-#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum TunnelError {
     BadId,        // Tunnel ID was rejected
     NoEndpoint,   // Endpoint was unreachable
@@ -1903,7 +2575,8 @@ pub enum TunnelError {
 
 pub type TunnelId = u64;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TunnelEndpoint {
     pub mode: TunnelMode,
     pub description: String, // XXX: TODO
@@ -1918,7 +2591,10 @@ impl Default for TunnelEndpoint {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct FullTunnel {
     pub id: TunnelId,
     pub timeout: u64,
@@ -1926,7 +2602,10 @@ pub struct FullTunnel {
     pub remote: TunnelEndpoint,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PartialTunnel {
     pub id: TunnelId,
     pub timeout: u64,

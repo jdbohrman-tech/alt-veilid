@@ -18,7 +18,7 @@ impl RPCOperationNodeInfoUpdate {
         }
         let sender_node_id = opt_sender_node_id.unwrap();
         let sni_reader = reader.get_signed_node_info().map_err(RPCError::protocol)?;
-        let signed_node_info = decode_signed_node_info(&sni_reader, sender_node_id, true)?;
+        let signed_node_info = decode_signed_node_info(&sni_reader, sender_node_id)?;
 
         Ok(RPCOperationNodeInfoUpdate { signed_node_info })
     }

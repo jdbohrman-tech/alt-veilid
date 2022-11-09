@@ -122,21 +122,21 @@ pub async fn test_store_delete_load(ts: TableStore) {
     assert_eq!(db.load(2, b"baz").unwrap(), Some(b"QWERTY".to_vec()));
 }
 
-pub async fn test_cbor(ts: TableStore) {
-    trace!("test_cbor");
+pub async fn test_frozen(ts: TableStore) {
+    trace!("test_frozen");
 
     let _ = ts.delete("test");
     let db = ts.open("test", 3).await.expect("should have opened");
     let (dht_key, _) = generate_secret();
 
-    assert!(db.store_cbor(0, b"asdf", &dht_key).is_ok());
+    assert!(db.store_rkyv(0, b"asdf", &dht_key).is_ok());
 
-    assert_eq!(db.load_cbor::<DHTKey>(0, b"qwer").unwrap(), None);
+    assert_eq!(db.load_rkyv::<DHTKey>(0, b"qwer").unwrap(), None);
 
-    let d = match db.load_cbor::<DHTKey>(0, b"asdf") {
+    let d = match db.load_rkyv::<DHTKey>(0, b"asdf") {
         Ok(x) => x,
         Err(e) => {
-            panic!("couldn't decode cbor: {}", e);
+            panic!("couldn't decode: {}", e);
         }
     };
     assert_eq!(d, Some(dht_key), "keys should be equal");
@@ -147,8 +147,8 @@ pub async fn test_cbor(ts: TableStore) {
     );
 
     assert!(
-        db.load_cbor::<DHTKey>(1, b"foo").is_err(),
-        "should fail to load cbor"
+        db.load_rkyv::<DHTKey>(1, b"foo").is_err(),
+        "should fail to unfreeze"
     );
 }
 
@@ -157,7 +157,7 @@ pub async fn test_all() {
     let ts = api.table_store().unwrap();
     test_delete_open_delete(ts.clone()).await;
     test_store_delete_load(ts.clone()).await;
-    test_cbor(ts.clone()).await;
+    test_frozen(ts.clone()).await;
 
     let _ = ts.delete("test").await;
 

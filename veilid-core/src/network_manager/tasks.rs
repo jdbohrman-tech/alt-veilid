@@ -295,7 +295,7 @@ impl NetworkManager {
             if let Some(nr) = routing_table.register_node_with_signed_node_info(
                 RoutingDomain::PublicInternet,
                 k,
-                SignedNodeInfo::with_no_signature(NodeInfo {
+                SignedDirectNodeInfo::with_no_signature(NodeInfo {
                     network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
                     outbound_protocols: ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
                     address_types: AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable

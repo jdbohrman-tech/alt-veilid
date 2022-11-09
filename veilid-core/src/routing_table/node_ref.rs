@@ -385,8 +385,11 @@ impl NodeRef {
         out
     }
 
-    pub fn locked<'a>(&self, rti: &'a mut RoutingTableInner) -> NodeRefLocked<'a> {
+    pub fn locked<'a>(&self, rti: &'a RoutingTableInner) -> NodeRefLocked<'a> {
         NodeRefLocked::new(rti, self.clone())
+    }
+    pub fn locked_mut<'a>(&self, rti: &'a mut RoutingTableInner) -> NodeRefLockedMut<'a> {
+        NodeRefLockedMut::new(rti, self.clone())
     }
 }
 
@@ -480,12 +483,12 @@ impl Drop for NodeRef {
 /// already locked a RoutingTableInner
 /// Keeps entry in the routing table until all references are gone
 pub struct NodeRefLocked<'a> {
-    inner: Mutex<&'a mut RoutingTableInner>,
+    inner: Mutex<&'a RoutingTableInner>,
     nr: NodeRef,
 }
 
 impl<'a> NodeRefLocked<'a> {
-    pub fn new(inner: &'a mut RoutingTableInner, nr: NodeRef) -> Self {
+    pub fn new(inner: &'a RoutingTableInner, nr: NodeRef) -> Self {
         Self {
             inner: Mutex::new(inner),
             nr,
@@ -494,6 +497,65 @@ impl<'a> NodeRefLocked<'a> {
 }
 
 impl<'a> NodeRefBase for NodeRefLocked<'a> {
+    fn common(&self) -> &NodeRefBaseCommon {
+        &self.nr.common
+    }
+
+    fn common_mut(&mut self) -> &mut NodeRefBaseCommon {
+        &mut self.nr.common
+    }
+
+    fn operate<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> T,
+    {
+        let inner = &*self.inner.lock();
+        self.nr.common.entry.with(inner, f)
+    }
+
+    fn operate_mut<T, F>(&self, _f: F) -> T
+    where
+        F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> T,
+    {
+        panic!("need to locked_mut() for this operation")
+    }
+}
+
+impl<'a> fmt::Display for NodeRefLocked<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.nr)
+    }
+}
+
+impl<'a> fmt::Debug for NodeRefLocked<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NodeRefLocked")
+            .field("nr", &self.nr)
+            .finish()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+
+/// Mutable locked reference to a routing table entry
+/// For internal use inside the RoutingTable module where you have
+/// already locked a RoutingTableInner
+/// Keeps entry in the routing table until all references are gone
+pub struct NodeRefLockedMut<'a> {
+    inner: Mutex<&'a mut RoutingTableInner>,
+    nr: NodeRef,
+}
+
+impl<'a> NodeRefLockedMut<'a> {
+    pub fn new(inner: &'a mut RoutingTableInner, nr: NodeRef) -> Self {
+        Self {
+            inner: Mutex::new(inner),
+            nr,
+        }
+    }
+}
+
+impl<'a> NodeRefBase for NodeRefLockedMut<'a> {
     fn common(&self) -> &NodeRefBaseCommon {
         &self.nr.common
     }
@@ -519,15 +581,15 @@ impl<'a> NodeRefBase for NodeRefLocked<'a> {
     }
 }
 
-impl<'a> fmt::Display for NodeRefLocked<'a> {
+impl<'a> fmt::Display for NodeRefLockedMut<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.nr)
     }
 }
 
-impl<'a> fmt::Debug for NodeRefLocked<'a> {
+impl<'a> fmt::Debug for NodeRefLockedMut<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("NodeRefLocked")
+        f.debug_struct("NodeRefLockedMut")
             .field("nr", &self.nr)
             .finish()
     }

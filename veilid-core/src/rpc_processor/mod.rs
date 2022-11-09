@@ -619,7 +619,7 @@ impl RPCProcessor {
     // routing table caching when it is okay to do so
     // This is only done in the PublicInternet routing domain because
     // as far as we can tell this is the only domain that will really benefit
-    fn get_sender_signed_node_info(&self, dest: &Destination) -> Option<SignedNodeInfo> {
+    fn get_sender_signed_node_info(&self, dest: &Destination) -> Option<SignedDirectNodeInfo> {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
@@ -682,7 +682,7 @@ impl RPCProcessor {
         let op_id = operation.op_id();
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "question", op_id, desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "question", op_id, desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -745,7 +745,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_statement(statement, opt_sender_info);
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -865,7 +865,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_answer(&request.operation, answer, opt_sender_info);
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -997,7 +997,7 @@ impl RPCProcessor {
         };
 
         // Log rpc receive
-        debug!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id(), desc = msg.operation.kind().desc(), header = ?msg.header);
+        trace!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id(), desc = msg.operation.kind().desc(), header = ?msg.header);
 
         // Process specific message kind
         match msg.operation.kind() {

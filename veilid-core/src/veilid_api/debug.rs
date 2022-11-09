@@ -4,7 +4,6 @@
 use super::*;
 use data_encoding::BASE64URL_NOPAD;
 use routing_table::*;
-use rpc_processor::*;
 
 #[derive(Default, Debug)]
 struct DebugCache {

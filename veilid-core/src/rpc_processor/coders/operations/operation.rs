@@ -120,7 +120,7 @@ impl RPCOperation {
                 let sni_reader = operation_reader
                     .get_sender_node_info()
                     .map_err(RPCError::protocol)?;
-                let sni = decode_signed_node_info(&sni_reader, sender_node_id, true)?;
+                let sni = decode_signed_node_info(&sni_reader, sender_node_id)?;
                 Some(sni)
             } else {
                 None

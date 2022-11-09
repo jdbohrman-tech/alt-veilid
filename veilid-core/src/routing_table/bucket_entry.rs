@@ -64,22 +64,44 @@ pub struct BucketEntryLocalNetwork {
     node_status: Option<LocalNetworkNodeStatus>,
 }
 
+/// A range of cryptography versions supported by this entry
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VersionRange {
+    /// The minimum cryptography version supported by this entry
+    min: u8,
+    /// The maximum cryptography version supported by this entry
+    max: u8,
+}
+
+/// The data associated with each bucket entry
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryInner {
-    min_max_version: Option<(u8, u8)>,
+    /// The minimum and maximum range of cryptography versions supported by the node,
+    /// inclusive of the requirements of any relay the node may be using
+    min_max_version: Option<VersionRange>,
+    /// Whether or not we have updated this peer with our node info since our network
+    /// and dial info has last changed, for example when our IP address changes
     updated_since_last_network_change: bool,
+    /// The last connection descriptors used to contact this node, per protocol type
     #[serde(skip)]
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
+    /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
+    /// The node info for this entry on the localnetwork routing domain
     local_network: BucketEntryLocalNetwork,
+    /// Statistics gathered for the peer
     peer_stats: PeerStats,
+    /// The accounting for the latency statistics
     #[serde(skip)]
     latency_stats_accounting: LatencyStatsAccounting,
+    /// The accounting for the transfer statistics
     #[serde(skip)]
     transfer_stats_accounting: TransferStatsAccounting,
+    /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
     #[serde(skip)]
     next_track_id: usize,
+    /// Backtraces for NodeRef debugging
     #[cfg(feature = "tracking")]
     #[serde(skip)]
     node_ref_tracks: HashMap<usize, backtrace::Backtrace>,
@@ -190,12 +212,12 @@ impl BucketEntryInner {
             // Always allow overwriting invalid/unsigned node
             if current_sni.has_valid_signature() {
                 // If the timestamp hasn't changed or is less, ignore this update
-                if signed_node_info.timestamp <= current_sni.timestamp {
+                if signed_node_info.timestamp() <= current_sni.timestamp() {
                     // If we received a node update with the same timestamp
                     // we can make this node live again, but only if our network has recently changed
                     // which may make nodes that were unreachable now reachable with the same dialinfo
                     if !self.updated_since_last_network_change
-                        && signed_node_info.timestamp == current_sni.timestamp
+                        && signed_node_info.timestamp() == current_sni.timestamp()
                     {
                         // No need to update the signednodeinfo though since the timestamp is the same
                         // Touch the node and let it try to live again
@@ -207,11 +229,22 @@ impl BucketEntryInner {
             }
         }
 
-        // Update the protocol min/max version we have
-        self.min_max_version = Some((
-            signed_node_info.node_info.min_version,
-            signed_node_info.node_info.max_version,
-        ));
+        // Update the protocol min/max version we have to use, to include relay requirements if needed
+        let mut version_range = VersionRange {
+            min: signed_node_info.node_info().min_version,
+            max: signed_node_info.node_info().max_version,
+        };
+        if let Some(relay_info) = signed_node_info.relay_info() {
+            version_range.min.max_assign(relay_info.min_version);
+            version_range.max.min_assign(relay_info.max_version);
+        }
+        if version_range.min <= version_range.max {
+            // Can be reached with at least one crypto version
+            self.min_max_version = Some(version_range);
+        } else {
+            // No valid crypto version in range
+            self.min_max_version = None;
+        }
 
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
@@ -238,7 +271,7 @@ impl BucketEntryInner {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
-        opt_current_sni.as_ref().map(|s| &s.node_info)
+        opt_current_sni.as_ref().map(|s| s.node_info())
     }
 
     pub fn signed_node_info(&self, routing_domain: RoutingDomain) -> Option<&SignedNodeInfo> {
@@ -338,11 +371,11 @@ impl BucketEntryInner {
         out
     }
 
-    pub fn set_min_max_version(&mut self, min_max_version: (u8, u8)) {
+    pub fn set_min_max_version(&mut self, min_max_version: VersionRange) {
         self.min_max_version = Some(min_max_version);
     }
 
-    pub fn min_max_version(&self) -> Option<(u8, u8)> {
+    pub fn min_max_version(&self) -> Option<VersionRange> {
         self.min_max_version
     }
 

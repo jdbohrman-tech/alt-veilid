@@ -5,14 +5,16 @@ pub fn encode_signed_node_info(
     signed_node_info: &SignedNodeInfo,
     builder: &mut veilid_capnp::signed_node_info::Builder,
 ) -> Result<(), RPCError> {
-    //
-    let mut ni_builder = builder.reborrow().init_node_info();
-    encode_node_info(&signed_node_info.node_info, &mut ni_builder)?;
-
-    let mut sig_builder = builder.reborrow().init_signature();
-    encode_signature(&signed_node_info.signature, &mut sig_builder);
-
-    builder.reborrow().set_timestamp(signed_node_info.timestamp);
+    match signed_node_info {
+        SignedNodeInfo::Direct(d) => {
+            let mut d_builder = builder.reborrow().init_direct();
+            encode_signed_direct_node_info(d, &mut d_builder)?;
+        }
+        SignedNodeInfo::Relayed(r) => {
+            let mut r_builder = builder.reborrow().init_relayed();
+            encode_signed_relayed_node_info(r, &mut r_builder)?;
+        }
+    }
 
     Ok(())
 }
@@ -20,22 +22,20 @@ pub fn encode_signed_node_info(
 pub fn decode_signed_node_info(
     reader: &veilid_capnp::signed_node_info::Reader,
     node_id: &DHTKey,
-    allow_relay_peer_info: bool,
 ) -> Result<SignedNodeInfo, RPCError> {
-    let ni_reader = reader
-        .reborrow()
-        .get_node_info()
-        .map_err(RPCError::protocol)?;
-    let node_info = decode_node_info(&ni_reader, allow_relay_peer_info)?;
-
-    let sig_reader = reader
-        .reborrow()
-        .get_signature()
-        .map_err(RPCError::protocol)?;
-    let signature = decode_signature(&sig_reader);
-
-    let timestamp = reader.reborrow().get_timestamp();
-
-    SignedNodeInfo::new(node_info, NodeId::new(*node_id), signature, timestamp)
-        .map_err(RPCError::protocol)
+    match reader
+        .which()
+        .map_err(RPCError::map_internal("invalid signal operation"))?
+    {
+        veilid_capnp::signed_node_info::Direct(d) => {
+            let d_reader = d.map_err(RPCError::protocol)?;
+            let sdni = decode_signed_direct_node_info(&d_reader, node_id)?;
+            Ok(SignedNodeInfo::Direct(sdni))
+        }
+        veilid_capnp::signed_node_info::Relayed(r) => {
+            let r_reader = r.map_err(RPCError::protocol)?;
+            let srni = decode_signed_relayed_node_info(&r_reader, node_id)?;
+            Ok(SignedNodeInfo::Relayed(srni))
+        }
+    }
 }

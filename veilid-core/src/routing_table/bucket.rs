@@ -8,7 +8,19 @@ pub struct Bucket {
 }
 pub(super) type EntriesIter<'a> = alloc::collections::btree_map::Iter<'a, DHTKey, Arc<BucketEntry>>;
 
-type BucketData = (Vec<(DHTKey, Vec<u8>)>, Option<DHTKey>);
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+struct BucketEntryData {
+    key: DHTKey,
+    value: Vec<u8>,
+}
+
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+struct BucketData {
+    entries: Vec<BucketEntryData>,
+    newest_entry: Option<DHTKey>,
+}
 
 fn state_ordering(state: BucketEntryState) -> usize {
     match state {
@@ -27,29 +39,33 @@ impl Bucket {
         }
     }
 
-    pub(super) fn load_bucket(&mut self, data: &[u8]) -> EyreResult<()> {
-        let bucket_data: BucketData =
-            serde_cbor::from_slice::<BucketData>(data).wrap_err("failed to deserialize bucket")?;
+    pub(super) fn load_bucket(&mut self, data: Vec<u8>) -> EyreResult<()> {
+        let bucket_data: BucketData = from_rkyv(data)?;
 
-        for (k, d) in bucket_data.0 {
-            let entryinner = serde_cbor::from_slice::<BucketEntryInner>(&d)
-                .wrap_err("failed to deserialize bucket entry")?;
+        for e in bucket_data.entries {
+            let entryinner = from_rkyv(e.value).wrap_err("failed to deserialize bucket entry")?;
             self.entries
-                .insert(k, Arc::new(BucketEntry::new_with_inner(entryinner)));
+                .insert(e.key, Arc::new(BucketEntry::new_with_inner(entryinner)));
         }
 
-        self.newest_entry = bucket_data.1;
+        self.newest_entry = bucket_data.newest_entry;
 
         Ok(())
     }
     pub(super) fn save_bucket(&self) -> EyreResult<Vec<u8>> {
-        let mut entry_vec = Vec::new();
+        let mut entries = Vec::new();
         for (k, v) in &self.entries {
-            let entry_bytes = v.with_mut_inner(|e| serde_cbor::to_vec(e))?;
-            entry_vec.push((*k, entry_bytes));
+            let entry_bytes = v.with_inner(|e| to_rkyv(e))?;
+            entries.push(BucketEntryData {
+                key: *k,
+                value: entry_bytes,
+            });
         }
-        let bucket_data: BucketData = (entry_vec, self.newest_entry.clone());
-        let out = serde_cbor::to_vec(&bucket_data)?;
+        let bucket_data = BucketData {
+            entries,
+            newest_entry: self.newest_entry.clone(),
+        };
+        let out = to_rkyv(&bucket_data)?;
         Ok(out)
     }
 
