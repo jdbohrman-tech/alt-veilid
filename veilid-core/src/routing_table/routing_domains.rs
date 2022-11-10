@@ -111,18 +111,31 @@ impl RoutingDomainDetailCommon {
             dial_info_detail_list: self.dial_info_details.clone(),
         };
 
-        let relay_peer_info = self
+        let relay_info = self
             .relay_node
             .as_ref()
-            .and_then(|rn| rn.locked(rti).make_peer_info(self.routing_domain));
+            .and_then(|rn| {
+                let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
+                if let Some(relay_pi) = opt_relay_pi {
+                    match relay_pi.signed_node_info {
+                        SignedNodeInfo::Direct(d) => Some((relay_pi.node_id, d)), 
+                        SignedNodeInfo::Relayed(_) => {
+                            warn!("relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
+                            None
+                        },
+                    }
+                } else {
+                    None
+                }
+            });
 
-        let signed_node_info = match relay_peer_info {
-            Some(relay_pi) => SignedNodeInfo::Relayed(
+        let signed_node_info = match relay_info {
+            Some((relay_id, relay_sdni)) => SignedNodeInfo::Relayed(
                 SignedRelayedNodeInfo::with_secret(
                     NodeId::new(rti.unlocked_inner.node_id),
                     node_info,
-                    relay_pi.node_id,
-                    relay_pi.signed_node_info,
+                    relay_id,
+                    relay_sdni,                    
                     &rti.unlocked_inner.node_id_secret,
                 )
                 .unwrap(),
@@ -133,7 +146,7 @@ impl RoutingDomainDetailCommon {
                     node_info,
                     &rti.unlocked_inner.node_id_secret,
                 )
-                .unwrap(),
+                .unwrap()
             ),
         };
 
@@ -147,27 +160,8 @@ impl RoutingDomainDetailCommon {
         let mut cpi = self.cached_peer_info.lock();
         if cpi.is_none() {
             // Regenerate peer info
-            let pi = PeerInfo::new(
-                NodeId::new(rti.unlocked_inner.node_id),
-                SignedDirectNodeInfo::with_secret(
-                    NodeInfo {
-                        network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
-                        outbound_protocols: self.outbound_protocols,
-                        address_types: self.address_types,
-                        min_version: MIN_CRYPTO_VERSION,
-                        max_version: MAX_CRYPTO_VERSION,
-                        dial_info_detail_list: self.dial_info_details.clone(),
-                        relay_peer_info: self.relay_node.as_ref().and_then(|rn| {
-                            rn.locked(rti)
-                                .make_peer_info(self.routing_domain)
-                                .map(Box::new)
-                        }),
-                    },
-                    NodeId::new(rti.unlocked_inner.node_id),
-                    &rti.unlocked_inner.node_id_secret,
-                )
-                .unwrap(),
-            );
+            let pi = self.make_peer_info(rti);
+
             // Cache the peer info
             *cpi = Some(pi);
         }
@@ -204,10 +198,8 @@ pub trait RoutingDomainDetail {
     fn get_contact_method(
         &self,
         rti: &RoutingTableInner,
-        node_a_id: &DHTKey,
-        node_a: &NodeInfo,
-        node_b_id: &DHTKey,
-        node_b: &NodeInfo,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
     ) -> ContactMethod;
@@ -280,13 +272,15 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
     fn get_contact_method(
         &self,
         _rti: &RoutingTableInner,
-        node_a_id: &DHTKey,
-        node_a: &NodeInfo,
-        node_b_id: &DHTKey,
-        node_b: &NodeInfo,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
     ) -> ContactMethod {
+        // Get the nodeinfos for convenience
+        let node_a = peer_a.signed_node_info.node_info();
+        let node_b = peer_b.signed_node_info.node_info();
+        
         // Get the best match dial info for node B if we have it
         if let Some(target_did) =
             first_filtered_dial_info_detail(node_a, node_b, &dial_info_filter, sequencing)
@@ -298,17 +292,18 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             }
 
             // Get the target's inbound relay, it must have one or it is not reachable
-            if let Some(inbound_relay) = &node_b.relay_peer_info {
+            if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
+                let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
                 // Note that relay_peer_info could be node_a, in which case a connection already exists
                 // and we shouldn't have even gotten here
-                if inbound_relay.node_id.key == *node_a_id {
+                if node_b_relay_id.key == peer_a.node_id.key {
                     return ContactMethod::Existing;
                 }
 
                 // Can node A reach the inbound relay directly?
                 if first_filtered_dial_info_detail(
                     node_a,
-                    &inbound_relay.signed_node_info.node_info,
+                    node_b_relay,
                     &dial_info_filter,
                     sequencing,
                 )
@@ -332,8 +327,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                                 // Can we receive a direct reverse connection?
                                 if !reverse_did.class.requires_signal() {
                                     return ContactMethod::SignalReverse(
-                                        inbound_relay.node_id.key,
-                                        *node_b_id,
+                                        node_b_relay_id.key,
+                                        peer_b.node_id.key,
                                     );
                                 }
                             }
@@ -364,8 +359,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                                 {
                                     // The target and ourselves have a udp dialinfo that they can reach
                                     return ContactMethod::SignalHolePunch(
-                                        inbound_relay.node_id.key,
-                                        *node_b_id,
+                                        node_b_relay_id.key,
+                                        peer_a.node_id.key,
                                     );
                                 }
                             }
@@ -373,28 +368,30 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                         // Otherwise we have to inbound relay
                     }
 
-                    return ContactMethod::InboundRelay(inbound_relay.node_id.key);
+                    return ContactMethod::InboundRelay(node_b_relay_id.key);
                 }
             }
         }
         // If the node B has no direct dial info, it needs to have an inbound relay
-        else if let Some(inbound_relay) = &node_b.relay_peer_info {
+        else if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
+            let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
+
             // Can we reach the full relay?
             if first_filtered_dial_info_detail(
                 node_a,
-                &inbound_relay.signed_node_info.node_info,
+                &node_b_relay,
                 &dial_info_filter,
                 sequencing,
             )
             .is_some()
             {
-                return ContactMethod::InboundRelay(inbound_relay.node_id.key);
+                return ContactMethod::InboundRelay(node_b_relay_id.key);
             }
         }
 
         // If node A can't reach the node by other means, it may need to use its own relay
-        if let Some(outbound_relay) = &node_a.relay_peer_info {
-            return ContactMethod::OutboundRelay(outbound_relay.node_id.key);
+        if let Some(node_a_relay_id) = peer_a.signed_node_info.relay_id() {
+            return ContactMethod::OutboundRelay(node_a_relay_id.key);
         }
 
         ContactMethod::Unreachable
@@ -450,20 +447,18 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
     fn get_contact_method(
         &self,
         _rti: &RoutingTableInner,
-        _node_a_id: &DHTKey,
-        node_a: &NodeInfo,
-        _node_b_id: &DHTKey,
-        node_b: &NodeInfo,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
     ) -> ContactMethod {
         // Scope the filter down to protocols node A can do outbound
         let dial_info_filter = dial_info_filter.filtered(
             &DialInfoFilter::all()
-                .with_address_type_set(node_a.address_types)
-                .with_protocol_type_set(node_a.outbound_protocols),
+                .with_address_type_set(peer_a.signed_node_info.node_info().address_types)
+                .with_protocol_type_set(peer_a.signed_node_info.node_info().outbound_protocols),
         );
-
+        
         // Get first filtered dialinfo
         let (sort, dial_info_filter) = match sequencing {
             Sequencing::NoPreference => (None, dial_info_filter),
@@ -485,7 +480,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
 
         let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
 
-        let opt_target_did = node_b.first_filtered_dial_info_detail(sort, filter);
+        let opt_target_did = peer_b.signed_node_info.node_info().first_filtered_dial_info_detail(sort, filter);
         if let Some(target_did) = opt_target_did {
             return ContactMethod::Direct(target_did.dial_info);
         }

@@ -191,9 +191,20 @@ impl RoutingTableInner {
                 return false;
             }
         }
+        true
+    }
+
+    pub fn signed_node_info_is_valid_in_routing_domain(
+        &self,
+        routing_domain: RoutingDomain,
+        signed_node_info: &SignedNodeInfo,
+    ) -> bool {
+        if !self.node_info_is_valid_in_routing_domain(routing_domain, signed_node_info.node_info())
+        {
+            return false;
+        }
         // Ensure the relay is also valid in this routing domain if it is provided
-        if let Some(relay_peer_info) = node_info.relay_peer_info.as_ref() {
-            let relay_ni = &relay_peer_info.signed_node_info.node_info;
+        if let Some(relay_ni) = signed_node_info.relay_info() {
             if !self.node_info_is_valid_in_routing_domain(routing_domain, relay_ni) {
                 return false;
             }
@@ -205,23 +216,13 @@ impl RoutingTableInner {
     pub fn get_contact_method(
         &self,
         routing_domain: RoutingDomain,
-        node_a_id: &DHTKey,
-        node_a: &NodeInfo,
-        node_b_id: &DHTKey,
-        node_b: &NodeInfo,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
     ) -> ContactMethod {
         self.with_routing_domain(routing_domain, |rdd| {
-            rdd.get_contact_method(
-                self,
-                node_a_id,
-                node_a,
-                node_b_id,
-                node_b,
-                dial_info_filter,
-                sequencing,
-            )
+            rdd.get_contact_method(self, peer_a, peer_b, dial_info_filter, sequencing)
         })
     }
 
@@ -249,22 +250,6 @@ impl RoutingTableInner {
     pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common().with_peer_info(self, |pi| pi.clone())
-        })
-    }
-
-    /// Return a copy of our node's signednodeinfo
-    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedDirectNodeInfo {
-        self.with_routing_domain(routing_domain, |rdd| {
-            rdd.common()
-                .with_peer_info(self, |pi| pi.signed_node_info.clone())
-        })
-    }
-
-    /// Return a copy of our node's nodeinfo
-    pub fn get_own_node_info(&self, routing_domain: RoutingDomain) -> NodeInfo {
-        self.with_routing_domain(routing_domain, |rdd| {
-            rdd.common()
-                .with_peer_info(self, |pi| pi.signed_node_info.node_info.clone())
         })
     }
 
@@ -662,7 +647,7 @@ impl RoutingTableInner {
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
         node_id: DHTKey,
-        signed_node_info: SignedDirectNodeInfo,
+        signed_node_info: SignedNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
         // validate signed node info is not something malicious
@@ -670,8 +655,8 @@ impl RoutingTableInner {
             log_rtab!(debug "can't register own node id in routing table");
             return None;
         }
-        if let Some(rpi) = &signed_node_info.node_info.relay_peer_info {
-            if rpi.node_id.key == node_id {
+        if let Some(relay_id) = signed_node_info.relay_id() {
+            if relay_id.key == node_id {
                 log_rtab!(debug "node can not be its own relay");
                 return None;
             }
@@ -683,8 +668,7 @@ impl RoutingTableInner {
                 return None;
             }
             // verify signed node info is valid in this routing domain
-            if !self
-                .node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info.node_info)
+            if !self.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
             {
                 log_rtab!(debug "signed node info for {} not valid in the {:?} routing domain", node_id, routing_domain);
                 return None;

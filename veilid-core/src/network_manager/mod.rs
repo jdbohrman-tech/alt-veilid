@@ -1210,18 +1210,16 @@ impl NetworkManager {
         };
 
         // Node A is our own node
-        let node_a = routing_table.get_own_node_info(routing_domain);
-        let node_a_id = routing_table.node_id();
+        let peer_a = routing_table.get_own_peer_info(routing_domain);
 
         // Node B is the target node
-        let node_b = match target_node_ref.node_info(routing_domain) {
+        let peer_b = match target_node_ref.make_peer_info(routing_domain) {
             Some(ni) => ni,
             None => {
                 log_net!("no node info for node {:?}", target_node_ref);
                 return Ok(NodeContactMethod::Unreachable);
             }
         };
-        let node_b_id = target_node_ref.node_id();
 
         // Dial info filter comes from the target node ref
         let dial_info_filter = target_node_ref.dial_info_filter();
@@ -1229,10 +1227,8 @@ impl NetworkManager {
 
         let cm = routing_table.get_contact_method(
             routing_domain,
-            &node_a_id,
-            &node_a,
-            &node_b_id,
-            &node_b,
+            &peer_a,
+            &peer_b,
             dial_info_filter,
             sequencing,
         );

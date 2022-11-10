@@ -116,10 +116,10 @@ pub trait NodeRefBase: Sized {
             e.update_node_status(node_status);
         });
     }
-    fn min_max_version(&self) -> Option<(u8, u8)> {
+    fn min_max_version(&self) -> Option<VersionRange> {
         self.operate(|_rti, e| e.min_max_version())
     }
-    fn set_min_max_version(&self, min_max_version: (u8, u8)) {
+    fn set_min_max_version(&self, min_max_version: VersionRange) {
         self.operate_mut(|_rti, e| e.set_min_max_version(min_max_version))
     }
     fn state(&self, cur_ts: u64) -> BucketEntryState {
@@ -170,26 +170,24 @@ pub trait NodeRefBase: Sized {
     }
     fn relay(&self, routing_domain: RoutingDomain) -> Option<NodeRef> {
         self.operate_mut(|rti, e| {
-            let opt_target_rpi = e
-                .node_info(routing_domain)
-                .map(|n| n.relay_peer_info.as_ref().map(|pi| pi.as_ref().clone()))
-                .flatten();
-            opt_target_rpi.and_then(|t| {
-                // If relay is ourselves, then return None, because we can't relay through ourselves
-                // and to contact this node we should have had an existing inbound connection
-                if t.node_id.key == rti.unlocked_inner.node_id {
-                    return None;
-                }
+            e.signed_node_info(routing_domain)
+                .and_then(|n| n.relay_peer_info())
+                .and_then(|t| {
+                    // If relay is ourselves, then return None, because we can't relay through ourselves
+                    // and to contact this node we should have had an existing inbound connection
+                    if t.node_id.key == rti.unlocked_inner.node_id {
+                        return None;
+                    }
 
-                // Register relay node and return noderef
-                rti.register_node_with_signed_node_info(
-                    self.routing_table(),
-                    routing_domain,
-                    t.node_id.key,
-                    t.signed_node_info,
-                    false,
-                )
-            })
+                    // Register relay node and return noderef
+                    rti.register_node_with_signed_node_info(
+                        self.routing_table(),
+                        routing_domain,
+                        t.node_id.key,
+                        t.signed_node_info,
+                        false,
+                    )
+                })
         })
     }
 
@@ -301,8 +299,8 @@ pub trait NodeRefBase: Sized {
     fn has_any_dial_info(&self) -> bool {
         self.operate(|_rti, e| {
             for rtd in RoutingDomain::all() {
-                if let Some(ni) = e.node_info(rtd) {
-                    if ni.has_any_dial_info() {
+                if let Some(sni) = e.signed_node_info(rtd) {
+                    if sni.has_any_dial_info() {
                         return true;
                     }
                 }

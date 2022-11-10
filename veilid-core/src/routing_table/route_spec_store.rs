@@ -114,10 +114,10 @@ fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {
 }
 
 /// get the hop cache key for a particular route permutation
-fn route_permutation_to_hop_cache(nodes: &[(DHTKey, NodeInfo)], perm: &[usize]) -> Vec<u8> {
+fn route_permutation_to_hop_cache(nodes: &[PeerInfo], perm: &[usize]) -> Vec<u8> {
     let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * DHT_KEY_LENGTH);
     for n in perm {
-        cache.extend_from_slice(&nodes[*n].0.bytes)
+        cache.extend_from_slice(&nodes[*n].node_id.key.bytes)
     }
     cache
 }
@@ -422,12 +422,12 @@ impl RouteSpecStore {
 
                 // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
                 v.with(rti, move |_rti, e| {
-                    let node_info_ok = if let Some(ni) = e.node_info(RoutingDomain::PublicInternet)
-                    {
-                        ni.has_sequencing_matched_dial_info(sequencing)
-                    } else {
-                        false
-                    };
+                    let node_info_ok =
+                        if let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) {
+                            sni.has_sequencing_matched_dial_info(sequencing)
+                        } else {
+                            false
+                        };
                     let node_status_ok =
                         if let Some(ns) = e.node_status(RoutingDomain::PublicInternet) {
                             ns.will_route()
@@ -495,20 +495,15 @@ impl RouteSpecStore {
             });
             cmpout
         };
-        let transform = |rti: &RoutingTableInner,
-                         k: DHTKey,
-                         v: Option<Arc<BucketEntry>>|
-         -> (DHTKey, NodeInfo) {
-            // Return the key and the nodeinfo for that key
-            (
-                k,
+        let transform =
+            |rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| -> PeerInfo {
+                // Return the peerinfo for that key
                 v.unwrap().with(rti, |_rti, e| {
-                    e.node_info(RoutingDomain::PublicInternet.into())
+                    e.make_peer_info(k, RoutingDomain::PublicInternet.into())
                         .unwrap()
                         .clone()
-                }),
-            )
-        };
+                })
+            };
 
         // Pull the whole routing table in sorted order
         let node_count = rti.get_entry_count(
@@ -536,18 +531,15 @@ impl RouteSpecStore {
 
             // Ensure this route is viable by checking that each node can contact the next one
             if directions.contains(Direction::Outbound) {
-                let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
-                let our_node_id = rti.node_id();
-                let mut previous_node = &(our_node_id, our_node_info);
+                let our_peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
+                let mut previous_node = &our_peer_info;
                 let mut reachable = true;
                 for n in permutation {
                     let current_node = nodes.get(*n).unwrap();
                     let cm = rti.get_contact_method(
                         RoutingDomain::PublicInternet,
-                        &previous_node.0,
-                        &previous_node.1,
-                        &current_node.0,
-                        &current_node.1,
+                        previous_node,
+                        current_node,
                         DialInfoFilter::all(),
                         sequencing,
                     );
@@ -562,18 +554,15 @@ impl RouteSpecStore {
                 }
             }
             if directions.contains(Direction::Inbound) {
-                let our_node_info = rti.get_own_node_info(RoutingDomain::PublicInternet);
-                let our_node_id = rti.node_id();
-                let mut next_node = &(our_node_id, our_node_info);
+                let our_peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
+                let mut next_node = &our_peer_info;
                 let mut reachable = true;
                 for n in permutation.iter().rev() {
                     let current_node = nodes.get(*n).unwrap();
                     let cm = rti.get_contact_method(
                         RoutingDomain::PublicInternet,
-                        &next_node.0,
-                        &next_node.1,
-                        &current_node.0,
-                        &current_node.1,
+                        next_node,
+                        current_node,
                         DialInfoFilter::all(),
                         sequencing,
                     );
@@ -609,11 +598,11 @@ impl RouteSpecStore {
         }
 
         // Got a unique route, lets build the detail, register it, and return it
-        let hops = route_nodes.iter().map(|v| nodes[*v].0).collect();
-        let hop_node_refs = route_nodes
+        let hops: Vec<DHTKey> = route_nodes.iter().map(|v| nodes[*v].node_id.key).collect();
+        let hop_node_refs = hops
             .iter()
-            .map(|v| {
-                rti.lookup_node_ref(self.unlocked_inner.routing_table.clone(), nodes[*v].0)
+            .map(|k| {
+                rti.lookup_node_ref(self.unlocked_inner.routing_table.clone(), *k)
                     .unwrap()
             })
             .collect();

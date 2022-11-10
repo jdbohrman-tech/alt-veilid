@@ -336,10 +336,14 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
-    /// Determine if a NodeInfo can be placed into the specified routing domain
-    fn filter_node_info(&self, routing_domain: RoutingDomain, node_info: &NodeInfo) -> bool {
+    /// Determine if a SignedNodeInfo can be placed into the specified routing domain
+    fn filter_node_info(
+        &self,
+        routing_domain: RoutingDomain,
+        signed_node_info: &SignedNodeInfo,
+    ) -> bool {
         let routing_table = self.routing_table();
-        routing_table.node_info_is_valid_in_routing_domain(routing_domain, &node_info)
+        routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -619,7 +623,7 @@ impl RPCProcessor {
     // routing table caching when it is okay to do so
     // This is only done in the PublicInternet routing domain because
     // as far as we can tell this is the only domain that will really benefit
-    fn get_sender_signed_node_info(&self, dest: &Destination) -> Option<SignedDirectNodeInfo> {
+    fn get_sender_signed_node_info(&self, dest: &Destination) -> Option<SignedNodeInfo> {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P

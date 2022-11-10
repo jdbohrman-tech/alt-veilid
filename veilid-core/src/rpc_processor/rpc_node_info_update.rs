@@ -11,7 +11,8 @@ impl RPCProcessor {
         // Get the signed node info for the desired routing domain to send update with
         let signed_node_info = self
             .routing_table()
-            .get_own_signed_node_info(routing_domain);
+            .get_own_peer_info(routing_domain)
+            .signed_node_info;
         let node_info_update = RPCOperationNodeInfoUpdate { signed_node_info };
         let statement = RPCStatement::new(RPCStatementDetail::NodeInfoUpdate(node_info_update));
 
@@ -50,7 +51,7 @@ impl RPCProcessor {
         };
 
         // Update our routing table with signed node info
-        if !self.filter_node_info(routing_domain, &node_info_update.signed_node_info.node_info) {
+        if !self.filter_node_info(routing_domain, &node_info_update.signed_node_info) {
             log_rpc!(debug "node info doesn't belong in {:?} routing domain: {}", routing_domain, sender_node_id);
             return Ok(());
         }

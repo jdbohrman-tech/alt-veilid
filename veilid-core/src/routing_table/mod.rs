@@ -348,24 +348,30 @@ impl RoutingTable {
             .node_info_is_valid_in_routing_domain(routing_domain, node_info)
     }
 
+    pub fn signed_node_info_is_valid_in_routing_domain(
+        &self,
+        routing_domain: RoutingDomain,
+        signed_node_info: &SignedNodeInfo,
+    ) -> bool {
+        self.inner
+            .read()
+            .signed_node_info_is_valid_in_routing_domain(routing_domain, signed_node_info)
+    }
+
     /// Look up the best way for two nodes to reach each other over a specific routing domain
     #[instrument(level = "trace", skip(self), ret)]
     pub fn get_contact_method(
         &self,
         routing_domain: RoutingDomain,
-        node_a_id: &DHTKey,
-        node_a: &NodeInfo,
-        node_b_id: &DHTKey,
-        node_b: &NodeInfo,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
     ) -> ContactMethod {
         self.inner.read().get_contact_method(
             routing_domain,
-            node_a_id,
-            node_a,
-            node_b_id,
-            node_b,
+            peer_a,
+            peer_b,
             dial_info_filter,
             sequencing,
         )
@@ -379,16 +385,6 @@ impl RoutingTable {
     /// Return a copy of our node's peerinfo
     pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
         self.inner.read().get_own_peer_info(routing_domain)
-    }
-
-    /// Return a copy of our node's signednodeinfo
-    pub fn get_own_signed_node_info(&self, routing_domain: RoutingDomain) -> SignedDirectNodeInfo {
-        self.inner.read().get_own_signed_node_info(routing_domain)
-    }
-
-    /// Return a copy of our node's nodeinfo
-    pub fn get_own_node_info(&self, routing_domain: RoutingDomain) -> NodeInfo {
-        self.inner.read().get_own_node_info(routing_domain)
     }
 
     /// If we have a valid network class in this routing domain, then our 'NodeInfo' is valid
@@ -525,7 +521,7 @@ impl RoutingTable {
         &self,
         routing_domain: RoutingDomain,
         node_id: DHTKey,
-        signed_node_info: SignedDirectNodeInfo,
+        signed_node_info: SignedNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
         self.inner.write().register_node_with_signed_node_info(

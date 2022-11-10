@@ -775,6 +775,68 @@ pub struct NodeInfo {
     pub dial_info_detail_list: Vec<DialInfoDetail>,
 }
 
+impl NodeInfo {
+    pub fn first_filtered_dial_info_detail<S, F>(
+        &self,
+        sort: Option<S>,
+        filter: F,
+    ) -> Option<DialInfoDetail>
+    where
+        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
+        F: Fn(&DialInfoDetail) -> bool,
+    {
+        if let Some(sort) = sort {
+            let mut dids = self.dial_info_detail_list.clone();
+            dids.sort_by(sort);
+            for did in dids {
+                if filter(&did) {
+                    return Some(did);
+                }
+            }
+        } else {
+            for did in &self.dial_info_detail_list {
+                if filter(did) {
+                    return Some(did.clone());
+                }
+            }
+        };
+        None
+    }
+
+    pub fn all_filtered_dial_info_details<S, F>(
+        &self,
+        sort: Option<S>,
+        filter: F,
+    ) -> Vec<DialInfoDetail>
+    where
+        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
+        F: Fn(&DialInfoDetail) -> bool,
+    {
+        let mut dial_info_detail_list = Vec::new();
+
+        if let Some(sort) = sort {
+            let mut dids = self.dial_info_detail_list.clone();
+            dids.sort_by(sort);
+            for did in dids {
+                if filter(&did) {
+                    dial_info_detail_list.push(did);
+                }
+            }
+        } else {
+            for did in &self.dial_info_detail_list {
+                if filter(did) {
+                    dial_info_detail_list.push(did.clone());
+                }
+            }
+        };
+        dial_info_detail_list
+    }
+
+    pub fn has_direct_dial_info(&self) -> bool {
+        !self.dial_info_detail_list.is_empty()
+    }
+}
+
 #[allow(clippy::derive_hash_xor_eq)]
 #[derive(
     Debug,
@@ -2046,6 +2108,53 @@ impl SignedNodeInfo {
             SignedNodeInfo::Relayed(r) => Some(&r.relay_info.node_info),
         }
     }
+    pub fn relay_peer_info(&self) -> Option<PeerInfo> {
+        match self {
+            SignedNodeInfo::Direct(d) => None,
+            SignedNodeInfo::Relayed(r) => Some(PeerInfo::new(
+                r.relay_id.clone(),
+                SignedNodeInfo::Direct(r.relay_info.clone()),
+            )),
+        }
+    }
+    pub fn has_any_dial_info(&self) -> bool {
+        self.node_info().has_direct_dial_info()
+            || self
+                .relay_info()
+                .map(|relay_ni| relay_ni.has_direct_dial_info())
+                .unwrap_or_default()
+    }
+
+    pub fn has_sequencing_matched_dial_info(&self, sequencing: Sequencing) -> bool {
+        // Check our dial info
+        for did in &self.node_info().dial_info_detail_list {
+            match sequencing {
+                Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
+                Sequencing::EnsureOrdered => {
+                    if did.dial_info.protocol_type().is_connection_oriented() {
+                        return true;
+                    }
+                }
+            }
+        }
+        // Check our relay if we have one
+        return self
+            .relay_info()
+            .map(|relay_ni| {
+                for did in &relay_ni.dial_info_detail_list {
+                    match sequencing {
+                        Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
+                        Sequencing::EnsureOrdered => {
+                            if did.dial_info.protocol_type().is_connection_oriented() {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            })
+            .unwrap_or_default();
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
@@ -2066,157 +2175,62 @@ impl PeerInfo {
 
 impl PeerInfo {
     /*
-    pub fn first_filtered_dial_info_detail<S, F>(
-        &self,
-        sort: Option<S>,
-        filter: F,
-    ) -> Option<DialInfoDetail>
-    where
-        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
-        F: Fn(&DialInfoDetail) -> bool,
-    {
-        if let Some(sort) = sort {
-            let mut dids = self.dial_info_detail_list.clone();
-            dids.sort_by(sort);
-            for did in dids {
-                if filter(&did) {
-                    return Some(did);
-                }
-            }
-        } else {
-            for did in &self.dial_info_detail_list {
-                if filter(did) {
-                    return Some(did.clone());
-                }
-            }
-        };
-        None
-    }
 
-    pub fn all_filtered_dial_info_details<S, F>(
-        &self,
-        sort: Option<S>,
-        filter: F,
-    ) -> Vec<DialInfoDetail>
-    where
-        S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
-        F: Fn(&DialInfoDetail) -> bool,
-    {
-        let mut dial_info_detail_list = Vec::new();
+    xxx move these back to NodeInfo
 
-        if let Some(sort) = sort {
-            let mut dids = self.dial_info_detail_list.clone();
-            dids.sort_by(sort);
-            for did in dids {
-                if filter(&did) {
-                    dial_info_detail_list.push(did);
-                }
-            }
-        } else {
-            for did in &self.dial_info_detail_list {
-                if filter(did) {
-                    dial_info_detail_list.push(did.clone());
-                }
-            }
-        };
-        dial_info_detail_list
-    }
-
-    pub fn has_any_dial_info(&self) -> bool {
-        !self.dial_info_detail_list.is_empty()
-            || !self
-                .relay_peer_info
-                .as_ref()
-                .map(|rpi| rpi.signed_node_info.node_info.has_direct_dial_info())
-                .unwrap_or_default()
-    }
-
-    pub fn has_sequencing_matched_dial_info(&self, sequencing: Sequencing) -> bool {
-        // Check our dial info
-        for did in &self.dial_info_detail_list {
-            match sequencing {
-                Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
-                Sequencing::EnsureOrdered => {
-                    if did.dial_info.protocol_type().is_connection_oriented() {
-                        return true;
-                    }
-                }
-            }
+        pub fn has_direct_dial_info(&self) -> bool {
+            !self.dial_info_detail_list.is_empty()
         }
-        // Check our relay if we have one
-        return self
-            .relay_peer_info
-            .as_ref()
-            .map(|rpi| {
-                let relay_ni = &rpi.signed_node_info.node_info;
-                for did in &relay_ni.dial_info_detail_list {
-                    match sequencing {
-                        Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
-                        Sequencing::EnsureOrdered => {
-                            if did.dial_info.protocol_type().is_connection_oriented() {
-                                return true;
-                            }
+
+        // Is some relay required either for signal or inbound relay or outbound relay?
+        pub fn requires_relay(&self) -> bool {
+            match self.network_class {
+                NetworkClass::InboundCapable => {
+                    for did in &self.dial_info_detail_list {
+                        if did.class.requires_relay() {
+                            return true;
                         }
                     }
                 }
-                false
-            })
-            .unwrap_or_default();
-    }
-
-    pub fn has_direct_dial_info(&self) -> bool {
-        !self.dial_info_detail_list.is_empty()
-    }
-
-    // Is some relay required either for signal or inbound relay or outbound relay?
-    pub fn requires_relay(&self) -> bool {
-        match self.network_class {
-            NetworkClass::InboundCapable => {
-                for did in &self.dial_info_detail_list {
-                    if did.class.requires_relay() {
-                        return true;
-                    }
+                NetworkClass::OutboundOnly => {
+                    return true;
                 }
+                NetworkClass::WebApp => {
+                    return true;
+                }
+                NetworkClass::Invalid => {}
             }
-            NetworkClass::OutboundOnly => {
-                return true;
-            }
-            NetworkClass::WebApp => {
-                return true;
-            }
-            NetworkClass::Invalid => {}
+            false
         }
-        false
-    }
 
-    // Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
-    pub fn can_signal(&self) -> bool {
-        // Must be inbound capable
-        if !matches!(self.network_class, NetworkClass::InboundCapable) {
-            return false;
-        }
-        // Do any of our dial info require signalling? if so, we can't offer signalling
-        for did in &self.dial_info_detail_list {
-            if did.class.requires_signal() {
+        // Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
+        pub fn can_signal(&self) -> bool {
+            // Must be inbound capable
+            if !matches!(self.network_class, NetworkClass::InboundCapable) {
                 return false;
             }
+            // Do any of our dial info require signalling? if so, we can't offer signalling
+            for did in &self.dial_info_detail_list {
+                if did.class.requires_signal() {
+                    return false;
+                }
+            }
+            true
         }
-        true
-    }
 
-    // Can this node relay be an inbound relay?
-    pub fn can_inbound_relay(&self) -> bool {
-        // For now this is the same
-        self.can_signal()
-    }
+        // Can this node relay be an inbound relay?
+        pub fn can_inbound_relay(&self) -> bool {
+            // For now this is the same
+            self.can_signal()
+        }
 
-    // Is this node capable of validating dial info
-    pub fn can_validate_dial_info(&self) -> bool {
-        // For now this is the same
-        self.can_signal()
-    }
+        // Is this node capable of validating dial info
+        pub fn can_validate_dial_info(&self) -> bool {
+            // For now this is the same
+            self.can_signal()
+        }
 
-    */
+        */
 }
 
 #[derive(
