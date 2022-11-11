@@ -239,7 +239,7 @@ impl RoutingTable {
         let tdb = table_store.open("routing_table", 1).await?;
         let bucket_count = bucketvec.len();
         let mut dbx = tdb.transact();
-        if let Err(e) = dbx.store_frozen(0, b"bucket_count", &bucket_count) {
+        if let Err(e) = dbx.store_rkyv(0, b"bucket_count", &bucket_count) {
             dbx.rollback();
             return Err(e);
         }
@@ -845,8 +845,8 @@ impl RoutingTable {
             }
 
             // node can not be its own relay
-            if let Some(rpi) = &p.signed_node_info.node_info.relay_peer_info {
-                if rpi.node_id == p.node_id {
+            if let Some(rid) = &p.signed_node_info.relay_id() {
+                if rid.key == p.node_id.key {
                     continue;
                 }
             }

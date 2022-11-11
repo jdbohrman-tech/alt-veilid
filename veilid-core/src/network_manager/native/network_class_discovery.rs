@@ -129,8 +129,8 @@ impl DiscoveryContext {
             move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 let v = v.unwrap();
                 v.with(rti, |_rti, e| {
-                    if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
-                        n.relay_peer_info.is_none()
+                    if let Some(n) = e.signed_node_info(RoutingDomain::PublicInternet) {
+                        n.relay_id().is_none()
                     } else {
                         false
                     }

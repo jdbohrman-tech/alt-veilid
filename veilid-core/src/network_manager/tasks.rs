@@ -295,15 +295,14 @@ impl NetworkManager {
             if let Some(nr) = routing_table.register_node_with_signed_node_info(
                 RoutingDomain::PublicInternet,
                 k,
-                SignedDirectNodeInfo::with_no_signature(NodeInfo {
+                SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo {
                     network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
                     outbound_protocols: ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
                     address_types: AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
                     min_version: v.min_version, // Minimum crypto version specified in txt record
                     max_version: v.max_version, // Maximum crypto version specified in txt record
                     dial_info_detail_list: v.dial_info_details, // Dial info is as specified in the bootstrap list
-                    relay_peer_info: None, // Bootstraps never require a relay themselves
-                }),
+                })),
                 true,
             ) {
                 // Add this our futures to process in parallel
@@ -524,7 +523,8 @@ impl NetworkManager {
     ) -> EyreResult<()> {
         // Get our node's current node info and network class and do the right thing
         let routing_table = self.routing_table();
-        let node_info = routing_table.get_own_node_info(RoutingDomain::PublicInternet);
+        let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
+        let own_node_info = own_peer_info.signed_node_info.node_info();
         let network_class = routing_table.get_network_class(RoutingDomain::PublicInternet);
 
         // Get routing domain editor
@@ -541,7 +541,7 @@ impl NetworkManager {
                         info!("Relay node died, dropping relay {}", relay_node);
                         editor.clear_relay_node();
                         false
-                    } else if !node_info.requires_relay() {
+                    } else if !own_node_info.requires_relay() {
                         info!(
                             "Relay node no longer required, dropping relay {}",
                             relay_node
@@ -557,7 +557,7 @@ impl NetworkManager {
             };
 
             // Do we need a relay?
-            if !has_relay && node_info.requires_relay() {
+            if !has_relay && own_node_info.requires_relay() {
                 // Do we want an outbound relay?
                 let mut got_outbound_relay = false;
                 if network_class.outbound_wants_relay() {
@@ -604,7 +604,7 @@ impl NetworkManager {
     ) -> EyreResult<()> {
         // Get our node's current node info and network class and do the right thing
         let routing_table = self.routing_table();
-        let node_info = routing_table.get_own_node_info(RoutingDomain::PublicInternet);
+        let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
         let network_class = routing_table.get_network_class(RoutingDomain::PublicInternet);
 
         // Get routing domain editor

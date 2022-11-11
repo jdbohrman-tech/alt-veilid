@@ -1,6 +1,6 @@
 use super::*;
 use core::sync::atomic::{AtomicU32, Ordering};
-use serde::{Deserialize, Serialize};
+use rkyv::with::Skip;
 
 /// Reliable pings are done with increased spacing between pings
 
@@ -40,10 +40,11 @@ pub enum BucketEntryState {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-struct LastConnectionKey(ProtocolType, AddressType);
+pub struct LastConnectionKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -54,7 +55,8 @@ pub struct BucketEntryPublicInternet {
 }
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -65,16 +67,18 @@ pub struct BucketEntryLocalNetwork {
 }
 
 /// A range of cryptography versions supported by this entry
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VersionRange {
     /// The minimum cryptography version supported by this entry
-    min: u8,
+    pub min: u8,
     /// The maximum cryptography version supported by this entry
-    max: u8,
+    pub max: u8,
 }
 
 /// The data associated with each bucket entry
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryInner {
     /// The minimum and maximum range of cryptography versions supported by the node,
     /// inclusive of the requirements of any relay the node may be using
@@ -83,7 +87,7 @@ pub struct BucketEntryInner {
     /// and dial info has last changed, for example when our IP address changes
     updated_since_last_network_change: bool,
     /// The last connection descriptors used to contact this node, per protocol type
-    #[serde(skip)]
+    #[with(Skip)]
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
     /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
@@ -92,18 +96,18 @@ pub struct BucketEntryInner {
     /// Statistics gathered for the peer
     peer_stats: PeerStats,
     /// The accounting for the latency statistics
-    #[serde(skip)]
+    #[with(Skip)]
     latency_stats_accounting: LatencyStatsAccounting,
     /// The accounting for the transfer statistics
-    #[serde(skip)]
+    #[with(Skip)]
     transfer_stats_accounting: TransferStatsAccounting,
     /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
-    #[serde(skip)]
+    #[with(Skip)]
     next_track_id: usize,
     /// Backtraces for NodeRef debugging
     #[cfg(feature = "tracking")]
-    #[serde(skip)]
+    #[with(Skip)]
     node_ref_tracks: HashMap<usize, backtrace::Backtrace>,
 }
 

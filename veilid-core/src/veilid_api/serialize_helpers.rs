@@ -199,12 +199,13 @@ where
     D: rkyv::Fallible + ?Sized,
     T: EnumSetType + EnumSetTypeWithRepr,
     <T as EnumSetTypeWithRepr>::Repr: rkyv::Archive,
-    rkyv::Archived<<T as EnumSetTypeWithRepr>::Repr>: rkyv::Deserialize<EnumSet<T>, D>,
+    rkyv::Archived<<T as EnumSetTypeWithRepr>::Repr>:
+        rkyv::Deserialize<<T as EnumSetTypeWithRepr>::Repr, D>,
 {
     fn deserialize_with(
         field: &rkyv::Archived<<T as EnumSetTypeWithRepr>::Repr>,
         deserializer: &mut D,
     ) -> Result<EnumSet<T>, D::Error> {
-        Ok(field.deserialize(deserializer)?.into())
+        Ok(EnumSet::<T>::from_repr(field.deserialize(deserializer)?))
     }
 }

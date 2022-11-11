@@ -648,7 +648,11 @@ impl RPCProcessor {
                 if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
                     return None;
                 }
-                Some(routing_table.get_own_signed_node_info(RoutingDomain::PublicInternet))
+                Some(
+                    routing_table
+                        .get_own_peer_info(RoutingDomain::PublicInternet)
+                        .signed_node_info,
+                )
             }
             Destination::Relay {
                 relay: _,
@@ -659,7 +663,11 @@ impl RPCProcessor {
                     if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
                         return None;
                     }
-                    Some(routing_table.get_own_signed_node_info(RoutingDomain::PublicInternet))
+                    Some(
+                        routing_table
+                            .get_own_peer_info(RoutingDomain::PublicInternet)
+                            .signed_node_info,
+                    )
                 } else {
                     None
                 }
@@ -929,7 +937,7 @@ impl RPCProcessor {
                 let mut opt_sender_nr: Option<NodeRef> = None;
                 if let Some(sender_node_info) = operation.sender_node_info() {
                     // Sender NodeInfo was specified, update our routing table with it
-                    if !self.filter_node_info(routing_domain, &sender_node_info.node_info) {
+                    if !self.filter_node_info(routing_domain, &sender_node_info) {
                         return Err(RPCError::invalid_format(
                             "sender signednodeinfo has invalid peer scope",
                         ));

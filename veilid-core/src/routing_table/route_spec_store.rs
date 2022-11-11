@@ -1,6 +1,6 @@
 use super::*;
 use crate::veilid_api::*;
-use serde::*;
+use rkyv::with::Skip;
 
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]
@@ -13,32 +13,40 @@ pub struct CompiledRoute {
     pub first_hop: NodeRef,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct RouteSpecDetail {
+#[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct KeyPair {
+    key: DHTKey,
+    secret: DHTKeySecret,
+}
+
+#[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct RouteSpecDetail {
     /// Secret key
-    #[serde(skip)]
+    #[with(Skip)]
     pub secret_key: DHTKeySecret,
     /// Route hops
     pub hops: Vec<DHTKey>,
     /// Route noderefs
-    #[serde(skip)]
+    #[with(Skip)]
     hop_node_refs: Vec<NodeRef>,
     /// Transfers up and down
     transfer_stats_down_up: TransferStatsDownUp,
     /// Latency stats
     latency_stats: LatencyStats,
     /// Accounting mechanism for this route's RPC latency
-    #[serde(skip)]
+    #[with(Skip)]
     latency_stats_accounting: LatencyStatsAccounting,
     /// Accounting mechanism for the bandwidth across this route
-    #[serde(skip)]
+    #[with(Skip)]
     transfer_stats_accounting: TransferStatsAccounting,
     /// Published private route, do not reuse for ephemeral routes
     /// Not serialized because all routes should be re-published when restarting
-    #[serde(skip)]
+    #[with(Skip)]
     published: bool,
     // Can optimize the rendering of this route, using node ids only instead of full peer info
-    #[serde(skip)]
+    #[with(Skip)]
     reachable: bool,
     /// Timestamp of when the route was created
     created_ts: u64,
@@ -47,6 +55,7 @@ struct RouteSpecDetail {
     /// Timestamp of when the route was last used for anything
     last_used_ts: Option<u64>,
     /// Directions this route is guaranteed to work in
+    #[with(RkyvEnumSet)]
     directions: DirectionSet,
     /// Stability preference (prefer reliable nodes over faster)
     pub stability: Stability,
@@ -55,7 +64,8 @@ struct RouteSpecDetail {
 }
 
 /// The core representation of the RouteSpecStore that can be serialized
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct RouteSpecStoreContent {
     /// All of the routes we have allocated so far
     details: HashMap<DHTKey, RouteSpecDetail>,
@@ -225,7 +235,7 @@ impl RouteSpecStore {
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         let mut content: RouteSpecStoreContent =
-            rsstdb.load_json(0, b"content")?.unwrap_or_default();
+            rsstdb.load_rkyv(0, b"content")?.unwrap_or_default();
 
         // Look up all route hop noderefs since we can't serialize those
         let mut dead_keys = Vec::new();
@@ -245,17 +255,17 @@ impl RouteSpecStore {
 
         // Load secrets from pstore
         let pstore = routing_table.network_manager().protected_store();
-        let out: Vec<(DHTKey, DHTKeySecret)> = pstore
+        let out: Vec<KeyPair> = pstore
             .load_user_secret_rkyv("RouteSpecStore")
             .await?
             .unwrap_or_default();
 
         let mut dead_keys = Vec::new();
-        for (k, v) in out {
-            if let Some(rsd) = content.details.get_mut(&k) {
-                rsd.secret_key = v;
+        for KeyPair { key, secret } in out {
+            if let Some(rsd) = content.details.get_mut(&key) {
+                rsd.secret_key = secret;
             } else {
-                dead_keys.push(k);
+                dead_keys.push(key);
             }
         }
         for k in dead_keys {
@@ -296,7 +306,7 @@ impl RouteSpecStore {
             .network_manager()
             .table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        rsstdb.store_json(0, b"content", &content)?;
+        rsstdb.store_rkyv(0, b"content", &content)?;
 
         // // Keep secrets in protected store as well
         let pstore = self
@@ -305,14 +315,15 @@ impl RouteSpecStore {
             .network_manager()
             .protected_store();
 
-        let mut out: Vec<(DHTKey, DHTKeySecret)> = Vec::with_capacity(content.details.len());
+        let mut out: Vec<KeyPair> = Vec::with_capacity(content.details.len());
         for (k, v) in &content.details {
-            out.push((*k, v.secret_key));
+            out.push(KeyPair {
+                key: *k,
+                secret: v.secret_key,
+            });
         }
 
-        let _ = pstore
-            .save_user_secret_frozen("RouteSpecStore", &out)
-            .await?; // ignore if this previously existed or not
+        let _ = pstore.save_user_secret_rkyv("RouteSpecStore", &out).await?; // ignore if this previously existed or not
 
         Ok(())
     }

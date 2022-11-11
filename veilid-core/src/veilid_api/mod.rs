@@ -832,8 +832,57 @@ impl NodeInfo {
         dial_info_detail_list
     }
 
-    pub fn has_direct_dial_info(&self) -> bool {
+    /// Does this node has some dial info
+    pub fn has_dial_info(&self) -> bool {
         !self.dial_info_detail_list.is_empty()
+    }
+
+    /// Is some relay required either for signal or inbound relay or outbound relay?
+    pub fn requires_relay(&self) -> bool {
+        match self.network_class {
+            NetworkClass::InboundCapable => {
+                for did in &self.dial_info_detail_list {
+                    if did.class.requires_relay() {
+                        return true;
+                    }
+                }
+            }
+            NetworkClass::OutboundOnly => {
+                return true;
+            }
+            NetworkClass::WebApp => {
+                return true;
+            }
+            NetworkClass::Invalid => {}
+        }
+        false
+    }
+
+    /// Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
+    pub fn can_signal(&self) -> bool {
+        // Must be inbound capable
+        if !matches!(self.network_class, NetworkClass::InboundCapable) {
+            return false;
+        }
+        // Do any of our dial info require signalling? if so, we can't offer signalling
+        for did in &self.dial_info_detail_list {
+            if did.class.requires_signal() {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Can this node relay be an inbound relay?
+    pub fn can_inbound_relay(&self) -> bool {
+        // For now this is the same
+        self.can_signal()
+    }
+
+    /// Is this node capable of validating dial info
+    pub fn can_validate_dial_info(&self) -> bool {
+        // For now this is the same
+        self.can_signal()
     }
 }
 
@@ -2079,7 +2128,7 @@ impl SignedNodeInfo {
     pub fn has_valid_signature(&self) -> bool {
         match self {
             SignedNodeInfo::Direct(d) => d.has_valid_signature(),
-            SignedNodeInfo::Relayed(r) => true,
+            SignedNodeInfo::Relayed(_) => true,
         }
     }
 
@@ -2098,19 +2147,19 @@ impl SignedNodeInfo {
     }
     pub fn relay_id(&self) -> Option<NodeId> {
         match self {
-            SignedNodeInfo::Direct(d) => None,
+            SignedNodeInfo::Direct(_) => None,
             SignedNodeInfo::Relayed(r) => Some(r.relay_id.clone()),
         }
     }
     pub fn relay_info(&self) -> Option<&NodeInfo> {
         match self {
-            SignedNodeInfo::Direct(d) => None,
+            SignedNodeInfo::Direct(_) => None,
             SignedNodeInfo::Relayed(r) => Some(&r.relay_info.node_info),
         }
     }
     pub fn relay_peer_info(&self) -> Option<PeerInfo> {
         match self {
-            SignedNodeInfo::Direct(d) => None,
+            SignedNodeInfo::Direct(_) => None,
             SignedNodeInfo::Relayed(r) => Some(PeerInfo::new(
                 r.relay_id.clone(),
                 SignedNodeInfo::Direct(r.relay_info.clone()),
@@ -2118,10 +2167,10 @@ impl SignedNodeInfo {
         }
     }
     pub fn has_any_dial_info(&self) -> bool {
-        self.node_info().has_direct_dial_info()
+        self.node_info().has_dial_info()
             || self
                 .relay_info()
-                .map(|relay_ni| relay_ni.has_direct_dial_info())
+                .map(|relay_ni| relay_ni.has_dial_info())
                 .unwrap_or_default()
     }
 
@@ -2171,66 +2220,6 @@ impl PeerInfo {
             signed_node_info,
         }
     }
-}
-
-impl PeerInfo {
-    /*
-
-    xxx move these back to NodeInfo
-
-        pub fn has_direct_dial_info(&self) -> bool {
-            !self.dial_info_detail_list.is_empty()
-        }
-
-        // Is some relay required either for signal or inbound relay or outbound relay?
-        pub fn requires_relay(&self) -> bool {
-            match self.network_class {
-                NetworkClass::InboundCapable => {
-                    for did in &self.dial_info_detail_list {
-                        if did.class.requires_relay() {
-                            return true;
-                        }
-                    }
-                }
-                NetworkClass::OutboundOnly => {
-                    return true;
-                }
-                NetworkClass::WebApp => {
-                    return true;
-                }
-                NetworkClass::Invalid => {}
-            }
-            false
-        }
-
-        // Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
-        pub fn can_signal(&self) -> bool {
-            // Must be inbound capable
-            if !matches!(self.network_class, NetworkClass::InboundCapable) {
-                return false;
-            }
-            // Do any of our dial info require signalling? if so, we can't offer signalling
-            for did in &self.dial_info_detail_list {
-                if did.class.requires_signal() {
-                    return false;
-                }
-            }
-            true
-        }
-
-        // Can this node relay be an inbound relay?
-        pub fn can_inbound_relay(&self) -> bool {
-            // For now this is the same
-            self.can_signal()
-        }
-
-        // Is this node capable of validating dial info
-        pub fn can_validate_dial_info(&self) -> bool {
-            // For now this is the same
-            self.can_signal()
-        }
-
-        */
 }
 
 #[derive(

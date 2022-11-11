@@ -4,6 +4,7 @@ use super::*;
 use crate::xx::*;
 use crate::*;
 use core::convert::TryInto;
+use crate::routing_table::VersionRange;
 
 // #[repr(C, packed)]
 // struct EnvelopeHeader {
@@ -271,8 +272,11 @@ impl Envelope {
         self.version
     }
 
-    pub fn get_min_max_version(&self) -> (u8, u8) {
-        (self.min_version, self.max_version)
+    pub fn get_min_max_version(&self) -> VersionRange {
+        VersionRange {
+            min: self.min_version,
+            max: self.max_version,
+        }
     }
 
     pub fn get_timestamp(&self) -> u64 {

@@ -39,7 +39,7 @@ pub const DHT_SIGNATURE_LENGTH_ENCODED: usize = 86;
 macro_rules! byte_array_type {
     ($name:ident, $size:expr) => {
         #[derive(Clone, Copy, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-        #[archive_attr(repr(C), derive(CheckBytes))]
+        #[archive_attr(repr(C), derive(CheckBytes, Hash, Eq, PartialEq, PartialOrd, Ord))]
         pub struct $name {
             pub bytes: [u8; $size],
             pub valid: bool,

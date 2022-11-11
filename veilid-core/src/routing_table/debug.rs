@@ -1,7 +1,7 @@
 use super::*;
 
 impl RoutingTable {
-    pub fn debug_info_nodeinfo(&self) -> String {
+    pub(crate) fn debug_info_nodeinfo(&self) -> String {
         let mut out = String::new();
         let inner = self.inner.read();
         out += "Routing Table Info:\n";
@@ -23,7 +23,7 @@ impl RoutingTable {
         out
     }
 
-    pub async fn debug_info_txtrecord(&self) -> String {
+    pub(crate) async fn debug_info_txtrecord(&self) -> String {
         let mut out = String::new();
 
         let gdis = self.dial_info_details(RoutingDomain::PublicInternet);
@@ -71,7 +71,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_dialinfo(&self) -> String {
+    pub(crate) fn debug_info_dialinfo(&self) -> String {
         let ldis = self.dial_info_details(RoutingDomain::LocalNetwork);
         let gdis = self.dial_info_details(RoutingDomain::PublicInternet);
         let mut out = String::new();
@@ -100,7 +100,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_entries(&self, limit: usize, min_state: BucketEntryState) -> String {
+    pub(crate) fn debug_info_entries(&self, limit: usize, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
         let cur_ts = intf::get_timestamp();
@@ -148,7 +148,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_entry(&self, node_id: DHTKey) -> String {
+    pub(crate) fn debug_info_entry(&self, node_id: DHTKey) -> String {
         let mut out = String::new();
         out += &format!("Entry {:?}:\n", node_id);
         if let Some(nr) = self.lookup_node_ref(node_id) {
@@ -160,7 +160,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
+    pub(crate) fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
         let cur_ts = intf::get_timestamp();

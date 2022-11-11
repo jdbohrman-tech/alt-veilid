@@ -646,15 +646,16 @@ impl NetworkManager {
 
     /// Get our node's capabilities in the PublicInternet routing domain
     fn generate_public_internet_node_status(&self) -> PublicInternetNodeStatus {
-        let node_info = self
+        let own_peer_info = self
             .routing_table()
-            .get_own_node_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(RoutingDomain::PublicInternet);
+        let own_node_info = own_peer_info.signed_node_info.node_info();
 
-        let will_route = node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
-        let will_tunnel = node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
-        let will_signal = node_info.can_signal();
-        let will_relay = node_info.can_inbound_relay();
-        let will_validate_dial_info = node_info.can_validate_dial_info();
+        let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
+        let will_tunnel = own_node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
+        let will_signal = own_node_info.can_signal();
+        let will_relay = own_node_info.can_inbound_relay();
+        let will_validate_dial_info = own_node_info.can_validate_dial_info();
 
         PublicInternetNodeStatus {
             will_route,
@@ -666,12 +667,14 @@ impl NetworkManager {
     }
     /// Get our node's capabilities in the LocalNetwork routing domain
     fn generate_local_network_node_status(&self) -> LocalNetworkNodeStatus {
-        let node_info = self
+        let own_peer_info = self
             .routing_table()
-            .get_own_node_info(RoutingDomain::LocalNetwork);
+            .get_own_peer_info(RoutingDomain::LocalNetwork);
 
-        let will_relay = node_info.can_inbound_relay();
-        let will_validate_dial_info = node_info.can_validate_dial_info();
+        let own_node_info = own_peer_info.signed_node_info.node_info();
+
+        let will_relay = own_node_info.can_inbound_relay();
+        let will_validate_dial_info = own_node_info.can_validate_dial_info();
 
         LocalNetworkNodeStatus {
             will_relay,
@@ -960,17 +963,18 @@ impl NetworkManager {
         }
         // Get node's min/max version and see if we can send to it
         // and if so, get the max version we can use
-        let version = if let Some((node_min, node_max)) = node_ref.min_max_version() {
+        let version = if let Some(min_max_version) = node_ref.min_max_version() {
             #[allow(clippy::absurd_extreme_comparisons)]
-            if node_min > MAX_CRYPTO_VERSION || node_max < MIN_CRYPTO_VERSION {
+            if min_max_version.min > MAX_CRYPTO_VERSION || min_max_version.max < MIN_CRYPTO_VERSION
+            {
                 bail!(
                     "can't talk to this node {} because version is unsupported: ({},{})",
                     via_node_id,
-                    node_min,
-                    node_max
+                    min_max_version.min,
+                    min_max_version.max
                 );
             }
-            cmp::min(node_max, MAX_CRYPTO_VERSION)
+            cmp::min(min_max_version.max, MAX_CRYPTO_VERSION)
         } else {
             MAX_CRYPTO_VERSION
         };

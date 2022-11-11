@@ -1,6 +1,5 @@
 use crate::xx::*;
 use crate::*;
-use serde::{Deserialize, Serialize};
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -223,7 +222,7 @@ impl<'a> TableDBTransaction<'a> {
     /// Store a key in rkyv format with a value in a column in the TableDB
     pub fn store_json<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
-        T: Serialize,
+        T: serde::Serialize,
     {
         let v = serde_json::to_vec(value)?;
         self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
