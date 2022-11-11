@@ -364,7 +364,7 @@ impl ClientApi {
     fn send_request_to_all_clients<F, T>(self: Rc<Self>, request: F)
     where
         F: Fn(u64, &mut RegistrationHandle) -> Option<::capnp::capability::RemotePromise<T>>,
-        T: capnp::traits::Pipelined + for<'a> capnp::traits::Owned<'a> + 'static + Unpin,
+        T: capnp::traits::Pipelined + capnp::traits::Owned + 'static + Unpin,
     {
         // Send status update to each registered client
         let registration_map = self.inner.borrow().registration_map.clone();
