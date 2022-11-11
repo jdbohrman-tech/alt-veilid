@@ -12,6 +12,7 @@ use digest::generic_array::typenum::U64;
 use digest::{Digest, Output};
 use ed25519_dalek::{Keypair, PublicKey, Signature};
 use generic_array::GenericArray;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 //////////////////////////////////////////////////////////////////////
 

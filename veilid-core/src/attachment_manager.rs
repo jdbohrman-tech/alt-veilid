@@ -6,6 +6,7 @@ use crate::xx::*;
 use crate::*;
 use core::convert::TryFrom;
 use core::fmt;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use serde::*;
 
 state_machine! {

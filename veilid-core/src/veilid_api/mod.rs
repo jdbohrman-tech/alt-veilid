@@ -30,6 +30,7 @@ pub use routing_table::{NodeRef, NodeRefBase, RoutingTable};
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
 use enumset::*;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use rpc_processor::*;
 use serde::*;
 use xx::*;

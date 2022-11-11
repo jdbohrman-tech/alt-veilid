@@ -1,9 +1,9 @@
 use super::*;
 pub use bytecheck::CheckBytes;
 use core::fmt::Debug;
-pub use rkyv::Archive as RkyvArchive;
-pub use rkyv::Deserialize as RkyvDeserialize;
-pub use rkyv::Serialize as RkyvSerialize;
+use rkyv::Archive as RkyvArchive;
+use rkyv::Deserialize as RkyvDeserialize;
+use rkyv::Serialize as RkyvSerialize;
 
 // XXX: Don't trace these functions as they are used in the transfer of API logs, which will recurse!
 

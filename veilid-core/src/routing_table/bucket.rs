@@ -1,5 +1,6 @@
 use super::*;
 use core::sync::atomic::Ordering;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 pub struct Bucket {
     routing_table: RoutingTable,

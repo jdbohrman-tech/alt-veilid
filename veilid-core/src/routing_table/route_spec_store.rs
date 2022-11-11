@@ -1,6 +1,8 @@
 use super::*;
 use crate::veilid_api::*;
-use rkyv::with::Skip;
+use rkyv::{
+    with::Skip, Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
+};
 
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]

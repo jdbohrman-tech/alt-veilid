@@ -1,5 +1,6 @@
 use crate::xx::*;
 use crate::*;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -123,7 +124,7 @@ impl TableDB {
         <T as RkyvArchive>::Archived:
             for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived:
-            rkyv::Deserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+            RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {
         let db = &self.inner.lock().database;
         let out = db.get(col, key).wrap_err("failed to get key")?;

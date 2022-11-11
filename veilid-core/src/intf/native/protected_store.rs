@@ -2,6 +2,7 @@ use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
 use keyring_manager::*;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use std::path::Path;
 
 pub struct ProtectedStoreInner {
@@ -167,7 +168,7 @@ impl ProtectedStore {
         <T as RkyvArchive>::Archived:
             for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived:
-            rkyv::Deserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+            RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {
         let out = self.load_user_secret(key).await?;
         let b = match out {
