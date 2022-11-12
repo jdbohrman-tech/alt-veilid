@@ -112,15 +112,15 @@ impl Crypto {
         let (table_store, node_id) = {
             let mut inner = self.inner.lock();
             let c = self.config.get();
-            inner.node_id = c.network.node_id;
-            inner.node_id_secret = c.network.node_id_secret;
+            inner.node_id = c.network.node_id.unwrap();
+            inner.node_id_secret = c.network.node_id_secret.unwrap();
             (inner.table_store.clone(), c.network.node_id)
         };
 
         // load caches if they are valid for this node id
         let mut db = table_store.open("crypto_caches", 1).await?;
         let caches_valid = match db.load(0, b"node_id")? {
-            Some(v) => v.as_slice() == node_id.bytes,
+            Some(v) => v.as_slice() == node_id.unwrap().bytes,
             None => false,
         };
         if caches_valid {
@@ -132,7 +132,7 @@ impl Crypto {
             drop(db);
             table_store.delete("crypto_caches").await?;
             db = table_store.open("crypto_caches", 1).await?;
-            db.store(0, b"node_id", &node_id.bytes)?;
+            db.store(0, b"node_id", &node_id.unwrap().bytes)?;
         }
 
         // Schedule flushing
@@ -220,8 +220,6 @@ impl Crypto {
     // These are safe to use regardless of initialization status
 
     pub fn compute_dh(key: &DHTKey, secret: &DHTKeySecret) -> Result<SharedSecret, VeilidAPIError> {
-        assert!(key.valid);
-        assert!(secret.valid);
         let pk_ed = ed::PublicKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
         let pk_xd = Self::ed25519_to_x25519_pk(&pk_ed)?;
         let sk_ed = ed::SecretKey::from_bytes(&secret.bytes).map_err(VeilidAPIError::internal)?;

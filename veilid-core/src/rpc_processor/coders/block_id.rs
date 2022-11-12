@@ -22,9 +22,6 @@ pub fn encode_block_id(
     key: &DHTKey,
     builder: &mut veilid_capnp::b_l_a_k_e3_hash::Builder,
 ) -> Result<(), RPCError> {
-    if !key.valid {
-        return Err(RPCError::protocol("invalid key"));
-    }
     builder.set_u0(u64::from_be_bytes(
         key.bytes[0..8].try_into().map_err(RPCError::internal)?,
     ));

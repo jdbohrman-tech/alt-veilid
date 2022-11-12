@@ -2,10 +2,10 @@ use crate::veilid_rng::*;
 use crate::xx::*;
 use crate::*;
 
-use core::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use core::cmp::{Eq, Ord, PartialEq, PartialOrd};
 use core::convert::{TryFrom, TryInto};
 use core::fmt;
-use core::hash::{Hash, Hasher};
+use core::hash::Hash;
 
 use data_encoding::BASE64URL_NOPAD;
 use digest::generic_array::typenum::U64;
@@ -39,11 +39,29 @@ pub const DHT_SIGNATURE_LENGTH_ENCODED: usize = 86;
 
 macro_rules! byte_array_type {
     ($name:ident, $size:expr) => {
-        #[derive(Clone, Copy, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+        #[derive(
+            Clone,
+            Copy,
+            Hash,
+            Eq,
+            PartialEq,
+            PartialOrd,
+            Ord,
+            RkyvArchive,
+            RkyvSerialize,
+            RkyvDeserialize,
+        )]
         #[archive_attr(repr(C), derive(CheckBytes, Hash, Eq, PartialEq, PartialOrd, Ord))]
         pub struct $name {
             pub bytes: [u8; $size],
-            pub valid: bool,
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self {
+                    bytes: [0u8; $size],
+                }
+            }
         }
 
         impl serde::Serialize for $name {
@@ -51,12 +69,7 @@ macro_rules! byte_array_type {
             where
                 S: serde::Serializer,
             {
-                let s: String;
-                if self.valid {
-                    s = self.encode();
-                } else {
-                    s = "".to_owned();
-                }
+                let s = self.encode();
                 serde::Serialize::serialize(&s, serializer)
             }
         }
@@ -76,28 +89,19 @@ macro_rules! byte_array_type {
 
         impl $name {
             pub fn new(bytes: [u8; $size]) -> Self {
-                Self { bytes, valid: true }
+                Self { bytes }
             }
 
             pub fn try_from_vec(v: Vec<u8>) -> Result<Self, VeilidAPIError> {
-                let mut this = Self {
-                    bytes: [0u8; $size],
-                    valid: true,
-                };
-
-                if v.len() != $size {
-                    apibail_generic!(format!(
-                        "Expected a Vec of length {} but it was {}",
-                        $size,
-                        v.len()
-                    ));
-                }
-
-                for n in 0..v.len() {
-                    this.bytes[n] = v[n];
-                }
-
-                Ok(this)
+                let vl = v.len();
+                Ok(Self {
+                    bytes: v.try_into().map_err(|_| {
+                        VeilidAPIError::generic(format!(
+                            "Expected a Vec of length {} but it was {}",
+                            $size, vl
+                        ))
+                    })?,
+                })
             }
 
             pub fn bit(&self, index: usize) -> bool {
@@ -143,7 +147,6 @@ macro_rules! byte_array_type {
             }
 
             pub fn encode(&self) -> String {
-                assert!(self.valid);
                 BASE64URL_NOPAD.encode(&self.bytes)
             }
 
@@ -169,63 +172,7 @@ macro_rules! byte_array_type {
                 }
             }
         }
-        impl PartialOrd for $name {
-            fn partial_cmp(&self, other: &$name) -> Option<Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-        impl Ord for $name {
-            fn cmp(&self, other: &$name) -> Ordering {
-                if !self.valid && !other.valid {
-                    return Ordering::Equal;
-                }
-                if !self.valid && other.valid {
-                    return Ordering::Less;
-                }
-                if self.valid && !other.valid {
-                    return Ordering::Greater;
-                }
 
-                for n in 0..$size {
-                    if self.bytes[n] < other.bytes[n] {
-                        return Ordering::Less;
-                    }
-                    if self.bytes[n] > other.bytes[n] {
-                        return Ordering::Greater;
-                    }
-                }
-                Ordering::Equal
-            }
-        }
-        impl PartialEq<$name> for $name {
-            fn eq(&self, other: &$name) -> bool {
-                if self.valid != other.valid {
-                    return false;
-                }
-                for n in 0..$size {
-                    if self.bytes[n] != other.bytes[n] {
-                        return false;
-                    }
-                }
-                true
-            }
-        }
-        impl Eq for $name {}
-        impl Hash for $name {
-            fn hash<H: Hasher>(&self, state: &mut H) {
-                self.valid.hash(state);
-                if self.valid {
-                    self.bytes.hash(state);
-                }
-            }
-        }
-        impl Default for $name {
-            fn default() -> Self {
-                let mut this = $name::new([0u8; $size]);
-                this.valid = false;
-                this
-            }
-        }
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "{}", String::from(self))
@@ -235,24 +182,13 @@ macro_rules! byte_array_type {
         impl fmt::Debug for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, concat!(stringify!($name), "("))?;
-                write!(
-                    f,
-                    "{}",
-                    if self.valid {
-                        self.encode()
-                    } else {
-                        "".to_owned()
-                    }
-                )?;
+                write!(f, "{}", self.encode())?;
                 write!(f, ")")
             }
         }
 
         impl From<&$name> for String {
             fn from(value: &$name) -> Self {
-                if !value.valid {
-                    return "".to_owned();
-                }
                 let mut s = String::new();
                 for n in 0..($size / 8) {
                     let b: [u8; 8] = value.bytes[n * 8..(n + 1) * 8].try_into().unwrap();
@@ -280,10 +216,7 @@ macro_rules! byte_array_type {
                     apibail_generic!(concat!(stringify!($name), " is incorrect length"));
                 }
                 match hex::decode_to_slice(value, &mut out.bytes) {
-                    Ok(_) => {
-                        out.valid = true;
-                        Ok(out)
-                    }
+                    Ok(_) => Ok(out),
                     Err(err) => Err(VeilidAPIError::generic(err)),
                 }
             }
@@ -381,9 +314,6 @@ pub fn sign(
     dht_key_secret: &DHTKeySecret,
     data: &[u8],
 ) -> Result<DHTSignature, VeilidAPIError> {
-    assert!(dht_key.valid);
-    assert!(dht_key_secret.valid);
-
     let mut kpb: [u8; DHT_KEY_SECRET_LENGTH + DHT_KEY_LENGTH] =
         [0u8; DHT_KEY_SECRET_LENGTH + DHT_KEY_LENGTH];
 
@@ -408,8 +338,6 @@ pub fn verify(
     data: &[u8],
     signature: &DHTSignature,
 ) -> Result<(), VeilidAPIError> {
-    assert!(dht_key.valid);
-    assert!(signature.valid);
     let pk = PublicKey::from_bytes(&dht_key.bytes)
         .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
     let sig = Signature::from_bytes(&signature.bytes)
@@ -428,7 +356,6 @@ pub fn generate_hash(data: &[u8]) -> DHTKey {
 }
 
 pub fn validate_hash(data: &[u8], dht_key: &DHTKey) -> bool {
-    assert!(dht_key.valid);
     let bytes = *blake3::hash(data).as_bytes();
 
     bytes == dht_key.bytes
@@ -446,8 +373,6 @@ pub fn validate_key(dht_key: &DHTKey, dht_key_secret: &DHTKeySecret) -> bool {
 }
 
 pub fn distance(key1: &DHTKey, key2: &DHTKey) -> DHTKeyDistance {
-    assert!(key1.valid);
-    assert!(key2.valid);
     let mut bytes = [0u8; DHT_KEY_LENGTH];
 
     for (n, byte) in bytes.iter_mut().enumerate() {

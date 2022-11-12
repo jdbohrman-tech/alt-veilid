@@ -67,8 +67,8 @@ core:
         client_whitelist_timeout_ms: 300000 
         reverse_connection_receipt_time_ms: 5000 
         hole_punch_receipt_time_ms: 5000 
-        node_id: ''
-        node_id_secret: ''
+        node_id: null
+        node_id_secret: null
         bootstrap: ['bootstrap.dev.veilid.net']
         bootstrap_nodes: []
         routing_table:
@@ -588,8 +588,8 @@ pub struct Network {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
-    pub node_id: veilid_core::DHTKey,
-    pub node_id_secret: veilid_core::DHTKeySecret,
+    pub node_id: Option<veilid_core::DHTKey>,
+    pub node_id_secret: Option<veilid_core::DHTKeySecret>,
     pub bootstrap: Vec<String>,
     pub bootstrap_nodes: Vec<ParsedNodeDialInfo>,
     pub routing_table: RoutingTable,
@@ -1484,11 +1484,8 @@ mod tests {
         assert_eq!(s.core.network.client_whitelist_timeout_ms, 300_000u32);
         assert_eq!(s.core.network.reverse_connection_receipt_time_ms, 5_000u32);
         assert_eq!(s.core.network.hole_punch_receipt_time_ms, 5_000u32);
-        assert_eq!(s.core.network.node_id, veilid_core::DHTKey::default());
-        assert_eq!(
-            s.core.network.node_id_secret,
-            veilid_core::DHTKeySecret::default()
-        );
+        assert_eq!(s.core.network.node_id, None);
+        assert_eq!(s.core.network.node_id_secret, None);
         //
         assert_eq!(
             s.core.network.bootstrap,

@@ -256,8 +256,8 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
             let s = DHTKeySecret::try_decode(&buffer)?;
             (k, s)
         };
-        settingsrw.core.network.node_id = k;
-        settingsrw.core.network.node_id_secret = s;
+        settingsrw.core.network.node_id = Some(k);
+        settingsrw.core.network.node_id_secret = Some(s);
     }
 
     if matches.occurrences_of("bootstrap") != 0 {

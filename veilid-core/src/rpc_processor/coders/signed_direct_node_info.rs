@@ -14,7 +14,10 @@ pub fn encode_signed_direct_node_info(
         .set_timestamp(signed_direct_node_info.timestamp);
 
     let mut sig_builder = builder.reborrow().init_signature();
-    encode_signature(&signed_direct_node_info.signature, &mut sig_builder);
+    let Some(signature) = &signed_direct_node_info.signature else {
+        return Err(RPCError::internal("Should not encode SignedDirectNodeInfo without signature!"));
+    };
+    encode_signature(signature, &mut sig_builder);
 
     Ok(())
 }

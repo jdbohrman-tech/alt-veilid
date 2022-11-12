@@ -5,10 +5,6 @@ pub fn encode_signature(
     sig: &DHTSignature,
     builder: &mut veilid_capnp::ed25519_signature::Builder,
 ) {
-    if !sig.valid {
-        panic!("don't encode invalid signatures");
-    }
-
     let sig = &sig.bytes;
 
     builder.set_u0(u64::from_be_bytes(

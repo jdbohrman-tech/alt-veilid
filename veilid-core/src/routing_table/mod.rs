@@ -81,8 +81,8 @@ impl RoutingTable {
         RoutingTableUnlockedInner {
             config: config.clone(),
             network_manager,
-            node_id: c.network.node_id,
-            node_id_secret: c.network.node_id_secret,
+            node_id: c.network.node_id.unwrap(),
+            node_id_secret: c.network.node_id_secret.unwrap(),
             kick_queue: Mutex::new(BTreeSet::default()),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),

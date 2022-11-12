@@ -217,8 +217,8 @@ pub struct VeilidConfigNetwork {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
-    pub node_id: DHTKey,
-    pub node_id_secret: DHTKeySecret,
+    pub node_id: Option<DHTKey>,
+    pub node_id_secret: Option<DHTKeySecret>,
     pub bootstrap: Vec<String>,
     pub bootstrap_nodes: Vec<String>,
     pub routing_table: VeilidConfigRoutingTable,
@@ -675,7 +675,7 @@ impl VeilidConfig {
         let mut node_id = self.inner.read().network.node_id;
         let mut node_id_secret = self.inner.read().network.node_id_secret;
         // See if node id was previously stored in the protected store
-        if !node_id.valid {
+        if node_id.is_none() {
             debug!("pulling node id from storage");
             if let Some(s) = protected_store
                 .load_user_secret_string("node_id")
@@ -683,14 +683,14 @@ impl VeilidConfig {
                 .map_err(VeilidAPIError::internal)?
             {
                 debug!("node id found in storage");
-                node_id = DHTKey::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?
+                node_id = Some(DHTKey::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
             } else {
                 debug!("node id not found in storage");
             }
         }
 
         // See if node id secret was previously stored in the protected store
-        if !node_id_secret.valid {
+        if node_id_secret.is_none() {
             debug!("pulling node id secret from storage");
             if let Some(s) = protected_store
                 .load_user_secret_string("node_id_secret")
@@ -699,27 +699,25 @@ impl VeilidConfig {
             {
                 debug!("node id secret found in storage");
                 node_id_secret =
-                    DHTKeySecret::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?
+                    Some(DHTKeySecret::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
             } else {
                 debug!("node id secret not found in storage");
             }
         }
 
         // If we have a node id from storage, check it
-        if node_id.valid && node_id_secret.valid {
-            // Validate node id
-            if !crypto::validate_key(&node_id, &node_id_secret) {
-                apibail_generic!("node id secret and node id key don't match");
-            }
-        }
-
-        // If we still don't have a valid node id, generate one
-        if !node_id.valid || !node_id_secret.valid {
-            debug!("generating new node id");
-            let (i, s) = generate_secret();
-            node_id = i;
-            node_id_secret = s;
-        }
+        let (node_id, node_id_secret) =
+            if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
+                // Validate node id
+                if !crypto::validate_key(&node_id, &node_id_secret) {
+                    apibail_generic!("node id secret and node id key don't match");
+                }
+                (node_id, node_id_secret)
+            } else {
+                // If we still don't have a valid node id, generate one
+                debug!("generating new node id");
+                generate_secret()
+            };
         info!("Node Id is {}", node_id.encode());
         // info!("Node Id Secret is {}", node_id_secret.encode());
 
@@ -733,8 +731,8 @@ impl VeilidConfig {
             .await
             .map_err(VeilidAPIError::internal)?;
 
-        self.inner.write().network.node_id = node_id;
-        self.inner.write().network.node_id_secret = node_id_secret;
+        self.inner.write().network.node_id = Some(node_id);
+        self.inner.write().network.node_id_secret = Some(node_id_secret);
 
         trace!("init_node_id complete");
 

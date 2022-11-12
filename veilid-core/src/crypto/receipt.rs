@@ -58,7 +58,6 @@ impl Receipt {
         sender_id: DHTKey,
         extra_data: D,
     ) -> Result<Self, VeilidAPIError> {
-        assert!(sender_id.valid);
         if extra_data.as_ref().len() > MAX_EXTRA_DATA_SIZE {
             return Err(VeilidAPIError::parse_error(
                 "extra data too large for receipt",
@@ -151,11 +150,6 @@ impl Receipt {
     }
 
     pub fn to_signed_data(&self, secret: &DHTKeySecret) -> Result<Vec<u8>, VeilidAPIError> {
-        // Ensure sender node id is valid
-        if !self.sender_id.valid {
-            return Err(VeilidAPIError::internal("sender id is invalid"));
-        }
-
         // Ensure extra data isn't too long
         let receipt_size: usize = self.extra_data.len() + MIN_RECEIPT_SIZE;
         if receipt_size > MAX_RECEIPT_SIZE {

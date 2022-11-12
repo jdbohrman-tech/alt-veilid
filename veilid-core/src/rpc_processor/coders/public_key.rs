@@ -22,9 +22,6 @@ pub fn encode_public_key(
     key: &DHTKey,
     builder: &mut veilid_capnp::curve25519_public_key::Builder,
 ) -> Result<(), RPCError> {
-    if !key.valid {
-        return Err(RPCError::protocol("invalid key"));
-    }
     builder.set_u0(u64::from_be_bytes(
         key.bytes[0..8]
             .try_into()

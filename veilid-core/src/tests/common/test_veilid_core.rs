@@ -73,7 +73,7 @@ pub async fn test_signed_node_info() {
         NodeId::new(pkey),
         node_info.clone(),
         sni.timestamp,
-        sni.signature,
+        sni.signature.unwrap(),
     )
     .unwrap();
 

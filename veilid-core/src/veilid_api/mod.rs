@@ -360,7 +360,6 @@ pub struct NodeId {
 }
 impl NodeId {
     pub fn new(key: DHTKey) -> Self {
-        assert!(key.valid);
         Self { key }
     }
 }
@@ -1967,7 +1966,7 @@ impl MatchesDialInfoFilter for DialInfo {
 pub struct SignedDirectNodeInfo {
     pub node_info: NodeInfo,
     pub timestamp: u64,
-    pub signature: DHTSignature,
+    pub signature: Option<DHTSignature>,
 }
 
 impl SignedDirectNodeInfo {
@@ -1982,7 +1981,7 @@ impl SignedDirectNodeInfo {
         Ok(Self {
             node_info,
             timestamp,
-            signature,
+            signature: Some(signature),
         })
     }
 
@@ -1997,7 +1996,7 @@ impl SignedDirectNodeInfo {
         Ok(Self {
             node_info,
             timestamp,
-            signature,
+            signature: Some(signature),
         })
     }
 
@@ -2022,13 +2021,13 @@ impl SignedDirectNodeInfo {
     pub fn with_no_signature(node_info: NodeInfo) -> Self {
         Self {
             node_info,
-            signature: DHTSignature::default(),
+            signature: None,
             timestamp: intf::get_timestamp(),
         }
     }
 
     pub fn has_valid_signature(&self) -> bool {
-        self.signature.valid
+        self.signature.is_some()
     }
 }
 

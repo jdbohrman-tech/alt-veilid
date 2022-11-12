@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 #![allow(clippy::absurd_extreme_comparisons)]
 use super::*;
+use crate::routing_table::VersionRange;
 use crate::xx::*;
 use crate::*;
 use core::convert::TryInto;
-use crate::routing_table::VersionRange;
 
 // #[repr(C, packed)]
 // struct EnvelopeHeader {
@@ -59,9 +59,6 @@ impl Envelope {
         sender_id: DHTKey,
         recipient_id: DHTKey,
     ) -> Self {
-        assert!(sender_id.valid);
-        assert!(recipient_id.valid);
-
         assert!(version >= MIN_CRYPTO_VERSION);
         assert!(version <= MAX_CRYPTO_VERSION);
         Self {
@@ -206,15 +203,6 @@ impl Envelope {
         body: &[u8],
         node_id_secret: &DHTKeySecret,
     ) -> Result<Vec<u8>, VeilidAPIError> {
-        // Ensure sender node id is valid
-        if !self.sender_id.valid {
-            return Err(VeilidAPIError::generic("sender id is invalid"));
-        }
-        // Ensure recipient node id is valid
-        if !self.recipient_id.valid {
-            return Err(VeilidAPIError::generic("recipient id is invalid"));
-        }
-
         // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;
         if envelope_size > MAX_ENVELOPE_SIZE {

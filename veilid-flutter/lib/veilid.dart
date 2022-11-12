@@ -737,8 +737,8 @@ class VeilidConfigNetwork {
   int clientWhitelistTimeoutMs;
   int reverseConnectionReceiptTimeMs;
   int holePunchReceiptTimeMs;
-  String nodeId;
-  String nodeIdSecret;
+  String? nodeId;
+  String? nodeIdSecret;
   List<String> bootstrap;
   List<String> bootstrapNodes;
   VeilidConfigRoutingTable routingTable;

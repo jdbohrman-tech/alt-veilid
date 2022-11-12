@@ -193,8 +193,8 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.client_whitelist_timeout_ms" => Ok(Box::new(300_000u32)),
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
-        "network.node_id" => Ok(Box::new(DHTKey::default())),
-        "network.node_id_secret" => Ok(Box::new(DHTKeySecret::default())),
+        "network.node_id" => Ok(Box::new(Option::<DHTKey>::None)),
+        "network.node_id_secret" => Ok(Box::new(Option::<DHTKeySecret>::None)),
         "network.bootstrap" => Ok(Box::new(Vec::<String>::new())),
         "network.bootstrap_nodes" => Ok(Box::new(Vec::<String>::new())),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
@@ -318,8 +318,8 @@ pub async fn test_config() {
     assert_eq!(inner.network.client_whitelist_timeout_ms, 300_000u32);
     assert_eq!(inner.network.reverse_connection_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
-    assert!(!inner.network.node_id.valid);
-    assert!(!inner.network.node_id_secret.valid);
+    assert!(inner.network.node_id.is_none());
+    assert!(inner.network.node_id_secret.is_none());
     assert_eq!(inner.network.bootstrap, Vec::<String>::new());
     assert_eq!(inner.network.bootstrap_nodes, Vec::<String>::new());
     assert_eq!(inner.network.rpc.concurrency, 2u32);
