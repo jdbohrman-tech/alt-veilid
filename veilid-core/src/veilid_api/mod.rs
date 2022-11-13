@@ -2354,55 +2354,6 @@ impl MatchesDialInfoFilter for ConnectionDescriptor {
     Clone,
     Debug,
     Default,
-    Eq,
-    PartialEq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
-pub struct NodeDialInfo {
-    pub node_id: NodeId,
-    pub dial_info: DialInfo,
-}
-
-impl fmt::Display for NodeDialInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}@{}", self.node_id, self.dial_info)
-    }
-}
-
-impl FromStr for NodeDialInfo {
-    type Err = VeilidAPIError;
-    fn from_str(s: &str) -> Result<NodeDialInfo, VeilidAPIError> {
-        // split out node id from the dial info
-        let (node_id_str, rest) = s.split_once('@').ok_or_else(|| {
-            VeilidAPIError::parse_error("NodeDialInfo::from_str missing @ node id separator", s)
-        })?;
-
-        // parse out node id
-        let node_id = NodeId::new(DHTKey::try_decode(node_id_str).map_err(|e| {
-            VeilidAPIError::parse_error(
-                format!("NodeDialInfo::from_str couldn't parse node id: {}", e),
-                s,
-            )
-        })?);
-        // parse out dial info
-        let dial_info = DialInfo::from_str(rest)?;
-
-        // return completed NodeDialInfo
-        Ok(NodeDialInfo { node_id, dial_info })
-    }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
     PartialEq,
     Eq,
     Serialize,

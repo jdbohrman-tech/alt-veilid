@@ -256,14 +256,18 @@ impl NetworkManager {
             let mut bsmap = BootstrapRecordMap::new();
             let mut bootstrap_node_dial_infos = Vec::new();
             for b in bootstrap_nodes {
-                let ndis = NodeDialInfo::from_str(b.as_str())
-                    .wrap_err("Invalid node dial info in bootstrap entry")?;
-                bootstrap_node_dial_infos.push(ndis);
+                let (id_str, di_str) = b
+                    .split_once('@')
+                    .ok_or_else(|| eyre!("Invalid node dial info in bootstrap entry"))?;
+                let node_id =
+                    NodeId::from_str(id_str).wrap_err("Invalid node id in bootstrap entry")?;
+                let dial_info =
+                    DialInfo::from_str(di_str).wrap_err("Invalid dial info in bootstrap entry")?;
+                bootstrap_node_dial_infos.push((node_id, dial_info));
             }
-            for ndi in bootstrap_node_dial_infos {
-                let node_id = ndi.node_id.key;
+            for (node_id, dial_info) in bootstrap_node_dial_infos {
                 bsmap
-                    .entry(node_id)
+                    .entry(node_id.key)
                     .or_insert_with(|| BootstrapRecord {
                         min_version: MIN_CRYPTO_VERSION,
                         max_version: MAX_CRYPTO_VERSION,
@@ -271,7 +275,7 @@ impl NetworkManager {
                     })
                     .dial_info_details
                     .push(DialInfoDetail {
-                        dial_info: ndi.dial_info,
+                        dial_info,
                         class: DialInfoClass::Direct, // Bootstraps are always directly reachable
                     });
             }

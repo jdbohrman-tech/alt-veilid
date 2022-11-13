@@ -307,16 +307,16 @@ impl serde::Serialize for ParsedUrl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedNodeDialInfo {
     pub node_dial_info_string: String,
-    pub node_dial_info: veilid_core::NodeDialInfo,
+    pub node_id: NodeId,
+    pub dial_info: DialInfo,
 }
 
 // impl ParsedNodeDialInfo {
 //     pub fn offset_port(&mut self, offset: u16) -> Result<(), ()> {
 //         // Bump port on dial_info
-//         self.node_dial_info
-//             .dial_info
-//             .set_port(self.node_dial_info.dial_info.port() + 1);
-//         self.node_dial_info_string = self.node_dial_info.to_string();
+//         self.dial_info
+//             .set_port(self.dial_info.port() + 1);
+//         self.node_dial_info_string = format!("{}@{}",self.node_id, self.dial_info);
 //         Ok(())
 //     }
 // }
@@ -326,10 +326,21 @@ impl FromStr for ParsedNodeDialInfo {
     fn from_str(
         node_dial_info_string: &str,
     ) -> Result<ParsedNodeDialInfo, veilid_core::VeilidAPIError> {
-        let node_dial_info = veilid_core::NodeDialInfo::from_str(node_dial_info_string)?;
+        let (id_str, di_str) = node_dial_info_string.split_once('@').ok_or_else(|| {
+            VeilidAPIError::invalid_argument(
+                "Invalid node dial info in bootstrap entry",
+                "node_dial_info_string",
+                node_dial_info_string,
+            )
+        })?;
+        let node_id = NodeId::from_str(id_str)
+            .map_err(|e| VeilidAPIError::invalid_argument(e, "node_id", id_str))?;
+        let dial_info = DialInfo::from_str(di_str)
+            .map_err(|e| VeilidAPIError::invalid_argument(e, "dial_info", id_str))?;
         Ok(Self {
             node_dial_info_string: node_dial_info_string.to_owned(),
-            node_dial_info,
+            node_id,
+            dial_info,
         })
     }
 }

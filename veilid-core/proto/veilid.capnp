@@ -102,11 +102,6 @@ struct DialInfo {
     }
 }
 
-struct NodeDialInfo {
-    nodeId                  @0  :NodeID;                # node id
-    dialInfo                @1  :DialInfo;              # how to get to the node
-}
-
 # Signals
 ##############################
 

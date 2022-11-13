@@ -150,10 +150,10 @@ macro_rules! byte_array_type {
                 BASE64URL_NOPAD.encode(&self.bytes)
             }
 
-            pub fn try_decode(input: &str) -> Result<Self, VeilidAPIError> {
+            pub fn try_decode<S: AsRef<str>>(input: S) -> Result<Self, VeilidAPIError> {
                 let mut bytes = [0u8; $size];
 
-                let res = BASE64URL_NOPAD.decode_len(input.len());
+                let res = BASE64URL_NOPAD.decode_len(input.as_ref().len());
                 match res {
                     Ok(v) => {
                         if v != $size {
@@ -165,7 +165,7 @@ macro_rules! byte_array_type {
                     }
                 }
 
-                let res = BASE64URL_NOPAD.decode_mut(input.as_bytes(), &mut bytes);
+                let res = BASE64URL_NOPAD.decode_mut(input.as_ref().as_bytes(), &mut bytes);
                 match res {
                     Ok(_) => Ok(Self::new(bytes)),
                     Err(_) => apibail_generic!("Failed to decode"),

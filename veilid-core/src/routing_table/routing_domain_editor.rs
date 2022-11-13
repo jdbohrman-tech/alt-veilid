@@ -139,13 +139,10 @@ impl RoutingDomainEditor {
                                 .add_dial_info_detail(dial_info_detail.clone());
 
                             info!(
-                                "{:?} Dial Info: {}",
+                                "{:?} Dial Info: {}@{}",
                                 self.routing_domain,
-                                NodeDialInfo {
-                                    node_id: NodeId::new(node_id),
-                                    dial_info: dial_info_detail.dial_info
-                                }
-                                .to_string(),
+                                NodeId::new(node_id),
+                                dial_info_detail.dial_info
                             );
                             changed = true;
                         }
