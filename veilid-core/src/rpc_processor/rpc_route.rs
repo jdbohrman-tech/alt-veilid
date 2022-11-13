@@ -73,7 +73,7 @@ impl RPCProcessor {
     async fn process_route_private_route_hop(
         &self,
         mut route: RPCOperationRoute,
-        next_private_route: PrivateRoute,
+        mut next_private_route: PrivateRoute,
     ) -> Result<(), RPCError> {
         // Make sure hop count makes sense
         if route.safety_route.hop_count != 0 {
@@ -116,14 +116,17 @@ impl RPCProcessor {
             }
         }?;
 
-        // Sign the operation if this is not our last hop
-        // as the last hop is already signed by the envelope
-        if next_private_route.hop_count != 0 {
+        if first_hop.next_hop.is_some() {
+            // Sign the operation if this is not our last hop
+            // as the last hop is already signed by the envelope
             let node_id = self.routing_table.node_id();
             let node_id_secret = self.routing_table.node_id_secret();
             let sig = sign(&node_id, &node_id_secret, &route.operation.data)
                 .map_err(RPCError::internal)?;
             route.operation.signatures.push(sig);
+        } else {
+            // If this is our last hop, then we drop the 'first_hop' from private route
+            next_private_route.first_hop = None;
         }
 
         // Pass along the route
@@ -398,6 +401,11 @@ impl RPCProcessor {
                         None
                     };
 
+                    // Ensure hop count > 0
+                    if private_route.hop_count == 0 {
+                        return Err(RPCError::protocol("route should not be at the end"));
+                    }
+
                     // Make next PrivateRoute and pass it on
                     let next_private_route = PrivateRoute {
                         public_key: private_route.public_key,
@@ -407,6 +415,11 @@ impl RPCProcessor {
                     self.process_route_private_route_hop(route, next_private_route)
                         .await?;
                 } else {
+                    // Ensure hop count == 0
+                    if private_route.hop_count != 0 {
+                        return Err(RPCError::protocol("route should be at the end"));
+                    }
+
                     // No hops left, time to process the routed operation
                     self.process_routed_operation(
                         detail,
