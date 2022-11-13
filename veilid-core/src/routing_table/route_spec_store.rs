@@ -388,12 +388,21 @@ impl RouteSpecStore {
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
+        avoid_node_id: Option<DHTKey>,
     ) -> EyreResult<Option<DHTKey>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &mut *routing_table.inner.write();
 
-        self.allocate_route_inner(inner, rti, stability, sequencing, hop_count, directions)
+        self.allocate_route_inner(
+            inner,
+            rti,
+            stability,
+            sequencing,
+            hop_count,
+            directions,
+            avoid_node_id,
+        )
     }
 
     fn allocate_route_inner(
@@ -404,6 +413,7 @@ impl RouteSpecStore {
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
+        avoid_node_id: Option<DHTKey>,
     ) -> EyreResult<Option<DHTKey>> {
         use core::cmp::Ordering;
 
@@ -418,7 +428,7 @@ impl RouteSpecStore {
         // Get list of all nodes, and sort them for selection
         let cur_ts = intf::get_timestamp();
         let filter = Box::new(
-            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| -> bool {
+            move |rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| -> bool {
                 // Exclude our own node from routes
                 if v.is_none() {
                     return false;
@@ -431,6 +441,13 @@ impl RouteSpecStore {
                 });
                 if on_local_network {
                     return false;
+                }
+
+                // Exclude node we have specifically chosen to avoid
+                if let Some(ani) = avoid_node_id {
+                    if k == ani {
+                        return false;
+                    }
                 }
 
                 // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
@@ -748,6 +765,7 @@ impl RouteSpecStore {
         stability: Stability,
         sequencing: Sequencing,
         directions: DirectionSet,
+        avoid_node_id: Option<DHTKey>,
     ) -> Option<DHTKey> {
         let inner = self.inner.lock();
 
@@ -759,7 +777,15 @@ impl RouteSpecStore {
                 && detail.1.directions.is_subset(directions)
                 && !detail.1.published
             {
-                return Some(*detail.0);
+                let mut avoid = false;
+                if let Some(ani) = &avoid_node_id {
+                    if detail.1.hops.contains(ani) {
+                        avoid = true;
+                    }
+                }
+                if !avoid {
+                    return Some(*detail.0);
+                }
             }
         }
         None
@@ -800,16 +826,15 @@ impl RouteSpecStore {
         if pr_hopcount > max_route_hop_count {
             bail!("private route hop count too long");
         }
+        let Some(pr_first_hop) = &private_route.first_hop else {
+            bail!("compiled private route should have first_hop");
+        };
 
         // See if we are using a safety route, if not, short circuit this operation
         let safety_spec = match safety_selection {
             SafetySelection::Unsafe(sequencing) => {
                 // Safety route stub with the node's public key as the safety route key since it's the 0th hop
-                if private_route.first_hop.is_none() {
-                    bail!("can't compile zero length route");
-                }
-                let first_hop = private_route.first_hop.as_ref().unwrap();
-                let opt_first_hop = match &first_hop.node {
+                let opt_first_hop = match &pr_first_hop.node {
                     RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table.clone(), id.key),
                     RouteNode::PeerInfo(pi) => rti.register_node_with_signed_node_info(
                         routing_table.clone(),
@@ -851,6 +876,13 @@ impl RouteSpecStore {
             // Safety route exists
             safety_rsd
         } else {
+            // Avoid having the first node in the private route in our chosen safety route
+            // We would avoid all of them, but by design only the first node is knowable
+            let avoid_node_id = match &pr_first_hop.node {
+                RouteNode::NodeId(n) => n.key,
+                RouteNode::PeerInfo(p) => p.node_id.key,
+            };
+
             // Select a safety route from the pool or make one if we don't have one that matches
             if let Some(sr_pubkey) = self.first_unpublished_route(
                 safety_spec.hop_count,
@@ -858,6 +890,7 @@ impl RouteSpecStore {
                 safety_spec.stability,
                 safety_spec.sequencing,
                 Direction::Outbound.into(),
+                Some(avoid_node_id),
             ) {
                 // Found a route to use
                 (Self::detail_mut(inner, &sr_pubkey).unwrap(), sr_pubkey)
@@ -871,6 +904,7 @@ impl RouteSpecStore {
                         safety_spec.sequencing,
                         safety_spec.hop_count,
                         Direction::Outbound.into(),
+                        Some(avoid_node_id),
                     )
                     .map_err(RPCError::internal)?
                 {
