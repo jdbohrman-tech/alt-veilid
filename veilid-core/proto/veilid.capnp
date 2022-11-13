@@ -3,14 +3,14 @@
 # IDs And Hashes
 ##############################
 
-struct Curve25519PublicKey {
+struct Key256 @0xdde44e3286f6a90d {
     u0                      @0  :UInt64;
     u1                      @1  :UInt64;
     u2                      @2  :UInt64;
     u3                      @3  :UInt64;
 }
 
-struct Ed25519Signature {
+struct Signature512 @0x806749043a129c12 {
     u0                      @0  :UInt64;
     u1                      @1  :UInt64;
     u2                      @2  :UInt64;
@@ -21,79 +21,72 @@ struct Ed25519Signature {
     u7                      @7  :UInt64;
 }
 
-struct XChaCha20Poly1305Nonce {
+struct Nonce24 @0xb6260db25d8d7dfc {
     u0                      @0  :UInt64;
     u1                      @1  :UInt64;
     u2                      @2  :UInt64;
 }
 
-struct BLAKE3Hash {
-    u0                      @0  :UInt64;
-    u1                      @1  :UInt64;
-    u2                      @2  :UInt64;
-    u3                      @3  :UInt64;
-}
-
-using NodeID = Curve25519PublicKey;
-using RoutePublicKey = Curve25519PublicKey;
-using ValueID = Curve25519PublicKey;
-using Nonce = XChaCha20Poly1305Nonce;
-using Signature = Ed25519Signature;
-using BlockID = BLAKE3Hash;
+using NodeID = Key256;
+using RoutePublicKey = Key256;
+using ValueID = Key256;
+using Nonce = Nonce24;
+using Signature = Signature512;
+using BlockID = Key256;
 using TunnelID = UInt64;
 
 # Node Dial Info
 ################################################################
 
-struct AddressIPV4 {
+struct AddressIPV4 @0xdb8769881266a6a0 {
     addr                    @0  :UInt32;                # Address in big endian format
 }
 
-struct AddressIPV6 {
+struct AddressIPV6 @0xb35d6e6011dc5c20 {
     addr0                   @0  :UInt32;                # \ 
     addr1                   @1  :UInt32;                #  \ Address in big 
     addr2                   @2  :UInt32;                #  / endian format
     addr3                   @3  :UInt32;                # / 
 }
 
-struct Address {
+struct Address @0x812706e9e57d108b {
     union {
         ipv4                @0  :AddressIPV4;
         ipv6                @1  :AddressIPV6;
     }
 }
 
-struct SocketAddress {
+struct SocketAddress @0x82df4272f4dd3a62 {
     address                 @0  :Address;
     port                    @1  :UInt16;
 }
 
-enum ProtocolKind {
+enum ProtocolKind @0xde0bf5787c067d5a {
     udp                     @0;
     ws                      @1;
     wss                     @2;
     tcp                     @3;
 }
 
-struct DialInfoUDP {
+struct DialInfoUDP @0xbb38a8b8b7024a7c {
     socketAddress           @0  :SocketAddress;
 }
 
-struct DialInfoTCP {
+struct DialInfoTCP @0x9e0a9371b9a9f7fc {
     socketAddress           @0  :SocketAddress;
 }
 
-struct DialInfoWS {
-    socketAddress           @0  :SocketAddress;
-    request                 @1  :Text;
-}
-
-struct DialInfoWSS {
+struct DialInfoWS @0xd7795f7a92ab15b0 {
     socketAddress           @0  :SocketAddress;
     request                 @1  :Text;
 }
 
-struct DialInfo {
+struct DialInfoWSS @0xe639faa41b7d7b04 {
+    socketAddress           @0  :SocketAddress;
+    request                 @1  :Text;
+}
+
+struct DialInfo @0xe1cd1c39fc2defdf {
     union {
         udp                 @0  :DialInfoUDP;
         tcp                 @1  :DialInfoTCP;
@@ -105,12 +98,12 @@ struct DialInfo {
 # Signals
 ##############################
 
-struct SignalInfoHolePunch {
+struct SignalInfoHolePunch @0xeeb9ab6861890c9a {
     receipt                 @0  :Data;                  # receipt to return with hole punch
     peerInfo                @1  :PeerInfo;              # peer info of the signal sender for hole punch attempt
 }
 
-struct SignalInfoReverseConnect {
+struct SignalInfoReverseConnect @0xd9ebd3bd0d46e013 {
     receipt                 @0  :Data;                  # receipt to return with reverse connect
     peerInfo                @1  :PeerInfo;              # peer info of the signal sender for reverse connect attempt
 }
@@ -118,7 +111,7 @@ struct SignalInfoReverseConnect {
 # Private Routes
 ##############################
 
-struct RouteHopData {         
+struct RouteHopData @0x8ce231f9d1b7adf2 {         
     nonce                   @0  :Nonce;                 # nonce for encrypted blob
     blob                    @1  :Data;                  # encrypted blob with ENC(nonce,DH(PK,SK))
                                                         # if this is a safety route RouteHopData, there is a single byte tag appended to the end of the encrypted blob
@@ -128,7 +121,7 @@ struct RouteHopData {
                                                         # if this is a private route RouteHopData, only can decode to RouteHop, no tag is appended
 }
 
-struct RouteHop {
+struct RouteHop @0xf8f672d75cce0c3b {
     node :union {                                       
         nodeId              @0  :NodeID;                # node id only for established routes
         peerInfo            @1  :PeerInfo;              # full peer info for this hop to establish the route
@@ -137,13 +130,13 @@ struct RouteHop {
                                                         # if this is a safety route routehop, this field is not optional and must exist
 }
 
-struct PrivateRoute {
+struct PrivateRoute @0x8a83fccb0851e776 {
     publicKey               @0  :RoutePublicKey;        # private route public key (unique per private route)
     hopCount                @1  :UInt8;                 # Count of hops left in the private route (for timeout calculation purposes only)
     firstHop                @2  :RouteHop;              # Optional: first hop in the private route, if empty, this is the last hop and payload should be decrypted and processed.
 } 
 
-struct SafetyRoute {
+struct SafetyRoute @0xf554734d07cb5d59 {
     publicKey               @0  :RoutePublicKey;        # safety route public key (unique per safety route)
     hopCount                @1  :UInt8;                 # Count of hops left in the safety route (for timeout calculation purposes only)
     hops :union {
@@ -157,7 +150,7 @@ struct SafetyRoute {
 
 using ValueSeqNum = UInt32;                             # sequence numbers for values
 
-struct ValueKey {
+struct ValueKey @0xe64b0992c21a0736 {
     publicKey               @0  :ValueID;               # the location of the value
     subkey                  @1  :Text;                  # the name of the subkey (or empty if the whole key)
 }
@@ -167,7 +160,7 @@ struct ValueKey {
 #    seq                     @1  :ValueSeqNum;           # the sequence number of the value subkey
 # }
 
-struct ValueData {
+struct ValueData @0xb4b7416f169f2a3d {
     data                    @0  :Data;                  # value or subvalue contents
     seq                     @1  :ValueSeqNum;           # sequence number of value
 }
@@ -175,14 +168,14 @@ struct ValueData {
 # Operations
 ##############################
 
-enum NetworkClass {
+enum NetworkClass @0x8cebfc2a6230717f {
     invalid                 @0;                         # X = Invalid network class, network is not yet set up
     inboundCapable          @1;                         # I = Inbound capable without relay, may require signal
     outboundOnly            @2;                         # O = Outbound only, inbound relay required except with reverse connect signal
     webApp                  @3;                         # W = PWA, outbound relay is required in most cases
 }
 
-enum DialInfoClass {
+enum DialInfoClass @0x880005edfdd38b1e {
     direct                  @0;                         # D = Directly reachable with public IP and no firewall, with statically configured port
     mapped                  @1;                         # M = Directly reachable with via portmap behind any NAT or firewalled with dynamically negotiated port
     fullConeNAT             @2;                         # F = Directly reachable device without portmap behind full-cone NAT
@@ -191,12 +184,12 @@ enum DialInfoClass {
     portRestrictedNAT       @5;                         # P = Device without portmap behind address-and-port restricted NAT
 }
 
-struct DialInfoDetail {
+struct DialInfoDetail @0x96423aa1d67b74d8 {
     dialInfo                @0  :DialInfo;
     class                   @1  :DialInfoClass;
 }
 
-struct PublicInternetNodeStatus {
+struct PublicInternetNodeStatus @0x9c9d7f1f12eb088f {
     willRoute               @0  :Bool;
     willTunnel              @1  :Bool;
     willSignal              @2  :Bool;
@@ -204,35 +197,35 @@ struct PublicInternetNodeStatus {
     willValidateDialInfo    @4  :Bool;
 }
 
-struct LocalNetworkNodeStatus {
+struct LocalNetworkNodeStatus @0x957f5bfed2d0b5a5 {
     willRelay               @0  :Bool;
     willValidateDialInfo    @1  :Bool;
 }
 
-struct NodeStatus {
+struct NodeStatus @0xd36b9e7a3bf3330d {
     union {
         publicInternet          @0  :PublicInternetNodeStatus;
         localNetwork            @1  :LocalNetworkNodeStatus;
     }
 }
 
-struct ProtocolTypeSet {
+struct ProtocolTypeSet @0x82f12f55a1b73326 {
     udp                     @0  :Bool;
     tcp                     @1  :Bool;
     ws                      @2  :Bool;
     wss                     @3  :Bool;
 }
 
-struct AddressTypeSet {
+struct AddressTypeSet @0x9f52d5430d349e6b {
     ipv4                    @0  :Bool;
     ipv6                    @1  :Bool;
 }
 
-struct SenderInfo {
+struct SenderInfo @0x8a4464fab4b1d101 {
     socketAddress           @0  :SocketAddress;         # socket address that for the sending peer
 }
 
-struct NodeInfo {
+struct NodeInfo @0xe125d847e3f9f419 {
     networkClass            @0  :NetworkClass;          # network class of this node
     outboundProtocols       @1  :ProtocolTypeSet;       # protocols that can go outbound
     addressTypes            @2  :AddressTypeSet;        # address types supported
@@ -241,13 +234,13 @@ struct NodeInfo {
     dialInfoDetailList      @5  :List(DialInfoDetail);  # inbound dial info details for this node
 }
 
-struct SignedDirectNodeInfo {
+struct SignedDirectNodeInfo @0xe0e7ea3e893a3dd7 {
     nodeInfo                @0  :NodeInfo;              # node info
     timestamp               @1  :UInt64;                # when signed node info was generated
     signature               @2  :Signature;             # signature
 }
 
-struct SignedRelayedNodeInfo {
+struct SignedRelayedNodeInfo @0xb39e8428ccd87cbb {
     nodeInfo                @0  :NodeInfo;              # node info
     relayId                 @1  :NodeID;                # node id for relay
     relayInfo               @2  :SignedDirectNodeInfo;  # signed node info for relay
@@ -255,202 +248,202 @@ struct SignedRelayedNodeInfo {
     signature               @4  :Signature;             # signature
 }
 
-struct SignedNodeInfo {
+struct SignedNodeInfo @0xd2478ce5f593406a {
     union {
         direct              @0  :SignedDirectNodeInfo;  # node info for nodes reachable without a relay
         relayed             @1  :SignedRelayedNodeInfo; # node info for nodes requiring a relay
     }
 }
 
-struct PeerInfo {
+struct PeerInfo @0xfe2d722d5d3c4bcb {
     nodeId                  @0  :NodeID;                # node id for 'closer peer'
     signedNodeInfo          @1  :SignedNodeInfo;        # signed node info for 'closer peer'
 }
 
-struct RoutedOperation {
+struct RoutedOperation @0xcbcb8535b839e9dd {
     version                 @0  :UInt8;                 # crypto version in use for the data
     signatures              @1  :List(Signature);       # signatures from nodes that have handled the private route
     nonce                   @2  :Nonce;                 # nonce Xmsg
     data                    @3  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
 }
 
-struct OperationStatusQ {
+struct OperationStatusQ @0x865d80cea70d884a {
     nodeStatus              @0  :NodeStatus;            # Optional: node status update about the statusq sender
 }
 
-struct OperationStatusA {
+struct OperationStatusA @0xb306f407fa812a55 {
     nodeStatus              @0  :NodeStatus;            # Optional: returned node status
     senderInfo              @1  :SenderInfo;            # Optional: info about StatusQ sender from the perspective of the replier
 }
 
-struct OperationValidateDialInfo {
+struct OperationValidateDialInfo @0xbc716ad7d5d060c8 {
     dialInfo                @0  :DialInfo;              # dial info to use for the receipt
     receipt                 @1  :Data;                  # receipt to return to dial info to prove it is reachable
     redirect                @2  :Bool;                  # request a different node do the validate
 }
 
-struct OperationReturnReceipt {
+struct OperationReturnReceipt @0xeb0fb5b5a9160eeb {
     receipt                 @0  :Data;                  # receipt being returned to its origin
 }
 
-struct OperationFindNodeQ {    
+struct OperationFindNodeQ @0xfdef788fe9623bcd {    
     nodeId                  @0  :NodeID;                # node id to locate
 }
 
-struct OperationFindNodeA {
+struct OperationFindNodeA @0xa84cf2fb40c77089 {
     peers                   @0  :List(PeerInfo);        # returned 'closer peer' information
 }
 
-struct OperationRoute {
+struct OperationRoute @0x96741859ce6ac7dd {
     safetyRoute             @0  :SafetyRoute;           # Where this should go
     operation               @1  :RoutedOperation;       # The operation to be routed
 }
 
-struct OperationNodeInfoUpdate {
+struct OperationNodeInfoUpdate @0xc9647b32a48b66ce {
     signedNodeInfo          @0  :SignedNodeInfo;        # Our signed node info
 }
 
 
-struct OperationAppCallQ {
+struct OperationAppCallQ @0xade67b9f09784507 {
     message                    @0  :Data;                  # Opaque request to application
 }
 
-struct OperationAppCallA {
+struct OperationAppCallA @0xf7c797ac85f214b8 {
     message                    @0  :Data;                  # Opaque response from application
 }
 
-struct OperationAppMessage {
+struct OperationAppMessage @0x9baf542d81b411f5 {
     message                    @0  :Data;                  # Opaque message to application
 }
 
-struct OperationGetValueQ {
+struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
     key                     @0  :ValueKey;              # key for value to get
 }
 
-struct OperationGetValueA {
+struct OperationGetValueA @0xd896bb46f2e0249f {
     union {
         data                @0  :ValueData;             # the value if successful
         peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
     }
 }
 
-struct OperationSetValueQ {
+struct OperationSetValueQ @0xbac06191ff8bdbc5 {
     key                     @0  :ValueKey;              # key for value to update
     value                   @1  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
 }
 
-struct OperationSetValueA {
+struct OperationSetValueA @0x9378d0732dc95be2 {
     union {
         data                @0  :ValueData;             # the new value if successful, may be a different value than what was set if the seq number was lower or equal
         peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
     }
 }
 
-struct OperationWatchValueQ {
+struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     key                     @0  :ValueKey;              # key for value to watch
 }
 
-struct OperationWatchValueA {
+struct OperationWatchValueA @0xa726cab7064ba893 {
     expiration              @0  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch failed)
     peers                   @1  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
 }
 
-struct OperationValueChanged {
+struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     key                     @0  :ValueKey;              # key for value that changed
     value                   @1  :ValueData;             # value or subvalue contents with sequence number
 }
 
-struct OperationSupplyBlockQ {
+struct OperationSupplyBlockQ @0xadbf4c542d749971 {
     blockId                 @0  :BlockID;               # hash of the block we can supply
 }
 
-struct OperationSupplyBlockA {
+struct OperationSupplyBlockA @0xf003822e83b5c0d7 {
     union {
         expiration          @0  :UInt64;                # when the block supplier entry will need to be refreshed
         peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
     }
 }
 
-struct OperationFindBlockQ {
+struct OperationFindBlockQ @0xaf4353ff004c7156 {
     blockId                 @0  :BlockID;               # hash of the block to locate
 }
 
-struct OperationFindBlockA {
+struct OperationFindBlockA @0xc51455bc4915465d {
     data                    @0  :Data;                  # Optional: the actual block data if we have that block ourselves
                                                         # null if we don't have a block to return
     suppliers               @1  :List(PeerInfo);        # returned list of suppliers if we have them
     peers                   @2  :List(PeerInfo);        # returned 'closer peer' information 
 }
 
-struct OperationSignal {
+struct OperationSignal @0xd4f94f2a5d207e49 {
     union {
         holePunch           @0  :SignalInfoHolePunch;
         reverseConnect      @1  :SignalInfoReverseConnect;
     }
 }
 
-enum TunnelEndpointMode {
+enum TunnelEndpointMode @0xef06f4c29beb7458 {
     raw                     @0;                         # raw tunnel
     turn                    @1;                         # turn tunnel
 }
 
-enum TunnelError {
+enum TunnelError @0xb82c6bfb1ec38c7c {
     badId                   @0;                         # Tunnel ID was rejected
     noEndpoint              @1;                         # Endpoint was unreachable
     rejectedMode            @2;                         # Endpoint couldn't provide mode
     noCapacity              @3;                         # Endpoint is full
 }
 
-struct TunnelEndpoint {
+struct TunnelEndpoint @0xc2602aa983cc337d {
     mode                    @0  :TunnelEndpointMode;    # what kind of endpoint this is
     description             @1  :Text;                  # endpoint description (TODO)
 }
 
-struct FullTunnel {
+struct FullTunnel @0x9821c3dc75373f63 {
     id                      @0  :TunnelID;              # tunnel id to use everywhere
     timeout                 @1  :UInt64;                # duration from last data when this expires if no data is sent or received
     local                   @2  :TunnelEndpoint;        # local endpoint
     remote                  @3  :TunnelEndpoint;        # remote endpoint
 }
 
-struct PartialTunnel {
+struct PartialTunnel @0x827a7ebc02be2fc8 {
     id                      @0  :TunnelID;              # tunnel id to use everywhere
     timeout                 @1  :UInt64;                # timestamp when this expires if not completed
     local                   @2  :TunnelEndpoint;        # local endpoint
 }
 
-struct OperationStartTunnelQ {
+struct OperationStartTunnelQ @0xa9c49afce44187af {
     id                      @0  :TunnelID;              # tunnel id to use everywhere
     localMode               @1  :TunnelEndpointMode;    # what kind of local endpoint mode is being requested
     depth                   @2  :UInt8;                 # the number of nodes in the tunnel
 }
 
-struct OperationStartTunnelA {
+struct OperationStartTunnelA @0x818162e4cc61bf1e {
     union {
         partial             @0  :PartialTunnel;         # the first half of the tunnel
         error               @1  :TunnelError;           # if we didn't start the tunnel, why not
     }
 }
 
-struct OperationCompleteTunnelQ {
+struct OperationCompleteTunnelQ @0xe978594588eb950b {
     id                      @0  :TunnelID;              # tunnel id to use everywhere
     localMode               @1  :TunnelEndpointMode;    # what kind of local endpoint mode is being requested
     depth                   @2  :UInt8;                 # the number of nodes in the tunnel
     endpoint                @3  :TunnelEndpoint;        # the remote endpoint to complete
 }
 
-struct OperationCompleteTunnelA {
+struct OperationCompleteTunnelA @0x84090791bb765f2a {
     union {
         tunnel              @0  :FullTunnel;            # the tunnel description
         error               @1  :TunnelError;           # if we didn't complete the tunnel, why not
     }
 }
 
-struct OperationCancelTunnelQ {
+struct OperationCancelTunnelQ @0xae2811ae0a003738 {
     id                      @0  :TunnelID;              # the tunnel id to cancel
 }
 
-struct OperationCancelTunnelA {
+struct OperationCancelTunnelA @0xbba23c992eff97bc {
     union {
         tunnel              @0  :TunnelID;              # the tunnel id that was cancelled
         error               @1  :TunnelError;           # if we couldn't cancel, why not
@@ -458,7 +451,7 @@ struct OperationCancelTunnelA {
 }
 
 # Things that want an answer
-struct Question {
+struct Question @0xd8510bc33492ef70 {
     respondTo :union {
         sender              @0  :Void;                  # sender
         privateRoute        @1  :PrivateRoute;          # embedded private route to be used for reply
@@ -484,7 +477,7 @@ struct Question {
 }
 
 # Things that don't want an answer
-struct Statement {
+struct Statement @0x990e20828f404ae1 {
     detail :union {
         # Direct operations
         validateDialInfo    @0  :OperationValidateDialInfo;
@@ -500,7 +493,7 @@ struct Statement {
 }
 
 # Things that are answers
-struct Answer {
+struct Answer @0xacacb8b6988c1058 {
     detail :union {
         # Direct operations
         statusA             @0  :OperationStatusA;
@@ -521,7 +514,7 @@ struct Answer {
     }
 }
 
-struct Operation {
+struct Operation @0xbf2811c435403c3b {
     opId                    @0  :UInt64;                # Random RPC ID. Must be random to foil reply forgery attacks. 
     senderNodeInfo          @1  :SignedNodeInfo;        # (optional) SignedNodeInfo for the sender to be cached by the receiver.
     kind :union {

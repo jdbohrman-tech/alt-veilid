@@ -10,7 +10,7 @@ pub fn encode_signed_relayed_node_info(
     encode_node_info(&signed_relayed_node_info.node_info, &mut ni_builder)?;
 
     let mut rid_builder = builder.reborrow().init_relay_id();
-    encode_public_key(&signed_relayed_node_info.relay_id.key, &mut rid_builder)?;
+    encode_dht_key(&signed_relayed_node_info.relay_id.key, &mut rid_builder)?;
 
     let mut ri_builder = builder.reborrow().init_relay_info();
     encode_signed_direct_node_info(&signed_relayed_node_info.relay_info, &mut ri_builder)?;
@@ -39,7 +39,7 @@ pub fn decode_signed_relayed_node_info(
         .reborrow()
         .get_relay_id()
         .map_err(RPCError::protocol)?;
-    let relay_id = decode_public_key(&rid_reader);
+    let relay_id = decode_dht_key(&rid_reader);
 
     let ri_reader = reader
         .reborrow()

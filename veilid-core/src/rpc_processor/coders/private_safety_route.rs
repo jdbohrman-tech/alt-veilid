@@ -53,7 +53,7 @@ pub fn encode_route_hop(
     match &route_hop.node {
         RouteNode::NodeId(ni) => {
             let mut ni_builder = node_builder.init_node_id();
-            encode_public_key(&ni.key, &mut ni_builder)?;
+            encode_dht_key(&ni.key, &mut ni_builder)?;
         }
         RouteNode::PeerInfo(pi) => {
             let mut pi_builder = node_builder.init_peer_info();
@@ -72,7 +72,7 @@ pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<Rout
     let node = match n_reader.which().map_err(RPCError::protocol)? {
         veilid_capnp::route_hop::node::Which::NodeId(ni) => {
             let ni_reader = ni.map_err(RPCError::protocol)?;
-            RouteNode::NodeId(NodeId::new(decode_public_key(&ni_reader)))
+            RouteNode::NodeId(NodeId::new(decode_dht_key(&ni_reader)))
         }
         veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
             let pi_reader = pi.map_err(RPCError::protocol)?;
@@ -101,7 +101,7 @@ pub fn encode_private_route(
     private_route: &PrivateRoute,
     builder: &mut veilid_capnp::private_route::Builder,
 ) -> Result<(), RPCError> {
-    encode_public_key(
+    encode_dht_key(
         &private_route.public_key,
         &mut builder.reborrow().init_public_key(),
     )?;
@@ -117,9 +117,9 @@ pub fn encode_private_route(
 pub fn decode_private_route(
     reader: &veilid_capnp::private_route::Reader,
 ) -> Result<PrivateRoute, RPCError> {
-    let public_key = decode_public_key(&reader.get_public_key().map_err(
-        RPCError::map_protocol("invalid public key in private route"),
-    )?);
+    let public_key = decode_dht_key(&reader.get_public_key().map_err(RPCError::map_protocol(
+        "invalid public key in private route",
+    ))?);
     let hop_count = reader.get_hop_count();
     let first_hop = if reader.has_first_hop() {
         let rh_reader = reader
@@ -143,7 +143,7 @@ pub fn encode_safety_route(
     safety_route: &SafetyRoute,
     builder: &mut veilid_capnp::safety_route::Builder,
 ) -> Result<(), RPCError> {
-    encode_public_key(
+    encode_dht_key(
         &safety_route.public_key,
         &mut builder.reborrow().init_public_key(),
     )?;
@@ -166,7 +166,7 @@ pub fn encode_safety_route(
 pub fn decode_safety_route(
     reader: &veilid_capnp::safety_route::Reader,
 ) -> Result<SafetyRoute, RPCError> {
-    let public_key = decode_public_key(
+    let public_key = decode_dht_key(
         &reader
             .get_public_key()
             .map_err(RPCError::map_protocol("invalid public key in safety route"))?,

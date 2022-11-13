@@ -2099,8 +2099,8 @@ impl SignedRelayedNodeInfo {
 
         // Add relay id to signature
         let mut rid_msg = ::capnp::message::Builder::new_default();
-        let mut rid_builder = rid_msg.init_root::<veilid_capnp::curve25519_public_key::Builder>();
-        encode_public_key(&relay_id.key, &mut rid_builder).map_err(VeilidAPIError::internal)?;
+        let mut rid_builder = rid_msg.init_root::<veilid_capnp::key256::Builder>();
+        encode_dht_key(&relay_id.key, &mut rid_builder).map_err(VeilidAPIError::internal)?;
         sig_bytes.append(&mut builder_to_vec(rid_msg).map_err(VeilidAPIError::internal)?);
 
         // Add relay info to signature

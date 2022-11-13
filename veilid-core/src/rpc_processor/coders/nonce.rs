@@ -1,10 +1,7 @@
 use crate::*;
 use rpc_processor::*;
 
-pub fn encode_nonce(
-    nonce: &Nonce,
-    builder: &mut veilid_capnp::x_cha_cha20_poly1305_nonce::Builder,
-) {
+pub fn encode_nonce(nonce: &Nonce, builder: &mut veilid_capnp::nonce24::Builder) {
     builder.set_u0(u64::from_be_bytes(
         nonce[0..8].try_into().expect("slice with incorrect length"),
     ));
@@ -20,7 +17,7 @@ pub fn encode_nonce(
     ));
 }
 
-pub fn decode_nonce(reader: &veilid_capnp::x_cha_cha20_poly1305_nonce::Reader) -> Nonce {
+pub fn decode_nonce(reader: &veilid_capnp::nonce24::Reader) -> Nonce {
     let u0 = reader.get_u0().to_be_bytes();
     let u1 = reader.get_u1().to_be_bytes();
     let u2 = reader.get_u2().to_be_bytes();

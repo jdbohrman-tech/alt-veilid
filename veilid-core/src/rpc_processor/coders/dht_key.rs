@@ -3,7 +3,7 @@ use crate::*;
 use core::convert::TryInto;
 use rpc_processor::*;
 
-pub fn decode_public_key(public_key: &veilid_capnp::curve25519_public_key::Reader) -> DHTKey {
+pub fn decode_dht_key(public_key: &veilid_capnp::key256::Reader) -> DHTKey {
     let u0 = public_key.get_u0().to_be_bytes();
     let u1 = public_key.get_u1().to_be_bytes();
     let u2 = public_key.get_u2().to_be_bytes();
@@ -18,9 +18,9 @@ pub fn decode_public_key(public_key: &veilid_capnp::curve25519_public_key::Reade
     DHTKey::new(x)
 }
 
-pub fn encode_public_key(
+pub fn encode_dht_key(
     key: &DHTKey,
-    builder: &mut veilid_capnp::curve25519_public_key::Builder,
+    builder: &mut veilid_capnp::key256::Builder,
 ) -> Result<(), RPCError> {
     builder.set_u0(u64::from_be_bytes(
         key.bytes[0..8]

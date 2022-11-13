@@ -1,10 +1,7 @@
 use crate::*;
 use rpc_processor::*;
 
-pub fn encode_signature(
-    sig: &DHTSignature,
-    builder: &mut veilid_capnp::ed25519_signature::Builder,
-) {
+pub fn encode_signature(sig: &DHTSignature, builder: &mut veilid_capnp::signature512::Builder) {
     let sig = &sig.bytes;
 
     builder.set_u0(u64::from_be_bytes(
@@ -33,7 +30,7 @@ pub fn encode_signature(
     ));
 }
 
-pub fn decode_signature(reader: &veilid_capnp::ed25519_signature::Reader) -> DHTSignature {
+pub fn decode_signature(reader: &veilid_capnp::signature512::Reader) -> DHTSignature {
     let u0 = reader.get_u0().to_be_bytes();
     let u1 = reader.get_u1().to_be_bytes();
     let u2 = reader.get_u2().to_be_bytes();
