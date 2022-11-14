@@ -106,11 +106,20 @@ pub fn encode_private_route(
         &mut builder.reborrow().init_public_key(),
     )?;
     builder.set_hop_count(private_route.hop_count);
-    if let Some(rh) = &private_route.first_hop {
-        let mut rh_builder = builder.reborrow().init_first_hop();
-        encode_route_hop(rh, &mut rh_builder)?;
+    let mut h_builder = builder.reborrow().init_hops();
+    match &private_route.hops {
+        PrivateRouteHops::FirstHop(first_hop) => {
+            let mut rh_builder = h_builder.init_first_hop();
+            encode_route_hop(first_hop, &mut rh_builder)?;
+        }
+        PrivateRouteHops::Data(data) => {
+            let mut rhd_builder = h_builder.init_data();
+            encode_route_hop_data(data, &mut rhd_builder)?;
+        }
+        PrivateRouteHops::Empty => {
+            h_builder.set_empty(());
+        }
     };
-
     Ok(())
 }
 
@@ -121,19 +130,23 @@ pub fn decode_private_route(
         "invalid public key in private route",
     ))?);
     let hop_count = reader.get_hop_count();
-    let first_hop = if reader.has_first_hop() {
-        let rh_reader = reader
-            .get_first_hop()
-            .map_err(RPCError::map_protocol("invalid first hop in private route"))?;
-        Some(decode_route_hop(&rh_reader)?)
-    } else {
-        None
+
+    let hops = match reader.get_hops().which().map_err(RPCError::protocol)? {
+        veilid_capnp::private_route::hops::Which::FirstHop(rh_reader) => {
+            let rh_reader = rh_reader.map_err(RPCError::protocol)?;
+            PrivateRouteHops::FirstHop(decode_route_hop(&rh_reader)?)
+        }
+        veilid_capnp::private_route::hops::Which::Data(rhd_reader) => {
+            let rhd_reader = rhd_reader.map_err(RPCError::protocol)?;
+            PrivateRouteHops::Data(decode_route_hop_data(&rhd_reader)?)
+        }
+        veilid_capnp::private_route::hops::Which::Empty(_) => PrivateRouteHops::Empty,
     };
 
     Ok(PrivateRoute {
         public_key,
         hop_count,
-        first_hop,
+        hops,
     })
 }
 

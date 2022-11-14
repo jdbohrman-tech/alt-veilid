@@ -3,15 +3,21 @@ use super::*;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Compiled Privacy Objects
 
+/// An encrypted private/safety route hop
 #[derive(Clone, Debug)]
 pub struct RouteHopData {
+    /// The nonce used in the encryption ENC(Xn,DH(PKn,SKapr))
     pub nonce: Nonce,
+    /// The encrypted blob
     pub blob: Vec<u8>,
 }
 
+/// How to find a route node
 #[derive(Clone, Debug)]
 pub enum RouteNode {
+    /// Route node is optimized, no contact method information as this node id has been seen before
     NodeId(NodeId),
+    /// Route node with full contact method information to ensure the peer is reachable
     PeerInfo(PeerInfo),
 }
 impl fmt::Display for RouteNode {
@@ -27,17 +33,33 @@ impl fmt::Display for RouteNode {
     }
 }
 
+/// An unencrypted private/safety route hop
 #[derive(Clone, Debug)]
 pub struct RouteHop {
+    /// The location of the hop
     pub node: RouteNode,
+    /// The encrypted blob to pass to the next hop as its data (None for stubs)
     pub next_hop: Option<RouteHopData>,
 }
 
+/// The kind of hops a private route can have
+#[derive(Clone, Debug)]
+pub enum PrivateRouteHops {
+    /// The first hop of a private route, unencrypted, route_hops == total hop count
+    FirstHop(RouteHop),
+    /// Private route internal node. Has > 0 private route hops left but < total hop count
+    Data(RouteHopData),
+    /// Private route has ended (hop count = 0)
+    Empty,
+}
+
+/// A private route for receiver privacy
 #[derive(Clone, Debug)]
 pub struct PrivateRoute {
+    /// The public key used for the entire route
     pub public_key: DHTKey,
     pub hop_count: u8,
-    pub first_hop: Option<RouteHop>,
+    pub hops: PrivateRouteHops,
 }
 
 impl PrivateRoute {
@@ -46,7 +68,7 @@ impl PrivateRoute {
         Self {
             public_key,
             hop_count: 0,
-            first_hop: None,
+            hops: PrivateRouteHops::Empty,
         }
     }
     /// Stub route is the form used when no privacy is required, but you need to specify the destination for a safety route
@@ -54,26 +76,9 @@ impl PrivateRoute {
         Self {
             public_key,
             hop_count: 1,
-            first_hop: Some(RouteHop {
+            hops: PrivateRouteHops::FirstHop(RouteHop {
                 node,
                 next_hop: None,
-            }),
-        }
-    }
-    /// Switch from full node info to simple node id
-    /// Only simplified single hop, primarily useful for stubs
-    /// Published routes with >= 1 hops should be in NodeId form already, as they have
-    /// already been connectivity-verified by the time the route is published
-    pub fn simplify(self) -> Self {
-        Self {
-            public_key: self.public_key,
-            hop_count: self.hop_count,
-            first_hop: self.first_hop.map(|h| RouteHop {
-                node: match h.node {
-                    RouteNode::NodeId(ni) => RouteNode::NodeId(ni),
-                    RouteNode::PeerInfo(pi) => RouteNode::NodeId(pi.node_id),
-                },
-                next_hop: h.next_hop,
             }),
         }
     }
@@ -86,10 +91,16 @@ impl fmt::Display for PrivateRoute {
             "PR({:?}+{}{})",
             self.public_key,
             self.hop_count,
-            if let Some(first_hop) = &self.first_hop {
-                format!("->{}", first_hop.node)
-            } else {
-                "".to_owned()
+            match &self.hops {
+                PrivateRouteHops::FirstHop(fh) => {
+                    format!("->{}", fh.node)
+                }
+                PrivateRouteHops::Data(_) => {
+                    "->?".to_owned()
+                }
+                PrivateRouteHops::Empty => {
+                    "".to_owned()
+                }
             }
         )
     }

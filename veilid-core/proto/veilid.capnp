@@ -126,14 +126,18 @@ struct RouteHop @0xf8f672d75cce0c3b {
         nodeId              @0  :NodeID;                # node id only for established routes
         peerInfo            @1  :PeerInfo;              # full peer info for this hop to establish the route
     }
-    nextHop                 @2  :RouteHopData;          # Optional: if the private route is a stub, it contains no route hop data, just the target node for the routed operation.
+    nextHop                 @2  :RouteHopData;          # optional: If this the end of a private route, this field will not exist
                                                         # if this is a safety route routehop, this field is not optional and must exist
 }
 
 struct PrivateRoute @0x8a83fccb0851e776 {
     publicKey               @0  :RoutePublicKey;        # private route public key (unique per private route)
     hopCount                @1  :UInt8;                 # Count of hops left in the private route (for timeout calculation purposes only)
-    firstHop                @2  :RouteHop;              # Optional: first hop in the private route, if empty, this is the last hop and payload should be decrypted and processed.
+    hops :union {
+        firstHop            @2  :RouteHop;              # first hop of a private route is unencrypted (hopcount > 0)
+        data                @3  :RouteHopData;          # private route has more hops (hopcount > 0 && hopcount < total_hopcount)
+        empty               @4  :Void;                  # private route has ended (hopcount = 0)
+    }   
 } 
 
 struct SafetyRoute @0xf554734d07cb5d59 {

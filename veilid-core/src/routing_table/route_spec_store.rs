@@ -854,8 +854,8 @@ impl RouteSpecStore {
         if pr_hopcount > max_route_hop_count {
             bail!("private route hop count too long");
         }
-        let Some(pr_first_hop) = &private_route.first_hop else {
-            bail!("compiled private route should have first_hop");
+        let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
+            bail!("compiled private route should have first hop");
         };
 
         // See if we are using a safety route, if not, short circuit this operation
@@ -1179,7 +1179,7 @@ impl RouteSpecStore {
         let private_route = PrivateRoute {
             public_key: key.clone(),
             hop_count: hop_count.try_into().unwrap(),
-            first_hop: Some(route_hop),
+            hops: PrivateRouteHops::FirstHop(route_hop),
         };
         Ok(private_route)
     }

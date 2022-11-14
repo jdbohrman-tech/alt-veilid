@@ -72,26 +72,20 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip_all, err)]
     async fn process_route_private_route_hop(
         &self,
-        mut route: RPCOperationRoute,
-        mut next_private_route: PrivateRoute,
+        mut routed_operation: RoutedOperation,
+        next_route_node: RouteNode,
+        safety_route_public_key: DHTKey,
+        next_private_route: PrivateRoute,
     ) -> Result<(), RPCError> {
         // Make sure hop count makes sense
-        if route.safety_route.hop_count != 0 {
-            return Err(RPCError::protocol(
-                "Safety hop count should be zero if switched to private route",
-            ));
-        }
         if next_private_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
             return Err(RPCError::protocol(
                 "Private route hop count too high to process",
             ));
         }
 
-        // Get private route first hop (this is validated to not be None before calling this function)
-        let first_hop = next_private_route.first_hop.as_ref().unwrap();
-
         // Get next hop node ref
-        let next_hop_nr = match &first_hop.node {
+        let next_hop_nr = match &next_route_node {
             RouteNode::NodeId(id) => {
                 //
                 self.routing_table
@@ -116,27 +110,24 @@ impl RPCProcessor {
             }
         }?;
 
-        if first_hop.next_hop.is_some() {
+        if !matches!(next_private_route.hops, PrivateRouteHops::Empty) {
             // Sign the operation if this is not our last hop
             // as the last hop is already signed by the envelope
             let node_id = self.routing_table.node_id();
             let node_id_secret = self.routing_table.node_id_secret();
-            let sig = sign(&node_id, &node_id_secret, &route.operation.data)
+            let sig = sign(&node_id, &node_id_secret, &routed_operation.data)
                 .map_err(RPCError::internal)?;
-            route.operation.signatures.push(sig);
-        } else {
-            // If this is our last hop, then we drop the 'first_hop' from private route
-            // XXX ? next_private_route.first_hop = None;
+            routed_operation.signatures.push(sig);
         }
 
         // Pass along the route
         let next_hop_route = RPCOperationRoute {
             safety_route: SafetyRoute {
-                public_key: route.safety_route.public_key,
+                public_key: safety_route_public_key,
                 hop_count: 0,
                 hops: SafetyRouteHops::Private(next_private_route),
             },
-            operation: route.operation,
+            operation: routed_operation,
         };
         let next_hop_route_stmt = RPCStatement::new(RPCStatementDetail::Route(next_hop_route));
 
@@ -342,19 +333,25 @@ impl RPCProcessor {
                     };
 
                     // Get the next hop node ref
-                    if private_route.first_hop.is_some() {
-                        // Switching to private route from safety route
-                        self.process_route_private_route_hop(route, private_route)
-                            .await?;
-                    } else {
-                        // Private route is empty, process routed operation
-                        self.process_routed_operation(
-                            detail,
-                            route.operation,
-                            &route.safety_route,
-                            &private_route,
-                        )?;
-                    }
+                    let PrivateRouteHops::FirstHop(pr_first_hop) = private_route.hops else {
+                        return Err(RPCError::protocol("switching from safety route to private route requires first hop"));
+                    };
+
+                    // Switching to private route from safety route
+                    self.process_route_private_route_hop(
+                        route.operation,
+                        pr_first_hop.node,
+                        route.safety_route.public_key,
+                        PrivateRoute {
+                            public_key: private_route.public_key,
+                            hop_count: private_route.hop_count - 1,
+                            hops: pr_first_hop
+                                .next_hop
+                                .map(|rhd| PrivateRouteHops::Data(rhd))
+                                .unwrap_or(PrivateRouteHops::Empty),
+                        },
+                    )
+                    .await?;
                 } else if blob_tag == 0 {
                     // RouteHop
                     let route_hop = {
@@ -373,18 +370,24 @@ impl RPCProcessor {
             // No safety route left, now doing private route
             SafetyRouteHops::Private(ref private_route) => {
                 // See if we have a hop, if not, we are at the end of the private route
-                if let Some(first_hop) = &private_route.first_hop {
-                    // See if we have next hop data
-                    let opt_next_first_hop = if let Some(next_hop) = &first_hop.next_hop {
+                match &private_route.hops {
+                    PrivateRouteHops::FirstHop(_) => {
+                        return Err(RPCError::protocol("should not have first hop here"));
+                    }
+                    PrivateRouteHops::Data(route_hop_data) => {
                         // Decrypt the blob with DEC(nonce, DH(the PR's public key, this hop's secret)
                         let node_id_secret = self.routing_table.node_id_secret();
                         let dh_secret = self
                             .crypto
                             .cached_dh(&private_route.public_key, &node_id_secret)
                             .map_err(RPCError::protocol)?;
-                        let dec_blob_data =
-                            Crypto::decrypt_aead(&next_hop.blob, &next_hop.nonce, &dh_secret, None)
-                                .map_err(RPCError::protocol)?;
+                        let dec_blob_data = Crypto::decrypt_aead(
+                            &route_hop_data.blob,
+                            &route_hop_data.nonce,
+                            &dh_secret,
+                            None,
+                        )
+                        .map_err(RPCError::protocol)?;
                         let dec_blob_reader = RPCMessageData::new(dec_blob_data).get_reader()?;
 
                         // Decode next RouteHop
@@ -394,40 +397,42 @@ impl RPCProcessor {
                                 .map_err(RPCError::protocol)?;
                             decode_route_hop(&rh_reader)?
                         };
-                        Some(route_hop)
-                    } else {
-                        // If the first hop has no RouteHopData, then this is a stub private route
-                        // and we should just pass the operation to its final destination with
-                        // an empty safety and private route
-                        None
-                    };
 
-                    // Ensure hop count > 0
-                    if private_route.hop_count == 0 {
-                        return Err(RPCError::protocol("route should not be at the end"));
-                    }
+                        // Ensure hop count > 0
+                        if private_route.hop_count == 0 {
+                            return Err(RPCError::protocol("route should not be at the end"));
+                        }
 
-                    // Make next PrivateRoute and pass it on
-                    let next_private_route = PrivateRoute {
-                        public_key: private_route.public_key,
-                        hop_count: private_route.hop_count - 1,
-                        first_hop: opt_next_first_hop,
-                    };
-                    self.process_route_private_route_hop(route, next_private_route)
+                        // Make next PrivateRoute and pass it on
+                        self.process_route_private_route_hop(
+                            route.operation,
+                            route_hop.node,
+                            route.safety_route.public_key,
+                            PrivateRoute {
+                                public_key: private_route.public_key,
+                                hop_count: private_route.hop_count - 1,
+                                hops: route_hop
+                                    .next_hop
+                                    .map(|rhd| PrivateRouteHops::Data(rhd))
+                                    .unwrap_or(PrivateRouteHops::Empty),
+                            },
+                        )
                         .await?;
-                } else {
-                    // Ensure hop count == 0
-                    if private_route.hop_count != 0 {
-                        return Err(RPCError::protocol("route should be at the end"));
                     }
+                    PrivateRouteHops::Empty => {
+                        // Ensure hop count == 0
+                        if private_route.hop_count != 0 {
+                            return Err(RPCError::protocol("route should be at the end"));
+                        }
 
-                    // No hops left, time to process the routed operation
-                    self.process_routed_operation(
-                        detail,
-                        route.operation,
-                        &route.safety_route,
-                        private_route,
-                    )?;
+                        // No hops left, time to process the routed operation
+                        self.process_routed_operation(
+                            detail,
+                            route.operation,
+                            &route.safety_route,
+                            private_route,
+                        )?;
+                    }
                 }
             }
         }

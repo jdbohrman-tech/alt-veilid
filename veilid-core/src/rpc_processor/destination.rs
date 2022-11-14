@@ -205,8 +205,8 @@ impl RPCProcessor {
                 private_route,
                 safety_selection,
             } => {
-                let Some(pr_first_hop) = &private_route.first_hop else {
-                    return Err(RPCError::internal("destination private route must have first_hop"));
+                let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
+                    return Err(RPCError::internal("destination private route must have first hop"));
                 };
 
                 match safety_selection {
