@@ -126,7 +126,7 @@ impl RPCProcessor {
             route.operation.signatures.push(sig);
         } else {
             // If this is our last hop, then we drop the 'first_hop' from private route
-            next_private_route.first_hop = None;
+            // XXX ? next_private_route.first_hop = None;
         }
 
         // Pass along the route
@@ -372,8 +372,9 @@ impl RPCProcessor {
             }
             // No safety route left, now doing private route
             SafetyRouteHops::Private(ref private_route) => {
+                // See if we have a hop, if not, we are at the end of the private route
                 if let Some(first_hop) = &private_route.first_hop {
-                    // See if we have a next hop to send to
+                    // See if we have next hop data
                     let opt_next_first_hop = if let Some(next_hop) = &first_hop.next_hop {
                         // Decrypt the blob with DEC(nonce, DH(the PR's public key, this hop's secret)
                         let node_id_secret = self.routing_table.node_id_secret();
