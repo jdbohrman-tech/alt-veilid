@@ -10,7 +10,10 @@ impl RPCProcessor {
         message: Vec<u8>,
     ) -> Result<NetworkResult<Answer<Vec<u8>>>, RPCError> {
         let app_call_q = RPCOperationAppCallQ { message };
-        let question = RPCQuestion::new(RespondTo::Sender, RPCQuestionDetail::AppCallQ(app_call_q));
+        let question = RPCQuestion::new(
+            network_result_try!(self.get_destination_respond_to(&dest)?),
+            RPCQuestionDetail::AppCallQ(app_call_q),
+        );
 
         // Send the app call question
         let waitable_reply = network_result_try!(self.question(dest, question).await?);

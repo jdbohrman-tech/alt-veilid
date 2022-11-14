@@ -70,7 +70,10 @@ impl RPCProcessor {
         };
 
         let status_q = RPCOperationStatusQ { node_status };
-        let question = RPCQuestion::new(RespondTo::Sender, RPCQuestionDetail::StatusQ(status_q));
+        let question = RPCQuestion::new(
+            network_result_try!(self.get_destination_respond_to(&dest)?),
+            RPCQuestionDetail::StatusQ(status_q),
+        );
 
         // Send the info request
         let waitable_reply = network_result_try!(self.question(dest.clone(), question).await?);

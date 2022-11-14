@@ -4,6 +4,11 @@ use rkyv::{
     with::Skip, Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
 };
 
+/// The size of the remote private route cache
+const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
+/// Remote private route cache entries expire in 5 minutes if they haven't been used
+const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: u64 = 300_000_000u64;
+
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]
 pub struct CompiledRoute {
@@ -73,8 +78,21 @@ pub struct RouteSpecStoreContent {
     details: HashMap<DHTKey, RouteSpecDetail>,
 }
 
+/// What remote private routes have seen
+#[derive(Debug, Clone, Default)]
+struct RemotePrivateRouteInfo {
+    // When this remote private route was last modified
+    modified_ts: u64,
+    /// Did this remote private route see our node info due to no safety route in use
+    seen_our_node_info: bool,
+    /// The time this remote private route last responded
+    last_replied_ts: Option<u64>,
+    /// Timestamp of when the route was last used for anything
+    last_used_ts: Option<u64>,
+}
+
 /// Ephemeral data used to help the RouteSpecStore operate efficiently
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RouteSpecStoreCache {
     /// How many times nodes have been used
     used_nodes: HashMap<DHTKey, usize>,
@@ -82,6 +100,19 @@ pub struct RouteSpecStoreCache {
     used_end_nodes: HashMap<DHTKey, usize>,
     /// Route spec hop cache, used to quickly disqualify routes
     hop_cache: HashSet<Vec<u8>>,
+    /// Has a remote private route responded to a question and when
+    remote_private_route_cache: LruCache<DHTKey, RemotePrivateRouteInfo>,
+}
+
+impl Default for RouteSpecStoreCache {
+    fn default() -> Self {
+        Self {
+            used_nodes: Default::default(),
+            used_end_nodes: Default::default(),
+            hop_cache: Default::default(),
+            remote_private_route_cache: LruCache::new(REMOTE_PRIVATE_ROUTE_CACHE_SIZE),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -388,7 +419,7 @@ impl RouteSpecStore {
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
-        avoid_node_id: Option<DHTKey>,
+        avoid_node_ids: &[DHTKey],
     ) -> EyreResult<Option<DHTKey>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
@@ -401,7 +432,7 @@ impl RouteSpecStore {
             sequencing,
             hop_count,
             directions,
-            avoid_node_id,
+            avoid_node_ids,
         )
     }
 
@@ -413,7 +444,7 @@ impl RouteSpecStore {
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
-        avoid_node_id: Option<DHTKey>,
+        avoid_node_ids: &[DHTKey],
     ) -> EyreResult<Option<DHTKey>> {
         use core::cmp::Ordering;
 
@@ -443,11 +474,9 @@ impl RouteSpecStore {
                     return false;
                 }
 
-                // Exclude node we have specifically chosen to avoid
-                if let Some(ani) = avoid_node_id {
-                    if k == ani {
-                        return false;
-                    }
+                // Exclude nodes we have specifically chosen to avoid
+                if avoid_node_ids.contains(&k) {
+                    return false;
                 }
 
                 // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
@@ -758,17 +787,15 @@ impl RouteSpecStore {
     }
 
     /// Find first matching unpublished route that fits into the selection criteria
-    pub fn first_unpublished_route(
-        &self,
+    fn first_unpublished_route_inner<'a>(
+        inner: &'a RouteSpecStoreInner,
         min_hop_count: usize,
         max_hop_count: usize,
         stability: Stability,
         sequencing: Sequencing,
         directions: DirectionSet,
-        avoid_node_id: Option<DHTKey>,
+        avoid_node_ids: &[DHTKey],
     ) -> Option<DHTKey> {
-        let inner = self.inner.lock();
-
         for detail in &inner.content.details {
             if detail.1.stability >= stability
                 && detail.1.sequencing >= sequencing
@@ -778,9 +805,10 @@ impl RouteSpecStore {
                 && !detail.1.published
             {
                 let mut avoid = false;
-                if let Some(ani) = &avoid_node_id {
-                    if detail.1.hops.contains(ani) {
+                for h in &detail.1.hops {
+                    if avoid_node_ids.contains(h) {
                         avoid = true;
+                        break;
                     }
                 }
                 if !avoid {
@@ -864,65 +892,16 @@ impl RouteSpecStore {
             SafetySelection::Safe(safety_spec) => safety_spec,
         };
 
-        // See if the preferred route is here
-        let opt_safety_rsd: Option<(&mut RouteSpecDetail, DHTKey)> =
-            if let Some(preferred_route) = safety_spec.preferred_route {
-                Self::detail_mut(inner, &preferred_route).map(|rsd| (rsd, preferred_route))
-            } else {
-                // Preferred safety route was not requested
-                None
-            };
-        let (safety_rsd, sr_pubkey) = if let Some(safety_rsd) = opt_safety_rsd {
-            // Safety route exists
-            safety_rsd
-        } else {
-            // Avoid having the first node in the private route in our chosen safety route
-            // We would avoid all of them, but by design only the first node is knowable
-            let avoid_node_id = match &pr_first_hop.node {
-                RouteNode::NodeId(n) => n.key,
-                RouteNode::PeerInfo(p) => p.node_id.key,
-            };
-
-            // Select a safety route from the pool or make one if we don't have one that matches
-            if let Some(sr_pubkey) = self.first_unpublished_route(
-                safety_spec.hop_count,
-                safety_spec.hop_count,
-                safety_spec.stability,
-                safety_spec.sequencing,
-                Direction::Outbound.into(),
-                Some(avoid_node_id),
-            ) {
-                // Found a route to use
-                (Self::detail_mut(inner, &sr_pubkey).unwrap(), sr_pubkey)
-            } else {
-                // No route found, gotta allocate one
-                let sr_pubkey = match self
-                    .allocate_route_inner(
-                        inner,
-                        rti,
-                        safety_spec.stability,
-                        safety_spec.sequencing,
-                        safety_spec.hop_count,
-                        Direction::Outbound.into(),
-                        Some(avoid_node_id),
-                    )
-                    .map_err(RPCError::internal)?
-                {
-                    Some(pk) => pk,
-                    None => return Ok(None),
-                };
-                (Self::detail_mut(inner, &sr_pubkey).unwrap(), sr_pubkey)
-            }
+        // Get the safety route to use from the spec
+        let avoid_node_id = match &pr_first_hop.node {
+            RouteNode::NodeId(n) => n.key,
+            RouteNode::PeerInfo(p) => p.node_id.key,
         };
-
-        // Ensure the total hop count isn't too long for our config
-        let sr_hopcount = safety_spec.hop_count;
-        if sr_hopcount == 0 {
-            bail!("safety route hop count is zero");
-        }
-        if sr_hopcount > max_route_hop_count {
-            bail!("safety route hop count too long");
-        }
+        let Some(sr_pubkey) = self.get_route_for_safety_spec_inner(inner, rti, &safety_spec, Direction::Outbound.into(), &[avoid_node_id])? else {
+            // No safety route could be found for this spec
+            return Ok(None);
+        };
+        let safety_rsd = Self::detail_mut(inner, &sr_pubkey).unwrap();
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
@@ -951,7 +930,7 @@ impl RouteSpecStore {
             // Each loop mutates 'nonce', and 'blob_data'
             let mut nonce = Crypto::get_random_nonce();
             let crypto = routing_table.network_manager().crypto();
-            for h in (1..sr_hopcount).rev() {
+            for h in (1..safety_rsd.hops.len()).rev() {
                 // Get blob to encrypt for next hop
                 blob_data = {
                     // Encrypt the previous blob ENC(nonce, DH(PKhop,SKsr))
@@ -1046,6 +1025,84 @@ impl RouteSpecStore {
         Ok(Some(compiled_route))
     }
 
+    /// Get a route that matches a particular safety spec
+    fn get_route_for_safety_spec_inner(
+        &self,
+        inner: &mut RouteSpecStoreInner,
+        rti: &RoutingTableInner,
+        safety_spec: &SafetySpec,
+        direction: DirectionSet,
+        avoid_node_ids: &[DHTKey],
+    ) -> EyreResult<Option<DHTKey>> {
+        // Ensure the total hop count isn't too long for our config
+        let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
+        if safety_spec.hop_count == 0 {
+            bail!("safety route hop count is zero");
+        }
+        if safety_spec.hop_count > max_route_hop_count {
+            bail!("safety route hop count too long");
+        }
+
+        // See if the preferred route is here
+        if let Some(preferred_route) = safety_spec.preferred_route {
+            if inner.content.details.contains_key(&preferred_route) {
+                return Ok(Some(preferred_route));
+            }
+        }
+
+        // Select a safety route from the pool or make one if we don't have one that matches
+        let sr_pubkey = if let Some(sr_pubkey) = Self::first_unpublished_route_inner(
+            inner,
+            safety_spec.hop_count,
+            safety_spec.hop_count,
+            safety_spec.stability,
+            safety_spec.sequencing,
+            direction,
+            avoid_node_ids,
+        ) {
+            // Found a route to use
+            sr_pubkey
+        } else {
+            // No route found, gotta allocate one
+            let sr_pubkey = match self
+                .allocate_route_inner(
+                    inner,
+                    rti,
+                    safety_spec.stability,
+                    safety_spec.sequencing,
+                    safety_spec.hop_count,
+                    direction,
+                    avoid_node_ids,
+                )
+                .map_err(RPCError::internal)?
+            {
+                Some(pk) => pk,
+                None => return Ok(None),
+            };
+            sr_pubkey
+        };
+        Ok(Some(sr_pubkey))
+    }
+
+    /// Get a private sroute to use for the answer to question
+    pub fn get_private_route_for_safety_spec(
+        &self,
+        safety_spec: &SafetySpec,
+        avoid_node_ids: &[DHTKey],
+    ) -> EyreResult<Option<DHTKey>> {
+        let inner = &mut *self.inner.lock();
+        let routing_table = self.unlocked_inner.routing_table.clone();
+        let rti = &*routing_table.inner.read();
+
+        Ok(self.get_route_for_safety_spec_inner(
+            inner,
+            rti,
+            safety_spec,
+            Direction::Inbound.into(),
+            avoid_node_ids,
+        )?)
+    }
+
     /// Assemble private route for publication
     pub fn assemble_private_route(
         &self,
@@ -1125,6 +1182,114 @@ impl RouteSpecStore {
             first_hop: Some(route_hop),
         };
         Ok(private_route)
+    }
+
+    // get or create a remote private route cache entry
+    fn with_create_remote_private_route<F, R>(
+        inner: &mut RouteSpecStoreInner,
+        cur_ts: u64,
+        key: &DHTKey,
+        f: F,
+    ) -> R
+    where
+        F: FnOnce(&mut RemotePrivateRouteInfo) -> R,
+    {
+        let rpr = inner
+            .cache
+            .remote_private_route_cache
+            .entry(*key)
+            .and_modify(|rpr| {
+                if cur_ts - rpr.modified_ts >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+                    *rpr = RemotePrivateRouteInfo {
+                        modified_ts: cur_ts,
+                        seen_our_node_info: false,
+                        last_replied_ts: None,
+                        last_used_ts: None,
+                    };
+                } else {
+                    rpr.modified_ts = cur_ts;
+                }
+            })
+            .or_insert_with(|| RemotePrivateRouteInfo {
+                modified_ts: cur_ts,
+                seen_our_node_info: false,
+                last_replied_ts: None,
+                last_used_ts: None,
+            });
+        f(rpr)
+    }
+
+    // get a remote private route cache entry
+    fn with_get_remote_private_route<F, R>(
+        inner: &mut RouteSpecStoreInner,
+        cur_ts: u64,
+        key: &DHTKey,
+        f: F,
+    ) -> Option<R>
+    where
+        F: FnOnce(&RemotePrivateRouteInfo) -> R,
+    {
+        let rpr = inner.cache.remote_private_route_cache.get(key)?;
+        if cur_ts - rpr.modified_ts < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+            return Some(f(rpr));
+        }
+        inner.cache.remote_private_route_cache.remove(key);
+        None
+    }
+
+    /// Check to see if this remote (not ours) private route has seen our node info yet
+    /// This returns true if we have sent non-safety-route node info to the
+    /// private route and gotten a response before
+    pub fn has_remote_private_route_seen_our_node_info(&self, key: &DHTKey) -> bool {
+        let inner = &mut *self.inner.lock();
+        let cur_ts = intf::get_timestamp();
+        Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| rpr.seen_our_node_info)
+            .unwrap_or_default()
+    }
+
+    /// Mark a remote private route as having seen our node info {
+    pub fn mark_remote_private_route_seen_our_node_info(&self, key: &DHTKey) {
+        let inner = &mut *self.inner.lock();
+        let cur_ts = intf::get_timestamp();
+        Self::with_create_remote_private_route(inner, cur_ts, key, |rpr| {
+            rpr.seen_our_node_info = true;
+        })
+    }
+
+    /// Mark a remote private route as having replied to a question {
+    pub fn mark_remote_private_route_replied(&self, key: &DHTKey) {
+        let inner = &mut *self.inner.lock();
+        let cur_ts = intf::get_timestamp();
+        Self::with_create_remote_private_route(inner, cur_ts, key, |rpr| {
+            rpr.last_replied_ts = Some(cur_ts);
+        })
+    }
+
+    /// Mark a remote private route as having beed used {
+    pub fn mark_remote_private_route_used(&self, key: &DHTKey) {
+        let inner = &mut *self.inner.lock();
+        let cur_ts = intf::get_timestamp();
+        Self::with_create_remote_private_route(inner, cur_ts, key, |rpr| {
+            rpr.last_used_ts = Some(cur_ts);
+        })
+    }
+
+    /// Clear caches when local our local node info changes
+    pub fn local_node_info_changed(&self) {
+        let inner = &mut *self.inner.lock();
+
+        // Clean up local allocated routes
+        for (_k, v) in &mut inner.content.details {
+            // Must republish route now
+            v.published = false;
+            // Route is not known reachable now
+            v.reachable = false;
+            // We have yet to check it since local node info changed
+            v.last_checked_ts = None;
+        }
+
+        // Clean up remote private routes
+        inner.cache.remote_private_route_cache.clear();
     }
 
     /// Mark route as published

@@ -582,7 +582,6 @@ impl VeilidAPI {
         let mut stability = Stability::LowLatency;
         let mut hop_count = default_route_hop_count;
         let mut directions = DirectionSet::all();
-        let mut avoid_node_id = None;
 
         while ai < args.len() {
             if let Ok(seq) =
@@ -601,10 +600,6 @@ impl VeilidAPI {
                 get_debug_argument_at(&args, ai, "debug_route", "direction_set", get_direction_set)
             {
                 directions = ds;
-            } else if let Ok(ani) =
-                get_debug_argument_at(&args, ai, "debug_route", "avoid_node_id", get_dht_key)
-            {
-                avoid_node_id = Some(ani);
             } else {
                 return Ok(format!("Invalid argument specified: {}", args[ai]));
             }
@@ -612,14 +607,13 @@ impl VeilidAPI {
         }
 
         // Allocate route
-        let out =
-            match rss.allocate_route(stability, sequencing, hop_count, directions, avoid_node_id) {
-                Ok(Some(v)) => format!("{}", v.encode()),
-                Ok(None) => format!("<unavailable>"),
-                Err(e) => {
-                    format!("Route allocation failed: {}", e)
-                }
-            };
+        let out = match rss.allocate_route(stability, sequencing, hop_count, directions, &[]) {
+            Ok(Some(v)) => format!("{}", v.encode()),
+            Ok(None) => format!("<unavailable>"),
+            Err(e) => {
+                format!("Route allocation failed: {}", e)
+            }
+        };
 
         Ok(out)
     }

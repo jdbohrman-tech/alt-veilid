@@ -608,7 +608,7 @@ pub enum SafetySelection {
 pub struct SafetySpec {
     /// preferred safety route if it still exists
     pub preferred_route: Option<DHTKey>,
-    /// 0 = no safety route, just use node's node id, more hops is safer but slower
+    /// must be greater than 0
     pub hop_count: usize,
     /// prefer reliability over speed
     pub stability: Stability,

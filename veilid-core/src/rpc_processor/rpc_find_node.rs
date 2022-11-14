@@ -28,7 +28,10 @@ impl RPCProcessor {
 
         let find_node_q_detail =
             RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ { node_id: key });
-        let find_node_q = RPCQuestion::new(RespondTo::Sender, find_node_q_detail);
+        let find_node_q = RPCQuestion::new(
+            network_result_try!(self.get_destination_respond_to(&dest)?),
+            find_node_q_detail,
+        );
 
         // Send the find_node request
         let waitable_reply = network_result_try!(self.question(dest, find_node_q).await?);
