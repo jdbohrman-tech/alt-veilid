@@ -4,6 +4,8 @@ use crate::tools::*;
 use crate::veilid_logs::*;
 use crate::*;
 use flume::{unbounded, Receiver, Sender};
+use futures_util::select;
+use futures_util::FutureExt;
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -70,7 +72,8 @@ pub async fn run_veilid_server_internal(
 
     // Start client api if one is requested
     let mut capi = if settingsr.client_api.enabled && matches!(server_mode, ServerMode::Normal) {
-        let some_capi = client_api::ClientApi::new(veilid_api.clone(), veilid_logs.clone());
+        let some_capi =
+            client_api::ClientApi::new(veilid_api.clone(), veilid_logs.clone(), settings.clone());
         some_capi
             .clone()
             .run(settingsr.client_api.listen_address.addrs.clone());
@@ -85,12 +88,29 @@ pub async fn run_veilid_server_internal(
 
     // Process all updates
     let capi2 = capi.clone();
+    let mut shutdown_switch = {
+        let shutdown_switch_locked = SHUTDOWN_SWITCH.lock();
+        (*shutdown_switch_locked).as_ref().map(|ss| ss.instance())
+    }
+    .unwrap()
+    .fuse();
     let update_receiver_jh = spawn_local(async move {
-        while let Ok(change) = receiver.recv_async().await {
-            if let Some(capi) = &capi2 {
-                // Handle state changes on main thread for capnproto rpc
-                capi.clone().handle_update(change);
-            }
+        loop {
+            select! {
+                res = receiver.recv_async() => {
+                    if let Ok(change) = res {
+                        if let Some(capi) = &capi2 {
+                            // Handle state changes on main thread for capnproto rpc
+                            capi.clone().handle_update(change);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                _ = shutdown_switch => {
+                    break;
+                }
+            };
         }
     });
 

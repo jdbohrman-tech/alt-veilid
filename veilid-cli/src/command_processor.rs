@@ -388,6 +388,7 @@ reply               - reply to an AppCall not handled directly by the server
     // called by client_api_connection
     // calls into ui
     ////////////////////////////////////////////
+
     pub fn update_attachment(&mut self, attachment: veilid_core::VeilidStateAttachment) {
         self.inner_mut().ui.set_attachment_state(attachment.state);
     }
@@ -399,6 +400,9 @@ reply               - reply to an AppCall not handled directly by the server
             network.bps_up,
             network.peers,
         );
+    }
+    pub fn update_config(&mut self, config: veilid_core::VeilidStateConfig) {
+        self.inner_mut().ui.set_config(config.config)
     }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidLog) {

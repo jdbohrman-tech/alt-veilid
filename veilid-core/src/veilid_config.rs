@@ -1,5 +1,6 @@
 use crate::xx::*;
 use crate::*;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use serde::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +17,18 @@ pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sy
 ///     url: 'https://localhost:5150'
 /// ```
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigHTTPS {
     pub enabled: bool,
     pub listen_address: String,
@@ -34,7 +46,18 @@ pub struct VeilidConfigHTTPS {
 ///     url: 'https://localhost:5150'
 /// ```
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigHTTP {
     pub enabled: bool,
     pub listen_address: String,
@@ -48,7 +71,18 @@ pub struct VeilidConfigHTTP {
 ///
 /// To be implemented...
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigApplication {
     pub https: VeilidConfigHTTPS,
     pub http: VeilidConfigHTTP,
@@ -64,7 +98,18 @@ pub struct VeilidConfigApplication {
 ///     public_address: ''
 /// ```
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigUDP {
     pub enabled: bool,
     pub socket_pool_size: u32,
@@ -82,7 +127,18 @@ pub struct VeilidConfigUDP {
 ///     listen_address: ':5150'
 ///     public_address: ''
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigTCP {
     pub connect: bool,
     pub listen: bool,
@@ -102,7 +158,18 @@ pub struct VeilidConfigTCP {
 ///     path: 'ws'
 ///     url: 'ws://localhost:5150/ws'
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigWS {
     pub connect: bool,
     pub listen: bool,
@@ -123,7 +190,18 @@ pub struct VeilidConfigWS {
 ///     path: 'ws'
 ///     url: ''
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigWSS {
     pub connect: bool,
     pub listen: bool,
@@ -140,7 +218,18 @@ pub struct VeilidConfigWSS {
 /// All protocols are available by default, and the Veilid node will
 /// sort out which protocol is used for each peer connection.
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigProtocol {
     pub udp: VeilidConfigUDP,
     pub tcp: VeilidConfigTCP,
@@ -156,7 +245,18 @@ pub struct VeilidConfigProtocol {
 ///     private_key_path: /path/to/private/key
 ///     connection_initial_timeout_ms: 2000
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigTLS {
     pub certificate_path: String,
     pub private_key_path: String,
@@ -165,7 +265,18 @@ pub struct VeilidConfigTLS {
 
 /// Configure the Distributed Hash Table (DHT)
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigDHT {
     pub resolve_node_timeout_ms: Option<u32>,
     pub resolve_node_count: u32,
@@ -184,7 +295,18 @@ pub struct VeilidConfigDHT {
 
 /// Configure RPC
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
     pub queue_size: u32,
@@ -197,7 +319,18 @@ pub struct VeilidConfigRPC {
 
 /// Configure the network routing table
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigRoutingTable {
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
@@ -206,7 +339,18 @@ pub struct VeilidConfigRoutingTable {
     pub limit_attached_weak: u32,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigNetwork {
     pub connection_initial_timeout_ms: u32,
     pub connection_inactivity_timeout_ms: u32,
@@ -233,19 +377,52 @@ pub struct VeilidConfigNetwork {
     pub protocol: VeilidConfigProtocol,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigTableStore {
     pub directory: String,
     pub delete: bool,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigBlockStore {
     pub directory: String,
     pub delete: bool,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
@@ -253,7 +430,18 @@ pub struct VeilidConfigProtectedStore {
     pub delete: bool,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigCapabilities {
     pub protocol_udp: bool,
     pub protocol_connect_tcp: bool,
@@ -264,7 +452,18 @@ pub struct VeilidConfigCapabilities {
     pub protocol_accept_wss: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub enum VeilidConfigLogLevel {
     Off,
     Error,
@@ -322,7 +521,18 @@ impl Default for VeilidConfigLogLevel {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub struct VeilidConfigInner {
     pub program_name: String,
     pub namespace: String,
@@ -338,6 +548,7 @@ pub struct VeilidConfigInner {
 /// Veilid is configured
 #[derive(Clone)]
 pub struct VeilidConfig {
+    update_cb: Option<UpdateCallback>,
     inner: Arc<RwLock<VeilidConfigInner>>,
 }
 
@@ -362,23 +573,29 @@ impl VeilidConfig {
 
     pub fn new() -> Self {
         Self {
+            update_cb: None,
             inner: Arc::new(RwLock::new(Self::new_inner())),
         }
     }
 
-    pub fn setup_from_json(&mut self, config: String) -> Result<(), VeilidAPIError> {
-        {
-            let mut inner = self.inner.write();
+    pub fn setup_from_json(
+        &mut self,
+        config: String,
+        update_cb: UpdateCallback,
+    ) -> Result<(), VeilidAPIError> {
+        self.update_cb = Some(update_cb);
+
+        self.with_mut(|inner| {
             *inner = serde_json::from_str(&config).map_err(VeilidAPIError::generic)?;
-        }
-
-        // Validate settings
-        self.validate()?;
-
-        Ok(())
+            Ok(())
+        })
     }
 
-    pub fn setup(&mut self, cb: ConfigCallback) -> Result<(), VeilidAPIError> {
+    pub fn setup(
+        &mut self,
+        cb: ConfigCallback,
+        update_cb: UpdateCallback,
+    ) -> Result<(), VeilidAPIError> {
         macro_rules! get_config {
             ($key:expr) => {
                 let keyname = &stringify!($key)[6..];
@@ -389,8 +606,9 @@ impl VeilidConfig {
                 })?;
             };
         }
-        {
-            let mut inner = self.inner.write();
+
+        self.update_cb = Some(update_cb);
+        self.with_mut(|inner| {
             get_config!(inner.program_name);
             get_config!(inner.namespace);
             get_config!(inner.capabilities.protocol_udp);
@@ -482,19 +700,44 @@ impl VeilidConfig {
             get_config!(inner.network.protocol.wss.listen_address);
             get_config!(inner.network.protocol.wss.path);
             get_config!(inner.network.protocol.wss.url);
-        }
-        // Validate settings
-        self.validate()?;
+            Ok(())
+        })
+    }
 
-        Ok(())
+    pub fn get_veilid_state(&self) -> VeilidStateConfig {
+        let inner = self.inner.read();
+        VeilidStateConfig {
+            config: inner.clone(),
+        }
     }
 
     pub fn get(&self) -> RwLockReadGuard<VeilidConfigInner> {
         self.inner.read()
     }
 
-    pub fn get_mut(&self) -> RwLockWriteGuard<VeilidConfigInner> {
-        self.inner.write()
+    pub fn with_mut<F, R>(&self, f: F) -> Result<R, VeilidAPIError>
+    where
+        F: FnOnce(&mut VeilidConfigInner) -> Result<R, VeilidAPIError>,
+    {
+        let (out, config) = {
+            let inner = &mut *self.inner.write();
+            // Edit a copy
+            let mut editedinner = inner.clone();
+            // Make changes
+            let out = f(&mut editedinner)?;
+            // Validate
+            Self::validate(&mut editedinner)?;
+            // Commit changes
+            *inner = editedinner.clone();
+            (out, editedinner)
+        };
+
+        // Send configuration update to clients
+        if let Some(update_cb) = &self.update_cb {
+            update_cb(VeilidUpdate::Config(VeilidStateConfig { config }));
+        }
+
+        Ok(out)
     }
 
     pub fn get_key_json(&self, key: &str) -> Result<String, VeilidAPIError> {
@@ -521,47 +764,43 @@ impl VeilidConfig {
         }
     }
     pub fn set_key_json(&self, key: &str, value: &str) -> Result<(), VeilidAPIError> {
-        let mut c = self.get_mut();
+        self.with_mut(|c| {
+            // Split key into path parts
+            let keypath: Vec<&str> = key.split('.').collect();
 
-        // Split key into path parts
-        let keypath: Vec<&str> = key.split('.').collect();
+            // Convert value into jsonvalue
+            let newval = json::parse(value).map_err(VeilidAPIError::generic)?;
 
-        // Convert value into jsonvalue
-        let newval = json::parse(value).map_err(VeilidAPIError::generic)?;
+            // Generate json from whole config
+            let jc = serde_json::to_string(&*c).map_err(VeilidAPIError::generic)?;
+            let mut jvc = json::parse(&jc).map_err(VeilidAPIError::generic)?;
 
-        // Generate json from whole config
-        let jc = serde_json::to_string(&*c).map_err(VeilidAPIError::generic)?;
-        let mut jvc = json::parse(&jc).map_err(VeilidAPIError::generic)?;
-
-        // Find requested subkey
-        let newconfigstring = if let Some((objkeyname, objkeypath)) = keypath.split_last() {
-            // Replace subkey
-            let mut out = &mut jvc;
-            for k in objkeypath {
-                if !out.has_key(*k) {
-                    apibail_parse!(format!("invalid subkey in key '{}'", key), k);
+            // Find requested subkey
+            let newconfigstring = if let Some((objkeyname, objkeypath)) = keypath.split_last() {
+                // Replace subkey
+                let mut out = &mut jvc;
+                for k in objkeypath {
+                    if !out.has_key(*k) {
+                        apibail_parse!(format!("invalid subkey in key '{}'", key), k);
+                    }
+                    out = &mut out[*k];
                 }
-                out = &mut out[*k];
-            }
-            if !out.has_key(objkeyname) {
-                apibail_parse!(format!("invalid subkey in key '{}'", key), objkeyname);
-            }
-            out[*objkeyname] = newval;
-            jvc.to_string()
-        } else {
-            newval.to_string()
-        };
-        // Generate and validate new config
-        let mut newconfig = VeilidConfig::new();
-        newconfig.setup_from_json(newconfigstring)?;
-        //  Replace whole config
-        *c = newconfig.get().clone();
-        Ok(())
+                if !out.has_key(objkeyname) {
+                    apibail_parse!(format!("invalid subkey in key '{}'", key), objkeyname);
+                }
+                out[*objkeyname] = newval;
+                jvc.to_string()
+            } else {
+                newval.to_string()
+            };
+
+            // Generate new config
+            *c = serde_json::from_str(&newconfigstring).map_err(VeilidAPIError::generic)?;
+            Ok(())
+        })
     }
 
-    fn validate(&self) -> Result<(), VeilidAPIError> {
-        let inner = self.inner.read();
-
+    fn validate(inner: &VeilidConfigInner) -> Result<(), VeilidAPIError> {
         if inner.program_name.is_empty() {
             apibail_generic!("Program name must not be empty in 'program_name'");
         }
@@ -731,8 +970,11 @@ impl VeilidConfig {
             .await
             .map_err(VeilidAPIError::internal)?;
 
-        self.inner.write().network.node_id = Some(node_id);
-        self.inner.write().network.node_id_secret = Some(node_id_secret);
+        self.with_mut(|c| {
+            c.network.node_id = Some(node_id);
+            c.network.node_id_secret = Some(node_id_secret);
+            Ok(())
+        })?;
 
         trace!("init_node_id complete");
 

@@ -1262,6 +1262,10 @@ abstract class VeilidUpdate {
         {
           return VeilidUpdateNetwork(state: VeilidStateNetwork.fromJson(json));
         }
+      case "Config":
+        {
+          return VeilidUpdateConfig(state: VeilidStateConfig.fromJson(json));
+        }
       default:
         {
           throw VeilidAPIExceptionInternal(
@@ -1363,6 +1367,19 @@ class VeilidUpdateNetwork implements VeilidUpdate {
   }
 }
 
+class VeilidUpdateConfig implements VeilidUpdate {
+  final VeilidStateConfig state;
+  //
+  VeilidUpdateConfig({required this.state});
+
+  @override
+  Map<String, dynamic> get json {
+    var jsonRep = state.json;
+    jsonRep['kind'] = "Config";
+    return jsonRep;
+  }
+}
+
 //////////////////////////////////////
 /// VeilidStateAttachment
 
@@ -1414,18 +1431,42 @@ class VeilidStateNetwork {
 }
 
 //////////////////////////////////////
+/// VeilidStateConfig
+
+class VeilidStateConfig {
+  final Map<String, dynamic> config;
+
+  VeilidStateConfig({
+    required this.config,
+  });
+
+  VeilidStateConfig.fromJson(Map<String, dynamic> json)
+      : config = jsonDecode(json['config']);
+
+  Map<String, dynamic> get json {
+    return {'config': jsonEncode(config)};
+  }
+}
+
+//////////////////////////////////////
 /// VeilidState
 
 class VeilidState {
   final VeilidStateAttachment attachment;
   final VeilidStateNetwork network;
+  final VeilidStateConfig config;
 
   VeilidState.fromJson(Map<String, dynamic> json)
       : attachment = VeilidStateAttachment.fromJson(json['attachment']),
-        network = VeilidStateNetwork.fromJson(json['network']);
+        network = VeilidStateNetwork.fromJson(json['network']),
+        config = VeilidStateConfig.fromJson(json['config']);
 
   Map<String, dynamic> get json {
-    return {'attachment': attachment.json, 'network': network.json};
+    return {
+      'attachment': attachment.json,
+      'network': network.json,
+      'config': config.json
+    };
   }
 }
 

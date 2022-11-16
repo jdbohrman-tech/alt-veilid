@@ -177,7 +177,7 @@ impl VeilidCoreContext {
         // Set up config from callback
         trace!("setup config with callback");
         let mut config = VeilidConfig::new();
-        config.setup(config_callback)?;
+        config.setup(config_callback, update_callback.clone())?;
 
         Self::new_common(update_callback, config).await
     }
@@ -190,7 +190,7 @@ impl VeilidCoreContext {
         // Set up config from callback
         trace!("setup config with json");
         let mut config = VeilidConfig::new();
-        config.setup_from_json(config_json)?;
+        config.setup_from_json(config_json, update_callback.clone())?;
         Self::new_common(update_callback, config).await
     }
 

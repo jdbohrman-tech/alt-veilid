@@ -319,6 +319,14 @@ pub struct VeilidStateNetwork {
     pub peers: Vec<PeerTableData>,
 }
 
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct VeilidStateConfig {
+    pub config: VeilidConfigInner,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]
@@ -328,6 +336,7 @@ pub enum VeilidUpdate {
     AppCall(VeilidAppCall),
     Attachment(VeilidStateAttachment),
     Network(VeilidStateNetwork),
+    Config(VeilidStateConfig),
     Shutdown,
 }
 
@@ -336,6 +345,7 @@ pub enum VeilidUpdate {
 pub struct VeilidState {
     pub attachment: VeilidStateAttachment,
     pub network: VeilidStateNetwork,
+    pub config: VeilidStateConfig,
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2679,13 +2689,16 @@ impl VeilidAPI {
     pub async fn get_state(&self) -> Result<VeilidState, VeilidAPIError> {
         let attachment_manager = self.attachment_manager()?;
         let network_manager = attachment_manager.network_manager();
+        let config = self.config()?;
 
         let attachment = attachment_manager.get_veilid_state();
         let network = network_manager.get_veilid_state();
+        let config = config.get_veilid_state();
 
         Ok(VeilidState {
             attachment,
             network,
+            config,
         })
     }
 

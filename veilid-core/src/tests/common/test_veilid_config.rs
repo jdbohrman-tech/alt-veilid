@@ -156,13 +156,12 @@ cfg_if! {
     }
 }
 
+fn update_callback(update: VeilidUpdate) {
+    println!("update_callback: {:?}", update);
+}
+
 pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
-    (
-        Arc::new(move |veilid_update: VeilidUpdate| {
-            println!("update_callback: {:?}", veilid_update);
-        }),
-        Arc::new(config_callback),
-    )
+    (Arc::new(update_callback), Arc::new(config_callback))
 }
 
 fn config_callback(key: String) -> ConfigCallbackReturn {
@@ -268,7 +267,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
 
 pub fn get_config() -> VeilidConfig {
     let mut vc = VeilidConfig::new();
-    match vc.setup(Arc::new(config_callback)) {
+    match vc.setup(Arc::new(config_callback), Arc::new(update_callback)) {
         Ok(()) => (),
         Err(e) => {
             error!("Error: {}", e);
@@ -280,7 +279,7 @@ pub fn get_config() -> VeilidConfig {
 
 pub async fn test_config() {
     let mut vc = VeilidConfig::new();
-    match vc.setup(Arc::new(config_callback)) {
+    match vc.setup(Arc::new(config_callback), Arc::new(update_callback)) {
         Ok(()) => (),
         Err(e) => {
             error!("Error: {}", e);

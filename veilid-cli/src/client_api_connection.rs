@@ -89,6 +89,9 @@ impl veilid_client::Server for VeilidClientImpl {
             VeilidUpdate::Network(network) => {
                 self.comproc.update_network_status(network);
             }
+            VeilidUpdate::Config(config) => {
+                self.comproc.update_config(config);
+            }
             VeilidUpdate::Shutdown => self.comproc.update_shutdown(),
         }
 
@@ -101,6 +104,7 @@ struct ClientApiConnectionInner {
     connect_addr: Option<SocketAddr>,
     disconnector: Option<Disconnector<rpc_twoparty_capnp::Side>>,
     server: Option<Rc<RefCell<veilid_server::Client>>>,
+    server_settings: Option<String>,
     disconnect_requested: bool,
     cancel_eventual: Eventual,
 }
@@ -120,6 +124,7 @@ impl ClientApiConnection {
                 connect_addr: None,
                 disconnector: None,
                 server: None,
+                server_settings: None,
                 disconnect_requested: false,
                 cancel_eventual: Eventual::new(),
             })),
@@ -141,7 +146,7 @@ impl ClientApiConnection {
         let mut inner = self.inner.borrow_mut();
         inner.comproc.update_attachment(veilid_state.attachment);
         inner.comproc.update_network_status(veilid_state.network);
-
+        inner.comproc.update_config(veilid_state.config);
         Ok(())
     }
 
@@ -209,6 +214,13 @@ impl ClientApiConnection {
             .map_err(|e| format!("failed to get deserialize veilid state: {}", e))?;
         self.process_veilid_state(veilid_state).await?;
 
+        // Save server settings
+        let server_settings = response
+            .get_settings()
+            .map_err(|e| format!("failed to get initial veilid server settings: {}", e))?
+            .to_owned();
+        self.inner.borrow_mut().server_settings = Some(server_settings.clone());
+
         // Don't drop the registration, doing so will remove the client
         // object mapping from the server which we need for the update backchannel
 
@@ -219,9 +231,10 @@ impl ClientApiConnection {
         res.map_err(|e| format!("client RPC system error: {}", e))
     }
 
-    async fn handle_connection(&mut self) -> Result<(), String> {
+    async fn handle_connection(&mut self, connect_addr: SocketAddr) -> Result<(), String> {
         trace!("ClientApiConnection::handle_connection");
-        let connect_addr = self.inner.borrow().connect_addr.unwrap();
+
+        self.inner.borrow_mut().connect_addr = Some(connect_addr);
         // Connect the TCP socket
         let stream = TcpStream::connect(connect_addr)
             .await
@@ -263,9 +276,11 @@ impl ClientApiConnection {
         // Drop the server and disconnector too (if we still have it)
         let mut inner = self.inner.borrow_mut();
         let disconnect_requested = inner.disconnect_requested;
+        inner.server_settings = None;
         inner.server = None;
         inner.disconnector = None;
         inner.disconnect_requested = false;
+        inner.connect_addr = None;
 
         if !disconnect_requested {
             // Connection lost
@@ -456,9 +471,7 @@ impl ClientApiConnection {
     pub async fn connect(&mut self, connect_addr: SocketAddr) -> Result<(), String> {
         trace!("ClientApiConnection::connect");
         // Save the address to connect to
-        self.inner.borrow_mut().connect_addr = Some(connect_addr);
-
-        self.handle_connection().await
+        self.handle_connection(connect_addr).await
     }
 
     // End Client API connection
@@ -469,7 +482,6 @@ impl ClientApiConnection {
             Some(d) => {
                 self.inner.borrow_mut().disconnect_requested = true;
                 d.await.unwrap();
-                self.inner.borrow_mut().connect_addr = None;
             }
             None => {
                 debug!("disconnector doesn't exist");

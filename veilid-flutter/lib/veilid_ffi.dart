@@ -18,7 +18,7 @@ final _path = Platform.isWindows
     : Platform.isMacOS
         ? 'lib$_base.dylib'
         : 'lib$_base.so';
-late final _dylib =
+final _dylib =
     Platform.isIOS ? DynamicLibrary.process() : DynamicLibrary.open(_path);
 
 // Linkage for initialization

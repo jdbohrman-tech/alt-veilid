@@ -10,7 +10,7 @@ struct ApiResult @0x8111724bdb812929 {
 interface Registration @0xdd45f30a7c22e391 {}
 
 interface VeilidServer @0xcb2c699f14537f94 {
-    register @0 (veilidClient :VeilidClient) -> (registration :Registration, state :Text);
+    register @0 (veilidClient :VeilidClient) -> (registration :Registration, state :Text, settings :Text);
     debug @1 (command :Text) -> (result :ApiResult);
     attach @2 () -> (result :ApiResult);
     detach @3 () -> (result :ApiResult);

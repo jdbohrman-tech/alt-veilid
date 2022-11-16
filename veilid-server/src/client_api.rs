@@ -1,3 +1,4 @@
+use crate::settings::*;
 use crate::tools::*;
 use crate::veilid_client_capnp::*;
 use crate::veilid_logs::VeilidLogs;
@@ -81,18 +82,24 @@ impl registration::Server for RegistrationImpl {}
 struct VeilidServerImpl {
     veilid_api: veilid_core::VeilidAPI,
     veilid_logs: VeilidLogs,
+    settings: Settings,
     next_id: u64,
     pub registration_map: Rc<RefCell<RegistrationMap>>,
 }
 
 impl VeilidServerImpl {
     #[instrument(level = "trace", skip_all)]
-    pub fn new(veilid_api: veilid_core::VeilidAPI, veilid_logs: VeilidLogs) -> Self {
+    pub fn new(
+        veilid_api: veilid_core::VeilidAPI,
+        veilid_logs: VeilidLogs,
+        settings: Settings,
+    ) -> Self {
         Self {
             next_id: 0,
             registration_map: Rc::new(RefCell::new(RegistrationMap::new())),
             veilid_api,
             veilid_logs,
+            settings,
         }
     }
 }
@@ -115,6 +122,7 @@ impl veilid_server::Server for VeilidServerImpl {
         );
 
         let veilid_api = self.veilid_api.clone();
+        let settings = self.settings.clone();
         let registration = capnp_rpc::new_client(RegistrationImpl::new(
             self.next_id,
             self.registration_map.clone(),
@@ -131,6 +139,14 @@ impl veilid_server::Server for VeilidServerImpl {
             let mut res = results.get();
             res.set_registration(registration);
             res.set_state(&state);
+
+            let settings = &*settings.read();
+            let settings_json_string = serialize_json(settings);
+            let mut settings_json = json::parse(&settings_json_string)
+                .map_err(|e| ::capnp::Error::failed(format!("{:?}", e)))?;
+            settings_json["core"]["network"].remove("node_id_secret");
+            let safe_settings_json = settings_json.to_string();
+            res.set_settings(&safe_settings_json);
 
             Ok(())
         })
@@ -265,6 +281,7 @@ type ClientApiAllFuturesJoinHandle =
 struct ClientApiInner {
     veilid_api: veilid_core::VeilidAPI,
     veilid_logs: VeilidLogs,
+    settings: Settings,
     registration_map: Rc<RefCell<RegistrationMap>>,
     stop: Option<StopSource>,
     join_handle: Option<ClientApiAllFuturesJoinHandle>,
@@ -276,11 +293,16 @@ pub struct ClientApi {
 
 impl ClientApi {
     #[instrument(level = "trace", skip_all)]
-    pub fn new(veilid_api: veilid_core::VeilidAPI, veilid_logs: VeilidLogs) -> Rc<Self> {
+    pub fn new(
+        veilid_api: veilid_core::VeilidAPI,
+        veilid_logs: VeilidLogs,
+        settings: Settings,
+    ) -> Rc<Self> {
         Rc::new(Self {
             inner: RefCell::new(ClientApiInner {
                 veilid_api,
                 veilid_logs,
+                settings,
                 registration_map: Rc::new(RefCell::new(RegistrationMap::new())),
                 stop: Some(StopSource::new()),
                 join_handle: None,
@@ -427,6 +449,7 @@ impl ClientApi {
         let veilid_server_impl = VeilidServerImpl::new(
             self.inner.borrow().veilid_api.clone(),
             self.inner.borrow().veilid_logs.clone(),
+            self.inner.borrow().settings.clone(),
         );
         self.inner.borrow_mut().registration_map = veilid_server_impl.registration_map.clone();
 

@@ -301,6 +301,7 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
         settingsrw.core.network.bootstrap_nodes = bootstrap_list;
     }
 
+    #[cfg(feature = "rt-tokio")]
     if matches.occurrences_of("console") != 0 {
         settingsrw.logging.console.enabled = true;
     }
