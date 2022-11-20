@@ -82,6 +82,32 @@ impl PrivateRoute {
             }),
         }
     }
+
+    /// Remove the first unencrypted hop if possible
+    pub fn pop_first_hop(&mut self) -> Option<RouteNode> {
+        match &mut self.hops {
+            PrivateRouteHops::FirstHop(first_hop) => {
+                let first_hop_node = first_hop.node.clone();
+
+                // Reduce hop count
+                if self.hop_count > 0 {
+                    self.hop_count -= 1;
+                } else {
+                    error!("hop count should not be 0 for first hop");
+                }
+
+                // Go to next hop
+                self.hops = match first_hop.next_hop.take() {
+                    Some(rhd) => PrivateRouteHops::Data(rhd),
+                    None => PrivateRouteHops::Empty,
+                };
+
+                return Some(first_hop_node);
+            }
+            PrivateRouteHops::Data(_) => return None,
+            PrivateRouteHops::Empty => return None,
+        }
+    }
 }
 
 impl fmt::Display for PrivateRoute {
@@ -123,6 +149,7 @@ pub struct SafetyRoute {
 
 impl SafetyRoute {
     pub fn new_stub(public_key: DHTKey, private_route: PrivateRoute) -> Self {
+        assert!(matches!(private_route.hops, PrivateRouteHops::Data(_)));
         Self {
             public_key,
             hop_count: 0,

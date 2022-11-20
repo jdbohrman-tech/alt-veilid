@@ -456,6 +456,11 @@ impl RouteSpecStore {
             bail!("Not allocating route longer than max route hop count");
         }
 
+        // Get relay node id if we have one
+        let opt_relay_id = rti
+            .relay_node(RoutingDomain::PublicInternet)
+            .map(|nr| nr.node_id());
+
         // Get list of all nodes, and sort them for selection
         let cur_ts = intf::get_timestamp();
         let filter = Box::new(
@@ -465,6 +470,13 @@ impl RouteSpecStore {
                     return false;
                 }
                 let v = v.unwrap();
+
+                // Exclude our relay if we have one
+                if let Some(relay_id) = opt_relay_id {
+                    if k == relay_id {
+                        return false;
+                    }
+                }
 
                 // Exclude nodes on our local network
                 let on_local_network = v.with(rti, |_rti, e| {
@@ -714,7 +726,8 @@ impl RouteSpecStore {
             return Ok(None);
         }
         // Validate signatures to ensure the route was handled by the nodes and not messed with
-        for (hop_n, hop_public_key) in rsd.hops.iter().enumerate() {
+        // This is in private route (reverse) order as we are receiving over the route
+        for (hop_n, hop_public_key) in rsd.hops.iter().rev().enumerate() {
             // The last hop is not signed, as the whole packet is signed
             if hop_n == signatures.len() {
                 // Verify the node we received the routed operation from is the last hop in our route
@@ -843,7 +856,7 @@ impl RouteSpecStore {
     pub fn compile_safety_route(
         &self,
         safety_selection: SafetySelection,
-        private_route: PrivateRoute,
+        mut private_route: PrivateRoute,
     ) -> EyreResult<Option<CompiledRoute>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
@@ -854,15 +867,17 @@ impl RouteSpecStore {
         if pr_hopcount > max_route_hop_count {
             bail!("private route hop count too long");
         }
-        let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
-            bail!("compiled private route should have first hop");
-        };
-
         // See if we are using a safety route, if not, short circuit this operation
         let safety_spec = match safety_selection {
+            // Safety route spec to use
+            SafetySelection::Safe(safety_spec) => safety_spec,
+            // Safety route stub with the node's public key as the safety route key since it's the 0th hop
             SafetySelection::Unsafe(sequencing) => {
-                // Safety route stub with the node's public key as the safety route key since it's the 0th hop
-                let opt_first_hop = match &pr_first_hop.node {
+                let Some(pr_first_hop_node) = private_route.pop_first_hop() else {
+                    bail!("compiled private route should have first hop");
+                };
+
+                let opt_first_hop = match pr_first_hop_node {
                     RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table.clone(), id.key),
                     RouteNode::PeerInfo(pi) => rti.register_node_with_signed_node_info(
                         routing_table.clone(),
@@ -889,7 +904,10 @@ impl RouteSpecStore {
                     first_hop,
                 }));
             }
-            SafetySelection::Safe(safety_spec) => safety_spec,
+        };
+
+        let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
+            bail!("compiled private route should have first hop");
         };
 
         // Get the safety route to use from the spec
@@ -930,6 +948,7 @@ impl RouteSpecStore {
             // Each loop mutates 'nonce', and 'blob_data'
             let mut nonce = Crypto::get_random_nonce();
             let crypto = routing_table.network_manager().crypto();
+            // Forward order (safety route), but inside-out
             for h in (1..safety_rsd.hops.len()).rev() {
                 // Get blob to encrypt for next hop
                 blob_data = {
@@ -1132,7 +1151,8 @@ impl RouteSpecStore {
         let crypto = routing_table.network_manager().crypto();
         // Loop for each hop
         let hop_count = rsd.hops.len();
-        for h in (0..hop_count).rev() {
+        // iterate hops in private route order (reverse, but inside out)
+        for h in 0..hop_count {
             let nonce = Crypto::get_random_nonce();
 
             let blob_data = {
@@ -1178,7 +1198,8 @@ impl RouteSpecStore {
 
         let private_route = PrivateRoute {
             public_key: key.clone(),
-            hop_count: hop_count.try_into().unwrap(),
+            // add hop for 'FirstHop'
+            hop_count: (hop_count + 1).try_into().unwrap(),
             hops: PrivateRouteHops::FirstHop(route_hop),
         };
         Ok(private_route)

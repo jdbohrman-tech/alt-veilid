@@ -138,11 +138,11 @@ pub async fn test_key_conversions() {
 
     // Assert string roundtrip
     assert_eq!(String::from(&dht_key2_back), dht_key2_string);
-    assert!(key::DHTKey::try_from("") == Ok(key::DHTKey::default()));
-    assert!(key::DHTKeySecret::try_from("") == Ok(key::DHTKeySecret::default()));
     // These conversions should fail
     assert!(key::DHTKey::try_from("whatever").is_err());
     assert!(key::DHTKeySecret::try_from("whatever").is_err());
+    assert!(key::DHTKey::try_from("").is_err());
+    assert!(key::DHTKeySecret::try_from("").is_err());
     assert!(key::DHTKey::try_from(" ").is_err());
     assert!(key::DHTKeySecret::try_from(" ").is_err());
     assert!(key::DHTKey::try_from(

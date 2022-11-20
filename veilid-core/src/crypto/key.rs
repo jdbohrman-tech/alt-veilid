@@ -175,7 +175,8 @@ macro_rules! byte_array_type {
 
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{}", String::from(self))
+                //write!(f, "{}", String::from(self))
+                write!(f, "{}", self.encode())
             }
         }
 
@@ -189,12 +190,13 @@ macro_rules! byte_array_type {
 
         impl From<&$name> for String {
             fn from(value: &$name) -> Self {
-                let mut s = String::new();
-                for n in 0..($size / 8) {
-                    let b: [u8; 8] = value.bytes[n * 8..(n + 1) * 8].try_into().unwrap();
-                    s.push_str(hex::encode(b).as_str());
-                }
-                s
+                // let mut s = String::new();
+                // for n in 0..($size / 8) {
+                //     let b: [u8; 8] = value.bytes[n * 8..(n + 1) * 8].try_into().unwrap();
+                //     s.push_str(hex::encode(b).as_str());
+                // }
+                // s
+                value.encode()
             }
         }
 
@@ -208,17 +210,18 @@ macro_rules! byte_array_type {
         impl TryFrom<&str> for $name {
             type Error = VeilidAPIError;
             fn try_from(value: &str) -> Result<Self, Self::Error> {
-                let mut out = $name::default();
-                if value == "" {
-                    return Ok(out);
-                }
-                if value.len() != ($size * 2) {
-                    apibail_generic!(concat!(stringify!($name), " is incorrect length"));
-                }
-                match hex::decode_to_slice(value, &mut out.bytes) {
-                    Ok(_) => Ok(out),
-                    Err(err) => Err(VeilidAPIError::generic(err)),
-                }
+                // let mut out = $name::default();
+                // if value == "" {
+                //     return Ok(out);
+                // }
+                // if value.len() != ($size * 2) {
+                //     apibail_generic!(concat!(stringify!($name), " is incorrect length"));
+                // }
+                // match hex::decode_to_slice(value, &mut out.bytes) {
+                //     Ok(_) => Ok(out),
+                //     Err(err) => Err(VeilidAPIError::generic(err)),
+                // }
+                Self::try_decode(value)
             }
         }
     };

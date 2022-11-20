@@ -110,16 +110,6 @@ impl RPCProcessor {
             }
         }?;
 
-        if !matches!(next_private_route.hops, PrivateRouteHops::Empty) {
-            // Sign the operation if this is not our last hop
-            // as the last hop is already signed by the envelope
-            let node_id = self.routing_table.node_id();
-            let node_id_secret = self.routing_table.node_id_secret();
-            let sig = sign(&node_id, &node_id_secret, &routed_operation.data)
-                .map_err(RPCError::internal)?;
-            routed_operation.signatures.push(sig);
-        }
-
         // Pass along the route
         let next_hop_route = RPCOperationRoute {
             safety_route: SafetyRoute {
@@ -313,7 +303,7 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let route = match msg.operation.into_kind() {
+        let mut route = match msg.operation.into_kind() {
             RPCOperationKind::Statement(s) => match s.into_detail() {
                 RPCStatementDetail::Route(s) => s,
                 _ => panic!("not a route statement"),
@@ -333,25 +323,24 @@ impl RPCProcessor {
         match route.safety_route.hops {
             // There is a safety route hop
             SafetyRouteHops::Data(ref d) => {
-                // See if this is last hop in safety route, if so, we're decoding a PrivateRoute not a RouteHop
-                let (blob_tag, blob_data) = if let Some(b) = d.blob.last() {
-                    (*b, &d.blob[0..d.blob.len() - 1])
-                } else {
-                    return Err(RPCError::protocol("no bytes in blob"));
-                };
-
                 // Decrypt the blob with DEC(nonce, DH(the SR's public key, this hop's secret)
                 let node_id_secret = self.routing_table.node_id_secret();
                 let dh_secret = self
                     .crypto
                     .cached_dh(&route.safety_route.public_key, &node_id_secret)
                     .map_err(RPCError::protocol)?;
-                let dec_blob_data = Crypto::decrypt_aead(blob_data, &d.nonce, &dh_secret, None)
+                let mut dec_blob_data = Crypto::decrypt_aead(&d.blob, &d.nonce, &dh_secret, None)
                     .map_err(RPCError::protocol)?;
+
+                // See if this is last hop in safety route, if so, we're decoding a PrivateRoute not a RouteHop
+                let Some(dec_blob_tag) = dec_blob_data.pop() else {
+                    return Err(RPCError::protocol("no bytes in blob"));
+                };
+
                 let dec_blob_reader = RPCMessageData::new(dec_blob_data).get_reader()?;
 
                 // Decode the blob appropriately
-                if blob_tag == 1 {
+                if dec_blob_tag == 1 {
                     // PrivateRoute
                     let private_route = {
                         let pr_reader = dec_blob_reader
@@ -367,7 +356,7 @@ impl RPCProcessor {
                         &private_route,
                     )
                     .await?;
-                } else if blob_tag == 0 {
+                } else if dec_blob_tag == 0 {
                     // RouteHop
                     let route_hop = {
                         let rh_reader = dec_blob_reader
@@ -423,6 +412,16 @@ impl RPCProcessor {
                         // Ensure hop count > 0
                         if private_route.hop_count == 0 {
                             return Err(RPCError::protocol("route should not be at the end"));
+                        }
+
+                        // Sign the operation if this is not our last hop
+                        // as the last hop is already signed by the envelope
+                        if route_hop.next_hop.is_some() {
+                            let node_id = self.routing_table.node_id();
+                            let node_id_secret = self.routing_table.node_id_secret();
+                            let sig = sign(&node_id, &node_id_secret, &route.operation.data)
+                                .map_err(RPCError::internal)?;
+                            route.operation.signatures.push(sig);
                         }
 
                         // Make next PrivateRoute and pass it on
