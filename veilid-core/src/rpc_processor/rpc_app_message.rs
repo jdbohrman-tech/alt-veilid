@@ -18,8 +18,11 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    pub(crate) async fn process_app_message(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    pub(crate) async fn process_app_message(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Get the statement
         let app_message = match msg.operation.into_kind() {
             RPCOperationKind::Statement(s) => match s.into_detail() {
@@ -37,6 +40,6 @@ impl RPCProcessor {
             message,
         }));
 
-        Ok(())
+        Ok(NetworkResult::value(()))
     }
 }

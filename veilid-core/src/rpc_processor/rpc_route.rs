@@ -1,12 +1,14 @@
 use super::*;
 
+xxx go through and convert errs to networkresult
+
 impl RPCProcessor {
     #[instrument(level = "trace", skip_all, err)]
     async fn process_route_safety_route_hop(
         &self,
         route: RPCOperationRoute,
         route_hop: RouteHop,
-    ) -> Result<(), RPCError> {
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Make sure hop count makes sense
         if route.safety_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
             return Err(RPCError::protocol(
@@ -72,11 +74,11 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip_all, err)]
     async fn process_route_private_route_hop(
         &self,
-        mut routed_operation: RoutedOperation,
+        routed_operation: RoutedOperation,
         next_route_node: RouteNode,
         safety_route_public_key: DHTKey,
         next_private_route: PrivateRoute,
-    ) -> Result<(), RPCError> {
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Make sure hop count makes sense
         if next_private_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
             return Err(RPCError::protocol(
@@ -143,7 +145,7 @@ impl RPCProcessor {
         detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
         safety_route: &SafetyRoute,
-    ) -> Result<(), RPCError> {
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Get sequencing preference
         let sequencing = if detail
             .connection_descriptor
@@ -187,7 +189,7 @@ impl RPCProcessor {
         routed_operation: RoutedOperation,
         safety_route: &SafetyRoute,
         private_route: &PrivateRoute,
-    ) -> Result<(), RPCError> {
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Get sender id
         let sender_id = detail.envelope.get_sender_id();
 
@@ -233,7 +235,7 @@ impl RPCProcessor {
         routed_operation: RoutedOperation,
         safety_route: &SafetyRoute,
         private_route: &PrivateRoute,
-    ) -> Result<(), RPCError> {
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Make sure hop count makes sense
         if safety_route.hop_count != 0 {
             return Err(RPCError::protocol(
@@ -267,7 +269,7 @@ impl RPCProcessor {
         operation: RoutedOperation,
         sr_pubkey: DHTKey,
         private_route: &PrivateRoute,
-    ) -> Result<(), RPCError> {
+    ) -> Result<NetworkResult<()>, RPCError> {
         let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
             return Err(RPCError::protocol("switching from safety route to private route requires first hop"));
         };
@@ -290,13 +292,16 @@ impl RPCProcessor {
         .await
     }
 
-    #[instrument(level = "trace", skip(self, msg), err)]
-    pub(crate) async fn process_route(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), ret, err)]
+    pub(crate) async fn process_route(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Get header detail, must be direct and not inside a route itself
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
-                return Err(RPCError::protocol(
+                return Ok(NetworkResult::invalid_message(
                     "route operation can not be inside route",
                 ))
             }
@@ -314,7 +319,7 @@ impl RPCProcessor {
         // Process routed operation version
         // xxx switch this to a Crypto trait factory method per issue#140
         if route.operation.version != MAX_CRYPTO_VERSION {
-            return Err(RPCError::protocol(
+            return Ok(NetworkResult::invalid_message(
                 "routes operation crypto is not valid version",
             ));
         }
@@ -334,7 +339,7 @@ impl RPCProcessor {
 
                 // See if this is last hop in safety route, if so, we're decoding a PrivateRoute not a RouteHop
                 let Some(dec_blob_tag) = dec_blob_data.pop() else {
-                    return Err(RPCError::protocol("no bytes in blob"));
+                    return Ok(NetworkResult::invalid_message("no bytes in blob"));
                 };
 
                 let dec_blob_reader = RPCMessageData::new(dec_blob_data).get_reader()?;
@@ -369,7 +374,7 @@ impl RPCProcessor {
                     self.process_route_safety_route_hop(route, route_hop)
                         .await?;
                 } else {
-                    return Err(RPCError::protocol("invalid blob tag"));
+                    return Ok(NetworkResult::invalid_message("invalid blob tag"));
                 }
             }
             // No safety route left, now doing private route
@@ -411,7 +416,9 @@ impl RPCProcessor {
 
                         // Ensure hop count > 0
                         if private_route.hop_count == 0 {
-                            return Err(RPCError::protocol("route should not be at the end"));
+                            return Ok(NetworkResult::invalid_message(
+                                "route should not be at the end",
+                            ));
                         }
 
                         // Sign the operation if this is not our last hop
@@ -443,7 +450,9 @@ impl RPCProcessor {
                     PrivateRouteHops::Empty => {
                         // Ensure hop count == 0
                         if private_route.hop_count != 0 {
-                            return Err(RPCError::protocol("route should be at the end"));
+                            return Ok(NetworkResult::invalid_message(
+                                "route should be at the end",
+                            ));
                         }
 
                         // No hops left, time to process the routed operation
@@ -458,6 +467,6 @@ impl RPCProcessor {
             }
         }
 
-        Ok(())
+        Ok(NetworkResult::value(()))
     }
 }

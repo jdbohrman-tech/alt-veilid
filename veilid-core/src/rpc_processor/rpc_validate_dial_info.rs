@@ -54,12 +54,17 @@ impl RPCProcessor {
         }
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    pub(crate) async fn process_validate_dial_info(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
-                return Err(RPCError::protocol("validate_dial_info must be direct"));
+                return Ok(NetworkResult::invalid_message(
+                    "validate_dial_info must be direct",
+                ));
             }
         };
 
@@ -117,7 +122,7 @@ impl RPCProcessor {
             // Find nodes matching filter to redirect this to
             let peers = routing_table.find_fast_public_nodes_filtered(node_count, filters);
             if peers.is_empty() {
-                return Err(RPCError::internal(format!(
+                return Ok(NetworkResult::no_connection_other(format!(
                     "no peers able to reach dialinfo '{:?}'",
                     dial_info
                 )));
@@ -139,13 +144,17 @@ impl RPCProcessor {
 
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info
-                network_result_value_or_log!(debug self.statement(Destination::direct(peer), statement)
+                let res = network_result_value_or_log!(debug self.statement(Destination::direct(peer), statement)
                     .await? => {
-                        return Ok(());
+                        continue;
                     }
                 );
+                return Ok(NetworkResult::value(()));
             }
-            return Ok(());
+
+            return Ok(NetworkResult::no_connection_other(
+                "could not redirect, no peers were reachable",
+            ));
         };
 
         // Otherwise send a return receipt directly
@@ -156,6 +165,6 @@ impl RPCProcessor {
             .await
             .map_err(RPCError::network)?;
 
-        Ok(())
+        Ok(NetworkResult::value(()))
     }
 }

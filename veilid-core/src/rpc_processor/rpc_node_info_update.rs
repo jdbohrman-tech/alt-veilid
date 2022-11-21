@@ -30,12 +30,17 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    pub(crate) async fn process_node_info_update(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    pub(crate) async fn process_node_info_update(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
-                return Err(RPCError::protocol("node_info_update must be direct"));
+                return Ok(NetworkResult::invalid_message(
+                    "node_info_update must be direct",
+                ));
             }
         };
         let sender_node_id = detail.envelope.get_sender_id();
@@ -52,8 +57,10 @@ impl RPCProcessor {
 
         // Update our routing table with signed node info
         if !self.filter_node_info(routing_domain, &node_info_update.signed_node_info) {
-            log_rpc!(debug "node info doesn't belong in {:?} routing domain: {}", routing_domain, sender_node_id);
-            return Ok(());
+            return Ok(NetworkResult::invalid_message(format!(
+                "node info doesn't belong in {:?} routing domain: {}",
+                routing_domain, sender_node_id
+            )));
         }
 
         self.routing_table().register_node_with_signed_node_info(
@@ -63,6 +70,6 @@ impl RPCProcessor {
             false,
         );
 
-        Ok(())
+        Ok(NetworkResult::value(()))
     }
 }

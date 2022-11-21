@@ -39,8 +39,11 @@ impl RPCProcessor {
         )))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    pub(crate) async fn process_app_call_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    pub(crate) async fn process_app_call_q(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Get the question
         let app_call_q = match msg.operation.kind() {
             RPCOperationKind::Question(q) => match q.detail() {
@@ -76,7 +79,7 @@ impl RPCProcessor {
             TimeoutOr::Timeout => {
                 // No message sent on timeout, but this isn't an error
                 log_rpc!(debug "App call timed out for id {}", id);
-                return Ok(());
+                return Ok(NetworkResult::timeout());
             }
             TimeoutOr::Value(v) => v,
         };
@@ -89,7 +92,7 @@ impl RPCProcessor {
             .answer(msg, RPCAnswer::new(RPCAnswerDetail::AppCallA(app_call_a)))
             .await?;
         tracing::Span::current().record("res", &tracing::field::display(res));
-        Ok(())
+        Ok(res)
     }
 
     /// Exposed to API for apps to return app call answers

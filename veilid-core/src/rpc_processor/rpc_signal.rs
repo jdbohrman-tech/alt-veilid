@@ -31,14 +31,17 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    pub(crate) async fn process_signal(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    pub(crate) async fn process_signal(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Can't allow anything other than direct packets here, as handling reverse connections
         // or anything like via signals over private routes would deanonymize the route
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) => {}
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
-                return Err(RPCError::protocol("signal must be direct"));
+                return Ok(NetworkResult::invalid_message("signal must be direct"));
             }
         };
 
@@ -53,14 +56,11 @@ impl RPCProcessor {
 
         // Handle it
         let network_manager = self.network_manager();
-        network_result_value_or_log!(debug network_manager
+        let res = network_manager
             .handle_signal(signal.signal_info)
             .await
-            .map_err(RPCError::network)? => {
-                return Ok(());
-            }
-        );
+            .map_err(RPCError::network)?;
 
-        Ok(())
+        Ok(res)
     }
 }

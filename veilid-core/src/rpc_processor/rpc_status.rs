@@ -179,8 +179,11 @@ impl RPCProcessor {
         Ok(NetworkResult::value(Answer::new(latency, opt_sender_info)))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), err)]
-    pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), ret, err)]
+    pub(crate) async fn process_status_q(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Get the question
         let status_q = match msg.operation.kind() {
             RPCOperationKind::Question(q) => match q.detail() {
@@ -200,14 +203,16 @@ impl RPCProcessor {
                     match routing_domain {
                         RoutingDomain::PublicInternet => {
                             if !matches!(node_status, NodeStatus::PublicInternet(_)) {
-                                log_rpc!(debug "node status doesn't match PublicInternet routing domain");
-                                return Ok(());
+                                return Ok(NetworkResult::invalid_message(
+                                    "node status doesn't match PublicInternet routing domain",
+                                ));
                             }
                         }
                         RoutingDomain::LocalNetwork => {
                             if !matches!(node_status, NodeStatus::LocalNetwork(_)) {
-                                log_rpc!(debug "node status doesn't match LocalNetwork routing domain");
-                                return Ok(());
+                                return Ok(NetworkResult::invalid_message(
+                                    "node status doesn't match LocalNetwork routing domain",
+                                ));
                             }
                         }
                     }
@@ -249,6 +254,6 @@ impl RPCProcessor {
             .answer(msg, RPCAnswer::new(RPCAnswerDetail::StatusA(status_a)))
             .await?;
         tracing::Span::current().record("res", &tracing::field::display(res));
-        Ok(())
+        Ok(res)
     }
 }

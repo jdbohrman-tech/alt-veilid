@@ -846,7 +846,10 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
     #[instrument(level = "trace", skip(self, encoded_msg), err)]
-    async fn process_rpc_message(&self, encoded_msg: RPCMessageEncoded) -> Result<(), RPCError> {
+    async fn process_rpc_message(
+        &self,
+        encoded_msg: RPCMessageEncoded,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Decode operation appropriately based on header detail
         let msg = match &encoded_msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
@@ -990,11 +993,19 @@ impl RPCProcessor {
             let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
             // xxx: causes crash (Missing otel data span extensions)
             // rpc_worker_span.follows_from(span_id);
-            let _ = self
+            let res = match self
                 .process_rpc_message(msg)
                 .instrument(rpc_worker_span)
                 .await
-                .map_err(logthru_rpc!("couldn't process rpc message"));
+            {
+                Err(e) => {
+                    log_rpc!(error "couldn't process rpc message: {}", e);
+                    continue;
+                }
+
+                Ok(v) => v,
+            };
+            network_result_value_or_log!(debug res => {});
         }
     }
 

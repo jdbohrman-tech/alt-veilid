@@ -66,13 +66,16 @@ impl RPCProcessor {
         )))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), err)]
-    pub(crate) async fn process_find_node_q(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), ret, err)]
+    pub(crate) async fn process_find_node_q(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
             RPCMessageHeaderDetail::PrivateRouted(_) => {
-                return Err(RPCError::protocol(
+                return Ok(NetworkResult::invalid_message(
                     "not processing find node request over private route",
                 ))
             }
@@ -130,6 +133,6 @@ impl RPCProcessor {
             .answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))
             .await?;
         tracing::Span::current().record("res", &tracing::field::display(res));
-        Ok(())
+        Ok(res)
     }
 }
