@@ -3,6 +3,10 @@ use futures_util::stream::FuturesUnordered;
 use futures_util::FutureExt;
 use stop_token::future::FutureExt as StopTokenFutureExt;
 
+const PORT_MAP_VALIDATE_TRY_COUNT: usize = 3;
+const PORT_MAP_VALIDATE_DELAY_MS: u32 = 500;
+const PORT_MAP_TRY_COUNT: usize = 3;
+
 struct DetectedPublicDialInfo {
     dial_info: DialInfo,
     class: DialInfoClass,
@@ -221,6 +225,84 @@ impl DiscoveryContext {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
+    async fn try_upnp_port_mapping(&self) -> Option<DialInfo> {
+        let (pt, llpt, at, external_address_1, node_1, local_port) = {
+            let inner = self.inner.lock();
+            let pt = inner.protocol_type.unwrap();
+            let llpt = pt.low_level_protocol_type();
+            let at = inner.address_type.unwrap();
+            let external_address_1 = inner.external_1_address.unwrap();
+            let node_1 = inner.node_1.as_ref().unwrap().clone();
+            let local_port = self.net.get_local_port(pt);
+            (pt, llpt, at, external_address_1, node_1, local_port)
+        };
+
+        let mut tries = 0;
+        loop {
+            tries += 1;
+
+            // Attempt a port mapping. If this doesn't succeed, it's not going to
+            let Some(mapped_external_address) = self
+                .net
+                .unlocked_inner
+                .igd_manager
+                .map_any_port(llpt, at, local_port, Some(external_address_1.to_ip_addr()))
+                .await else
+            {
+                return None;
+            };
+
+            // Make dial info from the port mapping
+            let external_mapped_dial_info =
+                self.make_dial_info(SocketAddress::from_socket_addr(mapped_external_address), pt);
+
+            // Attempt to validate the port mapping
+            let mut validate_tries = 0;
+            loop {
+                validate_tries += 1;
+
+                // Ensure people can reach us. If we're firewalled off, this is useless
+                if self
+                    .validate_dial_info(node_1.clone(), external_mapped_dial_info.clone(), false)
+                    .await
+                {
+                    return Some(external_mapped_dial_info);
+                }
+
+                if validate_tries == PORT_MAP_VALIDATE_TRY_COUNT {
+                    log_net!(debug "UPNP port mapping succeeded but port {}/{} is still unreachable.\nretrying\n",
+                    local_port, match llpt {
+                        LowLevelProtocolType::UDP => "udp",
+                        LowLevelProtocolType::TCP => "tcp",
+                    });
+                    intf::sleep(PORT_MAP_VALIDATE_DELAY_MS).await
+                } else {
+                    break;
+                }
+            }
+
+            // Release the mapping if we're still unreachable
+            let _ = self
+                .net
+                .unlocked_inner
+                .igd_manager
+                .unmap_port(llpt, at, external_address_1.port())
+                .await;
+
+            if tries == PORT_MAP_TRY_COUNT {
+                warn!("UPNP port mapping succeeded but port {}/{} is still unreachable.\nYou may need to add a local firewall allowed port on this machine.\n",
+                    local_port, match llpt {
+                        LowLevelProtocolType::UDP => "udp",
+                        LowLevelProtocolType::TCP => "tcp",
+                    }
+                );
+                break;
+            }
+        }
+        None
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
     async fn try_port_mapping(&self) -> Option<DialInfo> {
         let (enable_upnp, _enable_natpmp) = {
             let c = self.net.config.get();
@@ -228,51 +310,7 @@ impl DiscoveryContext {
         };
 
         if enable_upnp {
-            let (pt, llpt, at, external_address_1, node_1, local_port) = {
-                let inner = self.inner.lock();
-                let pt = inner.protocol_type.unwrap();
-                let llpt = pt.low_level_protocol_type();
-                let at = inner.address_type.unwrap();
-                let external_address_1 = inner.external_1_address.unwrap();
-                let node_1 = inner.node_1.as_ref().unwrap().clone();
-                let local_port = self.net.get_local_port(pt);
-                (pt, llpt, at, external_address_1, node_1, local_port)
-            };
-
-            if let Some(mapped_external_address) = self
-                .net
-                .unlocked_inner
-                .igd_manager
-                .map_any_port(llpt, at, local_port, Some(external_address_1.to_ip_addr()))
-                .await
-            {
-                // make dial info from the port mapping
-                let external_mapped_dial_info = self
-                    .make_dial_info(SocketAddress::from_socket_addr(mapped_external_address), pt);
-
-                // ensure people can reach us. if we're firewalled off, this is useless
-                if self
-                    .validate_dial_info(node_1.clone(), external_mapped_dial_info.clone(), false)
-                    .await
-                {
-                    return Some(external_mapped_dial_info);
-                } else {
-                    warn!("UPNP port mapping succeeded but port {}/{} is still unreachable.\nYou may need to add a local firewall allowed port on this machine.\n",
-                        local_port, match llpt {
-                            LowLevelProtocolType::UDP => "udp",
-                            LowLevelProtocolType::TCP => "tcp",
-                        }
-                    );
-
-                    // release the mapping if we're still unreachable
-                    let _ = self
-                        .net
-                        .unlocked_inner
-                        .igd_manager
-                        .unmap_port(llpt, at, external_address_1.port())
-                        .await;
-                }
-            }
+            return self.try_upnp_port_mapping().await;
         }
 
         None
