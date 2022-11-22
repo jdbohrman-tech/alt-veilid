@@ -7,7 +7,6 @@ use cursive::event::*;
 use cursive::theme::*;
 use cursive::traits::*;
 use cursive::utils::markup::StyledString;
-use cursive::view::ScrollStrategy;
 use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
