@@ -162,6 +162,7 @@ where
 
 #[derive(Debug)]
 struct WaitableReply {
+    dest: Destination,
     handle: OperationWaitHandle<RPCMessage>,
     timeout: u64,
     node_ref: NodeRef,
@@ -441,7 +442,27 @@ impl RPCProcessor {
                     waitable_reply.send_ts,
                     recv_ts,
                     rpcreader.header.body_len,
-                )
+                );
+                // Process private route replies
+                if let Destination::PrivateRoute {
+                    private_route,
+                    safety_selection,
+                } = &waitable_reply.dest
+                {
+                    let rss = self.routing_table.route_spec_store();
+
+                    // If we received a reply from a private route, mark it as such
+                    rss.mark_remote_private_route_replied(&private_route.public_key, recv_ts);
+
+                    // If we sent to a private route without a safety route
+                    // We need to mark our own node info as having been seen so we can optimize sending it
+                    if let SafetySelection::Unsafe(_) = safety_selection {
+                        rss.mark_remote_private_route_seen_our_node_info(
+                            &private_route.public_key,
+                            recv_ts,
+                        );
+                    }
+                }
             }
         };
 
@@ -702,7 +723,7 @@ impl RPCProcessor {
             node_id,
             node_ref,
             hop_count,
-        } = network_result_try!(self.render_operation(dest, &operation)?);
+        } = network_result_try!(self.render_operation(dest.clone(), &operation)?);
 
         // Calculate answer timeout
         // Timeout is number of hops times the timeout per hop
@@ -733,8 +754,19 @@ impl RPCProcessor {
         // Successfully sent
         node_ref.stats_question_sent(send_ts, bytes, true);
 
+        // Private route stats
+        if let Destination::PrivateRoute {
+            private_route,
+            safety_selection: _,
+        } = &dest
+        {
+            let rss = self.routing_table.route_spec_store();
+            rss.mark_remote_private_route_used(&private_route.public_key, intf::get_timestamp());
+        }
+
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
+            dest,
             handle,
             timeout,
             node_ref,

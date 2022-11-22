@@ -85,8 +85,11 @@ pub struct BucketEntryInner {
     /// The minimum and maximum range of cryptography versions supported by the node,
     /// inclusive of the requirements of any relay the node may be using
     min_max_version: Option<VersionRange>,
-    /// Whether or not we have updated this peer with our node info since our network
+    /// If this node has updated it's SignedNodeInfo since our network
     /// and dial info has last changed, for example when our IP address changes
+    /// Used to determine if we should make this entry 'live' again when we receive a signednodeinfo update that
+    /// has the same timestamp, because if we change our own IP address or network class it may be possible for nodes that were
+    /// unreachable may now be reachable with the same SignedNodeInfo/DialInfo
     updated_since_last_network_change: bool,
     /// The last connection descriptors used to contact this node, per protocol type
     #[with(Skip)]

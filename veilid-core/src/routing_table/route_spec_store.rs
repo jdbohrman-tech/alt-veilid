@@ -1268,35 +1268,32 @@ impl RouteSpecStore {
             .unwrap_or_default()
     }
 
-    /// Mark a remote private route as having seen our node info {
-    pub fn mark_remote_private_route_seen_our_node_info(&self, key: &DHTKey) {
+    /// Mark a remote private route as having seen our node info
+    pub fn mark_remote_private_route_seen_our_node_info(&self, key: &DHTKey, cur_ts: u64) {
         let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
         Self::with_create_remote_private_route(inner, cur_ts, key, |rpr| {
             rpr.seen_our_node_info = true;
         })
     }
 
     /// Mark a remote private route as having replied to a question {
-    pub fn mark_remote_private_route_replied(&self, key: &DHTKey) {
+    pub fn mark_remote_private_route_replied(&self, key: &DHTKey, cur_ts: u64) {
         let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
         Self::with_create_remote_private_route(inner, cur_ts, key, |rpr| {
             rpr.last_replied_ts = Some(cur_ts);
         })
     }
 
     /// Mark a remote private route as having beed used {
-    pub fn mark_remote_private_route_used(&self, key: &DHTKey) {
+    pub fn mark_remote_private_route_used(&self, key: &DHTKey, cur_ts: u64) {
         let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
         Self::with_create_remote_private_route(inner, cur_ts, key, |rpr| {
             rpr.last_used_ts = Some(cur_ts);
         })
     }
 
     /// Clear caches when local our local node info changes
-    pub fn local_node_info_changed(&self) {
+    pub fn reset(&self) {
         let inner = &mut *self.inner.lock();
 
         // Clean up local allocated routes

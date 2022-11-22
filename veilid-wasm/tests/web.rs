@@ -46,7 +46,7 @@ fn init_callbacks() {
             case "network.rpc.max_timestamp_ahead": return 10000000;
             case "network.rpc.timeout": return 10000000;
             case "network.rpc.max_route_hop_count": return 4;
-            case "network.rpc.default_route_hop_count": return 2;
+            case "network.rpc.default_route_hop_count": return 1;
             case "network.dht.resolve_node_timeout": return null;
             case "network.dht.resolve_node_count": return 20;
             case "network.dht.resolve_node_fanout": return 3;

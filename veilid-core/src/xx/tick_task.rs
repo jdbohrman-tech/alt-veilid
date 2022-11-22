@@ -83,7 +83,8 @@ impl<E: Send + 'static> TickTask<E> {
         let now = intf::get_timestamp();
         let last_timestamp_us = self.last_timestamp_us.load(Ordering::Acquire);
 
-        if last_timestamp_us != 0u64 && (now - last_timestamp_us) < self.tick_period_us {
+        if last_timestamp_us != 0u64 && now.saturating_sub(last_timestamp_us) < self.tick_period_us
+        {
             // It's not time yet
             return Ok(());
         }

@@ -84,7 +84,7 @@ core:
             max_timestamp_ahead_ms: 10000
             timeout_ms: 10000
             max_route_hop_count: 4
-            default_route_hop_count: 2
+            default_route_hop_count: 1
         dht:
             resolve_node_timeout:
             resolve_node_count: 20
@@ -1510,7 +1510,7 @@ mod tests {
         assert_eq!(s.core.network.rpc.max_timestamp_ahead_ms, Some(10_000u32));
         assert_eq!(s.core.network.rpc.timeout_ms, 10_000u32);
         assert_eq!(s.core.network.rpc.max_route_hop_count, 4);
-        assert_eq!(s.core.network.rpc.default_route_hop_count, 2);
+        assert_eq!(s.core.network.rpc.default_route_hop_count, 1);
         //
         assert_eq!(s.core.network.dht.resolve_node_timeout_ms, None);
         assert_eq!(s.core.network.dht.resolve_node_count, 20u32);

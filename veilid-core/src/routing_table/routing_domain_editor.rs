@@ -194,14 +194,25 @@ impl RoutingDomainEditor {
                     }
                 }
                 if changed {
+                    // Clear our 'peer info' cache, the peerinfo for this routing domain will get regenerated next time it is asked for
                     detail.common_mut().clear_cache()
                 }
             });
             if changed {
+                // Mark that nothing in the routing table has seen our new node info
                 inner.reset_all_seen_our_node_info(self.routing_domain);
+                //
                 inner.reset_all_updated_since_last_network_change();
             }
         }
+        // Clear the routespecstore cache if our PublicInternet dial info has changed
+        if changed {
+            if self.routing_domain == RoutingDomain::PublicInternet {
+                let rss = self.routing_table.route_spec_store();
+                rss.reset();
+            }
+        }
+        // Send our updated node info to all the nodes in the routing table
         if changed && self.send_node_info_updates {
             let network_manager = self.routing_table.unlocked_inner.network_manager.clone();
             network_manager
