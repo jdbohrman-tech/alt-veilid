@@ -1,82 +1,17 @@
 variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-  BUILD_IMAGE_LINUX_AMD64: $CI_REGISTRY/veilid/ci-cd/veilid-build-linux-amd64:latest
+  NO_DOCKER: 1
+  FORCE_COLOR: 1
+  EARTHLY_EXEC_CMD: "/bin/sh"
 
-stages:
-  - clippy
-  - test
-  - build
 
-############# Clippy Lint
+before_script:
+  - earthly bootstrap
 
-clippy:
-  stage: clippy
-  image: ${BUILD_IMAGE_LINUX_AMD64}
-  cache:
-    key: $CI_COMMIT_REF_SLUG-linux-amd64
-    paths:
-      - target/
-  tags:
-    - linux
-    - amd64
-  script:
-    - cargo clippy
-  # Only run clippy on non-protected branches, for development
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - if: $CI_MERGE_REQUEST_IID
-      when: never
-    - if: $CI_COMMIT_REF_PROTECTED == "false"
-
-############# Unit Testing
-
-.test_rules_common:
-  # Only do tests for tags, protected branches, or merge requests
-  rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_MERGE_REQUEST_IID
-    - if: $CI_COMMIT_REF_PROTECTED == "true"
-
-test_linux_amd64:
-  stage: test
-  image: ${BUILD_IMAGE_LINUX_AMD64}
-  cache:
-    key: $CI_COMMIT_REF_SLUG-linux-amd64
-    paths:
-      - target/
-  tags:
-    - linux
-    - amd64
-  script:
-    - RUST_BACKTRACE=1 dbus-run-session -- cargo test -- --nocapture
-  rules:
-    - !reference [.test_rules_common, rules]
-
-############# Build
-
-.build_rules_common:
-  # Only build for tags or protected branches
-  rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_REF_PROTECTED == "true"
-
-build_linux_amd64:
+earthly:
   stage: build
-  image: ${BUILD_IMAGE_LINUX_AMD64}
-  cache:
-    key: $CI_COMMIT_REF_SLUG-linux-amd64
-    paths:
-      - target/
+  image: earthly/earthly:v0.6.30
   tags:
     - linux
     - amd64
   script:
-    - cargo build --release
-  artifacts:
-    name: $CI_COMMIT_REF_SLUG-linux-amd64
-    paths:
-      - target/release/veilid-cli
-      - target/release/veilid-server
-  rules:
-    - !reference [.build_rules_common, rules]
+    - earthly --ci -P +package-linux
