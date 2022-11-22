@@ -7,6 +7,7 @@ use cursive::event::*;
 use cursive::theme::*;
 use cursive::traits::*;
 use cursive::utils::markup::StyledString;
+use cursive::view::ScrollStrategy;
 use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
@@ -215,7 +216,13 @@ impl UI {
             UI::setup_quit_handler(s);
         });
     }
-
+    fn clear_handler(siv: &mut Cursive) {
+        cursive_flexi_logger_view::clear_log();
+        UI::update_cb(siv);
+    }
+    fn node_events(s: &mut Cursive) -> ViewRef<FlexiLoggerView> {
+        s.find_name("node-events").unwrap()
+    }
     fn node_events_panel(
         s: &mut Cursive,
     ) -> ViewRef<Panel<ResizedView<NamedView<ScrollView<FlexiLoggerView>>>>> {
@@ -737,8 +744,12 @@ impl UI {
         // Create layouts
 
         let node_events_view = Panel::new(
-            FlexiLoggerView::new_scrollable()
+            FlexiLoggerView::new()
                 .with_name("node-events")
+                .scrollable()
+                .scroll_x(true)
+                .scroll_y(true)
+                .scroll_strategy(ScrollStrategy::StickToBottom)
                 .full_screen(),
         )
         .title_position(HAlign::Left)
@@ -822,6 +833,7 @@ impl UI {
 
         UI::setup_colors(&mut siv, &mut inner, settings);
         UI::setup_quit_handler(&mut siv);
+        siv.set_global_callback(cursive::event::Event::Ctrl(Key::K), UI::clear_handler);
 
         drop(inner);
         drop(siv);

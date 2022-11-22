@@ -66,7 +66,7 @@ impl RPCProcessor {
         )))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id, res), ret, err)]
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_find_node_q(
         &self,
         msg: RPCMessage,
@@ -129,10 +129,7 @@ impl RPCProcessor {
         };
 
         // Send status answer
-        let res = self
-            .answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))
-            .await?;
-        tracing::Span::current().record("res", &tracing::field::display(res));
-        Ok(res)
+        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))
+            .await
     }
 }

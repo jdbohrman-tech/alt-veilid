@@ -6,7 +6,6 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
-        //        tracing::Span::current().record("res", &tracing::field::display(res));
         Err(RPCError::unimplemented("process_watch_value_q"))
     }
 }

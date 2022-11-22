@@ -304,23 +304,72 @@ macro_rules! network_result_try {
 }
 
 #[macro_export]
+macro_rules! log_network_result {
+    ($text:expr) => {
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                info!(target: "network_result", "{}", $text)
+            } else {
+                debug!(target: "network_result", "{}", $text)
+            }
+        }
+    };
+    ($fmt:literal, $($arg:expr),+) => {
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                info!(target: "network_result", $fmt, $($arg),+);
+            } else {
+                debug!(target: "network_result", $fmt, $($arg),+);
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! network_result_value_or_log {
     ($level: ident $r: expr => $f:tt) => {
         match $r {
             NetworkResult::Timeout => {
-                log_net!($level "{} at {}@{}:{}", "Timeout".green(), file!(), line!(), column!());
+                log_network_result!(
+                    "{} at {}@{}:{}",
+                    "Timeout".cyan(),
+                    file!(),
+                    line!(),
+                    column!()
+                );
                 $f
             }
             NetworkResult::NoConnection(e) => {
-                log_net!($level "{}({}) at {}@{}:{}", "No connection".green(), e.to_string(), file!(), line!(), column!());
+                log_network_result!(
+                    "{}({}) at {}@{}:{}",
+                    "No connection".cyan(),
+                    e.to_string(),
+                    file!(),
+                    line!(),
+                    column!()
+                );
                 $f
             }
             NetworkResult::AlreadyExists(e) => {
-                log_net!($level "{}({}) at {}@{}:{}", "Already exists".green(), e.to_string(), file!(), line!(), column!());
+                log_network_result!(
+                    "{}({}) at {}@{}:{}",
+                    "Already exists".cyan(),
+                    e.to_string(),
+                    file!(),
+                    line!(),
+                    column!()
+                );
                 $f
             }
             NetworkResult::InvalidMessage(s) => {
-                log_net!($level "{}({}) at {}@{}:{}", "Invalid message".green(), s, file!(), line!(), column!());
+                log_network_result!(
+                    "{}({}) at {}@{}:{}",
+                    "Invalid message".cyan(),
+                    s,
+                    file!(),
+                    line!(),
+                    column!()
+                );
                 $f
             }
             NetworkResult::Value(v) => v,

@@ -977,7 +977,8 @@ impl RPCProcessor {
                 self.unlocked_inner
                     .waiting_rpc_table
                     .complete_op_waiter(msg.operation.op_id(), msg)
-                    .await
+                    .await?;
+                Ok(NetworkResult::value(()))
             }
         }
     }
@@ -1005,7 +1006,13 @@ impl RPCProcessor {
 
                 Ok(v) => v,
             };
-            network_result_value_or_log!(debug res => {});
+            cfg_if::cfg_if! {
+                if #[cfg(debug_assertions)] {
+                    network_result_value_or_log!(warn res => {});
+                } else {
+                    network_result_value_or_log!(debug res => {});
+                }
+            }
         }
     }
 

@@ -144,7 +144,7 @@ impl RPCProcessor {
 
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info
-                let res = network_result_value_or_log!(debug self.statement(Destination::direct(peer), statement)
+                network_result_value_or_log!(debug self.statement(Destination::direct(peer), statement)
                     .await? => {
                         continue;
                     }

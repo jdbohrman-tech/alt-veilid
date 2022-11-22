@@ -1,7 +1,7 @@
 use super::*;
 
 impl RPCProcessor {
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_set_value_q(
         &self,
         msg: RPCMessage,

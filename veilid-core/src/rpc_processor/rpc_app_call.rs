@@ -88,11 +88,8 @@ impl RPCProcessor {
         let app_call_a = RPCOperationAppCallA { message };
 
         // Send status answer
-        let res = self
-            .answer(msg, RPCAnswer::new(RPCAnswerDetail::AppCallA(app_call_a)))
-            .await?;
-        tracing::Span::current().record("res", &tracing::field::display(res));
-        Ok(res)
+        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::AppCallA(app_call_a)))
+            .await
     }
 
     /// Exposed to API for apps to return app call answers

@@ -13,9 +13,7 @@ impl RPCProcessor {
         let statement = RPCStatement::new(RPCStatementDetail::AppMessage(app_message));
 
         // Send the app message request
-        network_result_try!(self.statement(dest, statement).await?);
-
-        Ok(NetworkResult::value(()))
+        self.statement(dest, statement).await
     }
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]

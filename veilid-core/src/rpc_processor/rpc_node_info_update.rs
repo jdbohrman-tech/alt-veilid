@@ -63,12 +63,21 @@ impl RPCProcessor {
             )));
         }
 
-        self.routing_table().register_node_with_signed_node_info(
-            routing_domain,
-            sender_node_id,
-            node_info_update.signed_node_info,
-            false,
-        );
+        if self
+            .routing_table()
+            .register_node_with_signed_node_info(
+                routing_domain,
+                sender_node_id,
+                node_info_update.signed_node_info,
+                false,
+            )
+            .is_none()
+        {
+            return Ok(NetworkResult::invalid_message(format!(
+                "could not register node info update {}",
+                sender_node_id
+            )));
+        }
 
         Ok(NetworkResult::value(()))
     }
