@@ -220,12 +220,7 @@ impl UI {
         cursive_flexi_logger_view::clear_log();
         UI::update_cb(siv);
     }
-    fn node_events(s: &mut Cursive) -> ViewRef<FlexiLoggerView> {
-        s.find_name("node-events").unwrap()
-    }
-    fn node_events_panel(
-        s: &mut Cursive,
-    ) -> ViewRef<Panel<ResizedView<NamedView<ScrollView<FlexiLoggerView>>>>> {
+    fn node_events_panel(s: &mut Cursive) -> ViewRef<Panel<ScrollView<FlexiLoggerView>>> {
         s.find_name("node-events-panel").unwrap()
     }
     fn command_line(s: &mut Cursive) -> ViewRef<EditView> {
@@ -743,18 +738,11 @@ impl UI {
 
         // Create layouts
 
-        let node_events_view = Panel::new(
-            FlexiLoggerView::new()
-                .with_name("node-events")
-                .scrollable()
-                .scroll_x(true)
-                .scroll_y(true)
-                .scroll_strategy(ScrollStrategy::StickToBottom)
-                .full_screen(),
-        )
-        .title_position(HAlign::Left)
-        .title("Node Events")
-        .with_name("node-events-panel");
+        let node_events_view = Panel::new(FlexiLoggerView::new_scrollable())
+            .title_position(HAlign::Left)
+            .title("Node Events")
+            .with_name("node-events-panel")
+            .full_screen();
 
         let peers_table_view = PeersTableView::new()
             .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(43))
@@ -833,7 +821,7 @@ impl UI {
 
         UI::setup_colors(&mut siv, &mut inner, settings);
         UI::setup_quit_handler(&mut siv);
-        siv.set_global_callback(cursive::event::Event::Ctrl(Key::K), UI::clear_handler);
+        siv.set_global_callback(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
 
         drop(inner);
         drop(siv);
