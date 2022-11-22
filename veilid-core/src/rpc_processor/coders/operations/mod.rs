@@ -1,5 +1,7 @@
 mod answer;
 mod operation;
+mod operation_app_call;
+mod operation_app_message;
 mod operation_cancel_tunnel;
 mod operation_complete_tunnel;
 mod operation_find_block;
@@ -22,6 +24,8 @@ mod statement;
 
 pub use answer::*;
 pub use operation::*;
+pub use operation_app_call::*;
+pub use operation_app_message::*;
 pub use operation_cancel_tunnel::*;
 pub use operation_complete_tunnel::*;
 pub use operation_find_block::*;

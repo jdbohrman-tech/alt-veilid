@@ -75,7 +75,7 @@ impl WebsocketNetworkConnection {
         Ok(out)
     }
 
-    #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
+    // #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let out = match SendWrapper::new(self.inner.ws_stream.clone().next()).await {
             Some(WsMessage::Binary(v)) => {
@@ -95,7 +95,7 @@ impl WebsocketNetworkConnection {
                 bail_io_error_other!("WS stream closed");
             }
         };
-        tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        // tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 }
@@ -106,13 +106,13 @@ impl WebsocketNetworkConnection {
 pub struct WebsocketProtocolHandler {}
 
 impl WebsocketProtocolHandler {
-    #[instrument(level = "trace", err)]
+    #[instrument(level = "trace", ret, err)]
     pub async fn connect(
         dial_info: &DialInfo,
         timeout_ms: u32,
     ) -> io::Result<NetworkResult<ProtocolNetworkConnection>> {
         // Split dial info up
-        let (tls, scheme) = match dial_info {
+        let (_tls, scheme) = match dial_info {
             DialInfo::WS(_) => (false, "ws"),
             DialInfo::WSS(_) => (true, "wss"),
             _ => panic!("invalid dialinfo for WS/WSS protocol"),

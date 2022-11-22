@@ -3,8 +3,20 @@ use super::*;
 enum RoutingDomainChange {
     ClearDialInfoDetails,
     ClearRelayNode,
-    SetRelayNode { relay_node: NodeRef },
-    AddDialInfoDetail { dial_info_detail: DialInfoDetail },
+    SetRelayNode {
+        relay_node: NodeRef,
+    },
+    AddDialInfoDetail {
+        dial_info_detail: DialInfoDetail,
+    },
+    SetupNetwork {
+        outbound_protocols: ProtocolTypeSet,
+        inbound_protocols: ProtocolTypeSet,
+        address_types: AddressTypeSet,
+    },
+    SetNetworkClass {
+        network_class: Option<NetworkClass>,
+    },
 }
 
 pub struct RoutingDomainEditor {
@@ -67,31 +79,54 @@ impl RoutingDomainEditor {
 
         Ok(())
     }
+    #[instrument(level = "debug", skip(self))]
+    pub fn setup_network(
+        &mut self,
+        outbound_protocols: ProtocolTypeSet,
+        inbound_protocols: ProtocolTypeSet,
+        address_types: AddressTypeSet,
+    ) {
+        self.changes.push(RoutingDomainChange::SetupNetwork {
+            outbound_protocols,
+            inbound_protocols,
+            address_types,
+        })
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub fn set_network_class(&mut self, network_class: Option<NetworkClass>) {
+        self.changes
+            .push(RoutingDomainChange::SetNetworkClass { network_class })
+    }
 
     #[instrument(level = "debug", skip(self))]
     pub async fn commit(self) {
+        // No locking if we have nothing to do
+        if self.changes.is_empty() {
+            return;
+        }
+
         let mut changed = false;
         {
             let node_id = self.routing_table.node_id();
 
             let mut inner = self.routing_table.inner.write();
-            let inner = &mut *inner;
-            RoutingTable::with_routing_domain_mut(inner, self.routing_domain, |detail| {
+            inner.with_routing_domain_mut(self.routing_domain, |detail| {
                 for change in self.changes {
                     match change {
                         RoutingDomainChange::ClearDialInfoDetails => {
                             debug!("[{:?}] cleared dial info details", self.routing_domain);
-                            detail.clear_dial_info_details();
+                            detail.common_mut().clear_dial_info_details();
                             changed = true;
                         }
                         RoutingDomainChange::ClearRelayNode => {
                             debug!("[{:?}] cleared relay node", self.routing_domain);
-                            detail.set_relay_node(None);
+                            detail.common_mut().set_relay_node(None);
                             changed = true;
                         }
                         RoutingDomainChange::SetRelayNode { relay_node } => {
                             debug!("[{:?}] set relay node: {}", self.routing_domain, relay_node);
-                            detail.set_relay_node(Some(relay_node));
+                            detail.common_mut().set_relay_node(Some(relay_node));
                             changed = true;
                         }
                         RoutingDomainChange::AddDialInfoDetail { dial_info_detail } => {
@@ -99,27 +134,85 @@ impl RoutingDomainEditor {
                                 "[{:?}] add dial info detail: {:?}",
                                 self.routing_domain, dial_info_detail
                             );
-                            detail.add_dial_info_detail(dial_info_detail.clone());
+                            detail
+                                .common_mut()
+                                .add_dial_info_detail(dial_info_detail.clone());
 
                             info!(
-                                "{:?} Dial Info: {}",
+                                "{:?} Dial Info: {}@{}",
                                 self.routing_domain,
-                                NodeDialInfo {
-                                    node_id: NodeId::new(node_id),
-                                    dial_info: dial_info_detail.dial_info
-                                }
-                                .to_string(),
+                                NodeId::new(node_id),
+                                dial_info_detail.dial_info
                             );
                             changed = true;
                         }
+                        RoutingDomainChange::SetupNetwork {
+                            outbound_protocols,
+                            inbound_protocols,
+                            address_types,
+                        } => {
+                            let old_outbound_protocols = detail.common().outbound_protocols();
+                            let old_inbound_protocols = detail.common().inbound_protocols();
+                            let old_address_types = detail.common().address_types();
+
+                            let this_changed = old_outbound_protocols != outbound_protocols
+                                || old_inbound_protocols != inbound_protocols
+                                || old_address_types != address_types;
+
+                            debug!(
+                                "[{:?}] setup network: {:?} {:?} {:?}",
+                                self.routing_domain,
+                                outbound_protocols,
+                                inbound_protocols,
+                                address_types
+                            );
+
+                            detail.common_mut().setup_network(
+                                outbound_protocols,
+                                inbound_protocols,
+                                address_types,
+                            );
+                            if this_changed {
+                                changed = true;
+                            }
+                        }
+                        RoutingDomainChange::SetNetworkClass { network_class } => {
+                            let old_network_class = detail.common().network_class();
+
+                            let this_changed = old_network_class != network_class;
+
+                            debug!(
+                                "[{:?}] set network class: {:?}",
+                                self.routing_domain, network_class,
+                            );
+
+                            detail.common_mut().set_network_class(network_class);
+                            if this_changed {
+                                changed = true;
+                            }
+                        }
                     }
+                }
+                if changed {
+                    // Clear our 'peer info' cache, the peerinfo for this routing domain will get regenerated next time it is asked for
+                    detail.common_mut().clear_cache()
                 }
             });
             if changed {
-                RoutingTable::reset_all_seen_our_node_info(inner, self.routing_domain);
-                RoutingTable::reset_all_updated_since_last_network_change(inner);
+                // Mark that nothing in the routing table has seen our new node info
+                inner.reset_all_seen_our_node_info(self.routing_domain);
+                //
+                inner.reset_all_updated_since_last_network_change();
             }
         }
+        // Clear the routespecstore cache if our PublicInternet dial info has changed
+        if changed {
+            if self.routing_domain == RoutingDomain::PublicInternet {
+                let rss = self.routing_table.route_spec_store();
+                rss.reset();
+            }
+        }
+        // Send our updated node info to all the nodes in the routing table
         if changed && self.send_node_info_updates {
             let network_manager = self.routing_table.unlocked_inner.network_manager.clone();
             network_manager

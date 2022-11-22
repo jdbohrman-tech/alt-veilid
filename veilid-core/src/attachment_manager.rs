@@ -1,15 +1,16 @@
 use crate::callback_state_machine::*;
-use crate::dht::Crypto;
+use crate::crypto::Crypto;
 use crate::network_manager::*;
 use crate::routing_table::*;
 use crate::xx::*;
 use crate::*;
 use core::convert::TryFrom;
 use core::fmt;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use serde::*;
 
 state_machine! {
-    derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)
+    derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,)
     pub Attachment(Detached)
 //---
     Detached(AttachRequested) => Attaching [StartAttachment],
@@ -102,48 +103,77 @@ impl TryFrom<String> for AttachmentState {
 }
 
 pub struct AttachmentManagerInner {
-    config: VeilidConfig,
     attachment_machine: CallbackStateMachine<Attachment>,
-    network_manager: NetworkManager,
     maintain_peers: bool,
     attach_timestamp: Option<u64>,
     update_callback: Option<UpdateCallback>,
     attachment_maintainer_jh: Option<MustJoinHandle<()>>,
 }
 
+pub struct AttachmentManagerUnlockedInner {
+    config: VeilidConfig,
+    network_manager: NetworkManager,
+}
+
 #[derive(Clone)]
 pub struct AttachmentManager {
     inner: Arc<Mutex<AttachmentManagerInner>>,
+    unlocked_inner: Arc<AttachmentManagerUnlockedInner>,
 }
 
 impl AttachmentManager {
-    fn new_inner(
+    fn new_unlocked_inner(
         config: VeilidConfig,
+        protected_store: ProtectedStore,
         table_store: TableStore,
+        block_store: BlockStore,
         crypto: Crypto,
-    ) -> AttachmentManagerInner {
-        AttachmentManagerInner {
+    ) -> AttachmentManagerUnlockedInner {
+        AttachmentManagerUnlockedInner {
             config: config.clone(),
+            network_manager: NetworkManager::new(
+                config,
+                protected_store,
+                table_store,
+                block_store,
+                crypto,
+            ),
+        }
+    }
+    fn new_inner() -> AttachmentManagerInner {
+        AttachmentManagerInner {
             attachment_machine: CallbackStateMachine::new(),
-            network_manager: NetworkManager::new(config, table_store, crypto),
             maintain_peers: false,
             attach_timestamp: None,
             update_callback: None,
             attachment_maintainer_jh: None,
         }
     }
-    pub fn new(config: VeilidConfig, table_store: TableStore, crypto: Crypto) -> Self {
+    pub fn new(
+        config: VeilidConfig,
+        protected_store: ProtectedStore,
+        table_store: TableStore,
+        block_store: BlockStore,
+        crypto: Crypto,
+    ) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(Self::new_inner(config, table_store, crypto))),
+            inner: Arc::new(Mutex::new(Self::new_inner())),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(
+                config,
+                protected_store,
+                table_store,
+                block_store,
+                crypto,
+            )),
         }
     }
 
     pub fn config(&self) -> VeilidConfig {
-        self.inner.lock().config.clone()
+        self.unlocked_inner.config.clone()
     }
 
     pub fn network_manager(&self) -> NetworkManager {
-        self.inner.lock().network_manager.clone()
+        self.unlocked_inner.network_manager.clone()
     }
 
     pub fn is_attached(&self) -> bool {
@@ -202,9 +232,10 @@ impl AttachmentManager {
                 AttachmentManager::translate_attachment_state(&inner.attachment_machine.state());
 
             // get reliable peer count from routing table
-            let routing_table = inner.network_manager.routing_table();
+            let routing_table = self.network_manager().routing_table();
             let health = routing_table.get_routing_table_health();
-            let routing_table_config = &inner.config.get().network.routing_table;
+            let config = self.config();
+            let routing_table_config = &config.get().network.routing_table;
 
             let new_peer_state_input =
                 AttachmentManager::translate_routing_table_health(health, routing_table_config);
@@ -223,11 +254,8 @@ impl AttachmentManager {
     #[instrument(level = "debug", skip(self))]
     async fn attachment_maintainer(self) {
         debug!("attachment starting");
-        let netman = {
-            let mut inner = self.inner.lock();
-            inner.attach_timestamp = Some(intf::get_timestamp());
-            inner.network_manager.clone()
-        };
+        self.inner.lock().attach_timestamp = Some(intf::get_timestamp());
+        let netman = self.network_manager();
 
         let mut restart;
         loop {
@@ -286,7 +314,7 @@ impl AttachmentManager {
     #[instrument(level = "debug", skip_all, err)]
     pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
         trace!("init");
-        let network_manager = {
+        {
             let mut inner = self.inner.lock();
             inner.update_callback = Some(update_callback.clone());
             let update_callback2 = update_callback.clone();
@@ -297,10 +325,9 @@ impl AttachmentManager {
                     }))
                 },
             ));
-            inner.network_manager.clone()
         };
 
-        network_manager.init(update_callback).await?;
+        self.network_manager().init(update_callback).await?;
 
         Ok(())
     }
@@ -309,30 +336,33 @@ impl AttachmentManager {
     pub async fn terminate(&self) {
         // Ensure we detached
         self.detach().await;
-        let network_manager = {
-            let inner = self.inner.lock();
-            inner.network_manager.clone()
-        };
-        network_manager.terminate().await;
-        let mut inner = self.inner.lock();
-        inner.update_callback = None;
+        self.network_manager().terminate().await;
+        self.inner.lock().update_callback = None;
     }
 
     #[instrument(level = "trace", skip(self))]
     fn attach(&self) {
         // Create long-running connection maintenance routine
-        let this = self.clone();
-        self.inner.lock().maintain_peers = true;
-        self.inner.lock().attachment_maintainer_jh =
-            Some(intf::spawn(this.attachment_maintainer()));
+        let mut inner = self.inner.lock();
+        if inner.attachment_maintainer_jh.is_some() {
+            return;
+        }
+        inner.maintain_peers = true;
+        inner.attachment_maintainer_jh = Some(intf::spawn(self.clone().attachment_maintainer()));
     }
 
     #[instrument(level = "trace", skip(self))]
     async fn detach(&self) {
-        let attachment_maintainer_jh = self.inner.lock().attachment_maintainer_jh.take();
+        let attachment_maintainer_jh = {
+            let mut inner = self.inner.lock();
+            let attachment_maintainer_jh = inner.attachment_maintainer_jh.take();
+            if attachment_maintainer_jh.is_some() {
+                // Terminate long-running connection maintenance routine
+                inner.maintain_peers = false;
+            }
+            attachment_maintainer_jh
+        };
         if let Some(jh) = attachment_maintainer_jh {
-            // Terminate long-running connection maintenance routine
-            self.inner.lock().maintain_peers = false;
             jh.await;
         }
     }

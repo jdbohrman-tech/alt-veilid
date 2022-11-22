@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:change_case/change_case.dart';
 
@@ -655,6 +657,7 @@ class VeilidConfigRPC {
   int? maxTimestampAheadMs;
   int timeoutMs;
   int maxRouteHopCount;
+  int defaultRouteHopCount;
 
   VeilidConfigRPC(
       {required this.concurrency,
@@ -662,7 +665,8 @@ class VeilidConfigRPC {
       this.maxTimestampBehindMs,
       this.maxTimestampAheadMs,
       required this.timeoutMs,
-      required this.maxRouteHopCount});
+      required this.maxRouteHopCount,
+      required this.defaultRouteHopCount});
 
   Map<String, dynamic> get json {
     return {
@@ -672,6 +676,7 @@ class VeilidConfigRPC {
       'max_timestamp_ahead_ms': maxTimestampAheadMs,
       'timeout_ms': timeoutMs,
       'max_route_hop_count': maxRouteHopCount,
+      'default_route_hop_count': defaultRouteHopCount,
     };
   }
 
@@ -681,7 +686,8 @@ class VeilidConfigRPC {
         maxTimestampBehindMs = json['max_timestamp_behind_ms'],
         maxTimestampAheadMs = json['max_timestamp_ahead_ms'],
         timeoutMs = json['timeout_ms'],
-        maxRouteHopCount = json['max_route_hop_count'];
+        maxRouteHopCount = json['max_route_hop_count'],
+        defaultRouteHopCount = json['default_route_hop_count'];
 }
 
 ////////////
@@ -731,8 +737,8 @@ class VeilidConfigNetwork {
   int clientWhitelistTimeoutMs;
   int reverseConnectionReceiptTimeMs;
   int holePunchReceiptTimeMs;
-  String nodeId;
-  String nodeIdSecret;
+  String? nodeId;
+  String? nodeIdSecret;
   List<String> bootstrap;
   List<String> bootstrapNodes;
   VeilidConfigRoutingTable routingTable;
@@ -1232,10 +1238,20 @@ abstract class VeilidUpdate {
     switch (json["kind"]) {
       case "Log":
         {
-          return VeilidUpdateLog(
+          return VeilidLog(
               logLevel: veilidLogLevelFromJson(json["log_level"]),
               message: json["message"],
               backtrace: json["backtrace"]);
+        }
+      case "AppMessage":
+        {
+          return VeilidAppMessage(
+              sender: json["sender"], message: json["message"]);
+        }
+      case "AppCall":
+        {
+          return VeilidAppCall(
+              sender: json["sender"], message: json["message"], id: json["id"]);
         }
       case "Attachment":
         {
@@ -1245,6 +1261,10 @@ abstract class VeilidUpdate {
       case "Network":
         {
           return VeilidUpdateNetwork(state: VeilidStateNetwork.fromJson(json));
+        }
+      case "Config":
+        {
+          return VeilidUpdateConfig(state: VeilidStateConfig.fromJson(json));
         }
       default:
         {
@@ -1256,12 +1276,12 @@ abstract class VeilidUpdate {
   Map<String, dynamic> get json;
 }
 
-class VeilidUpdateLog implements VeilidUpdate {
+class VeilidLog implements VeilidUpdate {
   final VeilidLogLevel logLevel;
   final String message;
   final String? backtrace;
   //
-  VeilidUpdateLog({
+  VeilidLog({
     required this.logLevel,
     required this.message,
     required this.backtrace,
@@ -1274,6 +1294,49 @@ class VeilidUpdateLog implements VeilidUpdate {
       'log_level': logLevel.json,
       'message': message,
       'backtrace': backtrace
+    };
+  }
+}
+
+class VeilidAppMessage implements VeilidUpdate {
+  final String? sender;
+  final Uint8List message;
+
+  //
+  VeilidAppMessage({
+    required this.sender,
+    required this.message,
+  });
+
+  @override
+  Map<String, dynamic> get json {
+    return {
+      'kind': "AppMessage",
+      'sender': sender,
+      'message': base64UrlEncode(message)
+    };
+  }
+}
+
+class VeilidAppCall implements VeilidUpdate {
+  final String? sender;
+  final Uint8List message;
+  final String id;
+
+  //
+  VeilidAppCall({
+    required this.sender,
+    required this.message,
+    required this.id,
+  });
+
+  @override
+  Map<String, dynamic> get json {
+    return {
+      'kind': "AppMessage",
+      'sender': sender,
+      'message': base64UrlEncode(message),
+      'id': id,
     };
   }
 }
@@ -1300,6 +1363,19 @@ class VeilidUpdateNetwork implements VeilidUpdate {
   Map<String, dynamic> get json {
     var jsonRep = state.json;
     jsonRep['kind'] = "Network";
+    return jsonRep;
+  }
+}
+
+class VeilidUpdateConfig implements VeilidUpdate {
+  final VeilidStateConfig state;
+  //
+  VeilidUpdateConfig({required this.state});
+
+  @override
+  Map<String, dynamic> get json {
+    var jsonRep = state.json;
+    jsonRep['kind'] = "Config";
     return jsonRep;
   }
 }
@@ -1355,18 +1431,42 @@ class VeilidStateNetwork {
 }
 
 //////////////////////////////////////
+/// VeilidStateConfig
+
+class VeilidStateConfig {
+  final Map<String, dynamic> config;
+
+  VeilidStateConfig({
+    required this.config,
+  });
+
+  VeilidStateConfig.fromJson(Map<String, dynamic> json)
+      : config = jsonDecode(json['config']);
+
+  Map<String, dynamic> get json {
+    return {'config': jsonEncode(config)};
+  }
+}
+
+//////////////////////////////////////
 /// VeilidState
 
 class VeilidState {
   final VeilidStateAttachment attachment;
   final VeilidStateNetwork network;
+  final VeilidStateConfig config;
 
   VeilidState.fromJson(Map<String, dynamic> json)
       : attachment = VeilidStateAttachment.fromJson(json['attachment']),
-        network = VeilidStateNetwork.fromJson(json['network']);
+        network = VeilidStateNetwork.fromJson(json['network']),
+        config = VeilidStateConfig.fromJson(json['config']);
 
   Map<String, dynamic> get json {
-    return {'attachment': attachment.json, 'network': network.json};
+    return {
+      'attachment': attachment.json,
+      'network': network.json,
+      'config': config.json
+    };
   }
 }
 
@@ -1572,6 +1672,7 @@ abstract class Veilid {
   Future<void> detach();
   Future<void> shutdownVeilidCore();
   Future<String> debug(String command);
+  Future<void> appCallReply(String id, Uint8List message);
   String veilidVersionString();
   VeilidVersion veilidVersion();
 }

@@ -2,80 +2,6 @@ use super::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone, Debug)]
-pub struct RouteHopData {
-    pub nonce: Nonce,
-    pub blob: Vec<u8>,
-}
-
-#[derive(Clone, Debug)]
-pub struct RouteHop {
-    pub dial_info: NodeDialInfo,
-    pub next_hop: Option<RouteHopData>,
-}
-
-#[derive(Clone, Debug)]
-pub struct PrivateRoute {
-    pub public_key: DHTKey,
-    pub hop_count: u8,
-    pub hops: Option<RouteHop>,
-}
-
-impl PrivateRoute {
-    pub fn new_stub(public_key: DHTKey) -> Self {
-        Self {
-            public_key,
-            hop_count: 0,
-            hops: None,
-        }
-    }
-}
-
-impl fmt::Display for PrivateRoute {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "PR({:?}+{}{})",
-            self.public_key,
-            self.hop_count,
-            if let Some(hops) = &self.hops {
-                format!("->{}", hops.dial_info)
-            } else {
-                "".to_owned()
-            }
-        )
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum SafetyRouteHops {
-    Data(RouteHopData),
-    Private(PrivateRoute),
-}
-
-#[derive(Clone, Debug)]
-pub struct SafetyRoute {
-    pub public_key: DHTKey,
-    pub hop_count: u8,
-    pub hops: SafetyRouteHops,
-}
-
-impl fmt::Display for SafetyRoute {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "SR({:?}+{}{})",
-            self.public_key,
-            self.hop_count,
-            match &self.hops {
-                SafetyRouteHops::Data(_) => "".to_owned(),
-                SafetyRouteHops::Private(p) => format!("->{}", p),
-            }
-        )
-    }
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 pub fn encode_route_hop_data(
     route_hop_data: &RouteHopData,
     builder: &mut veilid_capnp::route_hop_data::Builder,
@@ -98,62 +24,6 @@ pub fn encode_route_hop_data(
     Ok(())
 }
 
-pub fn encode_route_hop(
-    route_hop: &RouteHop,
-    builder: &mut veilid_capnp::route_hop::Builder,
-) -> Result<(), RPCError> {
-    encode_node_dial_info(
-        &route_hop.dial_info,
-        &mut builder.reborrow().init_dial_info(),
-    )?;
-    if let Some(rhd) = &route_hop.next_hop {
-        let mut rhd_builder = builder.reborrow().init_next_hop();
-        encode_route_hop_data(rhd, &mut rhd_builder)?;
-    }
-    Ok(())
-}
-
-pub fn encode_private_route(
-    private_route: &PrivateRoute,
-    builder: &mut veilid_capnp::private_route::Builder,
-) -> Result<(), RPCError> {
-    encode_public_key(
-        &private_route.public_key,
-        &mut builder.reborrow().init_public_key(),
-    )?;
-    builder.set_hop_count(private_route.hop_count);
-    if let Some(rh) = &private_route.hops {
-        let mut rh_builder = builder.reborrow().init_first_hop();
-        encode_route_hop(rh, &mut rh_builder)?;
-    };
-
-    Ok(())
-}
-
-pub fn encode_safety_route(
-    safety_route: &SafetyRoute,
-    builder: &mut veilid_capnp::safety_route::Builder,
-) -> Result<(), RPCError> {
-    encode_public_key(
-        &safety_route.public_key,
-        &mut builder.reborrow().init_public_key(),
-    )?;
-    builder.set_hop_count(safety_route.hop_count);
-    let h_builder = builder.reborrow().init_hops();
-    match &safety_route.hops {
-        SafetyRouteHops::Data(rhd) => {
-            let mut rhd_builder = h_builder.init_data();
-            encode_route_hop_data(rhd, &mut rhd_builder)?;
-        }
-        SafetyRouteHops::Private(pr) => {
-            let mut pr_builder = h_builder.init_private();
-            encode_private_route(pr, &mut pr_builder)?;
-        }
-    };
-
-    Ok(())
-}
-
 pub fn decode_route_hop_data(
     reader: &veilid_capnp::route_hop_data::Reader,
 ) -> Result<RouteHopData, RPCError> {
@@ -173,13 +43,45 @@ pub fn decode_route_hop_data(
     Ok(RouteHopData { nonce, blob })
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+pub fn encode_route_hop(
+    route_hop: &RouteHop,
+    builder: &mut veilid_capnp::route_hop::Builder,
+) -> Result<(), RPCError> {
+    let node_builder = builder.reborrow().init_node();
+    match &route_hop.node {
+        RouteNode::NodeId(ni) => {
+            let mut ni_builder = node_builder.init_node_id();
+            encode_dht_key(&ni.key, &mut ni_builder)?;
+        }
+        RouteNode::PeerInfo(pi) => {
+            let mut pi_builder = node_builder.init_peer_info();
+            encode_peer_info(&pi, &mut pi_builder)?;
+        }
+    }
+    if let Some(rhd) = &route_hop.next_hop {
+        let mut rhd_builder = builder.reborrow().init_next_hop();
+        encode_route_hop_data(rhd, &mut rhd_builder)?;
+    }
+    Ok(())
+}
+
 pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<RouteHop, RPCError> {
-    let dial_info = decode_node_dial_info(
-        &reader
-            .reborrow()
-            .get_dial_info()
-            .map_err(RPCError::map_protocol("invalid dial info in route hop"))?,
-    )?;
+    let n_reader = reader.reborrow().get_node();
+    let node = match n_reader.which().map_err(RPCError::protocol)? {
+        veilid_capnp::route_hop::node::Which::NodeId(ni) => {
+            let ni_reader = ni.map_err(RPCError::protocol)?;
+            RouteNode::NodeId(NodeId::new(decode_dht_key(&ni_reader)))
+        }
+        veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
+            let pi_reader = pi.map_err(RPCError::protocol)?;
+            RouteNode::PeerInfo(
+                decode_peer_info(&pi_reader)
+                    .map_err(RPCError::map_protocol("invalid peer info in route hop"))?,
+            )
+        }
+    };
 
     let next_hop = if reader.has_next_hop() {
         let rhd_reader = reader
@@ -190,26 +92,55 @@ pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<Rout
         None
     };
 
-    Ok(RouteHop {
-        dial_info,
-        next_hop,
-    })
+    Ok(RouteHop { node, next_hop })
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+pub fn encode_private_route(
+    private_route: &PrivateRoute,
+    builder: &mut veilid_capnp::private_route::Builder,
+) -> Result<(), RPCError> {
+    encode_dht_key(
+        &private_route.public_key,
+        &mut builder.reborrow().init_public_key(),
+    )?;
+    builder.set_hop_count(private_route.hop_count);
+    let mut h_builder = builder.reborrow().init_hops();
+    match &private_route.hops {
+        PrivateRouteHops::FirstHop(first_hop) => {
+            let mut rh_builder = h_builder.init_first_hop();
+            encode_route_hop(first_hop, &mut rh_builder)?;
+        }
+        PrivateRouteHops::Data(data) => {
+            let mut rhd_builder = h_builder.init_data();
+            encode_route_hop_data(data, &mut rhd_builder)?;
+        }
+        PrivateRouteHops::Empty => {
+            h_builder.set_empty(());
+        }
+    };
+    Ok(())
 }
 
 pub fn decode_private_route(
     reader: &veilid_capnp::private_route::Reader,
 ) -> Result<PrivateRoute, RPCError> {
-    let public_key = decode_public_key(&reader.get_public_key().map_err(
-        RPCError::map_protocol("invalid public key in private route"),
-    )?);
+    let public_key = decode_dht_key(&reader.get_public_key().map_err(RPCError::map_protocol(
+        "invalid public key in private route",
+    ))?);
     let hop_count = reader.get_hop_count();
-    let hops = if reader.has_first_hop() {
-        let rh_reader = reader
-            .get_first_hop()
-            .map_err(RPCError::map_protocol("invalid first hop in private route"))?;
-        Some(decode_route_hop(&rh_reader)?)
-    } else {
-        None
+
+    let hops = match reader.get_hops().which().map_err(RPCError::protocol)? {
+        veilid_capnp::private_route::hops::Which::FirstHop(rh_reader) => {
+            let rh_reader = rh_reader.map_err(RPCError::protocol)?;
+            PrivateRouteHops::FirstHop(decode_route_hop(&rh_reader)?)
+        }
+        veilid_capnp::private_route::hops::Which::Data(rhd_reader) => {
+            let rhd_reader = rhd_reader.map_err(RPCError::protocol)?;
+            PrivateRouteHops::Data(decode_route_hop_data(&rhd_reader)?)
+        }
+        veilid_capnp::private_route::hops::Which::Empty(_) => PrivateRouteHops::Empty,
     };
 
     Ok(PrivateRoute {
@@ -219,10 +150,36 @@ pub fn decode_private_route(
     })
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+pub fn encode_safety_route(
+    safety_route: &SafetyRoute,
+    builder: &mut veilid_capnp::safety_route::Builder,
+) -> Result<(), RPCError> {
+    encode_dht_key(
+        &safety_route.public_key,
+        &mut builder.reborrow().init_public_key(),
+    )?;
+    builder.set_hop_count(safety_route.hop_count);
+    let h_builder = builder.reborrow().init_hops();
+    match &safety_route.hops {
+        SafetyRouteHops::Data(rhd) => {
+            let mut rhd_builder = h_builder.init_data();
+            encode_route_hop_data(rhd, &mut rhd_builder)?;
+        }
+        SafetyRouteHops::Private(pr) => {
+            let mut pr_builder = h_builder.init_private();
+            encode_private_route(pr, &mut pr_builder)?;
+        }
+    };
+
+    Ok(())
+}
+
 pub fn decode_safety_route(
     reader: &veilid_capnp::safety_route::Reader,
 ) -> Result<SafetyRoute, RPCError> {
-    let public_key = decode_public_key(
+    let public_key = decode_dht_key(
         &reader
             .get_public_key()
             .map_err(RPCError::map_protocol("invalid public key in safety route"))?,

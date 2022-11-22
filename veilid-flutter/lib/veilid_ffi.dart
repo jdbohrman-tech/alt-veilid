@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -17,7 +18,7 @@ final _path = Platform.isWindows
     : Platform.isMacOS
         ? 'lib$_base.dylib'
         : 'lib$_base.so';
-late final _dylib =
+final _dylib =
     Platform.isIOS ? DynamicLibrary.process() : DynamicLibrary.open(_path);
 
 // Linkage for initialization
@@ -50,6 +51,10 @@ typedef _DetachDart = void Function(int);
 // fn debug(port: i64, log_level: FfiStr)
 typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
 typedef _DebugDart = void Function(int, Pointer<Utf8>);
+// fn app_call_reply(port: i64, id: FfiStr, message: FfiStr)
+typedef _AppCallReplyC = Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>);
+typedef _AppCallReplyDart = void Function(int, Pointer<Utf8>, Pointer<Utf8>);
+
 // fn shutdown_veilid_core(port: i64)
 typedef _ShutdownVeilidCoreC = Void Function(Int64);
 typedef _ShutdownVeilidCoreDart = void Function(int);
@@ -304,6 +309,7 @@ class VeilidFFI implements Veilid {
   final _DetachDart _detach;
   final _ShutdownVeilidCoreDart _shutdownVeilidCore;
   final _DebugDart _debug;
+  final _AppCallReplyDart _appCallReply;
   final _VeilidVersionStringDart _veilidVersionString;
   final _VeilidVersionDart _veilidVersion;
 
@@ -328,6 +334,8 @@ class VeilidFFI implements Veilid {
             dylib.lookupFunction<_ShutdownVeilidCoreC, _ShutdownVeilidCoreDart>(
                 'shutdown_veilid_core'),
         _debug = dylib.lookupFunction<_DebugC, _DebugDart>('debug'),
+        _appCallReply = dylib.lookupFunction<_AppCallReplyC, _AppCallReplyDart>(
+            'app_call_reply'),
         _veilidVersionString = dylib.lookupFunction<_VeilidVersionStringC,
             _VeilidVersionStringDart>('veilid_version_string'),
         _veilidVersion =
@@ -418,6 +426,16 @@ class VeilidFFI implements Veilid {
     final sendPort = recvPort.sendPort;
     _debug(sendPort.nativePort, nativeCommand);
     return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<void> appCallReply(String id, Uint8List message) async {
+    var nativeId = id.toNativeUtf8();
+    var nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
+    final recvPort = ReceivePort("app_call_reply");
+    final sendPort = recvPort.sendPort;
+    _appCallReply(sendPort.nativePort, nativeId, nativeEncodedMessage);
+    return processFutureVoid(recvPort.first);
   }
 
   @override

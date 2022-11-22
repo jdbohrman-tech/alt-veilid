@@ -88,9 +88,7 @@ pub async fn test_key_conversions() {
     // Test default key
     let (dht_key, dht_key_secret) = (key::DHTKey::default(), key::DHTKeySecret::default());
     assert_eq!(dht_key.bytes, EMPTY_KEY);
-    assert!(!dht_key.valid);
     assert_eq!(dht_key_secret.bytes, EMPTY_KEY_SECRET);
-    assert!(!dht_key_secret.valid);
     let dht_key_string = String::from(&dht_key);
     trace!("dht_key_string: {:?}", dht_key_string);
     let dht_key_string2 = String::from(&dht_key);
@@ -140,11 +138,11 @@ pub async fn test_key_conversions() {
 
     // Assert string roundtrip
     assert_eq!(String::from(&dht_key2_back), dht_key2_string);
-    assert!(key::DHTKey::try_from("") == Ok(key::DHTKey::default()));
-    assert!(key::DHTKeySecret::try_from("") == Ok(key::DHTKeySecret::default()));
     // These conversions should fail
     assert!(key::DHTKey::try_from("whatever").is_err());
     assert!(key::DHTKeySecret::try_from("whatever").is_err());
+    assert!(key::DHTKey::try_from("").is_err());
+    assert!(key::DHTKeySecret::try_from("").is_err());
     assert!(key::DHTKey::try_from(" ").is_err());
     assert!(key::DHTKeySecret::try_from(" ").is_err());
     assert!(key::DHTKey::try_from(

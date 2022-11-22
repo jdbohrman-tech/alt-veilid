@@ -1,6 +1,6 @@
 use crate::api_tracing_layer::*;
 use crate::attachment_manager::*;
-use crate::dht::Crypto;
+use crate::crypto::Crypto;
 use crate::veilid_api::*;
 use crate::veilid_config::*;
 use crate::xx::*;
@@ -103,7 +103,13 @@ impl ServicesContext {
         // Set up attachment manager
         trace!("init attachment manager");
         let update_callback = self.update_callback.clone();
-        let attachment_manager = AttachmentManager::new(self.config.clone(), table_store, crypto);
+        let attachment_manager = AttachmentManager::new(
+            self.config.clone(),
+            protected_store,
+            table_store,
+            block_store,
+            crypto,
+        );
         if let Err(e) = attachment_manager.init(update_callback).await {
             self.shutdown().await;
             return Err(e);
@@ -171,7 +177,7 @@ impl VeilidCoreContext {
         // Set up config from callback
         trace!("setup config with callback");
         let mut config = VeilidConfig::new();
-        config.setup(config_callback)?;
+        config.setup(config_callback, update_callback.clone())?;
 
         Self::new_common(update_callback, config).await
     }
@@ -184,7 +190,7 @@ impl VeilidCoreContext {
         // Set up config from callback
         trace!("setup config with json");
         let mut config = VeilidConfig::new();
-        config.setup_from_json(config_json)?;
+        config.setup_from_json(config_json, update_callback.clone())?;
         Self::new_common(update_callback, config).await
     }
 

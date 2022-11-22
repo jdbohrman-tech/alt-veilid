@@ -22,7 +22,7 @@ impl TableStore {
             opened: BTreeMap::new(),
         }
     }
-    pub fn new(config: VeilidConfig) -> Self {
+    pub(crate) fn new(config: VeilidConfig) -> Self {
         Self {
             config,
             inner: Arc::new(Mutex::new(Self::new_inner())),
@@ -30,12 +30,25 @@ impl TableStore {
         }
     }
 
-    pub async fn init(&self) -> EyreResult<()> {
+    /// Delete all known tables
+    pub async fn delete_all(&self) {
+        if let Err(e) = self.delete("crypto_caches").await {
+            error!("failed to delete 'crypto_caches': {}", e);
+        }
+        if let Err(e) = self.delete("RouteSpecStore").await {
+            error!("failed to delete 'RouteSpecStore': {}", e);
+        }
+        if let Err(e) = self.delete("routing_table").await {
+            error!("failed to delete 'routing_table': {}", e);
+        }
+    }
+
+    pub(crate) async fn init(&self) -> EyreResult<()> {
         let _async_guard = self.async_lock.lock().await;
         Ok(())
     }
 
-    pub async fn terminate(&self) {
+    pub(crate) async fn terminate(&self) {
         let _async_guard = self.async_lock.lock().await;
         assert!(
             self.inner.lock().opened.len() == 0,
@@ -43,7 +56,7 @@ impl TableStore {
         );
     }
 
-    pub fn on_table_db_drop(&self, table: String) {
+    pub(crate) fn on_table_db_drop(&self, table: String) {
         let mut inner = self.inner.lock();
         match inner.opened.remove(&table) {
             Some(_) => (),
@@ -69,12 +82,14 @@ impl TableStore {
         })
     }
 
+    /// Get or create a TableDB database table. If the column count is greater than an
+    /// existing TableDB's column count, the database will be upgraded to add the missing columns
     pub async fn open(&self, name: &str, column_count: u32) -> EyreResult<TableDB> {
         let _async_guard = self.async_lock.lock().await;
         let table_name = self.get_table_name(name)?;
 
         {
-            let mut inner = self.inner.lock();        
+            let mut inner = self.inner.lock();
             if let Some(table_db_weak_inner) = inner.opened.get(&table_name) {
                 match TableDB::try_new_from_weak_inner(table_db_weak_inner.clone()) {
                     Some(tdb) => {
@@ -89,7 +104,10 @@ impl TableStore {
         let db = Database::open(table_name.clone(), column_count)
             .await
             .wrap_err("failed to open tabledb")?;
-        info!("opened table store '{}' with table name '{:?}' with {} columns", name, table_name, column_count);
+        info!(
+            "opened table store '{}' with table name '{:?}' with {} columns",
+            name, table_name, column_count
+        );
 
         let table_db = TableDB::new(table_name.clone(), self.clone(), db);
 
@@ -101,11 +119,12 @@ impl TableStore {
         Ok(table_db)
     }
 
+    /// Delete a TableDB table by name
     pub async fn delete(&self, name: &str) -> EyreResult<bool> {
         let _async_guard = self.async_lock.lock().await;
         trace!("TableStore::delete {}", name);
         let table_name = self.get_table_name(name)?;
-        
+
         {
             let inner = self.inner.lock();
             if inner.opened.contains_key(&table_name) {
@@ -117,9 +136,7 @@ impl TableStore {
             }
         }
 
-        if utils::is_nodejs() {
-            unimplemented!();
-        } else if utils::is_browser() {
+        if utils::is_browser() {
             let out = match Database::delete(table_name.clone()).await {
                 Ok(_) => true,
                 Err(_) => false,

@@ -10,13 +10,7 @@ impl RPCProcessor {
         redirect: bool,
     ) -> Result<bool, RPCError> {
         let network_manager = self.network_manager();
-        let receipt_time = ms_to_us(
-            self.config
-                .get()
-                .network
-                .dht
-                .validate_dial_info_receipt_time_ms,
-        );
+        let receipt_time = ms_to_us(self.unlocked_inner.validate_dial_info_receipt_time_ms);
 
         // Generate receipt and waitable eventual so we can see if we get the receipt back
         let (receipt, eventual_value) = network_manager
@@ -40,7 +34,9 @@ impl RPCProcessor {
 
         // Wait for receipt
         match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedInBand { inbound_noderef: _ } => {
+            ReceiptEvent::ReturnedPrivate { private_route: _ }
+            | ReceiptEvent::ReturnedInBand { inbound_noderef: _ }
+            | ReceiptEvent::ReturnedSafety => {
                 log_net!(debug "validate_dial_info receipt should be returned out-of-band".green());
                 Ok(false)
             }
@@ -58,8 +54,20 @@ impl RPCProcessor {
         }
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    pub(crate) async fn process_validate_dial_info(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
+        let detail = match msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => detail,
+            RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
+                return Ok(NetworkResult::invalid_message(
+                    "validate_dial_info must be direct",
+                ));
+            }
+        };
+
         // Get the statement
         let RPCOperationValidateDialInfo {
             dial_info,
@@ -80,8 +88,8 @@ impl RPCProcessor {
             // Use the address type though, to ensure we reach an ipv6 capable node if this is
             // an ipv6 address
             let routing_table = self.routing_table();
-            let sender_id = msg.header.envelope.get_sender_id();
-            let routing_domain = msg.header.routing_domain;
+            let sender_id = detail.envelope.get_sender_id();
+            let routing_domain = detail.routing_domain;
             let node_count = {
                 let c = self.config.get();
                 c.network.dht.max_find_node_count as usize
@@ -93,22 +101,28 @@ impl RPCProcessor {
                     routing_domain,
                     dial_info.clone(),
                 );
-            let will_validate_dial_info_filter = |e: &BucketEntryInner| {
-                if let Some(status) = &e.node_status(routing_domain) {
-                    status.will_validate_dial_info()
-                } else {
-                    true
-                }
-            };
-            let filter = RoutingTable::combine_entry_filters(
+            let will_validate_dial_info_filter = Box::new(
+                move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+                    let entry = v.unwrap();
+                    entry.with(rti, move |_rti, e| {
+                        if let Some(status) = &e.node_status(routing_domain) {
+                            status.will_validate_dial_info()
+                        } else {
+                            true
+                        }
+                    })
+                },
+            ) as RoutingTableEntryFilter;
+
+            let filters = VecDeque::from([
                 outbound_dial_info_entry_filter,
                 will_validate_dial_info_filter,
-            );
+            ]);
 
             // Find nodes matching filter to redirect this to
-            let peers = routing_table.find_fast_public_nodes_filtered(node_count, filter);
+            let peers = routing_table.find_fast_public_nodes_filtered(node_count, filters);
             if peers.is_empty() {
-                return Err(RPCError::internal(format!(
+                return Ok(NetworkResult::no_connection_other(format!(
                     "no peers able to reach dialinfo '{:?}'",
                     dial_info
                 )));
@@ -132,11 +146,15 @@ impl RPCProcessor {
                 // This can only be sent directly, as relays can not validate dial info
                 network_result_value_or_log!(debug self.statement(Destination::direct(peer), statement)
                     .await? => {
-                        return Ok(());
+                        continue;
                     }
                 );
+                return Ok(NetworkResult::value(()));
             }
-            return Ok(());
+
+            return Ok(NetworkResult::no_connection_other(
+                "could not redirect, no peers were reachable",
+            ));
         };
 
         // Otherwise send a return receipt directly
@@ -147,8 +165,6 @@ impl RPCProcessor {
             .await
             .map_err(RPCError::network)?;
 
-        //        tracing::Span::current().record("res", &tracing::field::display(res));
-
-        Ok(())
+        Ok(NetworkResult::value(()))
     }
 }

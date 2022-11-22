@@ -22,7 +22,7 @@ pub use network_connection::*;
 ////////////////////////////////////////////////////////////////////////////////////////
 use connection_handle::*;
 use connection_limits::*;
-use dht::*;
+use crypto::*;
 use futures_util::stream::{FuturesOrdered, FuturesUnordered, StreamExt};
 use hashlink::LruCache;
 use intf::*;
@@ -38,6 +38,7 @@ use xx::*;
 ////////////////////////////////////////////////////////////////////////////////////////
 
 pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
 pub const IPADDR_MAX_INACTIVE_DURATION_US: u64 = 300_000_000u64; // 5 minutes
@@ -113,28 +114,30 @@ struct ClientWhitelistEntry {
     last_seen_ts: u64,
 }
 
-/// Mechanism required to contact another node
-#[derive(Clone, Debug)]
-pub(crate) enum ContactMethod {
-    /// Node is not reachable by any means
-    Unreachable,
-    /// Contact the node directly
-    Direct(DialInfo),
-    /// Request via signal the node connect back directly (relay_nr, target_node_ref)
-    SignalReverse(NodeRef, NodeRef),
-    /// Request via signal the node negotiate a hole punch (relay_nr, target_node_ref)
-    SignalHolePunch(NodeRef, NodeRef),
-    /// Must use an inbound relay to reach the node
-    InboundRelay(NodeRef),
-    /// Must use outbound relay to reach the node
-    OutboundRelay(NodeRef),
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum SendDataKind {
     Direct(ConnectionDescriptor),
     Indirect,
     Existing(ConnectionDescriptor),
+}
+
+/// Mechanism required to contact another node
+#[derive(Clone, Debug)]
+pub(crate) enum NodeContactMethod {
+    /// Node is not reachable by any means
+    Unreachable,
+    /// Connection should have already existed
+    Existing,
+    /// Contact the node directly
+    Direct(DialInfo),
+    /// Request via signal the node connect back directly (relay, target)
+    SignalReverse(NodeRef, NodeRef),
+    /// Request via signal the node negotiate a hole punch (relay, target_node)
+    SignalHolePunch(NodeRef, NodeRef),
+    /// Must use an inbound relay to reach the node
+    InboundRelay(NodeRef),
+    /// Must use outbound relay to reach the node
+    OutboundRelay(NodeRef),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -148,14 +151,15 @@ struct NetworkManagerInner {
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
         BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, u64>>,
-    protocol_config: Option<ProtocolConfig>,
-    public_inbound_dial_info_filter: Option<DialInfoFilter>,
-    local_inbound_dial_info_filter: Option<DialInfoFilter>,
-    public_outbound_dial_info_filter: Option<DialInfoFilter>,
-    local_outbound_dial_info_filter: Option<DialInfoFilter>,
 }
 
 struct NetworkManagerUnlockedInner {
+    // Handles
+    config: VeilidConfig,
+    protected_store: ProtectedStore,
+    table_store: TableStore,
+    block_store: BlockStore,
+    crypto: Crypto,
     // Accessors
     routing_table: RwLock<Option<RoutingTable>>,
     components: RwLock<Option<NetworkComponents>>,
@@ -163,6 +167,7 @@ struct NetworkManagerUnlockedInner {
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     relay_management_task: TickTask<EyreReport>,
+    private_route_management_task: TickTask<EyreReport>,
     bootstrap_task: TickTask<EyreReport>,
     peer_minimum_refresh_task: TickTask<EyreReport>,
     ping_validator_task: TickTask<EyreReport>,
@@ -172,9 +177,6 @@ struct NetworkManagerUnlockedInner {
 
 #[derive(Clone)]
 pub struct NetworkManager {
-    config: VeilidConfig,
-    table_store: TableStore,
-    crypto: Crypto,
     inner: Arc<Mutex<NetworkManagerInner>>,
     unlocked_inner: Arc<NetworkManagerUnlockedInner>,
 }
@@ -186,36 +188,52 @@ impl NetworkManager {
             client_whitelist: LruCache::new_unbounded(),
             public_address_check_cache: BTreeMap::new(),
             public_address_inconsistencies_table: BTreeMap::new(),
-            protocol_config: None,
-            public_inbound_dial_info_filter: None,
-            local_inbound_dial_info_filter: None,
-            public_outbound_dial_info_filter: None,
-            local_outbound_dial_info_filter: None,
         }
     }
-    fn new_unlocked_inner(config: VeilidConfig) -> NetworkManagerUnlockedInner {
-        let c = config.get();
+    fn new_unlocked_inner(
+        config: VeilidConfig,
+        protected_store: ProtectedStore,
+        table_store: TableStore,
+        block_store: BlockStore,
+        crypto: Crypto,
+    ) -> NetworkManagerUnlockedInner {
+        let min_peer_refresh_time_ms = config.get().network.dht.min_peer_refresh_time_ms;
         NetworkManagerUnlockedInner {
+            config,
+            protected_store,
+            table_store,
+            block_store,
+            crypto,
             routing_table: RwLock::new(None),
             components: RwLock::new(None),
             update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
+            private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
             bootstrap_task: TickTask::new(1),
-            peer_minimum_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
+            peer_minimum_refresh_task: TickTask::new_ms(min_peer_refresh_time_ms),
             ping_validator_task: TickTask::new(1),
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
             node_info_update_single_future: MustJoinSingleFuture::new(),
         }
     }
 
-    pub fn new(config: VeilidConfig, table_store: TableStore, crypto: Crypto) -> Self {
+    pub fn new(
+        config: VeilidConfig,
+        protected_store: ProtectedStore,
+        table_store: TableStore,
+        block_store: BlockStore,
+        crypto: Crypto,
+    ) -> Self {
         let this = Self {
-            config: config.clone(),
-            table_store,
-            crypto,
             inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(config)),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(
+                config,
+                protected_store,
+                table_store,
+                block_store,
+                crypto,
+            )),
         };
         // Set rolling transfers tick task
         {
@@ -223,7 +241,15 @@ impl NetworkManager {
             this.unlocked_inner
                 .rolling_transfers_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().rolling_transfers_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .rolling_transfers_task_routine(s, l, t)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "NetworkManager rolling transfers task routine"
+                            )),
+                    )
                 });
         }
         // Set relay management tick task
@@ -232,7 +258,29 @@ impl NetworkManager {
             this.unlocked_inner
                 .relay_management_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().relay_management_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .relay_management_task_routine(s, l, t)
+                            .instrument(trace_span!(parent: None, "relay management task routine")),
+                    )
+                });
+        }
+        // Set private route management tick task
+        {
+            let this2 = this.clone();
+            this.unlocked_inner
+                .private_route_management_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(
+                        this2
+                            .clone()
+                            .private_route_management_task_routine(s, l, t)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "private route management task routine"
+                            )),
+                    )
                 });
         }
         // Set bootstrap tick task
@@ -240,7 +288,14 @@ impl NetworkManager {
             let this2 = this.clone();
             this.unlocked_inner
                 .bootstrap_task
-                .set_routine(move |s, _l, _t| Box::pin(this2.clone().bootstrap_task_routine(s)));
+                .set_routine(move |s, _l, _t| {
+                    Box::pin(
+                        this2
+                            .clone()
+                            .bootstrap_task_routine(s)
+                            .instrument(trace_span!(parent: None, "bootstrap task routine")),
+                    )
+                });
         }
         // Set peer minimum refresh tick task
         {
@@ -248,7 +303,15 @@ impl NetworkManager {
             this.unlocked_inner
                 .peer_minimum_refresh_task
                 .set_routine(move |s, _l, _t| {
-                    Box::pin(this2.clone().peer_minimum_refresh_task_routine(s))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .peer_minimum_refresh_task_routine(s)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "peer minimum refresh task routine"
+                            )),
+                    )
                 });
         }
         // Set ping validator tick task
@@ -257,7 +320,12 @@ impl NetworkManager {
             this.unlocked_inner
                 .ping_validator_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().ping_validator_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .ping_validator_task_routine(s, l, t)
+                            .instrument(trace_span!(parent: None, "ping validator task routine")),
+                    )
                 });
         }
         // Set public address check task
@@ -266,19 +334,39 @@ impl NetworkManager {
             this.unlocked_inner
                 .public_address_check_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this2.clone().public_address_check_task_routine(s, l, t))
+                    Box::pin(
+                        this2
+                            .clone()
+                            .public_address_check_task_routine(s, l, t)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "public address check task routine"
+                            )),
+                    )
                 });
         }
         this
     }
     pub fn config(&self) -> VeilidConfig {
-        self.config.clone()
+        self.unlocked_inner.config.clone()
+    }
+    pub fn with_config<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&VeilidConfigInner) -> R,
+    {
+        f(&*self.unlocked_inner.config.get())
+    }
+    pub fn protected_store(&self) -> ProtectedStore {
+        self.unlocked_inner.protected_store.clone()
     }
     pub fn table_store(&self) -> TableStore {
-        self.table_store.clone()
+        self.unlocked_inner.table_store.clone()
+    }
+    pub fn block_store(&self) -> BlockStore {
+        self.unlocked_inner.block_store.clone()
     }
     pub fn crypto(&self) -> Crypto {
-        self.crypto.clone()
+        self.unlocked_inner.crypto.clone()
     }
     pub fn routing_table(&self) -> RoutingTable {
         self.unlocked_inner
@@ -358,7 +446,15 @@ impl NetworkManager {
             self.routing_table(),
             connection_manager.clone(),
         );
-        let rpc_processor = RPCProcessor::new(self.clone());
+        let rpc_processor = RPCProcessor::new(
+            self.clone(),
+            self.unlocked_inner
+                .update_callback
+                .read()
+                .as_ref()
+                .unwrap()
+                .clone(),
+        );
         let receipt_manager = ReceiptManager::new(self.clone());
         *self.unlocked_inner.components.write() = Some(NetworkComponents {
             net: net.clone(),
@@ -383,41 +479,6 @@ impl NetworkManager {
         if let Err(e) = self.internal_startup().await {
             self.shutdown().await;
             return Err(e);
-        }
-
-        // Store copy of protocol config and dial info filters
-        {
-            let pc = self.net().get_protocol_config().unwrap();
-
-            let mut inner = self.inner.lock();
-
-            inner.public_inbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.inbound)
-                    .with_address_type_set(pc.family_global),
-            );
-            inner.local_inbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.inbound)
-                    .with_address_type_set(pc.family_local),
-            );
-            inner.public_outbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.outbound)
-                    .with_address_type_set(pc.family_global),
-            );
-            inner.local_outbound_dial_info_filter = Some(
-                DialInfoFilter::all()
-                    .with_protocol_type_set(pc.outbound)
-                    .with_address_type_set(pc.family_local),
-            );
-
-            inner.protocol_config = Some(pc);
-        }
-
-        // Inform routing table entries that our dial info has changed
-        for rd in RoutingDomain::all() {
-            self.send_node_info_updates(rd, true).await;
         }
 
         // Inform api clients that things have changed
@@ -478,12 +539,7 @@ impl NetworkManager {
         // reset the state
         debug!("resetting network manager state");
         {
-            let mut inner = self.inner.lock();
-            inner.public_inbound_dial_info_filter = None;
-            inner.local_inbound_dial_info_filter = None;
-            inner.public_outbound_dial_info_filter = None;
-            inner.local_outbound_dial_info_filter = None;
-            inner.protocol_config = None;
+            *self.inner.lock() = NetworkManager::new_inner();
         }
 
         // send update
@@ -521,7 +577,7 @@ impl NetworkManager {
     }
 
     pub fn purge_client_whitelist(&self) {
-        let timeout_ms = self.config.get().network.client_whitelist_timeout_ms;
+        let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
         let mut inner = self.inner.lock();
         let cutoff_timestamp = intf::get_timestamp() - ((timeout_ms as u64) * 1000u64);
         // Remove clients from the whitelist that haven't been since since our whitelist timeout
@@ -557,16 +613,16 @@ impl NetworkManager {
             RoutingDomain::PublicInternet.into(),
             BucketEntryState::Unreliable,
         );
-        let min_peer_count = {
-            let c = self.config.get();
-            c.network.dht.min_peer_count as usize
-        };
+        let min_peer_count = self.with_config(|c| c.network.dht.min_peer_count as usize);
+
         // If none, then add the bootstrap nodes to it
         if live_public_internet_entry_count == 0 {
             self.unlocked_inner.bootstrap_task.tick().await?;
         }
         // If we still don't have enough peers, find nodes until we do
-        else if live_public_internet_entry_count < min_peer_count {
+        else if !self.unlocked_inner.bootstrap_task.is_running()
+            && live_public_internet_entry_count < min_peer_count
+        {
             self.unlocked_inner.peer_minimum_refresh_task.tick().await?;
         }
 
@@ -588,26 +644,18 @@ impl NetworkManager {
         Ok(())
     }
 
-    // Return what network class we are in
-    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        if let Some(components) = self.unlocked_inner.components.read().as_ref() {
-            components.net.get_network_class(routing_domain)
-        } else {
-            None
-        }
-    }
-
-    // Get our node's capabilities
+    /// Get our node's capabilities in the PublicInternet routing domain
     fn generate_public_internet_node_status(&self) -> PublicInternetNodeStatus {
-        let node_info = self
+        let own_peer_info = self
             .routing_table()
-            .get_own_node_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(RoutingDomain::PublicInternet);
+        let own_node_info = own_peer_info.signed_node_info.node_info();
 
-        let will_route = node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
-        let will_tunnel = node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
-        let will_signal = node_info.can_signal();
-        let will_relay = node_info.can_inbound_relay();
-        let will_validate_dial_info = node_info.can_validate_dial_info();
+        let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
+        let will_tunnel = own_node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
+        let will_signal = own_node_info.can_signal();
+        let will_relay = own_node_info.can_inbound_relay();
+        let will_validate_dial_info = own_node_info.can_validate_dial_info();
 
         PublicInternetNodeStatus {
             will_route,
@@ -617,13 +665,16 @@ impl NetworkManager {
             will_validate_dial_info,
         }
     }
+    /// Get our node's capabilities in the LocalNetwork routing domain
     fn generate_local_network_node_status(&self) -> LocalNetworkNodeStatus {
-        let node_info = self
+        let own_peer_info = self
             .routing_table()
-            .get_own_node_info(RoutingDomain::LocalNetwork);
+            .get_own_peer_info(RoutingDomain::LocalNetwork);
 
-        let will_relay = node_info.can_inbound_relay();
-        let will_validate_dial_info = node_info.can_validate_dial_info();
+        let own_node_info = own_peer_info.signed_node_info.node_info();
+
+        let will_relay = own_node_info.can_inbound_relay();
+        let will_validate_dial_info = own_node_info.can_validate_dial_info();
 
         LocalNetworkNodeStatus {
             will_relay,
@@ -642,59 +693,7 @@ impl NetworkManager {
         }
     }
 
-    // Return what protocols we have enabled
-    pub fn get_protocol_config(&self) -> ProtocolConfig {
-        let inner = self.inner.lock();
-        inner.protocol_config.as_ref().unwrap().clone()
-    }
-
-    // Return a dial info filter for what we can receive
-    pub fn get_inbound_dial_info_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
-        let inner = self.inner.lock();
-        match routing_domain {
-            RoutingDomain::PublicInternet => inner
-                .public_inbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-            RoutingDomain::LocalNetwork => inner
-                .local_inbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-        }
-    }
-    pub fn get_inbound_node_ref_filter(&self, routing_domain: RoutingDomain) -> NodeRefFilter {
-        let dif = self.get_inbound_dial_info_filter(routing_domain);
-        NodeRefFilter::new()
-            .with_routing_domain(routing_domain)
-            .with_dial_info_filter(dif)
-    }
-
-    // Return a dial info filter for what we can send out
-    pub fn get_outbound_dial_info_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
-        let inner = self.inner.lock();
-        match routing_domain {
-            RoutingDomain::PublicInternet => inner
-                .public_outbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-            RoutingDomain::LocalNetwork => inner
-                .local_outbound_dial_info_filter
-                .as_ref()
-                .unwrap()
-                .clone(),
-        }
-    }
-    pub fn get_outbound_node_ref_filter(&self, routing_domain: RoutingDomain) -> NodeRefFilter {
-        let dif = self.get_outbound_dial_info_filter(routing_domain);
-        NodeRefFilter::new()
-            .with_routing_domain(routing_domain)
-            .with_dial_info_filter(dif)
-    }
-
-    // Generates a multi-shot/normal receipt
+    /// Generates a multi-shot/normal receipt
     #[instrument(level = "trace", skip(self, extra_data, callback), err)]
     pub fn generate_receipt<D: AsRef<[u8]>>(
         &self,
@@ -720,7 +719,7 @@ impl NetworkManager {
         Ok(out)
     }
 
-    // Generates a single-shot/normal receipt
+    /// Generates a single-shot/normal receipt
     #[instrument(level = "trace", skip(self, extra_data), err)]
     pub fn generate_single_shot_receipt<D: AsRef<[u8]>>(
         &self,
@@ -746,7 +745,7 @@ impl NetworkManager {
         Ok((out, instance))
     }
 
-    // Process a received out-of-band receipt
+    /// Process a received out-of-band receipt
     #[instrument(level = "trace", skip(self, receipt_data), ret)]
     pub async fn handle_out_of_band_receipt<R: AsRef<[u8]>>(
         &self,
@@ -761,15 +760,17 @@ impl NetworkManager {
             Ok(v) => v,
         };
 
-        receipt_manager.handle_receipt(receipt, None).await
+        receipt_manager
+            .handle_receipt(receipt, ReceiptReturned::OutOfBand)
+            .await
     }
 
-    // Process a received in-band receipt
+    /// Process a received in-band receipt
     #[instrument(level = "trace", skip(self, receipt_data), ret)]
     pub async fn handle_in_band_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
-        inbound_nr: NodeRef,
+        inbound_noderef: NodeRef,
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
@@ -781,17 +782,54 @@ impl NetworkManager {
         };
 
         receipt_manager
-            .handle_receipt(receipt, Some(inbound_nr))
+            .handle_receipt(receipt, ReceiptReturned::InBand { inbound_noderef })
+            .await
+    }
+
+    /// Process a received safety receipt
+    #[instrument(level = "trace", skip(self, receipt_data), ret)]
+    pub async fn handle_safety_receipt<R: AsRef<[u8]>>(
+        &self,
+        receipt_data: R,
+    ) -> NetworkResult<()> {
+        let receipt_manager = self.receipt_manager();
+
+        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+            Err(e) => {
+                return NetworkResult::invalid_message(e.to_string());
+            }
+            Ok(v) => v,
+        };
+
+        receipt_manager
+            .handle_receipt(receipt, ReceiptReturned::Safety)
+            .await
+    }
+
+    /// Process a received private receipt
+    #[instrument(level = "trace", skip(self, receipt_data), ret)]
+    pub async fn handle_private_receipt<R: AsRef<[u8]>>(
+        &self,
+        receipt_data: R,
+        private_route: DHTKey,
+    ) -> NetworkResult<()> {
+        let receipt_manager = self.receipt_manager();
+
+        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+            Err(e) => {
+                return NetworkResult::invalid_message(e.to_string());
+            }
+            Ok(v) => v,
+        };
+
+        receipt_manager
+            .handle_receipt(receipt, ReceiptReturned::Private { private_route })
             .await
     }
 
     // Process a received signal
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn handle_signal(
-        &self,
-        _sender_id: DHTKey,
-        signal_info: SignalInfo,
-    ) -> EyreResult<NetworkResult<()>> {
+    pub async fn handle_signal(&self, signal_info: SignalInfo) -> EyreResult<NetworkResult<()>> {
         match signal_info {
             SignalInfo::ReverseConnect { receipt, peer_info } => {
                 let routing_table = self.routing_table();
@@ -838,7 +876,7 @@ impl NetworkManager {
                 };
 
                 // Get the udp direct dialinfo for the hole punch
-                let outbound_nrf = self
+                let outbound_nrf = routing_table
                     .get_outbound_node_ref_filter(RoutingDomain::PublicInternet)
                     .with_protocol_type(ProtocolType::UDP);
                 peer_nr.set_filter(Some(outbound_nrf));
@@ -876,7 +914,7 @@ impl NetworkManager {
         }
     }
 
-    // Builds an envelope for sending over the network
+    /// Builds an envelope for sending over the network
     #[instrument(level = "trace", skip(self, body), err)]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
@@ -896,14 +934,14 @@ impl NetworkManager {
         // Encode envelope
         let envelope = Envelope::new(version, ts, nonce, node_id, dest_node_id);
         envelope
-            .to_encrypted_data(self.crypto.clone(), body.as_ref(), &node_id_secret)
+            .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret)
             .wrap_err("envelope failed to encode")
     }
 
-    // Called by the RPC handler when we want to issue an RPC request or response
-    // node_ref is the direct destination to which the envelope will be sent
-    // If 'node_id' is specified, it can be different than node_ref.node_id()
-    // which will cause the envelope to be relayed
+    /// Called by the RPC handler when we want to issue an RPC request or response
+    /// node_ref is the direct destination to which the envelope will be sent
+    /// If 'node_id' is specified, it can be different than node_ref.node_id()
+    /// which will cause the envelope to be relayed
     #[instrument(level = "trace", skip(self, body), ret, err)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
@@ -925,19 +963,20 @@ impl NetworkManager {
         }
         // Get node's min/max version and see if we can send to it
         // and if so, get the max version we can use
-        let version = if let Some((node_min, node_max)) = node_ref.min_max_version() {
+        let version = if let Some(min_max_version) = node_ref.min_max_version() {
             #[allow(clippy::absurd_extreme_comparisons)]
-            if node_min > MAX_VERSION || node_max < MIN_VERSION {
+            if min_max_version.min > MAX_CRYPTO_VERSION || min_max_version.max < MIN_CRYPTO_VERSION
+            {
                 bail!(
                     "can't talk to this node {} because version is unsupported: ({},{})",
                     via_node_id,
-                    node_min,
-                    node_max
+                    min_max_version.min,
+                    min_max_version.max
                 );
             }
-            cmp::min(node_max, MAX_VERSION)
+            cmp::min(min_max_version.max, MAX_CRYPTO_VERSION)
         } else {
-            MAX_VERSION
+            MAX_CRYPTO_VERSION
         };
 
         // Build the envelope to send
@@ -947,7 +986,7 @@ impl NetworkManager {
         self.send_data(node_ref.clone(), out).await
     }
 
-    // Called by the RPC handler when we want to issue an direct receipt
+    /// Called by the RPC handler when we want to issue an direct receipt
     #[instrument(level = "trace", skip(self, rcpt_data), err)]
     pub async fn send_out_of_band_receipt(
         &self,
@@ -972,167 +1011,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
-    fn get_contact_method_public(&self, target_node_ref: NodeRef) -> ContactMethod {
-        // Scope noderef down to protocols we can do outbound
-        let public_outbound_nrf = self.get_outbound_node_ref_filter(RoutingDomain::PublicInternet);
-        let target_node_ref = target_node_ref.filtered_clone(public_outbound_nrf.clone());
-
-        // Get the best match internet dial info if we have it
-        let opt_target_public_did = target_node_ref.first_filtered_dial_info_detail();
-        if let Some(target_public_did) = opt_target_public_did {
-            // Do we need to signal before going inbound?
-            if !target_public_did.class.requires_signal() {
-                // Go direct without signaling
-                return ContactMethod::Direct(target_public_did.dial_info);
-            }
-
-            // Get the target's inbound relay, it must have one or it is not reachable
-            // Note that .relay() never returns our own node. We can't relay to ourselves.
-            if let Some(inbound_relay_nr) = target_node_ref.relay(RoutingDomain::PublicInternet) {
-                // Scope down to protocols we can do outbound
-                let inbound_relay_nr = inbound_relay_nr.filtered_clone(public_outbound_nrf.clone());
-                // Can we reach the inbound relay?
-                if inbound_relay_nr.first_filtered_dial_info_detail().is_some() {
-                    // Can we receive anything inbound ever?
-                    let our_network_class = self
-                        .get_network_class(RoutingDomain::PublicInternet)
-                        .unwrap_or(NetworkClass::Invalid);
-                    if matches!(our_network_class, NetworkClass::InboundCapable) {
-                        let routing_table = self.routing_table();
-
-                        ///////// Reverse connection
-
-                        // Get the best match dial info for an reverse inbound connection
-                        let reverse_dif = self
-                            .get_inbound_dial_info_filter(RoutingDomain::PublicInternet)
-                            .filtered(
-                                &target_node_ref
-                                    .node_info_outbound_filter(RoutingDomain::PublicInternet),
-                            );
-                        if let Some(reverse_did) = routing_table.first_filtered_dial_info_detail(
-                            RoutingDomain::PublicInternet.into(),
-                            &reverse_dif,
-                        ) {
-                            // Ensure we aren't on the same public IP address (no hairpin nat)
-                            if reverse_did.dial_info.to_ip_addr()
-                                != target_public_did.dial_info.to_ip_addr()
-                            {
-                                // Can we receive a direct reverse connection?
-                                if !reverse_did.class.requires_signal() {
-                                    return ContactMethod::SignalReverse(
-                                        inbound_relay_nr,
-                                        target_node_ref,
-                                    );
-                                }
-                            }
-                        }
-
-                        ///////// UDP hole-punch
-
-                        // Does the target have a direct udp dialinfo we can reach?
-                        let udp_target_nr = target_node_ref.filtered_clone(
-                            NodeRefFilter::new().with_protocol_type(ProtocolType::UDP),
-                        );
-                        if let Some(target_udp_dialinfo_detail) =
-                            udp_target_nr.first_filtered_dial_info_detail()
-                        {
-                            // Does the self node have a direct udp dialinfo the target can reach?
-                            let inbound_udp_dif = self
-                                .get_inbound_dial_info_filter(RoutingDomain::PublicInternet)
-                                .filtered(
-                                    &target_node_ref
-                                        .node_info_outbound_filter(RoutingDomain::PublicInternet),
-                                )
-                                .filtered(
-                                    &DialInfoFilter::all().with_protocol_type(ProtocolType::UDP),
-                                );
-                            if let Some(self_udp_dialinfo_detail) = routing_table
-                                .first_filtered_dial_info_detail(
-                                    RoutingDomain::PublicInternet.into(),
-                                    &inbound_udp_dif,
-                                )
-                            {
-                                // Ensure we aren't on the same public IP address (no hairpin nat)
-                                if target_udp_dialinfo_detail.dial_info.to_ip_addr()
-                                    != self_udp_dialinfo_detail.dial_info.to_ip_addr()
-                                {
-                                    // The target and ourselves have a udp dialinfo that they can reach
-                                    return ContactMethod::SignalHolePunch(
-                                        inbound_relay_nr,
-                                        udp_target_nr,
-                                    );
-                                }
-                            }
-                        }
-                        // Otherwise we have to inbound relay
-                    }
-
-                    return ContactMethod::InboundRelay(inbound_relay_nr);
-                }
-            }
-        }
-        // If the other node is not inbound capable at all, it needs to have an inbound relay
-        else if let Some(target_inbound_relay_nr) =
-            target_node_ref.relay(RoutingDomain::PublicInternet)
-        {
-            // Can we reach the full relay?
-            if target_inbound_relay_nr
-                .first_filtered_dial_info_detail()
-                .is_some()
-            {
-                return ContactMethod::InboundRelay(target_inbound_relay_nr);
-            }
-        }
-
-        // If we can't reach the node by other means, try our outbound relay if we have one
-        if let Some(relay_node) = self
-            .routing_table()
-            .relay_node(RoutingDomain::PublicInternet)
-        {
-            return ContactMethod::OutboundRelay(relay_node);
-        }
-
-        ContactMethod::Unreachable
-    }
-
-    #[instrument(level = "trace", skip(self), ret)]
-    fn get_contact_method_local(&self, target_node_ref: NodeRef) -> ContactMethod {
-        // Scope noderef down to protocols we can do outbound
-        let local_outbound_nrf = self.get_outbound_node_ref_filter(RoutingDomain::LocalNetwork);
-        let target_node_ref = target_node_ref.filtered_clone(local_outbound_nrf);
-
-        // Get the best matching local direct dial info if we have it
-        if target_node_ref.is_filter_dead() {
-            return ContactMethod::Unreachable;
-        }
-        let opt_target_local_did = target_node_ref.first_filtered_dial_info_detail();
-        if let Some(target_local_did) = opt_target_local_did {
-            return ContactMethod::Direct(target_local_did.dial_info);
-        }
-        return ContactMethod::Unreachable;
-    }
-
-    // Figure out how to reach a node
-    #[instrument(level = "trace", skip(self), ret)]
-    pub(crate) fn get_contact_method(&self, target_node_ref: NodeRef) -> ContactMethod {
-        let routing_domain = match target_node_ref.best_routing_domain() {
-            Some(rd) => rd,
-            None => {
-                log_net!("no routing domain for node {:?}", target_node_ref);
-                return ContactMethod::Unreachable;
-            }
-        };
-
-        match routing_domain {
-            RoutingDomain::LocalNetwork => self.get_contact_method_local(target_node_ref),
-            RoutingDomain::PublicInternet => self.get_contact_method_public(target_node_ref),
-        }
-    }
-
-    // Send a reverse connection signal and wait for the return receipt over it
-    // Then send the data across the new connection
-    // Only usable for PublicInternet routing domain
+    /// Send a reverse connection signal and wait for the return receipt over it
+    /// Then send the data across the new connection
+    /// Only usable for PublicInternet routing domain
     #[instrument(level = "trace", skip(self, data), err)]
     pub async fn do_reverse_connect(
         &self,
@@ -1141,8 +1022,13 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
         // Build a return receipt for the signal
-        let receipt_timeout =
-            ms_to_us(self.config.get().network.reverse_connection_receipt_time_ms);
+        let receipt_timeout = ms_to_us(
+            self.unlocked_inner
+                .config
+                .get()
+                .network
+                .reverse_connection_receipt_time_ms,
+        );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 
         // Get our peer info
@@ -1162,7 +1048,9 @@ impl NetworkManager {
 
         // Wait for the return receipt
         let inbound_nr = match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedOutOfBand => {
+            ReceiptEvent::ReturnedPrivate { private_route: _ }
+            | ReceiptEvent::ReturnedOutOfBand
+            | ReceiptEvent::ReturnedSafety => {
                 return Ok(NetworkResult::invalid_message(
                     "reverse connect receipt should be returned in-band",
                 ));
@@ -1178,7 +1066,7 @@ impl NetworkManager {
 
         // We expect the inbound noderef to be the same as the target noderef
         // if they aren't the same, we should error on this and figure out what then hell is up
-        if target_nr != inbound_nr {
+        if target_nr.node_id() != inbound_nr.node_id() {
             bail!("unexpected noderef mismatch on reverse connect");
         }
 
@@ -1199,9 +1087,9 @@ impl NetworkManager {
         }
     }
 
-    // Send a hole punch signal and do a negotiating ping and wait for the return receipt
-    // Then send the data across the new connection
-    // Only usable for PublicInternet routing domain
+    /// Send a hole punch signal and do a negotiating ping and wait for the return receipt
+    /// Then send the data across the new connection
+    /// Only usable for PublicInternet routing domain
     #[instrument(level = "trace", skip(self, data), err)]
     pub async fn do_hole_punch(
         &self,
@@ -1223,7 +1111,13 @@ impl NetworkManager {
             .unwrap_or_default());
 
         // Build a return receipt for the signal
-        let receipt_timeout = ms_to_us(self.config.get().network.hole_punch_receipt_time_ms);
+        let receipt_timeout = ms_to_us(
+            self.unlocked_inner
+                .config
+                .get()
+                .network
+                .hole_punch_receipt_time_ms,
+        );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
         // Get our peer info
         let peer_info = self
@@ -1257,7 +1151,9 @@ impl NetworkManager {
 
         // Wait for the return receipt
         let inbound_nr = match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedOutOfBand => {
+            ReceiptEvent::ReturnedPrivate { private_route: _ }
+            | ReceiptEvent::ReturnedOutOfBand
+            | ReceiptEvent::ReturnedSafety => {
                 return Ok(NetworkResult::invalid_message(
                     "hole punch receipt should be returned in-band",
                 ));
@@ -1273,7 +1169,7 @@ impl NetworkManager {
 
         // We expect the inbound noderef to be the same as the target noderef
         // if they aren't the same, we should error on this and figure out what then hell is up
-        if target_nr != inbound_nr {
+        if target_nr.node_id() != inbound_nr.node_id() {
             bail!(
                 "unexpected noderef mismatch on hole punch {}, expected {}",
                 inbound_nr,
@@ -1298,103 +1194,191 @@ impl NetworkManager {
         }
     }
 
-    // Send raw data to a node
-    //
-    // We may not have dial info for a node, but have an existing connection for it
-    // because an inbound connection happened first, and no FindNodeQ has happened to that
-    // node yet to discover its dial info. The existing connection should be tried first
-    // in this case.
-    //
-    // Sending to a node requires determining a NetworkClass compatible mechanism
-    //
+    /// Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
+    /// Uses NodeRefs to ensure nodes are referenced, this is not a part of 'RoutingTable' because RoutingTable is not
+    /// allowed to use NodeRefs due to recursive locking
+    #[instrument(level = "trace", skip(self), ret)]
+    pub(crate) fn get_node_contact_method(
+        &self,
+        target_node_ref: NodeRef,
+    ) -> EyreResult<NodeContactMethod> {
+        let routing_table = self.routing_table();
+
+        // Figure out the best routing domain to get the contact method over
+        let routing_domain = match target_node_ref.best_routing_domain() {
+            Some(rd) => rd,
+            None => {
+                log_net!("no routing domain for node {:?}", target_node_ref);
+                return Ok(NodeContactMethod::Unreachable);
+            }
+        };
+
+        // Node A is our own node
+        let peer_a = routing_table.get_own_peer_info(routing_domain);
+
+        // Node B is the target node
+        let peer_b = match target_node_ref.make_peer_info(routing_domain) {
+            Some(ni) => ni,
+            None => {
+                log_net!("no node info for node {:?}", target_node_ref);
+                return Ok(NodeContactMethod::Unreachable);
+            }
+        };
+
+        // Dial info filter comes from the target node ref
+        let dial_info_filter = target_node_ref.dial_info_filter();
+        let sequencing = target_node_ref.sequencing();
+
+        let cm = routing_table.get_contact_method(
+            routing_domain,
+            &peer_a,
+            &peer_b,
+            dial_info_filter,
+            sequencing,
+        );
+
+        // Translate the raw contact method to a referenced contact method
+        Ok(match cm {
+            ContactMethod::Unreachable => NodeContactMethod::Unreachable,
+            ContactMethod::Existing => NodeContactMethod::Existing,
+            ContactMethod::Direct(di) => NodeContactMethod::Direct(di),
+            ContactMethod::SignalReverse(relay_key, target_key) => {
+                let relay_nr = routing_table
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                if target_node_ref.node_id() != target_key {
+                    bail!("target noderef didn't match target key");
+                }
+                NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
+            }
+            ContactMethod::SignalHolePunch(relay_key, target_key) => {
+                let relay_nr = routing_table
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                if target_node_ref.node_id() != target_key {
+                    bail!("target noderef didn't match target key");
+                }
+                NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref)
+            }
+            ContactMethod::InboundRelay(relay_key) => {
+                let relay_nr = routing_table
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                NodeContactMethod::InboundRelay(relay_nr)
+            }
+            ContactMethod::OutboundRelay(relay_key) => {
+                let relay_nr = routing_table
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                NodeContactMethod::OutboundRelay(relay_nr)
+            }
+        })
+    }
+
+    /// Send raw data to a node
+    ///
+    /// We may not have dial info for a node, but have an existing connection for it
+    /// because an inbound connection happened first, and no FindNodeQ has happened to that
+    /// node yet to discover its dial info. The existing connection should be tried first
+    /// in this case.
+    ///
+    /// Sending to a node requires determining a NetworkClass compatible mechanism
     pub fn send_data(
         &self,
         node_ref: NodeRef,
         data: Vec<u8>,
     ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataKind>>> {
         let this = self.clone();
-        Box::pin(async move {
-            // info!("{}", format!("send_data to: {:?}", node_ref).red());
+        Box::pin(
+            async move {
+                // info!("{}", format!("send_data to: {:?}", node_ref).red());
 
-            // First try to send data to the last socket we've seen this peer on
-            let data = if let Some(connection_descriptor) = node_ref.last_connection() {
-                // info!(
-                //     "{}",
-                //     format!("last_connection to: {:?}", connection_descriptor).red()
-                // );
+                // First try to send data to the last socket we've seen this peer on
+                let data = if let Some(connection_descriptor) = node_ref.last_connection() {
+                    // info!(
+                    //     "{}",
+                    //     format!("last_connection to: {:?}", connection_descriptor).red()
+                    // );
 
-                match this
-                    .net()
-                    .send_data_to_existing_connection(connection_descriptor, data)
-                    .await?
-                {
-                    None => {
-                        // info!(
-                        //     "{}",
-                        //     format!("sent to existing connection: {:?}", connection_descriptor)
-                        //         .red()
-                        // );
+                    match this
+                        .net()
+                        .send_data_to_existing_connection(connection_descriptor, data)
+                        .await?
+                    {
+                        None => {
+                            // info!(
+                            //     "{}",
+                            //     format!("sent to existing connection: {:?}", connection_descriptor)
+                            //         .red()
+                            // );
 
-                        // Update timestamp for this last connection since we just sent to it
+                            // Update timestamp for this last connection since we just sent to it
+                            node_ref
+                                .set_last_connection(connection_descriptor, intf::get_timestamp());
+
+                            return Ok(NetworkResult::value(SendDataKind::Existing(
+                                connection_descriptor,
+                            )));
+                        }
+                        Some(d) => d,
+                    }
+                } else {
+                    data
+                };
+
+                // info!("{}", "no existing connection".red());
+
+                // If we don't have last_connection, try to reach out to the peer via its dial info
+                let contact_method = this.get_node_contact_method(node_ref.clone())?;
+                log_net!(
+                    "send_data via {:?} to dialinfo {:?}",
+                    contact_method,
+                    node_ref
+                );
+                match contact_method {
+                    NodeContactMethod::OutboundRelay(relay_nr)
+                    | NodeContactMethod::InboundRelay(relay_nr) => {
+                        network_result_try!(this.send_data(relay_nr, data).await?);
+                        Ok(NetworkResult::value(SendDataKind::Indirect))
+                    }
+                    NodeContactMethod::Direct(dial_info) => {
+                        let connection_descriptor = network_result_try!(
+                            this.net().send_data_to_dial_info(dial_info, data).await?
+                        );
+                        // If we connected to this node directly, save off the last connection so we can use it again
                         node_ref.set_last_connection(connection_descriptor, intf::get_timestamp());
 
-                        return Ok(NetworkResult::value(SendDataKind::Existing(
+                        Ok(NetworkResult::value(SendDataKind::Direct(
                             connection_descriptor,
-                        )));
+                        )))
                     }
-                    Some(d) => d,
+                    NodeContactMethod::SignalReverse(relay_nr, target_node_ref) => {
+                        let connection_descriptor = network_result_try!(
+                            this.do_reverse_connect(relay_nr, target_node_ref, data)
+                                .await?
+                        );
+                        Ok(NetworkResult::value(SendDataKind::Direct(
+                            connection_descriptor,
+                        )))
+                    }
+                    NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref) => {
+                        let connection_descriptor = network_result_try!(
+                            this.do_hole_punch(relay_nr, target_node_ref, data).await?
+                        );
+                        Ok(NetworkResult::value(SendDataKind::Direct(
+                            connection_descriptor,
+                        )))
+                    }
+                    NodeContactMethod::Existing => Ok(NetworkResult::no_connection_other(
+                        "should have found an existing connection",
+                    )),
+                    NodeContactMethod::Unreachable => Ok(NetworkResult::no_connection_other(
+                        "Can't send to this node",
+                    )),
                 }
-            } else {
-                data
-            };
-
-            // info!("{}", "no existing connection".red());
-
-            // If we don't have last_connection, try to reach out to the peer via its dial info
-            let contact_method = this.get_contact_method(node_ref.clone());
-            log_net!(
-                "send_data via {:?} to dialinfo {:?}",
-                contact_method,
-                node_ref
-            );
-            match contact_method {
-                ContactMethod::OutboundRelay(relay_nr) | ContactMethod::InboundRelay(relay_nr) => {
-                    network_result_try!(this.send_data(relay_nr, data).await?);
-                    Ok(NetworkResult::value(SendDataKind::Indirect))
-                }
-                ContactMethod::Direct(dial_info) => {
-                    let connection_descriptor = network_result_try!(
-                        this.net().send_data_to_dial_info(dial_info, data).await?
-                    );
-                    // If we connected to this node directly, save off the last connection so we can use it again
-                    node_ref.set_last_connection(connection_descriptor, intf::get_timestamp());
-
-                    Ok(NetworkResult::value(SendDataKind::Direct(
-                        connection_descriptor,
-                    )))
-                }
-                ContactMethod::SignalReverse(relay_nr, target_node_ref) => {
-                    let connection_descriptor = network_result_try!(
-                        this.do_reverse_connect(relay_nr, target_node_ref, data)
-                            .await?
-                    );
-                    Ok(NetworkResult::value(SendDataKind::Direct(
-                        connection_descriptor,
-                    )))
-                }
-                ContactMethod::SignalHolePunch(relay_nr, target_node_ref) => {
-                    let connection_descriptor = network_result_try!(
-                        this.do_hole_punch(relay_nr, target_node_ref, data).await?
-                    );
-                    Ok(NetworkResult::value(SendDataKind::Direct(
-                        connection_descriptor,
-                    )))
-                }
-                ContactMethod::Unreachable => Ok(NetworkResult::no_connection_other(
-                    "Can't send to this node",
-                )),
             }
-        })
+            .instrument(trace_span!("send_data")),
+        )
     }
 
     // Direct bootstrap request handler (separate fallback mechanism from cheaper TXT bootstrap mechanism)
@@ -1434,10 +1418,7 @@ impl NetworkManager {
     // Direct bootstrap request
     #[instrument(level = "trace", err, skip(self))]
     pub async fn boot_request(&self, dial_info: DialInfo) -> EyreResult<Vec<PeerInfo>> {
-        let timeout_ms = {
-            let c = self.config.get();
-            c.network.rpc.timeout_ms
-        };
+        let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
         let out_data: Vec<u8> = network_result_value_or_log!(debug self
@@ -1458,6 +1439,7 @@ impl NetworkManager {
     // Called when a packet potentially containing an RPC envelope is received by a low-level
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
+    #[instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len()))]
     async fn on_recv_envelope(
         &self,
         data: &[u8],
@@ -1531,13 +1513,12 @@ impl NetworkManager {
         };
 
         // Get timestamp range
-        let (tsbehind, tsahead) = {
-            let c = self.config.get();
+        let (tsbehind, tsahead) = self.with_config(|c| {
             (
                 c.network.rpc.max_timestamp_behind_ms.map(ms_to_us),
                 c.network.rpc.max_timestamp_ahead_ms.map(ms_to_us),
             )
-        };
+        });
 
         // Validate timestamp isn't too old
         let ts = intf::get_timestamp();
@@ -1631,12 +1612,12 @@ impl NetworkManager {
         // xxx: deal with spoofing and flooding here?
 
         // Pass message to RPC system
-        rpc.enqueue_message(
+        rpc.enqueue_direct_message(
             envelope,
-            body,
             source_noderef,
             connection_descriptor,
             routing_domain,
+            body,
         )?;
 
         // Inform caller that we dealt with the envelope locally
@@ -1766,16 +1747,19 @@ impl NetworkManager {
 
         // Ignore these reports if we are currently detecting public dial info
         let net = self.net();
-        if net.doing_public_dial_info_check() {
+        if net.needs_public_dial_info_check() {
             return;
         }
 
         let routing_table = self.routing_table();
-        let c = self.config.get();
-        let detect_address_changes = c.network.detect_address_changes;
+        let (detect_address_changes, ip6_prefix_size) = self.with_config(|c| {
+            (
+                c.network.detect_address_changes,
+                c.network.max_connections_per_ip6_prefix_size as usize,
+            )
+        });
 
         // Get the ip(block) this report is coming from
-        let ip6_prefix_size = c.network.max_connections_per_ip6_prefix_size as usize;
         let ipblock = ip_to_ipblock(
             ip6_prefix_size,
             connection_descriptor.remote_address().to_ip_addr(),
@@ -1807,7 +1791,7 @@ impl NetworkManager {
         let mut bad_public_address_detection_punishment: Option<
             Box<dyn FnOnce() + Send + 'static>,
         > = None;
-        let public_internet_network_class = net
+        let public_internet_network_class = routing_table
             .get_network_class(RoutingDomain::PublicInternet)
             .unwrap_or(NetworkClass::Invalid);
         let needs_public_address_detection =
@@ -1935,47 +1919,53 @@ impl NetworkManager {
             .clone()
             .unlocked_inner
             .node_info_update_single_future
-            .single_spawn(async move {
-                // Only update if we actually have valid signed node info for this routing domain
-                if !this.routing_table().has_valid_own_node_info(routing_domain) {
-                    trace!(
+            .single_spawn(
+                async move {
+                    // Only update if we actually have valid signed node info for this routing domain
+                    if !this.routing_table().has_valid_own_node_info(routing_domain) {
+                        trace!(
                         "not sending node info update because our network class is not yet valid"
                     );
-                    return;
+                        return;
+                    }
+
+                    // Get the list of refs to all nodes to update
+                    let cur_ts = intf::get_timestamp();
+                    let node_refs =
+                        this.routing_table()
+                            .get_nodes_needing_updates(routing_domain, cur_ts, all);
+
+                    // Send the updates
+                    log_net!(debug "Sending node info updates to {} nodes", node_refs.len());
+                    let mut unord = FuturesUnordered::new();
+                    for nr in node_refs {
+                        let rpc = this.rpc_processor();
+                        unord.push(
+                            async move {
+                                // Update the node
+                                if let Err(e) = rpc
+                                    .rpc_call_node_info_update(nr.clone(), routing_domain)
+                                    .await
+                                {
+                                    // Not fatal, but we should be able to see if this is happening
+                                    trace!("failed to send node info update to {:?}: {}", nr, e);
+                                    return;
+                                }
+
+                                // Mark the node as having seen our node info
+                                nr.set_seen_our_node_info(routing_domain);
+                            }
+                            .instrument(Span::current()),
+                        );
+                    }
+
+                    // Wait for futures to complete
+                    while unord.next().await.is_some() {}
+
+                    log_rtab!(debug "Finished sending node updates");
                 }
-
-                // Get the list of refs to all nodes to update
-                let cur_ts = intf::get_timestamp();
-                let node_refs =
-                    this.routing_table()
-                        .get_nodes_needing_updates(routing_domain, cur_ts, all);
-
-                // Send the updates
-                log_net!(debug "Sending node info updates to {} nodes", node_refs.len());
-                let mut unord = FuturesUnordered::new();
-                for nr in node_refs {
-                    let rpc = this.rpc_processor();
-                    unord.push(async move {
-                        // Update the node
-                        if let Err(e) = rpc
-                            .rpc_call_node_info_update(nr.clone(), routing_domain)
-                            .await
-                        {
-                            // Not fatal, but we should be able to see if this is happening
-                            trace!("failed to send node info update to {:?}: {}", nr, e);
-                            return;
-                        }
-
-                        // Mark the node as having seen our node info
-                        nr.set_seen_our_node_info(routing_domain);
-                    });
-                }
-
-                // Wait for futures to complete
-                while unord.next().await.is_some() {}
-
-                log_rtab!(debug "Finished sending node updates");
-            })
+                .instrument(Span::current()),
+            )
             .await;
     }
 }

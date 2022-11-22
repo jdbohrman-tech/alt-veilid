@@ -5,6 +5,7 @@ import 'dart:js' as js;
 import 'dart:js_util' as js_util;
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 //////////////////////////////////////////////////////////
 
@@ -80,6 +81,13 @@ class VeilidJS implements Veilid {
   @override
   Future<String> debug(String command) {
     return _wrapApiPromise(js_util.callMethod(wasm, "debug", [command]));
+  }
+
+  @override
+  Future<void> appCallReply(String id, Uint8List message) {
+    var encodedMessage = base64UrlEncode(message);
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "app_call_reply", [id, encodedMessage]));
   }
 
   @override

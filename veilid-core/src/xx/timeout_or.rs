@@ -104,6 +104,15 @@ impl<T> TimeoutOr<T> {
             Self::Value(v) => TimeoutOr::<X>::Value(f(v)),
         }
     }
+    pub fn on_timeout<F: Fn()>(self, f: F) -> Self {
+        match self {
+            Self::Timeout => {
+                f();
+                Self::Timeout
+            }
+            Self::Value(v) => Self::Value(v),
+        }
+    }
     pub fn into_timeout_error(self) -> Result<T, TimeoutError> {
         match self {
             Self::Timeout => Err(TimeoutError {}),

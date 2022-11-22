@@ -3,20 +3,10 @@ use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
 use js_sys::*;
+use send_wrapper::*;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen_futures::*;
 use web_sys::*;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(catch, js_name = setPassword, js_namespace = ["global", "wasmhost", "keytar"])]
-    fn keytar_setPassword(service: &str, account: &str, password: &str)
-        -> Result<Promise, JsValue>;
-    #[wasm_bindgen(catch, js_name = getPassword, js_namespace = ["global", "wasmhost", "keytar"])]
-    fn keytar_getPassword(service: &str, account: &str) -> Result<Promise, JsValue>;
-    #[wasm_bindgen(catch, js_name = deletePassword, js_namespace = ["global", "wasmhost", "keytar"])]
-    fn keytar_deletePassword(service: &str, account: &str) -> Result<Promise, JsValue>;
-}
-
 
 #[derive(Clone)]
 pub struct ProtectedStore {
@@ -24,31 +14,34 @@ pub struct ProtectedStore {
 }
 
 impl ProtectedStore {
-
     pub fn new(config: VeilidConfig) -> Self {
-        Self {
-            config,
-        }
+        Self { config }
     }
 
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn delete_all(&self) -> EyreResult<()> {
         // Delete all known keys
-        if self.remove_user_secret_string("node_id").await? {
+        if self.remove_user_secret("node_id").await? {
             debug!("deleted protected_store key 'node_id'");
         }
-        if self.remove_user_secret_string("node_id_secret").await? {
+        if self.remove_user_secret("node_id_secret").await? {
             debug!("deleted protected_store key 'node_id_secret'");
         }
-        if self.remove_user_secret_string("_test_key").await? {
+        if self.remove_user_secret("_test_key").await? {
             debug!("deleted protected_store key '_test_key'");
+        }
+        if self.remove_user_secret("RouteSpecStore").await? {
+            debug!("deleted protected_store key 'RouteSpecStore'");
         }
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), err)]
     pub async fn init(&self) -> EyreResult<()> {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self))]
     pub async fn terminate(&self) {}
 
     fn keyring_name(&self) -> String {
@@ -69,32 +62,9 @@ impl ProtectedStore {
         }
     }
 
+    //#[instrument(level = "trace", skip(self, value), ret, err)]
     pub async fn save_user_secret_string(&self, key: &str, value: &str) -> EyreResult<bool> {
-        if is_nodejs() {
-            let prev = match JsFuture::from(
-                keytar_getPassword(self.keyring_name().as_str(), key)
-                .map_err(map_jsvalue_error)
-                .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(v) => v.is_truthy(),
-                Err(_) => false,
-            };
-
-            match JsFuture::from(
-                keytar_setPassword(self.keyring_name().as_str(), key, value)
-                .map_err(map_jsvalue_error)
-                .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(_) => {}
-                Err(_) => bail!("Failed to set password"),
-            }
-
-            Ok(prev)
-        } else if is_browser() {
+        if is_browser() {
             let win = match window() {
                 Some(w) => w,
                 None => {
@@ -134,25 +104,9 @@ impl ProtectedStore {
         }
     }
 
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn load_user_secret_string(&self, key: &str) -> EyreResult<Option<String>> {
-        if is_nodejs() {
-            let prev = match JsFuture::from(
-                keytar_getPassword(self.keyring_name().as_str(), key)
-                    .map_err(map_jsvalue_error)
-                    .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(p) => p,
-                Err(_) => JsValue::UNDEFINED,
-            };
-
-            if prev.is_undefined() || prev.is_null() {
-                return Ok(None);
-            }
-
-            Ok(prev.as_string())
-        } else if is_browser() {
+        if is_browser() {
             let win = match window() {
                 Some(w) => w,
                 None => {
@@ -181,19 +135,78 @@ impl ProtectedStore {
         }
     }
 
-    pub async fn remove_user_secret_string(&self, key: &str) -> EyreResult<bool> {
-        if is_nodejs() {
-            match JsFuture::from(
-                keytar_deletePassword(self.keyring_name().as_str(), key)
-                    .map_err(map_jsvalue_error)
-                    .wrap_err("exception thrown")?,
-            )
-            .await
-            {
-                Ok(v) => Ok(v.is_truthy()),
-                Err(_) => bail!("Failed to delete"),
+    #[instrument(level = "trace", skip(self, value))]
+    pub async fn save_user_secret_frozen<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    where
+        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
+    {
+        let v = to_frozen(value)?;
+        self.save_user_secret(&key, &v).await
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn load_user_secret_frozen<T>(&self, key: &str) -> EyreResult<Option<T>>
+    where
+        T: RkyvArchive,
+        <T as RkyvArchive>::Archived:
+            for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+        <T as RkyvArchive>::Archived:
+            rkyv::Deserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+    {
+        let out = self.load_user_secret(key).await?;
+        let b = match out {
+            Some(v) => v,
+            None => {
+                return Ok(None);
             }
-        } else if is_browser() {
+        };
+
+        let obj = from_frozen(&b)?;
+        Ok(Some(obj))
+    }
+
+    #[instrument(level = "trace", skip(self, value), ret, err)]
+    pub async fn save_user_secret(&self, key: &str, value: &[u8]) -> EyreResult<bool> {
+        let mut s = BASE64URL_NOPAD.encode(value);
+        s.push('!');
+
+        self.save_user_secret_string(key, s.as_str()).await
+    }
+
+    #[instrument(level = "trace", skip(self), err)]
+    pub async fn load_user_secret(&self, key: &str) -> EyreResult<Option<Vec<u8>>> {
+        let mut s = match self.load_user_secret_string(key).await? {
+            Some(s) => s,
+            None => {
+                return Ok(None);
+            }
+        };
+
+        if s.pop() != Some('!') {
+            bail!("User secret is not a buffer");
+        }
+
+        let mut bytes = Vec::<u8>::new();
+        let res = BASE64URL_NOPAD.decode_len(s.len());
+        match res {
+            Ok(l) => {
+                bytes.resize(l, 0u8);
+            }
+            Err(_) => {
+                bail!("Failed to decode");
+            }
+        }
+
+        let res = BASE64URL_NOPAD.decode_mut(s.as_bytes(), &mut bytes);
+        match res {
+            Ok(_) => Ok(Some(bytes)),
+            Err(_) => bail!("Failed to decode"),
+        }
+    }
+
+    #[instrument(level = "trace", skip(self), ret, err)]
+    pub async fn remove_user_secret(&self, key: &str) -> EyreResult<bool> {
+        if is_browser() {
             let win = match window() {
                 Some(w) => w,
                 None => {
@@ -230,46 +243,5 @@ impl ProtectedStore {
         } else {
             unimplemented!();
         }
-    }
-        
-    pub async fn save_user_secret(&self, key: &str, value: &[u8]) -> EyreResult<bool> {
-        let mut s = BASE64URL_NOPAD.encode(value);
-        s.push('!');
-
-        self.save_user_secret_string(key, s.as_str()).await
-    }
-
-    pub async fn load_user_secret(&self, key: &str) -> EyreResult<Option<Vec<u8>>> {
-        let mut s = match self.load_user_secret_string(key).await? {
-            Some(s) => s,
-            None => {
-                return Ok(None);
-            }
-        };
-
-        if s.pop() != Some('!') {
-            bail!("User secret is not a buffer");
-        }
-
-        let mut bytes = Vec::<u8>::new();
-        let res = BASE64URL_NOPAD.decode_len(s.len());
-        match res {
-            Ok(l) => {
-                bytes.resize(l, 0u8);
-            }
-            Err(_) => {
-                bail!("Failed to decode");
-            }
-        }
-
-        let res = BASE64URL_NOPAD.decode_mut(s.as_bytes(), &mut bytes);
-        match res {
-            Ok(_) => Ok(Some(bytes)),
-            Err(_) => bail!("Failed to decode"),
-        }
-    }
-
-    pub async fn remove_user_secret(&self, key: &str) -> EyreResult<bool> {
-        self.remove_user_secret_string(key).await
     }
 }

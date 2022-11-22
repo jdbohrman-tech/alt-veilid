@@ -3,6 +3,10 @@ use futures_util::stream::FuturesUnordered;
 use futures_util::FutureExt;
 use stop_token::future::FutureExt as StopTokenFutureExt;
 
+const PORT_MAP_VALIDATE_TRY_COUNT: usize = 3;
+const PORT_MAP_VALIDATE_DELAY_MS: u32 = 500;
+const PORT_MAP_TRY_COUNT: usize = 3;
+
 struct DetectedPublicDialInfo {
     dial_info: DialInfo,
     class: DialInfoClass,
@@ -79,7 +83,7 @@ impl DiscoveryContext {
     async fn request_public_address(&self, node_ref: NodeRef) -> Option<SocketAddress> {
         let rpc = self.routing_table.rpc_processor();
 
-        let res = network_result_value_or_log!(debug match rpc.rpc_call_status(node_ref.clone()).await {
+        let res = network_result_value_or_log!(debug match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(error
@@ -98,7 +102,7 @@ impl DiscoveryContext {
             node_ref,
             res.answer
         );
-        res.answer.socket_address
+        res.answer.map(|si| si.socket_address)
     }
 
     // find fast peers with a particular address type, and ask them to tell us what our external address is
@@ -125,22 +129,24 @@ impl DiscoveryContext {
             RoutingDomain::PublicInternet,
             dial_info_filter.clone(),
         );
-        let disallow_relays_filter = move |e: &BucketEntryInner| {
-            if let Some(n) = e.node_info(RoutingDomain::PublicInternet) {
-                n.relay_peer_info.is_none()
-            } else {
-                false
-            }
-        };
-        let filter = RoutingTable::combine_entry_filters(
-            inbound_dial_info_entry_filter,
-            disallow_relays_filter,
-        );
+        let disallow_relays_filter = Box::new(
+            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+                let v = v.unwrap();
+                v.with(rti, |_rti, e| {
+                    if let Some(n) = e.signed_node_info(RoutingDomain::PublicInternet) {
+                        n.relay_id().is_none()
+                    } else {
+                        false
+                    }
+                })
+            },
+        ) as RoutingTableEntryFilter;
+        let filters = VecDeque::from([inbound_dial_info_entry_filter, disallow_relays_filter]);
 
         // Find public nodes matching this filter
         let peers = self
             .routing_table
-            .find_fast_public_nodes_filtered(node_count, filter);
+            .find_fast_public_nodes_filtered(node_count, filters);
         if peers.is_empty() {
             log_net!(
                 "no external address detection peers of type {:?}:{:?}",
@@ -219,6 +225,84 @@ impl DiscoveryContext {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
+    async fn try_upnp_port_mapping(&self) -> Option<DialInfo> {
+        let (pt, llpt, at, external_address_1, node_1, local_port) = {
+            let inner = self.inner.lock();
+            let pt = inner.protocol_type.unwrap();
+            let llpt = pt.low_level_protocol_type();
+            let at = inner.address_type.unwrap();
+            let external_address_1 = inner.external_1_address.unwrap();
+            let node_1 = inner.node_1.as_ref().unwrap().clone();
+            let local_port = self.net.get_local_port(pt);
+            (pt, llpt, at, external_address_1, node_1, local_port)
+        };
+
+        let mut tries = 0;
+        loop {
+            tries += 1;
+
+            // Attempt a port mapping. If this doesn't succeed, it's not going to
+            let Some(mapped_external_address) = self
+                .net
+                .unlocked_inner
+                .igd_manager
+                .map_any_port(llpt, at, local_port, Some(external_address_1.to_ip_addr()))
+                .await else
+            {
+                return None;
+            };
+
+            // Make dial info from the port mapping
+            let external_mapped_dial_info =
+                self.make_dial_info(SocketAddress::from_socket_addr(mapped_external_address), pt);
+
+            // Attempt to validate the port mapping
+            let mut validate_tries = 0;
+            loop {
+                validate_tries += 1;
+
+                // Ensure people can reach us. If we're firewalled off, this is useless
+                if self
+                    .validate_dial_info(node_1.clone(), external_mapped_dial_info.clone(), false)
+                    .await
+                {
+                    return Some(external_mapped_dial_info);
+                }
+
+                if validate_tries == PORT_MAP_VALIDATE_TRY_COUNT {
+                    log_net!(debug "UPNP port mapping succeeded but port {}/{} is still unreachable.\nretrying\n",
+                    local_port, match llpt {
+                        LowLevelProtocolType::UDP => "udp",
+                        LowLevelProtocolType::TCP => "tcp",
+                    });
+                    intf::sleep(PORT_MAP_VALIDATE_DELAY_MS).await
+                } else {
+                    break;
+                }
+            }
+
+            // Release the mapping if we're still unreachable
+            let _ = self
+                .net
+                .unlocked_inner
+                .igd_manager
+                .unmap_port(llpt, at, external_address_1.port())
+                .await;
+
+            if tries == PORT_MAP_TRY_COUNT {
+                warn!("UPNP port mapping succeeded but port {}/{} is still unreachable.\nYou may need to add a local firewall allowed port on this machine.\n",
+                    local_port, match llpt {
+                        LowLevelProtocolType::UDP => "udp",
+                        LowLevelProtocolType::TCP => "tcp",
+                    }
+                );
+                break;
+            }
+        }
+        None
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
     async fn try_port_mapping(&self) -> Option<DialInfo> {
         let (enable_upnp, _enable_natpmp) = {
             let c = self.net.config.get();
@@ -226,44 +310,7 @@ impl DiscoveryContext {
         };
 
         if enable_upnp {
-            let (pt, llpt, at, external_address_1, node_1, local_port) = {
-                let inner = self.inner.lock();
-                let pt = inner.protocol_type.unwrap();
-                let llpt = pt.low_level_protocol_type();
-                let at = inner.address_type.unwrap();
-                let external_address_1 = inner.external_1_address.unwrap();
-                let node_1 = inner.node_1.as_ref().unwrap().clone();
-                let local_port = self.net.get_local_port(pt);
-                (pt, llpt, at, external_address_1, node_1, local_port)
-            };
-
-            if let Some(mapped_external_address) = self
-                .net
-                .unlocked_inner
-                .igd_manager
-                .map_any_port(llpt, at, local_port, Some(external_address_1.to_ip_addr()))
-                .await
-            {
-                // make dial info from the port mapping
-                let external_mapped_dial_info = self
-                    .make_dial_info(SocketAddress::from_socket_addr(mapped_external_address), pt);
-
-                // ensure people can reach us. if we're firewalled off, this is useless
-                if self
-                    .validate_dial_info(node_1.clone(), external_mapped_dial_info.clone(), false)
-                    .await
-                {
-                    return Some(external_mapped_dial_info);
-                } else {
-                    // release the mapping if we're still unreachable
-                    let _ = self
-                        .net
-                        .unlocked_inner
-                        .igd_manager
-                        .unmap_port(llpt, at, external_address_1.port())
-                        .await;
-                }
-            }
+            return self.try_upnp_port_mapping().await;
         }
 
         None
@@ -375,17 +422,6 @@ impl DiscoveryContext {
     // If we know we are behind NAT check what kind
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn protocol_process_nat(&self) -> EyreResult<bool> {
-        let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
-            let inner = self.inner.lock();
-            (
-                inner.node_1.as_ref().unwrap().clone(),
-                inner.external_1_dial_info.as_ref().unwrap().clone(),
-                inner.external_1_address.unwrap(),
-                inner.protocol_type.unwrap(),
-                inner.address_type.unwrap(),
-            )
-        };
-
         // Attempt a port mapping via all available and enabled mechanisms
         // Try this before the direct mapping in the event that we are restarting
         // and may not have recorded a mapping created the last time
@@ -397,8 +433,30 @@ impl DiscoveryContext {
             // No more retries
             return Ok(true);
         }
+
+        // XXX: is this necessary?
+        // Redo our external_1 dial info detection because a failed port mapping attempt
+        // may cause it to become invalid
+        // Get our external address from some fast node, call it node 1
+        // if !self.protocol_get_external_address_1().await {
+        //     // If we couldn't get an external address, then we should just try the whole network class detection again later
+        //     return Ok(false);
+        // }
+
+        // Get the external dial info for our use here
+        let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
+            let inner = self.inner.lock();
+            (
+                inner.node_1.as_ref().unwrap().clone(),
+                inner.external_1_dial_info.as_ref().unwrap().clone(),
+                inner.external_1_address.unwrap(),
+                inner.protocol_type.unwrap(),
+                inner.address_type.unwrap(),
+            )
+        };
+
         // Do a validate_dial_info on the external address from a redirected node
-        else if self
+        if self
             .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
             .await
         {
@@ -592,12 +650,14 @@ impl Network {
         _l: u64,
         _t: u64,
     ) -> EyreResult<()> {
+        let routing_table = self.routing_table();
+
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let (protocol_config, existing_network_class, tcp_same_port) = {
             let inner = self.inner.lock();
-            let protocol_config = inner.protocol_config.unwrap_or_default();
+            let protocol_config = inner.protocol_config;
             let existing_network_class =
-                inner.network_class[RoutingDomain::PublicInternet as usize];
+                routing_table.get_network_class(RoutingDomain::PublicInternet);
             let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
                 && protocol_config.inbound.contains(ProtocolType::WS)
             {
@@ -607,7 +667,6 @@ impl Network {
             };
             (protocol_config, existing_network_class, tcp_same_port)
         };
-        let routing_table = self.routing_table();
 
         // Process all protocol and address combinations
         let mut futures = FuturesUnordered::new();
@@ -628,6 +687,7 @@ impl Network {
                         }
                         Some(vec![udpv4_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check UDPv4"))
                     .boxed(),
                 );
             }
@@ -647,6 +707,7 @@ impl Network {
                         }
                         Some(vec![udpv6_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check UDPv6"))
                     .boxed(),
                 );
             }
@@ -669,6 +730,7 @@ impl Network {
                         }
                         Some(vec![tcpv4_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check TCPv4"))
                     .boxed(),
                 );
             }
@@ -688,6 +750,7 @@ impl Network {
                         }
                         Some(vec![wsv4_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check WSv4"))
                     .boxed(),
                 );
             }
@@ -710,6 +773,7 @@ impl Network {
                         }
                         Some(vec![tcpv6_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check TCPv6"))
                     .boxed(),
                 );
             }
@@ -729,6 +793,7 @@ impl Network {
                         }
                         Some(vec![wsv6_context])
                     }
+                    .instrument(trace_span!("do_public_dial_info_check WSv6"))
                     .boxed(),
                 );
             }
@@ -825,17 +890,16 @@ impl Network {
 
             // Is the network class different?
             if existing_network_class != new_network_class {
-                self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] =
-                    new_network_class;
+                editor.set_network_class(new_network_class);
                 changed = true;
                 log_net!(debug "PublicInternet network class changed to {:?}", new_network_class);
             }
         } else if existing_network_class.is_some() {
             // Network class could not be determined
             editor.clear_dial_info_details();
-            self.inner.lock().network_class[RoutingDomain::PublicInternet as usize] = None;
+            editor.set_network_class(None);
             changed = true;
-            log_net!(debug "network class cleared");
+            log_net!(debug "PublicInternet network class cleared");
         }
 
         // Punish nodes that told us our public address had changed when it didn't
@@ -857,15 +921,11 @@ impl Network {
         l: u64,
         t: u64,
     ) -> EyreResult<()> {
-        // Note that we are doing the public dial info check
-        // We don't have to check this for concurrency, since this routine is run in a TickTask/SingleFuture
-        self.inner.lock().doing_public_dial_info_check = true;
-
         // Do the public dial info check
         let out = self.do_public_dial_info_check(stop_token, l, t).await;
 
         // Done with public dial info check
-        self.inner.lock().doing_public_dial_info_check = false;
+        self.inner.lock().needs_public_dial_info_check = false;
 
         out
     }

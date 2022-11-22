@@ -1,7 +1,7 @@
 use super::*;
 
 impl RoutingTable {
-    pub fn debug_info_nodeinfo(&self) -> String {
+    pub(crate) fn debug_info_nodeinfo(&self) -> String {
         let mut out = String::new();
         let inner = self.inner.read();
         out += "Routing Table Info:\n";
@@ -23,7 +23,7 @@ impl RoutingTable {
         out
     }
 
-    pub async fn debug_info_txtrecord(&self) -> String {
+    pub(crate) async fn debug_info_txtrecord(&self) -> String {
         let mut out = String::new();
 
         let gdis = self.dial_info_details(RoutingDomain::PublicInternet);
@@ -58,8 +58,8 @@ impl RoutingTable {
             out += &format!(
                 "{},{},{},{},{}",
                 BOOTSTRAP_TXT_VERSION,
-                MIN_VERSION,
-                MAX_VERSION,
+                MIN_CRYPTO_VERSION,
+                MAX_CRYPTO_VERSION,
                 self.node_id().encode(),
                 some_hostname.unwrap()
             );
@@ -71,7 +71,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_dialinfo(&self) -> String {
+    pub(crate) fn debug_info_dialinfo(&self) -> String {
         let ldis = self.dial_info_details(RoutingDomain::LocalNetwork);
         let gdis = self.dial_info_details(RoutingDomain::PublicInternet);
         let mut out = String::new();
@@ -100,8 +100,9 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_entries(&self, limit: usize, min_state: BucketEntryState) -> String {
+    pub(crate) fn debug_info_entries(&self, limit: usize, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
+        let inner = &*inner;
         let cur_ts = intf::get_timestamp();
 
         let mut out = String::new();
@@ -114,14 +115,14 @@ impl RoutingTable {
             let filtered_entries: Vec<(&DHTKey, &Arc<BucketEntry>)> = inner.buckets[b]
                 .entries()
                 .filter(|e| {
-                    let state = e.1.with(|e| e.state(cur_ts));
+                    let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
                     state >= min_state
                 })
                 .collect();
             if !filtered_entries.is_empty() {
                 out += &format!("  Bucket #{}:\n", b);
                 for e in filtered_entries {
-                    let state = e.1.with(|e| e.state(cur_ts));
+                    let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
                     out += &format!(
                         "    {} [{}]\n",
                         e.0.encode(),
@@ -147,7 +148,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_entry(&self, node_id: DHTKey) -> String {
+    pub(crate) fn debug_info_entry(&self, node_id: DHTKey) -> String {
         let mut out = String::new();
         out += &format!("Entry {:?}:\n", node_id);
         if let Some(nr) = self.lookup_node_ref(node_id) {
@@ -159,8 +160,9 @@ impl RoutingTable {
         out
     }
 
-    pub fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
+    pub(crate) fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
+        let inner = &*inner;
         let cur_ts = intf::get_timestamp();
 
         let mut out = String::new();
@@ -175,7 +177,7 @@ impl RoutingTable {
             while c < COLS {
                 let mut cnt = 0;
                 for e in inner.buckets[b].entries() {
-                    if e.1.with(|e| e.state(cur_ts) >= min_state) {
+                    if e.1.with(inner, |_rti, e| e.state(cur_ts) >= min_state) {
                         cnt += 1;
                     }
                 }

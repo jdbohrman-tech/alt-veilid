@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(clippy::absurd_extreme_comparisons)]
-use super::crypto::*;
-use super::key::*;
+use super::*;
+use crate::routing_table::VersionRange;
 use crate::xx::*;
 use crate::*;
 use core::convert::TryInto;
@@ -38,8 +38,6 @@ use core::convert::TryInto;
 pub const MAX_ENVELOPE_SIZE: usize = 65507;
 pub const MIN_ENVELOPE_SIZE: usize = 0x6A + 0x40; // Header + Signature
 pub const ENVELOPE_MAGIC: &[u8; 4] = b"VLID";
-pub const MIN_VERSION: u8 = 0u8;
-pub const MAX_VERSION: u8 = 0u8;
 pub type EnvelopeNonce = [u8; 24];
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -61,15 +59,12 @@ impl Envelope {
         sender_id: DHTKey,
         recipient_id: DHTKey,
     ) -> Self {
-        assert!(sender_id.valid);
-        assert!(recipient_id.valid);
-
-        assert!(version >= MIN_VERSION);
-        assert!(version <= MAX_VERSION);
+        assert!(version >= MIN_CRYPTO_VERSION);
+        assert!(version <= MAX_CRYPTO_VERSION);
         Self {
             version,
-            min_version: MIN_VERSION,
-            max_version: MAX_VERSION,
+            min_version: MIN_CRYPTO_VERSION,
+            max_version: MAX_CRYPTO_VERSION,
             timestamp,
             nonce,
             sender_id,
@@ -94,9 +89,9 @@ impl Envelope {
 
         // Check version
         let version = data[0x04];
-        if version > MAX_VERSION || version < MIN_VERSION {
+        if version > MAX_CRYPTO_VERSION || version < MIN_CRYPTO_VERSION {
             return Err(VeilidAPIError::parse_error(
-                "unsupported protocol version",
+                "unsupported cryptography version",
                 version,
             ));
         }
@@ -208,15 +203,6 @@ impl Envelope {
         body: &[u8],
         node_id_secret: &DHTKeySecret,
     ) -> Result<Vec<u8>, VeilidAPIError> {
-        // Ensure sender node id is valid
-        if !self.sender_id.valid {
-            return Err(VeilidAPIError::generic("sender id is invalid"));
-        }
-        // Ensure recipient node id is valid
-        if !self.recipient_id.valid {
-            return Err(VeilidAPIError::generic("recipient id is invalid"));
-        }
-
         // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;
         if envelope_size > MAX_ENVELOPE_SIZE {
@@ -274,8 +260,11 @@ impl Envelope {
         self.version
     }
 
-    pub fn get_min_max_version(&self) -> (u8, u8) {
-        (self.min_version, self.max_version)
+    pub fn get_min_max_version(&self) -> VersionRange {
+        VersionRange {
+            min: self.min_version,
+            max: self.max_version,
+        }
     }
 
     pub fn get_timestamp(&self) -> u64 {

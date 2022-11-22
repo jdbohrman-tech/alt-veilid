@@ -55,6 +55,7 @@ struct UIState {
     network_down_up: Dirty<(f32, f32)>,
     connection_state: Dirty<ConnectionState>,
     peers_state: Dirty<Vec<PeerTableData>>,
+    node_id: Dirty<String>,
 }
 
 impl UIState {
@@ -65,6 +66,7 @@ impl UIState {
             network_down_up: Dirty::new((0.0, 0.0)),
             connection_state: Dirty::new(ConnectionState::Disconnected),
             peers_state: Dirty::new(Vec::new()),
+            node_id: Dirty::new("".to_owned()),
         }
     }
 }
@@ -213,7 +215,13 @@ impl UI {
             UI::setup_quit_handler(s);
         });
     }
-
+    fn clear_handler(siv: &mut Cursive) {
+        cursive_flexi_logger_view::clear_log();
+        UI::update_cb(siv);
+    }
+    fn node_events_panel(s: &mut Cursive) -> ViewRef<Panel<ScrollView<FlexiLoggerView>>> {
+        s.find_name("node-events-panel").unwrap()
+    }
     fn command_line(s: &mut Cursive) -> ViewRef<EditView> {
         s.find_name("command-line").unwrap()
     }
@@ -306,11 +314,18 @@ impl UI {
     fn run_command(s: &mut Cursive, text: &str) -> Result<(), String> {
         // disable ui
         Self::enable_command_ui(s, false);
+
         // run command
+        s.set_global_callback(cursive::event::Event::Key(Key::Esc), |s| {
+            let cmdproc = Self::command_processor(s);
+            cmdproc.cancel_command();
+        });
+
         let cmdproc = Self::command_processor(s);
         cmdproc.run_command(
             text,
             Box::new(|s| {
+                s.set_global_callback(cursive::event::Event::Key(Key::Esc), UI::quit_handler);
                 Self::enable_command_ui(s, true);
             }),
         )
@@ -565,6 +580,12 @@ impl UI {
         }
     }
 
+    fn refresh_main_titlebar(s: &mut Cursive) {
+        let mut main_window = UI::node_events_panel(s);
+        let inner = Self::inner_mut(s);
+        main_window.set_title(format!("Node: {}", inner.ui_state.node_id.get()));
+    }
+
     fn refresh_statusbar(s: &mut Cursive) {
         let mut statusbar = UI::status_bar(s);
 
@@ -627,6 +648,7 @@ impl UI {
         let mut refresh_button_attach = false;
         let mut refresh_connection_dialog = false;
         let mut refresh_peers = false;
+        let mut refresh_main_titlebar = false;
         if inner.ui_state.attachment_state.take_dirty() {
             refresh_statusbar = true;
             refresh_button_attach = true;
@@ -647,6 +669,9 @@ impl UI {
         if inner.ui_state.peers_state.take_dirty() {
             refresh_peers = true;
         }
+        if inner.ui_state.node_id.take_dirty() {
+            refresh_main_titlebar = true;
+        }
 
         drop(inner);
 
@@ -661,6 +686,9 @@ impl UI {
         }
         if refresh_peers {
             Self::refresh_peers(s);
+        }
+        if refresh_main_titlebar {
+            Self::refresh_main_titlebar(s);
         }
     }
 
@@ -709,13 +737,11 @@ impl UI {
 
         // Create layouts
 
-        let node_events_view = Panel::new(
-            FlexiLoggerView::new_scrollable()
-                .with_name("node-events")
-                .full_screen(),
-        )
-        .title_position(HAlign::Left)
-        .title("Node Events");
+        let node_events_view = Panel::new(FlexiLoggerView::new_scrollable())
+            .title_position(HAlign::Left)
+            .title("Node Events")
+            .with_name("node-events-panel")
+            .full_screen();
 
         let peers_table_view = PeersTableView::new()
             .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(43))
@@ -794,6 +820,7 @@ impl UI {
 
         UI::setup_colors(&mut siv, &mut inner, settings);
         UI::setup_quit_handler(&mut siv);
+        siv.set_global_callback(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
 
         drop(inner);
         drop(siv);
@@ -831,6 +858,16 @@ impl UI {
         ));
         inner.ui_state.peers_state.set(peers);
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
+    }
+    pub fn set_config(&mut self, config: VeilidConfigInner) {
+        let mut inner = self.inner.borrow_mut();
+        inner.ui_state.node_id.set(
+            config
+                .network
+                .node_id
+                .map(|x| x.encode())
+                .unwrap_or("<unknown>".to_owned()),
+        );
     }
     pub fn set_connection_state(&mut self, state: ConnectionState) {
         let mut inner = self.inner.borrow_mut();

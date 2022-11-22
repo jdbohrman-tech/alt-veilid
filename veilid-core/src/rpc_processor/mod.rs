@@ -1,6 +1,8 @@
 mod coders;
 mod destination;
-mod private_route;
+mod operation_waiter;
+mod rpc_app_call;
+mod rpc_app_message;
 mod rpc_cancel_tunnel;
 mod rpc_complete_tunnel;
 mod rpc_error;
@@ -19,15 +21,15 @@ mod rpc_validate_dial_info;
 mod rpc_value_changed;
 mod rpc_watch_value;
 
+pub use coders::*;
 pub use destination::*;
-pub use private_route::*;
+pub use operation_waiter::*;
 pub use rpc_error::*;
+pub use rpc_status::*;
 
 use super::*;
-use crate::dht::*;
+use crate::crypto::*;
 use crate::xx::*;
-use capnp::message::ReaderSegments;
-use coders::*;
 use futures_util::StreamExt;
 use network_manager::*;
 use receipt_manager::*;
@@ -38,15 +40,10 @@ use stop_token::future::FutureExt;
 
 type OperationId = u64;
 
-/// The decoded header of an RPC message
 #[derive(Debug, Clone)]
-struct RPCMessageHeader {
-    /// Time the message was received, not sent
-    timestamp: u64,
+struct RPCMessageHeaderDetailDirect {
     /// The decoded header of the envelope
     envelope: Envelope,
-    /// The length in bytes of the rpc message body
-    body_len: u64,
     /// The noderef of the peer that sent the message (not the original sender). Ensures node doesn't get evicted from routing table until we're done with it
     peer_noderef: NodeRef,
     /// The connection from the peer sent the message (not the original sender)
@@ -55,20 +52,72 @@ struct RPCMessageHeader {
     routing_domain: RoutingDomain,
 }
 
+/// Header details for rpc messages received over only a safety route but not a private route
+#[derive(Debug, Clone)]
+struct RPCMessageHeaderDetailSafetyRouted {
+    /// The sequencing used for this route
+    sequencing: Sequencing,
+}
+
+/// Header details for rpc messages received over a private route
+#[derive(Debug, Clone)]
+struct RPCMessageHeaderDetailPrivateRouted {
+    /// The private route we received the rpc over
+    private_route: DHTKey,
+    // The safety spec for replying to this private routed rpc
+    safety_spec: SafetySpec,
+}
+
+#[derive(Debug, Clone)]
+enum RPCMessageHeaderDetail {
+    Direct(RPCMessageHeaderDetailDirect),
+    SafetyRouted(RPCMessageHeaderDetailSafetyRouted),
+    PrivateRouted(RPCMessageHeaderDetailPrivateRouted),
+}
+
+/// The decoded header of an RPC message
+#[derive(Debug, Clone)]
+struct RPCMessageHeader {
+    /// Time the message was received, not sent
+    timestamp: u64,
+    /// The length in bytes of the rpc message body
+    body_len: u64,
+    /// The header detail depending on which way the message was received
+    detail: RPCMessageHeaderDetail,
+}
+
+impl RPCMessageHeader {}
+
 #[derive(Debug)]
-struct RPCMessageData {
+pub struct RPCMessageData {
     contents: Vec<u8>, // rpc messages must be a canonicalized single segment
 }
 
-impl ReaderSegments for RPCMessageData {
-    fn get_segment(&self, idx: u32) -> Option<&[u8]> {
-        if idx > 0 {
-            None
-        } else {
-            Some(self.contents.as_slice())
-        }
+impl RPCMessageData {
+    pub fn new(contents: Vec<u8>) -> Self {
+        Self { contents }
+    }
+
+    pub fn get_reader(
+        &self,
+    ) -> Result<capnp::message::Reader<capnp::serialize::OwnedSegments>, RPCError> {
+        capnp::serialize_packed::read_message(
+            self.contents.as_slice(),
+            capnp::message::ReaderOptions::new(),
+        )
+        .map_err(RPCError::protocol)
     }
 }
+
+// impl ReaderSegments for RPCMessageData {
+//     fn get_segment(&self, idx: u32) -> Option<&[u8]> {
+//         if idx > 0 {
+//             None
+//         } else {
+//             Some(self.contents.as_slice())
+//         }
+//     }
+// }
 
 #[derive(Debug)]
 struct RPCMessageEncoded {
@@ -83,16 +132,21 @@ pub(crate) struct RPCMessage {
     opt_sender_nr: Option<NodeRef>,
 }
 
-fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
+pub fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
 where
     T: capnp::message::Allocator + 'a,
 {
-    let wordvec = builder
-        .into_reader()
-        .canonicalize()
+    let mut buffer = vec![];
+    capnp::serialize_packed::write_message(&mut buffer, &builder)
         .map_err(RPCError::protocol)
         .map_err(logthru_rpc!())?;
-    Ok(capnp::Word::words_to_bytes(wordvec.as_slice()).to_vec())
+    Ok(buffer)
+    // let wordvec = builder
+    //     .into_reader()
+    //     .canonicalize()
+    //     .map_err(RPCError::protocol)
+    //     .map_err(logthru_rpc!())?;
+    // Ok(capnp::Word::words_to_bytes(wordvec.as_slice()).to_vec())
 }
 
 // fn reader_to_vec<'a, T>(reader: &capnp::message::Reader<T>) -> Result<Vec<u8>, RPCError>
@@ -108,8 +162,8 @@ where
 
 #[derive(Debug)]
 struct WaitableReply {
-    op_id: OperationId,
-    eventual: EventualValue<(Option<Id>, RPCMessage)>,
+    dest: Destination,
+    handle: OperationWaitHandle<RPCMessage>,
     timeout: u64,
     node_ref: NodeRef,
     send_ts: u64,
@@ -130,78 +184,167 @@ impl<T> Answer<T> {
 }
 
 struct RenderedOperation {
-    message: Vec<u8>,          // The rendered operation bytes
-    node_id: DHTKey,           // Node id we're sending to
-    node_ref: Option<NodeRef>, // Node to send envelope to (may not be destination node id in case of relay)
-    hop_count: usize,          // Total safety + private route hop count
+    message: Vec<u8>,  // The rendered operation bytes
+    node_id: DHTKey,   // Destination node id we're sending to
+    node_ref: NodeRef, // Node to send envelope to (may not be destination node id in case of relay)
+    hop_count: usize,  // Total safety + private route hop count + 1 hop for the initial send
 }
 /////////////////////////////////////////////////////////////////////
 
 pub struct RPCProcessorInner {
-    network_manager: NetworkManager,
-    routing_table: RoutingTable,
-    node_id: DHTKey,
-    node_id_secret: DHTKeySecret,
     send_channel: Option<flume::Sender<(Option<Id>, RPCMessageEncoded)>>,
-    timeout: u64,
-    max_route_hop_count: usize,
-    waiting_rpc_table: BTreeMap<OperationId, EventualValue<(Option<Id>, RPCMessage)>>,
     stop_source: Option<StopSource>,
     worker_join_handles: Vec<MustJoinHandle<()>>,
+}
+
+pub struct RPCProcessorUnlockedInner {
+    timeout: u64,
+    queue_size: u32,
+    concurrency: u32,
+    max_route_hop_count: usize,
+    validate_dial_info_receipt_time_ms: u32,
+    update_callback: UpdateCallback,
+    waiting_rpc_table: OperationWaiter<RPCMessage>,
+    waiting_app_call_table: OperationWaiter<Vec<u8>>,
 }
 
 #[derive(Clone)]
 pub struct RPCProcessor {
     crypto: Crypto,
     config: VeilidConfig,
+    network_manager: NetworkManager,
+    routing_table: RoutingTable,
     inner: Arc<Mutex<RPCProcessorInner>>,
+    unlocked_inner: Arc<RPCProcessorUnlockedInner>,
 }
 
 impl RPCProcessor {
-    fn new_inner(network_manager: NetworkManager) -> RPCProcessorInner {
+    fn new_inner() -> RPCProcessorInner {
         RPCProcessorInner {
-            network_manager: network_manager.clone(),
-            routing_table: network_manager.routing_table(),
-            node_id: DHTKey::default(),
-            node_id_secret: DHTKeySecret::default(),
             send_channel: None,
-            timeout: 10000000,
-            max_route_hop_count: 7,
-            waiting_rpc_table: BTreeMap::new(),
             stop_source: None,
             worker_join_handles: Vec::new(),
         }
     }
-    pub fn new(network_manager: NetworkManager) -> Self {
+    fn new_unlocked_inner(
+        config: VeilidConfig,
+        update_callback: UpdateCallback,
+    ) -> RPCProcessorUnlockedInner {
+        // make local copy of node id for easy access
+        let c = config.get();
+
+        // set up channel
+        let mut concurrency = c.network.rpc.concurrency;
+        let queue_size = c.network.rpc.queue_size;
+        let timeout = ms_to_us(c.network.rpc.timeout_ms);
+        let max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
+        if concurrency == 0 {
+            concurrency = intf::get_concurrency() / 2;
+            if concurrency == 0 {
+                concurrency = 1;
+            }
+        }
+        let validate_dial_info_receipt_time_ms = c.network.dht.validate_dial_info_receipt_time_ms;
+
+        RPCProcessorUnlockedInner {
+            timeout,
+            queue_size,
+            concurrency,
+            max_route_hop_count,
+            validate_dial_info_receipt_time_ms,
+            update_callback,
+            waiting_rpc_table: OperationWaiter::new(),
+            waiting_app_call_table: OperationWaiter::new(),
+        }
+    }
+    pub fn new(network_manager: NetworkManager, update_callback: UpdateCallback) -> Self {
+        let config = network_manager.config();
         Self {
             crypto: network_manager.crypto(),
-            config: network_manager.config(),
-            inner: Arc::new(Mutex::new(Self::new_inner(network_manager))),
+            config: config.clone(),
+            network_manager: network_manager.clone(),
+            routing_table: network_manager.routing_table(),
+            inner: Arc::new(Mutex::new(Self::new_inner())),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(config, update_callback)),
         }
     }
 
     pub fn network_manager(&self) -> NetworkManager {
-        self.inner.lock().network_manager.clone()
+        self.network_manager.clone()
     }
 
     pub fn routing_table(&self) -> RoutingTable {
-        self.inner.lock().routing_table.clone()
-    }
-
-    pub fn node_id(&self) -> DHTKey {
-        self.inner.lock().node_id
-    }
-
-    pub fn node_id_secret(&self) -> DHTKeySecret {
-        self.inner.lock().node_id_secret
+        self.routing_table.clone()
     }
 
     //////////////////////////////////////////////////////////////////////
 
-    /// Determine if a NodeInfo can be placed into the specified routing domain
-    fn filter_node_info(&self, routing_domain: RoutingDomain, node_info: &NodeInfo) -> bool {
+    #[instrument(level = "debug", skip_all, err)]
+    pub async fn startup(&self) -> EyreResult<()> {
+        trace!("startup rpc processor");
+        let mut inner = self.inner.lock();
+
+        let channel = flume::bounded(self.unlocked_inner.queue_size as usize);
+        inner.send_channel = Some(channel.0.clone());
+        inner.stop_source = Some(StopSource::new());
+
+        // spin up N workers
+        trace!(
+            "Spinning up {} RPC workers",
+            self.unlocked_inner.concurrency
+        );
+        for _ in 0..self.unlocked_inner.concurrency {
+            let this = self.clone();
+            let receiver = channel.1.clone();
+            let jh = intf::spawn(Self::rpc_worker(
+                this,
+                inner.stop_source.as_ref().unwrap().token(),
+                receiver,
+            ));
+            inner.worker_join_handles.push(jh);
+        }
+
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip_all)]
+    pub async fn shutdown(&self) {
+        debug!("starting rpc processor shutdown");
+
+        // Stop the rpc workers
+        let mut unord = FuturesUnordered::new();
+        {
+            let mut inner = self.inner.lock();
+            // take the join handles out
+            for h in inner.worker_join_handles.drain(..) {
+                unord.push(h);
+            }
+            // drop the stop
+            drop(inner.stop_source.take());
+        }
+        debug!("stopping {} rpc worker tasks", unord.len());
+
+        // Wait for them to complete
+        while unord.next().await.is_some() {}
+
+        debug!("resetting rpc processor state");
+
+        // Release the rpc processor
+        *self.inner.lock() = Self::new_inner();
+
+        debug!("finished rpc processor shutdown");
+    }
+
+    //////////////////////////////////////////////////////////////////////
+
+    /// Determine if a SignedNodeInfo can be placed into the specified routing domain
+    fn filter_node_info(
+        &self,
+        routing_domain: RoutingDomain,
+        signed_node_info: &SignedNodeInfo,
+    ) -> bool {
         let routing_table = self.routing_table();
-        routing_table.node_info_is_valid_in_routing_domain(routing_domain, &node_info)
+        routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -278,71 +421,18 @@ impl RPCProcessor {
         })
     }
 
-    // set up wait for reply
-    fn add_op_id_waiter(&self, op_id: OperationId) -> EventualValue<(Option<Id>, RPCMessage)> {
-        let mut inner = self.inner.lock();
-        let e = EventualValue::new();
-        inner.waiting_rpc_table.insert(op_id, e.clone());
-        e
-    }
-
-    // remove wait for reply
-    fn cancel_op_id_waiter(&self, op_id: OperationId) {
-        let mut inner = self.inner.lock();
-        inner.waiting_rpc_table.remove(&op_id);
-    }
-
-    // complete the reply
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    async fn complete_op_id_waiter(&self, msg: RPCMessage) -> Result<(), RPCError> {
-        let op_id = msg.operation.op_id();
-        let eventual = {
-            let mut inner = self.inner.lock();
-            inner
-                .waiting_rpc_table
-                .remove(&op_id)
-                .ok_or_else(RPCError::else_internal(format!(
-                    "Unmatched operation id: {:#?}",
-                    msg
-                )))?
-        };
-        eventual.resolve((Span::current().id(), msg)).await;
-        Ok(())
-    }
-
-    // wait for reply
-    async fn do_wait_for_reply(
-        &self,
-        waitable_reply: &WaitableReply,
-    ) -> Result<TimeoutOr<(RPCMessage, u64)>, RPCError> {
-        let timeout_ms = u32::try_from(waitable_reply.timeout / 1000u64)
-            .map_err(RPCError::map_internal("invalid timeout"))?;
-        // wait for eventualvalue
-        let start_ts = intf::get_timestamp();
-        let res = intf::timeout(timeout_ms, waitable_reply.eventual.instance())
-            .await
-            .into_timeout_or();
-        Ok(res.map(|res| {
-            let (_span_id, rpcreader) = res.take_value().unwrap();
-            let end_ts = intf::get_timestamp();
-
-            // fixme: causes crashes? "Missing otel data span extensions"??
-            //Span::current().follows_from(span_id);
-
-            (rpcreader, end_ts - start_ts)
-        }))
-    }
-
     #[instrument(level = "trace", skip(self, waitable_reply), err)]
     async fn wait_for_reply(
         &self,
         waitable_reply: WaitableReply,
     ) -> Result<TimeoutOr<(RPCMessage, u64)>, RPCError> {
-        let out = self.do_wait_for_reply(&waitable_reply).await;
+        let out = self
+            .unlocked_inner
+            .waiting_rpc_table
+            .wait_for_op(waitable_reply.handle, waitable_reply.timeout)
+            .await;
         match &out {
             Err(_) | Ok(TimeoutOr::Timeout) => {
-                self.cancel_op_id_waiter(waitable_reply.op_id);
-
                 waitable_reply.node_ref.stats_question_lost();
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
@@ -352,11 +442,109 @@ impl RPCProcessor {
                     waitable_reply.send_ts,
                     recv_ts,
                     rpcreader.header.body_len,
-                )
+                );
+                // Process private route replies
+                if let Destination::PrivateRoute {
+                    private_route,
+                    safety_selection,
+                } = &waitable_reply.dest
+                {
+                    let rss = self.routing_table.route_spec_store();
+
+                    // If we received a reply from a private route, mark it as such
+                    if let Err(e) =
+                        rss.mark_remote_private_route_replied(&private_route.public_key, recv_ts)
+                    {
+                        log_rpc!(error "private route missing: {}", e);
+                    }
+
+                    // If we sent to a private route without a safety route
+                    // We need to mark our own node info as having been seen so we can optimize sending it
+                    if let SafetySelection::Unsafe(_) = safety_selection {
+                        if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(
+                            &private_route.public_key,
+                            recv_ts,
+                        ) {
+                            log_rpc!(error "private route missing: {}", e);
+                        }
+                    }
+                }
             }
         };
 
         out
+    }
+
+    // Wrap an operation with a private route inside a safety route
+    fn wrap_with_route(
+        &self,
+        safety_selection: SafetySelection,
+        private_route: PrivateRoute,
+        message_data: Vec<u8>,
+    ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
+        let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let pr_hop_count = private_route.hop_count;
+        let pr_pubkey = private_route.public_key;
+
+        // Compile the safety route with the private route
+        let compiled_route: CompiledRoute = match rss
+            .compile_safety_route(safety_selection, private_route)
+            .map_err(RPCError::internal)?
+        {
+            Some(cr) => cr,
+            None => {
+                return Ok(NetworkResult::no_connection_other(
+                    "private route could not be compiled at this time",
+                ))
+            }
+        };
+
+        // Encrypt routed operation
+        // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
+        // xxx use factory method, get version from somewhere...
+        let nonce = Crypto::get_random_nonce();
+        let dh_secret = self
+            .crypto
+            .cached_dh(&pr_pubkey, &compiled_route.secret)
+            .map_err(RPCError::map_internal("dh failed"))?;
+        let enc_msg_data = Crypto::encrypt_aead(&message_data, &nonce, &dh_secret, None)
+            .map_err(RPCError::map_internal("encryption failed"))?;
+
+        // Make the routed operation
+        // xxx: replace MAX_CRYPTO_VERSION with the version from the factory
+        let operation = RoutedOperation::new(MAX_CRYPTO_VERSION, nonce, enc_msg_data);
+
+        // Prepare route operation
+        let sr_hop_count = compiled_route.safety_route.hop_count;
+        let route_operation = RPCOperationRoute {
+            safety_route: compiled_route.safety_route,
+            operation,
+        };
+        let operation = RPCOperation::new_statement(
+            RPCStatement::new(RPCStatementDetail::Route(route_operation)),
+            None,
+        );
+
+        // Convert message to bytes and return it
+        let mut route_msg = ::capnp::message::Builder::new_default();
+        let mut route_operation = route_msg.init_root::<veilid_capnp::operation::Builder>();
+        operation.encode(&mut route_operation)?;
+        let out_message = builder_to_vec(route_msg)?;
+
+        // Get the first hop this is going to
+        let out_node_id = compiled_route.first_hop.node_id();
+        let out_hop_count = (1 + sr_hop_count + pr_hop_count) as usize;
+
+        let out = RenderedOperation {
+            message: out_message,
+            node_id: out_node_id,
+            node_ref: compiled_route.first_hop,
+            hop_count: out_hop_count,
+        };
+
+        Ok(NetworkResult::value(out))
     }
 
     /// Produce a byte buffer that represents the wire encoding of the entire
@@ -367,15 +555,12 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         operation: &RPCOperation,
-    ) -> Result<RenderedOperation, RPCError> {
-        let out_node_id; // Envelope Node Id
-        let mut out_node_ref: Option<NodeRef> = None; // Node to send envelope to
-        let out_hop_count: usize; // Total safety + private route hop count
-        let out_message; // Envelope data
+    ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
+        let out: NetworkResult<RenderedOperation>;
 
         // Encode message to a builder and make a message reader for it
         // Then produce the message as an unencrypted byte buffer
-        let message_vec = {
+        let message = {
             let mut msg_builder = ::capnp::message::Builder::new_default();
             let mut op_builder = msg_builder.init_root::<veilid_capnp::operation::Builder>();
             operation.encode(&mut op_builder)?;
@@ -386,12 +571,12 @@ impl RPCProcessor {
         match dest {
             Destination::Direct {
                 target: ref node_ref,
-                ref safety_route_spec,
+                safety_selection,
             }
             | Destination::Relay {
                 relay: ref node_ref,
                 target: _,
-                ref safety_route_spec,
+                safety_selection,
             } => {
                 // Send to a node without a private route
                 // --------------------------------------
@@ -400,7 +585,7 @@ impl RPCProcessor {
                 let (node_ref, node_id) = if let Destination::Relay {
                     relay: _,
                     target: ref dht_key,
-                    safety_route_spec: _,
+                    safety_selection: _,
                 } = dest
                 {
                     (node_ref.clone(), dht_key.clone())
@@ -410,83 +595,55 @@ impl RPCProcessor {
                 };
 
                 // Handle the existence of safety route
-                match safety_route_spec.as_ref() {
-                    None => {
+                match safety_selection {
+                    SafetySelection::Unsafe(sequencing) => {
+                        // Apply safety selection sequencing requirement if it is more strict than the node_ref's sequencing requirement
+                        let mut node_ref = node_ref.clone();
+                        if sequencing > node_ref.sequencing() {
+                            node_ref.set_sequencing(sequencing)
+                        }
+
                         // If no safety route is being used, and we're not sending to a private
                         // route, we can use a direct envelope instead of routing
-                        out_message = message_vec;
-
-                        // Message goes directly to the node
-                        out_node_id = node_id;
-                        out_node_ref = Some(node_ref);
-                        out_hop_count = 1;
+                        out = NetworkResult::value(RenderedOperation {
+                            message,
+                            node_id,
+                            node_ref,
+                            hop_count: 1,
+                        });
                     }
-                    Some(sr) => {
+                    SafetySelection::Safe(_) => {
                         // No private route was specified for the request
                         // but we are using a safety route, so we must create an empty private route
-                        let private_route = PrivateRoute::new_stub(node_id);
+                        let peer_info = match node_ref.make_peer_info(RoutingDomain::PublicInternet)
+                        {
+                            None => {
+                                return Ok(NetworkResult::no_connection_other(
+                                    "No PublicInternet peer info for stub private route",
+                                ))
+                            }
+                            Some(pi) => pi,
+                        };
+                        let private_route =
+                            PrivateRoute::new_stub(node_id, RouteNode::PeerInfo(peer_info));
 
-                        // first
-                        out_node_id = sr
-                            .hops
-                            .first()
-                            .ok_or_else(RPCError::else_internal("no hop in safety route"))?
-                            .dial_info
-                            .node_id
-                            .key;
-                        out_message =
-                            self.wrap_with_route(Some(sr.clone()), private_route, message_vec)?;
-                        out_hop_count = 1 + sr.hops.len();
+                        // Wrap with safety route
+                        out = self.wrap_with_route(safety_selection, private_route, message)?;
                     }
                 };
             }
             Destination::PrivateRoute {
                 private_route,
-                safety_route_spec,
+                safety_selection,
             } => {
                 // Send to private route
                 // ---------------------
                 // Reply with 'route' operation
-                out_node_id = match safety_route_spec {
-                    None => {
-                        // If no safety route, the first node is the first hop of the private route
-                        out_hop_count = private_route.hop_count as usize;
-                        let out_node_id = match &private_route.hops {
-                            Some(rh) => rh.dial_info.node_id.key,
-                            _ => return Err(RPCError::internal("private route has no hops")),
-                        };
-                        out_message = self.wrap_with_route(None, private_route, message_vec)?;
-                        out_node_id
-                    }
-                    Some(sr) => {
-                        // If safety route is in use, first node is the first hop of the safety route
-                        out_hop_count = 1 + sr.hops.len() + (private_route.hop_count as usize);
-                        let out_node_id = sr
-                            .hops
-                            .first()
-                            .ok_or_else(RPCError::else_internal("no hop in safety route"))?
-                            .dial_info
-                            .node_id
-                            .key;
-                        out_message = self.wrap_with_route(Some(sr), private_route, message_vec)?;
-                        out_node_id
-                    }
-                }
+                out = self.wrap_with_route(safety_selection, private_route, message)?;
             }
         }
 
-        // Verify hop count isn't larger than out maximum routed hop count
-        if out_hop_count > self.inner.lock().max_route_hop_count {
-            return Err(RPCError::internal("hop count too long for route"))
-                .map_err(logthru_rpc!(warn));
-        }
-
-        Ok(RenderedOperation {
-            message: out_message,
-            node_id: out_node_id,
-            node_ref: out_node_ref,
-            hop_count: out_hop_count,
-        })
+        Ok(out)
     }
 
     // Get signed node info to package with RPC messages to improve
@@ -495,8 +652,13 @@ impl RPCProcessor {
     // as far as we can tell this is the only domain that will really benefit
     fn get_sender_signed_node_info(&self, dest: &Destination) -> Option<SignedNodeInfo> {
         // Don't do this if the sender is to remain private
-        if dest.safety_route_spec().is_some() {
-            return None;
+        // Otherwise we would be attaching the original sender's identity to the final destination,
+        // thus defeating the purpose of the safety route entirely :P
+        match dest.get_safety_selection() {
+            SafetySelection::Unsafe(_) => {}
+            SafetySelection::Safe(_) => {
+                return None;
+            }
         }
         // Don't do this if our own signed node info isn't valid yet
         let routing_table = self.routing_table();
@@ -507,31 +669,39 @@ impl RPCProcessor {
         match dest {
             Destination::Direct {
                 target,
-                safety_route_spec: _,
+                safety_selection: _,
             } => {
                 // If the target has seen our node info already don't do this
                 if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
                     return None;
                 }
-                Some(routing_table.get_own_signed_node_info(RoutingDomain::PublicInternet))
+                Some(
+                    routing_table
+                        .get_own_peer_info(RoutingDomain::PublicInternet)
+                        .signed_node_info,
+                )
             }
             Destination::Relay {
                 relay: _,
                 target,
-                safety_route_spec: _,
+                safety_selection: _,
             } => {
                 if let Some(target) = routing_table.lookup_node_ref(*target) {
                     if target.has_seen_our_node_info(RoutingDomain::PublicInternet) {
                         return None;
                     }
-                    Some(routing_table.get_own_signed_node_info(RoutingDomain::PublicInternet))
+                    Some(
+                        routing_table
+                            .get_own_peer_info(RoutingDomain::PublicInternet)
+                            .signed_node_info,
+                    )
                 } else {
                     None
                 }
             }
             Destination::PrivateRoute {
                 private_route: _,
-                safety_route_spec: _,
+                safety_selection: _,
             } => None,
         }
     }
@@ -551,7 +721,7 @@ impl RPCProcessor {
         let op_id = operation.op_id();
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "question", op_id, desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "question", op_id, desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -559,25 +729,14 @@ impl RPCProcessor {
             node_id,
             node_ref,
             hop_count,
-        } = self.render_operation(dest, &operation)?;
-
-        // If we need to resolve the first hop, do it
-        let node_ref = match node_ref {
-            None => match self.resolve_node(node_id).await? {
-                None => {
-                    return Ok(NetworkResult::no_connection_other(node_id));
-                }
-                Some(nr) => nr,
-            },
-            Some(nr) => nr,
-        };
+        } = network_result_try!(self.render_operation(dest.clone(), &operation)?);
 
         // Calculate answer timeout
         // Timeout is number of hops times the timeout per hop
-        let timeout = self.inner.lock().timeout * (hop_count as u64);
+        let timeout = self.unlocked_inner.timeout * (hop_count as u64);
 
         // Set up op id eventual
-        let eventual = self.add_op_id_waiter(op_id);
+        let handle = self.unlocked_inner.waiting_rpc_table.add_op_waiter(op_id);
 
         // Send question
         let bytes = message.len() as u64;
@@ -588,13 +747,11 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.cancel_op_id_waiter(op_id);
                 node_ref
                     .stats_failed_to_send(send_ts, true);
                 RPCError::network(e)
             })? => {
                 // If we couldn't send we're still cleaning up
-                self.cancel_op_id_waiter(op_id);
                 node_ref
                     .stats_failed_to_send(send_ts, true);
             }
@@ -603,10 +760,24 @@ impl RPCProcessor {
         // Successfully sent
         node_ref.stats_question_sent(send_ts, bytes, true);
 
+        // Private route stats
+        if let Destination::PrivateRoute {
+            private_route,
+            safety_selection: _,
+        } = &dest
+        {
+            let rss = self.routing_table.route_spec_store();
+            if let Err(e) =
+                rss.mark_remote_private_route_used(&private_route.public_key, intf::get_timestamp())
+            {
+                log_rpc!(error "private route missing: {}", e);
+            }
+        }
+
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
-            op_id,
-            eventual,
+            dest,
+            handle,
             timeout,
             node_ref,
             send_ts,
@@ -628,7 +799,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_statement(statement, opt_sender_info);
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -636,18 +807,7 @@ impl RPCProcessor {
             node_id,
             node_ref,
             hop_count: _,
-        } = self.render_operation(dest, &operation)?;
-
-        // If we need to resolve the first hop, do it
-        let node_ref = match node_ref {
-            None => match self.resolve_node(node_id).await? {
-                None => {
-                    return Ok(NetworkResult::no_connection_other(node_id));
-                }
-                Some(nr) => nr,
-            },
-            Some(nr) => nr,
-        };
+        } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send statement
         let bytes = message.len() as u64;
@@ -674,37 +834,6 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    // Convert the 'RespondTo' into a 'Destination' for a response
-    fn get_respond_to_destination(&self, request: &RPCMessage) -> Destination {
-        // Get the question 'respond to'
-        let respond_to = match request.operation.kind() {
-            RPCOperationKind::Question(q) => q.respond_to(),
-            _ => {
-                panic!("not a question");
-            }
-        };
-
-        // To where should we respond?
-        match respond_to {
-            RespondTo::Sender => {
-                // Reply directly to the request's source
-                let sender_id = request.header.envelope.get_sender_id();
-
-                // This may be a different node's reference than the 'sender' in the case of a relay
-                let peer_noderef = request.header.peer_noderef.clone();
-
-                // If the sender_id is that of the peer, then this is a direct reply
-                // else it is a relayed reply through the peer
-                if peer_noderef.node_id() == sender_id {
-                    Destination::direct(peer_noderef)
-                } else {
-                    Destination::relay(peer_noderef, sender_id)
-                }
-            }
-            RespondTo::PrivateRoute(pr) => Destination::private_route(pr.clone()),
-        }
-    }
-
     // Issue a reply over the network, possibly using an anonymized route
     // The request must want a response, or this routine fails
     #[instrument(level = "debug", skip(self, request, answer), err)]
@@ -714,7 +843,7 @@ impl RPCProcessor {
         answer: RPCAnswer,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Extract destination from respond_to
-        let dest = self.get_respond_to_destination(&request);
+        let dest = network_result_try!(self.get_respond_to_destination(&request));
 
         // Get sender info if we should send that
         let opt_sender_info = self.get_sender_signed_node_info(&dest);
@@ -723,7 +852,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_answer(&request.operation, answer, opt_sender_info);
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -731,18 +860,7 @@ impl RPCProcessor {
             node_id,
             node_ref,
             hop_count: _,
-        } = self.render_operation(dest, &operation)?;
-
-        // If we need to resolve the first hop, do it
-        let node_ref = match node_ref {
-            None => match self.resolve_node(node_id).await? {
-                None => {
-                    return Ok(NetworkResult::no_connection_other(node_id));
-                }
-                Some(nr) => nr,
-            },
-            Some(nr) => nr,
-        };
+        } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send the reply
         let bytes = message.len() as u64;
@@ -770,59 +888,82 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
     #[instrument(level = "trace", skip(self, encoded_msg), err)]
-    async fn process_rpc_message_version_0(
+    async fn process_rpc_message(
         &self,
         encoded_msg: RPCMessageEncoded,
-    ) -> Result<(), RPCError> {
-        // Get the routing domain this message came over
-        let routing_domain = encoded_msg.header.routing_domain;
+    ) -> Result<NetworkResult<()>, RPCError> {
+        // Decode operation appropriately based on header detail
+        let msg = match &encoded_msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => {
+                // Get the routing domain this message came over
+                let routing_domain = detail.routing_domain;
 
-        // Decode the operation
-        let sender_node_id = encoded_msg.header.envelope.get_sender_id();
+                // Decode the operation
+                let sender_node_id = detail.envelope.get_sender_id();
 
-        // Decode the RPC message
-        let operation = {
-            let reader = capnp::message::Reader::new(encoded_msg.data, Default::default());
-            let op_reader = reader
-                .get_root::<veilid_capnp::operation::Reader>()
-                .map_err(RPCError::protocol)
-                .map_err(logthru_rpc!())?;
-            RPCOperation::decode(&op_reader, &sender_node_id)?
-        };
+                // Decode the RPC message
+                let operation = {
+                    let reader = encoded_msg.data.get_reader()?;
+                    let op_reader = reader
+                        .get_root::<veilid_capnp::operation::Reader>()
+                        .map_err(RPCError::protocol)
+                        .map_err(logthru_rpc!())?;
+                    RPCOperation::decode(&op_reader, Some(&sender_node_id))?
+                };
 
-        // Get the sender noderef, incorporating and 'sender node info'
-        let mut opt_sender_nr: Option<NodeRef> = None;
-        if let Some(sender_node_info) = operation.sender_node_info() {
-            // Sender NodeInfo was specified, update our routing table with it
-            if !self.filter_node_info(RoutingDomain::PublicInternet, &sender_node_info.node_info) {
-                return Err(RPCError::invalid_format(
-                    "sender signednodeinfo has invalid peer scope",
-                ));
+                // Get the sender noderef, incorporating and 'sender node info'
+                let mut opt_sender_nr: Option<NodeRef> = None;
+                if let Some(sender_node_info) = operation.sender_node_info() {
+                    // Sender NodeInfo was specified, update our routing table with it
+                    if !self.filter_node_info(routing_domain, &sender_node_info) {
+                        return Err(RPCError::invalid_format(
+                            "sender signednodeinfo has invalid peer scope",
+                        ));
+                    }
+                    opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
+                        routing_domain,
+                        sender_node_id,
+                        sender_node_info.clone(),
+                        false,
+                    );
+                }
+
+                // look up sender node, in case it's different than our peer due to relaying
+                if opt_sender_nr.is_none() {
+                    opt_sender_nr = self.routing_table().lookup_node_ref(sender_node_id)
+                }
+
+                // Mark this sender as having seen our node info over this routing domain
+                // because it managed to reach us over that routing domain
+                if let Some(sender_nr) = &opt_sender_nr {
+                    sender_nr.set_seen_our_node_info(routing_domain);
+                }
+
+                // Make the RPC message
+                RPCMessage {
+                    header: encoded_msg.header,
+                    operation,
+                    opt_sender_nr,
+                }
             }
-            opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
-                routing_domain,
-                sender_node_id,
-                sender_node_info.clone(),
-                false,
-            );
-        }
+            RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
+                // Decode the RPC message
+                let operation = {
+                    let reader = encoded_msg.data.get_reader()?;
+                    let op_reader = reader
+                        .get_root::<veilid_capnp::operation::Reader>()
+                        .map_err(RPCError::protocol)
+                        .map_err(logthru_rpc!())?;
+                    RPCOperation::decode(&op_reader, None)?
+                };
 
-        // look up sender node, in case it's different than our peer due to relaying
-        if opt_sender_nr.is_none() {
-            opt_sender_nr = self.routing_table().lookup_node_ref(sender_node_id)
-        }
-
-        // Mark this sender as having seen our node info over this routing domain
-        // because it managed to reach us over that routing domain
-        if let Some(sender_nr) = &opt_sender_nr {
-            sender_nr.set_seen_our_node_info(routing_domain);
-        }
-
-        // Make the RPC message
-        let msg = RPCMessage {
-            header: encoded_msg.header,
-            operation,
-            opt_sender_nr,
+                // Make the RPC message
+                RPCMessage {
+                    header: encoded_msg.header,
+                    operation,
+                    opt_sender_nr: None,
+                }
+            }
         };
 
         // Process stats
@@ -846,13 +987,14 @@ impl RPCProcessor {
         };
 
         // Log rpc receive
-        debug!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id(), desc = msg.operation.kind().desc(), sender_id = ?sender_node_id);
+        trace!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id(), desc = msg.operation.kind().desc(), header = ?msg.header);
 
         // Process specific message kind
         match msg.operation.kind() {
             RPCOperationKind::Question(q) => match q.detail() {
                 RPCQuestionDetail::StatusQ(_) => self.process_status_q(msg).await,
                 RPCQuestionDetail::FindNodeQ(_) => self.process_find_node_q(msg).await,
+                RPCQuestionDetail::AppCallQ(_) => self.process_app_call_q(msg).await,
                 RPCQuestionDetail::GetValueQ(_) => self.process_get_value_q(msg).await,
                 RPCQuestionDetail::SetValueQ(_) => self.process_set_value_q(msg).await,
                 RPCQuestionDetail::WatchValueQ(_) => self.process_watch_value_q(msg).await,
@@ -871,20 +1013,15 @@ impl RPCProcessor {
                 RPCStatementDetail::ValueChanged(_) => self.process_value_changed(msg).await,
                 RPCStatementDetail::Signal(_) => self.process_signal(msg).await,
                 RPCStatementDetail::ReturnReceipt(_) => self.process_return_receipt(msg).await,
+                RPCStatementDetail::AppMessage(_) => self.process_app_message(msg).await,
             },
-            RPCOperationKind::Answer(_) => self.complete_op_id_waiter(msg).await,
-        }
-    }
-
-    #[instrument(level = "trace", skip(self, msg), err)]
-    async fn process_rpc_message(&self, msg: RPCMessageEncoded) -> Result<(), RPCError> {
-        if msg.header.envelope.get_version() == 0 {
-            self.process_rpc_message_version_0(msg).await
-        } else {
-            Err(RPCError::Internal(format!(
-                "unsupported envelope version: {}, newest supported is version 0",
-                msg.header.envelope.get_version()
-            )))
+            RPCOperationKind::Answer(_) => {
+                self.unlocked_inner
+                    .waiting_rpc_table
+                    .complete_op_waiter(msg.operation.op_id(), msg)
+                    .await?;
+                Ok(NetworkResult::value(()))
+            }
         }
     }
 
@@ -896,114 +1033,108 @@ impl RPCProcessor {
         while let Ok(Ok((_span_id, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
         {
-            let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker");
-            // fixme: causes crashes? "Missing otel data span extensions"??
-            //rpc_worker_span.follows_from(span_id);
-            let _enter = rpc_worker_span.enter();
-
-            let _ = self
+            let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
+            // xxx: causes crash (Missing otel data span extensions)
+            // rpc_worker_span.follows_from(span_id);
+            let res = match self
                 .process_rpc_message(msg)
+                .instrument(rpc_worker_span)
                 .await
-                .map_err(logthru_rpc!("couldn't process rpc message"));
-        }
-    }
+            {
+                Err(e) => {
+                    log_rpc!(error "couldn't process rpc message: {}", e);
+                    continue;
+                }
 
-    #[instrument(level = "debug", skip_all, err)]
-    pub async fn startup(&self) -> EyreResult<()> {
-        trace!("startup rpc processor");
-        let mut inner = self.inner.lock();
-        // make local copy of node id for easy access
-        let c = self.config.get();
-        inner.node_id = c.network.node_id;
-        inner.node_id_secret = c.network.node_id_secret;
-
-        // set up channel
-        let mut concurrency = c.network.rpc.concurrency;
-        let mut queue_size = c.network.rpc.queue_size;
-        let mut timeout = ms_to_us(c.network.rpc.timeout_ms);
-        let mut max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
-        if concurrency == 0 {
-            concurrency = intf::get_concurrency() / 2;
-            if concurrency == 0 {
-                concurrency = 1;
+                Ok(v) => v,
+            };
+            cfg_if::cfg_if! {
+                if #[cfg(debug_assertions)] {
+                    network_result_value_or_log!(warn res => {});
+                } else {
+                    network_result_value_or_log!(debug res => {});
+                }
             }
         }
-        if queue_size == 0 {
-            queue_size = 1024;
-        }
-        if timeout == 0 {
-            timeout = 10000000;
-        }
-        if max_route_hop_count == 0 {
-            max_route_hop_count = 7usize;
-        }
-        inner.timeout = timeout;
-        inner.max_route_hop_count = max_route_hop_count;
-        let channel = flume::bounded(queue_size as usize);
-        inner.send_channel = Some(channel.0.clone());
-        inner.stop_source = Some(StopSource::new());
-
-        // spin up N workers
-        trace!("Spinning up {} RPC workers", concurrency);
-        for _ in 0..concurrency {
-            let this = self.clone();
-            let receiver = channel.1.clone();
-            let jh = intf::spawn(Self::rpc_worker(
-                this,
-                inner.stop_source.as_ref().unwrap().token(),
-                receiver,
-            ));
-            inner.worker_join_handles.push(jh);
-        }
-
-        Ok(())
-    }
-
-    #[instrument(level = "debug", skip_all)]
-    pub async fn shutdown(&self) {
-        debug!("starting rpc processor shutdown");
-
-        // Stop the rpc workers
-        let mut unord = FuturesUnordered::new();
-        {
-            let mut inner = self.inner.lock();
-            // take the join handles out
-            for h in inner.worker_join_handles.drain(..) {
-                unord.push(h);
-            }
-            // drop the stop
-            drop(inner.stop_source.take());
-        }
-        debug!("stopping {} rpc worker tasks", unord.len());
-
-        // Wait for them to complete
-        while unord.next().await.is_some() {}
-
-        debug!("resetting rpc processor state");
-
-        // Release the rpc processor
-        *self.inner.lock() = Self::new_inner(self.network_manager());
-
-        debug!("finished rpc processor shutdown");
     }
 
     #[instrument(level = "trace", skip(self, body), err)]
-    pub fn enqueue_message(
+    pub fn enqueue_direct_message(
         &self,
         envelope: Envelope,
-        body: Vec<u8>,
         peer_noderef: NodeRef,
         connection_descriptor: ConnectionDescriptor,
         routing_domain: RoutingDomain,
+        body: Vec<u8>,
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
+                detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
+                    envelope,
+                    peer_noderef,
+                    connection_descriptor,
+                    routing_domain,
+                }),
                 timestamp: intf::get_timestamp(),
-                envelope,
                 body_len: body.len() as u64,
-                peer_noderef,
-                connection_descriptor,
-                routing_domain,
+            },
+            data: RPCMessageData { contents: body },
+        };
+        let send_channel = {
+            let inner = self.inner.lock();
+            inner.send_channel.as_ref().unwrap().clone()
+        };
+        let span_id = Span::current().id();
+        send_channel
+            .try_send((span_id, msg))
+            .wrap_err("failed to enqueue received RPC message")?;
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self, body), err)]
+    pub fn enqueue_safety_routed_message(
+        &self,
+        sequencing: Sequencing,
+        body: Vec<u8>,
+    ) -> EyreResult<()> {
+        let msg = RPCMessageEncoded {
+            header: RPCMessageHeader {
+                detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
+                    sequencing,
+                }),
+                timestamp: intf::get_timestamp(),
+                body_len: body.len() as u64,
+            },
+            data: RPCMessageData { contents: body },
+        };
+        let send_channel = {
+            let inner = self.inner.lock();
+            inner.send_channel.as_ref().unwrap().clone()
+        };
+        let span_id = Span::current().id();
+        send_channel
+            .try_send((span_id, msg))
+            .wrap_err("failed to enqueue received RPC message")?;
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self, body), err)]
+    pub fn enqueue_private_routed_message(
+        &self,
+        private_route: DHTKey,
+        safety_spec: SafetySpec,
+        body: Vec<u8>,
+    ) -> EyreResult<()> {
+        let msg = RPCMessageEncoded {
+            header: RPCMessageHeader {
+                detail: RPCMessageHeaderDetail::PrivateRouted(
+                    RPCMessageHeaderDetailPrivateRouted {
+                        private_route,
+                        safety_spec,
+                    },
+                ),
+                timestamp: intf::get_timestamp(),
+                body_len: body.len() as u64,
             },
             data: RPCMessageData { contents: body },
         };

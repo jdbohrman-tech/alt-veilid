@@ -156,13 +156,12 @@ cfg_if! {
     }
 }
 
+fn update_callback(update: VeilidUpdate) {
+    println!("update_callback: {:?}", update);
+}
+
 pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
-    (
-        Arc::new(move |veilid_update: VeilidUpdate| {
-            println!("update_callback: {:?}", veilid_update);
-        }),
-        Arc::new(config_callback),
-    )
+    (Arc::new(update_callback), Arc::new(config_callback))
 }
 
 fn config_callback(key: String) -> ConfigCallbackReturn {
@@ -193,8 +192,8 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.client_whitelist_timeout_ms" => Ok(Box::new(300_000u32)),
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
-        "network.node_id" => Ok(Box::new(DHTKey::default())),
-        "network.node_id_secret" => Ok(Box::new(DHTKeySecret::default())),
+        "network.node_id" => Ok(Box::new(Option::<DHTKey>::None)),
+        "network.node_id_secret" => Ok(Box::new(Option::<DHTKeySecret>::None)),
         "network.bootstrap" => Ok(Box::new(Vec::<String>::new())),
         "network.bootstrap_nodes" => Ok(Box::new(Vec::<String>::new())),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
@@ -203,11 +202,12 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.routing_table.limit_attached_good" => Ok(Box::new(8u32)),
         "network.routing_table.limit_attached_weak" => Ok(Box::new(4u32)),
         "network.rpc.concurrency" => Ok(Box::new(2u32)),
-        "network.rpc.queue_size" => Ok(Box::new(128u32)),
+        "network.rpc.queue_size" => Ok(Box::new(1024u32)),
         "network.rpc.max_timestamp_behind_ms" => Ok(Box::new(Some(10_000u32))),
         "network.rpc.max_timestamp_ahead_ms" => Ok(Box::new(Some(10_000u32))),
         "network.rpc.timeout_ms" => Ok(Box::new(10_000u32)),
-        "network.rpc.max_route_hop_count" => Ok(Box::new(7u8)),
+        "network.rpc.max_route_hop_count" => Ok(Box::new(4u8)),
+        "network.rpc.default_route_hop_count" => Ok(Box::new(1u8)),
         "network.dht.resolve_node_timeout_ms" => Ok(Box::new(Option::<u32>::None)),
         "network.dht.resolve_node_count" => Ok(Box::new(20u32)),
         "network.dht.resolve_node_fanout" => Ok(Box::new(3u32)),
@@ -267,7 +267,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
 
 pub fn get_config() -> VeilidConfig {
     let mut vc = VeilidConfig::new();
-    match vc.setup(Arc::new(config_callback)) {
+    match vc.setup(Arc::new(config_callback), Arc::new(update_callback)) {
         Ok(()) => (),
         Err(e) => {
             error!("Error: {}", e);
@@ -279,7 +279,7 @@ pub fn get_config() -> VeilidConfig {
 
 pub async fn test_config() {
     let mut vc = VeilidConfig::new();
-    match vc.setup(Arc::new(config_callback)) {
+    match vc.setup(Arc::new(config_callback), Arc::new(update_callback)) {
         Ok(()) => (),
         Err(e) => {
             error!("Error: {}", e);
@@ -317,14 +317,15 @@ pub async fn test_config() {
     assert_eq!(inner.network.client_whitelist_timeout_ms, 300_000u32);
     assert_eq!(inner.network.reverse_connection_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
-    assert!(!inner.network.node_id.valid);
-    assert!(!inner.network.node_id_secret.valid);
+    assert!(inner.network.node_id.is_none());
+    assert!(inner.network.node_id_secret.is_none());
     assert_eq!(inner.network.bootstrap, Vec::<String>::new());
     assert_eq!(inner.network.bootstrap_nodes, Vec::<String>::new());
     assert_eq!(inner.network.rpc.concurrency, 2u32);
-    assert_eq!(inner.network.rpc.queue_size, 128u32);
+    assert_eq!(inner.network.rpc.queue_size, 1024u32);
     assert_eq!(inner.network.rpc.timeout_ms, 10_000u32);
-    assert_eq!(inner.network.rpc.max_route_hop_count, 7u8);
+    assert_eq!(inner.network.rpc.max_route_hop_count, 4u8);
+    assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);
     assert_eq!(inner.network.routing_table.limit_attached_strong, 16u32);

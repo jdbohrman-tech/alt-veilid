@@ -1,6 +1,8 @@
 use crate::settings::*;
 use crate::*;
 use cfg_if::*;
+#[cfg(feature = "rt-tokio")]
+use console_subscriber::ConsoleLayer;
 use opentelemetry::sdk::*;
 use opentelemetry::*;
 use opentelemetry_otlp::WithExportConfig;
@@ -35,6 +37,19 @@ impl VeilidLogs {
         // XXX: Spantrace capture causes rwlock deadlocks/crashes
         // XXX:
         //layers.push(tracing_error::ErrorLayer::default().boxed());
+
+        #[cfg(feature = "rt-tokio")]
+        if settingsr.logging.console.enabled {
+            let layer = ConsoleLayer::builder()
+                .with_default_env()
+                .spawn()
+                .with_filter(
+                    filter::Targets::new()
+                        .with_target("tokio", Level::TRACE)
+                        .with_target("runtime", Level::TRACE),
+                );
+            layers.push(layer.boxed());
+        }
 
         // Terminal logger
         if settingsr.logging.terminal.enabled {

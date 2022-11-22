@@ -1,18 +1,28 @@
 use crate::*;
 use core::fmt;
-use dht::*;
+use crypto::*;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use network_manager::*;
 use routing_table::*;
 use stop_token::future::FutureExt;
 use xx::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },
+    ReturnedSafety,
+    ReturnedPrivate { private_route: DHTKey },
     Expired,
     Cancelled,
+}
+
+#[derive(Clone, Debug)]
+pub enum ReceiptReturned {
+    OutOfBand,
+    InBand { inbound_noderef: NodeRef },
+    Safety,
+    Private { private_route: DHTKey },
 }
 
 pub trait ReceiptCallback: Send + 'static {
@@ -246,7 +256,7 @@ impl ReceiptManager {
             if let Some(callback) =
                 Self::perform_callback(ReceiptEvent::Expired, &mut expired_record_mut)
             {
-                callbacks.push(callback)
+                callbacks.push(callback.instrument(Span::current()))
             }
         }
 
@@ -394,17 +404,18 @@ impl ReceiptManager {
     pub async fn handle_receipt(
         &self,
         receipt: Receipt,
-        inbound_noderef: Option<NodeRef>,
+        receipt_returned: ReceiptReturned,
     ) -> NetworkResult<()> {
         let receipt_nonce = receipt.get_nonce();
         let extra_data = receipt.get_extra_data();
 
         log_rpc!(debug "<<== RECEIPT {} <- {}{}",
             receipt_nonce.encode(),
-            if let Some(nr) = &inbound_noderef {
-                nr.to_string()
-            } else {
-                "DIRECT".to_owned()
+            match receipt_returned {
+                ReceiptReturned::OutOfBand => "OutOfBand".to_owned(),
+                ReceiptReturned::InBand { ref inbound_noderef } => format!("InBand({})", inbound_noderef),
+                ReceiptReturned::Safety => "Safety".to_owned(),
+                ReceiptReturned::Private { ref private_route } => format!("Private({})", private_route),
             },
             if extra_data.is_empty() {
                 "".to_owned()
@@ -435,10 +446,17 @@ impl ReceiptManager {
             record_mut.returns_so_far += 1;
 
             // Get the receipt event to return
-            let receipt_event = if let Some(inbound_noderef) = inbound_noderef {
-                ReceiptEvent::ReturnedInBand { inbound_noderef }
-            } else {
-                ReceiptEvent::ReturnedOutOfBand
+            let receipt_event = match receipt_returned {
+                ReceiptReturned::OutOfBand => ReceiptEvent::ReturnedOutOfBand,
+                ReceiptReturned::Safety => ReceiptEvent::ReturnedSafety,
+                ReceiptReturned::InBand {
+                    ref inbound_noderef,
+                } => ReceiptEvent::ReturnedInBand {
+                    inbound_noderef: inbound_noderef.clone(),
+                },
+                ReceiptReturned::Private { ref private_route } => ReceiptEvent::ReturnedPrivate {
+                    private_route: private_route.clone(),
+                },
             };
 
             let callback_future = Self::perform_callback(receipt_event, &mut record_mut);

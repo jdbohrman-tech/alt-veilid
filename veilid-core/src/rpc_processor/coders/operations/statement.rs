@@ -22,10 +22,10 @@ impl RPCStatement {
     }
     pub fn decode(
         reader: &veilid_capnp::statement::Reader,
-        sender_node_id: &DHTKey,
+        opt_sender_node_id: Option<&DHTKey>,
     ) -> Result<RPCStatement, RPCError> {
         let d_reader = reader.get_detail();
-        let detail = RPCStatementDetail::decode(&d_reader, sender_node_id)?;
+        let detail = RPCStatementDetail::decode(&d_reader, opt_sender_node_id)?;
         Ok(RPCStatement { detail })
     }
     pub fn encode(&self, builder: &mut veilid_capnp::statement::Builder) -> Result<(), RPCError> {
@@ -42,6 +42,7 @@ pub enum RPCStatementDetail {
     ValueChanged(RPCOperationValueChanged),
     Signal(RPCOperationSignal),
     ReturnReceipt(RPCOperationReturnReceipt),
+    AppMessage(RPCOperationAppMessage),
 }
 
 impl RPCStatementDetail {
@@ -53,11 +54,12 @@ impl RPCStatementDetail {
             RPCStatementDetail::ValueChanged(_) => "ValueChanged",
             RPCStatementDetail::Signal(_) => "Signal",
             RPCStatementDetail::ReturnReceipt(_) => "ReturnReceipt",
+            RPCStatementDetail::AppMessage(_) => "AppMessage",
         }
     }
     pub fn decode(
         reader: &veilid_capnp::statement::detail::Reader,
-        sender_node_id: &DHTKey,
+        opt_sender_node_id: Option<&DHTKey>,
     ) -> Result<RPCStatementDetail, RPCError> {
         let which_reader = reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
@@ -73,7 +75,7 @@ impl RPCStatementDetail {
             }
             veilid_capnp::statement::detail::NodeInfoUpdate(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationNodeInfoUpdate::decode(&op_reader, sender_node_id)?;
+                let out = RPCOperationNodeInfoUpdate::decode(&op_reader, opt_sender_node_id)?;
                 RPCStatementDetail::NodeInfoUpdate(out)
             }
             veilid_capnp::statement::detail::ValueChanged(r) => {
@@ -90,6 +92,11 @@ impl RPCStatementDetail {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationReturnReceipt::decode(&op_reader)?;
                 RPCStatementDetail::ReturnReceipt(out)
+            }
+            veilid_capnp::statement::detail::AppMessage(r) => {
+                let op_reader = r.map_err(RPCError::protocol)?;
+                let out = RPCOperationAppMessage::decode(&op_reader)?;
+                RPCStatementDetail::AppMessage(out)
             }
         };
         Ok(out)
@@ -112,6 +119,9 @@ impl RPCStatementDetail {
             RPCStatementDetail::Signal(d) => d.encode(&mut builder.reborrow().init_signal()),
             RPCStatementDetail::ReturnReceipt(d) => {
                 d.encode(&mut builder.reborrow().init_return_receipt())
+            }
+            RPCStatementDetail::AppMessage(d) => {
+                d.encode(&mut builder.reborrow().init_app_message())
             }
         }
     }

@@ -4,7 +4,7 @@ use super::*;
 pub struct ConnectionHandle {
     id: u64,
     descriptor: ConnectionDescriptor,
-    channel: flume::Sender<Vec<u8>>,
+    channel: flume::Sender<(Option<Id>, Vec<u8>)>,
 }
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ impl ConnectionHandle {
     pub(super) fn new(
         id: u64,
         descriptor: ConnectionDescriptor,
-        channel: flume::Sender<Vec<u8>>,
+        channel: flume::Sender<(Option<Id>, Vec<u8>)>,
     ) -> Self {
         Self {
             id,
@@ -34,16 +34,22 @@ impl ConnectionHandle {
         self.descriptor.clone()
     }
 
+    #[instrument(level="trace", skip(self, message), fields(message.len = message.len()))]
     pub fn send(&self, message: Vec<u8>) -> ConnectionHandleSendResult {
-        match self.channel.send(message) {
+        match self.channel.send((Span::current().id(), message)) {
             Ok(()) => ConnectionHandleSendResult::Sent,
-            Err(e) => ConnectionHandleSendResult::NotSent(e.0),
+            Err(e) => ConnectionHandleSendResult::NotSent(e.0 .1),
         }
     }
+    #[instrument(level="trace", skip(self, message), fields(message.len = message.len()))]
     pub async fn send_async(&self, message: Vec<u8>) -> ConnectionHandleSendResult {
-        match self.channel.send_async(message).await {
+        match self
+            .channel
+            .send_async((Span::current().id(), message))
+            .await
+        {
             Ok(()) => ConnectionHandleSendResult::Sent,
-            Err(e) => ConnectionHandleSendResult::NotSent(e.0),
+            Err(e) => ConnectionHandleSendResult::NotSent(e.0 .1),
         }
     }
 }

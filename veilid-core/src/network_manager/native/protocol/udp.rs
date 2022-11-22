@@ -11,7 +11,7 @@ impl RawUdpProtocolHandler {
         Self { socket }
     }
 
-    #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.from))]
+    // #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor))]
     pub async fn recv_message(&self, data: &mut [u8]) -> io::Result<(usize, ConnectionDescriptor)> {
         let (size, descriptor) = loop {
             let (size, remote_addr) = network_result_value_or_log!(debug self.socket.recv_from(data).await.into_network_result()? => continue);
@@ -33,12 +33,12 @@ impl RawUdpProtocolHandler {
             break (size, descriptor);
         };
 
-        tracing::Span::current().record("ret.len", &size);
-        tracing::Span::current().record("ret.from", &format!("{:?}", descriptor).as_str());
+        // tracing::Span::current().record("ret.len", &size);
+        // tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
         Ok((size, descriptor))
     }
 
-    #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.from))]
+    #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor))]
     pub async fn send_message(
         &self,
         data: Vec<u8>,
@@ -67,6 +67,8 @@ impl RawUdpProtocolHandler {
             bail_io_error_other!("UDP partial send")
         }
 
+        tracing::Span::current().record("ret.len", &len);
+        tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
         Ok(NetworkResult::value(descriptor))
     }
 

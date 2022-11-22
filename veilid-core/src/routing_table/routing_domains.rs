@@ -1,62 +1,422 @@
 use super::*;
 
-/// General trait for all routing domains
-pub trait RoutingDomainDetail {
-    fn can_contain_address(&self, address: Address) -> bool;
-    fn relay_node(&self) -> Option<NodeRef>;
-    fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>);
-    fn dial_info_details(&self) -> &Vec<DialInfoDetail>;
-    fn clear_dial_info_details(&mut self);
-    fn add_dial_info_detail(&mut self, did: DialInfoDetail);
+/// Mechanism required to contact another node
+#[derive(Clone, Debug)]
+pub enum ContactMethod {
+    /// Node is not reachable by any means
+    Unreachable,
+    /// Connection should have already existed
+    Existing,
+    /// Contact the node directly
+    Direct(DialInfo),
+    /// Request via signal the node connect back directly (relay, target)
+    SignalReverse(DHTKey, DHTKey),
+    /// Request via signal the node negotiate a hole punch (relay, target_node)
+    SignalHolePunch(DHTKey, DHTKey),
+    /// Must use an inbound relay to reach the node
+    InboundRelay(DHTKey),
+    /// Must use outbound relay to reach the node
+    OutboundRelay(DHTKey),
 }
 
-/// Public Internet routing domain internals
-#[derive(Debug, Default)]
-pub struct PublicInternetRoutingDomainDetail {
-    /// An optional node we relay through for this domain
+#[derive(Debug)]
+pub struct RoutingDomainDetailCommon {
+    routing_domain: RoutingDomain,
+    network_class: Option<NetworkClass>,
+    outbound_protocols: ProtocolTypeSet,
+    inbound_protocols: ProtocolTypeSet,
+    address_types: AddressTypeSet,
     relay_node: Option<NodeRef>,
-    /// The dial infos on this domain we can be reached by
     dial_info_details: Vec<DialInfoDetail>,
+    // caches
+    cached_peer_info: Mutex<Option<PeerInfo>>,
+}
+
+impl RoutingDomainDetailCommon {
+    pub fn new(routing_domain: RoutingDomain) -> Self {
+        Self {
+            routing_domain,
+            network_class: Default::default(),
+            outbound_protocols: Default::default(),
+            inbound_protocols: Default::default(),
+            address_types: Default::default(),
+            relay_node: Default::default(),
+            dial_info_details: Default::default(),
+            cached_peer_info: Mutex::new(Default::default()),
+        }
+    }
+
+    // Set from network manager
+    pub(super) fn setup_network(
+        &mut self,
+        outbound_protocols: ProtocolTypeSet,
+        inbound_protocols: ProtocolTypeSet,
+        address_types: AddressTypeSet,
+    ) {
+        self.outbound_protocols = outbound_protocols;
+        self.inbound_protocols = inbound_protocols;
+        self.address_types = address_types;
+        self.clear_cache();
+    }
+
+    pub(super) fn set_network_class(&mut self, network_class: Option<NetworkClass>) {
+        self.network_class = network_class;
+        self.clear_cache();
+    }
+    pub fn network_class(&self) -> Option<NetworkClass> {
+        self.network_class
+    }
+    pub fn outbound_protocols(&self) -> ProtocolTypeSet {
+        self.outbound_protocols
+    }
+    pub fn inbound_protocols(&self) -> ProtocolTypeSet {
+        self.inbound_protocols
+    }
+    pub fn address_types(&self) -> AddressTypeSet {
+        self.address_types
+    }
+    pub fn relay_node(&self) -> Option<NodeRef> {
+        self.relay_node.clone()
+    }
+    pub(super) fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
+        self.relay_node = opt_relay_node.map(|nr| {
+            nr.filtered_clone(NodeRefFilter::new().with_routing_domain(self.routing_domain))
+        });
+        self.clear_cache();
+    }
+    pub fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
+        &self.dial_info_details
+    }
+    pub(super) fn clear_dial_info_details(&mut self) {
+        self.dial_info_details.clear();
+        self.clear_cache();
+    }
+    pub(super) fn add_dial_info_detail(&mut self, did: DialInfoDetail) {
+        self.dial_info_details.push(did);
+        self.dial_info_details.sort();
+        self.clear_cache();
+    }
+
+    pub fn has_valid_own_node_info(&self) -> bool {
+        self.network_class.unwrap_or(NetworkClass::Invalid) != NetworkClass::Invalid
+    }
+
+    fn make_peer_info(&self, rti: &RoutingTableInner) -> PeerInfo {
+        let node_info = NodeInfo {
+            network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
+            outbound_protocols: self.outbound_protocols,
+            address_types: self.address_types,
+            min_version: MIN_CRYPTO_VERSION,
+            max_version: MAX_CRYPTO_VERSION,
+            dial_info_detail_list: self.dial_info_details.clone(),
+        };
+
+        let relay_info = self
+            .relay_node
+            .as_ref()
+            .and_then(|rn| {
+                let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
+                if let Some(relay_pi) = opt_relay_pi {
+                    match relay_pi.signed_node_info {
+                        SignedNodeInfo::Direct(d) => Some((relay_pi.node_id, d)), 
+                        SignedNodeInfo::Relayed(_) => {
+                            warn!("relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
+                            None
+                        },
+                    }
+                } else {
+                    None
+                }
+            });
+
+        let signed_node_info = match relay_info {
+            Some((relay_id, relay_sdni)) => SignedNodeInfo::Relayed(
+                SignedRelayedNodeInfo::with_secret(
+                    NodeId::new(rti.unlocked_inner.node_id),
+                    node_info,
+                    relay_id,
+                    relay_sdni,                    
+                    &rti.unlocked_inner.node_id_secret,
+                )
+                .unwrap(),
+            ),
+            None => SignedNodeInfo::Direct(
+                SignedDirectNodeInfo::with_secret(
+                    NodeId::new(rti.unlocked_inner.node_id),
+                    node_info,
+                    &rti.unlocked_inner.node_id_secret,
+                )
+                .unwrap()
+            ),
+        };
+
+        PeerInfo::new(NodeId::new(rti.unlocked_inner.node_id), signed_node_info)
+    }
+
+    pub fn with_peer_info<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
+    where
+        F: FnOnce(&PeerInfo) -> R,
+    {
+        let mut cpi = self.cached_peer_info.lock();
+        if cpi.is_none() {
+            // Regenerate peer info
+            let pi = self.make_peer_info(rti);
+
+            // Cache the peer info
+            *cpi = Some(pi);
+        }
+        f(cpi.as_ref().unwrap())
+    }
+
+    pub fn inbound_dial_info_filter(&self) -> DialInfoFilter {
+        DialInfoFilter::all()
+            .with_protocol_type_set(self.inbound_protocols)
+            .with_address_type_set(self.address_types)
+    }
+    pub fn outbound_dial_info_filter(&self) -> DialInfoFilter {
+        DialInfoFilter::all()
+            .with_protocol_type_set(self.outbound_protocols)
+            .with_address_type_set(self.address_types)
+    }
+
+    pub(super) fn clear_cache(&self) {
+        *self.cached_peer_info.lock() = None;
+    }
+}
+
+/// General trait for all routing domains
+pub trait RoutingDomainDetail {
+    // Common accessors
+    fn common(&self) -> &RoutingDomainDetailCommon;
+    fn common_mut(&mut self) -> &mut RoutingDomainDetailCommon;
+
+    /// Can this routing domain contain a particular address
+    fn can_contain_address(&self, address: Address) -> bool;
+
+    /// Get the contact method required for node A to reach node B in this routing domain
+    /// Routing table must be locked for reading to use this function
+    fn get_contact_method(
+        &self,
+        rti: &RoutingTableInner,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
+        dial_info_filter: DialInfoFilter,
+        sequencing: Sequencing,
+    ) -> ContactMethod;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Public Internet routing domain internals
+#[derive(Debug)]
+pub struct PublicInternetRoutingDomainDetail {
+    /// Common implementation for all routing domains
+    common: RoutingDomainDetailCommon,
+}
+
+impl Default for PublicInternetRoutingDomainDetail {
+    fn default() -> Self {
+        Self {
+            common: RoutingDomainDetailCommon::new(RoutingDomain::PublicInternet),
+        }
+    }
+}
+
+fn first_filtered_dial_info_detail(
+    from_node: &NodeInfo,
+    to_node: &NodeInfo,
+    dial_info_filter: &DialInfoFilter,
+    sequencing: Sequencing,
+) -> Option<DialInfoDetail> {
+    let dial_info_filter = dial_info_filter.clone().filtered(
+        &DialInfoFilter::all()
+            .with_address_type_set(from_node.address_types)
+            .with_protocol_type_set(from_node.outbound_protocols),
+    );
+
+    // Get first filtered dialinfo
+    let (sort, dial_info_filter) = match sequencing {
+        Sequencing::NoPreference => (None, dial_info_filter),
+        Sequencing::PreferOrdered => (
+            Some(DialInfoDetail::ordered_sequencing_sort),
+            dial_info_filter,
+        ),
+        Sequencing::EnsureOrdered => (
+            Some(DialInfoDetail::ordered_sequencing_sort),
+            dial_info_filter.filtered(
+                &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+            ),
+        ),
+    };
+    // If the filter is dead then we won't be able to connect
+    if dial_info_filter.is_dead() {
+        return None;
+    }
+
+    let direct_filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
+
+    // Get the best match dial info for node B if we have it
+    to_node.first_filtered_dial_info_detail(sort, direct_filter)
 }
 
 impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
+    fn common(&self) -> &RoutingDomainDetailCommon {
+        &self.common
+    }
+    fn common_mut(&mut self) -> &mut RoutingDomainDetailCommon {
+        &mut self.common
+    }
     fn can_contain_address(&self, address: Address) -> bool {
         address.is_global()
     }
-    fn relay_node(&self) -> Option<NodeRef> {
-        self.relay_node.clone()
-    }
-    fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
-        self.relay_node = opt_relay_node.map(|nr| {
-            nr.filtered_clone(
-                NodeRefFilter::new().with_routing_domain(RoutingDomain::PublicInternet),
+    fn get_contact_method(
+        &self,
+        _rti: &RoutingTableInner,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
+        dial_info_filter: DialInfoFilter,
+        sequencing: Sequencing,
+    ) -> ContactMethod {
+        // Get the nodeinfos for convenience
+        let node_a = peer_a.signed_node_info.node_info();
+        let node_b = peer_b.signed_node_info.node_info();
+        
+        // Get the best match dial info for node B if we have it
+        if let Some(target_did) =
+            first_filtered_dial_info_detail(node_a, node_b, &dial_info_filter, sequencing)
+        {
+            // Do we need to signal before going inbound?
+            if !target_did.class.requires_signal() {
+                // Go direct without signaling
+                return ContactMethod::Direct(target_did.dial_info);
+            }
+
+            // Get the target's inbound relay, it must have one or it is not reachable
+            if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
+                let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
+                // Note that relay_peer_info could be node_a, in which case a connection already exists
+                // and we shouldn't have even gotten here
+                if node_b_relay_id.key == peer_a.node_id.key {
+                    return ContactMethod::Existing;
+                }
+
+                // Can node A reach the inbound relay directly?
+                if first_filtered_dial_info_detail(
+                    node_a,
+                    node_b_relay,
+                    &dial_info_filter,
+                    sequencing,
+                )
+                .is_some()
+                {
+                    // Can node A receive anything inbound ever?
+                    if matches!(node_a.network_class, NetworkClass::InboundCapable) {
+                        ///////// Reverse connection
+
+                        // Get the best match dial info for an reverse inbound connection from node B to node A
+                        if let Some(reverse_did) = first_filtered_dial_info_detail(
+                            node_b,
+                            node_a,
+                            &dial_info_filter,
+                            sequencing,
+                        ) {
+                            // Ensure we aren't on the same public IP address (no hairpin nat)
+                            if reverse_did.dial_info.to_ip_addr()
+                                != target_did.dial_info.to_ip_addr()
+                            {
+                                // Can we receive a direct reverse connection?
+                                if !reverse_did.class.requires_signal() {
+                                    return ContactMethod::SignalReverse(
+                                        node_b_relay_id.key,
+                                        peer_b.node_id.key,
+                                    );
+                                }
+                            }
+                        }
+
+                        ///////// UDP hole-punch
+
+                        // Does node B have a direct udp dialinfo node A can reach?
+                        let udp_dial_info_filter = dial_info_filter
+                            .clone()
+                            .filtered(&DialInfoFilter::all().with_protocol_type(ProtocolType::UDP));
+                        if let Some(target_udp_did) = first_filtered_dial_info_detail(
+                            node_a,
+                            node_b,
+                            &udp_dial_info_filter,
+                            sequencing,
+                        ) {
+                            // Does node A have a direct udp dialinfo that node B can reach?
+                            if let Some(reverse_udp_did) = first_filtered_dial_info_detail(
+                                node_b,
+                                node_a,
+                                &udp_dial_info_filter,
+                                sequencing,
+                            ) {
+                                // Ensure we aren't on the same public IP address (no hairpin nat)
+                                if reverse_udp_did.dial_info.to_ip_addr()
+                                    != target_udp_did.dial_info.to_ip_addr()
+                                {
+                                    // The target and ourselves have a udp dialinfo that they can reach
+                                    return ContactMethod::SignalHolePunch(
+                                        node_b_relay_id.key,
+                                        peer_a.node_id.key,
+                                    );
+                                }
+                            }
+                        }
+                        // Otherwise we have to inbound relay
+                    }
+
+                    return ContactMethod::InboundRelay(node_b_relay_id.key);
+                }
+            }
+        }
+        // If the node B has no direct dial info, it needs to have an inbound relay
+        else if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
+            let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
+
+            // Can we reach the full relay?
+            if first_filtered_dial_info_detail(
+                node_a,
+                &node_b_relay,
+                &dial_info_filter,
+                sequencing,
             )
-        })
-    }
-    fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
-        &self.dial_info_details
-    }
-    fn clear_dial_info_details(&mut self) {
-        self.dial_info_details.clear();
-    }
-    fn add_dial_info_detail(&mut self, did: DialInfoDetail) {
-        self.dial_info_details.push(did);
-        self.dial_info_details.sort();
+            .is_some()
+            {
+                return ContactMethod::InboundRelay(node_b_relay_id.key);
+            }
+        }
+
+        // If node A can't reach the node by other means, it may need to use its own relay
+        if let Some(node_a_relay_id) = peer_a.signed_node_info.relay_id() {
+            return ContactMethod::OutboundRelay(node_a_relay_id.key);
+        }
+
+        ContactMethod::Unreachable
     }
 }
 
 /// Local Network routing domain internals
-#[derive(Debug, Default)]
-pub struct LocalInternetRoutingDomainDetail {
-    /// An optional node we relay through for this domain
-    relay_node: Option<NodeRef>,
-    /// The dial infos on this domain we can be reached by
-    dial_info_details: Vec<DialInfoDetail>,
+#[derive(Debug)]
+pub struct LocalNetworkRoutingDomainDetail {
     /// The local networks this domain will communicate with
     local_networks: Vec<(IpAddr, IpAddr)>,
+    /// Common implementation for all routing domains
+    common: RoutingDomainDetailCommon,
 }
 
-impl LocalInternetRoutingDomainDetail {
+impl Default for LocalNetworkRoutingDomainDetail {
+    fn default() -> Self {
+        Self {
+            local_networks: Default::default(),
+            common: RoutingDomainDetailCommon::new(RoutingDomain::LocalNetwork),
+        }
+    }
+}
+
+impl LocalNetworkRoutingDomainDetail {
     pub fn set_local_networks(&mut self, mut local_networks: Vec<(IpAddr, IpAddr)>) -> bool {
         local_networks.sort();
         if local_networks == self.local_networks {
@@ -67,7 +427,13 @@ impl LocalInternetRoutingDomainDetail {
     }
 }
 
-impl RoutingDomainDetail for LocalInternetRoutingDomainDetail {
+impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
+    fn common(&self) -> &RoutingDomainDetailCommon {
+        &self.common
+    }
+    fn common_mut(&mut self) -> &mut RoutingDomainDetailCommon {
+        &mut self.common
+    }
     fn can_contain_address(&self, address: Address) -> bool {
         let ip = address.to_ip_addr();
         for localnet in &self.local_networks {
@@ -77,22 +443,48 @@ impl RoutingDomainDetail for LocalInternetRoutingDomainDetail {
         }
         false
     }
-    fn relay_node(&self) -> Option<NodeRef> {
-        self.relay_node.clone()
-    }
-    fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
-        self.relay_node = opt_relay_node.map(|nr| {
-            nr.filtered_clone(NodeRefFilter::new().with_routing_domain(RoutingDomain::LocalNetwork))
-        });
-    }
-    fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
-        &self.dial_info_details
-    }
-    fn clear_dial_info_details(&mut self) {
-        self.dial_info_details.clear();
-    }
-    fn add_dial_info_detail(&mut self, did: DialInfoDetail) {
-        self.dial_info_details.push(did);
-        self.dial_info_details.sort();
+
+    fn get_contact_method(
+        &self,
+        _rti: &RoutingTableInner,
+        peer_a: &PeerInfo,
+        peer_b: &PeerInfo,
+        dial_info_filter: DialInfoFilter,
+        sequencing: Sequencing,
+    ) -> ContactMethod {
+        // Scope the filter down to protocols node A can do outbound
+        let dial_info_filter = dial_info_filter.filtered(
+            &DialInfoFilter::all()
+                .with_address_type_set(peer_a.signed_node_info.node_info().address_types)
+                .with_protocol_type_set(peer_a.signed_node_info.node_info().outbound_protocols),
+        );
+        
+        // Get first filtered dialinfo
+        let (sort, dial_info_filter) = match sequencing {
+            Sequencing::NoPreference => (None, dial_info_filter),
+            Sequencing::PreferOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter,
+            ),
+            Sequencing::EnsureOrdered => (
+                Some(DialInfoDetail::ordered_sequencing_sort),
+                dial_info_filter.filtered(
+                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+                ),
+            ),
+        };
+        // If the filter is dead then we won't be able to connect
+        if dial_info_filter.is_dead() {
+            return ContactMethod::Unreachable;
+        }
+
+        let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
+
+        let opt_target_did = peer_b.signed_node_info.node_info().first_filtered_dial_info_detail(sort, filter);
+        if let Some(target_did) = opt_target_did {
+            return ContactMethod::Direct(target_did.dial_info);
+        }
+
+        ContactMethod::Unreachable
     }
 }

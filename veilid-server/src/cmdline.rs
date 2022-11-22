@@ -130,7 +130,19 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .value_name("BOOTSTRAP_NODE_LIST")
                 .help("Specify a list of bootstrap node dialinfos to use"),
         )
+        .arg(
+            Arg::new("panic")
+                .long("panic")
+                .help("panic on ctrl-c instead of graceful shutdown"),
+        )
         ;
+
+    #[cfg(feature = "rt-tokio")]
+    let matches = matches.arg(
+        Arg::new("console")
+            .long("console")
+            .help("enable tokio console"),
+    );
 
     #[cfg(debug_assertions)]
     let matches = matches.arg(
@@ -244,8 +256,8 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
             let s = DHTKeySecret::try_decode(&buffer)?;
             (k, s)
         };
-        settingsrw.core.network.node_id = k;
-        settingsrw.core.network.node_id_secret = s;
+        settingsrw.core.network.node_id = Some(k);
+        settingsrw.core.network.node_id_secret = Some(s);
     }
 
     if matches.occurrences_of("bootstrap") != 0 {
@@ -288,6 +300,12 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
         };
         settingsrw.core.network.bootstrap_nodes = bootstrap_list;
     }
+
+    #[cfg(feature = "rt-tokio")]
+    if matches.occurrences_of("console") != 0 {
+        settingsrw.logging.console.enabled = true;
+    }
+
     drop(settingsrw);
 
     // Set specific config settings

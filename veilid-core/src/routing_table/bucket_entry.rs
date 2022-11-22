@@ -1,5 +1,8 @@
 use super::*;
 use core::sync::atomic::{AtomicU32, Ordering};
+use rkyv::{
+    with::Skip, Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
+};
 
 /// Reliable pings are done with increased spacing between pings
 
@@ -39,10 +42,11 @@ pub enum BucketEntryState {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-struct LastConnectionKey(ProtocolType, AddressType);
+pub struct LastConnectionKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug)]
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -53,7 +57,8 @@ pub struct BucketEntryPublicInternet {
 }
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug)]
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -63,19 +68,51 @@ pub struct BucketEntryLocalNetwork {
     node_status: Option<LocalNetworkNodeStatus>,
 }
 
-#[derive(Debug)]
+/// A range of cryptography versions supported by this entry
+#[derive(Copy, Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct VersionRange {
+    /// The minimum cryptography version supported by this entry
+    pub min: u8,
+    /// The maximum cryptography version supported by this entry
+    pub max: u8,
+}
+
+/// The data associated with each bucket entry
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryInner {
-    min_max_version: Option<(u8, u8)>,
+    /// The minimum and maximum range of cryptography versions supported by the node,
+    /// inclusive of the requirements of any relay the node may be using
+    min_max_version: Option<VersionRange>,
+    /// If this node has updated it's SignedNodeInfo since our network
+    /// and dial info has last changed, for example when our IP address changes
+    /// Used to determine if we should make this entry 'live' again when we receive a signednodeinfo update that
+    /// has the same timestamp, because if we change our own IP address or network class it may be possible for nodes that were
+    /// unreachable may now be reachable with the same SignedNodeInfo/DialInfo
     updated_since_last_network_change: bool,
+    /// The last connection descriptors used to contact this node, per protocol type
+    #[with(Skip)]
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
+    /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
+    /// The node info for this entry on the localnetwork routing domain
     local_network: BucketEntryLocalNetwork,
+    /// Statistics gathered for the peer
     peer_stats: PeerStats,
+    /// The accounting for the latency statistics
+    #[with(Skip)]
     latency_stats_accounting: LatencyStatsAccounting,
+    /// The accounting for the transfer statistics
+    #[with(Skip)]
     transfer_stats_accounting: TransferStatsAccounting,
+    /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
+    #[with(Skip)]
     next_track_id: usize,
+    /// Backtraces for NodeRef debugging
     #[cfg(feature = "tracking")]
+    #[with(Skip)]
     node_ref_tracks: HashMap<usize, backtrace::Backtrace>,
 }
 
@@ -132,6 +169,28 @@ impl BucketEntryInner {
         }
     }
 
+    // Less is more reliable then older
+    pub fn cmp_oldest_reliable(cur_ts: u64, e1: &Self, e2: &Self) -> std::cmp::Ordering {
+        // Reverse compare so most reliable is at front
+        let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
+        if ret != std::cmp::Ordering::Equal {
+            return ret;
+        }
+
+        // Lower timestamp to the front, recent or no timestamp is at the end
+        if let Some(e1_ts) = &e1.peer_stats.rpc_stats.first_consecutive_seen_ts {
+            if let Some(e2_ts) = &e2.peer_stats.rpc_stats.first_consecutive_seen_ts {
+                e1_ts.cmp(&e2_ts)
+            } else {
+                std::cmp::Ordering::Less
+            }
+        } else if e2.peer_stats.rpc_stats.first_consecutive_seen_ts.is_some() {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    }
+
     pub fn sort_fastest_reliable_fn(cur_ts: u64) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
@@ -159,28 +218,42 @@ impl BucketEntryInner {
 
         // See if we have an existing signed_node_info to update or not
         if let Some(current_sni) = opt_current_sni {
-            // If the timestamp hasn't changed or is less, ignore this update
-            if signed_node_info.timestamp <= current_sni.timestamp {
-                // If we received a node update with the same timestamp
-                // we can make this node live again, but only if our network has recently changed
-                // which may make nodes that were unreachable now reachable with the same dialinfo
-                if !self.updated_since_last_network_change
-                    && signed_node_info.timestamp == current_sni.timestamp
-                {
-                    // No need to update the signednodeinfo though since the timestamp is the same
-                    // Touch the node and let it try to live again
-                    self.updated_since_last_network_change = true;
-                    self.touch_last_seen(intf::get_timestamp());
+            // Always allow overwriting invalid/unsigned node
+            if current_sni.has_valid_signature() {
+                // If the timestamp hasn't changed or is less, ignore this update
+                if signed_node_info.timestamp() <= current_sni.timestamp() {
+                    // If we received a node update with the same timestamp
+                    // we can make this node live again, but only if our network has recently changed
+                    // which may make nodes that were unreachable now reachable with the same dialinfo
+                    if !self.updated_since_last_network_change
+                        && signed_node_info.timestamp() == current_sni.timestamp()
+                    {
+                        // No need to update the signednodeinfo though since the timestamp is the same
+                        // Touch the node and let it try to live again
+                        self.updated_since_last_network_change = true;
+                        self.touch_last_seen(intf::get_timestamp());
+                    }
+                    return;
                 }
-                return;
             }
         }
 
-        // Update the protocol min/max version we have
-        self.min_max_version = Some((
-            signed_node_info.node_info.min_version,
-            signed_node_info.node_info.max_version,
-        ));
+        // Update the protocol min/max version we have to use, to include relay requirements if needed
+        let mut version_range = VersionRange {
+            min: signed_node_info.node_info().min_version,
+            max: signed_node_info.node_info().max_version,
+        };
+        if let Some(relay_info) = signed_node_info.relay_info() {
+            version_range.min.max_assign(relay_info.min_version);
+            version_range.max.min_assign(relay_info.max_version);
+        }
+        if version_range.min <= version_range.max {
+            // Can be reached with at least one crypto version
+            self.min_max_version = Some(version_range);
+        } else {
+            // No valid crypto version in range
+            self.min_max_version = None;
+        }
 
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
@@ -207,7 +280,7 @@ impl BucketEntryInner {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
-        opt_current_sni.as_ref().map(|s| &s.node_info)
+        opt_current_sni.as_ref().map(|s| s.node_info())
     }
 
     pub fn signed_node_info(&self, routing_domain: RoutingDomain) -> Option<&SignedNodeInfo> {
@@ -264,37 +337,54 @@ impl BucketEntryInner {
         self.last_connections.clear();
     }
 
-    // Gets the best 'last connection' that matches a set of routing domain, protocol types and address types
-    pub(super) fn last_connection(
+    // Gets all the 'last connections' that match a particular filter
+    pub(super) fn last_connections(
         &self,
-        routing_table_inner: &RoutingTableInner,
-        node_ref_filter: Option<NodeRefFilter>,
-    ) -> Option<(ConnectionDescriptor, u64)> {
-        // Iterate peer scopes and protocol types and address type in order to ensure we pick the preferred protocols if all else is the same
-        let nrf = node_ref_filter.unwrap_or_default();
-        for pt in nrf.dial_info_filter.protocol_type_set {
-            for at in nrf.dial_info_filter.address_type_set {
-                let key = LastConnectionKey(pt, at);
-                if let Some(v) = self.last_connections.get(&key) {
-                    // Verify this connection could be in the filtered routing domain
-                    let address = v.0.remote_address().address();
-                    if let Some(rd) =
-                        RoutingTable::routing_domain_for_address_inner(routing_table_inner, address)
-                    {
-                        if nrf.routing_domain_set.contains(rd) {
-                            return Some(*v);
+        rti: &RoutingTableInner,
+        filter: Option<NodeRefFilter>,
+    ) -> Vec<(ConnectionDescriptor, u64)> {
+        let mut out: Vec<(ConnectionDescriptor, u64)> = self
+            .last_connections
+            .iter()
+            .filter_map(|(k, v)| {
+                let include = if let Some(filter) = &filter {
+                    let remote_address = v.0.remote_address().address();
+                    if let Some(routing_domain) = rti.routing_domain_for_address(remote_address) {
+                        if filter.routing_domain_set.contains(routing_domain)
+                            && filter.dial_info_filter.protocol_type_set.contains(k.0)
+                            && filter.dial_info_filter.address_type_set.contains(k.1)
+                        {
+                            // matches filter
+                            true
+                        } else {
+                            // does not match filter
+                            false
                         }
+                    } else {
+                        // no valid routing domain
+                        false
                     }
+                } else {
+                    // no filter
+                    true
+                };
+                if include {
+                    Some(v.clone())
+                } else {
+                    None
                 }
-            }
-        }
-        None
+            })
+            .collect();
+        // Sort with newest timestamps first
+        out.sort_by(|a, b| b.1.cmp(&a.1));
+        out
     }
-    pub fn set_min_max_version(&mut self, min_max_version: (u8, u8)) {
+
+    pub fn set_min_max_version(&mut self, min_max_version: VersionRange) {
         self.min_max_version = Some(min_max_version);
     }
 
-    pub fn min_max_version(&self) -> Option<(u8, u8)> {
+    pub fn min_max_version(&self) -> Option<VersionRange> {
         self.min_max_version
     }
 
@@ -409,14 +499,17 @@ impl BucketEntryInner {
         }
     }
 
-    fn needs_constant_ping(&self, cur_ts: u64, interval: u64) -> bool {
-        // If we have not either seen the node, nor asked it a question in the last 'interval'
-        // then we should ping it
-        let latest_contact_time = self
-            .peer_stats
+    /// Return the last time we either saw a node, or asked it a question
+    fn latest_contact_time(&self) -> Option<u64> {
+        self.peer_stats
             .rpc_stats
             .last_seen_ts
-            .max(self.peer_stats.rpc_stats.last_question);
+            .max(self.peer_stats.rpc_stats.last_question)
+    }
+
+    fn needs_constant_ping(&self, cur_ts: u64, interval: u64) -> bool {
+        // If we have not either seen the node in the last 'interval' then we should ping it
+        let latest_contact_time = self.latest_contact_time();
 
         match latest_contact_time {
             None => true,
@@ -438,14 +531,19 @@ impl BucketEntryInner {
             return self.needs_constant_ping(cur_ts, KEEPALIVE_PING_INTERVAL_SECS as u64);
         }
 
+        // If we don't have node status for this node, then we should ping it to get some node status
+        for routing_domain in RoutingDomainSet::all() {
+            if self.has_node_info(routing_domain.into()) {
+                if self.node_status(routing_domain).is_none() {
+                    return true;
+                }
+            }
+        }
+
         match state {
             BucketEntryState::Reliable => {
                 // If we are in a reliable state, we need a ping on an exponential scale
-                let latest_contact_time = self
-                    .peer_stats
-                    .rpc_stats
-                    .last_seen_ts
-                    .max(self.peer_stats.rpc_stats.last_question);
+                let latest_contact_time = self.latest_contact_time();
 
                 match latest_contact_time {
                     None => {
@@ -607,7 +705,37 @@ impl BucketEntry {
         }
     }
 
-    pub(super) fn with<F, R>(&self, f: F) -> R
+    pub(super) fn new_with_inner(inner: BucketEntryInner) -> Self {
+        Self {
+            ref_count: AtomicU32::new(0),
+            inner: RwLock::new(inner),
+        }
+    }
+
+    // Note, that this requires -also- holding the RoutingTable read lock, as an
+    // immutable reference to RoutingTableInner must be passed in to get this
+    // This ensures that an operation on the routing table can not change entries
+    // while it is being read from
+    pub fn with<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
+    where
+        F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> R,
+    {
+        let inner = self.inner.read();
+        f(rti, &*inner)
+    }
+
+    // Note, that this requires -also- holding the RoutingTable write lock, as a
+    // mutable reference to RoutingTableInner must be passed in to get this
+    pub fn with_mut<F, R>(&self, rti: &mut RoutingTableInner, f: F) -> R
+    where
+        F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> R,
+    {
+        let mut inner = self.inner.write();
+        f(rti, &mut *inner)
+    }
+
+    // Internal inner access for RoutingTableInner only
+    pub(super) fn with_inner<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&BucketEntryInner) -> R,
     {
@@ -615,7 +743,8 @@ impl BucketEntry {
         f(&*inner)
     }
 
-    pub(super) fn with_mut<F, R>(&self, f: F) -> R
+    // Internal inner access for RoutingTableInner only
+    pub(super) fn with_mut_inner<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut BucketEntryInner) -> R,
     {

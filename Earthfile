@@ -7,7 +7,7 @@ FROM --platform amd64 ubuntu:16.04
 # Install build prerequisites
 deps-base:
     RUN apt-get -y update
-    RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev 
+    RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip
 
 # Install Cap'n Proto
 deps-capnp:
@@ -15,9 +15,15 @@ deps-capnp:
     COPY scripts/earthly/install_capnproto.sh /
     RUN /bin/bash /install_capnproto.sh; rm /install_capnproto.sh
 
+# Install protoc
+deps-protoc:
+    FROM +deps-capnp
+    COPY scripts/earthly/install_protoc.sh /
+    RUN /bin/bash /install_protoc.sh; rm /install_protoc.sh
+
 # Install Rust
 deps-rust:
-    FROM +deps-capnp
+    FROM +deps-protoc
     ENV RUSTUP_HOME=/usr/local/rustup
     ENV CARGO_HOME=/usr/local/cargo
     ENV PATH=/usr/local/cargo/bin:$PATH
@@ -49,35 +55,43 @@ deps-android:
     RUN curl -o /Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
     RUN cd /Android; unzip /Android/cmdline-tools.zip
     RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;30.0.3 ndk\;22.0.7026061 cmake\;3.18.1 platform-tools platforms\;android-30
+    RUN apt-get clean
     
-# Clean up the apt cache to save space
-deps:
-    FROM +deps-android
+# Just linux build not android
+deps-linux:
+    FROM +deps-cross
     RUN apt-get clean
 
-code:
-    FROM +deps
+# Code + Linux deps
+code-linux:
+    FROM +deps-linux
+    COPY --dir .cargo external files scripts veilid-cli veilid-core veilid-server veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    WORKDIR /veilid
+
+# Code + Linux + Android deps
+code-android:
+    FROM +deps-android
     COPY --dir .cargo external files scripts veilid-cli veilid-core veilid-server veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
     WORKDIR /veilid
 
 # Clippy only
 clippy:
-    FROM +code
+    FROM +code-linux
     RUN cargo clippy
 
 # Build
 build-linux-amd64:
-    FROM +code
+    FROM +code-linux
     RUN cargo build --target x86_64-unknown-linux-gnu --release
     SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
 
 build-linux-arm64:
-    FROM +code
+    FROM +code-linux
     RUN cargo build --target aarch64-unknown-linux-gnu --release
     SAVE ARTIFACT ./target/aarch64-unknown-linux-gnu AS LOCAL ./target/artifacts/aarch64-unknown-linux-gnu
 
 build-android:
-    FROM +code
+    FROM +code-android
     WORKDIR /veilid/veilid-core
     ENV PATH=$PATH:/Android/Sdk/ndk/22.0.7026061/toolchains/llvm/prebuilt/linux-x86_64/bin/
     RUN cargo build --target aarch64-linux-android --release
@@ -92,11 +106,11 @@ build-android:
 
 # Unit tests
 unit-tests-linux-amd64:
-    FROM +code
+    FROM +code-linux
     RUN cargo test --target x86_64-unknown-linux-gnu --release
 
 unit-tests-linux-arm64:
-    FROM +code
+    FROM +code-linux
     RUN cargo test --target aarch64-unknown-linux-gnu --release
 
 # Package 

@@ -93,7 +93,7 @@ where
         Ok(out)
     }
 
-    #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
+    // #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let out = match self.stream.clone().next().await {
             Some(Ok(Message::Binary(v))) => {
@@ -120,7 +120,7 @@ where
             )),
         };
 
-        tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        // tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 }
@@ -129,7 +129,6 @@ where
 ///
 struct WebsocketProtocolHandlerArc {
     tls: bool,
-    local_address: SocketAddr,
     request_path: Vec<u8>,
     connection_initial_timeout_ms: u32,
 }
@@ -142,7 +141,7 @@ where
     arc: Arc<WebsocketProtocolHandlerArc>,
 }
 impl WebsocketProtocolHandler {
-    pub fn new(config: VeilidConfig, tls: bool, local_address: SocketAddr) -> Self {
+    pub fn new(config: VeilidConfig, tls: bool) -> Self {
         let c = config.get();
         let path = if tls {
             format!("GET /{}", c.network.protocol.ws.path.trim_end_matches('/'))
@@ -158,7 +157,6 @@ impl WebsocketProtocolHandler {
         Self {
             arc: Arc::new(WebsocketProtocolHandlerArc {
                 tls,
-                local_address,
                 request_path: path.as_bytes().to_vec(),
                 connection_initial_timeout_ms,
             }),
@@ -170,6 +168,7 @@ impl WebsocketProtocolHandler {
         self,
         ps: AsyncPeekStream,
         socket_addr: SocketAddr,
+        local_addr: SocketAddr,
     ) -> io::Result<Option<ProtocolNetworkConnection>> {
         log_net!("WS: on_accept_async: enter");
         let request_path_len = self.arc.request_path.len() + 2;
@@ -209,10 +208,7 @@ impl WebsocketProtocolHandler {
             PeerAddress::new(SocketAddress::from_socket_addr(socket_addr), protocol_type);
 
         let conn = ProtocolNetworkConnection::WsAccepted(WebsocketNetworkConnection::new(
-            ConnectionDescriptor::new(
-                peer_addr,
-                SocketAddress::from_socket_addr(self.arc.local_address),
-            ),
+            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ws_stream,
         ));
 
@@ -221,7 +217,7 @@ impl WebsocketProtocolHandler {
         Ok(Some(conn))
     }
 
-    #[instrument(level = "trace", err)]
+    #[instrument(level = "trace", ret, err)]
     pub async fn connect(
         local_address: Option<SocketAddr>,
         dial_info: &DialInfo,
@@ -296,7 +292,8 @@ impl ProtocolAcceptHandler for WebsocketProtocolHandler {
         &self,
         stream: AsyncPeekStream,
         peer_addr: SocketAddr,
+        local_addr: SocketAddr,
     ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>> {
-        Box::pin(self.clone().on_accept_async(stream, peer_addr))
+        Box::pin(self.clone().on_accept_async(stream, peer_addr, local_addr))
     }
 }

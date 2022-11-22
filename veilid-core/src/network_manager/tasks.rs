@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::dht::*;
+use crate::crypto::*;
 use crate::xx::*;
 use futures_util::FutureExt;
 use stop_token::future::FutureExt as StopFutureExt;
@@ -39,119 +39,125 @@ impl NetworkManager {
         // Get bootstrap nodes from hostnames concurrently
         let mut unord = FuturesUnordered::new();
         for bsname in bsnames {
-            unord.push(async move {
-                // look up boostrap node txt records
-                let bsnirecords = match intf::txt_lookup(&bsname).await {
-                    Err(e) => {
-                        warn!("bootstrap node txt lookup failed for {}: {}", bsname, e);
-                        return None;
-                    }
-                    Ok(v) => v,
-                };
-                // for each record resolve into key/bootstraprecord pairs
-                let mut bootstrap_records: Vec<(DHTKey, BootstrapRecord)> = Vec::new();
-                for bsnirecord in bsnirecords {
-                    // Bootstrap TXT Record Format Version 0:
-                    // txt_version,min_version,max_version,nodeid,hostname,dialinfoshort*
-                    //
-                    // Split bootstrap node record by commas. Example:
-                    // 0,0,0,7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ,bootstrap-1.dev.veilid.net,T5150,U5150,W5150/ws
-                    let records: Vec<String> = bsnirecord
-                        .trim()
-                        .split(',')
-                        .map(|x| x.trim().to_owned())
-                        .collect();
-                    if records.len() < 6 {
-                        warn!("invalid number of fields in bootstrap txt record");
-                        continue;
-                    }
-
-                    // Bootstrap TXT record version
-                    let txt_version: u8 = match records[0].parse::<u8>() {
-                        Ok(v) => v,
+            unord.push(
+                async move {
+                    // look up boostrap node txt records
+                    let bsnirecords = match intf::txt_lookup(&bsname).await {
                         Err(e) => {
-                            warn!(
+                            warn!("bootstrap node txt lookup failed for {}: {}", bsname, e);
+                            return None;
+                        }
+                        Ok(v) => v,
+                    };
+                    // for each record resolve into key/bootstraprecord pairs
+                    let mut bootstrap_records: Vec<(DHTKey, BootstrapRecord)> = Vec::new();
+                    for bsnirecord in bsnirecords {
+                        // Bootstrap TXT Record Format Version 0:
+                        // txt_version,min_version,max_version,nodeid,hostname,dialinfoshort*
+                        //
+                        // Split bootstrap node record by commas. Example:
+                        // 0,0,0,7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ,bootstrap-1.dev.veilid.net,T5150,U5150,W5150/ws
+                        let records: Vec<String> = bsnirecord
+                            .trim()
+                            .split(',')
+                            .map(|x| x.trim().to_owned())
+                            .collect();
+                        if records.len() < 6 {
+                            warn!("invalid number of fields in bootstrap txt record");
+                            continue;
+                        }
+
+                        // Bootstrap TXT record version
+                        let txt_version: u8 = match records[0].parse::<u8>() {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
                                 "invalid txt_version specified in bootstrap node txt record: {}",
                                 e
                             );
+                                continue;
+                            }
+                        };
+                        if txt_version != BOOTSTRAP_TXT_VERSION {
+                            warn!("unsupported bootstrap txt record version");
                             continue;
                         }
-                    };
-                    if txt_version != BOOTSTRAP_TXT_VERSION {
-                        warn!("unsupported bootstrap txt record version");
-                        continue;
-                    }
 
-                    // Min/Max wire protocol version
-                    let min_version: u8 = match records[1].parse::<u8>() {
-                        Ok(v) => v,
-                        Err(e) => {
-                            warn!(
+                        // Min/Max wire protocol version
+                        let min_version: u8 = match records[1].parse::<u8>() {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
                                 "invalid min_version specified in bootstrap node txt record: {}",
                                 e
                             );
-                            continue;
-                        }
-                    };
-                    let max_version: u8 = match records[2].parse::<u8>() {
-                        Ok(v) => v,
-                        Err(e) => {
-                            warn!(
+                                continue;
+                            }
+                        };
+                        let max_version: u8 = match records[2].parse::<u8>() {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
                                 "invalid max_version specified in bootstrap node txt record: {}",
                                 e
                             );
-                            continue;
-                        }
-                    };
-
-                    // Node Id
-                    let node_id_str = &records[3];
-                    let node_id_key = match DHTKey::try_decode(node_id_str) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            warn!(
-                                "Invalid node id in bootstrap node record {}: {}",
-                                node_id_str, e
-                            );
-                            continue;
-                        }
-                    };
-
-                    // Hostname
-                    let hostname_str = &records[4];
-
-                    // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
-                    if self.routing_table().node_id() == node_id_key {
-                        continue;
-                    }
-
-                    // Resolve each record and store in node dial infos list
-                    let mut bootstrap_record = BootstrapRecord {
-                        min_version,
-                        max_version,
-                        dial_info_details: Vec::new(),
-                    };
-                    for rec in &records[5..] {
-                        let rec = rec.trim();
-                        let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
-                            Ok(dis) => dis,
-                            Err(e) => {
-                                warn!("Couldn't resolve bootstrap node dial info {}: {}", rec, e);
                                 continue;
                             }
                         };
 
-                        for di in dial_infos {
-                            bootstrap_record.dial_info_details.push(DialInfoDetail {
-                                dial_info: di,
-                                class: DialInfoClass::Direct,
-                            });
+                        // Node Id
+                        let node_id_str = &records[3];
+                        let node_id_key = match DHTKey::try_decode(node_id_str) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                warn!(
+                                    "Invalid node id in bootstrap node record {}: {}",
+                                    node_id_str, e
+                                );
+                                continue;
+                            }
+                        };
+
+                        // Hostname
+                        let hostname_str = &records[4];
+
+                        // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
+                        if self.routing_table().node_id() == node_id_key {
+                            continue;
                         }
+
+                        // Resolve each record and store in node dial infos list
+                        let mut bootstrap_record = BootstrapRecord {
+                            min_version,
+                            max_version,
+                            dial_info_details: Vec::new(),
+                        };
+                        for rec in &records[5..] {
+                            let rec = rec.trim();
+                            let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
+                                Ok(dis) => dis,
+                                Err(e) => {
+                                    warn!(
+                                        "Couldn't resolve bootstrap node dial info {}: {}",
+                                        rec, e
+                                    );
+                                    continue;
+                                }
+                            };
+
+                            for di in dial_infos {
+                                bootstrap_record.dial_info_details.push(DialInfoDetail {
+                                    dial_info: di,
+                                    class: DialInfoClass::Direct,
+                                });
+                            }
+                        }
+                        bootstrap_records.push((node_id_key, bootstrap_record));
                     }
-                    bootstrap_records.push((node_id_key, bootstrap_record));
+                    Some(bootstrap_records)
                 }
-                Some(bootstrap_records)
-            });
+                .instrument(Span::current()),
+            );
         }
 
         let mut bsmap = BootstrapRecordMap::new();
@@ -172,6 +178,7 @@ impl NetworkManager {
     }
 
     // 'direct' bootstrap task routine for systems incapable of resolving TXT records, such as browser WASM
+    #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn direct_bootstrap_task_routine(
         self,
         stop_token: StopToken,
@@ -201,7 +208,8 @@ impl NetworkManager {
                     let routing_table = routing_table.clone();
                     unord.push(
                         // lets ask bootstrap to find ourselves now
-                        async move { routing_table.reverse_find_node(nr, true).await },
+                        async move { routing_table.reverse_find_node(nr, true).await }
+                            .instrument(Span::current()),
                     );
                 }
             }
@@ -216,7 +224,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn bootstrap_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
         let (bootstrap, bootstrap_nodes) = {
-            let c = self.config.get();
+            let c = self.unlocked_inner.config.get();
             (
                 c.network.bootstrap.clone(),
                 c.network.bootstrap_nodes.clone(),
@@ -248,22 +256,26 @@ impl NetworkManager {
             let mut bsmap = BootstrapRecordMap::new();
             let mut bootstrap_node_dial_infos = Vec::new();
             for b in bootstrap_nodes {
-                let ndis = NodeDialInfo::from_str(b.as_str())
-                    .wrap_err("Invalid node dial info in bootstrap entry")?;
-                bootstrap_node_dial_infos.push(ndis);
+                let (id_str, di_str) = b
+                    .split_once('@')
+                    .ok_or_else(|| eyre!("Invalid node dial info in bootstrap entry"))?;
+                let node_id =
+                    NodeId::from_str(id_str).wrap_err("Invalid node id in bootstrap entry")?;
+                let dial_info =
+                    DialInfo::from_str(di_str).wrap_err("Invalid dial info in bootstrap entry")?;
+                bootstrap_node_dial_infos.push((node_id, dial_info));
             }
-            for ndi in bootstrap_node_dial_infos {
-                let node_id = ndi.node_id.key;
+            for (node_id, dial_info) in bootstrap_node_dial_infos {
                 bsmap
-                    .entry(node_id)
+                    .entry(node_id.key)
                     .or_insert_with(|| BootstrapRecord {
-                        min_version: MIN_VERSION,
-                        max_version: MAX_VERSION,
+                        min_version: MIN_CRYPTO_VERSION,
+                        max_version: MAX_CRYPTO_VERSION,
                         dial_info_details: Vec::new(),
                     })
                     .dial_info_details
                     .push(DialInfoDetail {
-                        dial_info: ndi.dial_info,
+                        dial_info,
                         class: DialInfoClass::Direct, // Bootstraps are always directly reachable
                     });
             }
@@ -287,36 +299,38 @@ impl NetworkManager {
             if let Some(nr) = routing_table.register_node_with_signed_node_info(
                 RoutingDomain::PublicInternet,
                 k,
-                SignedNodeInfo::with_no_signature(NodeInfo {
+                SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo {
                     network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
                     outbound_protocols: ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
                     address_types: AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
-                    min_version: v.min_version, // Minimum protocol version specified in txt record
-                    max_version: v.max_version, // Maximum protocol version specified in txt record
+                    min_version: v.min_version, // Minimum crypto version specified in txt record
+                    max_version: v.max_version, // Maximum crypto version specified in txt record
                     dial_info_detail_list: v.dial_info_details, // Dial info is as specified in the bootstrap list
-                    relay_peer_info: None, // Bootstraps never require a relay themselves
-                }),
+                })),
                 true,
             ) {
                 // Add this our futures to process in parallel
                 let routing_table = routing_table.clone();
-                unord.push(async move {
-                    // Need VALID signed peer info, so ask bootstrap to find_node of itself
-                    // which will ensure it has the bootstrap's signed peer info as part of the response
-                    let _ = routing_table.find_target(nr.clone()).await;
+                unord.push(
+                    async move {
+                        // Need VALID signed peer info, so ask bootstrap to find_node of itself
+                        // which will ensure it has the bootstrap's signed peer info as part of the response
+                        let _ = routing_table.find_target(nr.clone()).await;
 
-                    // Ensure we got the signed peer info
-                    if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
-                        log_net!(warn
-                            "bootstrap at {:?} did not return valid signed node info",
-                            nr
-                        );
-                        // If this node info is invalid, it will time out after being unpingable
-                    } else {
-                        // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                        routing_table.reverse_find_node(nr, true).await
+                        // Ensure we got the signed peer info
+                        if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
+                            log_net!(warn
+                                "bootstrap at {:?} did not return valid signed node info",
+                                nr
+                            );
+                            // If this node info is invalid, it will time out after being unpingable
+                        } else {
+                            // otherwise this bootstrap is valid, lets ask it to find ourselves now
+                            routing_table.reverse_find_node(nr, true).await
+                        }
                     }
-                });
+                    .instrument(Span::current()),
+                );
             }
         }
 
@@ -332,7 +346,7 @@ impl NetworkManager {
         &self,
         cur_ts: u64,
         unord: &mut FuturesUnordered<
-            SendPinBoxFuture<Result<NetworkResult<Answer<SenderInfo>>, RPCError>>,
+            SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
         >,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
@@ -342,7 +356,7 @@ impl NetworkManager {
         let node_refs = routing_table.get_nodes_needing_ping(RoutingDomain::PublicInternet, cur_ts);
 
         // Look up any NAT mappings we may need to try to preserve with keepalives
-        let mut mapped_port_info = routing_table.get_mapped_port_info();
+        let mut mapped_port_info = routing_table.get_low_level_port_info();
 
         // Get the PublicInternet relay if we are using one
         let opt_relay_nr = routing_table.relay_node(RoutingDomain::PublicInternet);
@@ -382,7 +396,11 @@ impl NetworkManager {
                         let nr_filtered =
                             nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
                         log_net!("--> Keepalive ping to {:?}", nr_filtered);
-                        unord.push(async move { rpc.rpc_call_status(nr_filtered).await }.boxed());
+                        unord.push(
+                            async move { rpc.rpc_call_status(Destination::direct(nr_filtered)).await }
+                                .instrument(Span::current())
+                                .boxed(),
+                        );
                         did_pings = true;
                     }
                 }
@@ -392,7 +410,11 @@ impl NetworkManager {
             // any mapped ports to preserve
             if !did_pings {
                 let rpc = rpc.clone();
-                unord.push(async move { rpc.rpc_call_status(nr).await }.boxed());
+                unord.push(
+                    async move { rpc.rpc_call_status(Destination::direct(nr)).await }
+                        .instrument(Span::current())
+                        .boxed(),
+                );
             }
         }
 
@@ -406,7 +428,7 @@ impl NetworkManager {
         &self,
         cur_ts: u64,
         unord: &mut FuturesUnordered<
-            SendPinBoxFuture<Result<NetworkResult<Answer<SenderInfo>>, RPCError>>,
+            SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
         >,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
@@ -420,7 +442,11 @@ impl NetworkManager {
             let rpc = rpc.clone();
 
             // Just do a single ping with the best protocol for all the nodes
-            unord.push(async move { rpc.rpc_call_status(nr).await }.boxed());
+            unord.push(
+                async move { rpc.rpc_call_status(Destination::direct(nr)).await }
+                    .instrument(Span::current())
+                    .boxed(),
+            );
         }
 
         Ok(())
@@ -464,7 +490,7 @@ impl NetworkManager {
         let routing_table = self.routing_table();
         let mut ord = FuturesOrdered::new();
         let min_peer_count = {
-            let c = self.config.get();
+            let c = self.unlocked_inner.config.get();
             c.network.dht.min_peer_count as usize
         };
 
@@ -472,14 +498,17 @@ impl NetworkManager {
         // even the unreliable ones, and ask them to find nodes close to our node too
         let noderefs = routing_table.find_fastest_nodes(
             min_peer_count,
-            |_k, _v| true,
-            |k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            VecDeque::new(),
+            |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(routing_table.clone(), k, v.unwrap().clone(), None)
             },
         );
         for nr in noderefs {
             let routing_table = routing_table.clone();
-            ord.push_back(async move { routing_table.reverse_find_node(nr, false).await });
+            ord.push_back(
+                async move { routing_table.reverse_find_node(nr, false).await }
+                    .instrument(Span::current()),
+            );
         }
 
         // do peer minimum search in order from fastest to slowest
@@ -498,8 +527,9 @@ impl NetworkManager {
     ) -> EyreResult<()> {
         // Get our node's current node info and network class and do the right thing
         let routing_table = self.routing_table();
-        let node_info = routing_table.get_own_node_info(RoutingDomain::PublicInternet);
-        let network_class = self.get_network_class(RoutingDomain::PublicInternet);
+        let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
+        let own_node_info = own_peer_info.signed_node_info.node_info();
+        let network_class = routing_table.get_network_class(RoutingDomain::PublicInternet);
 
         // Get routing domain editor
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
@@ -515,7 +545,7 @@ impl NetworkManager {
                         info!("Relay node died, dropping relay {}", relay_node);
                         editor.clear_relay_node();
                         false
-                    } else if !node_info.requires_relay() {
+                    } else if !own_node_info.requires_relay() {
                         info!(
                             "Relay node no longer required, dropping relay {}",
                             relay_node
@@ -531,8 +561,9 @@ impl NetworkManager {
             };
 
             // Do we need a relay?
-            if !has_relay && node_info.requires_relay() {
-                // Do we need an outbound relay?
+            if !has_relay && own_node_info.requires_relay() {
+                // Do we want an outbound relay?
+                let mut got_outbound_relay = false;
                 if network_class.outbound_wants_relay() {
                     // The outbound relay is the host of the PWA
                     if let Some(outbound_relay_peerinfo) = intf::get_outbound_relay_peer().await {
@@ -545,10 +576,11 @@ impl NetworkManager {
                         ) {
                             info!("Outbound relay node selected: {}", nr);
                             editor.set_relay_node(nr);
+                            got_outbound_relay = true;
                         }
                     }
-                // Otherwise we must need an inbound relay
-                } else {
+                }
+                if !got_outbound_relay {
                     // Find a node in our routing table that is an acceptable inbound relay
                     if let Some(nr) =
                         routing_table.find_inbound_relay(RoutingDomain::PublicInternet, cur_ts)
@@ -558,6 +590,34 @@ impl NetworkManager {
                     }
                 }
             }
+        }
+
+        // Commit the changes
+        editor.commit().await;
+
+        Ok(())
+    }
+
+    // Keep private routes assigned and accessible
+    #[instrument(level = "trace", skip(self), err)]
+    pub(super) async fn private_route_management_task_routine(
+        self,
+        _stop_token: StopToken,
+        _last_ts: u64,
+        cur_ts: u64,
+    ) -> EyreResult<()> {
+        // Get our node's current node info and network class and do the right thing
+        let routing_table = self.routing_table();
+        let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
+        let network_class = routing_table.get_network_class(RoutingDomain::PublicInternet);
+
+        // Get routing domain editor
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
+
+        // Do we know our network class yet?
+        if let Some(network_class) = network_class {
+
+            // see if we have any routes that need extending
         }
 
         // Commit the changes

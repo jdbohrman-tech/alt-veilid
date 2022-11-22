@@ -63,7 +63,7 @@ where
         inner.join_handle = jh;
     }
 
-    // Check the result
+    /// Check the result and take it if there is one
     pub async fn check(&self) -> Result<Option<T>, ()> {
         let mut out: Option<T> = None;
 
@@ -96,7 +96,7 @@ where
         Ok(out)
     }
 
-    // Wait for the result
+    /// Wait for the result and take it
     pub async fn join(&self) -> Result<Option<T>, ()> {
         let mut out: Option<T> = None;
 

@@ -40,11 +40,9 @@ struct NetworkInner {
     /// such as dhcp release or change of address or interfaces being added or removed
     network_needs_restart: bool,
     /// the calculated protocol configuration for inbound/outbound protocols
-    protocol_config: Option<ProtocolConfig>,
+    protocol_config: ProtocolConfig,
     /// set of statically configured protocols with public dialinfo
     static_public_dialinfo: ProtocolTypeSet,
-    /// network class per routing domain
-    network_class: [Option<NetworkClass>; RoutingDomain::count()],
     /// join handles for all the low level network background tasks
     join_handles: Vec<MustJoinHandle<()>>,
     /// stop source for shutting down the low level network background tasks
@@ -65,8 +63,6 @@ struct NetworkInner {
     enable_ipv6_local: bool,
     /// set if we need to calculate our public dial info again
     needs_public_dial_info_check: bool,
-    /// set during the actual execution of the public dial info check to ensure we don't do it more than once
-    doing_public_dial_info_check: bool,
     /// the punishment closure to enax
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     /// udp socket record for bound-first sockets, which are used to guarantee a port is available before
@@ -118,11 +114,9 @@ impl Network {
             network_started: false,
             network_needs_restart: false,
             needs_public_dial_info_check: false,
-            doing_public_dial_info_check: false,
             public_dial_info_check_punishment: None,
-            protocol_config: None,
+            protocol_config: Default::default(),
             static_public_dialinfo: ProtocolTypeSet::empty(),
-            network_class: [None, None],
             join_handles: Vec::new(),
             stop_source: None,
             udp_port: 0u16,
@@ -462,11 +456,13 @@ impl Network {
 
                 // receive single response
                 let mut out = vec![0u8; MAX_MESSAGE_SIZE];
-                let (recv_len, recv_addr) =
-                    network_result_try!(timeout(timeout_ms, h.recv_message(&mut out))
-                        .await
-                        .into_network_result())
-                    .wrap_err("recv_message failure")?;
+                let (recv_len, recv_addr) = network_result_try!(timeout(
+                    timeout_ms,
+                    h.recv_message(&mut out).instrument(Span::current())
+                )
+                .await
+                .into_network_result())
+                .wrap_err("recv_message failure")?;
 
                 let recv_socket_addr = recv_addr.remote_address().to_socket_addr();
                 self.network_manager()
@@ -618,7 +614,7 @@ impl Network {
 
     /////////////////////////////////////////////////////////////////
 
-    pub fn get_protocol_config(&self) -> Option<ProtocolConfig> {
+    pub fn get_protocol_config(&self) -> ProtocolConfig {
         self.inner.lock().protocol_config
     }
 
@@ -732,7 +728,8 @@ impl Network {
                     family_local,
                 }
             };
-            inner.protocol_config = Some(protocol_config);
+            inner.protocol_config = protocol_config;
+
             protocol_config
         };
 
@@ -769,26 +766,36 @@ impl Network {
         // that we have ports available to us
         self.free_bound_first_ports();
 
-        // If we have static public dialinfo, upgrade our network class
+        // set up the routing table's network config
+        // if we have static public dialinfo, upgrade our network class
+
+        editor_public_internet.setup_network(
+            protocol_config.inbound,
+            protocol_config.outbound,
+            protocol_config.family_global,
+        );
+        editor_local_network.setup_network(
+            protocol_config.inbound,
+            protocol_config.outbound,
+            protocol_config.family_local,
+        );
         let detect_address_changes = {
             let c = self.config.get();
             c.network.detect_address_changes
         };
-
         if !detect_address_changes {
-            let mut inner = self.inner.lock();
+            let inner = self.inner.lock();
             if !inner.static_public_dialinfo.is_empty() {
-                inner.network_class[RoutingDomain::PublicInternet as usize] =
-                    Some(NetworkClass::InboundCapable);
+                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
             }
         }
-
-        info!("network started");
-        self.inner.lock().network_started = true;
 
         // commit routing table edits
         editor_public_internet.commit().await;
         editor_local_network.commit().await;
+
+        info!("network started");
+        self.inner.lock().network_started = true;
 
         Ok(())
     }
@@ -861,19 +868,9 @@ impl Network {
         inner.public_dial_info_check_punishment = punishment;
     }
 
-    fn needs_public_dial_info_check(&self) -> bool {
+    pub fn needs_public_dial_info_check(&self) -> bool {
         let inner = self.inner.lock();
         inner.needs_public_dial_info_check
-    }
-
-    pub fn doing_public_dial_info_check(&self) -> bool {
-        let inner = self.inner.lock();
-        inner.doing_public_dial_info_check
-    }
-
-    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        let inner = self.inner.lock();
-        inner.network_class[routing_domain as usize]
     }
 
     //////////////////////////////////////////
@@ -937,6 +934,7 @@ impl Network {
         // If we need to figure out our network class, tick the task for it
         if detect_address_changes {
             let public_internet_network_class = self
+                .routing_table()
                 .get_network_class(RoutingDomain::PublicInternet)
                 .unwrap_or(NetworkClass::Invalid);
             let needs_public_dial_info_check = self.needs_public_dial_info_check();

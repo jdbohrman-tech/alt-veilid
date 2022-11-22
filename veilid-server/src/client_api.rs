@@ -1,3 +1,4 @@
+use crate::settings::*;
 use crate::tools::*;
 use crate::veilid_client_capnp::*;
 use crate::veilid_logs::VeilidLogs;
@@ -81,18 +82,24 @@ impl registration::Server for RegistrationImpl {}
 struct VeilidServerImpl {
     veilid_api: veilid_core::VeilidAPI,
     veilid_logs: VeilidLogs,
+    settings: Settings,
     next_id: u64,
     pub registration_map: Rc<RefCell<RegistrationMap>>,
 }
 
 impl VeilidServerImpl {
     #[instrument(level = "trace", skip_all)]
-    pub fn new(veilid_api: veilid_core::VeilidAPI, veilid_logs: VeilidLogs) -> Self {
+    pub fn new(
+        veilid_api: veilid_core::VeilidAPI,
+        veilid_logs: VeilidLogs,
+        settings: Settings,
+    ) -> Self {
         Self {
             next_id: 0,
             registration_map: Rc::new(RefCell::new(RegistrationMap::new())),
             veilid_api,
             veilid_logs,
+            settings,
         }
     }
 }
@@ -115,6 +122,7 @@ impl veilid_server::Server for VeilidServerImpl {
         );
 
         let veilid_api = self.veilid_api.clone();
+        let settings = self.settings.clone();
         let registration = capnp_rpc::new_client(RegistrationImpl::new(
             self.next_id,
             self.registration_map.clone(),
@@ -131,6 +139,14 @@ impl veilid_server::Server for VeilidServerImpl {
             let mut res = results.get();
             res.set_registration(registration);
             res.set_state(&state);
+
+            let settings = &*settings.read();
+            let settings_json_string = serialize_json(settings);
+            let mut settings_json = json::parse(&settings_json_string)
+                .map_err(|e| ::capnp::Error::failed(format!("{:?}", e)))?;
+            settings_json["core"]["network"].remove("node_id_secret");
+            let safe_settings_json = settings_json.to_string();
+            res.set_settings(&safe_settings_json);
 
             Ok(())
         })
@@ -236,6 +252,25 @@ impl veilid_server::Server for VeilidServerImpl {
         encode_api_result(&result, &mut results.get().init_result());
         Promise::ok(())
     }
+
+    #[instrument(level = "trace", skip_all)]
+    fn app_call_reply(
+        &mut self,
+        params: veilid_server::AppCallReplyParams,
+        mut results: veilid_server::AppCallReplyResults,
+    ) -> Promise<(), ::capnp::Error> {
+        trace!("VeilidServerImpl::app_call_reply");
+
+        let id = pry!(params.get()).get_id();
+        let message = pry!(pry!(params.get()).get_message()).to_owned();
+
+        let veilid_api = self.veilid_api.clone();
+        Promise::from_future(async move {
+            let result = veilid_api.app_call_reply(id, message).await;
+            encode_api_result(&result, &mut results.get().init_result());
+            Ok(())
+        })
+    }
 }
 
 // --- Client API Server-Side ---------------------------------
@@ -246,6 +281,7 @@ type ClientApiAllFuturesJoinHandle =
 struct ClientApiInner {
     veilid_api: veilid_core::VeilidAPI,
     veilid_logs: VeilidLogs,
+    settings: Settings,
     registration_map: Rc<RefCell<RegistrationMap>>,
     stop: Option<StopSource>,
     join_handle: Option<ClientApiAllFuturesJoinHandle>,
@@ -257,11 +293,16 @@ pub struct ClientApi {
 
 impl ClientApi {
     #[instrument(level = "trace", skip_all)]
-    pub fn new(veilid_api: veilid_core::VeilidAPI, veilid_logs: VeilidLogs) -> Rc<Self> {
+    pub fn new(
+        veilid_api: veilid_core::VeilidAPI,
+        veilid_logs: VeilidLogs,
+        settings: Settings,
+    ) -> Rc<Self> {
         Rc::new(Self {
             inner: RefCell::new(ClientApiInner {
                 veilid_api,
                 veilid_logs,
+                settings,
                 registration_map: Rc::new(RefCell::new(RegistrationMap::new())),
                 stop: Some(StopSource::new()),
                 join_handle: None,
@@ -345,7 +386,7 @@ impl ClientApi {
     fn send_request_to_all_clients<F, T>(self: Rc<Self>, request: F)
     where
         F: Fn(u64, &mut RegistrationHandle) -> Option<::capnp::capability::RemotePromise<T>>,
-        T: capnp::traits::Pipelined + for<'a> capnp::traits::Owned<'a> + 'static + Unpin,
+        T: capnp::traits::Pipelined + capnp::traits::Owned + 'static + Unpin,
     {
         // Send status update to each registered client
         let registration_map = self.inner.borrow().registration_map.clone();
@@ -408,6 +449,7 @@ impl ClientApi {
         let veilid_server_impl = VeilidServerImpl::new(
             self.inner.borrow().veilid_api.clone(),
             self.inner.borrow().veilid_logs.clone(),
+            self.inner.borrow().settings.clone(),
         );
         self.inner.borrow_mut().registration_map = veilid_server_impl.registration_map.clone();
 

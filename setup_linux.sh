@@ -74,7 +74,12 @@ fi
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android wasm32-unknown-unknown
 
 # install cargo packages
-cargo install wasm-bindgen-cli
+cargo install wasm-bindgen-cli wasm-pack
 
 # Ensure packages are installed
-sudo apt-get install libc6-dev-i386 libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 openjdk-11-jdk llvm wabt capnproto
+sudo apt-get install libc6-dev-i386 libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 openjdk-11-jdk llvm wabt checkinstall
+
+# Install capnproto using the same mechanism as our earthly build
+$SCRIPTDIR/scripts/earthly/install_capnproto.sh
+# Install protoc using the same mechanism as our earthly build
+$SCRIPTDIR/scripts/earthly/install_protoc.sh

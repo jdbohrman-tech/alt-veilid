@@ -10,6 +10,7 @@ use alloc::*;
 use core::any::{Any, TypeId};
 use core::cell::RefCell;
 use futures_util::FutureExt;
+use gloo_utils::format::JsValueSerdeExt;
 use js_sys::*;
 use lazy_static::*;
 use send_wrapper::*;
@@ -269,6 +270,24 @@ pub fn debug(command: String) -> Promise {
 }
 
 #[wasm_bindgen()]
+pub fn app_call_reply(id: String, message: String) -> Promise {
+    wrap_api_future(async move {
+        let id = match id.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(e, "id", id))
+            }
+        };
+        let message = data_encoding::BASE64URL_NOPAD
+            .decode(message.as_bytes())
+            .map_err(|e| veilid_core::VeilidAPIError::invalid_argument(e, "message", message))?;
+        let veilid_api = get_veilid_api()?;
+        let out = veilid_api.app_call_reply(id, message).await?;
+        Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
 pub fn veilid_version_string() -> String {
     veilid_core::veilid_version_string()
 }
@@ -288,5 +307,5 @@ pub fn veilid_version() -> JsValue {
         minor,
         patch,
     };
-    JsValue::from_serde(&vv).unwrap()
+    <JsValue as JsValueSerdeExt>::from_serde(&vv).unwrap()
 }

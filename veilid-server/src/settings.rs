@@ -41,6 +41,8 @@ logging:
         enabled: false
         level: 'trace'
         grpc_endpoint: 'localhost:4317'
+    console:
+        enabled: false
 testing:
     subnode_index: 0
 core:
@@ -65,8 +67,8 @@ core:
         client_whitelist_timeout_ms: 300000 
         reverse_connection_receipt_time_ms: 5000 
         hole_punch_receipt_time_ms: 5000 
-        node_id: ''
-        node_id_secret: ''
+        node_id: null
+        node_id_secret: null
         bootstrap: ['bootstrap.dev.veilid.net']
         bootstrap_nodes: []
         routing_table:
@@ -81,7 +83,8 @@ core:
             max_timestamp_behind_ms: 10000
             max_timestamp_ahead_ms: 10000
             timeout_ms: 10000
-            max_route_hop_count: 7
+            max_route_hop_count: 4
+            default_route_hop_count: 1
         dht:
             resolve_node_timeout:
             resolve_node_count: 20
@@ -304,16 +307,16 @@ impl serde::Serialize for ParsedUrl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedNodeDialInfo {
     pub node_dial_info_string: String,
-    pub node_dial_info: veilid_core::NodeDialInfo,
+    pub node_id: NodeId,
+    pub dial_info: DialInfo,
 }
 
 // impl ParsedNodeDialInfo {
 //     pub fn offset_port(&mut self, offset: u16) -> Result<(), ()> {
 //         // Bump port on dial_info
-//         self.node_dial_info
-//             .dial_info
-//             .set_port(self.node_dial_info.dial_info.port() + 1);
-//         self.node_dial_info_string = self.node_dial_info.to_string();
+//         self.dial_info
+//             .set_port(self.dial_info.port() + 1);
+//         self.node_dial_info_string = format!("{}@{}",self.node_id, self.dial_info);
 //         Ok(())
 //     }
 // }
@@ -323,10 +326,21 @@ impl FromStr for ParsedNodeDialInfo {
     fn from_str(
         node_dial_info_string: &str,
     ) -> Result<ParsedNodeDialInfo, veilid_core::VeilidAPIError> {
-        let node_dial_info = veilid_core::NodeDialInfo::from_str(node_dial_info_string)?;
+        let (id_str, di_str) = node_dial_info_string.split_once('@').ok_or_else(|| {
+            VeilidAPIError::invalid_argument(
+                "Invalid node dial info in bootstrap entry",
+                "node_dial_info_string",
+                node_dial_info_string,
+            )
+        })?;
+        let node_id = NodeId::from_str(id_str)
+            .map_err(|e| VeilidAPIError::invalid_argument(e, "node_id", id_str))?;
+        let dial_info = DialInfo::from_str(di_str)
+            .map_err(|e| VeilidAPIError::invalid_argument(e, "dial_info", id_str))?;
         Ok(Self {
             node_dial_info_string: node_dial_info_string.to_owned(),
-            node_dial_info,
+            node_id,
+            dial_info,
         })
     }
 }
@@ -416,6 +430,11 @@ pub struct Terminal {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct Console {
+    pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct File {
     pub enabled: bool,
     pub path: String,
@@ -455,6 +474,7 @@ pub struct Logging {
     pub file: File,
     pub api: Api,
     pub otlp: Otlp,
+    pub console: Console,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -539,6 +559,7 @@ pub struct Rpc {
     pub max_timestamp_ahead_ms: Option<u32>,
     pub timeout_ms: u32,
     pub max_route_hop_count: u8,
+    pub default_route_hop_count: u8,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -578,8 +599,8 @@ pub struct Network {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
-    pub node_id: veilid_core::DHTKey,
-    pub node_id_secret: veilid_core::DHTKeySecret,
+    pub node_id: Option<veilid_core::DHTKey>,
+    pub node_id_secret: Option<veilid_core::DHTKeySecret>,
     pub bootstrap: Vec<String>,
     pub bootstrap_nodes: Vec<ParsedNodeDialInfo>,
     pub routing_table: RoutingTable,
@@ -756,7 +777,7 @@ impl Settings {
     /// in /etc/veilid-server. If a config is not found in this location, it will
     /// follow the XDG user directory spec, and look in `~/.config/veilid-server/`.
     ///
-    /// For Windows, a user-local config may be created at 
+    /// For Windows, a user-local config may be created at
     /// `C:\Users\<user>\AppData\Roaming\Veilid\Veilid`, and for macOS, at
     /// `/Users/<user>/Library/Application Support/org.Veilid.Veilid`
     ///
@@ -920,6 +941,7 @@ impl Settings {
         set_config_value!(inner.logging.otlp.enabled, value);
         set_config_value!(inner.logging.otlp.level, value);
         set_config_value!(inner.logging.otlp.grpc_endpoint, value);
+        set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         set_config_value!(inner.core.protected_store.allow_insecure_fallback, value);
         set_config_value!(
@@ -965,6 +987,7 @@ impl Settings {
         set_config_value!(inner.core.network.rpc.max_timestamp_ahead_ms, value);
         set_config_value!(inner.core.network.rpc.timeout_ms, value);
         set_config_value!(inner.core.network.rpc.max_route_hop_count, value);
+        set_config_value!(inner.core.network.rpc.default_route_hop_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_timeout_ms, value);
         set_config_value!(inner.core.network.dht.resolve_node_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_fanout, value);
@@ -1141,6 +1164,9 @@ impl Settings {
                 "network.rpc.timeout_ms" => Ok(Box::new(inner.core.network.rpc.timeout_ms)),
                 "network.rpc.max_route_hop_count" => {
                     Ok(Box::new(inner.core.network.rpc.max_route_hop_count))
+                }
+                "network.rpc.default_route_hop_count" => {
+                    Ok(Box::new(inner.core.network.rpc.default_route_hop_count))
                 }
                 "network.dht.resolve_node_timeout_ms" => {
                     Ok(Box::new(inner.core.network.dht.resolve_node_timeout_ms))
@@ -1437,6 +1463,7 @@ mod tests {
             s.logging.otlp.grpc_endpoint,
             NamedSocketAddrs::from_str("localhost:4317").unwrap()
         );
+        assert_eq!(s.logging.console.enabled, false);
         assert_eq!(s.testing.subnode_index, 0);
 
         assert_eq!(
@@ -1468,11 +1495,8 @@ mod tests {
         assert_eq!(s.core.network.client_whitelist_timeout_ms, 300_000u32);
         assert_eq!(s.core.network.reverse_connection_receipt_time_ms, 5_000u32);
         assert_eq!(s.core.network.hole_punch_receipt_time_ms, 5_000u32);
-        assert_eq!(s.core.network.node_id, veilid_core::DHTKey::default());
-        assert_eq!(
-            s.core.network.node_id_secret,
-            veilid_core::DHTKeySecret::default()
-        );
+        assert_eq!(s.core.network.node_id, None);
+        assert_eq!(s.core.network.node_id_secret, None);
         //
         assert_eq!(
             s.core.network.bootstrap,
@@ -1485,7 +1509,8 @@ mod tests {
         assert_eq!(s.core.network.rpc.max_timestamp_behind_ms, Some(10_000u32));
         assert_eq!(s.core.network.rpc.max_timestamp_ahead_ms, Some(10_000u32));
         assert_eq!(s.core.network.rpc.timeout_ms, 10_000u32);
-        assert_eq!(s.core.network.rpc.max_route_hop_count, 7);
+        assert_eq!(s.core.network.rpc.max_route_hop_count, 4);
+        assert_eq!(s.core.network.rpc.default_route_hop_count, 1);
         //
         assert_eq!(s.core.network.dht.resolve_node_timeout_ms, None);
         assert_eq!(s.core.network.dht.resolve_node_count, 20u32);

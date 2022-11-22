@@ -1,4 +1,18 @@
-use super::key::*;
+mod envelope;
+mod key;
+mod receipt;
+mod value;
+
+pub mod tests;
+
+pub use envelope::*;
+pub use key::*;
+pub use receipt::*;
+pub use value::*;
+
+pub const MIN_CRYPTO_VERSION: u8 = 0u8;
+pub const MAX_CRYPTO_VERSION: u8 = 0u8;
+
 use crate::xx::*;
 use crate::*;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
@@ -98,19 +112,19 @@ impl Crypto {
         let (table_store, node_id) = {
             let mut inner = self.inner.lock();
             let c = self.config.get();
-            inner.node_id = c.network.node_id;
-            inner.node_id_secret = c.network.node_id_secret;
+            inner.node_id = c.network.node_id.unwrap();
+            inner.node_id_secret = c.network.node_id_secret.unwrap();
             (inner.table_store.clone(), c.network.node_id)
         };
 
         // load caches if they are valid for this node id
         let mut db = table_store.open("crypto_caches", 1).await?;
-        let caches_valid = match db.load(0, b"node_id").await? {
-            Some(v) => v.as_slice() == node_id.bytes,
+        let caches_valid = match db.load(0, b"node_id")? {
+            Some(v) => v.as_slice() == node_id.unwrap().bytes,
             None => false,
         };
         if caches_valid {
-            if let Some(b) = db.load(0, b"dh_cache").await? {
+            if let Some(b) = db.load(0, b"dh_cache")? {
                 let mut inner = self.inner.lock();
                 bytes_to_cache(&b, &mut inner.dh_cache);
             }
@@ -118,7 +132,7 @@ impl Crypto {
             drop(db);
             table_store.delete("crypto_caches").await?;
             db = table_store.open("crypto_caches", 1).await?;
-            db.store(0, b"node_id", &node_id.bytes).await?;
+            db.store(0, b"node_id", &node_id.unwrap().bytes)?;
         }
 
         // Schedule flushing
@@ -145,7 +159,7 @@ impl Crypto {
         };
 
         let db = table_store.open("crypto_caches", 1).await?;
-        db.store(0, b"dh_cache", &cache_bytes).await?;
+        db.store(0, b"dh_cache", &cache_bytes)?;
         Ok(())
     }
 
@@ -206,8 +220,6 @@ impl Crypto {
     // These are safe to use regardless of initialization status
 
     pub fn compute_dh(key: &DHTKey, secret: &DHTKeySecret) -> Result<SharedSecret, VeilidAPIError> {
-        assert!(key.valid);
-        assert!(secret.valid);
         let pk_ed = ed::PublicKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
         let pk_xd = Self::ed25519_to_x25519_pk(&pk_ed)?;
         let sk_ed = ed::SecretKey::from_bytes(&secret.bytes).map_err(VeilidAPIError::internal)?;

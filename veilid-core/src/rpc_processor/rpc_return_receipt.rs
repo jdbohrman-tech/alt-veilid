@@ -20,8 +20,11 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err)]
-    pub(crate) async fn process_return_receipt(&self, msg: RPCMessage) -> Result<(), RPCError> {
+    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    pub(crate) async fn process_return_receipt(
+        &self,
+        msg: RPCMessage,
+    ) -> Result<NetworkResult<()>, RPCError> {
         // Get the statement
         let RPCOperationReturnReceipt { receipt } = match msg.operation.into_kind() {
             RPCOperationKind::Statement(s) => match s.into_detail() {
@@ -33,12 +36,23 @@ impl RPCProcessor {
 
         // Handle it
         let network_manager = self.network_manager();
-        network_result_value_or_log!(debug
-            network_manager
-                .handle_in_band_receipt(receipt, msg.header.peer_noderef)
-                .await => {}
-        );
 
-        Ok(())
+        let res = match msg.header.detail {
+            RPCMessageHeaderDetail::Direct(detail) => {
+                network_manager
+                    .handle_in_band_receipt(receipt, detail.peer_noderef)
+                    .await
+            }
+            RPCMessageHeaderDetail::SafetyRouted(_) => {
+                network_manager.handle_safety_receipt(receipt).await
+            }
+            RPCMessageHeaderDetail::PrivateRouted(detail) => {
+                network_manager
+                    .handle_private_receipt(receipt, detail.private_route)
+                    .await
+            }
+        };
+
+        Ok(res)
     }
 }

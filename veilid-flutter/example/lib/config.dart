@@ -65,7 +65,8 @@ Future<VeilidConfig> getDefaultVeilidConfig() async {
         maxTimestampBehindMs: 10000,
         maxTimestampAheadMs: 10000,
         timeoutMs: 10000,
-        maxRouteHopCount: 7,
+        maxRouteHopCount: 4,
+        defaultRouteHopCount: 1,
       ),
       dht: VeilidConfigDHT(
         resolveNodeTimeoutMs: null,

@@ -42,7 +42,8 @@ impl Network {
         &self,
         tls_acceptor: &TlsAcceptor,
         stream: AsyncPeekStream,
-        addr: SocketAddr,
+        peer_addr: SocketAddr,
+        local_addr: SocketAddr,
         protocol_handlers: &[Box<dyn ProtocolAcceptHandler>],
         tls_connection_initial_timeout_ms: u32,
     ) -> EyreResult<Option<ProtocolNetworkConnection>> {
@@ -65,18 +66,20 @@ impl Network {
         .wrap_err("tls initial timeout")?
         .wrap_err("failed to peek tls stream")?;
 
-        self.try_handlers(ps, addr, protocol_handlers).await
+        self.try_handlers(ps, peer_addr, local_addr, protocol_handlers)
+            .await
     }
 
     async fn try_handlers(
         &self,
         stream: AsyncPeekStream,
-        addr: SocketAddr,
+        peer_addr: SocketAddr,
+        local_addr: SocketAddr,
         protocol_accept_handlers: &[Box<dyn ProtocolAcceptHandler>],
     ) -> EyreResult<Option<ProtocolNetworkConnection>> {
         for ah in protocol_accept_handlers.iter() {
             if let Some(nc) = ah
-                .on_accept(stream.clone(), addr)
+                .on_accept(stream.clone(), peer_addr, local_addr)
                 .await
                 .wrap_err("io error")?
             {
@@ -105,21 +108,35 @@ impl Network {
             }
         };
 
+        // XXX
+        // warn!(
+        //     "DEBUGACCEPT: local={} remote={}",
+        //     tcp_stream.local_addr().unwrap(),
+        //     tcp_stream.peer_addr().unwrap(),
+        // );
+
         let listener_state = listener_state.clone();
         let connection_manager = connection_manager.clone();
 
         // Limit the number of connections from the same IP address
         // and the number of total connections
-        let addr = match tcp_stream.peer_addr() {
+        let peer_addr = match tcp_stream.peer_addr() {
             Ok(addr) => addr,
             Err(e) => {
                 log_net!(debug "failed to get peer address: {}", e);
                 return;
             }
         };
+        let local_addr = match tcp_stream.local_addr() {
+            Ok(addr) => addr,
+            Err(e) => {
+                log_net!(debug "failed to get local address: {}", e);
+                return;
+            }
+        };
         // XXX limiting here instead for connection table? may be faster and avoids tls negotiation
 
-        log_net!("TCP connection from: {}", addr);
+        log_net!("TCP connection from: {}", peer_addr);
 
         // Create a stream we can peek on
         #[cfg(feature = "rt-tokio")]
@@ -139,7 +156,7 @@ impl Network {
         {
             // If we fail to get a packet within the connection initial timeout
             // then we punt this connection
-            log_net!("connection initial timeout from: {:?}", addr);
+            log_net!("connection initial timeout from: {:?}", peer_addr);
             return;
         }
 
@@ -152,29 +169,30 @@ impl Network {
             self.try_tls_handlers(
                 ls.tls_acceptor.as_ref().unwrap(),
                 ps,
-                addr,
+                peer_addr,
+                local_addr,
                 &ls.tls_protocol_handlers,
                 tls_connection_initial_timeout_ms,
             )
             .await
         } else {
-            self.try_handlers(ps, addr, &ls.protocol_accept_handlers)
+            self.try_handlers(ps, peer_addr, local_addr, &ls.protocol_accept_handlers)
                 .await
         };
 
         let conn = match conn {
             Ok(Some(c)) => {
-                log_net!("protocol handler found for {:?}: {:?}", addr, c);
+                log_net!("protocol handler found for {:?}: {:?}", peer_addr, c);
                 c
             }
             Ok(None) => {
                 // No protocol handlers matched? drop it.
-                log_net!(debug "no protocol handler for connection from {:?}", addr);
+                log_net!(debug "no protocol handler for connection from {:?}", peer_addr);
                 return;
             }
             Err(e) => {
                 // Failed to negotiate connection? drop it.
-                log_net!(debug "failed to negotiate connection from {:?}: {}", addr, e);
+                log_net!(debug "failed to negotiate connection from {:?}: {}", peer_addr, e);
                 return;
             }
         };
@@ -311,7 +329,6 @@ impl Network {
                     .push(new_protocol_accept_handler(
                         self.network_manager().config(),
                         true,
-                        addr,
                     ));
             } else {
                 ls.write()
@@ -319,7 +336,6 @@ impl Network {
                     .push(new_protocol_accept_handler(
                         self.network_manager().config(),
                         false,
-                        addr,
                     ));
             }
 

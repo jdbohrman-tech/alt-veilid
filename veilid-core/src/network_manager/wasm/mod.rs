@@ -10,25 +10,43 @@ use std::io;
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {
-    network_manager: NetworkManager,
     network_started: bool,
     network_needs_restart: bool,
-    protocol_config: Option<ProtocolConfig>,
+    protocol_config: ProtocolConfig,
+}
+
+struct NetworkUnlockedInner {
+    // Accessors
+    routing_table: RoutingTable,
+    network_manager: NetworkManager,
+    connection_manager: ConnectionManager,
 }
 
 #[derive(Clone)]
 pub struct Network {
     config: VeilidConfig,
     inner: Arc<Mutex<NetworkInner>>,
+    unlocked_inner: Arc<NetworkUnlockedInner>,
 }
 
 impl Network {
-    fn new_inner(network_manager: NetworkManager) -> NetworkInner {
+    fn new_inner() -> NetworkInner {
         NetworkInner {
-            network_manager,
             network_started: false,
             network_needs_restart: false,
-            protocol_config: None, //join_handle: None,
+            protocol_config: Default::default(),
+        }
+    }
+
+    fn new_unlocked_inner(
+        network_manager: NetworkManager,
+        routing_table: RoutingTable,
+        connection_manager: ConnectionManager,
+    ) -> NetworkUnlockedInner {
+        NetworkUnlockedInner {
+            network_manager,
+            routing_table,
+            connection_manager,
         }
     }
 
@@ -39,15 +57,23 @@ impl Network {
     ) -> Self {
         Self {
             config: network_manager.config(),
-            inner: Arc::new(Mutex::new(Self::new_inner(network_manager))),
+            inner: Arc::new(Mutex::new(Self::new_inner())),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner(
+                network_manager,
+                routing_table,
+                connection_manager,
+            )),
         }
     }
 
     fn network_manager(&self) -> NetworkManager {
-        self.inner.lock().network_manager.clone()
+        self.unlocked_inner.network_manager.clone()
+    }
+    fn routing_table(&self) -> RoutingTable {
+        self.unlocked_inner.routing_table.clone()
     }
     fn connection_manager(&self) -> ConnectionManager {
-        self.inner.lock().network_manager.connection_manager()
+        self.unlocked_inner.connection_manager.clone()
     }
 
     /////////////////////////////////////////////////////////////////
@@ -225,7 +251,7 @@ impl Network {
 
     pub async fn startup(&self) -> EyreResult<()> {
         // get protocol config
-        self.inner.lock().protocol_config = Some({
+        self.inner.lock().protocol_config = {
             let c = self.config.get();
             let inbound = ProtocolTypeSet::new();
             let mut outbound = ProtocolTypeSet::new();
@@ -247,7 +273,7 @@ impl Network {
                 family_global,
                 family_local,
             }
-        });
+        };
 
         self.inner.lock().network_started = true;
         Ok(())
@@ -269,20 +295,26 @@ impl Network {
         trace!("stopping network");
 
         // Reset state
-        let network_manager = self.inner.lock().network_manager.clone();
-        let routing_table = network_manager.routing_table();
+        let routing_table = self.routing_table();
 
         // Drop all dial info
-        routing_table.clear_dial_info_details(RoutingDomain::PublicInternet);
-        routing_table.clear_dial_info_details(RoutingDomain::LocalNetwork);
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
+        editor.disable_node_info_updates();
+        editor.clear_dial_info_details();
+        editor.commit().await;
+
+        let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
+        editor.disable_node_info_updates();
+        editor.clear_dial_info_details();
+        editor.commit().await;
 
         // Cancels all async background tasks by dropping join handles
-        *self.inner.lock() = Self::new_inner(network_manager);
+        *self.inner.lock() = Self::new_inner();
 
         trace!("network stopped");
     }
 
-    pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
+    pub fn is_usable_interface_address(&self, _addr: IpAddr) -> bool {
         false
     }
 
@@ -291,12 +323,15 @@ impl Network {
     }
 
     //////////////////////////////////////////
-    
-    pub fn set_needs_public_dial_info_check(&self, _punishment: Option<Box<dyn FnOnce() + Send + 'static>>) {
+
+    pub fn set_needs_public_dial_info_check(
+        &self,
+        _punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
+    ) {
         //
     }
 
-    pub fn doing_public_dial_info_check(&self) -> bool {
+    pub fn needs_public_dial_info_check(&self) -> bool {
         false
     }
 
@@ -309,7 +344,7 @@ impl Network {
         };
     }
 
-    pub fn get_protocol_config(&self) -> Option<ProtocolConfig> {
+    pub fn get_protocol_config(&self) -> ProtocolConfig {
         self.inner.lock().protocol_config.clone()
     }
 

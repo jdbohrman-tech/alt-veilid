@@ -22,8 +22,13 @@ impl RoutingTable {
         );
 
         // Roll all bucket entry transfers
-        for b in &mut inner.buckets {
-            b.roll_transfers(last_ts, cur_ts);
+        let entries: Vec<Arc<BucketEntry>> = inner
+            .buckets
+            .iter()
+            .flat_map(|b| b.entries().map(|(_k, v)| v.clone()))
+            .collect();
+        for v in entries {
+            v.with_mut(inner, |_rti, e| e.roll_transfers(last_ts, cur_ts));
         }
         Ok(())
     }
@@ -42,7 +47,7 @@ impl RoutingTable {
             .collect();
         let mut inner = self.inner.write();
         for idx in kick_queue {
-            Self::kick_bucket(&mut *inner, idx)
+            inner.kick_bucket(idx)
         }
         Ok(())
     }

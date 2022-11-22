@@ -2,6 +2,7 @@ use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
 use keyring_manager::*;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use std::path::Path;
 
 pub struct ProtectedStoreInner {
@@ -31,14 +32,17 @@ impl ProtectedStore {
     #[instrument(level = "trace", skip(self), err)]
     pub async fn delete_all(&self) -> EyreResult<()> {
         // Delete all known keys
-        if self.remove_user_secret_string("node_id").await? {
+        if self.remove_user_secret("node_id").await? {
             debug!("deleted protected_store key 'node_id'");
         }
-        if self.remove_user_secret_string("node_id_secret").await? {
+        if self.remove_user_secret("node_id_secret").await? {
             debug!("deleted protected_store key 'node_id_secret'");
         }
-        if self.remove_user_secret_string("_test_key").await? {
+        if self.remove_user_secret("_test_key").await? {
             debug!("deleted protected_store key '_test_key'");
+        }
+        if self.remove_user_secret("RouteSpecStore").await? {
+            debug!("deleted protected_store key 'RouteSpecStore'");
         }
         Ok(())
     }
@@ -139,19 +143,60 @@ impl ProtectedStore {
         }
     }
 
-    #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn remove_user_secret_string(&self, key: &str) -> EyreResult<bool> {
-        let inner = self.inner.lock();
-        match inner
-            .keyring_manager
-            .as_ref()
-            .ok_or_else(|| eyre!("Protected store not initialized"))?
-            .with_keyring(&self.service_name(), key, |kr| kr.delete_value())
-        {
-            Ok(_) => Ok(true),
-            Err(KeyringError::NoPasswordFound) => Ok(false),
-            Err(e) => Err(eyre!("Failed to remove user secret: {}", e)),
-        }
+    #[instrument(level = "trace", skip(self, value))]
+    pub async fn save_user_secret_rkyv<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    where
+        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
+    {
+        let v = to_rkyv(value)?;
+        self.save_user_secret(&key, &v).await
+    }
+
+    #[instrument(level = "trace", skip(self, value))]
+    pub async fn save_user_secret_json<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    where
+        T: serde::Serialize,
+    {
+        let v = serde_json::to_vec(value)?;
+        self.save_user_secret(&key, &v).await
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn load_user_secret_rkyv<T>(&self, key: &str) -> EyreResult<Option<T>>
+    where
+        T: RkyvArchive,
+        <T as RkyvArchive>::Archived:
+            for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+        <T as RkyvArchive>::Archived:
+            RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+    {
+        let out = self.load_user_secret(key).await?;
+        let b = match out {
+            Some(v) => v,
+            None => {
+                return Ok(None);
+            }
+        };
+
+        let obj = from_rkyv(b)?;
+        Ok(Some(obj))
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn load_user_secret_json<T>(&self, key: &str) -> EyreResult<Option<T>>
+    where
+        T: for<'de> serde::de::Deserialize<'de>,
+    {
+        let out = self.load_user_secret(key).await?;
+        let b = match out {
+            Some(v) => v,
+            None => {
+                return Ok(None);
+            }
+        };
+
+        let obj = serde_json::from_slice(&b)?;
+        Ok(Some(obj))
     }
 
     #[instrument(level = "trace", skip(self, value), ret, err)]
@@ -195,6 +240,16 @@ impl ProtectedStore {
 
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn remove_user_secret(&self, key: &str) -> EyreResult<bool> {
-        self.remove_user_secret_string(key).await
+        let inner = self.inner.lock();
+        match inner
+            .keyring_manager
+            .as_ref()
+            .ok_or_else(|| eyre!("Protected store not initialized"))?
+            .with_keyring(&self.service_name(), key, |kr| kr.delete_value())
+        {
+            Ok(_) => Ok(true),
+            Err(KeyringError::NoPasswordFound) => Ok(false),
+            Err(e) => Err(eyre!("Failed to remove user secret: {}", e)),
+        }
     }
 }

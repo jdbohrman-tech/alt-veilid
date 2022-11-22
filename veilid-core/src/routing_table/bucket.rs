@@ -1,5 +1,6 @@
 use super::*;
 use core::sync::atomic::Ordering;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 pub struct Bucket {
     routing_table: RoutingTable,
@@ -7,6 +8,20 @@ pub struct Bucket {
     newest_entry: Option<DHTKey>,
 }
 pub(super) type EntriesIter<'a> = alloc::collections::btree_map::Iter<'a, DHTKey, Arc<BucketEntry>>;
+
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+struct BucketEntryData {
+    key: DHTKey,
+    value: Vec<u8>,
+}
+
+#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+struct BucketData {
+    entries: Vec<BucketEntryData>,
+    newest_entry: Option<DHTKey>,
+}
 
 fn state_ordering(state: BucketEntryState) -> usize {
     match state {
@@ -23,6 +38,36 @@ impl Bucket {
             entries: BTreeMap::new(),
             newest_entry: None,
         }
+    }
+
+    pub(super) fn load_bucket(&mut self, data: Vec<u8>) -> EyreResult<()> {
+        let bucket_data: BucketData = from_rkyv(data)?;
+
+        for e in bucket_data.entries {
+            let entryinner = from_rkyv(e.value).wrap_err("failed to deserialize bucket entry")?;
+            self.entries
+                .insert(e.key, Arc::new(BucketEntry::new_with_inner(entryinner)));
+        }
+
+        self.newest_entry = bucket_data.newest_entry;
+
+        Ok(())
+    }
+    pub(super) fn save_bucket(&self) -> EyreResult<Vec<u8>> {
+        let mut entries = Vec::new();
+        for (k, v) in &self.entries {
+            let entry_bytes = v.with_inner(|e| to_rkyv(e))?;
+            entries.push(BucketEntryData {
+                key: *k,
+                value: entry_bytes,
+            });
+        }
+        let bucket_data = BucketData {
+            entries,
+            newest_entry: self.newest_entry.clone(),
+        };
+        let out = to_rkyv(&bucket_data)?;
+        Ok(out)
     }
 
     pub(super) fn add_entry(&mut self, node_id: DHTKey) -> NodeRef {
@@ -46,13 +91,6 @@ impl Bucket {
         self.entries.remove(node_id);
 
         // newest_entry is updated by kick_bucket()
-    }
-
-    pub(super) fn roll_transfers(&self, last_ts: u64, cur_ts: u64) {
-        // Called every ROLLING_TRANSFERS_INTERVAL_SECS
-        for (_k, v) in &self.entries {
-            v.with_mut(|e| e.roll_transfers(last_ts, cur_ts));
-        }
     }
 
     pub(super) fn entry(&self, key: &DHTKey) -> Option<Arc<BucketEntry>> {
@@ -87,8 +125,8 @@ impl Bucket {
             if a.0 == b.0 {
                 return core::cmp::Ordering::Equal;
             }
-            a.1.with(|ea| {
-                b.1.with(|eb| {
+            a.1.with_inner(|ea| {
+                b.1.with_inner(|eb| {
                     let astate = state_ordering(ea.state(cur_ts));
                     let bstate = state_ordering(eb.state(cur_ts));
                     // first kick dead nodes, then unreliable nodes

@@ -160,31 +160,31 @@ class _MyAppState extends State<MyApp> with UiLoggy {
     });
   }
 
-  Future<void> processUpdateLog(VeilidUpdateLog update) async {
+  Future<void> processLog(VeilidLog log) async {
     StackTrace? stackTrace;
     Object? error;
-    final backtrace = update.backtrace;
+    final backtrace = log.backtrace;
     if (backtrace != null) {
       stackTrace =
           StackTrace.fromString("$backtrace\n${StackTrace.current.toString()}");
-      error = 'embedded stack trace for ${update.logLevel} ${update.message}';
+      error = 'embedded stack trace for ${log.logLevel} ${log.message}';
     }
 
-    switch (update.logLevel) {
+    switch (log.logLevel) {
       case VeilidLogLevel.error:
-        loggy.error(update.message, error, stackTrace);
+        loggy.error(log.message, error, stackTrace);
         break;
       case VeilidLogLevel.warn:
-        loggy.warning(update.message, error, stackTrace);
+        loggy.warning(log.message, error, stackTrace);
         break;
       case VeilidLogLevel.info:
-        loggy.info(update.message, error, stackTrace);
+        loggy.info(log.message, error, stackTrace);
         break;
       case VeilidLogLevel.debug:
-        loggy.debug(update.message, error, stackTrace);
+        loggy.debug(log.message, error, stackTrace);
         break;
       case VeilidLogLevel.trace:
-        loggy.trace(update.message, error, stackTrace);
+        loggy.trace(log.message, error, stackTrace);
         break;
     }
   }
@@ -193,8 +193,12 @@ class _MyAppState extends State<MyApp> with UiLoggy {
     var stream = _updateStream;
     if (stream != null) {
       await for (final update in stream) {
-        if (update is VeilidUpdateLog) {
-          await processUpdateLog(update);
+        if (update is VeilidLog) {
+          await processLog(update);
+        } else if (update is VeilidAppMessage) {
+          loggy.info("AppMessage: ${update.json}");
+        } else if (update is VeilidAppCall) {
+          loggy.info("AppCall: ${update.json}");
         } else {
           loggy.trace("Update: ${update.json}");
         }
