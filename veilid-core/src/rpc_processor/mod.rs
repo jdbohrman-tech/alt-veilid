@@ -452,15 +452,21 @@ impl RPCProcessor {
                     let rss = self.routing_table.route_spec_store();
 
                     // If we received a reply from a private route, mark it as such
-                    rss.mark_remote_private_route_replied(&private_route.public_key, recv_ts);
+                    if let Err(e) =
+                        rss.mark_remote_private_route_replied(&private_route.public_key, recv_ts)
+                    {
+                        log_rpc!(error "private route missing: {}", e);
+                    }
 
                     // If we sent to a private route without a safety route
                     // We need to mark our own node info as having been seen so we can optimize sending it
                     if let SafetySelection::Unsafe(_) = safety_selection {
-                        rss.mark_remote_private_route_seen_our_node_info(
+                        if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(
                             &private_route.public_key,
                             recv_ts,
-                        );
+                        ) {
+                            log_rpc!(error "private route missing: {}", e);
+                        }
                     }
                 }
             }
@@ -761,7 +767,11 @@ impl RPCProcessor {
         } = &dest
         {
             let rss = self.routing_table.route_spec_store();
-            rss.mark_remote_private_route_used(&private_route.public_key, intf::get_timestamp());
+            if let Err(e) =
+                rss.mark_remote_private_route_used(&private_route.public_key, intf::get_timestamp())
+            {
+                log_rpc!(error "private route missing: {}", e);
+            }
         }
 
         // Pass back waitable reply completion

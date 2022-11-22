@@ -1,12 +1,10 @@
 #![allow(dead_code)]
 
 mod debug;
-mod privacy;
 mod routing_context;
 mod serialize_helpers;
 
 pub use debug::*;
-pub use privacy::*;
 pub use routing_context::*;
 pub use serialize_helpers::*;
 
@@ -25,12 +23,13 @@ pub use intf::BlockStore;
 pub use intf::ProtectedStore;
 pub use intf::TableStore;
 pub use network_manager::NetworkManager;
-pub use routing_table::{NodeRef, NodeRefBase, RoutingTable};
+pub use routing_table::{NodeRef, NodeRefBase};
 
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
 use enumset::*;
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use routing_table::{RouteSpecStore, RoutingTable};
 use rpc_processor::*;
 use serde::*;
 use xx::*;
@@ -86,8 +85,8 @@ pub enum VeilidAPIError {
     Timeout,
     #[error("Shutdown")]
     Shutdown,
-    #[error("Node not found: {node_id}")]
-    NodeNotFound { node_id: NodeId },
+    #[error("Key not found: {key}")]
+    KeyNotFound { key: DHTKey },
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("No peer info: {node_id}")]
@@ -123,11 +122,13 @@ impl VeilidAPIError {
     pub fn shutdown() -> Self {
         Self::Shutdown
     }
-    pub fn node_not_found(node_id: NodeId) -> Self {
-        Self::NodeNotFound { node_id }
+    pub fn key_not_found(key: DHTKey) -> Self {
+        Self::KeyNotFound { key }
     }
-    pub fn no_connection(message: String) -> Self {
-        Self::NoConnection { message }
+    pub fn no_connection<T: ToString>(msg: T) -> Self {
+        Self::NoConnection {
+            message: msg.to_string(),
+        }
     }
     pub fn no_peer_info(node_id: NodeId) -> Self {
         Self::NoPeerInfo { node_id }
@@ -2681,6 +2682,13 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::NotInitialized)
     }
+    pub fn routing_table(&self) -> Result<RoutingTable, VeilidAPIError> {
+        let inner = self.inner.lock();
+        if let Some(context) = &inner.context {
+            return Ok(context.attachment_manager.network_manager().routing_table());
+        }
+        Err(VeilidAPIError::NotInitialized)
+    }
 
     ////////////////////////////////////////////////////////////////
     // Attach/Detach
@@ -2730,6 +2738,64 @@ impl VeilidAPI {
     #[instrument(level = "debug", skip(self))]
     pub fn routing_context(&self) -> RoutingContext {
         RoutingContext::new(self.clone())
+    }
+
+    ////////////////////////////////////////////////////////////////
+    // Private route allocation
+
+    #[instrument(level = "debug", skip(self))]
+    pub async fn new_default_private_route(&self) -> Result<(DHTKey, Vec<u8>), VeilidAPIError> {
+        let config = self.config()?;
+        let c = config.get();
+        self.new_private_route(
+            Stability::LowLatency,
+            Sequencing::NoPreference,
+            c.network.rpc.default_route_hop_count.into(),
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub async fn new_private_route(
+        &self,
+        stability: Stability,
+        sequencing: Sequencing,
+        hop_count: usize,
+    ) -> Result<(DHTKey, Vec<u8>), VeilidAPIError> {
+        let rss = self.routing_table()?.route_spec_store();
+        let r = rss
+            .allocate_route(
+                stability,
+                sequencing,
+                hop_count,
+                Direction::Inbound.into(),
+                &[],
+            )
+            .map_err(VeilidAPIError::internal)?;
+        let Some(pr_pubkey) = r else {
+            return Err(VeilidAPIError::generic("unable to allocate route"));
+        };
+        if !rss
+            .test_route(&pr_pubkey)
+            .await
+            .map_err(VeilidAPIError::no_connection)?
+        {
+            rss.release_route(pr_pubkey)
+                .map_err(VeilidAPIError::generic)?;
+            return Err(VeilidAPIError::generic("allocated route failed to test"));
+        }
+        let private_route = rss
+            .assemble_private_route(&pr_pubkey, Some(true))
+            .map_err(VeilidAPIError::generic)?;
+        let blob = match RouteSpecStore::private_route_to_blob(&private_route) {
+            Ok(v) => v,
+            Err(e) => {
+                rss.release_route(pr_pubkey)
+                    .map_err(VeilidAPIError::generic)?;
+                return Err(VeilidAPIError::internal(e));
+            }
+        };
+        Ok((pr_pubkey, blob))
     }
 
     ////////////////////////////////////////////////////////////////

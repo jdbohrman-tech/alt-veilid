@@ -4,7 +4,7 @@ use super::*;
 #[derive(Clone, Debug)]
 pub enum Target {
     NodeId(NodeId),
-    PrivateRoute(PrivateRoute),
+    PrivateRoute(DHTKey),
 }
 
 pub struct RoutingContextInner {}
@@ -115,7 +115,7 @@ impl RoutingContext {
                 // Resolve node
                 let mut nr = match rpc_processor.resolve_node(node_id.key).await {
                     Ok(Some(nr)) => nr,
-                    Ok(None) => return Err(VeilidAPIError::NodeNotFound { node_id }),
+                    Ok(None) => return Err(VeilidAPIError::KeyNotFound { key: node_id.key }),
                     Err(e) => return Err(e.into()),
                 };
                 // Apply sequencing to match safety selection
@@ -126,10 +126,17 @@ impl RoutingContext {
                     safety_selection: self.unlocked_inner.safety_selection,
                 })
             }
-            Target::PrivateRoute(pr) => Ok(rpc_processor::Destination::PrivateRoute {
-                private_route: pr,
-                safety_selection: self.unlocked_inner.safety_selection,
-            }),
+            Target::PrivateRoute(pr) => {
+                // Get remote private route
+                let rss = self.api.routing_table()?.route_spec_store();
+                let private_route = rss
+                    .get_remote_private_route(&pr)
+                    .map_err(|_| VeilidAPIError::KeyNotFound { key: pr })?;
+                Ok(rpc_processor::Destination::PrivateRoute {
+                    private_route,
+                    safety_selection: self.unlocked_inner.safety_selection,
+                })
+            }
         }
     }
 

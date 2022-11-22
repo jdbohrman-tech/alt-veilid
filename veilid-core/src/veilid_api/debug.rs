@@ -7,7 +7,7 @@ use routing_table::*;
 
 #[derive(Default, Debug)]
 struct DebugCache {
-    imported_routes: Vec<PrivateRoute>,
+    imported_routes: Vec<DHTKey>,
 }
 
 static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
@@ -123,10 +123,20 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
             // Private route
             let text = &text[1..];
             let n = get_number(text)?;
-            let dc = DEBUG_CACHE.lock();
-            let r = dc.imported_routes.get(n)?;
+            let mut dc = DEBUG_CACHE.lock();
+            let pr_pubkey = dc.imported_routes.get(n)?;
+            let rss = routing_table.route_spec_store();
+            let private_route = match rss.get_remote_private_route(&pr_pubkey) {
+                Err(_) => {
+                    // Remove imported route
+                    dc.imported_routes.remove(n);
+                    info!("removed dead imported route {}", n);
+                    return None;
+                }
+                Ok(v) => v,
+            };
             Some(Destination::private_route(
-                r.clone(),
+                private_route,
                 ss.unwrap_or(SafetySelection::Unsafe(Sequencing::NoPreference)),
             ))
         } else {
@@ -734,14 +744,21 @@ impl VeilidAPI {
         let blob_dec = BASE64URL_NOPAD
             .decode(blob.as_bytes())
             .map_err(VeilidAPIError::generic)?;
-        let pr =
-            RouteSpecStore::blob_to_private_route(blob_dec).map_err(VeilidAPIError::generic)?;
+        let rss = self.routing_table()?.route_spec_store();
+        let pr_pubkey = rss
+            .import_remote_private_route(blob_dec)
+            .map_err(VeilidAPIError::generic)?;
 
         let mut dc = DEBUG_CACHE.lock();
         let n = dc.imported_routes.len();
-        let out = format!("Private route #{} imported: {}", n, pr.public_key);
-        dc.imported_routes.push(pr);
+        let out = format!("Private route #{} imported: {}", n, pr_pubkey);
+        dc.imported_routes.push(pr_pubkey);
 
+        return Ok(out);
+    }
+
+    async fn debug_route_test(&self, _args: Vec<String>) -> Result<String, VeilidAPIError> {
+        let out = "xxx".to_string();
         return Ok(out);
     }
 
@@ -764,6 +781,8 @@ impl VeilidAPI {
             self.debug_route_list(args).await
         } else if command == "import" {
             self.debug_route_import(args).await
+        } else if command == "test" {
+            self.debug_route_test(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
@@ -791,6 +810,7 @@ impl VeilidAPI {
               print <route>
               list
               import <blob>
+              test <route>
 
         <destination> is:
          * direct:  <node>[+<safety>][<modifiers>]
