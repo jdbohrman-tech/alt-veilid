@@ -184,11 +184,21 @@ impl<T> Answer<T> {
 }
 
 struct RenderedOperation {
-    message: Vec<u8>,  // The rendered operation bytes
-    node_id: DHTKey,   // Destination node id we're sending to
+    message: Vec<u8>,             // The rendered operation bytes
+    node_id: DHTKey,              // Destination node id we're sending to
     node_ref: NodeRef, // Node to send envelope to (may not be destination node id in case of relay)
     hop_count: usize,  // Total safety + private route hop count + 1 hop for the initial send
+    safety_route: Option<DHTKey>, // The safety route used to send the message
+    private_route: Option<DHTKey>, // The private route used to send the message
 }
+
+#[derive(Copy, Clone, Debug)]
+enum RPCKind {
+    Question,
+    Statement,
+    Answer
+}
+
 /////////////////////////////////////////////////////////////////////
 
 pub struct RPCProcessorInner {
@@ -484,7 +494,7 @@ impl RPCProcessor {
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
         let rss = routing_table.route_spec_store();
-
+        let pr_is_stub = private_route.is_stub();
         let pr_hop_count = private_route.hop_count;
         let pr_pubkey = private_route.public_key;
 
@@ -542,6 +552,16 @@ impl RPCProcessor {
             node_id: out_node_id,
             node_ref: compiled_route.first_hop,
             hop_count: out_hop_count,
+            safety_route: if compiled_route.safety_route.is_stub() {
+                None
+            } else {
+                Some(compiled_route.safety_route.public_key)
+            },
+            private_route: if pr_is_stub {
+                None
+            } else {
+                Some(pr_pubkey)
+            }
         };
 
         Ok(NetworkResult::value(out))
@@ -610,6 +630,8 @@ impl RPCProcessor {
                             node_id,
                             node_ref,
                             hop_count: 1,
+                            safety_route: None,
+                            private_route: None,
                         });
                     }
                     SafetySelection::Safe(_) => {
@@ -706,7 +728,17 @@ impl RPCProcessor {
         }
     }
 
-    // Issue a question over the network, possibly using an anonymized route
+    /// Record failure to send to node or route
+    fn record_send_failure(&self, rpc_kind: RPCKind, send_ts: u64, node_ref: NodeRef, safety_route: Option<DHTKey>, private_route: Option<DHTKey>) {
+        xxx implement me
+    }
+
+    /// Record success sending to node or route
+    fn record_send_success(&self, rpc_kind: RPCKind, send_ts: u64, bytes: u64, node_ref: NodeRef, safety_route: Option<DHTKey>, private_route: Option<DHTKey>) {
+        xxx implement me    
+    }
+
+    /// Issue a question over the network, possibly using an anonymized route
     #[instrument(level = "debug", skip(self, question), err)]
     async fn question(
         &self,
@@ -729,6 +761,8 @@ impl RPCProcessor {
             node_id,
             node_ref,
             hop_count,
+            safety_route,
+            private_route,
         } = network_result_try!(self.render_operation(dest.clone(), &operation)?);
 
         // Calculate answer timeout
@@ -774,6 +808,11 @@ impl RPCProcessor {
             }
         }
 
+        // Safety route stats
+        if let Some(sr_pubkey) = safety_route {
+            //
+        }
+
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
             dest,
@@ -807,6 +846,8 @@ impl RPCProcessor {
             node_id,
             node_ref,
             hop_count: _,
+            safety_route,
+            private_route,
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send statement
@@ -819,17 +860,22 @@ impl RPCProcessor {
             .map_err(|e| {
                 // If we're returning an error, clean up
                 node_ref
-                    .stats_failed_to_send(send_ts, true);
+                    .stats_failed_to_send(send_ts, false);
                 RPCError::network(e)
             })? => {
                 // If we couldn't send we're still cleaning up
                 node_ref
-                    .stats_failed_to_send(send_ts, true);
+                    .stats_failed_to_send(send_ts, false);
             }
         );
 
         // Successfully sent
-        node_ref.stats_question_sent(send_ts, bytes, true);
+        node_ref.stats_question_sent(send_ts, bytes, false);
+
+        // Private route stats
+        xxx
+        // Safety route stats
+        safety_route
 
         Ok(NetworkResult::value(()))
     }
@@ -860,6 +906,8 @@ impl RPCProcessor {
             node_id,
             node_ref,
             hop_count: _,
+            safety_route,
+            private_route,
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send the reply
@@ -871,7 +919,7 @@ impl RPCProcessor {
             .map_err(|e| {
                 // If we're returning an error, clean up
                 node_ref
-                    .stats_failed_to_send(send_ts, true);
+                    .stats_failed_to_send(send_ts, false);
                 RPCError::network(e)
             })? => {
                 // If we couldn't send we're still cleaning up
@@ -882,6 +930,11 @@ impl RPCProcessor {
 
         // Reply successfully sent
         node_ref.stats_answer_sent(bytes);
+
+        // Private route stats
+        xxxx
+        // Safety route stats
+        xxx
 
         Ok(NetworkResult::value(()))
     }

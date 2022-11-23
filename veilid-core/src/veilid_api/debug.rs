@@ -757,8 +757,25 @@ impl VeilidAPI {
         return Ok(out);
     }
 
-    async fn debug_route_test(&self, _args: Vec<String>) -> Result<String, VeilidAPIError> {
-        let out = "xxx".to_string();
+    async fn debug_route_test(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <route id>
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+
+        let success = rss
+            .test_route(&route_id)
+            .await
+            .map_err(VeilidAPIError::internal)?;
+
+        let out = if success {
+            "SUCCESS".to_owned()
+        } else {
+            "FAILED".to_owned()
+        };
+
         return Ok(out);
     }
 

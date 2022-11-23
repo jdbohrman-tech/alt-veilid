@@ -757,26 +757,38 @@ impl RouteSpecStore {
 
     /// Test an allocated route for continuity
     pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
-        let inner = &mut *self.inner.lock();
-        let rsd = Self::detail(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
         let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
 
-        // Target is the last hop
-        let target = rsd.hop_node_refs.last().unwrap().clone();
-        let hop_count = rsd.hops.len();
-        let stability = rsd.stability;
-        let sequencing = rsd.sequencing;
+        let (target, safety_selection) = {
+            let inner = &mut *self.inner.lock();
+            let rsd = Self::detail(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+
+            // Routes with just one hop can be pinged directly
+            // More than one hop can be pinged across the route with the target being the second to last hop
+            if rsd.hops.len() == 1 {
+                let target = rsd.hop_node_refs[0].clone();
+                let sequencing = rsd.sequencing;
+                (target, SafetySelection::Unsafe(sequencing))
+            } else {
+                let target = rsd.hop_node_refs[rsd.hops.len() - 2].clone();
+                let hop_count = rsd.hops.len();
+                let stability = rsd.stability;
+                let sequencing = rsd.sequencing;
+                let safety_spec = SafetySpec {
+                    preferred_route: Some(key.clone()),
+                    hop_count,
+                    stability,
+                    sequencing,
+                };
+                (target, SafetySelection::Safe(safety_spec))
+            }
+        };
 
         // Test with ping to end
         let res = match rpc_processor
             .rpc_call_status(Destination::Direct {
                 target,
-                safety_selection: SafetySelection::Safe(SafetySpec {
-                    preferred_route: Some(key.clone()),
-                    hop_count,
-                    stability,
-                    sequencing,
-                }),
+                safety_selection,
             })
             .await?
         {
@@ -1100,8 +1112,11 @@ impl RouteSpecStore {
 
         // See if the preferred route is here
         if let Some(preferred_route) = safety_spec.preferred_route {
-            if inner.content.details.contains_key(&preferred_route) {
-                return Ok(Some(preferred_route));
+            if let Some(preferred_rsd) = inner.content.details.get(&preferred_route) {
+                // Only use the preferred route if it doesn't end with the avoid nodes
+                if !avoid_node_ids.contains(preferred_rsd.hops.last().unwrap()) {
+                    return Ok(Some(preferred_route));
+                }
             }
         }
 
