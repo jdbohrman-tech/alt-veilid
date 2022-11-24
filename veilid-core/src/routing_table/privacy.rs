@@ -85,7 +85,7 @@ impl PrivateRoute {
 
     /// Check if this is a stub route
     pub fn is_stub(&self) -> bool {
-        if let PrivateRouteHops::FirstHop(first_hop) = self.hops {
+        if let PrivateRouteHops::FirstHop(first_hop) = &self.hops {
             return first_hop.next_hop.is_none();
         }
         false

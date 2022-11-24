@@ -135,7 +135,7 @@ impl RPCProcessor {
         &self,
         detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
-        safety_route: &SafetyRoute,
+        remote_safety_route: &SafetyRoute,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get sequencing preference
         let sequencing = if detail
@@ -153,7 +153,7 @@ impl RPCProcessor {
         let node_id_secret = self.routing_table.node_id_secret();
         let dh_secret = self
             .crypto
-            .cached_dh(&safety_route.public_key, &node_id_secret)
+            .cached_dh(&remote_safety_route.public_key, &node_id_secret)
             .map_err(RPCError::protocol)?;
         let body = match Crypto::decrypt_aead(
             &routed_operation.data,
@@ -168,7 +168,7 @@ impl RPCProcessor {
         };
         
         // Pass message to RPC system
-        self.enqueue_safety_routed_message(sequencing, body)
+        self.enqueue_safety_routed_message(remote_safety_route.public_key, sequencing, body)
             .map_err(RPCError::internal)?;
 
         Ok(NetworkResult::value(()))
@@ -180,7 +180,7 @@ impl RPCProcessor {
         &self,
         detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
-        safety_route: &SafetyRoute,
+        remote_safety_route: &SafetyRoute,
         private_route: &PrivateRoute,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get sender id
@@ -204,7 +204,7 @@ impl RPCProcessor {
         // xxx: punish nodes that send messages that fail to decrypt eventually. How to do this for private routes?
         let dh_secret = self
             .crypto
-            .cached_dh(&safety_route.public_key, &secret_key)
+            .cached_dh(&remote_safety_route.public_key, &secret_key)
             .map_err(RPCError::protocol)?;
         let body = Crypto::decrypt_aead(
             &routed_operation.data,
@@ -217,7 +217,7 @@ impl RPCProcessor {
         ))?;
 
         // Pass message to RPC system
-        self.enqueue_private_routed_message(private_route.public_key, safety_spec, body)
+        self.enqueue_private_routed_message(remote_safety_route.public_key, private_route.public_key, safety_spec, body)
             .map_err(RPCError::internal)?;
 
         Ok(NetworkResult::value(()))

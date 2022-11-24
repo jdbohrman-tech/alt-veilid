@@ -55,6 +55,8 @@ struct RPCMessageHeaderDetailDirect {
 /// Header details for rpc messages received over only a safety route but not a private route
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailSafetyRouted {
+    /// Remote safety route used
+    remote_safety_route: DHTKey,
     /// The sequencing used for this route
     sequencing: Sequencing,
 }
@@ -62,6 +64,8 @@ struct RPCMessageHeaderDetailSafetyRouted {
 /// Header details for rpc messages received over a private route
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailPrivateRouted {
+    /// Remote safety route used (or possibly node id the case of no safety route)
+    remote_safety_route: DHTKey,
     /// The private route we received the rpc over
     private_route: DHTKey,
     // The safety spec for replying to this private routed rpc
@@ -162,12 +166,14 @@ where
 
 #[derive(Debug)]
 struct WaitableReply {
-    dest: Destination,
     handle: OperationWaitHandle<RPCMessage>,
     timeout: u64,
     node_ref: NodeRef,
     send_ts: u64,
     send_data_kind: SendDataKind,
+    safety_route: Option<DHTKey>,
+    remote_private_route: Option<DHTKey>,
+    reply_private_route: Option<DHTKey>,
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -184,19 +190,20 @@ impl<T> Answer<T> {
 }
 
 struct RenderedOperation {
-    message: Vec<u8>,             // The rendered operation bytes
-    node_id: DHTKey,              // Destination node id we're sending to
+    message: Vec<u8>,                     // The rendered operation bytes
+    node_id: DHTKey,                      // Destination node id we're sending to
     node_ref: NodeRef, // Node to send envelope to (may not be destination node id in case of relay)
     hop_count: usize,  // Total safety + private route hop count + 1 hop for the initial send
     safety_route: Option<DHTKey>, // The safety route used to send the message
-    private_route: Option<DHTKey>, // The private route used to send the message
+    remote_private_route: Option<DHTKey>, // The private route used to send the message
+    reply_private_route: Option<DHTKey>, // The private route requested to receive the reply
 }
 
 #[derive(Copy, Clone, Debug)]
 enum RPCKind {
     Question,
     Statement,
-    Answer
+    Answer,
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -443,42 +450,28 @@ impl RPCProcessor {
             .await;
         match &out {
             Err(_) | Ok(TimeoutOr::Timeout) => {
-                waitable_reply.node_ref.stats_question_lost();
+                self.record_question_lost(
+                    waitable_reply.send_ts,
+                    waitable_reply.node_ref.clone(),
+                    waitable_reply.safety_route,
+                    waitable_reply.remote_private_route,
+                    waitable_reply.reply_private_route,
+                );
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
                 // Reply received
                 let recv_ts = intf::get_timestamp();
-                waitable_reply.node_ref.stats_answer_rcvd(
+
+                // Record answer received
+                self.record_answer_received(
                     waitable_reply.send_ts,
                     recv_ts,
                     rpcreader.header.body_len,
-                );
-                // Process private route replies
-                if let Destination::PrivateRoute {
-                    private_route,
-                    safety_selection,
-                } = &waitable_reply.dest
-                {
-                    let rss = self.routing_table.route_spec_store();
-
-                    // If we received a reply from a private route, mark it as such
-                    if let Err(e) =
-                        rss.mark_remote_private_route_replied(&private_route.public_key, recv_ts)
-                    {
-                        log_rpc!(error "private route missing: {}", e);
-                    }
-
-                    // If we sent to a private route without a safety route
-                    // We need to mark our own node info as having been seen so we can optimize sending it
-                    if let SafetySelection::Unsafe(_) = safety_selection {
-                        if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(
-                            &private_route.public_key,
-                            recv_ts,
-                        ) {
-                            log_rpc!(error "private route missing: {}", e);
-                        }
-                    }
-                }
+                    waitable_reply.node_ref.clone(),
+                    waitable_reply.safety_route,
+                    waitable_reply.remote_private_route,
+                    waitable_reply.reply_private_route,
+                )
             }
         };
 
@@ -489,18 +482,19 @@ impl RPCProcessor {
     fn wrap_with_route(
         &self,
         safety_selection: SafetySelection,
-        private_route: PrivateRoute,
+        remote_private_route: PrivateRoute,
+        reply_private_route: Option<DHTKey>,
         message_data: Vec<u8>,
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
         let rss = routing_table.route_spec_store();
-        let pr_is_stub = private_route.is_stub();
-        let pr_hop_count = private_route.hop_count;
-        let pr_pubkey = private_route.public_key;
+        let pr_is_stub = remote_private_route.is_stub();
+        let pr_hop_count = remote_private_route.hop_count;
+        let pr_pubkey = remote_private_route.public_key;
 
         // Compile the safety route with the private route
         let compiled_route: CompiledRoute = match rss
-            .compile_safety_route(safety_selection, private_route)
+            .compile_safety_route(safety_selection, remote_private_route)
             .map_err(RPCError::internal)?
         {
             Some(cr) => cr,
@@ -510,6 +504,8 @@ impl RPCProcessor {
                 ))
             }
         };
+        let sr_is_stub = compiled_route.safety_route.is_stub();
+        let sr_pubkey = compiled_route.safety_route.public_key;
 
         // Encrypt routed operation
         // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
@@ -552,16 +548,9 @@ impl RPCProcessor {
             node_id: out_node_id,
             node_ref: compiled_route.first_hop,
             hop_count: out_hop_count,
-            safety_route: if compiled_route.safety_route.is_stub() {
-                None
-            } else {
-                Some(compiled_route.safety_route.public_key)
-            },
-            private_route: if pr_is_stub {
-                None
-            } else {
-                Some(pr_pubkey)
-            }
+            safety_route: if sr_is_stub { None } else { Some(sr_pubkey) },
+            remote_private_route: if pr_is_stub { None } else { Some(pr_pubkey) },
+            reply_private_route,
         };
 
         Ok(NetworkResult::value(out))
@@ -585,6 +574,15 @@ impl RPCProcessor {
             let mut op_builder = msg_builder.init_root::<veilid_capnp::operation::Builder>();
             operation.encode(&mut op_builder)?;
             builder_to_vec(msg_builder)?
+        };
+
+        // Get reply private route if we are asking for one to be used in our 'respond to'
+        let reply_private_route = match operation.kind() {
+            RPCOperationKind::Question(q) => match q.respond_to() {
+                RespondTo::Sender => None,
+                RespondTo::PrivateRoute(pr) => Some(pr.public_key),
+            },
+            RPCOperationKind::Statement(_) | RPCOperationKind::Answer(_) => None,
         };
 
         // To where are we sending the request
@@ -623,6 +621,9 @@ impl RPCProcessor {
                             node_ref.set_sequencing(sequencing)
                         }
 
+                        // Reply private route should be None here, even for questions
+                        assert!(reply_private_route.is_none());
+
                         // If no safety route is being used, and we're not sending to a private
                         // route, we can use a direct envelope instead of routing
                         out = NetworkResult::value(RenderedOperation {
@@ -631,7 +632,8 @@ impl RPCProcessor {
                             node_ref,
                             hop_count: 1,
                             safety_route: None,
-                            private_route: None,
+                            remote_private_route: None,
+                            reply_private_route: None,
                         });
                     }
                     SafetySelection::Safe(_) => {
@@ -650,7 +652,12 @@ impl RPCProcessor {
                             PrivateRoute::new_stub(node_id, RouteNode::PeerInfo(peer_info));
 
                         // Wrap with safety route
-                        out = self.wrap_with_route(safety_selection, private_route, message)?;
+                        out = self.wrap_with_route(
+                            safety_selection,
+                            private_route,
+                            reply_private_route,
+                            message,
+                        )?;
                     }
                 };
             }
@@ -661,7 +668,12 @@ impl RPCProcessor {
                 // Send to private route
                 // ---------------------
                 // Reply with 'route' operation
-                out = self.wrap_with_route(safety_selection, private_route, message)?;
+                out = self.wrap_with_route(
+                    safety_selection,
+                    private_route,
+                    reply_private_route,
+                    message,
+                )?;
             }
         }
 
@@ -729,13 +741,237 @@ impl RPCProcessor {
     }
 
     /// Record failure to send to node or route
-    fn record_send_failure(&self, rpc_kind: RPCKind, send_ts: u64, node_ref: NodeRef, safety_route: Option<DHTKey>, private_route: Option<DHTKey>) {
-        xxx implement me
+    fn record_send_failure(
+        &self,
+        rpc_kind: RPCKind,
+        send_ts: u64,
+        node_ref: NodeRef,
+        safety_route: Option<DHTKey>,
+        remote_private_route: Option<DHTKey>,
+    ) {
+        let wants_answer = matches!(rpc_kind, RPCKind::Question);
+
+        // Record for node if this was not sent via a route
+        if safety_route.is_none() && remote_private_route.is_none() {
+            node_ref.stats_failed_to_send(send_ts, wants_answer);
+            return;
+        }
+
+        // If safety route was in use, record failure to send there
+        if let Some(sr_pubkey) = &safety_route {
+            let rss = self.routing_table.route_spec_store();
+            rss.with_route_stats(send_ts, sr_pubkey, |s| s.record_send_failed());
+        } else {
+            // If no safety route was in use, then it's the private route's fault if we have one
+            if let Some(pr_pubkey) = &remote_private_route {
+                let rss = self.routing_table.route_spec_store();
+                rss.with_route_stats(send_ts, pr_pubkey, |s| s.record_send_failed());
+            }
+        }
+    }
+
+    /// Record question lost to node or route
+    fn record_question_lost(
+        &self,
+        send_ts: u64,
+        node_ref: NodeRef,
+        safety_route: Option<DHTKey>,
+        remote_private_route: Option<DHTKey>,
+        private_route: Option<DHTKey>,
+    ) {
+        // Record for node if this was not sent via a route
+        if safety_route.is_none() && remote_private_route.is_none() {
+            node_ref.stats_question_lost();
+            return;
+        }
+        // Get route spec store
+        let rss = self.routing_table.route_spec_store();
+
+        // If safety route was used, record question lost there
+        if let Some(sr_pubkey) = &safety_route {
+            let rss = self.routing_table.route_spec_store();
+            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+                s.record_question_lost();
+            });
+        }
+        // If remote private route was used, record question lost there
+        if let Some(rpr_pubkey) = &remote_private_route {
+            rss.with_route_stats(send_ts, rpr_pubkey, |s| {
+                s.record_question_lost();
+            });
+        }
+        // If private route was used, record question lost there
+        if let Some(pr_pubkey) = &private_route {
+            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+                s.record_question_lost();
+            });
+        }
     }
 
     /// Record success sending to node or route
-    fn record_send_success(&self, rpc_kind: RPCKind, send_ts: u64, bytes: u64, node_ref: NodeRef, safety_route: Option<DHTKey>, private_route: Option<DHTKey>) {
-        xxx implement me    
+    fn record_send_success(
+        &self,
+        rpc_kind: RPCKind,
+        send_ts: u64,
+        bytes: u64,
+        node_ref: NodeRef,
+        safety_route: Option<DHTKey>,
+        remote_private_route: Option<DHTKey>,
+    ) {
+        let wants_answer = matches!(rpc_kind, RPCKind::Question);
+
+        // Record for node if this was not sent via a route
+        if safety_route.is_none() && remote_private_route.is_none() {
+            node_ref.stats_question_sent(send_ts, bytes, wants_answer);
+            return;
+        }
+
+        // Get route spec store
+        let rss = self.routing_table.route_spec_store();
+
+        // If safety route was used, record send there
+        if let Some(sr_pubkey) = &safety_route {
+            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+                s.record_sent(send_ts, bytes);
+            });
+        }
+
+        // If remote private route was used, record send there
+        if let Some(pr_pubkey) = &remote_private_route {
+            let rss = self.routing_table.route_spec_store();
+            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+                s.record_sent(send_ts, bytes);
+            });
+        }
+    }
+
+    /// Record answer received from node or route
+    fn record_answer_received(
+        &self,
+        send_ts: u64,
+        recv_ts: u64,
+        bytes: u64,
+        node_ref: NodeRef,
+        safety_route: Option<DHTKey>,
+        remote_private_route: Option<DHTKey>,
+        reply_private_route: Option<DHTKey>,
+    ) {
+        // Record stats for remote node if this was direct
+        if safety_route.is_none() && remote_private_route.is_none() && reply_private_route.is_none()
+        {
+            node_ref.stats_answer_rcvd(send_ts, recv_ts, bytes);
+            return;
+        }
+        // Get route spec store
+        let rss = self.routing_table.route_spec_store();
+
+        // Get latency for all local routes
+        let mut total_local_latency = 0u64;
+        let total_latency = recv_ts.saturating_sub(send_ts);
+
+        // If safety route was used, record route there
+        if let Some(sr_pubkey) = &safety_route {
+            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+                // If we received an answer, the safety route we sent over can be considered tested
+                s.record_tested(recv_ts);
+
+                // If we used a safety route to send, use our last tested latency
+                total_local_latency += s.latency_stats().average
+            });
+        }
+
+        // If local private route was used, record route there
+        if let Some(pr_pubkey) = &reply_private_route {
+            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+                // Record received bytes
+                s.record_received(recv_ts, bytes);
+
+                // If we used a private route to receive, use our last tested latency
+                total_local_latency += s.latency_stats().average
+            });
+        }
+
+        // If remote private route was used, record there
+        if let Some(rpr_pubkey) = &remote_private_route {
+            rss.with_route_stats(send_ts, rpr_pubkey, |s| {
+                // Record received bytes
+                s.record_received(recv_ts, bytes);
+
+                // The remote route latency is recorded using the total latency minus the total local latency
+                let remote_latency = total_latency.saturating_sub(total_local_latency);
+                s.record_latency(remote_latency);
+            });
+
+            // If we sent to a private route without a safety route
+            // We need to mark our own node info as having been seen so we can optimize sending it
+            if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(&rpr_pubkey, recv_ts) {
+                log_rpc!(error "private route missing: {}", e);
+            }
+
+            // We can't record local route latency if a remote private route was used because
+            // there is no way other than the prior latency estimation to determine how much time was spent
+            // in the remote private route
+            // Instead, we rely on local route testing to give us latency numbers for our local routes
+        } else {
+            // If no remote private route was used, then record half the total latency on our local routes
+            // This is fine because if we sent with a local safety route,
+            // then we must have received with a local private route too, per the design rules
+            if let Some(sr_pubkey) = &safety_route {
+                let rss = self.routing_table.route_spec_store();
+                rss.with_route_stats(send_ts, sr_pubkey, |s| {
+                    s.record_latency(total_latency / 2);
+                });
+            }
+            if let Some(pr_pubkey) = &reply_private_route {
+                rss.with_route_stats(send_ts, pr_pubkey, |s| {
+                    s.record_latency(total_latency / 2);
+                });
+            }
+        }
+    }
+
+    /// Record question or statement received from node or route
+    fn record_question_received(&self, msg: &RPCMessage) {
+        let recv_ts = msg.header.timestamp;
+        let bytes = msg.header.body_len;
+
+        // Process messages based on how they were received
+        match &msg.header.detail {
+            // Process direct messages
+            RPCMessageHeaderDetail::Direct(_) => {
+                if let Some(sender_nr) = msg.opt_sender_nr.clone() {
+                    sender_nr.stats_question_rcvd(recv_ts, bytes);
+                    return;
+                }
+            }
+            // Process messages that arrived with no private route (private route stub)
+            RPCMessageHeaderDetail::SafetyRouted(d) => {
+                let rss = self.routing_table.route_spec_store();
+
+                // This may record nothing if the remote safety route is not also
+                // a remote private route that been imported, but that's okay
+                rss.with_route_stats(recv_ts, &d.remote_safety_route, |s| {
+                    s.record_received(recv_ts, bytes);
+                });
+            }
+            // Process messages that arrived to our private route
+            RPCMessageHeaderDetail::PrivateRouted(d) => {
+                let rss = self.routing_table.route_spec_store();
+
+                // This may record nothing if the remote safety route is not also
+                // a remote private route that been imported, but that's okay
+                // it could also be a node id if no remote safety route was used
+                // in which case this also will do nothing
+                rss.with_route_stats(recv_ts, &d.remote_safety_route, |s| {
+                    s.record_received(recv_ts, bytes);
+                });
+
+                // Record for our local private route we received over
+                rss.with_route_stats(recv_ts, &d.private_route, |s| {
+                    s.record_received(recv_ts, bytes);
+                });
+            }
+        }
     }
 
     /// Issue a question over the network, possibly using an anonymized route
@@ -762,7 +998,8 @@ impl RPCProcessor {
             node_ref,
             hop_count,
             safety_route,
-            private_route,
+            remote_private_route,
+            reply_private_route,
         } = network_result_try!(self.render_operation(dest.clone(), &operation)?);
 
         // Calculate answer timeout
@@ -781,46 +1018,34 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                node_ref
-                    .stats_failed_to_send(send_ts, true);
+                self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
                 RPCError::network(e)
             })? => {
                 // If we couldn't send we're still cleaning up
-                node_ref
-                    .stats_failed_to_send(send_ts, true);
+                self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
             }
         );
 
         // Successfully sent
-        node_ref.stats_question_sent(send_ts, bytes, true);
-
-        // Private route stats
-        if let Destination::PrivateRoute {
-            private_route,
-            safety_selection: _,
-        } = &dest
-        {
-            let rss = self.routing_table.route_spec_store();
-            if let Err(e) =
-                rss.mark_remote_private_route_used(&private_route.public_key, intf::get_timestamp())
-            {
-                log_rpc!(error "private route missing: {}", e);
-            }
-        }
-
-        // Safety route stats
-        if let Some(sr_pubkey) = safety_route {
-            //
-        }
+        self.record_send_success(
+            RPCKind::Question,
+            send_ts,
+            bytes,
+            node_ref.clone(),
+            safety_route,
+            remote_private_route,
+        );
 
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
-            dest,
             handle,
             timeout,
             node_ref,
             send_ts,
             send_data_kind,
+            safety_route,
+            remote_private_route,
+            reply_private_route,
         }))
     }
 
@@ -847,7 +1072,8 @@ impl RPCProcessor {
             node_ref,
             hop_count: _,
             safety_route,
-            private_route,
+            remote_private_route,
+            reply_private_route: _,
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send statement
@@ -859,23 +1085,23 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                node_ref
-                    .stats_failed_to_send(send_ts, false);
+                self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
                 RPCError::network(e)
             })? => {
                 // If we couldn't send we're still cleaning up
-                node_ref
-                    .stats_failed_to_send(send_ts, false);
+                self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
             }
         );
 
         // Successfully sent
-        node_ref.stats_question_sent(send_ts, bytes, false);
-
-        // Private route stats
-        xxx
-        // Safety route stats
-        safety_route
+        self.record_send_success(
+            RPCKind::Statement,
+            send_ts,
+            bytes,
+            node_ref,
+            safety_route,
+            remote_private_route,
+        );
 
         Ok(NetworkResult::value(()))
     }
@@ -907,7 +1133,8 @@ impl RPCProcessor {
             node_ref,
             hop_count: _,
             safety_route,
-            private_route,
+            remote_private_route,
+            reply_private_route: _,
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send the reply
@@ -918,23 +1145,23 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                node_ref
-                    .stats_failed_to_send(send_ts, false);
+                self.record_send_failure(RPCKind::Answer, send_ts, node_ref.clone(), safety_route, remote_private_route);
                 RPCError::network(e)
             })? => {
                 // If we couldn't send we're still cleaning up
-                node_ref
-                    .stats_failed_to_send(send_ts, false);
+                self.record_send_failure(RPCKind::Answer, send_ts, node_ref.clone(), safety_route, remote_private_route);
             }
         );
 
         // Reply successfully sent
-        node_ref.stats_answer_sent(bytes);
-
-        // Private route stats
-        xxxx
-        // Safety route stats
-        xxx
+        self.record_send_success(
+            RPCKind::Answer,
+            send_ts,
+            bytes,
+            node_ref,
+            safety_route,
+            remote_private_route,
+        );
 
         Ok(NetworkResult::value(()))
     }
@@ -1019,9 +1246,11 @@ impl RPCProcessor {
             }
         };
 
-        // Process stats
+        // Process stats for questions/statements received
         let kind = match msg.operation.kind() {
             RPCOperationKind::Question(_) => {
+                self.record_question_received(&msg);
+
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                     sender_nr.stats_question_rcvd(msg.header.timestamp, msg.header.body_len);
                 }
@@ -1147,12 +1376,14 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_safety_routed_message(
         &self,
+        remote_safety_route: DHTKey,
         sequencing: Sequencing,
         body: Vec<u8>,
     ) -> EyreResult<()> {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
                 detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
+                    remote_safety_route,
                     sequencing,
                 }),
                 timestamp: intf::get_timestamp(),
@@ -1174,6 +1405,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_private_routed_message(
         &self,
+        remote_safety_route: DHTKey,
         private_route: DHTKey,
         safety_spec: SafetySpec,
         body: Vec<u8>,
@@ -1182,6 +1414,7 @@ impl RPCProcessor {
             header: RPCMessageHeader {
                 detail: RPCMessageHeaderDetail::PrivateRouted(
                     RPCMessageHeaderDetailPrivateRouted {
+                        remote_safety_route,
                         private_route,
                         safety_spec,
                     },

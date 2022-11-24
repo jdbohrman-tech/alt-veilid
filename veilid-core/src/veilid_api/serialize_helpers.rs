@@ -5,7 +5,7 @@ use rkyv::Archive as RkyvArchive;
 use rkyv::Deserialize as RkyvDeserialize;
 use rkyv::Serialize as RkyvSerialize;
 
-// XXX: Don't trace these functions as they are used in the transfer of API logs, which will recurse!
+// Don't trace these functions as they are used in the transfer of API logs, which will recurse!
 
 // #[instrument(level = "trace", ret, err)]
 pub fn deserialize_json<'a, T: de::Deserialize<'a> + Debug>(

@@ -845,46 +845,52 @@ impl VeilidAPI {
     }
 
     pub async fn debug(&self, args: String) -> Result<String, VeilidAPIError> {
-        let args = args.trim_start();
-        if args.is_empty() {
-            // No arguments runs help command
-            return self.debug_help("".to_owned()).await;
-        }
-        let (arg, rest) = args.split_once(' ').unwrap_or((args, ""));
-        let rest = rest.trim_start().to_owned();
+        let res = {
+            let args = args.trim_start();
+            if args.is_empty() {
+                // No arguments runs help command
+                return self.debug_help("".to_owned()).await;
+            }
+            let (arg, rest) = args.split_once(' ').unwrap_or((args, ""));
+            let rest = rest.trim_start().to_owned();
 
-        if arg == "help" {
-            self.debug_help(rest).await
-        } else if arg == "buckets" {
-            self.debug_buckets(rest).await
-        } else if arg == "dialinfo" {
-            self.debug_dialinfo(rest).await
-        } else if arg == "txtrecord" {
-            self.debug_txtrecord(rest).await
-        } else if arg == "entries" {
-            self.debug_entries(rest).await
-        } else if arg == "entry" {
-            self.debug_entry(rest).await
-        } else if arg == "ping" {
-            self.debug_ping(rest).await
-        } else if arg == "contact" {
-            self.debug_contact(rest).await
-        } else if arg == "nodeinfo" {
-            self.debug_nodeinfo(rest).await
-        } else if arg == "purge" {
-            self.debug_purge(rest).await
-        } else if arg == "attach" {
-            self.debug_attach(rest).await
-        } else if arg == "detach" {
-            self.debug_detach(rest).await
-        } else if arg == "config" {
-            self.debug_config(rest).await
-        } else if arg == "restart" {
-            self.debug_restart(rest).await
-        } else if arg == "route" {
-            self.debug_route(rest).await
-        } else {
-            Ok(">>> Unknown command\n".to_owned())
+            if arg == "help" {
+                self.debug_help(rest).await
+            } else if arg == "buckets" {
+                self.debug_buckets(rest).await
+            } else if arg == "dialinfo" {
+                self.debug_dialinfo(rest).await
+            } else if arg == "txtrecord" {
+                self.debug_txtrecord(rest).await
+            } else if arg == "entries" {
+                self.debug_entries(rest).await
+            } else if arg == "entry" {
+                self.debug_entry(rest).await
+            } else if arg == "ping" {
+                self.debug_ping(rest).await
+            } else if arg == "contact" {
+                self.debug_contact(rest).await
+            } else if arg == "nodeinfo" {
+                self.debug_nodeinfo(rest).await
+            } else if arg == "purge" {
+                self.debug_purge(rest).await
+            } else if arg == "attach" {
+                self.debug_attach(rest).await
+            } else if arg == "detach" {
+                self.debug_detach(rest).await
+            } else if arg == "config" {
+                self.debug_config(rest).await
+            } else if arg == "restart" {
+                self.debug_restart(rest).await
+            } else if arg == "route" {
+                self.debug_route(rest).await
+            } else {
+                Ok(">>> Unknown command\n".to_owned())
+            }
+        };
+        if let Ok(res) = &res {
+            debug!("{}", res);
         }
+        res
     }
 }

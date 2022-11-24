@@ -27,17 +27,26 @@ pub struct KeyPair {
     secret: DHTKeySecret,
 }
 
-#[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[derive(Clone, Debug, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct RouteSpecDetail {
-    /// Secret key
+pub struct RouteStats {
+    /// Consecutive failed to send count
     #[with(Skip)]
-    pub secret_key: DHTKeySecret,
-    /// Route hops
-    pub hops: Vec<DHTKey>,
-    /// Route noderefs
+    failed_to_send: u32,
+    /// Questions lost
     #[with(Skip)]
-    hop_node_refs: Vec<NodeRef>,
+    questions_lost: u32,
+    /// Timestamp of when the route was created
+    created_ts: u64,
+    /// Timestamp of when the route was last checked for validity
+    #[with(Skip)]
+    last_tested_ts: Option<u64>,
+    /// Timestamp of when the route was last sent to
+    #[with(Skip)]
+    last_sent_ts: Option<u64>,
+    /// Timestamp of when the route was last received over
+    #[with(Skip)]
+    last_received_ts: Option<u64>,
     /// Transfers up and down
     transfer_stats_down_up: TransferStatsDownUp,
     /// Latency stats
@@ -48,26 +57,104 @@ pub struct RouteSpecDetail {
     /// Accounting mechanism for the bandwidth across this route
     #[with(Skip)]
     transfer_stats_accounting: TransferStatsAccounting,
+}
+
+impl RouteStats {
+    /// Make new route stats
+    pub fn new(created_ts: u64) -> Self {
+        Self {
+            created_ts,
+            ..Default::default()
+        }
+    }
+    /// Mark a route as having failed to send
+    pub fn record_send_failed(&mut self) {
+        self.failed_to_send += 1;
+    }
+
+    /// Mark a route as having lost a question
+    pub fn record_question_lost(&mut self) {
+        self.questions_lost += 1;
+    }
+
+    /// Mark a route as having received something
+    pub fn record_received(&mut self, cur_ts: u64, bytes: u64) {
+        self.last_received_ts = Some(cur_ts);
+        self.last_tested_ts = Some(cur_ts);
+        self.transfer_stats_accounting.add_down(bytes);
+    }
+
+    /// Mark a route as having been sent to
+    pub fn record_sent(&mut self, cur_ts: u64, bytes: u64) {
+        self.last_sent_ts = Some(cur_ts);
+        self.transfer_stats_accounting.add_up(bytes);
+    }
+
+    /// Mark a route as having been sent to
+    pub fn record_latency(&mut self, latency: u64) {
+        self.latency_stats = self.latency_stats_accounting.record_latency(latency);
+    }
+
+    /// Mark a route as having been tested
+    pub fn record_tested(&mut self, cur_ts: u64) {
+        self.last_tested_ts = Some(cur_ts);
+
+        // Reset question_lost and failed_to_send if we test clean
+        self.failed_to_send = 0;
+        self.questions_lost = 0;
+    }
+
+    /// Roll transfers for these route stats
+    pub fn roll_transfers(&mut self, last_ts: u64, cur_ts: u64) {
+        self.transfer_stats_accounting.roll_transfers(
+            last_ts,
+            cur_ts,
+            &mut self.transfer_stats_down_up,
+        )
+    }
+
+    /// Get the latency stats
+    pub fn latency_stats(&self) -> &LatencyStats {
+        &self.latency_stats
+    }
+
+    /// Get the transfer stats
+    pub fn transfer_stats(&self) -> &TransferStatsDownUp {
+        &self.transfer_stats_down_up
+    }
+
+    /// Reset stats when network restarts
+    pub fn reset(&mut self) {
+        self.last_tested_ts = None;
+        self.last_sent_ts = None;
+        self.last_received_ts = None;
+    }
+}
+
+#[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct RouteSpecDetail {
+    /// Secret key
+    #[with(Skip)]
+    secret_key: DHTKeySecret,
+    /// Route hops
+    hops: Vec<DHTKey>,
+    /// Route noderefs
+    #[with(Skip)]
+    hop_node_refs: Vec<NodeRef>,
     /// Published private route, do not reuse for ephemeral routes
     /// Not serialized because all routes should be re-published when restarting
     #[with(Skip)]
     published: bool,
-    // Can optimize the rendering of this route, using node ids only instead of full peer info
-    #[with(Skip)]
-    reachable: bool,
-    /// Timestamp of when the route was created
-    created_ts: u64,
-    /// Timestamp of when the route was last checked for validity
-    last_checked_ts: Option<u64>,
-    /// Timestamp of when the route was last used for anything
-    last_used_ts: Option<u64>,
     /// Directions this route is guaranteed to work in
     #[with(RkyvEnumSet)]
     directions: DirectionSet,
     /// Stability preference (prefer reliable nodes over faster)
-    pub stability: Stability,
+    stability: Stability,
     /// Sequencing preference (connection oriented protocols vs datagram)
-    pub sequencing: Sequencing,
+    sequencing: Sequencing,
+    /// Stats
+    stats: RouteStats,
 }
 
 /// The core representation of the RouteSpecStore that can be serialized
@@ -80,15 +167,15 @@ pub struct RouteSpecStoreContent {
 
 /// What remote private routes have seen
 #[derive(Debug, Clone, Default)]
-struct RemotePrivateRouteInfo {
+pub struct RemotePrivateRouteInfo {
     // The private route itself
     private_route: Option<PrivateRoute>,
-    /// Timestamp of when the route was last used for anything
-    last_used_ts: u64,
-    /// The time this remote private route last responded
-    last_replied_ts: Option<u64>,
     /// Did this remote private route see our node info due to no safety route in use
     seen_our_node_info: bool,
+    /// Last time this remote private route was requested for any reason (cache expiration)
+    last_touched_ts: u64,
+    /// Stats
+    stats: RouteStats,
 }
 
 /// Ephemeral data used to help the RouteSpecStore operate efficiently
@@ -684,18 +771,11 @@ impl RouteSpecStore {
             secret_key,
             hops,
             hop_node_refs,
-            transfer_stats_down_up: Default::default(),
-            latency_stats: Default::default(),
-            latency_stats_accounting: Default::default(),
-            transfer_stats_accounting: Default::default(),
             published: false,
-            reachable: false,
-            created_ts: cur_ts,
-            last_checked_ts: None,
-            last_used_ts: None,
             directions,
             stability,
             sequencing,
+            stats: RouteStats::new(cur_ts),
         };
 
         drop(perm_func);
@@ -759,45 +839,71 @@ impl RouteSpecStore {
     pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
         let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
 
-        let (target, safety_selection) = {
+        let dest = {
+            let private_route = self.assemble_private_route(key, None)?;
+
             let inner = &mut *self.inner.lock();
             let rsd = Self::detail(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+            let hop_count = rsd.hops.len();
+            let stability = rsd.stability;
+            let sequencing = rsd.sequencing;
 
             // Routes with just one hop can be pinged directly
             // More than one hop can be pinged across the route with the target being the second to last hop
             if rsd.hops.len() == 1 {
-                let target = rsd.hop_node_refs[0].clone();
-                let sequencing = rsd.sequencing;
-                (target, SafetySelection::Unsafe(sequencing))
-            } else {
-                let target = rsd.hop_node_refs[rsd.hops.len() - 2].clone();
-                let hop_count = rsd.hops.len();
-                let stability = rsd.stability;
-                let sequencing = rsd.sequencing;
                 let safety_spec = SafetySpec {
                     preferred_route: Some(key.clone()),
                     hop_count,
                     stability,
                     sequencing,
                 };
-                (target, SafetySelection::Safe(safety_spec))
+                let safety_selection = SafetySelection::Safe(safety_spec);
+
+                Destination::PrivateRoute {
+                    private_route,
+                    safety_selection,
+                }
+            } else {
+                let target = rsd.hop_node_refs[rsd.hops.len() - 2].clone();
+                let safety_spec = SafetySpec {
+                    preferred_route: Some(key.clone()),
+                    hop_count,
+                    stability,
+                    sequencing,
+                };
+                let safety_selection = SafetySelection::Safe(safety_spec);
+
+                Destination::Direct {
+                    target,
+                    safety_selection,
+                }
             }
         };
 
         // Test with ping to end
-        let res = match rpc_processor
-            .rpc_call_status(Destination::Direct {
-                target,
-                safety_selection,
-            })
-            .await?
-        {
+        let cur_ts = intf::get_timestamp();
+        let res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
+                // // Do route stats for single hop route test because it
+                // // won't get stats for the route since it's done Direct
+                // if matches!(safety_selection, SafetySelection::Unsafe(_)) {
+                //     self.with_route_stats(cur_ts, &key, |s| s.record_question_lost());
+                // }
+
                 // Did not error, but did not come back, just return false
                 return Ok(false);
             }
         };
+
+        // // Do route stats for single hop route test because it
+        // // won't get stats for the route since it's done Direct
+        // if matches!(safety_selection, SafetySelection::Unsafe(_)) {
+        //     self.with_route_stats(cur_ts, &key, |s| {
+        //         s.record_tested(cur_ts);
+        //         s.record_latency(res.latency);
+        //     });
+        // }
 
         Ok(true)
     }
@@ -912,7 +1018,8 @@ impl RouteSpecStore {
 
         let pr_hopcount = private_route.hop_count as usize;
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
-        if pr_hopcount > max_route_hop_count {
+        // Check private route hop count isn't larger than the max route hop count plus one for the 'first hop' header
+        if pr_hopcount > (max_route_hop_count + 1) {
             bail!("private route hop count too long");
         }
         // See if we are using a safety route, if not, short circuit this operation
@@ -969,10 +1076,6 @@ impl RouteSpecStore {
         };
         let safety_rsd = Self::detail_mut(inner, &sr_pubkey).unwrap();
 
-        // See if we can optimize this compilation yet
-        // We don't want to include full nodeinfo if we don't have to
-        let optimize = safety_rsd.reachable;
-
         // xxx implement caching here!
 
         // Create hops
@@ -988,6 +1091,12 @@ impl RouteSpecStore {
                 blob_data.push(1u8);
                 blob_data
             };
+
+            // We can optimize the peer info in this safety route if it has been successfully
+            // communicated over either via an outbound test, or used as a private route inbound
+            // and we are replying over the same route as our safety route outbound
+            let optimize = safety_rsd.stats.last_tested_ts.is_some()
+                || safety_rsd.stats.last_received_ts.is_some();
 
             // Encode each hop from inside to outside
             // skips the outermost hop since that's entering the
@@ -1177,7 +1286,7 @@ impl RouteSpecStore {
     pub fn assemble_private_route(
         &self,
         key: &DHTKey,
-        optimize: Option<bool>,
+        optimized: Option<bool>,
     ) -> EyreResult<PrivateRoute> {
         let inner = &*self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
@@ -1187,11 +1296,12 @@ impl RouteSpecStore {
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
-        let optimize = optimize.unwrap_or(rsd.reachable);
+        let optimized = optimized
+            .unwrap_or(rsd.stats.last_tested_ts.is_some() || rsd.stats.last_received_ts.is_some());
 
         // Make innermost route hop to our own node
         let mut route_hop = RouteHop {
-            node: if optimize {
+            node: if optimized {
                 RouteNode::NodeId(NodeId::new(routing_table.node_id()))
             } else {
                 RouteNode::PeerInfo(rti.get_own_peer_info(RoutingDomain::PublicInternet))
@@ -1225,7 +1335,7 @@ impl RouteSpecStore {
             };
 
             route_hop = RouteHop {
-                node: if optimize {
+                node: if optimized {
                     // Optimized, no peer info, just the dht key
                     RouteNode::NodeId(NodeId::new(rsd.hops[h]))
                 } else {
@@ -1300,22 +1410,22 @@ impl RouteSpecStore {
             .remote_private_route_cache
             .entry(pr_pubkey)
             .and_modify(|rpr| {
-                if cur_ts - rpr.last_used_ts >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+                if cur_ts - rpr.last_touched_ts >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
                     // Start fresh if this had expired
-                    rpr.last_used_ts = cur_ts;
-                    rpr.last_replied_ts = None;
                     rpr.seen_our_node_info = false;
+                    rpr.last_touched_ts = cur_ts;
+                    rpr.stats = RouteStats::new(cur_ts);
                 } else {
                     // If not expired, just mark as being used
-                    rpr.last_used_ts = cur_ts;
+                    rpr.last_touched_ts = cur_ts;
                 }
             })
             .or_insert_with(|| RemotePrivateRouteInfo {
                 // New remote private route cache entry
                 private_route: Some(private_route),
-                last_used_ts: cur_ts,
-                last_replied_ts: None,
                 seen_our_node_info: false,
+                last_touched_ts: cur_ts,
+                stats: RouteStats::new(cur_ts),
             });
         f(rpr)
     }
@@ -1331,7 +1441,8 @@ impl RouteSpecStore {
         F: FnOnce(&mut RemotePrivateRouteInfo) -> R,
     {
         let rpr = inner.cache.remote_private_route_cache.get_mut(key)?;
-        if cur_ts - rpr.last_used_ts < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+        if cur_ts - rpr.last_touched_ts < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+            rpr.last_touched_ts = cur_ts;
             return Some(f(rpr));
         }
         inner.cache.remote_private_route_cache.remove(key);
@@ -1355,6 +1466,12 @@ impl RouteSpecStore {
         cur_ts: u64,
     ) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
+        // Check for local route. If this is not a remote private route
+        // then we just skip the recording. We may be running a test and using
+        // our own local route as the destination private route.
+        if let Some(_) = Self::detail_mut(inner, key) {
+            return Ok(());
+        }
         if Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| {
             rpr.seen_our_node_info = true;
         })
@@ -1365,30 +1482,25 @@ impl RouteSpecStore {
         Ok(())
     }
 
-    /// Mark a remote private route as having replied to a question {
-    pub fn mark_remote_private_route_replied(&self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
+    /// Get the route statistics for any route we know about, local or remote
+    pub fn with_route_stats<F, R>(&self, cur_ts: u64, key: &DHTKey, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut RouteStats) -> R,
+    {
         let inner = &mut *self.inner.lock();
-        if Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| {
-            rpr.last_replied_ts = Some(cur_ts);
-        })
-        .is_none()
-        {
-            bail!("private route is missing from store: {}", key);
+        // Check for local route
+        if let Some(rsd) = Self::detail_mut(inner, key) {
+            return Some(f(&mut rsd.stats));
         }
-        Ok(())
-    }
+        // Check for remote route
+        if let Some(res) =
+            Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| f(&mut rpr.stats))
+        {
+            return Some(res);
+        }
 
-    /// Mark a remote private route as having beed used {
-    pub fn mark_remote_private_route_used(&self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-        if Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| {
-            rpr.last_used_ts = cur_ts;
-        })
-        .is_none()
-        {
-            bail!("private route is missing from store: {}", key);
-        }
-        Ok(())
+        log_rtab!(debug "route missing for stats: {}", key);
+        None
     }
 
     /// Clear caches when local our local node info changes
@@ -1399,16 +1511,16 @@ impl RouteSpecStore {
         for (_k, v) in &mut inner.content.details {
             // Must republish route now
             v.published = false;
-            // Route is not known reachable now
-            v.reachable = false;
-            // We have yet to check it since local node info changed
-            v.last_checked_ts = None;
+            // Restart stats for routes so we test the route again
+            v.stats.reset();
         }
 
         // Reset private route cache
         for (_k, v) in &mut inner.cache.remote_private_route_cache {
-            v.last_replied_ts = None;
+            // Our node info has changed
             v.seen_our_node_info = false;
+            // Restart stats for routes so we test the route again
+            v.stats.reset();
         }
     }
 
@@ -1423,78 +1535,17 @@ impl RouteSpecStore {
         Ok(())
     }
 
-    /// Mark route as reachable
-    /// When first deserialized, routes must be re-tested for reachability
-    /// This can be used to determine if routes need to be sent with full peerinfo or can just use a node id
-    pub fn mark_route_reachable(&self, key: &DHTKey, reachable: bool) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-        Self::detail_mut(inner, key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .reachable = reachable;
-        Ok(())
-    }
-
-    /// Mark route as checked
-    pub fn touch_route_checked(&self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-        Self::detail_mut(inner, key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .last_checked_ts = Some(cur_ts);
-        Ok(())
-    }
-
-    /// Mark route as used
-    pub fn touch_route_used(&self, key: &DHTKey, cur_ts: u64) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-        Self::detail_mut(inner, key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .last_used_ts = Some(cur_ts);
-        Ok(())
-    }
-
-    /// Record latency on the route
-    pub fn record_latency(&self, key: &DHTKey, latency: u64) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-
-        let rsd = Self::detail_mut(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
-        rsd.latency_stats = rsd.latency_stats_accounting.record_latency(latency);
-        Ok(())
-    }
-
-    /// Get the calculated latency stats
-    pub fn latency_stats(&self, key: &DHTKey) -> EyreResult<LatencyStats> {
-        let inner = &mut *self.inner.lock();
-        Ok(Self::detail_mut(inner, key)
-            .ok_or_else(|| eyre!("route does not exist"))?
-            .latency_stats
-            .clone())
-    }
-
-    /// Add download transfers to route
-    pub fn add_down(&self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-        let rsd = Self::detail_mut(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
-        rsd.transfer_stats_accounting.add_down(bytes);
-        Ok(())
-    }
-
-    /// Add upload transfers to route
-    pub fn add_up(&self, key: &DHTKey, bytes: u64) -> EyreResult<()> {
-        let inner = &mut *self.inner.lock();
-        let rsd = Self::detail_mut(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
-        rsd.transfer_stats_accounting.add_up(bytes);
-        Ok(())
-    }
-
     /// Process transfer statistics to get averages
     pub fn roll_transfers(&self, last_ts: u64, cur_ts: u64) {
         let inner = &mut *self.inner.lock();
+
+        // Roll transfers for locally allocated routes
         for rsd in inner.content.details.values_mut() {
-            rsd.transfer_stats_accounting.roll_transfers(
-                last_ts,
-                cur_ts,
-                &mut rsd.transfer_stats_down_up,
-            );
+            rsd.stats.roll_transfers(last_ts, cur_ts);
+        }
+        // Roll transfers for remote private routes
+        for (_k, v) in inner.cache.remote_private_route_cache.iter_mut() {
+            v.stats.roll_transfers(last_ts, cur_ts);
         }
     }
 

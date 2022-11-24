@@ -617,7 +617,7 @@ impl NetworkManager {
         // Do we know our network class yet?
         if let Some(network_class) = network_class {
 
-            // see if we have any routes that need extending
+            // see if we have any routes that need testing
         }
 
         // Commit the changes

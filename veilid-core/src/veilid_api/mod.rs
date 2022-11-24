@@ -2492,7 +2492,6 @@ pub enum SignalInfo {
         peer_info: PeerInfo, // Sender's peer info
     },
     // XXX: WebRTC
-    // XXX: App-level signalling
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
