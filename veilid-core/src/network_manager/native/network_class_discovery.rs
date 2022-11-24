@@ -434,15 +434,6 @@ impl DiscoveryContext {
             return Ok(true);
         }
 
-        // XXX: is this necessary?
-        // Redo our external_1 dial info detection because a failed port mapping attempt
-        // may cause it to become invalid
-        // Get our external address from some fast node, call it node 1
-        // if !self.protocol_get_external_address_1().await {
-        //     // If we couldn't get an external address, then we should just try the whole network class detection again later
-        //     return Ok(false);
-        // }
-
         // Get the external dial info for our use here
         let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
             let inner = self.inner.lock();

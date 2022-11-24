@@ -864,7 +864,20 @@ impl RouteSpecStore {
                     safety_selection,
                 }
             } else {
-                let target = rsd.hop_node_refs[rsd.hops.len() - 2].clone();
+                // let target = rsd.hop_node_refs[rsd.hops.len() - 2].clone();
+                // let safety_spec = SafetySpec {
+                //     preferred_route: Some(key.clone()),
+                //     hop_count,
+                //     stability,
+                //     sequencing,
+                // };
+                // let safety_selection = SafetySelection::Safe(safety_spec);
+
+                // Destination::Direct {
+                //     target,
+                //     safety_selection,
+                // }
+
                 let safety_spec = SafetySpec {
                     preferred_route: Some(key.clone()),
                     hop_count,
@@ -873,37 +886,21 @@ impl RouteSpecStore {
                 };
                 let safety_selection = SafetySelection::Safe(safety_spec);
 
-                Destination::Direct {
-                    target,
+                Destination::PrivateRoute {
+                    private_route,
                     safety_selection,
                 }
             }
         };
 
-        // Test with ping to end
-        let cur_ts = intf::get_timestamp();
-        let res = match rpc_processor.rpc_call_status(dest).await? {
+        // Test with double-round trip ping to self
+        let _res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
-                // // Do route stats for single hop route test because it
-                // // won't get stats for the route since it's done Direct
-                // if matches!(safety_selection, SafetySelection::Unsafe(_)) {
-                //     self.with_route_stats(cur_ts, &key, |s| s.record_question_lost());
-                // }
-
                 // Did not error, but did not come back, just return false
                 return Ok(false);
             }
         };
-
-        // // Do route stats for single hop route test because it
-        // // won't get stats for the route since it's done Direct
-        // if matches!(safety_selection, SafetySelection::Unsafe(_)) {
-        //     self.with_route_stats(cur_ts, &key, |s| {
-        //         s.record_tested(cur_ts);
-        //         s.record_latency(res.latency);
-        //     });
-        // }
 
         Ok(true)
     }
@@ -1065,14 +1062,21 @@ impl RouteSpecStore {
             bail!("compiled private route should have first hop");
         };
 
-        // Get the safety route to use from the spec
-        let avoid_node_id = match &pr_first_hop.node {
-            RouteNode::NodeId(n) => n.key,
-            RouteNode::PeerInfo(p) => p.node_id.key,
-        };
-        let Some(sr_pubkey) = self.get_route_for_safety_spec_inner(inner, rti, &safety_spec, Direction::Outbound.into(), &[avoid_node_id])? else {
-            // No safety route could be found for this spec
-            return Ok(None);
+        // If the safety route requested is also the private route, this is a loopback test, just accept it
+        let sr_pubkey = if safety_spec.preferred_route == Some(private_route.public_key) {
+            // Private route is also safety route during loopback test
+            private_route.public_key
+        } else {
+            // Get the safety route to use from the spec
+            let avoid_node_id = match &pr_first_hop.node {
+                RouteNode::NodeId(n) => n.key,
+                RouteNode::PeerInfo(p) => p.node_id.key,
+            };
+            let Some(sr_pubkey) = self.get_route_for_safety_spec_inner(inner, rti, &safety_spec, Direction::Outbound.into(), &[avoid_node_id])? else {
+                // No safety route could be found for this spec
+                return Ok(None);
+            };
+            sr_pubkey
         };
         let safety_rsd = Self::detail_mut(inner, &sr_pubkey).unwrap();
 

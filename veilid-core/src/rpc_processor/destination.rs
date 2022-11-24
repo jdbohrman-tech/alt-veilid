@@ -228,17 +228,28 @@ impl RPCProcessor {
                         )))
                     }
                     SafetySelection::Safe(safety_spec) => {
-                        // Sent directly but with a safety route, respond to private route
-                        let avoid_node_id = match &pr_first_hop.node {
-                            RouteNode::NodeId(n) => n.key,
-                            RouteNode::PeerInfo(p) => p.node_id.key,
-                        };
+                        // Sent to a private route via a safety route, respond to private route
 
-                        let Some(pr_key) = rss
-                            .get_private_route_for_safety_spec(safety_spec, &[avoid_node_id])
-                            .map_err(RPCError::internal)? else {
-                                return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
+                        // Check for loopback test
+                        let pr_key = if safety_spec.preferred_route
+                            == Some(private_route.public_key)
+                        {
+                            // Private route is also safety route during loopback test
+                            private_route.public_key
+                        } else {
+                            // Get the privat route to respond to that matches the safety route spec we sent the request with
+                            let avoid_node_id = match &pr_first_hop.node {
+                                RouteNode::NodeId(n) => n.key,
+                                RouteNode::PeerInfo(p) => p.node_id.key,
                             };
+
+                            let Some(pr_key) = rss
+                                .get_private_route_for_safety_spec(safety_spec, &[avoid_node_id])
+                                .map_err(RPCError::internal)? else {
+                                    return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
+                                };
+                            pr_key
+                        };
 
                         // Get the assembled route for response
                         let private_route = rss
