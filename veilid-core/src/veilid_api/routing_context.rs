@@ -129,9 +129,12 @@ impl RoutingContext {
             Target::PrivateRoute(pr) => {
                 // Get remote private route
                 let rss = self.api.routing_table()?.route_spec_store();
-                let private_route = rss
-                    .get_remote_private_route(&pr)
-                    .map_err(|_| VeilidAPIError::KeyNotFound { key: pr })?;
+                let Some(private_route) = rss
+                    .get_remote_private_route(&pr) 
+                    else {
+                        return Err(VeilidAPIError::KeyNotFound { key: pr });
+                    };
+
                 Ok(rpc_processor::Destination::PrivateRoute {
                     private_route,
                     safety_selection: self.unlocked_inner.safety_selection,

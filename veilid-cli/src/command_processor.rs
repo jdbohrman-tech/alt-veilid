@@ -405,7 +405,22 @@ reply               - reply to an AppCall not handled directly by the server
         self.inner_mut().ui.set_config(config.config)
     }
     pub fn update_route(&mut self, route: veilid_core::VeilidStateRoute) {
-        //self.inner_mut().ui.set_config(config.config)
+        let mut out = String::new();
+        if !route.dead_routes.is_empty() {
+            out.push_str(&format!("Dead routes: {:?}", route.dead_routes));
+        }
+        if !route.dead_remote_routes.is_empty() {
+            if !out.is_empty() {
+                out.push_str("\n");
+            }
+            out.push_str(&format!(
+                "Dead remote routes: {:?}",
+                route.dead_remote_routes
+            ));
+        }
+        if !out.is_empty() {
+            self.inner().ui.add_node_event(out);
+        }
     }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidLog) {

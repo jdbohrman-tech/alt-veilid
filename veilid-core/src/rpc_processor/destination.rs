@@ -205,7 +205,7 @@ impl RPCProcessor {
                 private_route,
                 safety_selection,
             } => {
-                let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
+                let Some(avoid_node_id) = private_route.first_hop_node_id() else {
                     return Err(RPCError::internal("destination private route must have first hop"));
                 };
 
@@ -238,11 +238,6 @@ impl RPCProcessor {
                             private_route.public_key
                         } else {
                             // Get the privat route to respond to that matches the safety route spec we sent the request with
-                            let avoid_node_id = match &pr_first_hop.node {
-                                RouteNode::NodeId(n) => n.key,
-                                RouteNode::PeerInfo(p) => p.node_id.key,
-                            };
-
                             let Some(pr_key) = rss
                                 .get_private_route_for_safety_spec(safety_spec, &[avoid_node_id])
                                 .map_err(RPCError::internal)? else {

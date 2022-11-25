@@ -116,6 +116,18 @@ impl PrivateRoute {
             PrivateRouteHops::Empty => return None,
         }
     }
+
+    pub fn first_hop_node_id(&self) -> Option<DHTKey> {
+        let PrivateRouteHops::FirstHop(pr_first_hop) = &self.hops else {
+            return None;
+        };
+
+        // Get the safety route to use from the spec
+        Some(match &pr_first_hop.node {
+            RouteNode::NodeId(n) => n.key,
+            RouteNode::PeerInfo(p) => p.node_id.key,
+        })
+    }
 }
 
 impl fmt::Display for PrivateRoute {

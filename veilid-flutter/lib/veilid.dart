@@ -1266,6 +1266,10 @@ abstract class VeilidUpdate {
         {
           return VeilidUpdateConfig(state: VeilidStateConfig.fromJson(json));
         }
+      case "Route":
+        {
+          return VeilidUpdateRoute(state: VeilidStateRoute.fromJson(json));
+        }
       default:
         {
           throw VeilidAPIExceptionInternal(
@@ -1380,6 +1384,19 @@ class VeilidUpdateConfig implements VeilidUpdate {
   }
 }
 
+class VeilidUpdateRoute implements VeilidUpdate {
+  final VeilidStateRoute state;
+  //
+  VeilidUpdateRoute({required this.state});
+
+  @override
+  Map<String, dynamic> get json {
+    var jsonRep = state.json;
+    jsonRep['kind'] = "Route";
+    return jsonRep;
+  }
+}
+
 //////////////////////////////////////
 /// VeilidStateAttachment
 
@@ -1444,7 +1461,28 @@ class VeilidStateConfig {
       : config = jsonDecode(json['config']);
 
   Map<String, dynamic> get json {
-    return {'config': jsonEncode(config)};
+    return {'config': config};
+  }
+}
+
+//////////////////////////////////////
+/// VeilidStateRoute
+
+class VeilidStateRoute {
+  final List<String> deadRoutes;
+  final List<String> deadRemoteRoutes;
+
+  VeilidStateRoute({
+    required this.deadRoutes,
+    required this.deadRemoteRoutes,
+  });
+
+  VeilidStateRoute.fromJson(Map<String, dynamic> json)
+      : deadRoutes = jsonDecode(json['dead_routes']),
+        deadRemoteRoutes = jsonDecode(json['dead_remote_routes']);
+
+  Map<String, dynamic> get json {
+    return {'dead_routes': deadRoutes, 'dead_remote_routes': deadRemoteRoutes};
   }
 }
 

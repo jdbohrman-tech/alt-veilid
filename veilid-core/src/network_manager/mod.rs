@@ -283,6 +283,14 @@ impl NetworkManager {
             .connection_manager
             .clone()
     }
+    pub fn update_callback(&self) -> UpdateCallback {
+        self.unlocked_inner
+            .update_callback
+            .read()
+            .as_ref()
+            .unwrap()
+            .clone()
+    }
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {

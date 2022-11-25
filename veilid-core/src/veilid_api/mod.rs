@@ -2789,8 +2789,7 @@ impl VeilidAPI {
             .await
             .map_err(VeilidAPIError::no_connection)?
         {
-            rss.release_route(pr_pubkey)
-                .map_err(VeilidAPIError::generic)?;
+            rss.release_route(&pr_pubkey);
             return Err(VeilidAPIError::generic("allocated route failed to test"));
         }
         let private_route = rss
@@ -2799,8 +2798,7 @@ impl VeilidAPI {
         let blob = match RouteSpecStore::private_route_to_blob(&private_route) {
             Ok(v) => v,
             Err(e) => {
-                rss.release_route(pr_pubkey)
-                    .map_err(VeilidAPIError::generic)?;
+                rss.release_route(&pr_pubkey);
                 return Err(VeilidAPIError::internal(e));
             }
         };

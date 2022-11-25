@@ -8,6 +8,8 @@ use rkyv::{
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
 /// Remote private route cache entries expire in 5 minutes if they haven't been used
 const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: u64 = 300_000_000u64;
+/// Amount of time a route can remain idle before it gets tested
+const ROUTE_MIN_IDLE_TIME_MS: u32 = 30_000;
 
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]
@@ -32,25 +34,25 @@ pub struct KeyPair {
 pub struct RouteStats {
     /// Consecutive failed to send count
     #[with(Skip)]
-    failed_to_send: u32,
+    pub failed_to_send: u32,
     /// Questions lost
     #[with(Skip)]
-    questions_lost: u32,
+    pub questions_lost: u32,
     /// Timestamp of when the route was created
-    created_ts: u64,
+    pub created_ts: u64,
     /// Timestamp of when the route was last checked for validity
     #[with(Skip)]
-    last_tested_ts: Option<u64>,
+    pub last_tested_ts: Option<u64>,
     /// Timestamp of when the route was last sent to
     #[with(Skip)]
-    last_sent_ts: Option<u64>,
+    pub last_sent_ts: Option<u64>,
     /// Timestamp of when the route was last received over
     #[with(Skip)]
-    last_received_ts: Option<u64>,
+    pub last_received_ts: Option<u64>,
     /// Transfers up and down
-    transfer_stats_down_up: TransferStatsDownUp,
+    pub transfer_stats_down_up: TransferStatsDownUp,
     /// Latency stats
-    latency_stats: LatencyStats,
+    pub latency_stats: LatencyStats,
     /// Accounting mechanism for this route's RPC latency
     #[with(Skip)]
     latency_stats_accounting: LatencyStatsAccounting,
@@ -129,6 +131,28 @@ impl RouteStats {
         self.last_sent_ts = None;
         self.last_received_ts = None;
     }
+
+    /// Check if a route needs testing
+    pub fn needs_testing(&self, cur_ts: u64) -> bool {
+        // Has the route had any failures lately?
+        if self.questions_lost > 0 || self.failed_to_send > 0 {
+            // If so, always test
+            return true;
+        }
+
+        // Has the route been tested within the idle time we'd want to check things?
+        // (also if we've received successfully over the route, this will get set)
+        if let Some(last_tested_ts) = self.last_tested_ts {
+            if cur_ts.saturating_sub(last_tested_ts) > (ROUTE_MIN_IDLE_TIME_MS as u64 * 1000u64) {
+                return true;
+            }
+        } else {
+            // If this route has never been tested, it needs to be
+            return true;
+        }
+
+        false
+    }
 }
 
 #[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
@@ -157,6 +181,15 @@ pub struct RouteSpecDetail {
     stats: RouteStats,
 }
 
+impl RouteSpecDetail {
+    pub fn get_stats(&self) -> &RouteStats {
+        &self.stats
+    }
+    pub fn get_stats_mut(&mut self) -> &mut RouteStats {
+        &mut self.stats
+    }
+}
+
 /// The core representation of the RouteSpecStore that can be serialized
 #[derive(Debug, Clone, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
@@ -178,6 +211,15 @@ pub struct RemotePrivateRouteInfo {
     stats: RouteStats,
 }
 
+impl RemotePrivateRouteInfo {
+    pub fn get_stats(&self) -> &RouteStats {
+        &self.stats
+    }
+    pub fn get_stats_mut(&mut self) -> &mut RouteStats {
+        &mut self.stats
+    }
+}
+
 /// Ephemeral data used to help the RouteSpecStore operate efficiently
 #[derive(Debug)]
 pub struct RouteSpecStoreCache {
@@ -189,6 +231,10 @@ pub struct RouteSpecStoreCache {
     hop_cache: HashSet<Vec<u8>>,
     /// Has a remote private route responded to a question and when
     remote_private_route_cache: LruCache<DHTKey, RemotePrivateRouteInfo>,
+    /// List of dead allocated routes
+    dead_routes: Vec<DHTKey>,
+    /// List of dead remote routes
+    dead_remote_routes: Vec<DHTKey>,
 }
 
 impl Default for RouteSpecStoreCache {
@@ -198,6 +244,8 @@ impl Default for RouteSpecStoreCache {
             used_end_nodes: Default::default(),
             hop_cache: Default::default(),
             remote_private_route_cache: LruCache::new(REMOTE_PRIVATE_ROUTE_CACHE_SIZE),
+            dead_routes: Default::default(),
+            dead_remote_routes: Default::default(),
         }
     }
 }
@@ -341,6 +389,7 @@ impl RouteSpecStore {
         }
     }
 
+    #[instrument(level = "trace", skip(routing_table), err)]
     pub async fn load(routing_table: RoutingTable) -> EyreResult<RouteSpecStore> {
         let (max_route_hop_count, default_route_hop_count) = {
             let config = routing_table.network_manager().config();
@@ -413,6 +462,7 @@ impl RouteSpecStore {
         Ok(rss)
     }
 
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn save(&self) -> EyreResult<()> {
         let content = {
             let inner = self.inner.lock();
@@ -446,6 +496,29 @@ impl RouteSpecStore {
         let _ = pstore.save_user_secret_rkyv("RouteSpecStore", &out).await?; // ignore if this previously existed or not
 
         Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub fn send_route_update(&self) {
+        let update_callback = self.unlocked_inner.routing_table.update_callback();
+
+        let (dead_routes, dead_remote_routes) = {
+            let mut inner = self.inner.lock();
+            if inner.cache.dead_routes.is_empty() && inner.cache.dead_remote_routes.is_empty() {
+                // Nothing to do
+                return;
+            }
+            let dead_routes = core::mem::take(&mut inner.cache.dead_routes);
+            let dead_remote_routes = core::mem::take(&mut inner.cache.dead_remote_routes);
+            (dead_routes, dead_remote_routes)
+        };
+
+        let update = VeilidUpdate::Route(VeilidStateRoute {
+            dead_routes,
+            dead_remote_routes,
+        });
+
+        update_callback(update);
     }
 
     fn add_to_cache(cache: &mut RouteSpecStoreCache, cache_key: Vec<u8>, rsd: &RouteSpecDetail) {
@@ -500,6 +573,7 @@ impl RouteSpecStore {
     /// Prefers nodes that are not currently in use by another route
     /// The route is not yet tested for its reachability
     /// Returns None if no route could be allocated at this time
+    #[instrument(level = "trace", skip(self), ret, err)]
     pub fn allocate_route(
         &self,
         stability: Stability,
@@ -523,6 +597,7 @@ impl RouteSpecStore {
         )
     }
 
+    #[instrument(level = "trace", skip(self, inner, rti), ret, err)]
     fn allocate_route_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
@@ -789,6 +864,7 @@ impl RouteSpecStore {
         Ok(Some(public_key))
     }
 
+    #[instrument(level = "trace", skip(self, data), ret, err)]
     pub fn validate_signatures(
         &self,
         public_key: &DHTKey,
@@ -835,10 +911,8 @@ impl RouteSpecStore {
         )))
     }
 
-    /// Test an allocated route for continuity
-    pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
-        let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
-
+    #[instrument(level = "trace", skip(self), ret, err)]
+    async fn test_allocated_route(&self, key: &DHTKey) -> EyreResult<bool> {
         // Make loopback route to test with
         let dest = {
             let private_route = self.assemble_private_route(key, None)?;
@@ -864,6 +938,7 @@ impl RouteSpecStore {
         };
 
         // Test with double-round trip ping to self
+        let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
         let _res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
@@ -875,12 +950,70 @@ impl RouteSpecStore {
         Ok(true)
     }
 
-    /// Release an allocated route that is no longer in use
-    pub fn release_route(&self, public_key: DHTKey) -> EyreResult<()> {
-        let mut inner = self.inner.lock();
-        let Some(detail) = inner.content.details.remove(&public_key) else {
-            bail!("can't release route that was never allocated");
+    #[instrument(level = "trace", skip(self), ret, err)]
+    async fn test_remote_route(&self, key: &DHTKey) -> EyreResult<bool> {
+        // Make private route test
+        let dest = {
+            // Get the route to test
+            let private_route = match self.peek_remote_private_route(key) {
+                Some(pr) => pr,
+                None => return Ok(false),
+            };
+
+            // Get a safety route that is good enough
+            let safety_spec = SafetySpec {
+                preferred_route: None,
+                hop_count: self.unlocked_inner.default_route_hop_count,
+                stability: Stability::LowLatency,
+                sequencing: Sequencing::NoPreference,
+            };
+
+            let safety_selection = SafetySelection::Safe(safety_spec);
+
+            Destination::PrivateRoute {
+                private_route,
+                safety_selection,
+            }
         };
+
+        // Test with double-round trip ping to self
+        let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
+        let _res = match rpc_processor.rpc_call_status(dest).await? {
+            NetworkResult::Value(v) => v,
+            _ => {
+                // Did not error, but did not come back, just return false
+                return Ok(false);
+            }
+        };
+
+        Ok(true)
+    }
+
+    /// Test an allocated route for continuity
+    #[instrument(level = "trace", skip(self), ret, err)]
+    pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
+        let is_remote = {
+            let inner = &mut *self.inner.lock();
+            let cur_ts = intf::get_timestamp();
+            Self::with_peek_remote_private_route(inner, cur_ts, key, |_| {}).is_some()
+        };
+        if is_remote {
+            self.test_remote_route(key).await
+        } else {
+            self.test_allocated_route(key).await
+        }
+    }
+
+    /// Release an allocated route that is no longer in use
+    #[instrument(level = "trace", skip(self), ret)]
+    fn release_allocated_route(&self, public_key: &DHTKey) -> bool {
+        let mut inner = self.inner.lock();
+        let Some(detail) = inner.content.details.remove(public_key) else {
+            return false;
+        };
+
+        // Mark it as dead for the update
+        inner.cache.dead_routes.push(*public_key);
 
         // Remove from hop cache
         let cache_key = route_hops_to_hop_cache(&detail.hops);
@@ -917,11 +1050,27 @@ impl RouteSpecStore {
                 panic!("used_end_nodes cache should have contained hop");
             }
         }
-        Ok(())
+        true
+    }
+
+    /// Release an allocated or remote route that is no longer in use
+    #[instrument(level = "trace", skip(self), ret)]
+    pub fn release_route(&self, key: &DHTKey) -> bool {
+        let is_remote = {
+            let inner = &mut *self.inner.lock();
+            let cur_ts = intf::get_timestamp();
+            Self::with_peek_remote_private_route(inner, cur_ts, key, |_| {}).is_some()
+        };
+        if is_remote {
+            self.release_remote_private_route(key)
+        } else {
+            self.release_allocated_route(key)
+        }
     }
 
     /// Find first matching unpublished route that fits into the selection criteria
-    fn first_unpublished_route_inner<'a>(
+    /// Don't pick any routes that have failed and haven't been tested yet
+    fn first_available_route_inner<'a>(
         inner: &'a RouteSpecStoreInner,
         min_hop_count: usize,
         max_hop_count: usize,
@@ -930,6 +1079,7 @@ impl RouteSpecStore {
         directions: DirectionSet,
         avoid_node_ids: &[DHTKey],
     ) -> Option<DHTKey> {
+        let cur_ts = intf::get_timestamp();
         for detail in &inner.content.details {
             if detail.1.stability >= stability
                 && detail.1.sequencing >= sequencing
@@ -937,6 +1087,7 @@ impl RouteSpecStore {
                 && detail.1.hops.len() <= max_hop_count
                 && detail.1.directions.is_subset(directions)
                 && !detail.1.published
+                && !detail.1.stats.needs_testing(cur_ts)
             {
                 let mut avoid = false;
                 for h in &detail.1.hops {
@@ -953,19 +1104,47 @@ impl RouteSpecStore {
         None
     }
 
-    /// List all routes
-    pub fn list_routes(&self) -> Vec<DHTKey> {
+    /// List all allocated routes
+    pub fn list_allocated_routes<F, R>(&self, mut filter: F) -> Vec<R>
+    where
+        F: FnMut(&DHTKey, &RouteSpecDetail) -> Option<R>,
+    {
         let inner = self.inner.lock();
         let mut out = Vec::with_capacity(inner.content.details.len());
         for detail in &inner.content.details {
-            out.push(*detail.0);
+            if let Some(x) = filter(detail.0, detail.1) {
+                out.push(x);
+            }
+        }
+        out
+    }
+
+    /// List all allocated routes
+    pub fn list_remote_routes<F, R>(&self, mut filter: F) -> Vec<R>
+    where
+        F: FnMut(&DHTKey, &RemotePrivateRouteInfo) -> Option<R>,
+    {
+        let inner = self.inner.lock();
+        let mut out = Vec::with_capacity(inner.cache.remote_private_route_cache.len());
+        for info in &inner.cache.remote_private_route_cache {
+            if let Some(x) = filter(info.0, info.1) {
+                out.push(x);
+            }
         }
         out
     }
 
     /// Get the debug description of a route
     pub fn debug_route(&self, key: &DHTKey) -> Option<String> {
-        let inner = &*self.inner.lock();
+        let inner = &mut *self.inner.lock();
+        let cur_ts = intf::get_timestamp();
+        // If this is a remote route, print it
+        if let Some(s) =
+            Self::with_peek_remote_private_route(inner, cur_ts, key, |rpi| format!("{:#?}", rpi))
+        {
+            return Some(s);
+        }
+        // Otherwise check allocated routes
         Self::detail(inner, key).map(|rsd| format!("{:#?}", rsd))
     }
 
@@ -1028,19 +1207,13 @@ impl RouteSpecStore {
             }
         };
 
-        let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
-            bail!("compiled private route should have first hop");
-        };
-
         // If the safety route requested is also the private route, this is a loopback test, just accept it
         let sr_pubkey = if safety_spec.preferred_route == Some(private_route.public_key) {
             // Private route is also safety route during loopback test
             private_route.public_key
         } else {
-            // Get the safety route to use from the spec
-            let avoid_node_id = match &pr_first_hop.node {
-                RouteNode::NodeId(n) => n.key,
-                RouteNode::PeerInfo(p) => p.node_id.key,
+            let Some(avoid_node_id) = private_route.first_hop_node_id() else {
+                bail!("compiled private route should have first hop");
             };
             let Some(sr_pubkey) = self.get_route_for_safety_spec_inner(inner, rti, &safety_spec, Direction::Outbound.into(), &[avoid_node_id])? else {
                 // No safety route could be found for this spec
@@ -1176,6 +1349,7 @@ impl RouteSpecStore {
     }
 
     /// Get a route that matches a particular safety spec
+    #[instrument(level = "trace", skip(self, inner, rti), ret, err)]
     fn get_route_for_safety_spec_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
@@ -1204,7 +1378,7 @@ impl RouteSpecStore {
         }
 
         // Select a safety route from the pool or make one if we don't have one that matches
-        let sr_pubkey = if let Some(sr_pubkey) = Self::first_unpublished_route_inner(
+        let sr_pubkey = if let Some(sr_pubkey) = Self::first_available_route_inner(
             inner,
             safety_spec.hop_count,
             safety_spec.hop_count,
@@ -1238,6 +1412,7 @@ impl RouteSpecStore {
     }
 
     /// Get a private sroute to use for the answer to question
+    #[instrument(level = "trace", skip(self), ret, err)]
     pub fn get_private_route_for_safety_spec(
         &self,
         safety_spec: &SafetySpec,
@@ -1257,6 +1432,7 @@ impl RouteSpecStore {
     }
 
     /// Assemble private route for publication
+    #[instrument(level = "trace", skip(self), err)]
     pub fn assemble_private_route(
         &self,
         key: &DHTKey,
@@ -1341,30 +1517,59 @@ impl RouteSpecStore {
     }
 
     /// Import a remote private route for compilation
+    #[instrument(level = "trace", skip(self, blob), ret, err)]
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<DHTKey> {
         // decode the pr blob
         let private_route = RouteSpecStore::blob_to_private_route(blob)?;
 
-        // store the private route in our cache
-        let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
+        // ensure private route has first hop
+        if !matches!(private_route.hops, PrivateRouteHops::FirstHop(_)) {
+            bail!("private route must have first hop");
+        }
 
+        // ensure this isn't also an allocated route
+        let inner = &mut *self.inner.lock();
+        if Self::detail(inner, &private_route.public_key).is_some() {
+            bail!("should not import allocated route");
+        }
+
+        // store the private route in our cache
+        let cur_ts = intf::get_timestamp();
         let key = Self::with_create_remote_private_route(inner, cur_ts, private_route, |r| {
             r.private_route.as_ref().unwrap().public_key.clone()
         });
         Ok(key)
     }
 
+    /// Release a remote private route that is no longer in use
+    #[instrument(level = "trace", skip(self), ret)]
+    fn release_remote_private_route(&self, key: &DHTKey) -> bool {
+        let inner = &mut *self.inner.lock();
+        if inner.cache.remote_private_route_cache.remove(key).is_some() {
+            // Mark it as dead for the update
+            inner.cache.dead_remote_routes.push(*key);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Retrieve an imported remote private route by its public key
-    pub fn get_remote_private_route(&self, key: &DHTKey) -> EyreResult<PrivateRoute> {
+    pub fn get_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
         let cur_ts = intf::get_timestamp();
-        let Some(pr) = Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
+        Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
             r.private_route.as_ref().unwrap().clone()
-        }) else {
-            bail!("remote private route not found");
-        };
-        Ok(pr)
+        })
+    }
+
+    /// Retrieve an imported remote private route by its public key but don't 'touch' it
+    pub fn peek_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
+        let inner = &mut *self.inner.lock();
+        let cur_ts = intf::get_timestamp();
+        Self::with_peek_remote_private_route(inner, cur_ts, key, |r| {
+            r.private_route.as_ref().unwrap().clone()
+        })
     }
 
     // get or create a remote private route cache entry
@@ -1401,7 +1606,19 @@ impl RouteSpecStore {
                 last_touched_ts: cur_ts,
                 stats: RouteStats::new(cur_ts),
             });
-        f(rpr)
+
+        let out = f(rpr);
+
+        // Ensure we LRU out items
+        if inner.cache.remote_private_route_cache.len()
+            > inner.cache.remote_private_route_cache.capacity()
+        {
+            let (dead_k, _) = inner.cache.remote_private_route_cache.remove_lru().unwrap();
+            // Mark it as dead for the update
+            inner.cache.dead_remote_routes.push(dead_k);
+        }
+
+        out
     }
 
     // get a remote private route cache entry
@@ -1420,7 +1637,32 @@ impl RouteSpecStore {
             return Some(f(rpr));
         }
         inner.cache.remote_private_route_cache.remove(key);
+        inner.cache.dead_remote_routes.push(*key);
         None
+    }
+
+    // peek a remote private route cache entry
+    fn with_peek_remote_private_route<F, R>(
+        inner: &mut RouteSpecStoreInner,
+        cur_ts: u64,
+        key: &DHTKey,
+        f: F,
+    ) -> Option<R>
+    where
+        F: FnOnce(&mut RemotePrivateRouteInfo) -> R,
+    {
+        match inner.cache.remote_private_route_cache.entry(*key) {
+            hashlink::lru_cache::Entry::Occupied(mut o) => {
+                let rpr = o.get_mut();
+                if cur_ts - rpr.last_touched_ts < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+                    return Some(f(rpr));
+                }
+                o.remove();
+                inner.cache.dead_remote_routes.push(*key);
+                None
+            }
+            hashlink::lru_cache::Entry::Vacant(_) => None,
+        }
     }
 
     /// Check to see if this remote (not ours) private route has seen our node info yet
@@ -1429,7 +1671,7 @@ impl RouteSpecStore {
     pub fn has_remote_private_route_seen_our_node_info(&self, key: &DHTKey) -> bool {
         let inner = &mut *self.inner.lock();
         let cur_ts = intf::get_timestamp();
-        Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| rpr.seen_our_node_info)
+        Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| rpr.seen_our_node_info)
             .unwrap_or_default()
     }
 
@@ -1468,7 +1710,7 @@ impl RouteSpecStore {
         }
         // Check for remote route
         if let Some(res) =
-            Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| f(&mut rpr.stats))
+            Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| f(&mut rpr.stats))
         {
             return Some(res);
         }
@@ -1478,6 +1720,7 @@ impl RouteSpecStore {
     }
 
     /// Clear caches when local our local node info changes
+    #[instrument(level = "trace", skip(self))]
     pub fn reset(&self) {
         let inner = &mut *self.inner.lock();
 

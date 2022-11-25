@@ -34,13 +34,13 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
     return move |text: &str| {
         match DHTKey::try_decode(text).ok() {
             Some(key) => {
-                let routes = rss.list_routes();
+                let routes = rss.list_allocated_routes(|k, _| Some(*k));
                 if routes.contains(&key) {
                     return Some(key);
                 }
             }
             None => {
-                let routes = rss.list_routes();
+                let routes = rss.list_allocated_routes(|k, _| Some(*k));
                 for r in routes {
                     let rkey = r.encode();
                     if rkey.starts_with(text) {
@@ -126,14 +126,11 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
             let mut dc = DEBUG_CACHE.lock();
             let pr_pubkey = dc.imported_routes.get(n)?;
             let rss = routing_table.route_spec_store();
-            let private_route = match rss.get_remote_private_route(&pr_pubkey) {
-                Err(_) => {
-                    // Remove imported route
-                    dc.imported_routes.remove(n);
-                    info!("removed dead imported route {}", n);
-                    return None;
-                }
-                Ok(v) => v,
+            let Some(private_route) = rss.get_remote_private_route(&pr_pubkey) else {
+                // Remove imported route
+                dc.imported_routes.remove(n);
+                info!("removed dead imported route {}", n);
+                return None;
             };
             Some(Destination::private_route(
                 private_route,
@@ -636,11 +633,9 @@ impl VeilidAPI {
         let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
 
         // Release route
-        let out = match rss.release_route(route_id) {
-            Ok(()) => format!("Released"),
-            Err(e) => {
-                format!("Route release failed: {}", e)
-            }
+        let out = match rss.release_route(&route_id) {
+            true => "Released".to_owned(),
+            false => "Route does not exist".to_owned(),
         };
 
         Ok(out)
@@ -730,7 +725,7 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let routes = rss.list_routes();
+        let routes = rss.list_allocated_routes(|k, _| Some(*k));
         let mut out = format!("Routes: (count = {}):\n", routes.len());
         for r in routes {
             out.push_str(&format!("{}\n", r.encode()));

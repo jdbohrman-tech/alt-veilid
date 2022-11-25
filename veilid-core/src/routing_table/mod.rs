@@ -127,6 +127,9 @@ impl RoutingTable {
     pub fn rpc_processor(&self) -> RPCProcessor {
         self.network_manager().rpc_processor()
     }
+    pub fn update_callback(&self) -> UpdateCallback {
+        self.network_manager().update_callback()
+    }
     pub fn with_config<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&VeilidConfigInner) -> R,
