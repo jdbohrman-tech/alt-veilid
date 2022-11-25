@@ -404,6 +404,9 @@ reply               - reply to an AppCall not handled directly by the server
     pub fn update_config(&mut self, config: veilid_core::VeilidStateConfig) {
         self.inner_mut().ui.set_config(config.config)
     }
+    pub fn update_route(&mut self, route: veilid_core::VeilidStateRoute) {
+        //self.inner_mut().ui.set_config(config.config)
+    }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidLog) {
         self.inner().ui.add_node_event(format!(

@@ -324,6 +324,15 @@ pub struct VeilidStateNetwork {
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
+pub struct VeilidStateRoute {
+    pub dead_routes: Vec<DHTKey>,
+    pub dead_remote_routes: Vec<DHTKey>,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidStateConfig {
     pub config: VeilidConfigInner,
 }
@@ -338,6 +347,7 @@ pub enum VeilidUpdate {
     Attachment(VeilidStateAttachment),
     Network(VeilidStateNetwork),
     Config(VeilidStateConfig),
+    Route(VeilidStateRoute),
     Shutdown,
 }
 

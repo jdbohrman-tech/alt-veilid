@@ -1,4 +1,5 @@
 use super::*;
+use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION;
 
 impl RoutingTable {
     pub(crate) fn debug_info_nodeinfo(&self) -> String {

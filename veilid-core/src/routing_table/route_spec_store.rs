@@ -839,6 +839,7 @@ impl RouteSpecStore {
     pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
         let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
 
+        // Make loopback route to test with
         let dest = {
             let private_route = self.assemble_private_route(key, None)?;
 
@@ -848,48 +849,17 @@ impl RouteSpecStore {
             let stability = rsd.stability;
             let sequencing = rsd.sequencing;
 
-            // Routes with just one hop can be pinged directly
-            // More than one hop can be pinged across the route with the target being the second to last hop
-            if rsd.hops.len() == 1 {
-                let safety_spec = SafetySpec {
-                    preferred_route: Some(key.clone()),
-                    hop_count,
-                    stability,
-                    sequencing,
-                };
-                let safety_selection = SafetySelection::Safe(safety_spec);
+            let safety_spec = SafetySpec {
+                preferred_route: Some(key.clone()),
+                hop_count,
+                stability,
+                sequencing,
+            };
+            let safety_selection = SafetySelection::Safe(safety_spec);
 
-                Destination::PrivateRoute {
-                    private_route,
-                    safety_selection,
-                }
-            } else {
-                // let target = rsd.hop_node_refs[rsd.hops.len() - 2].clone();
-                // let safety_spec = SafetySpec {
-                //     preferred_route: Some(key.clone()),
-                //     hop_count,
-                //     stability,
-                //     sequencing,
-                // };
-                // let safety_selection = SafetySelection::Safe(safety_spec);
-
-                // Destination::Direct {
-                //     target,
-                //     safety_selection,
-                // }
-
-                let safety_spec = SafetySpec {
-                    preferred_route: Some(key.clone()),
-                    hop_count,
-                    stability,
-                    sequencing,
-                };
-                let safety_selection = SafetySelection::Safe(safety_spec);
-
-                Destination::PrivateRoute {
-                    private_route,
-                    safety_selection,
-                }
+            Destination::PrivateRoute {
+                private_route,
+                safety_selection,
             }
         };
 

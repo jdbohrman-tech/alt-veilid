@@ -30,6 +30,8 @@ pub use routing_table_inner::*;
 pub use stats_accounting::*;
 
 //////////////////////////////////////////////////////////////////////////
+pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
@@ -66,6 +68,16 @@ pub(super) struct RoutingTableUnlockedInner {
     rolling_transfers_task: TickTask<EyreReport>,
     /// Backgroup process to purge dead routing table entries when necessary
     kick_buckets_task: TickTask<EyreReport>,
+    /// Background process to get our initial routing table
+    bootstrap_task: TickTask<EyreReport>,
+    /// Background process to ensure we have enough nodes in our routing table
+    peer_minimum_refresh_task: TickTask<EyreReport>,
+    /// Background process to check nodes to see if they are still alive and for reliability
+    ping_validator_task: TickTask<EyreReport>,
+    /// Background process to keep relays up
+    relay_management_task: TickTask<EyreReport>,
+    /// Background process to keep private routes up
+    private_route_management_task: TickTask<EyreReport>,
 }
 
 #[derive(Clone)]
@@ -88,6 +100,11 @@ impl RoutingTable {
             kick_queue: Mutex::new(BTreeSet::default()),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),
+            bootstrap_task: TickTask::new(1),
+            peer_minimum_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
+            ping_validator_task: TickTask::new(1),
+            relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
+            private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
         }
     }
     pub fn new(network_manager: NetworkManager) -> Self {
@@ -99,38 +116,8 @@ impl RoutingTable {
             unlocked_inner,
         };
 
-        // Set rolling transfers tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .rolling_transfers_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .rolling_transfers_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "RoutingTable rolling transfers task routine"
-                            )),
-                    )
-                });
-        }
+        this.start_tasks();
 
-        // Set kick buckets tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .kick_buckets_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .kick_buckets_task_routine(s, l, t)
-                            .instrument(trace_span!(parent: None, "kick buckets task routine")),
-                    )
-                });
-        }
         this
     }
 
@@ -139,6 +126,12 @@ impl RoutingTable {
     }
     pub fn rpc_processor(&self) -> RPCProcessor {
         self.network_manager().rpc_processor()
+    }
+    pub fn with_config<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&VeilidConfigInner) -> R,
+    {
+        f(&*self.unlocked_inner.config.get())
     }
 
     pub fn node_id(&self) -> DHTKey {
@@ -194,15 +187,8 @@ impl RoutingTable {
     pub async fn terminate(&self) {
         debug!("starting routing table terminate");
 
-        // Cancel all tasks being ticked
-        debug!("stopping rolling transfers task");
-        if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
-            error!("rolling_transfers_task not stopped: {}", e);
-        }
-        debug!("stopping kick buckets task");
-        if let Err(e) = self.unlocked_inner.kick_buckets_task.stop().await {
-            error!("kick_buckets_task not stopped: {}", e);
-        }
+        // Stop tasks
+        self.stop_tasks().await;
 
         // Load bucket entries from table db if possible
         debug!("saving routing table entries");
@@ -549,21 +535,6 @@ impl RoutingTable {
             descriptor,
             timestamp,
         )
-    }
-
-    /// Ticks about once per second
-    /// to run tick tasks which may run at slower tick rates as configured
-    pub async fn tick(&self) -> EyreResult<()> {
-        // Do rolling transfers every ROLLING_TRANSFERS_INTERVAL_SECS secs
-        self.unlocked_inner.rolling_transfers_task.tick().await?;
-
-        // Kick buckets task
-        let kick_bucket_queue_count = self.unlocked_inner.kick_queue.lock().len();
-        if kick_bucket_queue_count > 0 {
-            self.unlocked_inner.kick_buckets_task.tick().await?;
-        }
-
-        Ok(())
     }
 
     //////////////////////////////////////////////////////////////////////

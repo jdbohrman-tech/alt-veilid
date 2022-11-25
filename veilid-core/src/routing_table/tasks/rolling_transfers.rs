@@ -1,10 +1,10 @@
-use super::*;
+use super::super::*;
 use crate::xx::*;
 
 impl RoutingTable {
     // Compute transfer statistics to determine how 'fast' a node is
     #[instrument(level = "trace", skip(self), err)]
-    pub(super) async fn rolling_transfers_task_routine(
+    pub(crate) async fn rolling_transfers_task_routine(
         self,
         _stop_token: StopToken,
         last_ts: u64,
@@ -36,25 +36,6 @@ impl RoutingTable {
         let rss = self.route_spec_store();
         rss.roll_transfers(last_ts, cur_ts);
 
-        Ok(())
-    }
-
-    // Kick the queued buckets in the routing table to free dead nodes if necessary
-    // Attempts to keep the size of the routing table down to the bucket depth
-    #[instrument(level = "trace", skip(self), err)]
-    pub(super) async fn kick_buckets_task_routine(
-        self,
-        _stop_token: StopToken,
-        _last_ts: u64,
-        cur_ts: u64,
-    ) -> EyreResult<()> {
-        let kick_queue: Vec<usize> = core::mem::take(&mut *self.unlocked_inner.kick_queue.lock())
-            .into_iter()
-            .collect();
-        let mut inner = self.inner.write();
-        for idx in kick_queue {
-            inner.kick_bucket(idx)
-        }
         Ok(())
     }
 }

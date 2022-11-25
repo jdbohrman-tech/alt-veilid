@@ -23,7 +23,7 @@ pub use network_connection::*;
 use connection_handle::*;
 use connection_limits::*;
 use crypto::*;
-use futures_util::stream::{FuturesOrdered, FuturesUnordered, StreamExt};
+use futures_util::stream::{FuturesUnordered, StreamExt};
 use hashlink::LruCache;
 use intf::*;
 #[cfg(not(target_arch = "wasm32"))]
@@ -37,8 +37,6 @@ use xx::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
-pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
 pub const IPADDR_MAX_INACTIVE_DURATION_US: u64 = 300_000_000u64; // 5 minutes
@@ -48,15 +46,6 @@ pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
 pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: u64 = 300_000_000u64; // 5 minutes
 pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: u64 = 3600_000_000u64; // 60 minutes
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
-pub const BOOTSTRAP_TXT_VERSION: u8 = 0;
-
-#[derive(Clone, Debug)]
-pub struct BootstrapRecord {
-    min_version: u8,
-    max_version: u8,
-    dial_info_details: Vec<DialInfoDetail>,
-}
-pub type BootstrapRecordMap = BTreeMap<DHTKey, BootstrapRecord>;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ProtocolConfig {
@@ -166,11 +155,6 @@ struct NetworkManagerUnlockedInner {
     update_callback: RwLock<Option<UpdateCallback>>,
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
-    relay_management_task: TickTask<EyreReport>,
-    private_route_management_task: TickTask<EyreReport>,
-    bootstrap_task: TickTask<EyreReport>,
-    peer_minimum_refresh_task: TickTask<EyreReport>,
-    ping_validator_task: TickTask<EyreReport>,
     public_address_check_task: TickTask<EyreReport>,
     node_info_update_single_future: MustJoinSingleFuture<()>,
 }
@@ -197,7 +181,6 @@ impl NetworkManager {
         block_store: BlockStore,
         crypto: Crypto,
     ) -> NetworkManagerUnlockedInner {
-        let min_peer_refresh_time_ms = config.get().network.dht.min_peer_refresh_time_ms;
         NetworkManagerUnlockedInner {
             config,
             protected_store,
@@ -208,11 +191,6 @@ impl NetworkManager {
             components: RwLock::new(None),
             update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
-            relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
-            private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
-            bootstrap_task: TickTask::new(1),
-            peer_minimum_refresh_task: TickTask::new_ms(min_peer_refresh_time_ms),
-            ping_validator_task: TickTask::new(1),
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
             node_info_update_single_future: MustJoinSingleFuture::new(),
         }
@@ -235,116 +213,9 @@ impl NetworkManager {
                 crypto,
             )),
         };
-        // Set rolling transfers tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .rolling_transfers_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .rolling_transfers_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "NetworkManager rolling transfers task routine"
-                            )),
-                    )
-                });
-        }
-        // Set relay management tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .relay_management_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .relay_management_task_routine(s, l, t)
-                            .instrument(trace_span!(parent: None, "relay management task routine")),
-                    )
-                });
-        }
-        // Set private route management tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .private_route_management_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .private_route_management_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "private route management task routine"
-                            )),
-                    )
-                });
-        }
-        // Set bootstrap tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .bootstrap_task
-                .set_routine(move |s, _l, _t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .bootstrap_task_routine(s)
-                            .instrument(trace_span!(parent: None, "bootstrap task routine")),
-                    )
-                });
-        }
-        // Set peer minimum refresh tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .peer_minimum_refresh_task
-                .set_routine(move |s, _l, _t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .peer_minimum_refresh_task_routine(s)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "peer minimum refresh task routine"
-                            )),
-                    )
-                });
-        }
-        // Set ping validator tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .ping_validator_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .ping_validator_task_routine(s, l, t)
-                            .instrument(trace_span!(parent: None, "ping validator task routine")),
-                    )
-                });
-        }
-        // Set public address check task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .public_address_check_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .public_address_check_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "public address check task routine"
-                            )),
-                    )
-                });
-        }
+
+        this.start_tasks();
+
         this
     }
     pub fn config(&self) -> VeilidConfig {
@@ -492,36 +363,7 @@ impl NetworkManager {
         debug!("starting network manager shutdown");
 
         // Cancel all tasks
-        debug!("stopping rolling transfers task");
-        if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
-            warn!("rolling_transfers_task not stopped: {}", e);
-        }
-        debug!("stopping relay management task");
-        if let Err(e) = self.unlocked_inner.relay_management_task.stop().await {
-            warn!("relay_management_task not stopped: {}", e);
-        }
-        debug!("stopping bootstrap task");
-        if let Err(e) = self.unlocked_inner.bootstrap_task.stop().await {
-            error!("bootstrap_task not stopped: {}", e);
-        }
-        debug!("stopping peer minimum refresh task");
-        if let Err(e) = self.unlocked_inner.peer_minimum_refresh_task.stop().await {
-            error!("peer_minimum_refresh_task not stopped: {}", e);
-        }
-        debug!("stopping ping_validator task");
-        if let Err(e) = self.unlocked_inner.ping_validator_task.stop().await {
-            error!("ping_validator_task not stopped: {}", e);
-        }
-        debug!("stopping node info update singlefuture");
-        if self
-            .unlocked_inner
-            .node_info_update_single_future
-            .join()
-            .await
-            .is_err()
-        {
-            error!("node_info_update_single_future not stopped");
-        }
+        self.stop_tasks().await;
 
         // Shutdown network components if they started up
         debug!("shutting down network components");
@@ -595,53 +437,6 @@ impl NetworkManager {
     pub fn needs_restart(&self) -> bool {
         let net = self.net();
         net.needs_restart()
-    }
-
-    pub async fn tick(&self) -> EyreResult<()> {
-        let routing_table = self.routing_table();
-        let net = self.net();
-        let receipt_manager = self.receipt_manager();
-
-        // Run the rolling transfers task
-        self.unlocked_inner.rolling_transfers_task.tick().await?;
-
-        // Run the relay management task
-        self.unlocked_inner.relay_management_task.tick().await?;
-
-        // See how many live PublicInternet entries we have
-        let live_public_internet_entry_count = routing_table.get_entry_count(
-            RoutingDomain::PublicInternet.into(),
-            BucketEntryState::Unreliable,
-        );
-        let min_peer_count = self.with_config(|c| c.network.dht.min_peer_count as usize);
-
-        // If none, then add the bootstrap nodes to it
-        if live_public_internet_entry_count == 0 {
-            self.unlocked_inner.bootstrap_task.tick().await?;
-        }
-        // If we still don't have enough peers, find nodes until we do
-        else if !self.unlocked_inner.bootstrap_task.is_running()
-            && live_public_internet_entry_count < min_peer_count
-        {
-            self.unlocked_inner.peer_minimum_refresh_task.tick().await?;
-        }
-
-        // Ping validate some nodes to groom the table
-        self.unlocked_inner.ping_validator_task.tick().await?;
-
-        // Run the routing table tick
-        routing_table.tick().await?;
-
-        // Run the low level network tick
-        net.tick().await?;
-
-        // Run the receipt manager tick
-        receipt_manager.tick().await?;
-
-        // Purge the client whitelist
-        self.purge_client_whitelist();
-
-        Ok(())
     }
 
     /// Get our node's capabilities in the PublicInternet routing domain
