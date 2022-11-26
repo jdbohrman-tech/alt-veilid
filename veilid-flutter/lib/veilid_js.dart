@@ -19,6 +19,61 @@ Future<T> _wrapApiPromise<T>(Object p) {
           VeilidAPIException.fromJson(jsonDecode(error as String))));
 }
 
+// JS implementation of VeilidRoutingContext
+class VeilidRoutingContextJS implements VeilidRoutingContext {
+  final int _id;
+  final VeilidFFI _ffi;
+
+  VeilidRoutingContextFFI._(this._id, this._ffi);
+  @override
+  VeilidRoutingContextFFI withPrivacy() {
+    final newId = _ffi._routingContextWithPrivacy(_id);
+    return VeilidRoutingContextFFI._(newId, _ffi);
+  }
+
+  @override
+  VeilidRoutingContextFFI withCustomPrivacy(Stability stability) {
+    final newId = _ffi._routingContextWithCustomPrivacy(
+        _id, stability.json.toNativeUtf8());
+    return VeilidRoutingContextFFI._(newId, _ffi);
+  }
+
+  @override
+  VeilidRoutingContextFFI withSequencing(Sequencing sequencing) {
+    final newId =
+        _ffi._routingContextWithSequencing(_id, sequencing.json.toNativeUtf8());
+    return VeilidRoutingContextFFI._(newId, _ffi);
+  }
+
+  @override
+  Future<Uint8List> appCall(String target, Uint8List request) async {
+    var nativeEncodedTarget = target.toNativeUtf8();
+    var nativeEncodedRequest = base64UrlEncode(request).toNativeUtf8();
+
+    final recvPort = ReceivePort("routing_context_app_call");
+    final sendPort = recvPort.sendPort;
+    _ffi._routingContextAppCall(
+        sendPort.nativePort, _id, nativeEncodedTarget, nativeEncodedRequest);
+    final out = await processFuturePlain(recvPort.first);
+    return base64Decode(out);
+  }
+
+  @override
+  Future<void> appMessage(String target, Uint8List message) async {
+    var nativeEncodedTarget = target.toNativeUtf8();
+    var nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
+
+    final recvPort = ReceivePort("routing_context_app_call");
+    final sendPort = recvPort.sendPort;
+    _ffi._routingContextAppCall(
+        sendPort.nativePort, _id, nativeEncodedTarget, nativeEncodedMessage);
+    return processFutureVoid(recvPort.first);
+  }
+}
+
+
+// JS implementation of high level Veilid API
+
 class VeilidJS implements Veilid {
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
@@ -78,9 +133,43 @@ class VeilidJS implements Veilid {
         js_util.callMethod(wasm, "shutdown_veilid_core", []));
   }
 
+
   @override
-  Future<String> debug(String command) {
-    return _wrapApiPromise(js_util.callMethod(wasm, "debug", [command]));
+  Future<VeilidRoutingContext> routingContext() async {
+    final recvPort = ReceivePort("routing_context");
+    final sendPort = recvPort.sendPort;
+    _routingContext(sendPort.nativePort);
+    final id = await processFuturePlain(recvPort.first);
+    return VeilidRoutingContextFFI._(id, this);
+  }
+
+  @override
+  Future<KeyBlob> newPrivateRoute() async {
+    final recvPort = ReceivePort("new_private_route");
+    final sendPort = recvPort.sendPort;
+    _newPrivateRoute(sendPort.nativePort);
+    return processFutureJson(KeyBlob.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<KeyBlob> newCustomPrivateRoute(
+      Stability stability, Sequencing sequencing) async {
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "new_custom_private_route", [stability, sequencing]));
+
+  }
+
+  @override
+  Future<String> importRemotePrivateRoute(Uint8List blob) async {
+    var encodedBlob = base64UrlEncode(blob);
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "import_remote_private_route", [encodedBlob]));
+  }
+
+  @override
+  Future<void> releasePrivateRoute(String key) async {
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "release_private_route", [key]));
   }
 
   @override
@@ -88,6 +177,11 @@ class VeilidJS implements Veilid {
     var encodedMessage = base64UrlEncode(message);
     return _wrapApiPromise(
         js_util.callMethod(wasm, "app_call_reply", [id, encodedMessage]));
+  }
+  
+  @override
+  Future<String> debug(String command) {
+    return _wrapApiPromise(js_util.callMethod(wasm, "debug", [command]));
   }
 
   @override

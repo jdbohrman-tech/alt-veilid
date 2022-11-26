@@ -756,7 +756,7 @@ impl VeilidConfig {
             let mut out = &jvc;
             for k in keypath {
                 if !out.has_key(k) {
-                    apibail_parse!(format!("invalid subkey in key '{}'", key), k);
+                    apibail_parse_error!(format!("invalid subkey in key '{}'", key), k);
                 }
                 out = &out[k];
             }
@@ -781,12 +781,12 @@ impl VeilidConfig {
                 let mut out = &mut jvc;
                 for k in objkeypath {
                     if !out.has_key(*k) {
-                        apibail_parse!(format!("invalid subkey in key '{}'", key), k);
+                        apibail_parse_error!(format!("invalid subkey in key '{}'", key), k);
                     }
                     out = &mut out[*k];
                 }
                 if !out.has_key(objkeyname) {
-                    apibail_parse!(format!("invalid subkey in key '{}'", key), objkeyname);
+                    apibail_parse_error!(format!("invalid subkey in key '{}'", key), objkeyname);
                 }
                 out[*objkeyname] = newval;
                 jvc.to_string()

@@ -48,13 +48,56 @@ typedef _AttachDart = void Function(int);
 // fn detach(port: i64)
 typedef _DetachC = Void Function(Int64);
 typedef _DetachDart = void Function(int);
-// fn debug(port: i64, log_level: FfiStr)
-typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
-typedef _DebugDart = void Function(int, Pointer<Utf8>);
+
+// fn routing_context(port: i64)
+typedef _RoutingContextC = Void Function(Int64);
+typedef _RoutingContextDart = void Function(int);
+// fn release_routing_context(id: u32)
+typedef _ReleaseRoutingContextC = Int32 Function(Uint32);
+typedef _ReleaseRoutingContextDart = int Function(int);
+// fn routing_context_with_privacy(id: u32) -> u32
+typedef _RoutingContextWithPrivacyC = Uint32 Function(Uint32);
+typedef _RoutingContextWithPrivacyDart = int Function(int);
+// fn routing_context_with_custom_privacy(id: u32, stability: FfiStr)
+typedef _RoutingContextWithCustomPrivacyC = Uint32 Function(
+    Uint32, Pointer<Utf8>);
+typedef _RoutingContextWithCustomPrivacyDart = int Function(int, Pointer<Utf8>);
+// fn routing_context_with_sequencing(id: u32, sequencing: FfiStr)
+typedef _RoutingContextWithSequencingC = Uint32 Function(Uint32, Pointer<Utf8>);
+typedef _RoutingContextWithSequencingDart = int Function(int, Pointer<Utf8>);
+// fn routing_context_app_call(port: i64, id: u32, target: FfiStr, request: FfiStr)
+typedef _RoutingContextAppCallC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _RoutingContextAppCallDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn routing_context_app_message(port: i64, id: u32, target: FfiStr, request: FfiStr)
+typedef _RoutingContextAppMessageC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _RoutingContextAppMessageDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+
+// fn new_private_route(port: i64)
+typedef _NewPrivateRouteC = Void Function(Int64);
+typedef _NewPrivateRouteDart = void Function(int);
+// fn new_custom_private_route(port: i64, stability: FfiStr, sequencing: FfiStr)
+typedef _NewCustomPrivateRouteC = Void Function(
+    Int64, Pointer<Utf8>, Pointer<Utf8>);
+typedef _NewCustomPrivateRouteDart = void Function(
+    int, Pointer<Utf8>, Pointer<Utf8>);
+// fn import_remote_private_route(port: i64, blob: FfiStr)
+typedef _ImportRemotePrivateRouteC = Void Function(Int64, Pointer<Utf8>);
+typedef _ImportRemotePrivateRouteDart = void Function(int, Pointer<Utf8>);
+// fn release_private_route(port:i64, key: FfiStr)
+typedef _ReleasePrivateRouteC = Void Function(Int64, Pointer<Utf8>);
+typedef _ReleasePrivateRouteDart = void Function(int, Pointer<Utf8>);
+
 // fn app_call_reply(port: i64, id: FfiStr, message: FfiStr)
 typedef _AppCallReplyC = Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>);
 typedef _AppCallReplyDart = void Function(int, Pointer<Utf8>, Pointer<Utf8>);
 
+// fn debug(port: i64, log_level: FfiStr)
+typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
+typedef _DebugDart = void Function(int, Pointer<Utf8>);
 // fn shutdown_veilid_core(port: i64)
 typedef _ShutdownVeilidCoreC = Void Function(Int64);
 typedef _ShutdownVeilidCoreDart = void Function(int);
@@ -294,6 +337,58 @@ Stream<T> processStreamJson<T>(
   }
 }
 
+// FFI implementation of VeilidRoutingContext
+class VeilidRoutingContextFFI implements VeilidRoutingContext {
+  final int _id;
+  final VeilidFFI _ffi;
+
+  VeilidRoutingContextFFI._(this._id, this._ffi);
+  @override
+  VeilidRoutingContextFFI withPrivacy() {
+    final newId = _ffi._routingContextWithPrivacy(_id);
+    return VeilidRoutingContextFFI._(newId, _ffi);
+  }
+
+  @override
+  VeilidRoutingContextFFI withCustomPrivacy(Stability stability) {
+    final newId = _ffi._routingContextWithCustomPrivacy(
+        _id, stability.json.toNativeUtf8());
+    return VeilidRoutingContextFFI._(newId, _ffi);
+  }
+
+  @override
+  VeilidRoutingContextFFI withSequencing(Sequencing sequencing) {
+    final newId =
+        _ffi._routingContextWithSequencing(_id, sequencing.json.toNativeUtf8());
+    return VeilidRoutingContextFFI._(newId, _ffi);
+  }
+
+  @override
+  Future<Uint8List> appCall(String target, Uint8List request) async {
+    var nativeEncodedTarget = target.toNativeUtf8();
+    var nativeEncodedRequest = base64UrlEncode(request).toNativeUtf8();
+
+    final recvPort = ReceivePort("routing_context_app_call");
+    final sendPort = recvPort.sendPort;
+    _ffi._routingContextAppCall(
+        sendPort.nativePort, _id, nativeEncodedTarget, nativeEncodedRequest);
+    final out = await processFuturePlain(recvPort.first);
+    return base64Decode(out);
+  }
+
+  @override
+  Future<void> appMessage(String target, Uint8List message) async {
+    var nativeEncodedTarget = target.toNativeUtf8();
+    var nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
+
+    final recvPort = ReceivePort("routing_context_app_call");
+    final sendPort = recvPort.sendPort;
+    _ffi._routingContextAppCall(
+        sendPort.nativePort, _id, nativeEncodedTarget, nativeEncodedMessage);
+    return processFutureVoid(recvPort.first);
+  }
+}
+
 // FFI implementation of high level Veilid API
 class VeilidFFI implements Veilid {
   // veilid_core shared library
@@ -308,8 +403,23 @@ class VeilidFFI implements Veilid {
   final _AttachDart _attach;
   final _DetachDart _detach;
   final _ShutdownVeilidCoreDart _shutdownVeilidCore;
-  final _DebugDart _debug;
+
+  final _RoutingContextDart _routingContext;
+  final _ReleaseRoutingContextDart _releaseRoutingContext;
+  final _RoutingContextWithPrivacyDart _routingContextWithPrivacy;
+  final _RoutingContextWithCustomPrivacyDart _routingContextWithCustomPrivacy;
+  final _RoutingContextWithSequencingDart _routingContextWithSequencing;
+  final _RoutingContextAppCallDart _routingContextAppCall;
+  final _RoutingContextAppMessageDart _routingContextAppMessage;
+
+  final _NewPrivateRouteDart _newPrivateRoute;
+  final _NewCustomPrivateRouteDart _newCustomPrivateRoute;
+  final _ImportRemotePrivateRouteDart _importRemotePrivateRoute;
+  final _ReleasePrivateRouteDart _releasePrivateRoute;
+
   final _AppCallReplyDart _appCallReply;
+
+  final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
   final _VeilidVersionDart _veilidVersion;
 
@@ -333,9 +443,40 @@ class VeilidFFI implements Veilid {
         _shutdownVeilidCore =
             dylib.lookupFunction<_ShutdownVeilidCoreC, _ShutdownVeilidCoreDart>(
                 'shutdown_veilid_core'),
-        _debug = dylib.lookupFunction<_DebugC, _DebugDart>('debug'),
+        _routingContext =
+            dylib.lookupFunction<_RoutingContextC, _RoutingContextDart>(
+                'routing_context'),
+        _releaseRoutingContext = dylib.lookupFunction<_ReleaseRoutingContextC,
+            _ReleaseRoutingContextDart>('release_routing_context'),
+        _routingContextWithPrivacy = dylib.lookupFunction<
+            _RoutingContextWithPrivacyC,
+            _RoutingContextWithPrivacyDart>('routing_context_with_privacy'),
+        _routingContextWithCustomPrivacy = dylib.lookupFunction<
+                _RoutingContextWithCustomPrivacyC,
+                _RoutingContextWithCustomPrivacyDart>(
+            'routing_context_with_custom_privacy'),
+        _routingContextWithSequencing = dylib.lookupFunction<
+                _RoutingContextWithSequencingC,
+                _RoutingContextWithSequencingDart>(
+            'routing_context_with_sequencing'),
+        _routingContextAppCall = dylib.lookupFunction<_RoutingContextAppCallC,
+            _RoutingContextAppCallDart>('routing_context_app_call'),
+        _routingContextAppMessage = dylib.lookupFunction<
+            _RoutingContextAppMessageC,
+            _RoutingContextAppMessageDart>('routing_context_app_message'),
+        _newPrivateRoute =
+            dylib.lookupFunction<_NewPrivateRouteC, _NewPrivateRouteDart>(
+                'new_private_route'),
+        _newCustomPrivateRoute = dylib.lookupFunction<_NewCustomPrivateRouteC,
+            _NewCustomPrivateRouteDart>('new_custom_private_route'),
+        _importRemotePrivateRoute = dylib.lookupFunction<
+            _ImportRemotePrivateRouteC,
+            _ImportRemotePrivateRouteDart>('import_remote_private_route'),
+        _releasePrivateRoute = dylib.lookupFunction<_ReleasePrivateRouteC,
+            _ReleasePrivateRouteDart>('release_private_route'),
         _appCallReply = dylib.lookupFunction<_AppCallReplyC, _AppCallReplyDart>(
             'app_call_reply'),
+        _debug = dylib.lookupFunction<_DebugC, _DebugDart>('debug'),
         _veilidVersionString = dylib.lookupFunction<_VeilidVersionStringC,
             _VeilidVersionStringDart>('veilid_version_string'),
         _veilidVersion =
@@ -420,12 +561,51 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<String> debug(String command) async {
-    var nativeCommand = command.toNativeUtf8();
-    final recvPort = ReceivePort("debug");
+  Future<VeilidRoutingContext> routingContext() async {
+    final recvPort = ReceivePort("routing_context");
     final sendPort = recvPort.sendPort;
-    _debug(sendPort.nativePort, nativeCommand);
+    _routingContext(sendPort.nativePort);
+    final id = await processFuturePlain(recvPort.first);
+    return VeilidRoutingContextFFI._(id, this);
+  }
+
+  @override
+  Future<KeyBlob> newPrivateRoute() async {
+    final recvPort = ReceivePort("new_private_route");
+    final sendPort = recvPort.sendPort;
+    _newPrivateRoute(sendPort.nativePort);
+    return processFutureJson(KeyBlob.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<KeyBlob> newCustomPrivateRoute(
+      Stability stability, Sequencing sequencing) async {
+    final recvPort = ReceivePort("new_custom_private_route");
+    final sendPort = recvPort.sendPort;
+    _newCustomPrivateRoute(sendPort.nativePort, stability.json.toNativeUtf8(),
+        sequencing.json.toNativeUtf8());
+    final keyblob = await processFutureJson(KeyBlob.fromJson, recvPort.first);
+    return keyblob;
+  }
+
+  @override
+  Future<String> importRemotePrivateRoute(Uint8List blob) async {
+    var nativeEncodedBlob = base64UrlEncode(blob).toNativeUtf8();
+
+    final recvPort = ReceivePort("import_remote_private_route");
+    final sendPort = recvPort.sendPort;
+    _importRemotePrivateRoute(sendPort.nativePort, nativeEncodedBlob);
     return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<void> releasePrivateRoute(String key) async {
+    var nativeEncodedKey = key.toNativeUtf8();
+
+    final recvPort = ReceivePort("release_private_route");
+    final sendPort = recvPort.sendPort;
+    _releasePrivateRoute(sendPort.nativePort, nativeEncodedKey);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -436,6 +616,15 @@ class VeilidFFI implements Veilid {
     final sendPort = recvPort.sendPort;
     _appCallReply(sendPort.nativePort, nativeId, nativeEncodedMessage);
     return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<String> debug(String command) async {
+    var nativeCommand = command.toNativeUtf8();
+    final recvPort = ReceivePort("debug");
+    final sendPort = recvPort.sendPort;
+    _debug(sendPort.nativePort, nativeCommand);
+    return processFuturePlain(recvPort.first);
   }
 
   @override

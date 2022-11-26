@@ -57,14 +57,14 @@ fn get_safety_selection(text: &str, rss: RouteSpecStore) -> Option<SafetySelecti
     if text.len() != 0 && &text[0..1] == "-" {
         // Unsafe
         let text = &text[1..];
-        let seq = get_sequencing(text).unwrap_or(Sequencing::NoPreference);
+        let seq = get_sequencing(text).unwrap_or_default();
         Some(SafetySelection::Unsafe(seq))
     } else {
         // Safe
         let mut preferred_route = None;
         let mut hop_count = 2;
-        let mut stability = Stability::LowLatency;
-        let mut sequencing = Sequencing::NoPreference;
+        let mut stability = Stability::default();
+        let mut sequencing = Sequencing::default();
         for x in text.split(",") {
             let x = x.trim();
             if let Some(pr) = get_route_id(rss.clone())(x) {
@@ -134,7 +134,7 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
             };
             Some(Destination::private_route(
                 private_route,
-                ss.unwrap_or(SafetySelection::Unsafe(Sequencing::NoPreference)),
+                ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
             ))
         } else {
             let (text, mods) = text
@@ -585,8 +585,8 @@ impl VeilidAPI {
         };
 
         let mut ai = 1;
-        let mut sequencing = Sequencing::NoPreference;
-        let mut stability = Stability::LowLatency;
+        let mut sequencing = Sequencing::default();
+        let mut stability = Stability::default();
         let mut hop_count = default_route_hop_count;
         let mut directions = DirectionSet::all();
 

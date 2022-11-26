@@ -39,14 +39,19 @@ impl RoutingContext {
             api,
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_selection: SafetySelection::Unsafe(Sequencing::NoPreference),
+                safety_selection: SafetySelection::Unsafe(Sequencing::default()),
             }),
         }
     }
 
-    pub fn with_default_privacy(self) -> Result<Self, VeilidAPIError> {
+    pub fn with_privacy(self) -> Result<Self, VeilidAPIError> {
+        self.with_custom_privacy(Stability::default())
+    }
+
+    pub fn with_custom_privacy(self, stability: Stability) -> Result<Self, VeilidAPIError> {
         let config = self.api.config()?;
         let c = config.get();
+
         Ok(Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
@@ -54,22 +59,13 @@ impl RoutingContext {
                 safety_selection: SafetySelection::Safe(SafetySpec {
                     preferred_route: None,
                     hop_count: c.network.rpc.default_route_hop_count as usize,
-                    stability: Stability::LowLatency,
-                    sequencing: Sequencing::NoPreference,
+                    stability,
+                    sequencing: self.sequencing(),
                 }),
             }),
         })
     }
-    pub fn with_privacy(self, safety_spec: SafetySpec) -> Result<Self, VeilidAPIError> {
-        Ok(Self {
-            api: self.api.clone(),
-            inner: Arc::new(Mutex::new(RoutingContextInner {})),
-            unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_selection: SafetySelection::Safe(safety_spec),
-            }),
-        })
-    }
-
+    
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
         Self {
             api: self.api.clone(),
@@ -87,16 +83,11 @@ impl RoutingContext {
             }),
         }
     }
-    pub fn sequencing(&self) -> Sequencing {
+
+    fn sequencing(&self) -> Sequencing {
         match self.unlocked_inner.safety_selection {
             SafetySelection::Unsafe(sequencing) => sequencing,
             SafetySelection::Safe(safety_spec) => safety_spec.sequencing,
-        }
-    }
-    pub fn safety_spec(&self) -> Option<SafetySpec> {
-        match self.unlocked_inner.safety_selection {
-            SafetySelection::Unsafe(_) => None,
-            SafetySelection::Safe(safety_spec) => Some(safety_spec.clone()),
         }
     }
 

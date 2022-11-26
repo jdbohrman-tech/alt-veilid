@@ -1697,6 +1697,70 @@ class VeilidVersion {
 }
 
 //////////////////////////////////////
+/// Stability
+
+enum Stability {
+  lowLatency,
+  reliable,
+}
+
+extension StabilityExt on Stability {
+  String get json {
+    return name.toPascalCase();
+  }
+}
+
+Stability stabilityFromJson(String j) {
+  return Stability.values.byName(j.toCamelCase());
+}
+
+//////////////////////////////////////
+/// Sequencing
+
+enum Sequencing {
+  noPreference,
+  preferOrdered,
+  ensureOrdered,
+}
+
+extension SequencingExt on Sequencing {
+  String get json {
+    return name.toPascalCase();
+  }
+}
+
+Sequencing sequencingFromJson(String j) {
+  return Sequencing.values.byName(j.toCamelCase());
+}
+
+//////////////////////////////////////
+/// KeyBlob
+class KeyBlob {
+  final String key;
+  final Uint8List blob;
+
+  KeyBlob(this.key, this.blob);
+
+  KeyBlob.fromJson(Map<String, dynamic> json)
+      : key = json['key'],
+        blob = base64Decode(json['blob']);
+
+  Map<String, dynamic> get json {
+    return {'key': key, 'blob': base64UrlEncode(blob)};
+  }
+}
+
+//////////////////////////////////////
+/// VeilidRoutingContext
+abstract class VeilidRoutingContext {
+  VeilidRoutingContext withPrivacy();
+  VeilidRoutingContext withCustomPrivacy(Stability stability);
+  VeilidRoutingContext withSequencing(Sequencing sequencing);
+  Future<Uint8List> appCall(String target, Uint8List request);
+  Future<void> appMessage(String target, Uint8List message);
+}
+
+//////////////////////////////////////
 /// Veilid singleton factory
 
 abstract class Veilid {
@@ -1709,8 +1773,22 @@ abstract class Veilid {
   Future<void> attach();
   Future<void> detach();
   Future<void> shutdownVeilidCore();
-  Future<String> debug(String command);
+
+  // Routing context
+  Future<VeilidRoutingContext> routingContext();
+
+  // Private route allocation
+  Future<KeyBlob> newPrivateRoute();
+  Future<KeyBlob> newCustomPrivateRoute(
+      Stability stability, Sequencing sequencing);
+  Future<String> importRemotePrivateRoute(Uint8List blob);
+  Future<void> releasePrivateRoute(String key);
+
+  // App calls
   Future<void> appCallReply(String id, Uint8List message);
+
+  // Misc
   String veilidVersionString();
   VeilidVersion veilidVersion();
+  Future<String> debug(String command);
 }

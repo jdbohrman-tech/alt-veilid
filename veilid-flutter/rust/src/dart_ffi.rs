@@ -21,6 +21,8 @@ lazy_static! {
     static ref VEILID_API: AsyncMutex<Option<veilid_core::VeilidAPI>> = AsyncMutex::new(None);
     static ref FILTERS: Mutex<BTreeMap<&'static str, veilid_core::VeilidLayerFilter>> =
         Mutex::new(BTreeMap::new());
+    static ref ROUTING_CONTEXTS: Mutex<BTreeMap<u32, veilid_core::RoutingContext>> =
+        Mutex::new(BTreeMap::new());
 }
 
 async fn get_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIError> {
@@ -49,7 +51,7 @@ type APIResult<T> = Result<T, veilid_core::VeilidAPIError>;
 const APIRESULT_VOID: APIResult<()> = APIResult::Ok(());
 
 /////////////////////////////////////////
-// FFI-specific cofnig
+// FFI-specific
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidFFIConfigLoggingTerminal {
@@ -81,6 +83,13 @@ pub struct VeilidFFIConfigLogging {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidFFIConfig {
     pub logging: VeilidFFIConfigLogging,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VeilidFFIKeyBlob {
+    pub key: veilid_core::DHTKey,
+    #[serde(with = "veilid_core::json_as_base64")]
+    pub blob: Vec<u8>,
 }
 
 /////////////////////////////////////////
@@ -317,13 +326,208 @@ pub extern "C" fn shutdown_veilid_core(port: i64) {
     });
 }
 
+fn add_routing_context(routing_context: veilid_core::RoutingContext) -> u32 {
+    let mut next_id: u32 = 1;
+    let mut rc = ROUTING_CONTEXTS.lock();
+    while rc.contains_key(&next_id) {
+        next_id += 1;
+    }
+    rc.insert(next_id, routing_context);
+    next_id
+}
+
 #[no_mangle]
-pub extern "C" fn debug(port: i64, command: FfiStr) {
-    let command = command.into_opt_string().unwrap_or_default();
+pub extern "C" fn routing_context(port: i64) {
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
-        let out = veilid_api.debug(command).await?;
-        APIResult::Ok(out)
+        let routing_context = veilid_api.routing_context();
+        let new_id = add_routing_context(routing_context);
+        APIResult::Ok(new_id)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn release_routing_context(id: u32) -> i32 {
+    let mut rc = ROUTING_CONTEXTS.lock();
+    if rc.remove(&id).is_none() {
+        return 0;
+    }
+    return 1;
+}
+
+#[no_mangle]
+pub extern "C" fn routing_context_with_privacy(id: u32) -> u32 {
+    let rc = ROUTING_CONTEXTS.lock();
+    let Some(routing_context) = rc.get(&id) else {
+        return 0;
+    };
+    let Ok(routing_context) = routing_context.clone().with_privacy() else {
+        return 0;
+    };
+    let new_id = add_routing_context(routing_context);
+    new_id
+}
+
+#[no_mangle]
+pub extern "C" fn routing_context_with_custom_privacy(id: u32, stability: FfiStr) -> u32 {
+    let stability: veilid_core::Stability =
+        veilid_core::deserialize_opt_json(stability.into_opt_string()).unwrap();
+
+    let rc = ROUTING_CONTEXTS.lock();
+    let Some(routing_context) = rc.get(&id) else {
+        return 0;
+    };
+    let Ok(routing_context) = routing_context.clone().with_custom_privacy(stability) else {
+        return 0;
+    };
+    let new_id = add_routing_context(routing_context);
+    new_id
+}
+
+#[no_mangle]
+pub extern "C" fn routing_context_with_sequencing(id: u32, sequencing: FfiStr) -> u32 {
+    let sequencing: veilid_core::Sequencing =
+        veilid_core::deserialize_opt_json(sequencing.into_opt_string()).unwrap();
+
+    let rc = ROUTING_CONTEXTS.lock();
+    let Some(routing_context) = rc.get(&id) else {
+        return 0;
+    };
+    let routing_context = routing_context.clone().with_sequencing(sequencing);
+    let new_id = add_routing_context(routing_context);
+    new_id
+}
+
+#[no_mangle]
+pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, request: FfiStr) {
+    let target: veilid_core::DHTKey =
+        veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
+    let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(request.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+        let routing_table = veilid_api.routing_table()?;
+        let rss = routing_table.route_spec_store();
+        
+        let routing_context = {
+            let rc = ROUTING_CONTEXTS.lock();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_call", "id", id));
+            };
+            routing_context.clone()
+        };
+        
+        let target = if rss.get_remote_private_route(&target).is_some() {
+            veilid_core::Target::PrivateRoute(target)
+        } else {
+            veilid_core::Target::NodeId(veilid_core::NodeId::new(target))
+        };
+
+        let answer = routing_context.app_call(target, request).await?;
+        let answer = data_encoding::BASE64URL_NOPAD.encode(&answer);
+        APIResult::Ok(answer)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr, message: FfiStr) {
+    let target: veilid_core::DHTKey =
+        veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
+    let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(message.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+        let routing_table = veilid_api.routing_table()?;
+        let rss = routing_table.route_spec_store();
+        
+        let routing_context = {
+            let rc = ROUTING_CONTEXTS.lock();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_call", "id", id));
+            };
+            routing_context.clone()
+        };
+        
+        let target = if rss.get_remote_private_route(&target).is_some() {
+            veilid_core::Target::PrivateRoute(target)
+        } else {
+            veilid_core::Target::NodeId(veilid_core::NodeId::new(target))
+        };
+
+        routing_context.app_message(target, message).await?;
+        APIRESULT_VOID
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn new_private_route(port: i64) {
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+
+        let (key, blob) = veilid_api.new_private_route().await?;
+
+        let keyblob = VeilidFFIKeyBlob { key, blob };
+
+        APIResult::Ok(keyblob)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn new_custom_private_route(port: i64, stability: FfiStr, sequencing: FfiStr) {
+    let stability: veilid_core::Stability =
+        veilid_core::deserialize_opt_json(stability.into_opt_string()).unwrap();
+    let sequencing: veilid_core::Sequencing =
+        veilid_core::deserialize_opt_json(sequencing.into_opt_string()).unwrap();
+
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+
+        let (key, blob) = veilid_api
+            .new_custom_private_route(stability, sequencing)
+            .await?;
+
+        let keyblob = VeilidFFIKeyBlob { key, blob };
+
+        APIResult::Ok(keyblob)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn import_remote_private_route(port: i64, blob: FfiStr) {
+    let blob: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(blob.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+
+        let key = veilid_api.import_remote_private_route(blob)?;
+
+        APIResult::Ok(key.encode())
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn release_private_route(port: i64, key: FfiStr) {
+    let key: veilid_core::DHTKey =
+        veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+        veilid_api.release_private_route(&key)?;
+        APIRESULT_VOID
     });
 }
 
@@ -344,6 +548,16 @@ pub extern "C" fn app_call_reply(port: i64, id: FfiStr, message: FfiStr) {
         let veilid_api = get_veilid_api().await?;
         veilid_api.app_call_reply(id, message).await?;
         APIRESULT_VOID
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn debug(port: i64, command: FfiStr) {
+    let command = command.into_opt_string().unwrap_or_default();
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+        let out = veilid_api.debug(command).await?;
+        APIResult::Ok(out)
     });
 }
 

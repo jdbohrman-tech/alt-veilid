@@ -1,6 +1,5 @@
 //
 // This file really shouldn't be necessary, but 'ip' isn't a stable feature
-// and things may not agree between the no_std_net crate and the stuff in std.
 //
 
 use crate::xx::*;

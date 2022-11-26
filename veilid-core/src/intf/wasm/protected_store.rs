@@ -2,10 +2,7 @@ use super::*;
 use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
-use js_sys::*;
-use send_wrapper::*;
-use serde::{Deserialize, Serialize};
-use wasm_bindgen_futures::*;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use web_sys::*;
 
 #[derive(Clone)]
@@ -43,15 +40,6 @@ impl ProtectedStore {
 
     #[instrument(level = "debug", skip(self))]
     pub async fn terminate(&self) {}
-
-    fn keyring_name(&self) -> String {
-        let c = self.config.get();
-        if c.namespace.is_empty() {
-            "veilid_protected_store".to_owned()
-        } else {
-            format!("veilid_protected_store_{}", c.namespace)
-        }
-    }
 
     fn browser_key_name(&self, key: &str) -> String {
         let c = self.config.get();
@@ -136,22 +124,31 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value))]
-    pub async fn save_user_secret_frozen<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    pub async fn save_user_secret_rkyv<T>(&self, key: &str, value: &T) -> EyreResult<bool>
     where
         T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
-        let v = to_frozen(value)?;
+        let v = to_rkyv(value)?;
+        self.save_user_secret(&key, &v).await
+    }
+
+    #[instrument(level = "trace", skip(self, value))]
+    pub async fn save_user_secret_json<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    where
+        T: serde::Serialize,
+    {
+        let v = serde_json::to_vec(value)?;
         self.save_user_secret(&key, &v).await
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn load_user_secret_frozen<T>(&self, key: &str) -> EyreResult<Option<T>>
+    pub async fn load_user_secret_rkyv<T>(&self, key: &str) -> EyreResult<Option<T>>
     where
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
             for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived:
-            rkyv::Deserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+            RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {
         let out = self.load_user_secret(key).await?;
         let b = match out {
@@ -161,7 +158,24 @@ impl ProtectedStore {
             }
         };
 
-        let obj = from_frozen(&b)?;
+        let obj = from_rkyv(b)?;
+        Ok(Some(obj))
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn load_user_secret_json<T>(&self, key: &str) -> EyreResult<Option<T>>
+    where
+        T: for<'de> serde::de::Deserialize<'de>,
+    {
+        let out = self.load_user_secret(key).await?;
+        let b = match out {
+            Some(v) => v,
+            None => {
+                return Ok(None);
+            }
+        };
+
+        let obj = serde_json::from_slice(&b)?;
         Ok(Some(obj))
     }
 

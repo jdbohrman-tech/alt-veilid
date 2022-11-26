@@ -54,7 +54,7 @@ macro_rules! apibail_internal {
 
 #[allow(unused_macros)]
 #[macro_export]
-macro_rules! apibail_parse {
+macro_rules! apibail_parse_error {
     ($x:expr, $y:expr) => {
         return Err(VeilidAPIError::parse_error($x, $y))
     };
@@ -563,6 +563,12 @@ pub enum Sequencing {
     EnsureOrdered,
 }
 
+impl Default for Sequencing {
+    fn default() -> Self {
+        Self::NoPreference
+    }
+}
+
 // Ordering here matters, >= is used to check strength of stability requirement
 #[derive(
     Copy,
@@ -583,6 +589,12 @@ pub enum Sequencing {
 pub enum Stability {
     LowLatency,
     Reliable,
+}
+
+impl Default for Stability {
+    fn default() -> Self {
+        Self::LowLatency
+    }
 }
 
 /// The choice of safety route to include in compiled routes
@@ -1543,10 +1555,7 @@ impl FromStr for DialInfo {
                     VeilidAPIError::parse_error(format!("unable to split WS url: {}", e), &url)
                 })?;
                 if split_url.scheme != "ws" || !url.starts_with("ws://") {
-                    return Err(VeilidAPIError::parse_error(
-                        "incorrect scheme for WS dialinfo",
-                        url,
-                    ));
+                    apibail_parse_error!("incorrect scheme for WS dialinfo", url);
                 }
                 let url_port = split_url.port.unwrap_or(80u16);
 
@@ -1574,10 +1583,7 @@ impl FromStr for DialInfo {
                     VeilidAPIError::parse_error(format!("unable to split WSS url: {}", e), &url)
                 })?;
                 if split_url.scheme != "wss" || !url.starts_with("wss://") {
-                    return Err(VeilidAPIError::parse_error(
-                        "incorrect scheme for WSS dialinfo",
-                        url,
-                    ));
+                    apibail_parse_error!("incorrect scheme for WSS dialinfo", url);
                 }
                 let url_port = split_url.port.unwrap_or(443u16);
 
@@ -1628,24 +1634,18 @@ impl DialInfo {
             VeilidAPIError::parse_error(format!("unable to split WS url: {}", e), &url)
         })?;
         if split_url.scheme != "ws" || !url.starts_with("ws://") {
-            return Err(VeilidAPIError::parse_error(
-                "incorrect scheme for WS dialinfo",
-                url,
-            ));
+            apibail_parse_error!("incorrect scheme for WS dialinfo", url);
         }
         let url_port = split_url.port.unwrap_or(80u16);
         if url_port != socket_address.port() {
-            return Err(VeilidAPIError::parse_error(
-                "socket address port doesn't match url port",
-                url,
-            ));
+            apibail_parse_error!("socket address port doesn't match url port", url);
         }
         if let SplitUrlHost::IpAddr(a) = split_url.host {
             if socket_address.to_ip_addr() != a {
-                return Err(VeilidAPIError::parse_error(
+                apibail_parse_error!(
                     format!("request address does not match socket address: {}", a),
-                    socket_address,
-                ));
+                    socket_address
+                );
             }
         }
         Ok(Self::WS(DialInfoWS {
@@ -1658,23 +1658,17 @@ impl DialInfo {
             VeilidAPIError::parse_error(format!("unable to split WSS url: {}", e), &url)
         })?;
         if split_url.scheme != "wss" || !url.starts_with("wss://") {
-            return Err(VeilidAPIError::parse_error(
-                "incorrect scheme for WSS dialinfo",
-                url,
-            ));
+            apibail_parse_error!("incorrect scheme for WSS dialinfo", url);
         }
         let url_port = split_url.port.unwrap_or(443u16);
         if url_port != socket_address.port() {
-            return Err(VeilidAPIError::parse_error(
-                "socket address port doesn't match url port",
-                url,
-            ));
+            apibail_parse_error!("socket address port doesn't match url port", url);
         }
         if !matches!(split_url.host, SplitUrlHost::Hostname(_)) {
-            return Err(VeilidAPIError::parse_error(
+            apibail_parse_error!(
                 "WSS url can not use address format, only hostname format",
-                url,
-            ));
+                url
+            );
         }
         Ok(Self::WSS(DialInfoWSS {
             socket_address: socket_address.to_canonical(),
@@ -1778,10 +1772,7 @@ impl DialInfo {
         let hostname = hostname.as_ref();
 
         if short.len() < 2 {
-            return Err(VeilidAPIError::parse_error(
-                "invalid short url length",
-                short,
-            ));
+            apibail_parse_error!("invalid short url length", short);
         }
         let url = match &short[0..1] {
             "U" => {
@@ -1797,7 +1788,7 @@ impl DialInfo {
                 format!("wss://{}:{}", hostname, &short[1..])
             }
             _ => {
-                return Err(VeilidAPIError::parse_error("invalid short url type", short));
+                apibail_parse_error!("invalid short url type", short);
             }
         };
         Self::try_vec_from_url(url)
@@ -1815,10 +1806,7 @@ impl DialInfo {
             "ws" => split_url.port.unwrap_or(80u16),
             "wss" => split_url.port.unwrap_or(443u16),
             _ => {
-                return Err(VeilidAPIError::parse_error(
-                    "Invalid dial info url scheme",
-                    split_url.scheme,
-                ));
+                apibail_parse_error!("Invalid dial info url scheme", split_url.scheme);
             }
         };
 
@@ -2753,36 +2741,35 @@ impl VeilidAPI {
     // Private route allocation
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn new_default_private_route(&self) -> Result<(DHTKey, Vec<u8>), VeilidAPIError> {
-        let config = self.config()?;
-        let c = config.get();
-        self.new_private_route(
-            Stability::LowLatency,
-            Sequencing::NoPreference,
-            c.network.rpc.default_route_hop_count.into(),
-        )
-        .await
+    pub async fn new_private_route(&self) -> Result<(DHTKey, Vec<u8>), VeilidAPIError> {
+        self.new_custom_private_route(Stability::default(), Sequencing::default())
+            .await
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn new_private_route(
+    pub async fn new_custom_private_route(
         &self,
         stability: Stability,
         sequencing: Sequencing,
-        hop_count: usize,
     ) -> Result<(DHTKey, Vec<u8>), VeilidAPIError> {
+        let default_route_hop_count: usize = {
+            let config = self.config()?;
+            let c = config.get();
+            c.network.rpc.default_route_hop_count.into()
+        };
+
         let rss = self.routing_table()?.route_spec_store();
         let r = rss
             .allocate_route(
                 stability,
                 sequencing,
-                hop_count,
+                default_route_hop_count,
                 Direction::Inbound.into(),
                 &[],
             )
             .map_err(VeilidAPIError::internal)?;
         let Some(pr_pubkey) = r else {
-            return Err(VeilidAPIError::generic("unable to allocate route"));
+            apibail_generic!("unable to allocate route");
         };
         if !rss
             .test_route(&pr_pubkey)
@@ -2790,7 +2777,7 @@ impl VeilidAPI {
             .map_err(VeilidAPIError::no_connection)?
         {
             rss.release_route(&pr_pubkey);
-            return Err(VeilidAPIError::generic("allocated route failed to test"));
+            apibail_generic!("allocated route failed to test");
         }
         let private_route = rss
             .assemble_private_route(&pr_pubkey, Some(true))
@@ -2799,10 +2786,35 @@ impl VeilidAPI {
             Ok(v) => v,
             Err(e) => {
                 rss.release_route(&pr_pubkey);
-                return Err(VeilidAPIError::internal(e));
+                apibail_internal!(e);
             }
         };
+
+        rss.mark_route_published(&pr_pubkey, true)
+            .map_err(VeilidAPIError::internal)?;
+
         Ok((pr_pubkey, blob))
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> Result<DHTKey, VeilidAPIError> {
+        let rss = self.routing_table()?.route_spec_store();
+        rss.import_remote_private_route(blob)
+            .map_err(|e| VeilidAPIError::invalid_argument(e, "blob", "private route blob"))
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub fn release_private_route(&self, key: &DHTKey) -> Result<(), VeilidAPIError> {
+        let rss = self.routing_table()?.route_spec_store();
+        if rss.release_route(key) {
+            Ok(())
+        } else {
+            Err(VeilidAPIError::invalid_argument(
+                "release_private_route",
+                "key",
+                key,
+            ))
+        }
     }
 
     ////////////////////////////////////////////////////////////////

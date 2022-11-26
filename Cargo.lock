@@ -3146,14 +3146,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "no-std-net"
-version = "0.6.0"
-dependencies = [
- "serde",
- "serde_test",
-]
-
-[[package]]
 name = "nom"
 version = "5.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4140,7 +4132,7 @@ dependencies = [
 [[package]]
 name = "rkyv"
 version = "0.7.39"
-source = "git+https://github.com/crioux/rkyv.git?branch=issue_326#2f19cfac9f31a15e2fe74ad362eec7b011dc35b9"
+source = "git+https://github.com/rkyv/rkyv.git?rev=57e2a8d#57e2a8daff3e6381e170e723ed1beea5c113b232"
 dependencies = [
  "bytecheck",
  "hashbrown",
@@ -4153,7 +4145,7 @@ dependencies = [
 [[package]]
 name = "rkyv_derive"
 version = "0.7.39"
-source = "git+https://github.com/crioux/rkyv.git?branch=issue_326#2f19cfac9f31a15e2fe74ad362eec7b011dc35b9"
+source = "git+https://github.com/rkyv/rkyv.git?rev=57e2a8d#57e2a8daff3e6381e170e723ed1beea5c113b232"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4462,15 +4454,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_bytes"
-version = "0.11.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfc50e8183eeeb6178dcb167ae34a8051d63535023ae38b5d8d12beae193d37b"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_cbor"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4511,15 +4494,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "serde_test"
-version = "1.0.147"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "641666500e4e6fba7b91b73651a375cb53579468ab3c38389289b802797cad94"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -5615,7 +5589,6 @@ dependencies = [
  "ndk 0.6.0",
  "ndk-glue",
  "nix 0.25.0",
- "no-std-net",
  "once_cell",
  "owning_ref",
  "owo-colors",
@@ -5631,7 +5604,6 @@ dependencies = [
  "send_wrapper 0.6.0",
  "serde",
  "serde-big-array",
- "serde_bytes",
  "serde_json",
  "serial_test",
  "simplelog 0.12.0",

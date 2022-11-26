@@ -39,6 +39,8 @@ lazy_static! {
         SendWrapper::new(RefCell::new(None));
     static ref FILTERS: SendWrapper<RefCell<BTreeMap<&'static str, veilid_core::VeilidLayerFilter>>> =
         SendWrapper::new(RefCell::new(BTreeMap::new()));
+    static ref ROUTING_CONTEXTS: SendWrapper<RefCell<BTreeMap<u32, veilid_core::RoutingContext>>> =
+        SendWrapper::new(RefCell::new(BTreeMap::new()));
 }
 
 fn get_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIError> {
@@ -54,20 +56,7 @@ fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIErr
         .ok_or(veilid_core::VeilidAPIError::NotInitialized)
 }
 
-// JSON Marshalling
-pub fn serialize_json<T: Serialize>(val: T) -> String {
-    serde_json::to_string(&val).expect("failed to serialize json value")
-}
-
-pub fn deserialize_json<T: de::DeserializeOwned>(
-    arg: &str,
-) -> Result<T, veilid_core::VeilidAPIError> {
-    serde_json::from_str(arg).map_err(|e| veilid_core::VeilidAPIError::ParseError {
-        message: e.to_string(),
-        value: String::new(),
-    })
-}
-
+// JSON Helpers for WASM
 pub fn to_json<T: Serialize>(val: T) -> JsValue {
     JsValue::from_str(&serialize_json(val))
 }
@@ -104,7 +93,7 @@ where
 }
 
 /////////////////////////////////////////
-// WASM-specific cofnig
+// WASM-specific
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidWASMConfigLoggingPerformance {
@@ -129,6 +118,13 @@ pub struct VeilidWASMConfigLogging {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidWASMConfig {
     pub logging: VeilidWASMConfigLogging,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VeilidFFIKeyBlob {
+    pub key: veilid_core::DHTKey,
+    #[serde(with = "veilid_core::json_as_base64")]
+    pub blob: Vec<u8>,
 }
 
 // WASM Bindings

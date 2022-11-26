@@ -55,6 +55,9 @@ pub use std::convert::{TryFrom, TryInto};
 pub use std::fmt;
 pub use std::future::Future;
 pub use std::mem;
+pub use std::net::{
+    IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs,
+};
 pub use std::ops::{Fn, FnMut, FnOnce};
 pub use std::pin::Pin;
 pub use std::rc::Rc;
@@ -73,10 +76,7 @@ cfg_if! {
         pub use async_lock::MutexGuard as AsyncMutexGuard;
         pub use async_lock::MutexGuardArc as AsyncMutexGuardArc;
         pub use async_executors::JoinHandle as LowLevelJoinHandle;
-
-        pub use no_std_net::{ SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs, IpAddr, Ipv4Addr, Ipv6Addr };
     } else {
-
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 pub use async_std::sync::Mutex as AsyncMutex;
@@ -92,7 +92,6 @@ cfg_if! {
                 #[compile_error("must use an executor")]
             }
         }
-        pub use std::net::{ SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs, IpAddr, Ipv4Addr, Ipv6Addr };
     }
 }
 

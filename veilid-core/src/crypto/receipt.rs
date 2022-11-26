@@ -59,10 +59,10 @@ impl Receipt {
         extra_data: D,
     ) -> Result<Self, VeilidAPIError> {
         if extra_data.as_ref().len() > MAX_EXTRA_DATA_SIZE {
-            return Err(VeilidAPIError::parse_error(
+            apibail_parse_error!(
                 "extra data too large for receipt",
-                extra_data.as_ref().len(),
-            ));
+                extra_data.as_ref().len()
+            );
         }
         Ok(Self {
             version,
@@ -75,7 +75,7 @@ impl Receipt {
     pub fn from_signed_data(data: &[u8]) -> Result<Receipt, VeilidAPIError> {
         // Ensure we are at least the length of the envelope
         if data.len() < MIN_RECEIPT_SIZE {
-            return Err(VeilidAPIError::parse_error("receipt too small", data.len()));
+            apibail_parse_error!("receipt too small", data.len());
         }
 
         // Verify magic number
@@ -83,16 +83,13 @@ impl Receipt {
             .try_into()
             .map_err(VeilidAPIError::internal)?;
         if magic != *RECEIPT_MAGIC {
-            return Err(VeilidAPIError::generic("bad magic number"));
+            apibail_generic!("bad magic number");
         }
 
         // Check version
         let version = data[0x04];
         if version > MAX_CRYPTO_VERSION || version < MIN_CRYPTO_VERSION {
-            return Err(VeilidAPIError::parse_error(
-                "unsupported cryptography version",
-                version,
-            ));
+            apibail_parse_error!("unsupported cryptography version", version);
         }
 
         // Get size and ensure it matches the size of the envelope and is less than the maximum message size
@@ -102,16 +99,13 @@ impl Receipt {
                 .map_err(VeilidAPIError::internal)?,
         );
         if (size as usize) > MAX_RECEIPT_SIZE {
-            return Err(VeilidAPIError::parse_error(
-                "receipt size is too large",
-                size,
-            ));
+            apibail_parse_error!("receipt size is too large", size);
         }
         if (size as usize) != data.len() {
-            return Err(VeilidAPIError::parse_error(
+            apibail_parse_error!(
                 "size doesn't match receipt size",
-                format!("size={} data.len()={}", size, data.len()),
-            ));
+                format!("size={} data.len()={}", size, data.len())
+            );
         }
 
         // Get sender id
@@ -153,10 +147,7 @@ impl Receipt {
         // Ensure extra data isn't too long
         let receipt_size: usize = self.extra_data.len() + MIN_RECEIPT_SIZE;
         if receipt_size > MAX_RECEIPT_SIZE {
-            return Err(VeilidAPIError::parse_error(
-                "receipt too large",
-                receipt_size,
-            ));
+            apibail_parse_error!("receipt too large", receipt_size);
         }
         let mut data: Vec<u8> = vec![0u8; receipt_size];
 

@@ -964,8 +964,8 @@ impl RouteSpecStore {
             let safety_spec = SafetySpec {
                 preferred_route: None,
                 hop_count: self.unlocked_inner.default_route_hop_count,
-                stability: Stability::LowLatency,
-                sequencing: Sequencing::NoPreference,
+                stability: Stability::default(),
+                sequencing: Sequencing::default(),
             };
 
             let safety_selection = SafetySelection::Safe(safety_spec);
