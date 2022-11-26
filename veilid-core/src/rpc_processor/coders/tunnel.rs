@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_tunnel_mode(tunnel_mode: TunnelMode) -> veilid_capnp::TunnelEndpointMode {
     match tunnel_mode {

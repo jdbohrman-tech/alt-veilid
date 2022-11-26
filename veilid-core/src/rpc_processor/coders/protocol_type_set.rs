@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_protocol_type_set(
     protocol_type_set: &ProtocolTypeSet,

@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_dial_info_detail(
     dial_info_detail: &DialInfoDetail,

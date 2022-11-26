@@ -1,4 +1,4 @@
-use crate::*;
+use super::*;
 
 pub fn encode_network_class(network_class: NetworkClass) -> veilid_capnp::NetworkClass {
     match network_class {

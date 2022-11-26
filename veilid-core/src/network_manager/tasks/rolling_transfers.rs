@@ -1,6 +1,4 @@
-use super::super::*;
-
-use crate::xx::*;
+use super::*;
 
 impl NetworkManager {
     // Compute transfer statistics for the low level network

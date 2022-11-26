@@ -1,7 +1,6 @@
 use super::*;
 use crate::tests::common::test_veilid_config::*;
 use crate::xx::*;
-use crate::*;
 
 pub async fn test_envelope_round_trip() {
     info!("--- test envelope round trip ---");

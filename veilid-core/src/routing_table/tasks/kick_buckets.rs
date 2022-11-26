@@ -1,5 +1,4 @@
-use super::super::*;
-use crate::xx::*;
+use super::*;
 
 impl RoutingTable {
     // Kick the queued buckets in the routing table to free dead nodes if necessary

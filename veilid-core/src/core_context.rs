@@ -4,6 +4,7 @@ use crate::crypto::Crypto;
 use crate::veilid_api::*;
 use crate::veilid_config::*;
 use crate::xx::*;
+use crate::*;
 
 pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;
 
@@ -203,7 +204,7 @@ impl VeilidCoreContext {
             if #[cfg(target_os = "android")] {
                 if crate::intf::utils::android::ANDROID_GLOBALS.lock().is_none() {
                     error!("Android globals are not set up");
-                    return Err(VeilidAPIError::Internal { message: "Android globals are not set up".to_owned() });
+                    apibail_internal!("Android globals are not set up");
                 }
             }
         }
@@ -251,7 +252,7 @@ pub async fn api_startup(
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
     if *initialized_lock {
-        return Err(VeilidAPIError::AlreadyInitialized);
+        apibail_already_initialized!();
     }
 
     // Create core context
@@ -274,7 +275,7 @@ pub async fn api_startup_json(
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
     if *initialized_lock {
-        return Err(VeilidAPIError::AlreadyInitialized);
+        apibail_already_initialized!();
     }
 
     // Create core context

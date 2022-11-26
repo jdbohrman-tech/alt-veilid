@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_signature(sig: &DHTSignature, builder: &mut veilid_capnp::signature512::Builder) {
     let sig = &sig.bytes;

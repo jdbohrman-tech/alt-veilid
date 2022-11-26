@@ -1,7 +1,5 @@
-use crate::crypto::*;
-use crate::*;
+use super::*;
 use core::convert::TryInto;
-use rpc_processor::*;
 
 pub fn decode_dht_key(public_key: &veilid_capnp::key256::Reader) -> DHTKey {
     let u0 = public_key.get_u0().to_be_bytes();

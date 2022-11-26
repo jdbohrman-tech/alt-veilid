@@ -1,4 +1,5 @@
 use super::*;
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, Debug)]
@@ -106,7 +107,7 @@ impl RoutingContext {
                 // Resolve node
                 let mut nr = match rpc_processor.resolve_node(node_id.key).await {
                     Ok(Some(nr)) => nr,
-                    Ok(None) => return Err(VeilidAPIError::KeyNotFound { key: node_id.key }),
+                    Ok(None) => apibail_key_not_found!(node_id.key),
                     Err(e) => return Err(e.into()),
                 };
                 // Apply sequencing to match safety selection
@@ -123,7 +124,7 @@ impl RoutingContext {
                 let Some(private_route) = rss
                     .get_remote_private_route(&pr) 
                     else {
-                        return Err(VeilidAPIError::KeyNotFound { key: pr });
+                        apibail_key_not_found!(pr);
                     };
 
                 Ok(rpc_processor::Destination::PrivateRoute {
@@ -151,15 +152,13 @@ impl RoutingContext {
         // Send app message
         let answer = match rpc_processor.rpc_call_app_call(dest, request).await {
             Ok(NetworkResult::Value(v)) => v,
-            Ok(NetworkResult::Timeout) => return Err(VeilidAPIError::Timeout),
+            Ok(NetworkResult::Timeout) => apibail_timeout!(),
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
-                return Err(VeilidAPIError::NoConnection {
-                    message: e.to_string(),
-                })
+                apibail_no_connection!(e);
             }
 
             Ok(NetworkResult::InvalidMessage(message)) => {
-                return Err(VeilidAPIError::Generic { message })
+                apibail_generic!(message);
             }
             Err(e) => return Err(e.into()),
         };
@@ -181,14 +180,12 @@ impl RoutingContext {
         // Send app message
         match rpc_processor.rpc_call_app_message(dest, message).await {
             Ok(NetworkResult::Value(())) => {}
-            Ok(NetworkResult::Timeout) => return Err(VeilidAPIError::Timeout),
+            Ok(NetworkResult::Timeout) => apibail_timeout!(),
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
-                return Err(VeilidAPIError::NoConnection {
-                    message: e.to_string(),
-                })
+                apibail_no_connection!(e);
             }
             Ok(NetworkResult::InvalidMessage(message)) => {
-                return Err(VeilidAPIError::Generic { message })
+                apibail_generic!(message);
             }
             Err(e) => return Err(e.into()),
         };

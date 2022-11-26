@@ -1,4 +1,5 @@
 use crate::*;
+use crate::xx::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
@@ -33,7 +34,6 @@ use routing_table::*;
 use rpc_processor::*;
 #[cfg(target_arch = "wasm32")]
 use wasm::*;
-use xx::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 

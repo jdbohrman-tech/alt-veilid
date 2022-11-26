@@ -11,11 +11,12 @@ mod routing_table_inner;
 mod stats_accounting;
 mod tasks;
 
+use crate::xx::*;
+use crate::*;
+
 use crate::crypto::*;
 use crate::network_manager::*;
 use crate::rpc_processor::*;
-use crate::xx::*;
-use crate::*;
 use bucket::*;
 pub use bucket_entry::*;
 pub use debug::*;

@@ -1,5 +1,4 @@
-use super::super::*;
-use crate::xx::*;
+use super::*;
 
 impl RoutingTable {
     // Keep relays assigned and accessible

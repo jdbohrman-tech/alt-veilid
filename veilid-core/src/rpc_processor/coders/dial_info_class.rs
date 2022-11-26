@@ -1,4 +1,4 @@
-use crate::*;
+use super::*;
 
 pub fn encode_dial_info_class(dial_info_class: DialInfoClass) -> veilid_capnp::DialInfoClass {
     match dial_info_class {

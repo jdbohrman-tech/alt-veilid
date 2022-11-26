@@ -1,5 +1,4 @@
-use super::super::*;
-use crate::xx::*;
+use super::*;
 
 impl RoutingTable {
     // Compute transfer statistics to determine how 'fast' a node is

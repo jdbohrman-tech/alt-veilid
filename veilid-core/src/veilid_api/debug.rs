@@ -276,15 +276,10 @@ fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     argument: &str,
     getter: G,
 ) -> Result<T, VeilidAPIError> {
-    if let Some(val) = getter(value) {
-        Ok(val)
-    } else {
-        Err(VeilidAPIError::InvalidArgument {
-            context: context.to_owned(),
-            argument: argument.to_owned(),
-            value: value.to_owned(),
-        })
-    }
+    let Some(val) = getter(value) else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
 }
 fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     debug_args: &[String],
@@ -294,21 +289,13 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     getter: G,
 ) -> Result<T, VeilidAPIError> {
     if pos >= debug_args.len() {
-        return Err(VeilidAPIError::MissingArgument {
-            context: context.to_owned(),
-            argument: argument.to_owned(),
-        });
+        apibail_missing_argument!(context, argument);
     }
     let value = &debug_args[pos];
-    if let Some(val) = getter(value) {
-        Ok(val)
-    } else {
-        Err(VeilidAPIError::InvalidArgument {
-            context: context.to_owned(),
-            argument: argument.to_owned(),
-            value: value.to_owned(),
-        })
-    }
+    let Some(val) = getter(value) else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
 }
 
 impl VeilidAPI {
@@ -351,11 +338,7 @@ impl VeilidAPI {
             } else if let Some(lim) = get_number(&arg) {
                 limit = lim;
             } else {
-                return Err(VeilidAPIError::InvalidArgument {
-                    context: "debug_entries".to_owned(),
-                    argument: "unknown".to_owned(),
-                    value: arg,
-                });
+                apibail_invalid_argument!("debug_entries", "unknown", arg);
             }
         }
 
@@ -412,7 +395,7 @@ impl VeilidAPI {
     async fn debug_restart(&self, args: String) -> Result<String, VeilidAPIError> {
         let args = args.trim_start();
         if args.is_empty() {
-            return Err(VeilidAPIError::missing_argument("debug_restart", "arg_0"));
+            apibail_missing_argument!("debug_restart", "arg_0");
         }
         let (arg, _rest) = args.split_once(' ').unwrap_or((args, ""));
         // let rest = rest.trim_start().to_owned();
@@ -431,11 +414,7 @@ impl VeilidAPI {
 
             Ok("Network restarted".to_owned())
         } else {
-            Err(VeilidAPIError::invalid_argument(
-                "debug_restart",
-                "arg_1",
-                arg,
-            ))
+            apibail_invalid_argument!("debug_restart", "arg_1", arg);
         }
     }
 
@@ -654,11 +633,7 @@ impl VeilidAPI {
                 if full_val == "full" {
                     true
                 } else {
-                    return Err(VeilidAPIError::invalid_argument(
-                        "debug_route",
-                        "full",
-                        full_val,
-                    ));
+                    apibail_invalid_argument!("debug_route", "full", full_val);
                 }
             } else {
                 false

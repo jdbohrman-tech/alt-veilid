@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_signed_relayed_node_info(
     signed_relayed_node_info: &SignedRelayedNodeInfo,

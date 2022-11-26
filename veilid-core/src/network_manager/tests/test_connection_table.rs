@@ -1,8 +1,7 @@
+use super::*;
+
 use super::connection_table::*;
-use super::network_connection::*;
 use crate::tests::common::test_veilid_config::*;
-use crate::xx::*;
-use crate::*;
 
 pub async fn test_add_get_remove() {
     let config = get_config();

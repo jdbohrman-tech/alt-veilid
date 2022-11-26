@@ -3,10 +3,11 @@
 
 mod test_async_peek_stream;
 
+use crate::xx::*;
+
 use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
 use crate::tests::common::*;
-use crate::xx::*;
 
 #[cfg(all(target_os = "android", feature = "android_tests"))]
 use jni::{objects::JClass, objects::JObject, JNIEnv};
