@@ -1,4 +1,3 @@
-use crate::xx::*;
 use crate::*;
 
 cfg_if! {
@@ -458,27 +457,6 @@ pub async fn test_split_url() {
     assert_split_url_parse!("s://s");
 }
 
-cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
-        pub async fn test_network_interfaces() {
-            info!("testing network interfaces");
-            let t1 = get_timestamp();
-            let interfaces = intf::utils::network_interfaces::NetworkInterfaces::new();
-            let count = 100;
-            for x in 0..count {
-                info!("loop {}", x);
-                if let Err(e) = interfaces.refresh().await {
-                    error!("error refreshing interfaces: {}", e);
-                }
-            }
-            let t2 = get_timestamp();
-            let tdiff = ((t2 - t1) as f64)/1000000.0f64;
-            info!("running network interface test with {} iterations took {} seconds", count, tdiff);
-            info!("interfaces: {:#?}", interfaces)
-        }
-    }
-}
-
 pub async fn test_get_random_u64() {
     info!("testing random number generator for u64");
     let t1 = get_timestamp();
@@ -567,7 +545,6 @@ pub async fn test_all() {
     test_get_random_u32().await;
     test_sleep().await;
     #[cfg(not(target_arch = "wasm32"))]
-    test_network_interfaces().await;        XXX KEEP THIS IN NATIVE TESTS
     test_must_join_single_future().await;
     test_eventual().await;
     test_eventual_value().await;

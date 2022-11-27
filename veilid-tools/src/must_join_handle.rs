@@ -77,7 +77,7 @@ impl<T: 'static> Future for MustJoinHandle<T> {
                                 }
                             }
                         }
-                    }else if #[cfg(target_arch = "wasm32")] {
+                    } else if #[cfg(target_arch = "wasm32")] {
                         Poll::Ready(t)
                     } else {
                         compile_error!("needs executor implementation")

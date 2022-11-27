@@ -9,7 +9,7 @@
 
 use super::*;
 
-use core::str::FromStr;
+use std::str::FromStr;
 
 fn is_alphanum(c: u8) -> bool {
     matches!(c,

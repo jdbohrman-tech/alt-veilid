@@ -336,25 +336,13 @@ checksum = "7a40729d2133846d9ed0ea60a8b9541bccddab49cd30f0715a1da672fe9a2524"
 
 [[package]]
 name = "async-tls"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7e7fbc0843fc5ad3d5ca889c5b2bea9130984d34cd0e62db57ab70c2529a8e3"
-dependencies = [
- "futures",
- "rustls 0.18.1",
- "webpki 0.21.4",
- "webpki-roots 0.20.0",
-]
-
-[[package]]
-name = "async-tls"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f23d769dbf1838d5df5156e7b1ad404f4c463d1ac2c6aeb6cd943630f8a8400"
 dependencies = [
  "futures-core",
  "futures-io",
- "rustls 0.19.1",
+ "rustls",
  "webpki 0.21.4",
  "webpki-roots 0.21.1",
 ]
@@ -376,7 +364,6 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5c45a0dd44b7e6533ac4e7acc38ead1a3b39885f5bbb738140d30ea528abc7c"
 dependencies = [
- "async-tls 0.9.0",
  "futures-io",
  "futures-util",
  "log",
@@ -390,7 +377,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b750efd83b7e716a015eed5ebb583cda83c52d9b24a8f0125e5c48c3313c9f8"
 dependencies = [
- "async-tls 0.11.0",
+ "async-tls",
  "futures-io",
  "futures-util",
  "log",
@@ -4311,19 +4298,6 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d1126dcf58e93cee7d098dbda643b5f92ed724f1f6a63007c1116eed6700c81"
-dependencies = [
- "base64 0.12.3",
- "log",
- "ring",
- "sct",
- "webpki 0.21.4",
-]
-
-[[package]]
-name = "rustls"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35edb675feee39aec9c99fa5ff985081995a06d594114ae14cbe797ad7b7a6d7"
@@ -5588,7 +5562,7 @@ dependencies = [
  "async-lock",
  "async-std",
  "async-std-resolver",
- "async-tls 0.11.0",
+ "async-tls",
  "async-tungstenite 0.18.0",
  "async_executors",
  "backtrace",
@@ -5641,7 +5615,7 @@ dependencies = [
  "rtnetlink",
  "rusqlite",
  "rust-fsm",
- "rustls 0.19.1",
+ "rustls",
  "rustls-pemfile",
  "secrecy",
  "send_wrapper 0.6.0",
@@ -5763,47 +5737,15 @@ dependencies = [
 name = "veilid-tools"
 version = "0.1.0"
 dependencies = [
- "async-io",
  "async-lock",
  "async-std",
- "async-std-resolver",
- "async-tls 0.11.0",
- "async-tungstenite 0.8.0",
  "async_executors",
- "backtrace",
- "blake3",
- "bugsalot",
- "bytecheck",
  "cfg-if 1.0.0",
- "chacha20 0.8.2",
- "chacha20poly1305",
- "chrono",
- "config",
- "console_error_panic_hook",
- "curve25519-dalek-ng",
- "data-encoding",
- "digest 0.9.0",
- "directories",
- "ed25519-dalek",
- "enumset",
  "eyre",
- "flume",
  "futures-util",
- "generic-array",
- "getrandom 0.2.8",
- "hashlink 0.8.1",
- "hex",
- "ifstructs",
- "igd",
  "jni",
  "jni-sys",
  "js-sys",
- "json",
- "keyring-manager",
- "keyvaluedb",
- "keyvaluedb-sqlite",
- "keyvaluedb-web",
- "lazy_static",
  "libc",
  "log",
  "maplit",
@@ -5811,45 +5753,24 @@ dependencies = [
  "ndk-glue",
  "nix 0.22.3",
  "once_cell",
- "owning_ref",
  "owo-colors",
  "parking_lot 0.11.2",
  "rand 0.7.3",
- "rkyv",
- "rtnetlink",
- "rusqlite",
- "rustls 0.19.1",
- "rustls-pemfile",
- "secrecy",
  "send_wrapper 0.6.0",
- "serde",
- "serde-big-array",
- "serde_json",
  "serial_test",
  "simplelog 0.9.0",
- "socket2",
  "static_assertions",
  "stop-token",
  "thiserror",
  "tokio 1.22.0",
- "tokio-stream",
  "tokio-util",
  "tracing",
  "tracing-android",
- "trust-dns-resolver",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "wasm-logger",
- "web-sys",
- "webpki 0.21.4",
- "webpki-roots 0.21.1",
  "wee_alloc",
- "winapi 0.3.9",
- "windows",
- "windows-permissions",
- "ws_stream_wasm",
- "x25519-dalek-ng",
 ]
 
 [[package]]
@@ -6058,15 +5979,6 @@ checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
 dependencies = [
  "ring",
  "untrusted",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f20dea7535251981a9670857150d571846545088359b28e4951d350bdaf179f"
-dependencies = [
- "webpki 0.21.4",
 ]
 
 [[package]]

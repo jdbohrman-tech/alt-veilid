@@ -74,6 +74,7 @@ pub use std::net::{
 pub use std::ops::{Fn, FnMut, FnOnce};
 pub use std::pin::Pin;
 pub use std::rc::Rc;
+pub use std::str::FromStr;
 pub use std::string::{String, ToString};
 pub use std::sync::atomic::{AtomicBool, Ordering};
 pub use std::sync::{Arc, Weak};
@@ -132,3 +133,6 @@ pub use timestamp::*;
 pub use tools::*;
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
+
+// Tests must be public for wasm-pack tests
+pub mod tests;
