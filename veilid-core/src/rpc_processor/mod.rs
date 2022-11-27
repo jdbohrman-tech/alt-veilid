@@ -28,6 +28,7 @@ pub use rpc_error::*;
 pub use rpc_status::*;
 
 use super::*;
+
 use crate::crypto::*;
 use crate::xx::*;
 use futures_util::StreamExt;
@@ -256,7 +257,7 @@ impl RPCProcessor {
         let timeout = ms_to_us(c.network.rpc.timeout_ms);
         let max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
         if concurrency == 0 {
-            concurrency = intf::get_concurrency() / 2;
+            concurrency = get_concurrency() / 2;
             if concurrency == 0 {
                 concurrency = 1;
             }
@@ -313,7 +314,7 @@ impl RPCProcessor {
         for _ in 0..self.unlocked_inner.concurrency {
             let this = self.clone();
             let receiver = channel.1.clone();
-            let jh = intf::spawn(Self::rpc_worker(
+            let jh = spawn(Self::rpc_worker(
                 this,
                 inner.stop_source.as_ref().unwrap().token(),
                 receiver,
@@ -460,7 +461,7 @@ impl RPCProcessor {
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
                 // Reply received
-                let recv_ts = intf::get_timestamp();
+                let recv_ts = get_timestamp();
 
                 // Record answer received
                 self.record_answer_received(
@@ -1011,7 +1012,7 @@ impl RPCProcessor {
 
         // Send question
         let bytes = message.len() as u64;
-        let send_ts = intf::get_timestamp();
+        let send_ts = get_timestamp();
         let send_data_kind = network_result_try!(self
             .network_manager()
             .send_envelope(node_ref.clone(), Some(node_id), message)
@@ -1078,7 +1079,7 @@ impl RPCProcessor {
 
         // Send statement
         let bytes = message.len() as u64;
-        let send_ts = intf::get_timestamp();
+        let send_ts = get_timestamp();
         let _send_data_kind = network_result_try!(self
             .network_manager()
             .send_envelope(node_ref.clone(), Some(node_id), message)
@@ -1139,7 +1140,7 @@ impl RPCProcessor {
 
         // Send the reply
         let bytes = message.len() as u64;
-        let send_ts = intf::get_timestamp();
+        let send_ts = get_timestamp();
         network_result_try!(self.network_manager()
             .send_envelope(node_ref.clone(), Some(node_id), message)
             .await
@@ -1357,7 +1358,7 @@ impl RPCProcessor {
                     connection_descriptor,
                     routing_domain,
                 }),
-                timestamp: intf::get_timestamp(),
+                timestamp: get_timestamp(),
                 body_len: body.len() as u64,
             },
             data: RPCMessageData { contents: body },
@@ -1386,7 +1387,7 @@ impl RPCProcessor {
                     remote_safety_route,
                     sequencing,
                 }),
-                timestamp: intf::get_timestamp(),
+                timestamp: get_timestamp(),
                 body_len: body.len() as u64,
             },
             data: RPCMessageData { contents: body },
@@ -1419,7 +1420,7 @@ impl RPCProcessor {
                         safety_spec,
                     },
                 ),
-                timestamp: intf::get_timestamp(),
+                timestamp: get_timestamp(),
                 body_len: body.len() as u64,
             },
             data: RPCMessageData { contents: body },

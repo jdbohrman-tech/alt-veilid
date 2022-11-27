@@ -78,7 +78,7 @@ impl ConnectionLimits {
 
     pub fn add(&mut self, addr: IpAddr) -> Result<(), AddressFilterError> {
         let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
-        let ts = intf::get_timestamp();
+        let ts = get_timestamp();
 
         self.purge_old_timestamps(ts);
 
@@ -134,7 +134,7 @@ impl ConnectionLimits {
     pub fn remove(&mut self, addr: IpAddr) -> Result<(), AddressNotInTableError> {
         let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
 
-        let ts = intf::get_timestamp();
+        let ts = get_timestamp();
         self.purge_old_timestamps(ts);
 
         match ipblock {

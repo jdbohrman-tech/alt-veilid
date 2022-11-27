@@ -196,7 +196,7 @@ pub async fn nonblocking_connect(
     let async_stream = Async::new(std::net::TcpStream::from(socket))?;
 
     // The stream becomes writable when connected
-    timeout_or_try!(intf::timeout(timeout_ms, async_stream.writable())
+    timeout_or_try!(timeout(timeout_ms, async_stream.writable())
         .await
         .into_timeout_or()
         .into_result()?);

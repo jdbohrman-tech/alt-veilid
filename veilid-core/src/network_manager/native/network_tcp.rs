@@ -58,7 +58,7 @@ impl Network {
         // Don't waste more than N seconds getting it though, in case someone
         // is trying to DoS us with a bunch of connections or something
         // read a chunk of the stream
-        intf::timeout(
+        timeout(
             tls_connection_initial_timeout_ms,
             ps.peek_exact(&mut first_packet),
         )

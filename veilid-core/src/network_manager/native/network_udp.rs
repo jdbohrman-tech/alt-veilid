@@ -10,7 +10,7 @@ impl Network {
             c.network.protocol.udp.socket_pool_size
         };
         if task_count == 0 {
-            task_count = intf::get_concurrency() / 2;
+            task_count = get_concurrency() / 2;
             if task_count == 0 {
                 task_count = 1;
             }

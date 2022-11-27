@@ -281,7 +281,7 @@ impl ReceiptManager {
             };
             (inner.next_oldest_ts, inner.timeout_task.clone(), stop_token)
         };
-        let now = intf::get_timestamp();
+        let now = get_timestamp();
         // If we have at least one timestamp to expire, lets do it
         if let Some(next_oldest_ts) = next_oldest_ts {
             if now >= next_oldest_ts {

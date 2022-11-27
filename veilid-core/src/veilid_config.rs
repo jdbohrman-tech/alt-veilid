@@ -369,7 +369,6 @@ pub struct VeilidConfigNetwork {
     pub rpc: VeilidConfigRPC,
     pub dht: VeilidConfigDHT,
     pub upnp: bool,
-    pub natpmp: bool,
     pub detect_address_changes: bool,
     pub restricted_nat_retries: u32,
     pub tls: VeilidConfigTLS,
@@ -665,7 +664,6 @@ impl VeilidConfig {
             get_config!(inner.network.rpc.max_route_hop_count);
             get_config!(inner.network.rpc.default_route_hop_count);
             get_config!(inner.network.upnp);
-            get_config!(inner.network.natpmp);
             get_config!(inner.network.detect_address_changes);
             get_config!(inner.network.restricted_nat_retries);
             get_config!(inner.network.tls.certificate_path);

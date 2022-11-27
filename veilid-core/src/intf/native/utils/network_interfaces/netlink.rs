@@ -322,7 +322,7 @@ impl PlatformSupportNetlink {
             .wrap_err("failed to create rtnetlink socket")?;
 
         // Spawn a connection handler
-        let connection_jh = intf::spawn(connection);
+        let connection_jh = spawn(connection);
 
         // Save the connection
         self.connection_jh = Some(connection_jh);

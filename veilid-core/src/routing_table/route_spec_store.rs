@@ -624,7 +624,7 @@ impl RouteSpecStore {
             .map(|nr| nr.node_id());
 
         // Get list of all nodes, and sort them for selection
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         let filter = Box::new(
             move |rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| -> bool {
                 // Exclude our own node from routes
@@ -994,7 +994,7 @@ impl RouteSpecStore {
     pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
         let is_remote = {
             let inner = &mut *self.inner.lock();
-            let cur_ts = intf::get_timestamp();
+            let cur_ts = get_timestamp();
             Self::with_peek_remote_private_route(inner, cur_ts, key, |_| {}).is_some()
         };
         if is_remote {
@@ -1058,7 +1058,7 @@ impl RouteSpecStore {
     pub fn release_route(&self, key: &DHTKey) -> bool {
         let is_remote = {
             let inner = &mut *self.inner.lock();
-            let cur_ts = intf::get_timestamp();
+            let cur_ts = get_timestamp();
             Self::with_peek_remote_private_route(inner, cur_ts, key, |_| {}).is_some()
         };
         if is_remote {
@@ -1079,7 +1079,7 @@ impl RouteSpecStore {
         directions: DirectionSet,
         avoid_node_ids: &[DHTKey],
     ) -> Option<DHTKey> {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         for detail in &inner.content.details {
             if detail.1.stability >= stability
                 && detail.1.sequencing >= sequencing
@@ -1137,7 +1137,7 @@ impl RouteSpecStore {
     /// Get the debug description of a route
     pub fn debug_route(&self, key: &DHTKey) -> Option<String> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         // If this is a remote route, print it
         if let Some(s) =
             Self::with_peek_remote_private_route(inner, cur_ts, key, |rpi| format!("{:#?}", rpi))
@@ -1534,7 +1534,7 @@ impl RouteSpecStore {
         }
 
         // store the private route in our cache
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         let key = Self::with_create_remote_private_route(inner, cur_ts, private_route, |r| {
             r.private_route.as_ref().unwrap().public_key.clone()
         });
@@ -1557,7 +1557,7 @@ impl RouteSpecStore {
     /// Retrieve an imported remote private route by its public key
     pub fn get_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
             r.private_route.as_ref().unwrap().clone()
         })
@@ -1566,7 +1566,7 @@ impl RouteSpecStore {
     /// Retrieve an imported remote private route by its public key but don't 'touch' it
     pub fn peek_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         Self::with_peek_remote_private_route(inner, cur_ts, key, |r| {
             r.private_route.as_ref().unwrap().clone()
         })
@@ -1670,7 +1670,7 @@ impl RouteSpecStore {
     /// private route and gotten a response before
     pub fn has_remote_private_route_seen_our_node_info(&self, key: &DHTKey) -> bool {
         let inner = &mut *self.inner.lock();
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| rpr.seen_our_node_info)
             .unwrap_or_default()
     }

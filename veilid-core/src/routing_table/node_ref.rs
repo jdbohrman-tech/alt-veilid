@@ -275,7 +275,7 @@ pub trait NodeRefBase: Sized {
                 } else {
                     // If this is not connection oriented, then we check our last seen time
                     // to see if this mapping has expired (beyond our timeout)
-                    let cur_ts = intf::get_timestamp();
+                    let cur_ts = get_timestamp();
                     if (last_seen + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts {
                         return Some(last_connection);
                     }

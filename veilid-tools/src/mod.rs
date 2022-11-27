@@ -6,6 +6,7 @@ mod eventual;
 mod eventual_base;
 mod eventual_value;
 mod eventual_value_clone;
+mod interval;
 mod ip_addr_port;
 mod ip_extra;
 mod log_thru;
@@ -13,11 +14,18 @@ mod must_join_handle;
 mod must_join_single_future;
 mod mutable_future;
 mod network_result;
+mod random;
 mod single_shot_eventual;
+mod sleep;
+mod spawn;
 mod split_url;
 mod tick_task;
+mod timeout;
 mod timeout_or;
+mod timestamp;
 mod tools;
+#[cfg(target_arch = "wasm32")]
+mod wasm;
 
 pub use cfg_if::*;
 #[allow(unused_imports)]
@@ -33,8 +41,13 @@ pub use split_url::*;
 pub use static_assertions::*;
 pub use stop_token::*;
 pub use thiserror::Error as ThisError;
-pub use tracing::*;
-
+cfg_if! {
+    if #[cfg(feature = "tracing")] {
+        pub use tracing::*;
+    } else {
+        pub use log::*;
+    }
+}
 pub type PinBox<T> = Pin<Box<T>>;
 pub type PinBoxFuture<T> = PinBox<dyn Future<Output = T> + 'static>;
 pub type PinBoxFutureLifetime<'a, T> = PinBox<dyn Future<Output = T> + 'a>;
@@ -70,8 +83,6 @@ pub use std::vec::Vec;
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
-        pub use wasm_bindgen::prelude::*;
-
         pub use async_lock::Mutex as AsyncMutex;
         pub use async_lock::MutexGuard as AsyncMutexGuard;
         pub use async_lock::MutexGuardArc as AsyncMutexGuardArc;
@@ -103,13 +114,21 @@ pub use eventual::*;
 pub use eventual_base::{EventualCommon, EventualResolvedFuture};
 pub use eventual_value::*;
 pub use eventual_value_clone::*;
+pub use interval::*;
 pub use ip_addr_port::*;
 pub use ip_extra::*;
 pub use must_join_handle::*;
 pub use must_join_single_future::*;
 pub use mutable_future::*;
 pub use network_result::*;
+pub use random::*;
 pub use single_shot_eventual::*;
+pub use sleep::*;
+pub use spawn::*;
 pub use tick_task::*;
+pub use timeout::*;
 pub use timeout_or::*;
+pub use timestamp::*;
 pub use tools::*;
+#[cfg(target_arch = "wasm32")]
+pub use wasm::*;

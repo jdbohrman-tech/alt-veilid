@@ -745,7 +745,6 @@ class VeilidConfigNetwork {
   VeilidConfigRPC rpc;
   VeilidConfigDHT dht;
   bool upnp;
-  bool natpmp;
   bool detectAddressChanges;
   int restrictedNatRetries;
   VeilidConfigTLS tls;
@@ -770,7 +769,6 @@ class VeilidConfigNetwork {
     required this.rpc,
     required this.dht,
     required this.upnp,
-    required this.natpmp,
     required this.detectAddressChanges,
     required this.restrictedNatRetries,
     required this.tls,
@@ -797,7 +795,6 @@ class VeilidConfigNetwork {
       'rpc': rpc.json,
       'dht': dht.json,
       'upnp': upnp,
-      'natpmp': natpmp,
       'detect_address_changes': detectAddressChanges,
       'restricted_nat_retries': restrictedNatRetries,
       'tls': tls.json,
@@ -827,7 +824,6 @@ class VeilidConfigNetwork {
         rpc = VeilidConfigRPC.fromJson(json['rpc']),
         dht = VeilidConfigDHT.fromJson(json['dht']),
         upnp = json['upnp'],
-        natpmp = json['natpmp'],
         detectAddressChanges = json['detect_address_changes'],
         restrictedNatRetries = json['restricted_nat_retries'],
         tls = VeilidConfigTLS.fromJson(json['tls']),

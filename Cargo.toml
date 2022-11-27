@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "veilid-tools",
     "veilid-core",
     "veilid-server",
     "veilid-cli",

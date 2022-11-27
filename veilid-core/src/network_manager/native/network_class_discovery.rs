@@ -275,7 +275,7 @@ impl DiscoveryContext {
                         LowLevelProtocolType::UDP => "udp",
                         LowLevelProtocolType::TCP => "tcp",
                     });
-                    intf::sleep(PORT_MAP_VALIDATE_DELAY_MS).await
+                    sleep(PORT_MAP_VALIDATE_DELAY_MS).await
                 } else {
                     break;
                 }
@@ -304,9 +304,9 @@ impl DiscoveryContext {
 
     #[instrument(level = "trace", skip(self), ret)]
     async fn try_port_mapping(&self) -> Option<DialInfo> {
-        let (enable_upnp, _enable_natpmp) = {
+        let enable_upnp = {
             let c = self.net.config.get();
-            (c.network.upnp, c.network.natpmp)
+            c.network.upnp
         };
 
         if enable_upnp {

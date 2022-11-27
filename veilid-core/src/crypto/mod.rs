@@ -137,7 +137,7 @@ impl Crypto {
 
         // Schedule flushing
         let this = self.clone();
-        let flush_future = intf::interval(60000, move || {
+        let flush_future = interval(60000, move || {
             let this = this.clone();
             async move {
                 if let Err(e) = this.flush().await {
@@ -229,13 +229,13 @@ impl Crypto {
 
     pub fn get_random_nonce() -> Nonce {
         let mut nonce = [0u8; 24];
-        intf::random_bytes(&mut nonce).unwrap();
+        random_bytes(&mut nonce).unwrap();
         nonce
     }
 
     pub fn get_random_secret() -> SharedSecret {
         let mut s = [0u8; 32];
-        intf::random_bytes(&mut s).unwrap();
+        random_bytes(&mut s).unwrap();
         s
     }
 

@@ -2,7 +2,8 @@
 // This file really shouldn't be necessary, but 'ip' isn't a stable feature
 //
 
-use crate::xx::*;
+use super::*;
+
 use core::hash::*;
 
 #[derive(Copy, PartialEq, Eq, Clone, Hash, Debug)]

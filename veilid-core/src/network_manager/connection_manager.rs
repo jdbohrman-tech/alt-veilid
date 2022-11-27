@@ -319,7 +319,7 @@ impl ConnectionManager {
             };
             log_net!(debug "get_or_create_connection retries left: {}", retry_count);
             retry_count -= 1;
-            intf::sleep(500).await;
+            sleep(500).await;
         });
 
         // Add to the connection table

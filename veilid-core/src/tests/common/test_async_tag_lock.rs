@@ -1,5 +1,4 @@
 use crate::xx::*;
-use crate::*;
 
 pub async fn test_simple_no_contention() {
     info!("test_simple_no_contention");
@@ -36,12 +35,12 @@ pub async fn test_simple_single_contention() {
     let g1 = table.lock_tag(a1).await;
 
     info!("locked");
-    let t1 = intf::spawn(async move {
+    let t1 = spawn(async move {
         // move the guard into the task
         let _g1_take = g1;
         // hold the guard for a bit
         info!("waiting");
-        intf::sleep(1000).await;
+        sleep(1000).await;
         // release the guard
         info!("released");
     });
@@ -68,21 +67,21 @@ pub async fn test_simple_double_contention() {
     let g2 = table.lock_tag(a2).await;
 
     info!("locked");
-    let t1 = intf::spawn(async move {
+    let t1 = spawn(async move {
         // move the guard into the tas
         let _g1_take = g1;
         // hold the guard for a bit
         info!("waiting");
-        intf::sleep(1000).await;
+        sleep(1000).await;
         // release the guard
         info!("released");
     });
-    let t2 = intf::spawn(async move {
+    let t2 = spawn(async move {
         // move the guard into the task
         let _g2_take = g2;
         // hold the guard for a bit
         info!("waiting");
-        intf::sleep(500).await;
+        sleep(500).await;
         // release the guard
         info!("released");
     });
@@ -109,37 +108,37 @@ pub async fn test_parallel_single_contention() {
     let a1 = SocketAddr::new("1.2.3.4".parse().unwrap(), 1234);
 
     let table1 = table.clone();
-    let t1 = intf::spawn(async move {
+    let t1 = spawn(async move {
         // lock the tag
         let _g = table1.lock_tag(a1).await;
         info!("locked t1");
         // hold the guard for a bit
         info!("waiting t1");
-        intf::sleep(500).await;
+        sleep(500).await;
         // release the guard
         info!("released t1");
     });
 
     let table2 = table.clone();
-    let t2 = intf::spawn(async move {
+    let t2 = spawn(async move {
         // lock the tag
         let _g = table2.lock_tag(a1).await;
         info!("locked t2");
         // hold the guard for a bit
         info!("waiting t2");
-        intf::sleep(500).await;
+        sleep(500).await;
         // release the guard
         info!("released t2");
     });
 
     let table3 = table.clone();
-    let t3 = intf::spawn(async move {
+    let t3 = spawn(async move {
         // lock the tag
         let _g = table3.lock_tag(a1).await;
         info!("locked t3");
         // hold the guard for a bit
         info!("waiting t3");
-        intf::sleep(500).await;
+        sleep(500).await;
         // release the guard
         info!("released t3");
     });

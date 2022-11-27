@@ -227,7 +227,7 @@ impl RoutingTableInner {
     }
 
     pub fn reset_all_seen_our_node_info(&mut self, routing_domain: RoutingDomain) {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
             v.with_mut(rti, |_rti, e| {
                 e.set_seen_our_node_info(routing_domain, false);
@@ -237,7 +237,7 @@ impl RoutingTableInner {
     }
 
     pub fn reset_all_updated_since_last_network_change(&mut self) {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
             v.with_mut(rti, |_rti, e| {
                 e.set_updated_since_last_network_change(false)
@@ -330,7 +330,7 @@ impl RoutingTableInner {
 
         // If the local network topology has changed, nuke the existing local node info and let new local discovery happen
         if changed {
-            let cur_ts = intf::get_timestamp();
+            let cur_ts = get_timestamp();
             self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, e| {
                 e.with_mut(rti, |_rti, e| {
                     e.clear_signed_node_info(RoutingDomain::LocalNetwork);
@@ -410,7 +410,7 @@ impl RoutingTableInner {
         min_state: BucketEntryState,
     ) -> usize {
         let mut count = 0usize;
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         self.with_entries(cur_ts, min_state, |rti, _, e| {
             if e.with(rti, |_rti, e| e.best_routing_domain(routing_domain_set))
                 .is_some()
@@ -712,7 +712,7 @@ impl RoutingTableInner {
 
     pub fn get_routing_table_health(&self) -> RoutingTableHealth {
         let mut health = RoutingTableHealth::default();
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         for bucket in &self.buckets {
             for (_, v) in bucket.entries() {
                 match v.with(self, |_rti, e| e.state(cur_ts)) {
@@ -869,7 +869,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
 
         // Add filter to remove dead nodes always
         let filter_dead = Box::new(
@@ -954,7 +954,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         let node_count = {
             let config = self.config();
             let c = config.get();

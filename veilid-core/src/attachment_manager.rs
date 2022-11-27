@@ -254,7 +254,7 @@ impl AttachmentManager {
     #[instrument(level = "debug", skip(self))]
     async fn attachment_maintainer(self) {
         debug!("attachment starting");
-        self.inner.lock().attach_timestamp = Some(intf::get_timestamp());
+        self.inner.lock().attach_timestamp = Some(get_timestamp());
         let netman = self.network_manager();
 
         let mut restart;
@@ -286,7 +286,7 @@ impl AttachmentManager {
                 self.update_attachment().await;
 
                 // sleep should be at the end in case maintain_peers changes state
-                intf::sleep(1000).await;
+                sleep(1000).await;
             }
             debug!("stopped maintaining peers");
 
@@ -299,7 +299,7 @@ impl AttachmentManager {
 
             debug!("completely restarting attachment");
             // chill out for a second first, give network stack time to settle out
-            intf::sleep(1000).await;
+            sleep(1000).await;
         }
 
         trace!("stopping attachment");
@@ -348,7 +348,7 @@ impl AttachmentManager {
             return;
         }
         inner.maintain_peers = true;
-        inner.attachment_maintainer_jh = Some(intf::spawn(self.clone().attachment_maintainer()));
+        inner.attachment_maintainer_jh = Some(spawn(self.clone().attachment_maintainer()));
     }
 
     #[instrument(level = "trace", skip(self))]

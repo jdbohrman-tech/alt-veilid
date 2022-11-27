@@ -222,7 +222,6 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.dht.min_peer_refresh_time_ms" => Ok(Box::new(2_000u32)),
         "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.upnp" => Ok(Box::new(false)),
-        "network.natpmp" => Ok(Box::new(false)),
         "network.detect_address_changes" => Ok(Box::new(true)),
         "network.restricted_nat_retries" => Ok(Box::new(3u32)),
         "network.tls.certificate_path" => Ok(Box::new(get_certfile_path())),
@@ -352,7 +351,6 @@ pub async fn test_config() {
     );
 
     assert_eq!(inner.network.upnp, false);
-    assert_eq!(inner.network.natpmp, false);
     assert_eq!(inner.network.detect_address_changes, true);
     assert_eq!(inner.network.restricted_nat_retries, 3u32);
     assert_eq!(inner.network.tls.certificate_path, get_certfile_path());

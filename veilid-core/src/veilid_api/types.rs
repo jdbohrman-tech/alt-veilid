@@ -1826,7 +1826,7 @@ impl SignedDirectNodeInfo {
         node_info: NodeInfo,
         secret: &DHTKeySecret,
     ) -> Result<Self, VeilidAPIError> {
-        let timestamp = intf::get_timestamp();
+        let timestamp = get_timestamp();
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
         let signature = sign(&node_id.key, secret, &node_info_bytes)?;
         Ok(Self {
@@ -1858,7 +1858,7 @@ impl SignedDirectNodeInfo {
         Self {
             node_info,
             signature: None,
-            timestamp: intf::get_timestamp(),
+            timestamp: get_timestamp(),
         }
     }
 
@@ -1906,7 +1906,7 @@ impl SignedRelayedNodeInfo {
         relay_info: SignedDirectNodeInfo,
         secret: &DHTKeySecret,
     ) -> Result<Self, VeilidAPIError> {
-        let timestamp = intf::get_timestamp();
+        let timestamp = get_timestamp();
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_id, &relay_info, timestamp)?;
         let signature = sign(&node_id.key, secret, &node_info_bytes)?;

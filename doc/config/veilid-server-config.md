@@ -193,7 +193,6 @@ network:
     bootstrap: ['bootstrap.dev.veilid.net']
     bootstrap_nodes: []
     upnp: true
-    natpmp: false
     detect_address_changes: true
     enable_local_peer_scope: false
     restricted_nat_retries: 0

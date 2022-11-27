@@ -2,7 +2,7 @@
 // Pass errors through and log them simultaneously via map_err()
 // Also contains common log facilities (net, rpc, rtab, pstore, crypto, etc )
 
-pub use alloc::string::{String, ToString};
+use alloc::string::{String, ToString};
 
 pub fn map_to_string<X: ToString>(arg: X) -> String {
     arg.to_string()

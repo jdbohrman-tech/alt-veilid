@@ -120,7 +120,7 @@ impl Bucket {
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_timestamp();
         sorted_entries.sort_by(|a, b| -> core::cmp::Ordering {
             if a.0 == b.0 {
                 return core::cmp::Ordering::Equal;

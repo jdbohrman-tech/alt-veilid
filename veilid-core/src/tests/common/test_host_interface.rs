@@ -15,8 +15,8 @@ pub async fn test_log() {
 
 pub async fn test_get_timestamp() {
     info!("testing get_timestamp");
-    let t1 = intf::get_timestamp();
-    let t2 = intf::get_timestamp();
+    let t1 = get_timestamp();
+    let t2 = get_timestamp();
     assert!(t2 >= t1);
 }
 
@@ -31,8 +31,8 @@ pub async fn test_eventual() {
         let i4 = e1.instance_clone(4u32);
         drop(i2);
 
-        let jh = intf::spawn(async move {
-            intf::sleep(1000).await;
+        let jh = spawn(async move {
+            sleep(1000).await;
             e1.resolve();
         });
 
@@ -48,14 +48,14 @@ pub async fn test_eventual() {
         let i3 = e1.instance_clone(3u32);
         let i4 = e1.instance_clone(4u32);
         let e1_c1 = e1.clone();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             let i5 = e1.instance_clone(5u32);
             let i6 = e1.instance_clone(6u32);
             assert_eq!(i1.await, 1u32);
             assert_eq!(i5.await, 5u32);
             assert_eq!(i6.await, 6u32);
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         let resolved = e1_c1.resolve();
         drop(i2);
         drop(i3);
@@ -68,11 +68,11 @@ pub async fn test_eventual() {
         let i1 = e1.instance_clone(1u32);
         let i2 = e1.instance_clone(2u32);
         let e1_c1 = e1.clone();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             assert_eq!(i1.await, 1u32);
             assert_eq!(i2.await, 2u32);
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         e1_c1.resolve().await;
 
         jh.await;
@@ -81,11 +81,11 @@ pub async fn test_eventual() {
         //
         let j1 = e1.instance_clone(1u32);
         let j2 = e1.instance_clone(2u32);
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             assert_eq!(j1.await, 1u32);
             assert_eq!(j2.await, 2u32);
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         e1_c1.resolve().await;
 
         jh.await;
@@ -106,8 +106,8 @@ pub async fn test_eventual_value() {
         drop(i2);
 
         let e1_c1 = e1.clone();
-        let jh = intf::spawn(async move {
-            intf::sleep(1000).await;
+        let jh = spawn(async move {
+            sleep(1000).await;
             e1_c1.resolve(3u32);
         });
 
@@ -123,14 +123,14 @@ pub async fn test_eventual_value() {
         let i3 = e1.instance();
         let i4 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             let i5 = e1.instance();
             let i6 = e1.instance();
             i1.await;
             i5.await;
             i6.await;
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         let resolved = e1_c1.resolve(4u16);
         drop(i2);
         drop(i3);
@@ -145,11 +145,11 @@ pub async fn test_eventual_value() {
         let i1 = e1.instance();
         let i2 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             i1.await;
             i2.await;
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         e1_c1.resolve(5u32).await;
         jh.await;
         assert_eq!(e1_c1.take_value(), Some(5u32));
@@ -158,11 +158,11 @@ pub async fn test_eventual_value() {
         //
         let j1 = e1.instance();
         let j2 = e1.instance();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             j1.await;
             j2.await;
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         e1_c1.resolve(6u32).await;
         jh.await;
         assert_eq!(e1_c1.take_value(), Some(6u32));
@@ -182,8 +182,8 @@ pub async fn test_eventual_value_clone() {
         let i4 = e1.instance();
         drop(i2);
 
-        let jh = intf::spawn(async move {
-            intf::sleep(1000).await;
+        let jh = spawn(async move {
+            sleep(1000).await;
             e1.resolve(3u32);
         });
 
@@ -200,14 +200,14 @@ pub async fn test_eventual_value_clone() {
         let i3 = e1.instance();
         let i4 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             let i5 = e1.instance();
             let i6 = e1.instance();
             assert_eq!(i1.await, 4);
             assert_eq!(i5.await, 4);
             assert_eq!(i6.await, 4);
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         let resolved = e1_c1.resolve(4u16);
         drop(i2);
         drop(i3);
@@ -221,22 +221,22 @@ pub async fn test_eventual_value_clone() {
         let i1 = e1.instance();
         let i2 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             assert_eq!(i1.await, 5);
             assert_eq!(i2.await, 5);
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         e1_c1.resolve(5u32).await;
         jh.await;
         e1_c1.reset();
         //
         let j1 = e1.instance();
         let j2 = e1.instance();
-        let jh = intf::spawn(async move {
+        let jh = spawn(async move {
             assert_eq!(j1.await, 6);
             assert_eq!(j2.await, 6);
         });
-        intf::sleep(1000).await;
+        sleep(1000).await;
         e1_c1.resolve(6u32).await;
         jh.await;
         e1_c1.reset();
@@ -246,7 +246,7 @@ pub async fn test_interval() {
     info!("testing interval");
 
     let tick: Arc<Mutex<u32>> = Arc::new(Mutex::new(0u32));
-    let stopper = intf::interval(1000, move || {
+    let stopper = interval(1000, move || {
         let tick = tick.clone();
         async move {
             let mut tick = tick.lock();
@@ -255,7 +255,7 @@ pub async fn test_interval() {
         }
     });
 
-    intf::sleep(5500).await;
+    sleep(5500).await;
 
     stopper.await;
 }
@@ -266,19 +266,19 @@ pub async fn test_timeout() {
     let tick: Arc<Mutex<u32>> = Arc::new(Mutex::new(0u32));
     let tick_1 = tick.clone();
     assert!(
-        intf::timeout(2500, async move {
+        timeout(2500, async move {
             let mut tick = tick_1.lock();
             trace!("tick {}", tick);
-            intf::sleep(1000).await;
+            sleep(1000).await;
             *tick += 1;
             trace!("tick {}", tick);
-            intf::sleep(1000).await;
+            sleep(1000).await;
             *tick += 1;
             trace!("tick {}", tick);
-            intf::sleep(1000).await;
+            sleep(1000).await;
             *tick += 1;
             trace!("tick {}", tick);
-            intf::sleep(1000).await;
+            sleep(1000).await;
             *tick += 1;
         })
         .await
@@ -305,7 +305,7 @@ pub async fn test_sleep() {
             let sys_time = SystemTime::now();
             let one_sec = Duration::from_secs(1);
 
-            intf::sleep(1000).await;
+            sleep(1000).await;
             assert!(sys_time.elapsed().unwrap() >= one_sec);
         }
     }
@@ -462,7 +462,7 @@ cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
         pub async fn test_network_interfaces() {
             info!("testing network interfaces");
-            let t1 = intf::get_timestamp();
+            let t1 = get_timestamp();
             let interfaces = intf::utils::network_interfaces::NetworkInterfaces::new();
             let count = 100;
             for x in 0..count {
@@ -471,7 +471,7 @@ cfg_if! {
                     error!("error refreshing interfaces: {}", e);
                 }
             }
-            let t2 = intf::get_timestamp();
+            let t2 = get_timestamp();
             let tdiff = ((t2 - t1) as f64)/1000000.0f64;
             info!("running network interface test with {} iterations took {} seconds", count, tdiff);
             info!("interfaces: {:#?}", interfaces)
@@ -481,12 +481,12 @@ cfg_if! {
 
 pub async fn test_get_random_u64() {
     info!("testing random number generator for u64");
-    let t1 = intf::get_timestamp();
+    let t1 = get_timestamp();
     let count = 10000;
     for _ in 0..count {
-        let _ = intf::get_random_u64();
+        let _ = get_random_u64();
     }
-    let t2 = intf::get_timestamp();
+    let t2 = get_timestamp();
     let tdiff = ((t2 - t1) as f64) / 1000000.0f64;
     info!(
         "running network interface test with {} iterations took {} seconds",
@@ -496,12 +496,12 @@ pub async fn test_get_random_u64() {
 
 pub async fn test_get_random_u32() {
     info!("testing random number generator for u32");
-    let t1 = intf::get_timestamp();
+    let t1 = get_timestamp();
     let count = 10000;
     for _ in 0..count {
-        let _ = intf::get_random_u32();
+        let _ = get_random_u32();
     }
-    let t2 = intf::get_timestamp();
+    let t2 = get_timestamp();
     let tdiff = ((t2 - t1) as f64) / 1000000.0f64;
     info!(
         "running network interface test with {} iterations took {} seconds",
@@ -515,7 +515,7 @@ pub async fn test_must_join_single_future() {
     assert_eq!(sf.check().await, Ok(None));
     assert_eq!(
         sf.single_spawn(async {
-            intf::sleep(2000).await;
+            sleep(2000).await;
             69
         })
         .await,
@@ -526,22 +526,22 @@ pub async fn test_must_join_single_future() {
     assert_eq!(sf.join().await, Ok(Some(69)));
     assert_eq!(
         sf.single_spawn(async {
-            intf::sleep(1000).await;
+            sleep(1000).await;
             37
         })
         .await,
         Ok((None, true))
     );
-    intf::sleep(2000).await;
+    sleep(2000).await;
     assert_eq!(
         sf.single_spawn(async {
-            intf::sleep(1000).await;
+            sleep(1000).await;
             27
         })
         .await,
         Ok((Some(37), true))
     );
-    intf::sleep(2000).await;
+    sleep(2000).await;
     assert_eq!(sf.join().await, Ok(Some(27)));
     assert_eq!(sf.check().await, Ok(None));
 }

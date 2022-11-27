@@ -1,5 +1,5 @@
 use super::*;
-use crate::*;
+
 use core::sync::atomic::{AtomicU64, Ordering};
 use once_cell::sync::OnceCell;
 
@@ -80,7 +80,7 @@ impl<E: Send + 'static> TickTask<E> {
     }
 
     pub async fn tick(&self) -> Result<(), E> {
-        let now = intf::get_timestamp();
+        let now = get_timestamp();
         let last_timestamp_us = self.last_timestamp_us.load(Ordering::Acquire);
 
         if last_timestamp_us != 0u64 && now.saturating_sub(last_timestamp_us) < self.tick_period_us

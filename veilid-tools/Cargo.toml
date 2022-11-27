@@ -11,15 +11,14 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
 default = []
-rt-async-std = [ "async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std" ]
-rt-tokio = [ "tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket", "veilid-tools/rt-tokio" ]
+rt-async-std = [ "async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket" ]
+rt-tokio = [ "tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket" ]
 
 android_tests = []
 ios_tests = [ "simplelog" ]
 tracking = []
 
 [dependencies]
-veilid_tools = { path = "../veilid-tools", features = "tracing" }
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-subscriber = "^0"
 tracing-error = "^0"

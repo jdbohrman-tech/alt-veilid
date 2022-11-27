@@ -1,7 +1,10 @@
-use crate::xx::*;
+use super::*;
+
 use alloc::string::ToString;
 use std::io;
 use std::path::Path;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #[macro_export]
 macro_rules! assert_err {
@@ -29,6 +32,40 @@ macro_rules! bail_io_error_other {
         return io::Result::Err(io::Error::new(io::ErrorKind::Other, $msg.to_string()))
     };
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+pub fn system_boxed<'a, Out>(
+    future: impl Future<Output = Out> + Send + 'a,
+) -> SendPinBoxFutureLifetime<'a, Out> {
+    Box::pin(future)
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+cfg_if! {
+    if #[cfg(target_arch = "wasm32")] {
+
+        // xxx: for now until wasm threads are more stable, and/or we bother with web workers
+        pub fn get_concurrency() -> u32 {
+            1
+        }
+
+    } else {
+
+        pub fn get_concurrency() -> u32 {
+            std::thread::available_parallelism()
+                .map(|x| x.get())
+                .unwrap_or_else(|e| {
+                    warn!("unable to get concurrency defaulting to single core: {}", e);
+                    1
+                }) as u32
+        }
+
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn split_port(name: &str) -> EyreResult<(String, Option<u16>)> {
     if let Some(split) = name.rfind(':') {

@@ -16,9 +16,6 @@
 [submodule "external/netlink"]
 	path = external/netlink
 	url = ../netlink.git
-[submodule "external/no-std-net"]
-	path = external/no-std-net
-	url = ../no-std-net.git
 [submodule "external/libmdns"]
 	path = external/libmdns
 	url = ../libmdns.git

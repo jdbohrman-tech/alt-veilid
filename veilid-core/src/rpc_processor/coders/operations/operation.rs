@@ -64,7 +64,7 @@ pub struct RPCOperation {
 impl RPCOperation {
     pub fn new_question(question: RPCQuestion, sender_node_info: Option<SignedNodeInfo>) -> Self {
         Self {
-            op_id: intf::get_random_u64(),
+            op_id: get_random_u64(),
             sender_node_info,
             kind: RPCOperationKind::Question(question),
         }
@@ -74,7 +74,7 @@ impl RPCOperation {
         sender_node_info: Option<SignedNodeInfo>,
     ) -> Self {
         Self {
-            op_id: intf::get_random_u64(),
+            op_id: get_random_u64(),
             sender_node_info,
             kind: RPCOperationKind::Statement(statement),
         }

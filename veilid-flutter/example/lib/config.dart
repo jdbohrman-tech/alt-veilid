@@ -84,7 +84,6 @@ Future<VeilidConfig> getDefaultVeilidConfig() async {
         validateDialInfoReceiptTimeMs: 2000,
       ),
       upnp: true,
-      natpmp: true,
       detectAddressChanges: true,
       restrictedNatRetries: 0,
       tls: VeilidConfigTLS(

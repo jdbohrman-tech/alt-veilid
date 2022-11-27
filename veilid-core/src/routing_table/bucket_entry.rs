@@ -231,7 +231,7 @@ impl BucketEntryInner {
                         // No need to update the signednodeinfo though since the timestamp is the same
                         // Touch the node and let it try to live again
                         self.updated_since_last_network_change = true;
-                        self.touch_last_seen(intf::get_timestamp());
+                        self.touch_last_seen(get_timestamp());
                     }
                     return;
                 }
@@ -258,7 +258,7 @@ impl BucketEntryInner {
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
         self.updated_since_last_network_change = true;
-        self.touch_last_seen(intf::get_timestamp());
+        self.touch_last_seen(get_timestamp());
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
@@ -672,7 +672,7 @@ pub struct BucketEntry {
 
 impl BucketEntry {
     pub(super) fn new() -> Self {
-        let now = intf::get_timestamp();
+        let now = get_timestamp();
         Self {
             ref_count: AtomicU32::new(0),
             inner: RwLock::new(BucketEntryInner {

@@ -8,7 +8,6 @@ use flexi_logger::*;
 use std::ffi::OsStr;
 use std::net::ToSocketAddrs;
 use std::path::Path;
-use tools::*;
 
 mod client_api_connection;
 mod command_processor;

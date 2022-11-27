@@ -1,5 +1,5 @@
-use crate::*;
 use crate::xx::*;
+use crate::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
@@ -403,11 +403,11 @@ impl NetworkManager {
         let mut inner = self.inner.lock();
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = intf::get_timestamp()
+                entry.get_mut().last_seen_ts = get_timestamp()
             }
             hashlink::lru_cache::Entry::Vacant(entry) => {
                 entry.insert(ClientWhitelistEntry {
-                    last_seen_ts: intf::get_timestamp(),
+                    last_seen_ts: get_timestamp(),
                 });
             }
         }
@@ -419,7 +419,7 @@ impl NetworkManager {
 
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = intf::get_timestamp();
+                entry.get_mut().last_seen_ts = get_timestamp();
                 true
             }
             hashlink::lru_cache::Entry::Vacant(_) => false,
@@ -429,7 +429,7 @@ impl NetworkManager {
     pub fn purge_client_whitelist(&self) {
         let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
         let mut inner = self.inner.lock();
-        let cutoff_timestamp = intf::get_timestamp() - ((timeout_ms as u64) * 1000u64);
+        let cutoff_timestamp = get_timestamp() - ((timeout_ms as u64) * 1000u64);
         // Remove clients from the whitelist that haven't been since since our whitelist timeout
         while inner
             .client_whitelist
@@ -516,7 +516,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = intf::get_timestamp() + expiration_us;
+        let exp_ts = get_timestamp() + expiration_us;
         receipt_manager.record_receipt(receipt, exp_ts, expected_returns, callback);
 
         Ok(out)
@@ -540,7 +540,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = intf::get_timestamp() + expiration_us;
+        let exp_ts = get_timestamp() + expiration_us;
         let eventual = SingleShotEventual::new(Some(ReceiptEvent::Cancelled));
         let instance = eventual.instance();
         receipt_manager.record_single_shot_receipt(receipt, exp_ts, eventual);
@@ -707,7 +707,7 @@ impl NetworkManager {
                 // XXX: do we need a delay here? or another hole punch packet?
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
-                peer_nr.set_last_connection(connection_descriptor, intf::get_timestamp());
+                peer_nr.set_last_connection(connection_descriptor, get_timestamp());
 
                 // Return the receipt using the same dial info send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -731,7 +731,7 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret();
 
         // Get timestamp, nonce
-        let ts = intf::get_timestamp();
+        let ts = get_timestamp();
         let nonce = Crypto::get_random_nonce();
 
         // Encode envelope
@@ -1116,8 +1116,7 @@ impl NetworkManager {
                             // );
 
                             // Update timestamp for this last connection since we just sent to it
-                            node_ref
-                                .set_last_connection(connection_descriptor, intf::get_timestamp());
+                            node_ref.set_last_connection(connection_descriptor, get_timestamp());
 
                             return Ok(NetworkResult::value(SendDataKind::Existing(
                                 connection_descriptor,
@@ -1149,7 +1148,7 @@ impl NetworkManager {
                             this.net().send_data_to_dial_info(dial_info, data).await?
                         );
                         // If we connected to this node directly, save off the last connection so we can use it again
-                        node_ref.set_last_connection(connection_descriptor, intf::get_timestamp());
+                        node_ref.set_last_connection(connection_descriptor, get_timestamp());
 
                         Ok(NetworkResult::value(SendDataKind::Direct(
                             connection_descriptor,
@@ -1324,7 +1323,7 @@ impl NetworkManager {
         });
 
         // Validate timestamp isn't too old
-        let ts = intf::get_timestamp();
+        let ts = get_timestamp();
         let ets = envelope.get_timestamp();
         if let Some(tsbehind) = tsbehind {
             if tsbehind > 0 && (ts > ets && ts - ets > tsbehind) {
@@ -1631,7 +1630,7 @@ impl NetworkManager {
                 // public dialinfo
                 let inconsistent = if inconsistencies.len() >= PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT
                 {
-                    let exp_ts = intf::get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
+                    let exp_ts = get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
                     for i in &inconsistencies {
                         pait.insert(*i, exp_ts);
                     }
@@ -1644,8 +1643,8 @@ impl NetworkManager {
                             .public_address_inconsistencies_table
                             .entry(key)
                             .or_insert_with(|| HashMap::new());
-                        let exp_ts = intf::get_timestamp()
-                            + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
+                        let exp_ts =
+                            get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
                         for i in inconsistencies {
                             pait.insert(i, exp_ts);
                         }
@@ -1733,7 +1732,7 @@ impl NetworkManager {
                     }
 
                     // Get the list of refs to all nodes to update
-                    let cur_ts = intf::get_timestamp();
+                    let cur_ts = get_timestamp();
                     let node_refs =
                         this.routing_table()
                             .get_nodes_needing_updates(routing_domain, cur_ts, all);

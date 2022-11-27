@@ -32,10 +32,6 @@ mod veilid_api;
 #[macro_use]
 mod veilid_config;
 mod veilid_layer_filter;
-mod veilid_rng;
-
-#[macro_use]
-pub mod xx;
 
 pub use self::api_tracing_layer::ApiTracingLayer;
 pub use self::attachment_manager::AttachmentState;
@@ -43,6 +39,7 @@ pub use self::core_context::{api_startup, api_startup_json, UpdateCallback};
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;
+pub use veilid_tools as tools;
 
 pub mod veilid_capnp {
     include!(concat!(env!("OUT_DIR"), "/proto/veilid_capnp.rs"));

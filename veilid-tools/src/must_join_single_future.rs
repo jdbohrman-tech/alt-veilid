@@ -1,5 +1,5 @@
 use super::*;
-use crate::*;
+
 use core::task::Poll;
 use futures_util::poll;
 
@@ -157,7 +157,7 @@ where
 
         // Run if we should do that
         if run {
-            self.unlock(Some(intf::spawn_local(future)));
+            self.unlock(Some(spawn_local(future)));
         }
 
         // Return the prior result if we have one
@@ -197,7 +197,7 @@ where
         }
         // Run if we should do that
         if run {
-            self.unlock(Some(intf::spawn(future)));
+            self.unlock(Some(spawn(future)));
         }
         // Return the prior result if we have one
         Ok((out, run))

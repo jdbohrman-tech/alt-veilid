@@ -8,10 +8,7 @@
 //   Only IP address and DNS hostname host fields are supported
 
 use super::*;
-use alloc::borrow::ToOwned;
-use alloc::string::String;
-use alloc::vec::Vec;
-use core::fmt;
+
 use core::str::FromStr;
 
 fn is_alphanum(c: u8) -> bool {

@@ -7,7 +7,7 @@ use std::cell::*;
 use std::net::SocketAddr;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
-use veilid_core::xx::{Eventual, EventualCommon};
+use veilid_core::xx::*;
 use veilid_core::*;
 
 pub fn convert_loglevel(s: &str) -> Result<VeilidConfigLogLevel, String> {

@@ -1,4 +1,5 @@
 use super::*;
+
 use eventual_base::*;
 
 pub struct EventualValue<T: Unpin> {
