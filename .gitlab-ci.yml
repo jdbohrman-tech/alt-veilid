@@ -2,6 +2,7 @@ variables:
   NO_DOCKER: 1
   FORCE_COLOR: 1
   EARTHLY_EXEC_CMD: "/bin/sh"
+  GIT_SUBMODULE_STRATEGY: normal
 
 
 before_script:
