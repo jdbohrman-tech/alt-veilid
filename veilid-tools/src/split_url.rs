@@ -9,8 +9,6 @@
 
 use super::*;
 
-use std::str::FromStr;
-
 fn is_alphanum(c: u8) -> bool {
     matches!(c,
         b'A'..=b'Z'
