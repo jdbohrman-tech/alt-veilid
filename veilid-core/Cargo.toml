@@ -19,7 +19,7 @@ ios_tests = [ "simplelog" ]
 tracking = []
 
 [dependencies]
-veilid_tools = { path = "../veilid-tools", features = "tracing" }
+veilid-tools = { path = "../veilid-tools", features = [ "tracing" ] }
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-subscriber = "^0"
 tracing-error = "^0"

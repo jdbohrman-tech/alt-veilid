@@ -1,6 +1,5 @@
 use crate::client_api_connection::*;
 use crate::settings::Settings;
-use crate::tools::*;
 use crate::ui::*;
 use log::*;
 use std::cell::*;

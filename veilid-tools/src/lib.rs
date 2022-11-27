@@ -74,7 +74,7 @@ pub use std::net::{
 pub use std::ops::{Fn, FnMut, FnOnce};
 pub use std::pin::Pin;
 pub use std::rc::Rc;
-pub use std::string::String;
+pub use std::string::{String, ToString};
 pub use std::sync::atomic::{AtomicBool, Ordering};
 pub use std::sync::{Arc, Weak};
 pub use std::task;

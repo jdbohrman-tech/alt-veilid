@@ -1,30 +1,27 @@
 [package]
-name = "veilid-core"
+name = "veilid-tools"
 version = "0.1.0"
 authors = ["John Smith <nobody@example.com>"]
 edition = "2021"
-build = "build.rs"
 license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 
 [lib]
-crate-type = ["cdylib", "staticlib", "rlib"]
+crate-type = ["rlib"]
 
 [features]
-default = []
+default = [ "rt-tokio" ]
 rt-async-std = [ "async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket" ]
 rt-tokio = [ "tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket" ]
 
 android_tests = []
 ios_tests = [ "simplelog" ]
 tracking = []
+tracing = [ "dep:tracing" ]
 
 [dependencies]
-tracing = { version = "^0", features = ["log", "attributes"] }
-tracing-subscriber = "^0"
-tracing-error = "^0"
+tracing = { version = "^0", features = ["log", "attributes"], optional = true }
+log = { version = "^0", optional = true }
 eyre = "^0"
-capnp = { version = "^0", default_features = false }
-rust-fsm = "^0"
 static_assertions = "^1"
 cfg-if = "^1"
 thiserror = "^1"
@@ -100,13 +97,12 @@ js-sys = "^0"
 wasm-bindgen-futures = "^0"
 keyvaluedb-web = { path = "../external/keyvaluedb/keyvaluedb-web" }
 data-encoding = { version = "^2", default_features = false, features = ["alloc"] }
-getrandom = { version = "^0", features = ["js"] }
+getrandom = { version = "^0.2", features = ["js"] }
 ws_stream_wasm = "^0"
 async_executors = { version = "^0", default-features = false, features = [ "bindgen", "timer" ]}
 async-lock = "^2"
-send_wrapper = { version = "^0", features = ["futures"] }
+send_wrapper = { version = "^0.6", features = ["futures"] }
 wasm-logger = "^0"
-tracing-wasm = "^0"
 
 # Configuration for WASM32 'web-sys' crate
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
@@ -142,7 +138,7 @@ rtnetlink = { version = "^0", default-features = false }
 
 # Dependencies for Windows
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "^0", features = [ "iptypes", "iphlpapi" ] }
+winapi = { version = "^0.3.9", features = [ "iptypes", "iphlpapi" ] }
 windows = { version = "^0", features = [ "Win32_NetworkManagement_Dns", "Win32_Foundation", "alloc" ]}
 windows-permissions = "^0"
 
@@ -171,9 +167,6 @@ wee_alloc = "^0"
 wasm-logger = "^0"
 
 ### BUILD OPTIONS
-
-[build-dependencies]
-capnpc = "^0"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]
