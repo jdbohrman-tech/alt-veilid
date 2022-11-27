@@ -28,6 +28,8 @@ impl RngCore for VeilidRng {
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
+        use js_sys::Math;
+
         pub fn random_bytes(dest: &mut [u8]) -> EyreResult<()> {
             let len = dest.len();
             let u32len = len / 4;

@@ -7,7 +7,7 @@ cfg_if! {
         where
             F: Future<Output = T>,
         {
-            match select(Box::pin(intf::sleep(dur_ms)), Box::pin(f)).await {
+            match select(Box::pin(sleep(dur_ms)), Box::pin(f)).await {
                 Either::Left((_x, _b)) => Err(TimeoutError()),
                 Either::Right((y, _a)) => Ok(y),
             }

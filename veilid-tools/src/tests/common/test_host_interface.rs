@@ -295,7 +295,7 @@ pub async fn test_sleep() {
         if #[cfg(target_arch = "wasm32")] {
 
             let t1 = Date::now();
-            intf::sleep(1000).await;
+            sleep(1000).await;
             let t2 = Date::now();
             assert!((t2-t1) >= 1000.0);
 

@@ -1,6 +1,7 @@
 use super::*;
 use core::sync::atomic::{AtomicI8, Ordering};
 use js_sys::{global, Reflect};
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern "C" {
@@ -27,21 +28,21 @@ pub fn is_browser() -> bool {
     res
 }
 
-// pub fn is_browser_https() -> bool {
-//     static CACHE: AtomicI8 = AtomicI8::new(-1);
-//     let cache = CACHE.load(Ordering::Relaxed);
-//     if cache != -1 {
-//         return cache != 0;
-//     }
+pub fn is_browser_https() -> bool {
+    static CACHE: AtomicI8 = AtomicI8::new(-1);
+    let cache = CACHE.load(Ordering::Relaxed);
+    if cache != -1 {
+        return cache != 0;
+    }
 
-//     let res = js_sys::eval("window.location.protocol === 'https'")
-//         .map(|res| res.is_truthy())
-//         .unwrap_or_default();
+    let res = js_sys::eval("window.location.protocol === 'https'")
+        .map(|res| res.is_truthy())
+        .unwrap_or_default();
 
-//     CACHE.store(res as i8, Ordering::Relaxed);
+    CACHE.store(res as i8, Ordering::Relaxed);
 
-//     res
-// }
+    res
+}
 
 #[derive(ThisError, Debug, Clone, Eq, PartialEq)]
 #[error("JsValue error")]

@@ -9,7 +9,7 @@ license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 crate-type = ["rlib"]
 
 [features]
-default = [ "rt-tokio", "tracing" ]
+default = [ "tracing" ]
 rt-async-std = [ "async-std", "async_executors/async_std", ]
 rt-tokio = [ "tokio", "tokio-util", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", ]
 
@@ -54,14 +54,13 @@ async_executors = { version = "^0", default-features = false, features = [ "bind
 async-lock = "^2"
 send_wrapper = { version = "^0.6", features = ["futures"] }
 
-
 # Dependencies for Android
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "^0"
 jni-sys = "^0"
 ndk = { version = "^0", features = ["trace"] }
 ndk-glue = { version = "^0", features = ["logger"] }
-tracing-android = { version = "^0" }
+tracing-android = { version = "^0", optional = true }
 
 # Dependencies for Windows
 # [target.'cfg(target_os = "windows")'.dependencies]
@@ -81,9 +80,12 @@ serial_test = "^0"
 simplelog = { version = "^0", features=["test"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+console_error_panic_hook = "^0"
 wasm-bindgen-test = "^0"
 wee_alloc = "^0"
 wasm-logger = "^0"
+tracing-wasm = { version = "^0" }
+parking_lot = { version = "^0", features = ["wasm-bindgen"]}
 
 ### BUILD OPTIONS
 
