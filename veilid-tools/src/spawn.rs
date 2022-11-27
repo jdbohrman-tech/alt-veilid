@@ -99,6 +99,7 @@ cfg_if! {
             }
         }
 
+        #[allow(unused_variables)]
         pub async fn blocking_wrapper<F, R>(blocking_task: F, err_result: R) -> R
         where
             F: FnOnce() -> R + Send + 'static,
