@@ -6,6 +6,7 @@ mod ios;
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
 
+#[allow(unused_imports)]
 use super::*;
 
 pub use common::*;

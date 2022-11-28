@@ -341,6 +341,10 @@
 					"@executable_path/Frameworks",
 				);
 				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"-L../../../../../target/lipo-ios/debug",
+					"-lveilid_tools",
+				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"-L../../../../../target/lipo-ios-sim/debug",
 					"-lveilid_tools",
@@ -371,6 +375,10 @@
 					"@executable_path/Frameworks",
 				);
 				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"-L../../../../../target/lipo-ios/release",
+					"-lveilid_tools",
+				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"-L../../../../../target/lipo-ios-sim/release",
 					"-lveilid_tools",
