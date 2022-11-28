@@ -3,8 +3,7 @@
 
 mod test_async_peek_stream;
 
-use crate::tests::common::*;
-use crate::*;
+use super::*;
 
 #[cfg(all(target_os = "android", feature = "android_tests"))]
 use jni::{objects::JClass, objects::JObject, JNIEnv};
@@ -17,30 +16,15 @@ pub extern "system" fn Java_com_veilid_veilidtools_veilidtools_1android_1tests_M
     _class: JClass,
     ctx: JObject,
 ) {
-    crate::intf::utils::android::veilid_tools_setup_android(
-        env,
-        ctx,
-        "veilid_tools",
-        crate::veilid_config::VeilidConfigLogLevel::Trace,
-    );
+    crate::tests::android::veilid_tools_setup(env, ctx, "veilid-tools");
     run_all_tests();
 }
 
 #[cfg(all(target_os = "ios", feature = "ios_tests"))]
 #[no_mangle]
+#[allow(dead_code)]
 pub extern "C" fn run_veilid_tools_tests() {
-    let log_path: std::path::PathBuf = [
-        std::env::var("HOME").unwrap().as_str(),
-        "Documents",
-        "veilid-tools.log",
-    ]
-    .iter()
-    .collect();
-    crate::intf::utils::ios_test_setup::veilid_tools_setup(
-        "veilid-tools",
-        Some(Level::Trace),
-        Some((Level::Trace, log_path.as_path())),
-    );
+    crate::tests::ios::veilid_tools_setup().expect("setup failed");
     run_all_tests();
 }
 
@@ -88,43 +72,37 @@ fn exec_test_async_tag_lock() {
 cfg_if! {
     if #[cfg(test)] {
 
-        static DEFAULT_LOG_IGNORE_LIST: [&str; 21] = [
-            "mio",
-            "h2",
-            "hyper",
-            "tower",
-            "tonic",
-            "tokio",
-            "runtime",
-            "tokio_util",
-            "want",
-            "serial_test",
-            "async_std",
-            "async_io",
-            "polling",
-            "rustls",
-            "async_tungstenite",
-            "tungstenite",
-            "netlink_proto",
-            "netlink_sys",
-            "trust_dns_resolver",
-            "trust_dns_proto",
-            "attohttpc",
-        ];
-
         use serial_test::serial;
-        use simplelog::*;
         use std::sync::Once;
 
         static SETUP_ONCE: Once = Once::new();
 
         pub fn setup() {
             SETUP_ONCE.call_once(|| {
-                let mut cb = ConfigBuilder::new();
-                for ig in DEFAULT_LOG_IGNORE_LIST {
-                    cb.add_filter_ignore_str(ig);
+
+                cfg_if! {
+                    if #[cfg(feature = "tracing")] {
+                        use tracing_subscriber::{filter, fmt, prelude::*};
+                        let mut filters = filter::Targets::new();
+                        for ig in DEFAULT_LOG_IGNORE_LIST {
+                            filters = filters.with_target(ig, filter::LevelFilter::OFF);
+                        }
+                        let fmt_layer = fmt::layer();
+                        tracing_subscriber::registry()
+                            .with(filters)
+                            .with(filter::LevelFilter::TRACE)
+                            .with(fmt_layer)
+                            .init();
+                    } else {
+                        use simplelog::*;
+                        let mut cb = ConfigBuilder::new();
+                        for ig in DEFAULT_LOG_IGNORE_LIST {
+                            cb.add_filter_ignore_str(ig);
+                        }
+                        TestLogger::init(LevelFilter::Trace, cb.build()).unwrap();
+                    }
                 }
-                TestLogger::init(LevelFilter::Trace, cb.build()).unwrap();
+
             });
         }
 

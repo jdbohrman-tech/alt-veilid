@@ -136,3 +136,10 @@ pub use wasm::*;
 
 // Tests must be public for wasm-pack tests
 pub mod tests;
+
+// For iOS tests
+
+#[no_mangle]
+pub extern "C" fn main_rs() {
+    // start game code here
+}

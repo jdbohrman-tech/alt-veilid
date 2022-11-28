@@ -1,7 +1,7 @@
 //! Test suite for the Web and headless browsers.
 #![cfg(target_arch = "wasm32")]
 
-use veilid_tools::tests::common::*;
+use veilid_tools::tests::*;
 use veilid_tools::*;
 use wasm_bindgen_test::*;
 
