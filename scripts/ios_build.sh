@@ -1,8 +1,17 @@
 #!/bin/bash
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-CARGO_MANIFEST_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('cargo locate-project').read())['root'])")
-CARGO_WORKSPACE_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('cargo locate-project --workspace').read())['root'])")
+CARGO=`which cargo`
+CARGO=${CARGO:=~/.cargo/bin/cargo}
+CARGO_DIR=$(dirname $CARGO)
+
+WORKING_DIR=$1
+shift
+echo $WORKING_DIR
+pushd $WORKING_DIR >/dev/null
+echo PWD: `pwd`
+
+CARGO_MANIFEST_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('$CARGO locate-project').read())['root'])")
+CARGO_WORKSPACE_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('$CARGO locate-project --workspace').read())['root'])")
 TARGET_PATH=$(python3 -c "import os; print(os.path.realpath(\"$CARGO_WORKSPACE_PATH/../target\"))")
 PACKAGE_NAME=$1
 shift
@@ -42,9 +51,7 @@ do
         continue
     fi
 
-    CARGO=`which cargo`
-    CARGO=${CARGO:=~/.cargo/bin/cargo}
-    CARGO_DIR=$(dirname $CARGO)
+
 
     # Choose arm64 brew for unit tests by default if we are on M1
     if [ -f /opt/homebrew/bin/brew ]; then
