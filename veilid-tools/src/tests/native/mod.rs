@@ -11,7 +11,7 @@ use jni::{objects::JClass, objects::JObject, JNIEnv};
 #[cfg(all(target_os = "android", feature = "android_tests"))]
 #[no_mangle]
 #[allow(non_snake_case)]
-pub extern "system" fn Java_com_veilid_veilidtools_veilidtools_1android_1tests_MainActivity_run_1tests(
+pub extern "system" fn Java_com_veilid_veilidtools_1tests_MainActivity_run_1tests(
     env: JNIEnv,
     _class: JClass,
     ctx: JObject,

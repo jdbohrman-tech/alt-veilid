@@ -1,4 +1,4 @@
-package com.veilid.veilidtools.veilidtools_android_tests;
+package com.veilid.veilidtools_tests;
 
 import androidx.appcompat.app.AppCompatActivity;
 import android.content.Context;
@@ -23,6 +23,8 @@ public class MainActivity extends AppCompatActivity {
 
         public void run() {
             run_tests(this.context);
+            ((MainActivity)this.context).finish();
+            System.exit(0);
         }
     }
 

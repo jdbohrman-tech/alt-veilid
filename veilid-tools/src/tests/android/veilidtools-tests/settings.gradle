@@ -1,2 +1,2 @@
 include ':app'
-rootProject.name = "Veilid Tools Tests"
+rootProject.name = "Veilid-Tools Tests"

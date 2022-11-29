@@ -108,5 +108,5 @@ if [ "$BREW_USER" == "" ]; then
         BREW_USER=`whoami`
     fi
 fi
-sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf
+sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@11
 

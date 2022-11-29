@@ -1,11 +1,11 @@
 #!/bin/bash
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-CARGO_MANIFEST_PATH=$(python3 -c "import os; print(os.path.realpath(\"$SCRIPTDIR/Cargo.toml\"))")
-TARGET_PATH=$(python3 -c "import os; print(os.path.realpath(\"$SCRIPTDIR/../target\"))")
+CARGO_MANIFEST_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('cargo locate-project').read())['root'])")
+CARGO_WORKSPACE_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('cargo locate-project --workspace').read())['root'])")
+TARGET_PATH=$(python3 -c "import os; print(os.path.realpath(\"$CARGO_WORKSPACE_PATH/../target\"))")
 PACKAGE_NAME=$1
 shift
-# echo CARGO_MANIFEST_PATH: $CARGO_MANIFEST_PATH 
 
 if [ "$CONFIGURATION" == "Debug" ]; then 
     EXTRA_CARGO_OPTIONS="$@"

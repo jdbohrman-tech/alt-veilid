@@ -6,15 +6,15 @@ edition = "2021"
 license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 
 [lib]
-# Staticlib for iOS tests, rlib for everything else
-crate-type = [ "staticlib", "rlib" ]
+# staticlib for iOS tests, cydlib for android tests, rlib for everything else
+crate-type = [ "cdylib", "staticlib", "rlib" ]
 
 [features]
 default = []
 rt-async-std = [ "async-std", "async_executors/async_std", ]
 rt-tokio = [ "tokio", "tokio-util", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", ]
 
-android_tests = []
+android_tests = [ "dep:tracing-android" ]
 ios_tests = []
 tracking = []
 tracing = [ "dep:tracing", "dep:tracing-subscriber" ]
@@ -61,7 +61,9 @@ jni = "^0"
 jni-sys = "^0"
 ndk = { version = "^0", features = ["trace"] }
 ndk-glue = { version = "^0", features = ["logger"] }
+lazy_static = "^1.4.0"
 tracing-android = { version = "^0", optional = true }
+android-logd-logger = "0.2.1"
 
 # Dependencies for Windows
 # [target.'cfg(target_os = "windows")'.dependencies]
