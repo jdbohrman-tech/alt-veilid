@@ -7,7 +7,7 @@ android {
     buildToolsVersion "33.0.1"
 
     defaultConfig {
-        applicationId "com.veilid.veilidtools_tests"
+        applicationId "com.veilid.veilid_tools_android_tests"
         minSdkVersion 24
         targetSdkVersion 33
         versionCode 1
@@ -47,25 +47,7 @@ android {
             path file('CMakeLists.txt')
         }
     }
-    namespace 'com.veilid.veilidtools_tests'
-
-    testOptions {
-        managedDevices {
-            devices {
-                pixel2api30 (com.android.build.api.dsl.ManagedVirtualDevice) {
-                    // Use device profiles you typically see in Android Studio.
-                    device = "Pixel 2"
-                    // ATD currently support only API level 30.
-                    apiLevel = 30
-                    // You can also specify "google-atd" if you require Google
-                    // Play Services.
-                    systemImageSource = "aosp-atd"
-                    // Whether the image must be a 64 bit image.
-                    require64Bit = false
-                }
-            }
-        }
-    }
+    namespace 'com.veilid.veilid_tools_android_tests'
 }
 
 dependencies {
@@ -73,9 +55,6 @@ dependencies {
     implementation 'com.google.android.material:material:1.7.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.security:security-crypto:1.1.0-alpha04'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
-    androidTestImplementation 'androidx.test:runner:1.5.1'
-    androidTestImplementation 'androidx.test:rules:1.5.0'
 }
 
 apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
@@ -89,7 +68,7 @@ cargo {
     profile = gradle.startParameter.taskNames.any{it.toLowerCase().contains("debug")} ? "debug" : "release"
     pythonCommand = "python3"
     features {
-        defaultAnd("android_tests", "rt-tokio")
+        defaultAnd("veilid_tools_android_tests", "rt-tokio")
     }
 }
 

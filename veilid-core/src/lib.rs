@@ -1,6 +1,6 @@
 #![deny(clippy::all)]
 #![deny(unused_must_use)]
-#![recursion_limit = "1024"]
+#![recursion_limit = "256"]
 
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "wasm32")] {

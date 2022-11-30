@@ -88,9 +88,6 @@ cargo {
     prebuiltToolchains = true
     pythonCommand = "python3"
     profile = gradle.startParameter.taskNames.any{it.toLowerCase().contains("debug")} ? "debug" : "release"
-    // features {
-    //     defaultAnd("android_tests")
-    // }
 }
 
 afterEvaluate {

@@ -5,13 +5,13 @@ use crate::network_manager::tests::*;
 use crate::tests::common::*;
 use crate::*;
 
-#[cfg(all(target_os = "android", feature = "android_tests"))]
+#[cfg(all(target_os = "android", feature = "veilid_core_android_tests"))]
 use jni::{objects::JClass, objects::JObject, JNIEnv};
 
-#[cfg(all(target_os = "android", feature = "android_tests"))]
+#[cfg(all(target_os = "android", feature = "veilid_core_android_tests"))]
 #[no_mangle]
 #[allow(non_snake_case)]
-pub extern "system" fn Java_com_veilid_veilidcore_veilidcore_1android_1tests_MainActivity_run_1tests(
+pub extern "system" fn Java_com_veilid_veilid_1core_1android_1tests_MainActivity_run_1tests(
     env: JNIEnv,
     _class: JClass,
     ctx: JObject,
@@ -25,7 +25,7 @@ pub extern "system" fn Java_com_veilid_veilidcore_veilidcore_1android_1tests_Mai
     run_all_tests();
 }
 
-#[cfg(all(target_os = "ios", feature = "ios_tests"))]
+#[cfg(all(target_os = "ios", feature = "veilid_core_ios_tests"))]
 #[no_mangle]
 pub extern "C" fn run_veilid_core_tests() {
     let log_path: std::path::PathBuf = [

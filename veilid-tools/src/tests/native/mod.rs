@@ -5,13 +5,13 @@ mod test_async_peek_stream;
 
 use super::*;
 
-#[cfg(all(target_os = "android", feature = "android_tests"))]
+#[cfg(all(target_os = "android", feature = "veilid_tools_android_tests"))]
 use jni::{objects::JClass, objects::JObject, JNIEnv};
 
-#[cfg(all(target_os = "android", feature = "android_tests"))]
+#[cfg(all(target_os = "android", feature = "veilid_tools_android_tests"))]
 #[no_mangle]
 #[allow(non_snake_case)]
-pub extern "system" fn Java_com_veilid_veilidtools_1tests_MainActivity_run_1tests(
+pub extern "system" fn Java_com_veilid_veilid_1tools_1android_1tests_MainActivity_run_1tests(
     env: JNIEnv,
     _class: JClass,
     ctx: JObject,
@@ -20,7 +20,7 @@ pub extern "system" fn Java_com_veilid_veilidtools_1tests_MainActivity_run_1test
     run_all_tests();
 }
 
-#[cfg(all(target_os = "ios", feature = "ios_tests"))]
+#[cfg(all(target_os = "ios", feature = "veilid_tools_ios_tests"))]
 #[no_mangle]
 #[allow(dead_code)]
 pub extern "C" fn run_veilid_tools_tests() {

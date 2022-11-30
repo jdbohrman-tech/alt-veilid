@@ -14,9 +14,8 @@ default = []
 rt-async-std = [ "async-std", "async_executors/async_std", ]
 rt-tokio = [ "tokio", "tokio-util", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", ]
 
-android_tests = [ "dep:tracing-android" ]
-ios_tests = []
-tracking = []
+veilid_tools_android_tests = [ "dep:tracing-android" ]
+veilid_tools_ios_tests = []
 tracing = [ "dep:tracing", "dep:tracing-subscriber" ]
 
 [dependencies]

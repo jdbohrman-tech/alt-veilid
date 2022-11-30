@@ -30,8 +30,8 @@ elif [[ "$1" == "android" ]]; then
         echo "No emulator ID specified"
         exit 1
     fi
-    APPNAME=veilidcore-tests
-    APPID=com.veilid.veilidcore_tests
+    APPNAME=veilid_core_android_tests
+    APPID=com.veilid.veilid_core_android_tests
     ACTIVITYNAME=MainActivity
     pushd src/tests/android/$APPNAME >/dev/null
     # Build apk
@@ -45,7 +45,7 @@ elif [[ "$1" == "android" ]]; then
     # Get the pid of the program
     APP_PID=`adb -s $ID shell pidof -s $APPID`
     # Print the logcat
-    adb -s $ID shell logcat -d veilid-core:V *:S &
+    adb -s $ID shell logcat --pid=$APP_PID veilid-core:V *:S &
     # Wait for the pid to be done
     while [ "$(adb -s $ID shell pidof -s $APPID)" != "" ]; do
         sleep 1

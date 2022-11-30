@@ -1,3 +1,3 @@
 #!/bin/bash
-./adb+.sh uninstall com.veilid.veilidcore.veilidcore_android_tests
+./adb+.sh uninstall com.veilid.veilid_core_android_tests
 

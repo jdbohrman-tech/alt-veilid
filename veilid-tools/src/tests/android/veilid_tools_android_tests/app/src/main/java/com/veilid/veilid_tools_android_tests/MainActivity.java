@@ -1,4 +1,4 @@
-package com.veilid.veilidtools_tests;
+package com.veilid.veilid_tools_android_tests;
 
 import androidx.appcompat.app.AppCompatActivity;
 import android.content.Context;
