@@ -737,9 +737,9 @@ checksum = "dfb24e866b15a1af2a1b663f10c6b6b8f397a84aadb828f12e5b289ec23a3a3c"
 
 [[package]]
 name = "capnp"
-version = "0.15.1"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4929d71efc55aa42759793d853ecdfa6bb034419d22884e3e9871f0f593ac8d"
+checksum = "afaa14ddcf4553e700608c1c0ee3ca1f4cf673470462b99ff6dd6bedcdb6c6ce"
 
 [[package]]
 name = "capnp-futures"
@@ -2630,11 +2630,8 @@ dependencies = [
 name = "keyring-manager"
 version = "0.5.0"
 dependencies = [
- "android_logger",
- "backtrace",
  "byteorder",
  "cfg-if 1.0.0",
- "clap",
  "core-foundation 0.9.3",
  "core-foundation-sys 0.8.3",
  "directories",
@@ -2643,18 +2640,14 @@ dependencies = [
  "keychain-services",
  "lazy_static",
  "log",
- "ndk 0.6.0",
+ "ndk",
  "ndk-glue",
- "rpassword 5.0.1",
  "secret-service",
  "security-framework",
  "security-framework-sys",
  "serde",
  "serde_cbor",
- "serial_test",
- "simplelog 0.12.0",
  "snailquote",
- "tempfile",
  "winapi 0.3.9",
 ]
 
@@ -3021,26 +3014,13 @@ dependencies = [
 
 [[package]]
 name = "ndk"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2032c77e030ddee34a6787a64166008da93f6a352b629261d0fee232b8742dd4"
-dependencies = [
- "bitflags",
- "jni-sys",
- "ndk-sys 0.3.0",
- "num_enum",
- "thiserror",
-]
-
-[[package]]
-name = "ndk"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "451422b7e4718271c8b5b3aadf5adedba43dc76312454b387e98fae0fc951aa0"
 dependencies = [
  "bitflags",
  "jni-sys",
- "ndk-sys 0.4.1+23.1.7779620",
+ "ndk-sys",
  "num_enum",
  "raw-window-handle",
  "thiserror",
@@ -3061,10 +3041,10 @@ dependencies = [
  "android_logger",
  "libc",
  "log",
- "ndk 0.7.0",
+ "ndk",
  "ndk-context",
  "ndk-macro",
- "ndk-sys 0.4.1+23.1.7779620",
+ "ndk-sys",
  "once_cell",
  "parking_lot 0.12.1",
 ]
@@ -3080,15 +3060,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "ndk-sys"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e5a6ae77c8ee183dcbbba6150e2e6b9f3f4196a7666c02a715a95692ec1fa97"
-dependencies = [
- "jni-sys",
 ]
 
 [[package]]
@@ -4241,16 +4212,6 @@ dependencies = [
 
 [[package]]
 name = "rpassword"
-version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffc936cf8a7ea60c58f030fd36a612a48f440610214dc54bc36431f9ea0c3efb"
-dependencies = [
- "libc",
- "winapi 0.3.9",
-]
-
-[[package]]
-name = "rpassword"
 version = "6.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bf099a1888612545b683d2661a1940089f6c2e5a8e38979b2159da876bfd956"
@@ -5204,9 +5165,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "1.8.0"
+version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9724f9a975fb987ef7a3cd9be0350edcbe130698af5b8f7a631e23d42d052484"
+checksum = "d266c00fde287f55d3f1c3e96c500c362a2b8c695076ec180f27918820bc6df8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5787,7 +5748,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "maplit",
- "ndk 0.6.0",
+ "ndk",
  "ndk-glue",
  "nix 0.26.1",
  "once_cell",
@@ -5895,7 +5856,7 @@ dependencies = [
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
  "parking_lot 0.12.1",
- "rpassword 6.0.1",
+ "rpassword",
  "serde",
  "serde_derive",
  "serde_yaml",
@@ -5935,7 +5896,7 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "ndk 0.6.0",
+ "ndk",
  "ndk-glue",
  "nix 0.26.1",
  "once_cell",

@@ -9,7 +9,7 @@ members = [
     "veilid-wasm",
 ]
 
-exclude = [ "./external/keyring-rs", "./external/netlink", "./external/cursive", "./external/hashlink" ]
+exclude = [ "./external/keyring-manager", "./external/netlink", "./external/cursive", "./external/hashlink" ]
 
 [patch.crates-io]
 cursive = { path = "./external/cursive/cursive" }

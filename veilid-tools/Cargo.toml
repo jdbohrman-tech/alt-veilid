@@ -59,8 +59,8 @@ send_wrapper = { version = "^0.6", features = ["futures"] }
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "^0"
 jni-sys = "^0"
-ndk = { version = "^0", features = ["trace"] }
-ndk-glue = { version = "^0", features = ["logger"] }
+ndk = { version = "^0.7" }
+ndk-glue = { version = "^0.7", features = ["logger"] }
 lazy_static = "^1.4.0"
 tracing-android = { version = "^0", optional = true }
 android-logd-logger = "0.2.1"
