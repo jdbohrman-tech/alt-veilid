@@ -33,6 +33,7 @@ once_cell = "^1"
 owo-colors = "^3"
 stop-token = { version = "^0", default-features = false }
 rand = "^0.7"
+rust-fsm = "^0"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

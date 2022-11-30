@@ -20,7 +20,6 @@ extern crate alloc;
 
 mod api_tracing_layer;
 mod attachment_manager;
-mod callback_state_machine;
 mod core_context;
 mod crypto;
 mod intf;
@@ -84,3 +83,5 @@ pub static DEFAULT_LOG_IGNORE_LIST: [&str; 21] = [
     "trust_dns_proto",
     "attohttpc",
 ];
+
+use veilid_tools::*;

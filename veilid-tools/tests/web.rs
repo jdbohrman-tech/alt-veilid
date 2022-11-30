@@ -2,7 +2,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use veilid_tools::tests::*;
-use veilid_tools::*;
+
 use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);

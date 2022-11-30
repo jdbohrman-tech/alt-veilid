@@ -1,13 +1,9 @@
 //! Test suite for Native
 #![cfg(not(target_arch = "wasm32"))]
-
-mod test_async_peek_stream;
-
-use crate::xx::*;
-
 use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
 use crate::tests::common::*;
+use crate::*;
 
 #[cfg(all(target_os = "android", feature = "android_tests"))]
 use jni::{objects::JClass, objects::JObject, JNIEnv};
@@ -59,8 +55,6 @@ pub fn run_all_tests() {
     exec_test_veilid_core();
     info!("TEST: exec_test_veilid_config");
     exec_test_veilid_config();
-    info!("TEST: exec_test_async_peek_stream");
-    exec_test_async_peek_stream();
     info!("TEST: exec_test_connection_table");
     exec_test_connection_table();
     info!("TEST: exec_test_table_store");
@@ -71,8 +65,6 @@ pub fn run_all_tests() {
     exec_test_crypto();
     info!("TEST: exec_test_envelope_receipt");
     exec_test_envelope_receipt();
-    info!("TEST: exec_test_async_tag_lock");
-    exec_test_async_tag_lock();
 
     info!("Finished unit tests");
 }
@@ -108,11 +100,6 @@ fn exec_test_veilid_config() {
         test_veilid_config::test_all().await;
     })
 }
-fn exec_test_async_peek_stream() {
-    block_on(async {
-        test_async_peek_stream::test_all().await;
-    })
-}
 fn exec_test_connection_table() {
     block_on(async {
         test_connection_table::test_all().await;
@@ -138,11 +125,7 @@ fn exec_test_envelope_receipt() {
         test_envelope_receipt::test_all().await;
     })
 }
-fn exec_test_async_tag_lock() {
-    block_on(async {
-        test_async_tag_lock::test_all().await;
-    })
-}
+
 ///////////////////////////////////////////////////////////////////////////
 cfg_if! {
     if #[cfg(test)] {
@@ -192,13 +175,6 @@ cfg_if! {
 
         #[test]
         #[serial]
-        fn run_test_async_peek_stream() {
-            setup();
-            exec_test_async_peek_stream();
-        }
-
-        #[test]
-        #[serial]
         fn run_test_connection_table() {
             setup();
             exec_test_connection_table();
@@ -232,11 +208,5 @@ cfg_if! {
             exec_test_envelope_receipt();
         }
 
-        #[test]
-        #[serial]
-        fn run_test_async_tag_lock() {
-            setup();
-            exec_test_async_tag_lock();
-        }
     }
 }

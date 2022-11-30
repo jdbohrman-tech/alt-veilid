@@ -1,5 +1,3 @@
-use crate::xx::*;
-
 use async_executors::{Bindgen, LocalSpawnHandleExt, SpawnHandleExt, Timer};
 use futures_util::future::{select, Either};
 use js_sys::*;

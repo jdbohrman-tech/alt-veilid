@@ -63,7 +63,8 @@ impl PlatformSupportWindows {
         // }
 
         // Iterate all the interfaces
-        let windows_interfaces = WindowsInterfaces::new().wrap_err("failed to get windows interfaces")?;
+        let windows_interfaces =
+            WindowsInterfaces::new().wrap_err("failed to get windows interfaces")?;
         for windows_interface in windows_interfaces.iter() {
             // Get name
             let intf_name = windows_interface.name();

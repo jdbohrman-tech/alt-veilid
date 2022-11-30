@@ -467,7 +467,7 @@ pub async fn test_get_random_u64() {
     let t2 = get_timestamp();
     let tdiff = ((t2 - t1) as f64) / 1000000.0f64;
     info!(
-        "running network interface test with {} iterations took {} seconds",
+        "running get_random_u64 with {} iterations took {} seconds",
         count, tdiff
     );
 }
@@ -482,7 +482,7 @@ pub async fn test_get_random_u32() {
     let t2 = get_timestamp();
     let tdiff = ((t2 - t1) as f64) / 1000000.0f64;
     info!(
-        "running network interface test with {} iterations took {} seconds",
+        "running get_random_u32 with {} iterations took {} seconds",
         count, tdiff
     );
 }

@@ -8,12 +8,12 @@ mod start_protocols;
 use super::*;
 use crate::routing_table::*;
 use connection_manager::*;
+use network_interfaces::*;
 use network_tcp::*;
 use protocol::tcp::RawTcpProtocolHandler;
 use protocol::udp::RawUdpProtocolHandler;
 use protocol::ws::WebsocketProtocolHandler;
 pub use protocol::*;
-use utils::network_interfaces::*;
 
 use async_tls::TlsAcceptor;
 use futures_util::StreamExt;

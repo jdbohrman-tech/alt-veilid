@@ -3,7 +3,6 @@ use crate::attachment_manager::*;
 use crate::crypto::Crypto;
 use crate::veilid_api::*;
 use crate::veilid_config::*;
-use crate::xx::*;
 use crate::*;
 
 pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;

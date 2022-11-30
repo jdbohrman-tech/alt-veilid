@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-use crate::xx::*;
+
+use crate::*;
 
 pub async fn get_outbound_relay_peer() -> Option<crate::veilid_api::PeerInfo> {
     panic!("Native Veilid should never require an outbound relay");

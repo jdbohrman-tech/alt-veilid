@@ -2,7 +2,6 @@
 #![allow(clippy::absurd_extreme_comparisons)]
 use super::*;
 use crate::routing_table::VersionRange;
-use crate::xx::*;
 use crate::*;
 use core::convert::TryInto;
 

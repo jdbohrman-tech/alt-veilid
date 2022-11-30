@@ -5,7 +5,6 @@ use futures_util::stream::{FuturesUnordered, StreamExt};
 use network_manager::*;
 use routing_table::*;
 use stop_token::future::FutureExt;
-use xx::*;
 
 #[derive(Clone, Debug)]
 pub enum ReceiptEvent {

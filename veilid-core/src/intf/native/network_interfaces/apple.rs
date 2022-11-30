@@ -1,5 +1,5 @@
 use super::*;
-use crate::*;
+
 use libc::{
     close, freeifaddrs, getifaddrs, if_nametoindex, ifaddrs, ioctl, pid_t, sockaddr, sockaddr_in6,
     socket, sysctl, time_t, AF_INET6, CTL_NET, IFF_BROADCAST, IFF_LOOPBACK, IFF_RUNNING, IFNAMSIZ,

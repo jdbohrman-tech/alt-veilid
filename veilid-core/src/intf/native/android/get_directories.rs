@@ -1,5 +1,4 @@
 use super::*;
-use crate::xx::*;
 
 pub fn get_files_dir() -> String {
     let aglock = ANDROID_GLOBALS.lock();

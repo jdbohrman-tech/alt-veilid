@@ -6,7 +6,6 @@ mod get_directories;
 pub use get_directories::*;
 
 use crate::veilid_config::VeilidConfigLogLevel;
-use crate::xx::*;
 use crate::*;
 use backtrace::Backtrace;
 use jni::errors::Result as JniResult;

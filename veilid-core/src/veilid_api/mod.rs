@@ -14,12 +14,6 @@ pub use routing_context::*;
 pub use serialize_helpers::*;
 pub use types::*;
 
-use crate::*;
-
-pub use crate::xx::{
-    IpAddr, Ipv4Addr, Ipv6Addr, SendPinBoxFuture, SocketAddr, SocketAddrV4, SocketAddrV6,
-    ToSocketAddrs,
-};
 pub use alloc::string::ToString;
 pub use attachment_manager::AttachmentManager;
 pub use core::str::FromStr;
@@ -31,6 +25,7 @@ pub use intf::TableStore;
 pub use network_manager::NetworkManager;
 pub use routing_table::{NodeRef, NodeRefBase};
 
+use crate::*;
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
 use enumset::*;
@@ -38,6 +33,5 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 use routing_table::{RouteSpecStore, RoutingTable};
 use rpc_processor::*;
 use serde::*;
-use xx::*;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
