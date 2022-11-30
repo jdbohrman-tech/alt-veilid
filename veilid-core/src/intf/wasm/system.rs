@@ -1,6 +1,6 @@
-use async_executors::{Bindgen, LocalSpawnHandleExt, SpawnHandleExt, Timer};
-use futures_util::future::{select, Either};
-use js_sys::*;
+use crate::*;
+
+//use js_sys::*;
 
 pub async fn get_outbound_relay_peer() -> Option<crate::veilid_api::PeerInfo> {
     // unimplemented!
@@ -8,7 +8,7 @@ pub async fn get_outbound_relay_peer() -> Option<crate::veilid_api::PeerInfo> {
 }
 
 // pub async fn get_pwa_web_server_config() -> {
-//     if utils::is_browser() {
+//     if is_browser() {
 
 //         let win = window().unwrap();
 //         let doc = win.document().unwrap();

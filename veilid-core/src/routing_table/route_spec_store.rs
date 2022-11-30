@@ -192,7 +192,7 @@ impl RouteSpecDetail {
 
 /// The core representation of the RouteSpecStore that can be serialized
 #[derive(Debug, Clone, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C, align(8)), derive(CheckBytes))]
 pub struct RouteSpecStoreContent {
     /// All of the routes we have allocated so far
     details: HashMap<DHTKey, RouteSpecDetail>,

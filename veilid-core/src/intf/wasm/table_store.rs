@@ -1,5 +1,3 @@
-use super::*;
-
 use crate::intf::table_db::*;
 use crate::*;
 use keyvaluedb_web::*;
@@ -135,7 +133,7 @@ impl TableStore {
             }
         }
 
-        if utils::is_browser() {
+        if is_browser() {
             let out = match Database::delete(table_name.clone()).await {
                 Ok(_) => true,
                 Err(_) => false,

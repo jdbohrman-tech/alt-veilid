@@ -597,11 +597,13 @@ impl VeilidConfig {
         macro_rules! get_config {
             ($key:expr) => {
                 let keyname = &stringify!($key)[6..];
-                $key = *cb(keyname.to_owned())?.downcast().map_err(|_| {
-                    let err = format!("incorrect type for key {}", keyname);
-                    debug!("{}", err);
-                    VeilidAPIError::generic(err)
-                })?;
+                let v = cb(keyname.to_owned())?;
+                $key = match v.downcast() {
+                    Ok(v) => *v,
+                    Err(_) => {
+                        apibail_generic!(format!("incorrect type for key {}", keyname))
+                    }
+                };
             };
         }
 
