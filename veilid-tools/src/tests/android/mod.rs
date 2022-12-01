@@ -15,8 +15,10 @@ pub extern "system" fn Java_com_veilid_veilid_1tools_1android_1tests_MainActivit
     _class: JClass,
     _ctx: JObject,
 ) {
-    crate::tests::android::veilid_tools_setup_android_tests();
-    run_all_tests();
+    veilid_tools_setup_android_tests();
+    block_on(async {
+        run_all_tests().await;
+    })
 }
 
 pub fn veilid_tools_setup_android_tests() {

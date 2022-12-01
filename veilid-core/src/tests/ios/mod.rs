@@ -7,15 +7,20 @@ use tracing_subscriber::{fmt, prelude::*};
 #[no_mangle]
 #[allow(dead_code)]
 pub extern "C" fn run_veilid_core_tests() {
-    veilid_core_setup_ios_tests();
-    run_all_tests();
+    std::thread::spawn(|| {
+        block_on(async {
+            veilid_core_setup_ios_tests();
+            run_all_tests().await;
+        })
+    });
 }
 
 pub fn veilid_core_setup_ios_tests() {
     // Set up subscriber and layers
     let filter = VeilidLayerFilter::new(VeilidConfigLogLevel::Trace, None);
-    let fmt_layer = fmt::layer().with_filter(filter);
-    tracing_subscriber::registry().with(fmt_layer).init();
+    tracing_subscriber::registry()
+        .with(OsLogger::new("com.veilid.veilidtools-tests", "default").with_filter(filter))
+        .init();
 
     panic::set_hook(Box::new(|panic_info| {
         let bt = Backtrace::new();

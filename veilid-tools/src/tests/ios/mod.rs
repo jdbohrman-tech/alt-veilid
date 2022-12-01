@@ -6,38 +6,55 @@ use std::panic;
 
 #[no_mangle]
 pub extern "C" fn run_veilid_tools_tests() {
-    crate::tests::ios::veilid_tools_setup_ios_tests();
-    run_all_tests();
+    veilid_tools_setup_ios_tests();
+    block_on(async {
+        run_all_tests().await;
+    })
 }
 
 pub fn veilid_tools_setup_ios_tests() {
     cfg_if! {
         if #[cfg(feature = "tracing")] {
-            use tracing_subscriber::{filter, fmt, prelude::*};
+            // use tracing_subscriber::{filter, fmt, prelude::*};
+            // let mut filters = filter::Targets::new();
+            // for ig in DEFAULT_LOG_IGNORE_LIST {
+            //     filters = filters.with_target(ig, filter::LevelFilter::OFF);
+            // }
+            // let fmt_layer = fmt::layer();
+            // tracing_subscriber::registry()
+            //     .with(filters)
+            //     .with(filter::LevelFilter::TRACE)
+            //     .with(fmt_layer)
+            //     .init();
+
             let mut filters = filter::Targets::new();
             for ig in DEFAULT_LOG_IGNORE_LIST {
                 filters = filters.with_target(ig, filter::LevelFilter::OFF);
             }
-            let fmt_layer = fmt::layer();
             tracing_subscriber::registry()
                 .with(filters)
                 .with(filter::LevelFilter::TRACE)
-                .with(fmt_layer)
+                .with(OsLogger::new("com.veilid.veilidtools-tests", "default"))
                 .init();
         } else {
-            use simplelog::*;
-            let mut logs: Vec<Box<dyn SharedLogger>> = Vec::new();
-            let mut cb = ConfigBuilder::new();
-            for ig in DEFAULT_LOG_IGNORE_LIST {
-                cb.add_filter_ignore_str(ig);
-            }
-            logs.push(TermLogger::new(
-                LevelFilter::Trace,
-                cb.build(),
-                TerminalMode::Mixed,
-                ColorChoice::Auto,
-            ));
-            CombinedLogger::init(logs).expect("logger init error");
+            // use simplelog::*;
+            // let mut logs: Vec<Box<dyn SharedLogger>> = Vec::new();
+            // let mut cb = ConfigBuilder::new();
+            // for ig in DEFAULT_LOG_IGNORE_LIST {
+            //     cb.add_filter_ignore_str(ig);
+            // }
+            // logs.push(TermLogger::new(
+            //     LevelFilter::Trace,
+            //     cb.build(),
+            //     TerminalMode::Mixed,
+            //     ColorChoice::Auto,
+            // ));
+            // CombinedLogger::init(logs).expect("logger init error");
+
+            OsLogger::new("com.veilid.veilidtools-tests", "default")
+                .level_filter(LevelFilter::Trace)
+                .init()
+                .unwrap();
         }
     }
 

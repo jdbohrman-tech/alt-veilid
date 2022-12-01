@@ -8,84 +8,40 @@ use crate::*;
 ///////////////////////////////////////////////////////////////////////////
 
 #[allow(dead_code)]
-pub fn run_all_tests() {
-    info!("TEST: exec_test_host_interface");
-    exec_test_host_interface();
-    info!("TEST: exec_test_dht_key");
-    exec_test_dht_key();
-    info!("TEST: exec_test_veilid_core");
-    exec_test_veilid_core();
-    info!("TEST: exec_test_veilid_config");
-    exec_test_veilid_config();
-    info!("TEST: exec_test_connection_table");
-    exec_test_connection_table();
-    info!("TEST: exec_test_table_store");
-    exec_test_table_store();
-    info!("TEST: exec_test_protected_store");
-    exec_test_protected_store();
-    info!("TEST: exec_test_crypto");
-    exec_test_crypto();
-    info!("TEST: exec_test_envelope_receipt");
-    exec_test_envelope_receipt();
+pub async fn run_all_tests() {
+    info!("TEST: test_host_interface");
+    test_host_interface::test_all().await;
+    info!("TEST: test_dht_key");
+    test_dht_key::test_all().await;
+    info!("TEST: test_veilid_core");
+    test_veilid_core::test_all().await;
+    info!("TEST: test_veilid_config");
+    test_veilid_config::test_all().await;
+    info!("TEST: test_connection_table");
+    test_connection_table::test_all().await;
+    info!("TEST: test_table_store");
+    test_table_store::test_all().await;
+    info!("TEST: test_protected_store");
+    test_protected_store::test_all().await;
+    info!("TEST: test_crypto");
+    test_crypto::test_all().await;
+    info!("TEST: test_envelope_receipt");
+    test_envelope_receipt::test_all().await;
 
     info!("Finished unit tests");
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "rt-tokio")]
-fn block_on<F: Future<Output = T>, T>(f: F) -> T {
+pub fn block_on<F: Future<Output = T>, T>(f: F) -> T {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let local = tokio::task::LocalSet::new();
-    local.block_on(&rt, f)
-}
-#[cfg(feature = "rt-async-std")]
-fn block_on<F: Future<Output = T>, T>(f: F) -> T {
-    async_std::task::block_on(f)
+    rt.block_on(f)
 }
 
-fn exec_test_host_interface() {
-    block_on(async {
-        test_host_interface::test_all().await;
-    });
-}
-fn exec_test_dht_key() {
-    block_on(async {
-        test_dht_key::test_all().await;
-    });
-}
-fn exec_test_veilid_core() {
-    block_on(async {
-        test_veilid_core::test_all().await;
-    });
-}
-fn exec_test_veilid_config() {
-    block_on(async {
-        test_veilid_config::test_all().await;
-    })
-}
-fn exec_test_connection_table() {
-    block_on(async {
-        test_connection_table::test_all().await;
-    })
-}
-fn exec_test_table_store() {
-    block_on(async {
-        test_table_store::test_all().await;
-    })
-}
-fn exec_test_protected_store() {
-    block_on(async {
-        test_protected_store::test_all().await;
-    })
-}
-fn exec_test_crypto() {
-    block_on(async {
-        test_crypto::test_all().await;
-    })
-}
-fn exec_test_envelope_receipt() {
-    block_on(async {
-        test_envelope_receipt::test_all().await;
-    })
+#[cfg(feature = "rt-async-std")]
+#[allow(dead_code)]
+pub fn block_on<F: Future<Output = T>, T>(f: F) -> T {
+    async_std::task::block_on(f)
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -119,63 +75,81 @@ cfg_if! {
         #[serial]
         fn run_test_host_interface() {
             setup();
-            exec_test_host_interface();
+            block_on(async {
+                test_host_interface::test_all().await;
+            });
         }
 
         #[test]
         #[serial]
         fn run_test_dht_key() {
             setup();
-            exec_test_dht_key();
+            block_on(async {
+                test_dht_key::test_all().await;
+            });
         }
 
         #[test]
         #[serial]
         fn run_test_veilid_core() {
             setup();
-            exec_test_veilid_core();
+            block_on(async {
+                test_veilid_core::test_all().await;
+            });
         }
 
         #[test]
         #[serial]
         fn run_test_veilid_config() {
             setup();
-            exec_test_veilid_config();
+            block_on(async {
+                test_veilid_config::test_all().await;
+            })
         }
 
         #[test]
         #[serial]
         fn run_test_connection_table() {
             setup();
-            exec_test_connection_table();
+            block_on(async {
+                test_connection_table::test_all().await;
+            })
         }
 
         #[test]
         #[serial]
         fn run_test_table_store() {
             setup();
-            exec_test_table_store();
+            block_on(async {
+                test_table_store::test_all().await;
+            })
         }
 
         #[test]
         #[serial]
         fn run_test_protected_store() {
             setup();
-            exec_test_protected_store();
+            block_on(async {
+                test_protected_store::test_all().await;
+            })
         }
 
         #[test]
         #[serial]
         fn run_test_crypto() {
             setup();
-            exec_test_crypto();
+            block_on(async {
+                test_crypto::test_all().await;
+            })
         }
 
         #[test]
         #[serial]
         fn run_test_envelope_receipt() {
             setup();
-            exec_test_envelope_receipt();
+            block_on(async {
+                test_envelope_receipt::test_all().await;
+            })
         }
 
     }

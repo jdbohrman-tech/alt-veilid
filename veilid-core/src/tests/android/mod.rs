@@ -16,7 +16,9 @@ pub extern "system" fn Java_com_veilid_veilid_1core_1android_1tests_MainActivity
     ctx: JObject,
 ) {
     crate::intf::utils::android::veilid_core_setup_android_tests(env, ctx);
-    run_all_tests();
+    block_on(async {
+        run_all_tests().await;
+    })
 }
 
 pub fn veilid_core_setup_android_tests(env: JNIEnv, ctx: JObject) {
