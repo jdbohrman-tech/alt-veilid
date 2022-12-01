@@ -19,7 +19,10 @@ elif [[ "$1" == "ios" ]]; then
 
     # Run in temporary simulator
     xcrun simctl install $ID $SYMROOT/Debug-iphonesimulator/$APPNAME.app
+    xcrun simctl spawn $ID log stream --level debug --predicate "subsystem == \"$BUNDLENAME\"" &
     xcrun simctl launch --console $ID $BUNDLENAME
+    sleep 1 # Ensure the last log lines print
+    kill -INT %1
 
     # Clean up build output
     rm -rf /tmp/testout

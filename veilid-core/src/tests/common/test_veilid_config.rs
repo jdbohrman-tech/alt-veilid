@@ -156,8 +156,8 @@ cfg_if! {
     }
 }
 
-fn update_callback(update: VeilidUpdate) {
-    println!("update_callback: {:?}", update);
+fn update_callback(_update: VeilidUpdate) {
+    // println!("update_callback: {:?}", update);
 }
 
 pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {

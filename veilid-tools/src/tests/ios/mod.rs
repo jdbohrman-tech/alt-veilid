@@ -25,12 +25,12 @@ pub fn veilid_tools_setup_ios_tests() {
             tracing_subscriber::registry()
                 .with(filters)
                 .with(filter::LevelFilter::TRACE)
-                .with(OsLogger::new("com.veilid.veilidtools-tests", "default"))
+                .with(OsLogger::new("com.veilid.veilidtools-tests", ""))
                 .init();
         } else {
             use oslog::OsLogger;
 
-            OsLogger::new("com.veilid.veilidtools-tests", "default")
+            OsLogger::new("com.veilid.veilidtools-tests")
                 .level_filter(LevelFilter::Trace)
                 .init()
                 .unwrap();

@@ -18,7 +18,7 @@ pub fn veilid_core_setup_ios_tests() {
     // Set up subscriber and layers
     let filter = VeilidLayerFilter::new(VeilidConfigLogLevel::Trace, None);
     tracing_subscriber::registry()
-        .with(OsLogger::new("com.veilid.veilidtools-tests", "default").with_filter(filter))
+        .with(OsLogger::new("com.veilid.veilidcore-tests", "").with_filter(filter))
         .init();
 
     panic::set_hook(Box::new(|panic_info| {
