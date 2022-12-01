@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use std::net::SocketAddr;
 use std::rc::Rc;
-use veilid_core::xx::*;
+use veilid_core::tools::*;
 use veilid_core::*;
 
 macro_rules! capnp_failed {

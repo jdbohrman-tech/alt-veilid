@@ -1,16 +1,13 @@
 #![allow(clippy::bool_assert_comparison)]
 
 use directories::*;
-use parking_lot::*;
 
 use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::sync::Arc;
 use url::Url;
-use veilid_core::xx::*;
+use veilid_core::tools::*;
 use veilid_core::*;
 
 pub fn load_default_config() -> EyreResult<config::Config> {
