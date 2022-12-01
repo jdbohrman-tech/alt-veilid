@@ -1,4 +1,0 @@
-# exclude everything
-tmp/*
-# exception to the rule
-!tmp/.gitkeep 

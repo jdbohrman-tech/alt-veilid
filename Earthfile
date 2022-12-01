@@ -52,9 +52,9 @@ deps-android:
     FROM +deps-cross
     RUN apt-get install -y openjdk-9-jdk-headless
     RUN mkdir /Android; mkdir /Android/Sdk
-    RUN curl -o /Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
+    RUN curl -o /Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
     RUN cd /Android; unzip /Android/cmdline-tools.zip
-    RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;30.0.3 ndk\;22.0.7026061 cmake\;3.18.1 platform-tools platforms\;android-30
+    RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
     RUN apt-get clean
     
 # Just linux build not android
@@ -96,7 +96,7 @@ build-linux-arm64:
 build-android:
     FROM +code-android
     WORKDIR /veilid/veilid-core
-    ENV PATH=$PATH:/Android/Sdk/ndk/22.0.7026061/toolchains/llvm/prebuilt/linux-x86_64/bin/
+    ENV PATH=$PATH:/Android/Sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/
     RUN cargo build --target aarch64-linux-android --release
     RUN cargo build --target armv7-linux-androideabi --release
     RUN cargo build --target i686-linux-android --release
