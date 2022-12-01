@@ -6,12 +6,14 @@
 //
 
 import UIKit
+import Darwin
 
 class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
         run_veilid_core_tests()
+        exit(0)
     }
 
 

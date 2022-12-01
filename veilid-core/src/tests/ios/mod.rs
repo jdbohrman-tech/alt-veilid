@@ -1,6 +1,8 @@
+use super::native::*;
 use crate::*;
 use backtrace::Backtrace;
 use std::panic;
+use tracing_subscriber::{fmt, prelude::*};
 
 #[no_mangle]
 #[allow(dead_code)]
@@ -11,14 +13,9 @@ pub extern "C" fn run_veilid_core_tests() {
 
 pub fn veilid_core_setup_ios_tests() {
     // Set up subscriber and layers
-    use tracing_subscriber::{filter, fmt, prelude::*};
     let filter = VeilidLayerFilter::new(VeilidConfigLogLevel::Trace, None);
-    let fmt_layer = fmt::layer();
-    let layer = tracing_android::layer("veilid-core").expect("failed to set up android logging");
-    tracing_subscriber::registry()
-        .with(filters)
-        .with(fmt_layer)
-        .init();
+    let fmt_layer = fmt::layer().with_filter(filter);
+    tracing_subscriber::registry().with(fmt_layer).init();
 
     panic::set_hook(Box::new(|panic_info| {
         let bt = Backtrace::new();

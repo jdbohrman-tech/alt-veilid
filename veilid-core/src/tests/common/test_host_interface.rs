@@ -18,7 +18,7 @@ cfg_if! {
             let t2 = get_timestamp();
             let tdiff = ((t2 - t1) as f64)/1000000.0f64;
             info!("running network interface test with {} iterations took {} seconds", count, tdiff);
-            info!("interfaces: {:#?}", interfaces)
+            //info!("interfaces: {:#?}", interfaces)
         }
     }
 }

@@ -1,3 +1,4 @@
+use super::native::*;
 use crate::*;
 use backtrace::Backtrace;
 use jni::{
@@ -5,9 +6,7 @@ use jni::{
 };
 use lazy_static::*;
 use std::panic;
-use tracing::*;
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::*;
+use tracing_subscriber::{filter, fmt, prelude::*};
 
 #[no_mangle]
 #[allow(non_snake_case)]
@@ -22,12 +21,11 @@ pub extern "system" fn Java_com_veilid_veilid_1core_1android_1tests_MainActivity
 
 pub fn veilid_core_setup_android_tests(env: JNIEnv, ctx: JObject) {
     // Set up subscriber and layers
-    use tracing_subscriber::{filter, fmt, prelude::*};
     let filter = VeilidLayerFilter::new(VeilidConfigLogLevel::Trace, None);
     let layer = tracing_android::layer("veilid-core").expect("failed to set up android logging");
     tracing_subscriber::registry()
-        .with(filters)
-        .with(fmt_layer)
+        .with(filter)
+        .with(layer)
         .init();
 
     // Set up panic hook for backtraces
