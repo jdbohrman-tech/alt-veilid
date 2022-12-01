@@ -3,7 +3,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 pushd $SCRIPTDIR 2>/dev/null
 if [[ "$1" == "wasm" ]]; then
-    WASM_BINDGEN_TEST_TIMEOUT=120 wasm-pack test --chrome --headless
+    WASM_BINDGEN_TEST_TIMEOUT=120 wasm-pack test --firefox --headless
 elif [[ "$1" == "ios" ]]; then
     SYMROOT=/tmp/testout
     APPNAME=veilidcore-tests

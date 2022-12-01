@@ -1,20 +1,10 @@
-// xxx : support for android older than API 24, if we need it someday
-//mod android_get_if_addrs;
-//pub use android_get_if_addrs::*;
-
 mod get_directories;
 pub use get_directories::*;
 
-use crate::veilid_config::VeilidConfigLogLevel;
 use crate::*;
-use backtrace::Backtrace;
 use jni::errors::Result as JniResult;
-use jni::{objects::GlobalRef, objects::JObject, objects::JString, JNIEnv, JavaVM};
+use jni::{objects::GlobalRef, objects::JObject, JNIEnv, JavaVM};
 use lazy_static::*;
-use std::panic;
-use tracing::*;
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::*;
 
 pub struct AndroidGlobals {
     pub vm: JavaVM,
@@ -32,61 +22,11 @@ lazy_static! {
     pub static ref ANDROID_GLOBALS: Arc<Mutex<Option<AndroidGlobals>>> = Arc::new(Mutex::new(None));
 }
 
-pub fn veilid_core_setup_android_no_log<'a>(env: JNIEnv<'a>, ctx: JObject<'a>) {
+pub fn veilid_core_setup_android(env: JNIEnv, ctx: JObject) {
     *ANDROID_GLOBALS.lock() = Some(AndroidGlobals {
         vm: env.get_java_vm().unwrap(),
         ctx: env.new_global_ref(ctx).unwrap(),
     });
-}
-
-pub fn veilid_core_setup_android<'a>(
-    env: JNIEnv<'a>,
-    ctx: JObject<'a>,
-    log_tag: &'a str,
-    log_level: VeilidConfigLogLevel,
-) {
-    cfg_if! {
-        if #[cfg(feature = "tracing")] {
-            // Set up subscriber and layers
-            let subscriber = Registry::default();
-            let mut layers = Vec::new();
-            let filter = VeilidLayerFilter::new(log_level, None);
-            let layer = tracing_android::layer(log_tag)
-                .expect("failed to set up android logging")
-                .with_filter(filter.clone());
-            layers.push(layer.boxed());
-
-            let subscriber = subscriber.with(layers);
-            subscriber
-                .try_init()
-                .expect("failed to init android tracing");
-        }
-    }
-    // Set up panic hook for backtraces
-    panic::set_hook(Box::new(|panic_info| {
-        let bt = Backtrace::new();
-        if let Some(location) = panic_info.location() {
-            error!(
-                "panic occurred in file '{}' at line {}",
-                location.file(),
-                location.line(),
-            );
-        } else {
-            error!("panic occurred but can't get location information...");
-        }
-        if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-            error!("panic payload: {:?}", s);
-        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-            error!("panic payload: {:?}", s);
-        } else if let Some(a) = panic_info.payload().downcast_ref::<std::fmt::Arguments>() {
-            error!("panic payload: {:?}", a);
-        } else {
-            error!("no panic payload");
-        }
-        error!("Backtrace:\n{:?}", bt);
-    }));
-
-    veilid_core_setup_android_no_log(env, ctx);
 }
 
 pub fn get_android_globals() -> (JavaVM, GlobalRef) {

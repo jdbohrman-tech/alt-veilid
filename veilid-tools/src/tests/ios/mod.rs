@@ -1,9 +1,16 @@
+use super::native::*;
 use super::*;
 
 use std::backtrace::Backtrace;
 use std::panic;
 
-pub fn veilid_tools_setup<'a>() -> Result<(), String> {
+#[no_mangle]
+pub extern "C" fn run_veilid_tools_tests() {
+    crate::tests::ios::veilid_tools_setup_ios_tests();
+    run_all_tests();
+}
+
+pub fn veilid_tools_setup_ios_tests() {
     cfg_if! {
         if #[cfg(feature = "tracing")] {
             use tracing_subscriber::{filter, fmt, prelude::*};
@@ -30,7 +37,7 @@ pub fn veilid_tools_setup<'a>() -> Result<(), String> {
                 TerminalMode::Mixed,
                 ColorChoice::Auto,
             ));
-            CombinedLogger::init(logs).map_err(|e| format!("logger init error: {}", e))?;
+            CombinedLogger::init(logs).expect("logger init error");
         }
     }
 
@@ -56,6 +63,4 @@ pub fn veilid_tools_setup<'a>() -> Result<(), String> {
         }
         error!("Backtrace:\n{:?}", bt);
     }));
-
-    Ok(())
 }

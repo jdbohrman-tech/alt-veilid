@@ -60,10 +60,10 @@ dependencies {
 apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
 
 cargo {
-    module  = "../../../../"
+    module  = "../../../../../"
     libname = "veilid_core"
     targets = ["arm", "arm64", "x86", "x86_64"]
-    targetDirectory = "../../../../../target"
+    targetDirectory = "../../../../../../target"
     prebuiltToolchains = true
     profile = gradle.startParameter.taskNames.any{it.toLowerCase().contains("debug")} ? "debug" : "release"
     pythonCommand = "python3"

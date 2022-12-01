@@ -5,30 +5,8 @@ mod test_async_peek_stream;
 
 use super::*;
 
-#[cfg(all(target_os = "android", feature = "veilid_tools_android_tests"))]
-use jni::{objects::JClass, objects::JObject, JNIEnv};
-
-#[cfg(all(target_os = "android", feature = "veilid_tools_android_tests"))]
-#[no_mangle]
-#[allow(non_snake_case)]
-pub extern "system" fn Java_com_veilid_veilid_1tools_1android_1tests_MainActivity_run_1tests(
-    env: JNIEnv,
-    _class: JClass,
-    ctx: JObject,
-) {
-    crate::tests::android::veilid_tools_setup(env, ctx, "veilid-tools");
-    run_all_tests();
-}
-
-#[cfg(all(target_os = "ios", feature = "veilid_tools_ios_tests"))]
-#[no_mangle]
-#[allow(dead_code)]
-pub extern "C" fn run_veilid_tools_tests() {
-    crate::tests::ios::veilid_tools_setup().expect("setup failed");
-    run_all_tests();
-}
-
-///////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+// Allow access to tests from non cfg(test), as required for android and ios tests
 
 #[allow(dead_code)]
 pub fn run_all_tests() {
@@ -68,6 +46,7 @@ fn exec_test_async_tag_lock() {
         test_async_tag_lock::test_all().await;
     })
 }
+
 ///////////////////////////////////////////////////////////////////////////
 cfg_if! {
     if #[cfg(test)] {
@@ -83,15 +62,14 @@ cfg_if! {
                 cfg_if! {
                     if #[cfg(feature = "tracing")] {
                         use tracing_subscriber::{filter, fmt, prelude::*};
-                        let mut filters = filter::Targets::new();
+                        let mut filters = filter::Targets::new().with_default(filter::LevelFilter::TRACE);
                         for ig in DEFAULT_LOG_IGNORE_LIST {
                             filters = filters.with_target(ig, filter::LevelFilter::OFF);
                         }
                         let fmt_layer = fmt::layer();
                         tracing_subscriber::registry()
-                            .with(filters)
-                            .with(filter::LevelFilter::TRACE)
                             .with(fmt_layer)
+                            .with(filters)
                             .init();
                     } else {
                         use simplelog::*;

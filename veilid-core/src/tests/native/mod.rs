@@ -5,44 +5,6 @@ use crate::network_manager::tests::*;
 use crate::tests::common::*;
 use crate::*;
 
-#[cfg(all(target_os = "android", feature = "veilid_core_android_tests"))]
-use jni::{objects::JClass, objects::JObject, JNIEnv};
-
-#[cfg(all(target_os = "android", feature = "veilid_core_android_tests"))]
-#[no_mangle]
-#[allow(non_snake_case)]
-pub extern "system" fn Java_com_veilid_veilid_1core_1android_1tests_MainActivity_run_1tests(
-    env: JNIEnv,
-    _class: JClass,
-    ctx: JObject,
-) {
-    crate::intf::utils::android::veilid_core_setup_android(
-        env,
-        ctx,
-        "veilid_core",
-        crate::veilid_config::VeilidConfigLogLevel::Trace,
-    );
-    run_all_tests();
-}
-
-#[cfg(all(target_os = "ios", feature = "veilid_core_ios_tests"))]
-#[no_mangle]
-pub extern "C" fn run_veilid_core_tests() {
-    let log_path: std::path::PathBuf = [
-        std::env::var("HOME").unwrap().as_str(),
-        "Documents",
-        "veilid-core.log",
-    ]
-    .iter()
-    .collect();
-    crate::intf::utils::ios_test_setup::veilid_core_setup(
-        "veilid-core",
-        Some(Level::Trace),
-        Some((Level::Trace, log_path.as_path())),
-    );
-    run_all_tests();
-}
-
 ///////////////////////////////////////////////////////////////////////////
 
 #[allow(dead_code)]
@@ -130,18 +92,26 @@ fn exec_test_envelope_receipt() {
 cfg_if! {
     if #[cfg(test)] {
         use serial_test::serial;
-        use simplelog::*;
         use std::sync::Once;
 
         static SETUP_ONCE: Once = Once::new();
 
         pub fn setup() {
             SETUP_ONCE.call_once(|| {
-                let mut cb = ConfigBuilder::new();
-                for ig in crate::DEFAULT_LOG_IGNORE_LIST {
-                    cb.add_filter_ignore_str(ig);
+                cfg_if! {
+                    if #[cfg(feature = "tracing")] {
+                        use tracing_subscriber::{filter, fmt, prelude::*};
+                        let mut filters = filter::Targets::new().with_default(filter::LevelFilter::TRACE);
+                        for ig in DEFAULT_LOG_IGNORE_LIST {
+                            filters = filters.with_target(ig, filter::LevelFilter::OFF);
+                        }
+                        let fmt_layer = fmt::layer();
+                        tracing_subscriber::registry()
+                            .with(fmt_layer)
+                            .with(filters)
+                            .init();
+                    }
                 }
-                TestLogger::init(LevelFilter::Trace, cb.build()).unwrap();
             });
         }
 
