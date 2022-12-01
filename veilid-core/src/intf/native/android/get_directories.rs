@@ -1,5 +1,7 @@
 use super::*;
+use jni::objects::JString;
 
+#[allow(dead_code)]
 pub fn get_files_dir() -> String {
     let aglock = ANDROID_GLOBALS.lock();
     let ag = aglock.as_ref().unwrap();
@@ -24,6 +26,7 @@ pub fn get_files_dir() -> String {
     .unwrap()
 }
 
+#[allow(dead_code)]
 pub fn get_cache_dir() -> String {
     let aglock = ANDROID_GLOBALS.lock();
     let ag = aglock.as_ref().unwrap();

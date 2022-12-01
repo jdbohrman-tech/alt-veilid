@@ -1,8 +1,6 @@
 use super::native::*;
 use super::*;
 
-use jni::{objects::GlobalRef, objects::JObject, JNIEnv, JavaVM};
-use lazy_static::*;
 use std::backtrace::Backtrace;
 use std::panic;
 
@@ -36,8 +34,7 @@ pub fn veilid_tools_setup_android_tests() {
             // Set up subscriber and layers
             let subscriber = Registry::default();
             let mut layers = Vec::new();
-            let layer = tracing_android::layer("veilid-tools")
-                .expect("failed to set up android logging")
+            let layer = paranoid_android::layer("veilid-tools")
                 .with_filter(filter::LevelFilter::TRACE)
                 .with_filter(filters);
             layers.push(layer.boxed());
@@ -48,7 +45,7 @@ pub fn veilid_tools_setup_android_tests() {
                 .expect("failed to init android tracing");
         } else {
             let mut builder = android_logd_logger::builder();
-            builder.tag(log_tag);
+            builder.tag("veilid-tools");
             builder.prepend_module(true);
             builder.filter_level(LevelFilter::Trace);
             for ig in DEFAULT_LOG_IGNORE_LIST {

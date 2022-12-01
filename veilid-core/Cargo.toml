@@ -14,7 +14,7 @@ default = []
 rt-async-std = [ "async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std" ]
 rt-tokio = [ "tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket", "veilid-tools/rt-tokio" ]
 
-veilid_core_android_tests = [ "dep:tracing-android" ]
+veilid_core_android_tests = [ "dep:paranoid-android" ]
 veilid_core_ios_tests = [ "dep:tracing-oslog" ]
 tracking = []
 
@@ -130,7 +130,7 @@ jni = "^0"
 jni-sys = "^0"
 ndk = { version = "^0.7" }
 ndk-glue = { version = "^0.7", features = ["logger"] }
-tracing-android = { version = "^0", optional = true }
+paranoid-android = { version = "^0", optional = true }
 
 # Dependenices for all Unix (Linux, Android, MacOS, iOS)
 [target.'cfg(unix)'.dependencies]

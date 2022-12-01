@@ -29,6 +29,10 @@ pub fn veilid_core_setup_android(env: JNIEnv, ctx: JObject) {
     });
 }
 
+pub fn is_android_ready() -> bool {
+    ANDROID_GLOBALS.lock().is_some()
+}
+
 pub fn get_android_globals() -> (JavaVM, GlobalRef) {
     let globals_locked = ANDROID_GLOBALS.lock();
     let globals = globals_locked.as_ref().unwrap();

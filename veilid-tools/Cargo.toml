@@ -14,7 +14,7 @@ default = []
 rt-async-std = [ "async-std", "async_executors/async_std", ]
 rt-tokio = [ "tokio", "tokio-util", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", ]
 
-veilid_tools_android_tests = [ "dep:tracing-android" ]
+veilid_tools_android_tests = [ "dep:paranoid-android" ]
 veilid_tools_ios_tests = [ "dep:oslog", "dep:tracing-oslog" ]
 tracing = [ "dep:tracing", "dep:tracing-subscriber" ]
 
@@ -62,7 +62,7 @@ jni-sys = "^0"
 ndk = { version = "^0.7" }
 ndk-glue = { version = "^0.7", features = ["logger"] }
 lazy_static = "^1.4.0"
-tracing-android = { version = "^0", optional = true }
+paranoid-android = { version = "^0", optional = true }
 android-logd-logger = "0.2.1"
 
 # Dependencies for Windows

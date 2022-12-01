@@ -22,6 +22,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void run() {
+            run_tests(this.context);
+            ((MainActivity)this.context).finish();
+            System.exit(0);
         }
     }
 
@@ -30,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        run_tests(this.context);
+        this.testThread = new TestThread(this);
+        this.testThread.start();
     }
 }

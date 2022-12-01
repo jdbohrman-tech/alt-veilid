@@ -3070,7 +3070,7 @@ checksum = "451422b7e4718271c8b5b3aadf5adedba43dc76312454b387e98fae0fc951aa0"
 dependencies = [
  "bitflags",
  "jni-sys",
- "ndk-sys",
+ "ndk-sys 0.4.1+23.1.7779620",
  "num_enum",
  "raw-window-handle",
  "thiserror",
@@ -3094,7 +3094,7 @@ dependencies = [
  "ndk",
  "ndk-context",
  "ndk-macro",
- "ndk-sys",
+ "ndk-sys 0.4.1+23.1.7779620",
  "once_cell",
  "parking_lot 0.12.1",
 ]
@@ -3110,6 +3110,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "ndk-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e5a6ae77c8ee183dcbbba6150e2e6b9f3f4196a7666c02a715a95692ec1fa97"
+dependencies = [
+ "jni-sys",
 ]
 
 [[package]]
@@ -3559,6 +3568,20 @@ name = "owo-colors"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
+
+[[package]]
+name = "paranoid-android"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e736c9fbaf42b43459cd1fded3dd272968daadfcbc5660ee231a12899f092289"
+dependencies = [
+ "lazy_static",
+ "ndk-sys 0.3.0",
+ "sharded-slab",
+ "smallvec",
+ "tracing-core",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "parity-scale-codec"
@@ -5401,17 +5424,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-android"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12612be8f868a09c0ceae7113ff26afe79d81a24473a393cb9120ece162e86c0"
-dependencies = [
- "android_log-sys",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "tracing-appender"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5858,6 +5870,7 @@ dependencies = [
  "once_cell",
  "owning_ref",
  "owo-colors",
+ "paranoid-android",
  "parking_lot 0.12.1",
  "rand 0.7.3",
  "rkyv",
@@ -5880,7 +5893,6 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
- "tracing-android",
  "tracing-error",
  "tracing-oslog",
  "tracing-subscriber",
@@ -6007,6 +6019,7 @@ dependencies = [
  "once_cell",
  "oslog",
  "owo-colors",
+ "paranoid-android",
  "parking_lot 0.11.2",
  "rand 0.7.3",
  "rust-fsm",
@@ -6019,7 +6032,6 @@ dependencies = [
  "tokio 1.22.0",
  "tokio-util",
  "tracing",
- "tracing-android",
  "tracing-oslog",
  "tracing-subscriber",
  "tracing-wasm",

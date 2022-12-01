@@ -85,7 +85,7 @@ cfg_if! {
         fn get_data_dir() -> PathBuf {
             cfg_if! {
                 if #[cfg(target_os = "android")] {
-                    PathBuf::from(intf::utils::android::get_files_dir())
+                    PathBuf::from(crate::intf::android::get_files_dir())
                 } else {
                     use directories::*;
 
