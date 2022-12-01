@@ -2,16 +2,15 @@ use super::native::*;
 use crate::*;
 use backtrace::Backtrace;
 use std::panic;
-use tracing_subscriber::{fmt, prelude::*};
+use tracing_oslog::OsLogger;
+use tracing_subscriber::prelude::*;
 
 #[no_mangle]
 #[allow(dead_code)]
 pub extern "C" fn run_veilid_core_tests() {
-    std::thread::spawn(|| {
-        block_on(async {
-            veilid_core_setup_ios_tests();
-            run_all_tests().await;
-        })
+    block_on(async {
+        veilid_core_setup_ios_tests();
+        run_all_tests().await;
     });
 }
 
