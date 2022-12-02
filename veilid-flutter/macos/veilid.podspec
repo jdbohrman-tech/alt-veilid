@@ -22,13 +22,14 @@ Veilid Network Plugin
 
   require 'json'
   require 'pathname'
-  cargo_target_dir = File.join(File.dirname(JSON.parse(`cargo locate-project`)['root']), 'target')
+  workspace_dir = File.dirname(JSON.parse(`cargo locate-project --workspace`)['root'])
+  cargo_target_dir = File.join(workspace_dir, 'target')
 
   s.script_phase = { 
     :name => 'Cargo Build', 
-    :script => File.join(File.dirname(__dir__), 'rust', 'macos_build.sh'), 
+    :script => File.join(workspace_dir, 'scripts', 'macos_build.sh') + ' veilid_flutter', 
     :execution_position => :before_compile
-    #:output_files => [ File.join(cargo_target_dir, 'macos_lib', 'libveilid_flutter.dylib') ]
+    #:output_files => [ File.join(cargo_target_dir, 'lipo-darwin', 'libveilid_flutter.dylib') ]
   }
 
 end

@@ -167,7 +167,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "../../../../../scripts/ios_build.sh ../../../../ veilid_core --features veilid_core_ios_tests,rt-tokio\n";
+			shellScript = "../../../../../scripts/ios_build.sh veilid_core --features veilid_core_ios_tests,rt-tokio\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

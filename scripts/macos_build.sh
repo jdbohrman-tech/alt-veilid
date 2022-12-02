@@ -8,7 +8,7 @@ CARGO_DIR=$(dirname $CARGO)
 # shift
 # echo $WORKING_DIR
 # pushd $WORKING_DIR >/dev/null
-echo PWD: `pwd`
+# echo PWD: `pwd`
 
 CARGO_MANIFEST_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('$CARGO locate-project').read())['root'])")
 CARGO_WORKSPACE_PATH=$(python3 -c "import os; import json; print(json.loads(os.popen('$CARGO locate-project --workspace').read())['root'])")
@@ -25,32 +25,22 @@ else
 fi
 ARCHS=${ARCHS:=arm64}
 
-if [ "$PLATFORM_NAME" == "iphonesimulator" ]; then
-    LIPO_OUT_NAME="lipo-ios-sim"
-else 
-    LIPO_OUT_NAME="lipo-ios"
-fi
+LIPO_OUT_NAME="lipo-darwin"
 
 for arch in $ARCHS
 do
     if [ "$arch" == "arm64" ]; then
         echo arm64
-        if [ "$PLATFORM_NAME" == "iphonesimulator" ]; then
-            CARGO_TARGET=aarch64-apple-ios-sim
-        else
-            CARGO_TARGET=aarch64-apple-ios
-        fi
+        CARGO_TARGET=aarch64-apple-darwin
         CARGO_TOOLCHAIN=
     elif [ "$arch" == "x86_64" ]; then
         echo x86_64
-        CARGO_TARGET=x86_64-apple-ios
+        CARGO_TARGET=x86_64-apple-darwin
         CARGO_TOOLCHAIN=
     else
         echo Unsupported ARCH: $arch
         continue
     fi
-
-
 
     # Choose arm64 brew for unit tests by default if we are on M1
     if [ -f /opt/homebrew/bin/brew ]; then

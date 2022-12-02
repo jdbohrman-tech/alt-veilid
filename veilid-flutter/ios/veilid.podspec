@@ -23,18 +23,19 @@ Veilid Network Plugin
 
   require 'json'
   require 'pathname'
-  cargo_target_dir = File.join(File.dirname(JSON.parse(`cargo locate-project`)['root']), 'target')
+  workspace_dir = File.dirname(JSON.parse(`cargo locate-project --workspace`)['root'])
+  cargo_target_dir = File.join(workspace_dir, 'target')
 
   s.xcconfig = { 
-    'OTHER_LDFLAGS' => "-Wl,-force_load,#{File.join(cargo_target_dir, 'ios_lib', 'libveilid_flutter.a')}",
-    "LIBRARY_SEARCH_PATHS" => File.join(cargo_target_dir, 'ios_lib')
+    'OTHER_LDFLAGS' => "-Wl,-force_load,#{File.join(cargo_target_dir, 'lipo-ios', 'libveilid_flutter.a')}",
+    "LIBRARY_SEARCH_PATHS" => File.join(cargo_target_dir, 'lipo-ios')
   }
 
   s.script_phase = { 
     :name => 'Cargo Build', 
-    :script => File.join(File.dirname(__dir__), 'rust', 'ios_build.sh'), 
+    :script => File.join(workspace_dir, 'scripts', 'ios_build.sh') + ' veilid_flutter', 
     :execution_position => :before_compile
-    # :output_files => [ File.join(cargo_target_dir, 'ios_lib', 'libveilid_flutter.a') ]
+    # :output_files => [ File.join(cargo_target_dir, 'lipo-ios', 'libveilid_flutter.a') ]
   }
 
 end

@@ -12,6 +12,7 @@ rt-async-std = [ "veilid-core/rt-async-std", "async-std", "opentelemetry/rt-asyn
 rt-tokio = [ "veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio"]
 
 [dependencies]
+veilid-core = { path="../../veilid-core" }
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-subscriber = "^0"
 parking_lot = "^0"
@@ -25,7 +26,6 @@ data-encoding = { version = "^2" }
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-veilid-core = { path="../../veilid-core" }
 tracing-opentelemetry = "^0"
 opentelemetry = { version = "^0" }
 opentelemetry-otlp = { version = "^0" }
@@ -41,7 +41,6 @@ hostname = "^0"
 
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-veilid-core = { path="../../veilid-core" }
 
 # Dependencies for Android builds only
 [target.'cfg(target_os = "android")'.dependencies]
