@@ -1,11 +1,10 @@
 use crate::client_api_connection::*;
 use crate::settings::Settings;
 use crate::ui::*;
-use log::*;
 use std::cell::*;
 use std::net::SocketAddr;
 use std::rc::Rc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use veilid_core::tools::*;
 use veilid_core::*;
 
@@ -365,7 +364,7 @@ reply               - reply to an AppCall not handled directly by the server
                 debug!("Connection lost, retrying in 2 seconds");
                 {
                     let waker = self.inner_mut().connection_waker.instance_clone(());
-                    let _ = timeout(Duration::from_millis(2000), waker).await;
+                    let _ = timeout(2000, waker).await;
                 }
                 self.inner_mut().connection_waker.reset();
                 first = false;

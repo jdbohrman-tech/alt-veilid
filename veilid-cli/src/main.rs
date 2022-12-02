@@ -2,6 +2,7 @@
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
+use crate::tools::*;
 use veilid_core::tools::*;
 
 use clap::{Arg, ColorChoice, Command};
