@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 #![deny(unused_must_use)]
+#![recursion_limit = "256"]
 
 use veilid_core::tools::*;
 

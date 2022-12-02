@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 mod dart_ffi;
 mod dart_isolate_wrapper;
 mod tools;
