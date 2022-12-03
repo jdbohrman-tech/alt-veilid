@@ -16,7 +16,7 @@ const _base = 'veilid_flutter';
 final _path = Platform.isWindows
     ? '$_base.dll'
     : Platform.isMacOS
-        ? 'lib$_base.dylib'
+        ? 'veilid.framework/Resources/lib$_base.dylib'
         : 'lib$_base.so';
 final _dylib =
     Platform.isIOS ? DynamicLibrary.process() : DynamicLibrary.open(_path);

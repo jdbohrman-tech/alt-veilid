@@ -46,8 +46,8 @@ Future<VeilidConfig> getDefaultVeilidConfig() async {
       clientWhitelistTimeoutMs: 300000,
       reverseConnectionReceiptTimeMs: 5000,
       holePunchReceiptTimeMs: 5000,
-      nodeId: "",
-      nodeIdSecret: "",
+      nodeId: null,
+      nodeIdSecret: null,
       bootstrap: kIsWeb
           ? ["ws://bootstrap.dev.veilid.net:5150/ws"]
           : ["bootstrap.dev.veilid.net"],

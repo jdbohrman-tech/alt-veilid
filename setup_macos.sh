@@ -109,4 +109,4 @@ if [ "$BREW_USER" == "" ]; then
     fi
 fi
 sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@11
-
+sudo gem install cocoapods

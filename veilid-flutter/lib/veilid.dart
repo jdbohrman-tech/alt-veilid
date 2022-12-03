@@ -1556,6 +1556,10 @@ abstract class VeilidAPIException implements Exception {
           return VeilidAPIExceptionMissingArgument(
               json["context"], json["argument"]);
         }
+      case "Generic":
+        {
+          return VeilidAPIExceptionGeneric(json["message"]);
+        }
       default:
         {
           throw VeilidAPIExceptionInternal(
@@ -1679,6 +1683,18 @@ class VeilidAPIExceptionMissingArgument implements VeilidAPIException {
 
   //
   VeilidAPIExceptionMissingArgument(this.context, this.argument);
+}
+
+class VeilidAPIExceptionGeneric implements VeilidAPIException {
+  final String message;
+
+  @override
+  String toString() {
+    return "VeilidAPIException: Generic (message: $message)";
+  }
+
+  //
+  VeilidAPIExceptionGeneric(this.message);
 }
 
 //////////////////////////////////////
