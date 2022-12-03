@@ -53,9 +53,14 @@ do
 
     env -i PATH=/usr/bin:/bin:$HOMEBREW_DIR:$CARGO_DIR HOME="$HOME" USER="$USER" cargo $CARGO_TOOLCHAIN build $EXTRA_CARGO_OPTIONS --target $CARGO_TARGET --manifest-path $CARGO_MANIFEST_PATH
 
-    LIPOS="$LIPOS $TARGET_PATH/$CARGO_TARGET/$BUILD_MODE/lib$PACKAGE_NAME.a"
+    LIPOS="$LIPOS $TARGET_PATH/$CARGO_TARGET/$BUILD_MODE/lib$PACKAGE_NAME.dylib"
 
 done
 
+# Make lipo build
 mkdir -p "$TARGET_PATH/$LIPO_OUT_NAME/$BUILD_MODE/"
-lipo $LIPOS -create -output "$TARGET_PATH/$LIPO_OUT_NAME/$BUILD_MODE/lib$PACKAGE_NAME.a"
+lipo $LIPOS -create -output "$TARGET_PATH/$LIPO_OUT_NAME/$BUILD_MODE/lib$PACKAGE_NAME.dylib"
+
+# Make most recent dylib available without build mode for flutter
+cp "$TARGET_PATH/$LIPO_OUT_NAME/$BUILD_MODE/lib$PACKAGE_NAME.dylib" "$TARGET_PATH/$LIPO_OUT_NAME/lib$PACKAGE_NAME.dylib"
+

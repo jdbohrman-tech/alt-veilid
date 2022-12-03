@@ -67,5 +67,10 @@ do
 
 done
 
+# Make lipo build
 mkdir -p "$TARGET_PATH/$LIPO_OUT_NAME/$BUILD_MODE/"
 lipo $LIPOS -create -output "$TARGET_PATH/$LIPO_OUT_NAME/$BUILD_MODE/lib$PACKAGE_NAME.a"
+
+# Make most recent dylib available without build mode for flutter
+cp "$TARGET_PATH/$LIPO_OUT_NAME/$BUILD_MODE/lib$PACKAGE_NAME.a" "$TARGET_PATH/$LIPO_OUT_NAME/lib$PACKAGE_NAME.a"
+
