@@ -9,6 +9,7 @@ use alloc::sync::Arc;
 use alloc::*;
 use core::any::{Any, TypeId};
 use core::cell::RefCell;
+use core::fmt::Debug;
 use futures_util::FutureExt;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::*;
@@ -21,6 +22,7 @@ use tracing_subscriber::*;
 use tracing_wasm::{WASMLayerConfigBuilder, *};
 use veilid_core::tools::*;
 use veilid_core::*;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::*;
 
 // Allocator
@@ -57,11 +59,13 @@ fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIErr
 }
 
 // JSON Helpers for WASM
-pub fn to_json<T: Serialize>(val: T) -> JsValue {
+pub fn to_json<T: Serialize + Debug>(val: T) -> JsValue {
     JsValue::from_str(&serialize_json(val))
 }
 
-pub fn from_json<T: de::DeserializeOwned>(val: JsValue) -> Result<T, veilid_core::VeilidAPIError> {
+pub fn from_json<T: de::DeserializeOwned + Debug>(
+    val: JsValue,
+) -> Result<T, veilid_core::VeilidAPIError> {
     let s = val
         .as_string()
         .ok_or_else(|| veilid_core::VeilidAPIError::ParseError {
@@ -78,7 +82,7 @@ const APIRESULT_UNDEFINED: APIResult<()> = APIResult::Ok(());
 pub fn wrap_api_future<F, T>(future: F) -> Promise
 where
     F: Future<Output = APIResult<T>> + 'static,
-    T: Serialize + 'static,
+    T: Serialize + Debug + 'static,
 {
     future_to_promise(future.map(|res| {
         res.map(|v| {
@@ -121,7 +125,7 @@ pub struct VeilidWASMConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct VeilidFFIKeyBlob {
+pub struct VeilidKeyBlob {
     pub key: veilid_core::DHTKey,
     #[serde(with = "veilid_core::json_as_base64")]
     pub blob: Vec<u8>,
@@ -256,17 +260,201 @@ pub fn shutdown_veilid_core() -> Promise {
     })
 }
 
+fn add_routing_context(routing_context: veilid_core::RoutingContext) -> u32 {
+    let mut next_id: u32 = 1;
+    let mut rc = (*ROUTING_CONTEXTS).borrow_mut();
+    while rc.contains_key(&next_id) {
+        next_id += 1;
+    }
+    rc.insert(next_id, routing_context);
+    next_id
+}
+
 #[wasm_bindgen()]
-pub fn debug(command: String) -> Promise {
+pub fn routing_context() -> Promise {
     wrap_api_future(async move {
         let veilid_api = get_veilid_api()?;
-        let out = veilid_api.debug(command).await?;
-        Ok(out)
+        let routing_context = veilid_api.routing_context();
+        let new_id = add_routing_context(routing_context);
+        APIResult::Ok(new_id)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn release_routing_context(id: u32) -> i32 {
+    let mut rc = (*ROUTING_CONTEXTS).borrow_mut();
+    if rc.remove(&id).is_none() {
+        return 0;
+    }
+    return 1;
+}
+
+#[wasm_bindgen()]
+pub fn routing_context_with_privacy(id: u32) -> u32 {
+    let rc = (*ROUTING_CONTEXTS).borrow();
+    let Some(routing_context) = rc.get(&id) else {
+        return 0;
+    };
+    let Ok(routing_context) = routing_context.clone().with_privacy() else {
+        return 0;
+    };
+    let new_id = add_routing_context(routing_context);
+    new_id
+}
+
+#[wasm_bindgen()]
+pub fn routing_context_with_custom_privacy(id: u32, stability: String) -> u32 {
+    let stability: veilid_core::Stability = veilid_core::deserialize_json(&stability).unwrap();
+
+    let rc = (*ROUTING_CONTEXTS).borrow();
+    let Some(routing_context) = rc.get(&id) else {
+        return 0;
+    };
+    let Ok(routing_context) = routing_context.clone().with_custom_privacy(stability) else {
+        return 0;
+    };
+    let new_id = add_routing_context(routing_context);
+    new_id
+}
+
+#[wasm_bindgen()]
+pub fn routing_context_with_sequencing(id: u32, sequencing: String) -> u32 {
+    let sequencing: veilid_core::Sequencing = veilid_core::deserialize_json(&sequencing).unwrap();
+
+    let rc = (*ROUTING_CONTEXTS).borrow();
+    let Some(routing_context) = rc.get(&id) else {
+        return 0;
+    };
+    let routing_context = routing_context.clone().with_sequencing(sequencing);
+    let new_id = add_routing_context(routing_context);
+    new_id
+}
+
+#[wasm_bindgen()]
+pub fn routing_context_app_call(id: u32, target: String, request: String) -> Promise {
+    let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(request.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        let routing_table = veilid_api.routing_table()?;
+        let rss = routing_table.route_spec_store();
+
+        let routing_context = {
+            let rc = (*ROUTING_CONTEXTS).borrow();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_call", "id", id));
+            };
+            routing_context.clone()
+        };
+
+        let target: DHTKey =
+            DHTKey::try_decode(&target).map_err(|e| VeilidAPIError::parse_error(e, &target))?;
+
+        let target = if rss.get_remote_private_route(&target).is_some() {
+            veilid_core::Target::PrivateRoute(target)
+        } else {
+            veilid_core::Target::NodeId(veilid_core::NodeId::new(target))
+        };
+
+        let answer = routing_context.app_call(target, request).await?;
+        let answer = data_encoding::BASE64URL_NOPAD.encode(&answer);
+        APIResult::Ok(answer)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn routing_context_app_message(id: u32, target: String, message: String) -> Promise {
+    let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(message.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        let routing_table = veilid_api.routing_table()?;
+        let rss = routing_table.route_spec_store();
+
+        let routing_context = {
+            let rc = (*ROUTING_CONTEXTS).borrow();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_call", "id", id));
+            };
+            routing_context.clone()
+        };
+
+        let target: DHTKey =
+            DHTKey::try_decode(&target).map_err(|e| VeilidAPIError::parse_error(e, &target))?;
+
+        let target = if rss.get_remote_private_route(&target).is_some() {
+            veilid_core::Target::PrivateRoute(target)
+        } else {
+            veilid_core::Target::NodeId(veilid_core::NodeId::new(target))
+        };
+
+        routing_context.app_message(target, message).await?;
+        APIRESULT_UNDEFINED
+    })
+}
+
+#[wasm_bindgen()]
+pub fn new_private_route() -> Promise {
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+
+        let (key, blob) = veilid_api.new_private_route().await?;
+
+        let keyblob = VeilidKeyBlob { key, blob };
+
+        APIResult::Ok(keyblob)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn new_custom_private_route(stability: String, sequencing: String) -> Promise {
+    let stability: veilid_core::Stability = veilid_core::deserialize_json(&stability).unwrap();
+    let sequencing: veilid_core::Sequencing = veilid_core::deserialize_json(&sequencing).unwrap();
+
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+
+        let (key, blob) = veilid_api
+            .new_custom_private_route(stability, sequencing)
+            .await?;
+
+        let keyblob = VeilidKeyBlob { key, blob };
+
+        APIResult::Ok(keyblob)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn import_remote_private_route(blob: String) -> Promise {
+    let blob: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(blob.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+
+        let key = veilid_api.import_remote_private_route(blob)?;
+
+        APIResult::Ok(key.encode())
+    })
+}
+
+#[wasm_bindgen()]
+pub fn release_private_route(key: String) -> Promise {
+    let key: veilid_core::DHTKey = veilid_core::deserialize_json(&key).unwrap();
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        veilid_api.release_private_route(&key)?;
+        APIRESULT_UNDEFINED
     })
 }
 
 #[wasm_bindgen()]
 pub fn app_call_reply(id: String, message: String) -> Promise {
+    let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(message.as_bytes())
+        .unwrap();
     wrap_api_future(async move {
         let id = match id.parse() {
             Ok(v) => v,
@@ -274,11 +462,17 @@ pub fn app_call_reply(id: String, message: String) -> Promise {
                 return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(e, "id", id))
             }
         };
-        let message = data_encoding::BASE64URL_NOPAD
-            .decode(message.as_bytes())
-            .map_err(|e| veilid_core::VeilidAPIError::invalid_argument(e, "message", message))?;
         let veilid_api = get_veilid_api()?;
         let out = veilid_api.app_call_reply(id, message).await?;
+        Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn debug(command: String) -> Promise {
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        let out = veilid_api.debug(command).await?;
         Ok(out)
     })
 }

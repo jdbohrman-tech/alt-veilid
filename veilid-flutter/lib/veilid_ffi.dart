@@ -337,30 +337,40 @@ Stream<T> processStreamJson<T>(
   }
 }
 
+class _Ctx {
+  final int id;
+  final VeilidFFI ffi;
+  _Ctx(this.id, this.ffi);
+}
+
 // FFI implementation of VeilidRoutingContext
 class VeilidRoutingContextFFI implements VeilidRoutingContext {
-  final int _id;
-  final VeilidFFI _ffi;
+  final _Ctx _ctx;
+  static final Finalizer<_Ctx> _finalizer =
+      Finalizer((ctx) => {ctx.ffi._releaseRoutingContext(ctx.id)});
 
-  VeilidRoutingContextFFI._(this._id, this._ffi);
+  VeilidRoutingContextFFI._(this._ctx) {
+    _finalizer.attach(this, _ctx, detach: this);
+  }
+
   @override
   VeilidRoutingContextFFI withPrivacy() {
-    final newId = _ffi._routingContextWithPrivacy(_id);
-    return VeilidRoutingContextFFI._(newId, _ffi);
+    final newId = _ctx.ffi._routingContextWithPrivacy(_ctx.id);
+    return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
   VeilidRoutingContextFFI withCustomPrivacy(Stability stability) {
-    final newId = _ffi._routingContextWithCustomPrivacy(
-        _id, stability.json.toNativeUtf8());
-    return VeilidRoutingContextFFI._(newId, _ffi);
+    final newId = _ctx.ffi._routingContextWithCustomPrivacy(
+        _ctx.id, stability.json.toNativeUtf8());
+    return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
   VeilidRoutingContextFFI withSequencing(Sequencing sequencing) {
-    final newId =
-        _ffi._routingContextWithSequencing(_id, sequencing.json.toNativeUtf8());
-    return VeilidRoutingContextFFI._(newId, _ffi);
+    final newId = _ctx.ffi
+        ._routingContextWithSequencing(_ctx.id, sequencing.json.toNativeUtf8());
+    return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
@@ -370,8 +380,8 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
 
     final recvPort = ReceivePort("routing_context_app_call");
     final sendPort = recvPort.sendPort;
-    _ffi._routingContextAppCall(
-        sendPort.nativePort, _id, nativeEncodedTarget, nativeEncodedRequest);
+    _ctx.ffi._routingContextAppCall(sendPort.nativePort, _ctx.id,
+        nativeEncodedTarget, nativeEncodedRequest);
     final out = await processFuturePlain(recvPort.first);
     return base64Decode(out);
   }
@@ -381,10 +391,10 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
     var nativeEncodedTarget = target.toNativeUtf8();
     var nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
 
-    final recvPort = ReceivePort("routing_context_app_call");
+    final recvPort = ReceivePort("routing_context_app_message");
     final sendPort = recvPort.sendPort;
-    _ffi._routingContextAppCall(
-        sendPort.nativePort, _id, nativeEncodedTarget, nativeEncodedMessage);
+    _ctx.ffi._routingContextAppMessage(sendPort.nativePort, _ctx.id,
+        nativeEncodedTarget, nativeEncodedMessage);
     return processFutureVoid(recvPort.first);
   }
 }
@@ -566,7 +576,7 @@ class VeilidFFI implements Veilid {
     final sendPort = recvPort.sendPort;
     _routingContext(sendPort.nativePort);
     final id = await processFuturePlain(recvPort.first);
-    return VeilidRoutingContextFFI._(id, this);
+    return VeilidRoutingContextFFI._(_Ctx(id, this));
   }
 
   @override
