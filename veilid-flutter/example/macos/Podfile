@@ -33,26 +33,27 @@ target 'Runner' do
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
 end
 
-require 'json'
-require 'pathname'
-require 'fileutils'
-workspace_dir = File.dirname(JSON.parse(`cargo locate-project --workspace`)['root'])
-cargo_target_dir = File.join(workspace_dir, 'target')
-lipo_dir= File.join(cargo_target_dir, 'lipo-darwin')
-veilid_flutter = File.join(lipo_dir, 'libveilid_flutter.dylib')
-FileUtils.mkdir_p(lipo_dir)
-FileUtils.touch(veilid_flutter)
+# require 'json'
+# require 'pathname'
+# require 'fileutils'
+# workspace_dir = File.dirname(JSON.parse(`cargo locate-project --workspace`)['root'])
+# cargo_target_dir = File.join(workspace_dir, 'target')
+# lipo_dir= File.join(cargo_target_dir, 'lipo-darwin')
+# veilid_flutter = File.join(lipo_dir, 'libveilid_flutter.dylib')
+# FileUtils.mkdir_p(lipo_dir)
+# FileUtils.touch(veilid_flutter)
 
 post_install do |installer|
   project = installer.pods_project
-  reference = project.add_file_reference(veilid_flutter, project.main_group["Frameworks"])
+  # reference = project.add_file_reference(veilid_flutter, project.main_group['Frameworks'])
   
   project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
   
-    if (target.is_a? Xcodeproj::Project::Object::PBXNativeTarget) && target.name == "veilid"
-      target.resources_build_phase.add_file_reference(reference)
-    end
+    # if (target.is_a? Xcodeproj::Project::Object::PBXNativeTarget) && target.name == 'veilid'
+    #   buildfile = target.resources_build_phase.add_file_reference(reference)
+    #   buildfile.settings = { 'ATTRIBUTES' => ['CodeSignOnCopy'] }
+    # end
   
   end
 

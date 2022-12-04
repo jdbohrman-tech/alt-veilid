@@ -1454,7 +1454,7 @@ class VeilidStateConfig {
   });
 
   VeilidStateConfig.fromJson(Map<String, dynamic> json)
-      : config = jsonDecode(json['config']);
+      : config = json['config'];
 
   Map<String, dynamic> get json {
     return {'config': config};
