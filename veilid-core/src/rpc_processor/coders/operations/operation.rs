@@ -58,24 +58,30 @@ impl RPCOperationKind {
 pub struct RPCOperation {
     op_id: u64,
     sender_node_info: Option<SignedNodeInfo>,
+    target_node_info_ts: u64,
     kind: RPCOperationKind,
 }
 
 impl RPCOperation {
-    pub fn new_question(question: RPCQuestion, sender_node_info: Option<SignedNodeInfo>) -> Self {
+    pub fn new_question(
+        question: RPCQuestion,
+        sender_signed_node_info: SenderSignedNodeInfo,
+    ) -> Self {
         Self {
             op_id: get_random_u64(),
-            sender_node_info,
+            sender_node_info: sender_signed_node_info.signed_node_info,
+            target_node_info_ts: sender_signed_node_info.target_node_info_ts,
             kind: RPCOperationKind::Question(question),
         }
     }
     pub fn new_statement(
         statement: RPCStatement,
-        sender_node_info: Option<SignedNodeInfo>,
+        sender_signed_node_info: SenderSignedNodeInfo,
     ) -> Self {
         Self {
             op_id: get_random_u64(),
-            sender_node_info,
+            sender_node_info: sender_signed_node_info.signed_node_info,
+            target_node_info_ts: sender_signed_node_info.target_node_info_ts,
             kind: RPCOperationKind::Statement(statement),
         }
     }
@@ -83,11 +89,12 @@ impl RPCOperation {
     pub fn new_answer(
         request: &RPCOperation,
         answer: RPCAnswer,
-        sender_node_info: Option<SignedNodeInfo>,
+        sender_signed_node_info: SenderSignedNodeInfo,
     ) -> Self {
         Self {
             op_id: request.op_id,
-            sender_node_info,
+            sender_node_info: sender_signed_node_info.signed_node_info,
+            target_node_info_ts: sender_signed_node_info.target_node_info_ts,
             kind: RPCOperationKind::Answer(answer),
         }
     }
@@ -98,6 +105,9 @@ impl RPCOperation {
 
     pub fn sender_node_info(&self) -> Option<&SignedNodeInfo> {
         self.sender_node_info.as_ref()
+    }
+    pub fn target_node_info_ts(&self) -> u64 {
+        self.target_node_info_ts
     }
 
     pub fn kind(&self) -> &RPCOperationKind {
@@ -128,12 +138,15 @@ impl RPCOperation {
             None
         };
 
+        let target_node_info_ts = operation_reader.get_target_node_info_ts();
+
         let kind_reader = operation_reader.get_kind();
         let kind = RPCOperationKind::decode(&kind_reader, opt_sender_node_id)?;
 
         Ok(RPCOperation {
             op_id,
             sender_node_info,
+            target_node_info_ts,
             kind,
         })
     }
@@ -144,6 +157,7 @@ impl RPCOperation {
             let mut si_builder = builder.reborrow().init_sender_node_info();
             encode_signed_node_info(&sender_info, &mut si_builder)?;
         }
+        builder.set_target_node_info_ts(self.target_node_info_ts);
         let mut k_builder = builder.reborrow().init_kind();
         self.kind.encode(&mut k_builder)?;
         Ok(())

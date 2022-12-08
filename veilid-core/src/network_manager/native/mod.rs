@@ -710,8 +710,8 @@ impl Network {
                 }
 
                 ProtocolConfig {
-                    inbound,
                     outbound,
+                    inbound,
                     family_global,
                     family_local,
                 }
@@ -758,13 +758,13 @@ impl Network {
         // if we have static public dialinfo, upgrade our network class
 
         editor_public_internet.setup_network(
-            protocol_config.inbound,
             protocol_config.outbound,
+            protocol_config.inbound,
             protocol_config.family_global,
         );
         editor_local_network.setup_network(
-            protocol_config.inbound,
             protocol_config.outbound,
+            protocol_config.inbound,
             protocol_config.family_local,
         );
         let detect_address_changes = {

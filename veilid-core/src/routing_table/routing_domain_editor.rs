@@ -199,9 +199,7 @@ impl RoutingDomainEditor {
                 }
             });
             if changed {
-                // Mark that nothing in the routing table has seen our new node info
-                inner.reset_all_seen_our_node_info(self.routing_domain);
-                //
+                // Allow signed node info updates at same timestamp from dead nodes if our network has changed
                 inner.reset_all_updated_since_last_network_change();
             }
         }

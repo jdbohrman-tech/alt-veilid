@@ -204,7 +204,7 @@ pub struct RemotePrivateRouteInfo {
     // The private route itself
     private_route: Option<PrivateRoute>,
     /// Did this remote private route see our node info due to no safety route in use
-    seen_our_node_info: bool,
+    last_seen_our_node_info_ts: u64,
     /// Last time this remote private route was requested for any reason (cache expiration)
     last_touched_ts: u64,
     /// Stats
@@ -618,6 +618,10 @@ impl RouteSpecStore {
             bail!("Not allocating route longer than max route hop count");
         }
 
+        let Some(our_peer_info) = rti.get_own_peer_info(RoutingDomain::PublicInternet) else {
+            bail!("Can't allocate route until we have our own peer info");
+        };
+
         // Get relay node id if we have one
         let opt_relay_id = rti
             .relay_node(RoutingDomain::PublicInternet)
@@ -764,7 +768,6 @@ impl RouteSpecStore {
 
             // Ensure this route is viable by checking that each node can contact the next one
             if directions.contains(Direction::Outbound) {
-                let our_peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
                 let mut previous_node = &our_peer_info;
                 let mut reachable = true;
                 for n in permutation {
@@ -787,7 +790,6 @@ impl RouteSpecStore {
                 }
             }
             if directions.contains(Direction::Inbound) {
-                let our_peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
                 let mut next_node = &our_peer_info;
                 let mut reachable = true;
                 for n in permutation.iter().rev() {
@@ -1452,9 +1454,15 @@ impl RouteSpecStore {
         // Make innermost route hop to our own node
         let mut route_hop = RouteHop {
             node: if optimized {
+                if !rti.has_valid_own_node_info(RoutingDomain::PublicInternet) {
+                    bail!("can't make private routes until our node info is valid");
+                }
                 RouteNode::NodeId(NodeId::new(routing_table.node_id()))
             } else {
-                RouteNode::PeerInfo(rti.get_own_peer_info(RoutingDomain::PublicInternet))
+                let Some(pi) = rti.get_own_peer_info(RoutingDomain::PublicInternet) else {
+                    bail!("can't make private routes until our node info is valid");
+                };
+                RouteNode::PeerInfo(pi)
             },
             next_hop: None,
         };
@@ -1591,7 +1599,7 @@ impl RouteSpecStore {
             .and_modify(|rpr| {
                 if cur_ts - rpr.last_touched_ts >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
                     // Start fresh if this had expired
-                    rpr.seen_our_node_info = false;
+                    rpr.last_seen_our_node_info_ts = 0;
                     rpr.last_touched_ts = cur_ts;
                     rpr.stats = RouteStats::new(cur_ts);
                 } else {
@@ -1602,7 +1610,7 @@ impl RouteSpecStore {
             .or_insert_with(|| RemotePrivateRouteInfo {
                 // New remote private route cache entry
                 private_route: Some(private_route),
-                seen_our_node_info: false,
+                last_seen_our_node_info_ts: 0,
                 last_touched_ts: cur_ts,
                 stats: RouteStats::new(cur_ts),
             });
@@ -1665,22 +1673,52 @@ impl RouteSpecStore {
         }
     }
 
-    /// Check to see if this remote (not ours) private route has seen our node info yet
-    /// This returns true if we have sent non-safety-route node info to the
-    /// private route and gotten a response before
+    /// Check to see if this remote (not ours) private route has seen our current node info yet
+    /// This happens when you communicate with a private route without a safety route
     pub fn has_remote_private_route_seen_our_node_info(&self, key: &DHTKey) -> bool {
-        let inner = &mut *self.inner.lock();
-        let cur_ts = get_timestamp();
-        Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| rpr.seen_our_node_info)
-            .unwrap_or_default()
+        let our_node_info_ts = {
+            let rti = &*self.unlocked_inner.routing_table.inner.read();
+            let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
+                return false;
+            };
+            ts
+        };
+
+        let opt_rpr_node_info_ts = {
+            let inner = &mut *self.inner.lock();
+            let cur_ts = get_timestamp();
+            Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| {
+                rpr.last_seen_our_node_info_ts
+            })
+        };
+
+        let Some(rpr_node_info_ts) = opt_rpr_node_info_ts else {
+            return false;
+        };
+
+        our_node_info_ts == rpr_node_info_ts
     }
 
-    /// Mark a remote private route as having seen our node info
+    /// Mark a remote private route as having seen our current node info
+    /// PRIVACY:
+    /// We do not accept node info timestamps from remote private routes because this would
+    /// enable a deanonymization attack, whereby a node could be 'pinged' with a doctored node_info with a
+    /// special 'timestamp', which then may be sent back over a private route, identifying that it
+    /// was that node that had the private route.
     pub fn mark_remote_private_route_seen_our_node_info(
         &self,
         key: &DHTKey,
         cur_ts: u64,
     ) -> EyreResult<()> {
+        let our_node_info_ts = {
+            let rti = &*self.unlocked_inner.routing_table.inner.read();
+            let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
+                // Node info is invalid, skipping this
+                return Ok(());
+            };
+            ts
+        };
+
         let inner = &mut *self.inner.lock();
         // Check for local route. If this is not a remote private route
         // then we just skip the recording. We may be running a test and using
@@ -1689,7 +1727,7 @@ impl RouteSpecStore {
             return Ok(());
         }
         if Self::with_get_remote_private_route(inner, cur_ts, key, |rpr| {
-            rpr.seen_our_node_info = true;
+            rpr.last_seen_our_node_info_ts = our_node_info_ts;
         })
         .is_none()
         {
@@ -1734,8 +1772,6 @@ impl RouteSpecStore {
 
         // Reset private route cache
         for (_k, v) in &mut inner.cache.remote_private_route_cache {
-            // Our node info has changed
-            v.seen_our_node_info = false;
             // Restart stats for routes so we test the route again
             v.stats.reset();
         }

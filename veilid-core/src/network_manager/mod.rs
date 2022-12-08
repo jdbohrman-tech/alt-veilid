@@ -448,9 +448,17 @@ impl NetworkManager {
 
     /// Get our node's capabilities in the PublicInternet routing domain
     fn generate_public_internet_node_status(&self) -> PublicInternetNodeStatus {
-        let own_peer_info = self
+        let Some(own_peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(RoutingDomain::PublicInternet) else {
+                return PublicInternetNodeStatus {
+                    will_route: false,
+                    will_tunnel: false,
+                    will_signal: false,
+                    will_relay: false,
+                    will_validate_dial_info: false,
+                };  
+            };
         let own_node_info = own_peer_info.signed_node_info.node_info();
 
         let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
@@ -469,9 +477,14 @@ impl NetworkManager {
     }
     /// Get our node's capabilities in the LocalNetwork routing domain
     fn generate_local_network_node_status(&self) -> LocalNetworkNodeStatus {
-        let own_peer_info = self
+        let Some(own_peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::LocalNetwork);
+            .get_own_peer_info(RoutingDomain::LocalNetwork) else {
+                return LocalNetworkNodeStatus {
+                    will_relay: false,
+                    will_validate_dial_info: false,
+                };  
+            };
 
         let own_node_info = own_peer_info.signed_node_info.node_info();
 
@@ -833,10 +846,17 @@ impl NetworkManager {
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 
+        // Get target routing domain
+        let Some(routing_domain) = target_nr.best_routing_domain() else {
+            return Ok(NetworkResult::no_connection_other("No routing domain for target"));
+        };
+
         // Get our peer info
-        let peer_info = self
+        let Some(peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(routing_domain) else {
+            return Ok(NetworkResult::no_connection_other("Own peer info not available"));
+        };    
 
         // Issue the signal
         let rpc = self.rpc_processor();
@@ -900,16 +920,10 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
         // Ensure we are filtered down to UDP (the only hole punch protocol supported today)
-        // and only in the PublicInternet routing domain
         assert!(target_nr
             .filter_ref()
             .map(|nrf| nrf.dial_info_filter.protocol_type_set
                 == ProtocolTypeSet::only(ProtocolType::UDP))
-            .unwrap_or_default());
-        assert!(target_nr
-            .filter_ref()
-            .map(|nrf| nrf.routing_domain_set
-                == RoutingDomainSet::only(RoutingDomain::PublicInternet))
             .unwrap_or_default());
 
         // Build a return receipt for the signal
@@ -921,10 +935,18 @@ impl NetworkManager {
                 .hole_punch_receipt_time_ms,
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
+
+        // Get target routing domain
+        let Some(routing_domain) = target_nr.best_routing_domain() else {
+            return Ok(NetworkResult::no_connection_other("No routing domain for target"));
+        };
+
         // Get our peer info
-        let peer_info = self
+        let Some(peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(routing_domain) else {
+                return Ok(NetworkResult::no_connection_other("Own peer info not available"));
+            };
 
         // Get the udp direct dialinfo for the hole punch
         let hole_punch_did = target_nr
@@ -1016,7 +1038,8 @@ impl NetworkManager {
         };
 
         // Node A is our own node
-        let peer_a = routing_table.get_own_peer_info(routing_domain);
+        // Use whatever node info we've calculated so far
+        let peer_a = routing_table.get_best_effort_own_peer_info(routing_domain);
 
         // Node B is the target node
         let peer_b = match target_node_ref.make_peer_info(routing_domain) {
@@ -1725,8 +1748,8 @@ impl NetworkManager {
                     // Only update if we actually have valid signed node info for this routing domain
                     if !this.routing_table().has_valid_own_node_info(routing_domain) {
                         trace!(
-                        "not sending node info update because our network class is not yet valid"
-                    );
+                            "not sending node info update because our network class is not yet valid"
+                        );
                         return;
                     }
 

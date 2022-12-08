@@ -92,9 +92,8 @@ impl RPCProcessor {
 
         // add node information for the requesting node to our routing table
         let routing_table = self.routing_table();
-        let has_valid_own_node_info =
-            routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet);
         let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
+        let has_valid_own_node_info = own_peer_info.is_some();
 
         // find N nodes closest to the target node in our routing table
 
@@ -116,7 +115,7 @@ impl RPCProcessor {
             |rti, k, v| {
                 rti.transform_to_peer_info(
                     RoutingDomain::PublicInternet,
-                    own_peer_info.clone(),
+                    own_peer_info.as_ref().unwrap().clone(),
                     k,
                     v,
                 )

@@ -226,16 +226,6 @@ impl RoutingTableInner {
         })
     }
 
-    pub fn reset_all_seen_our_node_info(&mut self, routing_domain: RoutingDomain) {
-        let cur_ts = get_timestamp();
-        self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
-            v.with_mut(rti, |_rti, e| {
-                e.set_seen_our_node_info(routing_domain, false);
-            });
-            Option::<()>::None
-        });
-    }
-
     pub fn reset_all_updated_since_last_network_change(&mut self) {
         let cur_ts = get_timestamp();
         self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
@@ -246,16 +236,43 @@ impl RoutingTableInner {
         });
     }
 
+    /// Return if our node info is valid yet, which is only true if we have a valid network class
+    pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
+        self.with_routing_domain(routing_domain, |rdd| rdd.common().has_valid_own_node_info())
+    }
+
     /// Return a copy of our node's peerinfo
-    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
+    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+        self.with_routing_domain(routing_domain, |rdd| {
+            if !rdd.common().has_valid_own_node_info() {
+                None
+            } else {
+                Some(rdd.common().with_peer_info(self, |pi| pi.clone()))
+            }
+        })
+    }
+
+    /// Return the best effort copy of our node's peerinfo
+    /// This may be invalid and should not be passed to other nodes,
+    /// but may be used for contact method calculation
+    pub fn get_best_effort_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common().with_peer_info(self, |pi| pi.clone())
         })
     }
 
-    /// Return our currently registered network class
-    pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
-        self.with_routing_domain(routing_domain, |rdd| rdd.common().has_valid_own_node_info())
+    /// Return our current node info timestamp
+    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<u64> {
+        self.with_routing_domain(routing_domain, |rdd| {
+            if !rdd.common().has_valid_own_node_info() {
+                None
+            } else {
+                Some(
+                    rdd.common()
+                        .with_peer_info(self, |pi| pi.signed_node_info.timestamp()),
+                )
+            }
+        })
     }
 
     /// Return the domain's currently registered network class
@@ -334,7 +351,6 @@ impl RoutingTableInner {
             self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, e| {
                 e.with_mut(rti, |_rti, e| {
                     e.clear_signed_node_info(RoutingDomain::LocalNetwork);
-                    e.set_seen_our_node_info(RoutingDomain::LocalNetwork, false);
                     e.set_updated_since_last_network_change(false);
                 });
                 Option::<()>::None
@@ -504,6 +520,7 @@ impl RoutingTableInner {
         let opt_relay_id = self.with_routing_domain(routing_domain, |rd| {
             rd.common().relay_node().map(|rn| rn.node_id())
         });
+        let own_node_info_ts = self.get_own_node_info_ts(routing_domain);
 
         // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);

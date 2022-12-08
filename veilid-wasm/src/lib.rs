@@ -30,11 +30,6 @@ extern crate wee_alloc;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-static SETUP_ONCE: Once = Once::new();
-pub fn setup() -> () {
-    SETUP_ONCE.call_once(|| {});
-}
-
 // API Singleton
 lazy_static! {
     static ref VEILID_API: SendWrapper<RefCell<Option<veilid_core::VeilidAPI>>> =
@@ -138,48 +133,54 @@ pub fn initialize_veilid_wasm() {
     console_error_panic_hook::set_once();
 }
 
+static SETUP_ONCE: Once = Once::new();
 #[wasm_bindgen()]
 pub fn initialize_veilid_core(platform_config: String) {
-    let platform_config: VeilidWASMConfig = veilid_core::deserialize_json(&platform_config)
-        .expect("failed to deserialize platform config json");
+    SETUP_ONCE.call_once(|| {
+        let platform_config: VeilidWASMConfig = veilid_core::deserialize_json(&platform_config)
+            .expect("failed to deserialize platform config json");
 
-    // Set up subscriber and layers
-    let subscriber = Registry::default();
-    let mut layers = Vec::new();
-    let mut filters = (*FILTERS).borrow_mut();
+        // Set up subscriber and layers
+        let subscriber = Registry::default();
+        let mut layers = Vec::new();
+        let mut filters = (*FILTERS).borrow_mut();
 
-    // Performance logger
-    if platform_config.logging.performance.enabled {
-        let filter =
-            veilid_core::VeilidLayerFilter::new(platform_config.logging.performance.level, None);
-        let layer = WASMLayer::new(
-            WASMLayerConfigBuilder::new()
-                .set_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
-                .set_console_config(if platform_config.logging.performance.logs_in_console {
-                    ConsoleConfig::ReportWithConsoleColor
-                } else {
-                    ConsoleConfig::NoReporting
-                })
-                .build(),
-        )
-        .with_filter(filter.clone());
-        filters.insert("performance", filter);
-        layers.push(layer.boxed());
-    };
+        // Performance logger
+        if platform_config.logging.performance.enabled {
+            let filter = veilid_core::VeilidLayerFilter::new(
+                platform_config.logging.performance.level,
+                None,
+            );
+            let layer = WASMLayer::new(
+                WASMLayerConfigBuilder::new()
+                    .set_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
+                    .set_console_config(if platform_config.logging.performance.logs_in_console {
+                        ConsoleConfig::ReportWithConsoleColor
+                    } else {
+                        ConsoleConfig::NoReporting
+                    })
+                    .build(),
+            )
+            .with_filter(filter.clone());
+            filters.insert("performance", filter);
+            layers.push(layer.boxed());
+        };
 
-    // API logger
-    if platform_config.logging.api.enabled {
-        let filter = veilid_core::VeilidLayerFilter::new(platform_config.logging.api.level, None);
-        let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
-        filters.insert("api", filter);
-        layers.push(layer.boxed());
-    }
+        // API logger
+        if platform_config.logging.api.enabled {
+            let filter =
+                veilid_core::VeilidLayerFilter::new(platform_config.logging.api.level, None);
+            let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
+            filters.insert("api", filter);
+            layers.push(layer.boxed());
+        }
 
-    let subscriber = subscriber.with(layers);
-    subscriber
-        .try_init()
-        .map_err(|e| format!("failed to initialize logging: {}", e))
-        .expect("failed to initalize WASM platform");
+        let subscriber = subscriber.with(layers);
+        subscriber
+            .try_init()
+            .map_err(|e| format!("failed to initialize logging: {}", e))
+            .expect("failed to initalize WASM platform");
+    });
 }
 
 #[wasm_bindgen()]

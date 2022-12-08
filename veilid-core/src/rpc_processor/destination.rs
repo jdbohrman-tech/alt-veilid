@@ -217,10 +217,19 @@ impl RPCProcessor {
                         let route_node = match rss
                             .has_remote_private_route_seen_our_node_info(&private_route.public_key)
                         {
-                            true => RouteNode::NodeId(NodeId::new(routing_table.node_id())),
-                            false => RouteNode::PeerInfo(
-                                routing_table.get_own_peer_info(RoutingDomain::PublicInternet),
-                            ),
+                            true => {
+                                if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
+                                    return Ok(NetworkResult::no_connection_other("Own node info must be valid to use private route"));
+                                }
+                                RouteNode::NodeId(NodeId::new(routing_table.node_id()))
+                            }
+                            false => {
+                                let Some(own_peer_info) = 
+                                    routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
+                                        return Ok(NetworkResult::no_connection_other("Own peer info must be valid to use private route"));
+                                    };
+                                RouteNode::PeerInfo(own_peer_info)
+                            },
                         };
 
                         Ok(NetworkResult::value(RespondTo::PrivateRoute(

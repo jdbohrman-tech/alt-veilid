@@ -252,7 +252,7 @@ impl Network {
 
     pub async fn startup(&self) -> EyreResult<()> {
         // get protocol config
-        self.inner.lock().protocol_config = {
+        let protocol_config = {
             let c = self.config.get();
             let inbound = ProtocolTypeSet::new();
             let mut outbound = ProtocolTypeSet::new();
@@ -269,12 +269,30 @@ impl Network {
             let family_local = AddressTypeSet::all();
 
             ProtocolConfig {
-                inbound,
                 outbound,
+                inbound,
                 family_global,
                 family_local,
             }
         };
+        self.inner.lock().protocol_config = protocol_config;
+
+        // Start editing routing table
+        let mut editor_public_internet = self
+            .unlocked_inner
+            .routing_table
+            .edit_routing_domain(RoutingDomain::PublicInternet);
+
+        // set up the routing table's network config
+        // if we have static public dialinfo, upgrade our network class
+        editor_public_internet.setup_network(
+            protocol_config.outbound,
+            protocol_config.inbound,
+            protocol_config.family_global,
+        );
+
+        // commit routing table edits
+        editor_public_internet.commit().await;
 
         self.inner.lock().network_started = true;
         Ok(())
@@ -300,11 +318,6 @@ impl Network {
 
         // Drop all dial info
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
-        editor.disable_node_info_updates();
-        editor.clear_dial_info_details();
-        editor.commit().await;
-
-        let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
         editor.disable_node_info_updates();
         editor.clear_dial_info_details();
         editor.commit().await;

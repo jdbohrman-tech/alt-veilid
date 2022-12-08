@@ -50,8 +50,8 @@ pub struct LastConnectionKey(ProtocolType, AddressType);
 pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
-    /// If this node has seen our publicinternet node info
-    seen_our_node_info: bool,
+    /// The last node info timestamp of ours that this entry has seen
+    last_seen_our_node_info_ts: u64,
     /// Last known node status
     node_status: Option<PublicInternetNodeStatus>,
 }
@@ -62,8 +62,8 @@ pub struct BucketEntryPublicInternet {
 pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
-    /// If this node has seen our localnetwork node info
-    seen_our_node_info: bool,
+    /// The last node info timestamp of ours that this entry has seen
+    last_seen_our_node_info_ts: u64,
     /// Last known node status
     node_status: Option<LocalNetworkNodeStatus>,
 }
@@ -427,21 +427,29 @@ impl BucketEntryInner {
         }
     }
 
-    pub fn set_seen_our_node_info(&mut self, routing_domain: RoutingDomain, seen: bool) {
+    pub fn set_our_node_info_ts(&mut self, routing_domain: RoutingDomain, seen_ts: u64) {
         match routing_domain {
             RoutingDomain::LocalNetwork => {
-                self.local_network.seen_our_node_info = seen;
+                self.local_network.last_seen_our_node_info_ts = seen_ts;
             }
             RoutingDomain::PublicInternet => {
-                self.public_internet.seen_our_node_info = seen;
+                self.public_internet.last_seen_our_node_info_ts = seen_ts;
             }
         }
     }
 
-    pub fn has_seen_our_node_info(&self, routing_domain: RoutingDomain) -> bool {
+    pub fn has_seen_our_node_info_ts(
+        &self,
+        routing_domain: RoutingDomain,
+        our_node_info_ts: u64,
+    ) -> bool {
         match routing_domain {
-            RoutingDomain::LocalNetwork => self.local_network.seen_our_node_info,
-            RoutingDomain::PublicInternet => self.public_internet.seen_our_node_info,
+            RoutingDomain::LocalNetwork => {
+                our_node_info_ts == self.local_network.last_seen_our_node_info_ts
+            }
+            RoutingDomain::PublicInternet => {
+                our_node_info_ts == self.public_internet.last_seen_our_node_info_ts
+            }
         }
     }
 
@@ -680,12 +688,12 @@ impl BucketEntry {
                 updated_since_last_network_change: false,
                 last_connections: BTreeMap::new(),
                 local_network: BucketEntryLocalNetwork {
-                    seen_our_node_info: false,
+                    last_seen_our_node_info_ts: 0,
                     signed_node_info: None,
                     node_status: None,
                 },
                 public_internet: BucketEntryPublicInternet {
-                    seen_our_node_info: false,
+                    last_seen_our_node_info_ts: 0,
                     signed_node_info: None,
                     node_status: None,
                 },
