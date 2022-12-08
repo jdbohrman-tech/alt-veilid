@@ -9,7 +9,6 @@ mod rpc_error;
 mod rpc_find_block;
 mod rpc_find_node;
 mod rpc_get_value;
-mod rpc_node_info_update;
 mod rpc_return_receipt;
 mod rpc_route;
 mod rpc_set_value;
@@ -113,16 +112,6 @@ impl RPCMessageData {
     }
 }
 
-// impl ReaderSegments for RPCMessageData {
-//     fn get_segment(&self, idx: u32) -> Option<&[u8]> {
-//         if idx > 0 {
-//             None
-//         } else {
-//             Some(self.contents.as_slice())
-//         }
-//     }
-// }
-
 #[derive(Debug)]
 struct RPCMessageEncoded {
     header: RPCMessageHeader,
@@ -145,24 +134,7 @@ where
         .map_err(RPCError::protocol)
         .map_err(logthru_rpc!())?;
     Ok(buffer)
-    // let wordvec = builder
-    //     .into_reader()
-    //     .canonicalize()
-    //     .map_err(RPCError::protocol)
-    //     .map_err(logthru_rpc!())?;
-    // Ok(capnp::Word::words_to_bytes(wordvec.as_slice()).to_vec())
 }
-
-// fn reader_to_vec<'a, T>(reader: &capnp::message::Reader<T>) -> Result<Vec<u8>, RPCError>
-// where
-//     T: capnp::message::ReaderSegments + 'a,
-// {
-//     let wordvec = reader
-//         .canonicalize()
-//         .map_err(RPCError::protocol)
-//         .map_err(logthru_rpc!())?;
-//     Ok(capnp::Word::words_to_bytes(wordvec.as_slice()).to_vec())
-// }
 
 #[derive(Debug)]
 struct WaitableReply {
@@ -209,7 +181,7 @@ struct RenderedOperation {
 
 /// Node information exchanged during every RPC message
 #[derive(Default, Debug, Clone)]
-struct SenderSignedNodeInfo {
+pub struct SenderSignedNodeInfo {
     /// The current signed node info of the sender if required
     signed_node_info: Option<SignedNodeInfo>,
     /// The last timestamp of the target's node info to assist remote node with sending its latest node info
@@ -558,8 +530,8 @@ impl RPCProcessor {
             safety_route: compiled_route.safety_route,
             operation,
         };
-        let ssni_route =
-            self.get_sender_signed_node_info(&Destination::direct(compiled_route.first_hop))?;
+        let ssni_route = self
+            .get_sender_signed_node_info(&Destination::direct(compiled_route.first_hop.clone()))?;
         let operation = RPCOperation::new_statement(
             RPCStatement::new(RPCStatementDetail::Route(route_operation)),
             ssni_route,
@@ -1334,7 +1306,6 @@ impl RPCProcessor {
                     self.process_validate_dial_info(msg).await
                 }
                 RPCStatementDetail::Route(_) => self.process_route(msg).await,
-                RPCStatementDetail::NodeInfoUpdate(_) => self.process_node_info_update(msg).await,
                 RPCStatementDetail::ValueChanged(_) => self.process_value_changed(msg).await,
                 RPCStatementDetail::Signal(_) => self.process_signal(msg).await,
                 RPCStatementDetail::ReturnReceipt(_) => self.process_return_receipt(msg).await,

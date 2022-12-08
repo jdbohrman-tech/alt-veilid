@@ -275,6 +275,30 @@ impl BucketEntryInner {
         false
     }
 
+    pub fn exists_in_routing_domain(
+        &self,
+        rti: &RoutingTableInner,
+        routing_domain: RoutingDomain,
+    ) -> bool {
+        // Check node info
+        if self.has_node_info(routing_domain.into()) {
+            return true;
+        }
+
+        // Check connections
+        let connection_manager = rti.network_manager().connection_manager();
+        let last_connections = self.last_connections(
+            rti,
+            Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
+        );
+        for lc in last_connections {
+            if connection_manager.get_connection(lc.0).is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<&NodeInfo> {
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
@@ -304,8 +328,10 @@ impl BucketEntryInner {
 
     pub fn best_routing_domain(
         &self,
+        rti: &RoutingTableInner,
         routing_domain_set: RoutingDomainSet,
     ) -> Option<RoutingDomain> {
+        // Check node info
         for routing_domain in routing_domain_set {
             let opt_current_sni = match routing_domain {
                 RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
@@ -315,7 +341,27 @@ impl BucketEntryInner {
                 return Some(routing_domain);
             }
         }
-        None
+        // Check connections
+        let mut best_routing_domain: Option<RoutingDomain> = None;
+        let connection_manager = rti.network_manager().connection_manager();
+        let last_connections = self.last_connections(
+            rti,
+            Some(NodeRefFilter::new().with_routing_domain_set(routing_domain_set)),
+        );
+        for lc in last_connections {
+            if connection_manager.get_connection(lc.0).is_some() {
+                if let Some(rd) = rti.routing_domain_for_address(lc.0.remote_address().address()) {
+                    if let Some(brd) = best_routing_domain {
+                        if rd < brd {
+                            best_routing_domain = Some(rd);
+                        }
+                    } else {
+                        best_routing_domain = Some(rd);
+                    }
+                }
+            }
+        }
+        best_routing_domain
     }
 
     fn descriptor_to_key(&self, last_connection: ConnectionDescriptor) -> LastConnectionKey {

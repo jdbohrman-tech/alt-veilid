@@ -23,7 +23,6 @@ pub struct RoutingDomainEditor {
     routing_table: RoutingTable,
     routing_domain: RoutingDomain,
     changes: Vec<RoutingDomainChange>,
-    send_node_info_updates: bool,
 }
 
 impl RoutingDomainEditor {
@@ -32,12 +31,7 @@ impl RoutingDomainEditor {
             routing_table,
             routing_domain,
             changes: Vec::new(),
-            send_node_info_updates: true,
         }
-    }
-    #[instrument(level = "debug", skip(self))]
-    pub fn disable_node_info_updates(&mut self) {
-        self.send_node_info_updates = false;
     }
 
     #[instrument(level = "debug", skip(self))]
@@ -199,7 +193,7 @@ impl RoutingDomainEditor {
                 }
             });
             if changed {
-                // Allow signed node info updates at same timestamp from dead nodes if our network has changed
+                // Allow signed node info updates at same timestamp for otherwise dead nodes if our network has changed
                 inner.reset_all_updated_since_last_network_change();
             }
         }
@@ -209,13 +203,6 @@ impl RoutingDomainEditor {
                 let rss = self.routing_table.route_spec_store();
                 rss.reset();
             }
-        }
-        // Send our updated node info to all the nodes in the routing table
-        if changed && self.send_node_info_updates {
-            let network_manager = self.routing_table.unlocked_inner.network_manager.clone();
-            network_manager
-                .send_node_info_updates(self.routing_domain, true)
-                .await;
         }
     }
 }

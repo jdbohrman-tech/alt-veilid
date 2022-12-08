@@ -16,10 +16,7 @@ impl RPCOperationKind {
         }
     }
 
-    pub fn decode(
-        kind_reader: &veilid_capnp::operation::kind::Reader,
-        opt_sender_node_id: Option<&DHTKey>,
-    ) -> Result<Self, RPCError> {
+    pub fn decode(kind_reader: &veilid_capnp::operation::kind::Reader) -> Result<Self, RPCError> {
         let which_reader = kind_reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
             veilid_capnp::operation::kind::Which::Question(r) => {
@@ -29,7 +26,7 @@ impl RPCOperationKind {
             }
             veilid_capnp::operation::kind::Which::Statement(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCStatement::decode(&q_reader, opt_sender_node_id)?;
+                let out = RPCStatement::decode(&q_reader)?;
                 RPCOperationKind::Statement(out)
             }
             veilid_capnp::operation::kind::Which::Answer(r) => {
@@ -141,7 +138,7 @@ impl RPCOperation {
         let target_node_info_ts = operation_reader.get_target_node_info_ts();
 
         let kind_reader = operation_reader.get_kind();
-        let kind = RPCOperationKind::decode(&kind_reader, opt_sender_node_id)?;
+        let kind = RPCOperationKind::decode(&kind_reader)?;
 
         Ok(RPCOperation {
             op_id,

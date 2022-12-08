@@ -68,15 +68,5 @@ impl NetworkManager {
         if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
             warn!("rolling_transfers_task not stopped: {}", e);
         }
-        debug!("stopping node info update singlefuture");
-        if self
-            .unlocked_inner
-            .node_info_update_single_future
-            .join()
-            .await
-            .is_err()
-        {
-            error!("node_info_update_single_future not stopped");
-        }
     }
 }

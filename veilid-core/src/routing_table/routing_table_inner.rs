@@ -428,7 +428,7 @@ impl RoutingTableInner {
         let mut count = 0usize;
         let cur_ts = get_timestamp();
         self.with_entries(cur_ts, min_state, |rti, _, e| {
-            if e.with(rti, |_rti, e| e.best_routing_domain(routing_domain_set))
+            if e.with(rti, |rti, e| e.best_routing_domain(rti, routing_domain_set))
                 .is_some()
             {
                 count += 1;
@@ -487,29 +487,6 @@ impl RoutingTableInner {
         None
     }
 
-    pub fn get_nodes_needing_updates(
-        &self,
-        outer_self: RoutingTable,
-        routing_domain: RoutingDomain,
-        cur_ts: u64,
-        all: bool,
-    ) -> Vec<NodeRef> {
-        let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);
-        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
-            // Only update nodes that haven't seen our node info yet
-            if all || !v.with(rti, |_rti, e| e.has_seen_our_node_info(routing_domain)) {
-                node_refs.push(NodeRef::new(
-                    outer_self.clone(),
-                    k,
-                    v,
-                    Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
-                ));
-            }
-            Option::<()>::None
-        });
-        node_refs
-    }
-
     pub fn get_nodes_needing_ping(
         &self,
         outer_self: RoutingTable,
@@ -525,9 +502,22 @@ impl RoutingTableInner {
         // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
-            if v.with(rti, |_rti, e| {
-                e.has_node_info(routing_domain.into())
-                    && e.needs_ping(cur_ts, opt_relay_id == Some(k))
+            if v.with(rti, |rti, e| {
+                // If this isn't in the routing domain we are checking, don't include it
+                if !e.exists_in_routing_domain(rti, routing_domain) {
+                    return false;
+                }
+                // If we need a ping via the normal timing mechanism, then do it
+                if e.needs_ping(cur_ts, opt_relay_id == Some(k)) {
+                    return true;
+                }
+                // If we need a ping because this node hasn't seen our latest node info, then do it
+                if let Some(own_node_info_ts) = own_node_info_ts {
+                    if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
+                        return true;
+                    }
+                }
+                false
             }) {
                 node_refs.push(NodeRef::new(
                     outer_self.clone(),

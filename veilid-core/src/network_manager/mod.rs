@@ -23,7 +23,7 @@ pub use network_connection::*;
 use connection_handle::*;
 use connection_limits::*;
 use crypto::*;
-use futures_util::stream::{FuturesUnordered, StreamExt};
+use futures_util::stream::FuturesUnordered;
 use hashlink::LruCache;
 use intf::*;
 #[cfg(not(target_arch = "wasm32"))]
@@ -155,7 +155,6 @@ struct NetworkManagerUnlockedInner {
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     public_address_check_task: TickTask<EyreReport>,
-    node_info_update_single_future: MustJoinSingleFuture<()>,
 }
 
 #[derive(Clone)]
@@ -191,7 +190,6 @@ impl NetworkManager {
             update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
-            node_info_update_single_future: MustJoinSingleFuture::new(),
         }
     }
 
@@ -1734,62 +1732,4 @@ impl NetworkManager {
         }
     }
 
-    // Inform routing table entries that our dial info has changed
-    pub async fn send_node_info_updates(&self, routing_domain: RoutingDomain, all: bool) {
-        let this = self.clone();
-
-        // Run in background only once
-        let _ = self
-            .clone()
-            .unlocked_inner
-            .node_info_update_single_future
-            .single_spawn(
-                async move {
-                    // Only update if we actually have valid signed node info for this routing domain
-                    if !this.routing_table().has_valid_own_node_info(routing_domain) {
-                        trace!(
-                            "not sending node info update because our network class is not yet valid"
-                        );
-                        return;
-                    }
-
-                    // Get the list of refs to all nodes to update
-                    let cur_ts = get_timestamp();
-                    let node_refs =
-                        this.routing_table()
-                            .get_nodes_needing_updates(routing_domain, cur_ts, all);
-
-                    // Send the updates
-                    log_net!(debug "Sending node info updates to {} nodes", node_refs.len());
-                    let mut unord = FuturesUnordered::new();
-                    for nr in node_refs {
-                        let rpc = this.rpc_processor();
-                        unord.push(
-                            async move {
-                                // Update the node
-                                if let Err(e) = rpc
-                                    .rpc_call_node_info_update(nr.clone(), routing_domain)
-                                    .await
-                                {
-                                    // Not fatal, but we should be able to see if this is happening
-                                    trace!("failed to send node info update to {:?}: {}", nr, e);
-                                    return;
-                                }
-
-                                // Mark the node as having seen our node info
-                                nr.set_seen_our_node_info(routing_domain);
-                            }
-                            .instrument(Span::current()),
-                        );
-                    }
-
-                    // Wait for futures to complete
-                    while unord.next().await.is_some() {}
-
-                    log_rtab!(debug "Finished sending node updates");
-                }
-                .instrument(Span::current()),
-            )
-            .await;
-    }
 }

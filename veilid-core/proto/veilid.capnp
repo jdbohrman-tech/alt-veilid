@@ -303,11 +303,6 @@ struct OperationRoute @0x96741859ce6ac7dd {
     operation               @1  :RoutedOperation;       # The operation to be routed
 }
 
-struct OperationNodeInfoUpdate @0xc9647b32a48b66ce {
-    signedNodeInfo          @0  :SignedNodeInfo;        # Our signed node info
-}
-
-
 struct OperationAppCallQ @0xade67b9f09784507 {
     message                    @0  :Data;                  # Opaque request to application
 }
@@ -466,12 +461,12 @@ struct Question @0xd8510bc33492ef70 {
         findNodeQ           @3  :OperationFindNodeQ;
         
         # Routable operations
-        getValueQ           @4  :OperationGetValueQ;
-        setValueQ           @5  :OperationSetValueQ;
-        watchValueQ         @6  :OperationWatchValueQ;
-        supplyBlockQ        @7  :OperationSupplyBlockQ;
-        findBlockQ          @8  :OperationFindBlockQ;
-        appCallQ            @9  :OperationAppCallQ;
+        appCallQ            @4  :OperationAppCallQ;
+        getValueQ           @5  :OperationGetValueQ;
+        setValueQ           @6  :OperationSetValueQ;
+        watchValueQ         @7  :OperationWatchValueQ;
+        supplyBlockQ        @8  :OperationSupplyBlockQ;
+        findBlockQ          @9  :OperationFindBlockQ;
         
         # Tunnel operations
         startTunnelQ        @10 :OperationStartTunnelQ;
@@ -486,13 +481,12 @@ struct Statement @0x990e20828f404ae1 {
         # Direct operations
         validateDialInfo    @0  :OperationValidateDialInfo;
         route               @1  :OperationRoute;
-        nodeInfoUpdate      @2  :OperationNodeInfoUpdate;
         
         # Routable operations
-        valueChanged        @3  :OperationValueChanged;
-        signal              @4  :OperationSignal;
-        returnReceipt       @5  :OperationReturnReceipt;
-        appMessage          @6  :OperationAppMessage;
+        signal              @2  :OperationSignal;
+        returnReceipt       @3  :OperationReturnReceipt;
+        appMessage          @4  :OperationAppMessage;
+        valueChanged        @5  :OperationValueChanged;
     }
 }
 
@@ -504,12 +498,12 @@ struct Answer @0xacacb8b6988c1058 {
         findNodeA           @1  :OperationFindNodeA;
         
         # Routable operations
-        getValueA           @2  :OperationGetValueA;
-        setValueA           @3  :OperationSetValueA;
-        watchValueA         @4  :OperationWatchValueA;    
-        supplyBlockA        @5  :OperationSupplyBlockA; 
-        findBlockA          @6  :OperationFindBlockA;
-        appCallA            @7  :OperationAppCallA;
+        appCallA            @2  :OperationAppCallA;
+        getValueA           @3  :OperationGetValueA;
+        setValueA           @4  :OperationSetValueA;
+        watchValueA         @5  :OperationWatchValueA;    
+        supplyBlockA        @6  :OperationSupplyBlockA; 
+        findBlockA          @7  :OperationFindBlockA;
     
         # Tunnel operations
         startTunnelA        @8  :OperationStartTunnelA;

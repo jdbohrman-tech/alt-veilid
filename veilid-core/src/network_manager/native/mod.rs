@@ -831,12 +831,10 @@ impl Network {
         debug!("clearing dial info");
 
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
-        editor.disable_node_info_updates();
         editor.clear_dial_info_details();
         editor.commit().await;
 
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
-        editor.disable_node_info_updates();
         editor.clear_dial_info_details();
         editor.commit().await;
 

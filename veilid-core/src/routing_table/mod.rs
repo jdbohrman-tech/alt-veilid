@@ -457,17 +457,6 @@ impl RoutingTable {
             .get_entry_count(routing_domain_set, min_state)
     }
 
-    pub fn get_nodes_needing_updates(
-        &self,
-        routing_domain: RoutingDomain,
-        cur_ts: u64,
-        all: bool,
-    ) -> Vec<NodeRef> {
-        self.inner
-            .read()
-            .get_nodes_needing_updates(self.clone(), routing_domain, cur_ts, all)
-    }
-
     pub fn get_nodes_needing_ping(
         &self,
         routing_domain: RoutingDomain,

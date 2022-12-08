@@ -87,8 +87,9 @@ pub trait NodeRefBase: Sized {
     }
 
     fn best_routing_domain(&self) -> Option<RoutingDomain> {
-        self.operate(|_rti, e| {
+        self.operate(|rti, e| {
             e.best_routing_domain(
+                rti,
                 self.common()
                     .filter
                     .as_ref()
