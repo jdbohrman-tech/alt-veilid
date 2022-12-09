@@ -286,17 +286,12 @@ impl BucketEntryInner {
         }
 
         // Check connections
-        let connection_manager = rti.network_manager().connection_manager();
         let last_connections = self.last_connections(
             rti,
+            true,
             Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
         );
-        for lc in last_connections {
-            if connection_manager.get_connection(lc.0).is_some() {
-                return true;
-            }
-        }
-        false
+        !last_connections.is_empty()
     }
 
     pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<&NodeInfo> {
@@ -343,21 +338,21 @@ impl BucketEntryInner {
         }
         // Check connections
         let mut best_routing_domain: Option<RoutingDomain> = None;
-        let connection_manager = rti.network_manager().connection_manager();
         let last_connections = self.last_connections(
             rti,
+            true,
             Some(NodeRefFilter::new().with_routing_domain_set(routing_domain_set)),
         );
         for lc in last_connections {
-            if connection_manager.get_connection(lc.0).is_some() {
-                if let Some(rd) = rti.routing_domain_for_address(lc.0.remote_address().address()) {
-                    if let Some(brd) = best_routing_domain {
-                        if rd < brd {
-                            best_routing_domain = Some(rd);
-                        }
-                    } else {
+            if let Some(rd) =
+                rti.routing_domain_for_address(lc.0.remote_address().address())
+            {
+                if let Some(brd) = best_routing_domain {
+                    if rd < brd {
                         best_routing_domain = Some(rd);
                     }
+                } else {
+                    best_routing_domain = Some(rd);
                 }
             }
         }
@@ -383,12 +378,16 @@ impl BucketEntryInner {
         self.last_connections.clear();
     }
 
-    // Gets all the 'last connections' that match a particular filter
+    // Gets all the 'last connections' that match a particular filter, and their accompanying timestamps of last use
     pub(super) fn last_connections(
         &self,
         rti: &RoutingTableInner,
+        only_live: bool,
         filter: Option<NodeRefFilter>,
     ) -> Vec<(ConnectionDescriptor, u64)> {
+        let connection_manager =
+            rti.unlocked_inner.network_manager.connection_manager();
+
         let mut out: Vec<(ConnectionDescriptor, u64)> = self
             .last_connections
             .iter()
@@ -414,7 +413,29 @@ impl BucketEntryInner {
                     // no filter
                     true
                 };
-                if include {
+
+                if !include {
+                    return None;
+                }
+
+                if !only_live {
+                    return Some(v.clone());
+                }
+
+                // Check if the connection is still considered live
+                let alive = 
+                    // Should we check the connection table?
+                    if v.0.protocol_type().is_connection_oriented() {
+                        // Look the connection up in the connection manager and see if it's still there
+                        connection_manager.get_connection(v.0).is_some()
+                    } else {
+                        // If this is not connection oriented, then we check our last seen time
+                        // to see if this mapping has expired (beyond our timeout)
+                        let cur_ts = get_timestamp();
+                        (v.1 + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts
+                    };
+
+                if alive {
                     Some(v.clone())
                 } else {
                     None

@@ -686,7 +686,7 @@ impl RPCProcessor {
 
     /// Get signed node info to package with RPC messages to improve
     /// routing table caching when it is okay to do so
-    #[instrument(skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), ret, err)]
     fn get_sender_signed_node_info(
         &self,
         dest: &Destination,

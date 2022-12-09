@@ -30,8 +30,16 @@ pub use routing_table_inner::*;
 pub use stats_accounting::*;
 
 //////////////////////////////////////////////////////////////////////////
+
+/// How frequently we tick the relay management routine
 pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+
+/// How frequently we tick the private route management routine
 pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+
+// Connectionless protocols like UDP are dependent on a NAT translation timeout
+// We should ping them with some frequency and 30 seconds is typical timeout
+pub const CONNECTIONLESS_TIMEOUT_SECS: u32 = 29;
 
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;

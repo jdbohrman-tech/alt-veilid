@@ -2,10 +2,6 @@ use super::*;
 use crate::crypto::*;
 use alloc::fmt;
 
-// Connectionless protocols like UDP are dependent on a NAT translation timeout
-// We should ping them with some frequency and 30 seconds is typical timeout
-const CONNECTIONLESS_TIMEOUT_SECS: u32 = 29;
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub struct NodeRefBaseCommon {
@@ -272,28 +268,8 @@ pub trait NodeRefBase: Sized {
         // Get the last connections and the last time we saw anything with this connection
         // Filtered first and then sorted by most recent
         self.operate(|rti, e| {
-            let last_connections = e.last_connections(rti, self.common().filter.clone());
-
-            // Do some checks to ensure these are possibly still 'live'
-            for (last_connection, last_seen) in last_connections {
-                // Should we check the connection table?
-                if last_connection.protocol_type().is_connection_oriented() {
-                    // Look the connection up in the connection manager and see if it's still there
-                    let connection_manager =
-                        rti.unlocked_inner.network_manager.connection_manager();
-                    if connection_manager.get_connection(last_connection).is_some() {
-                        return Some(last_connection);
-                    }
-                } else {
-                    // If this is not connection oriented, then we check our last seen time
-                    // to see if this mapping has expired (beyond our timeout)
-                    let cur_ts = get_timestamp();
-                    if (last_seen + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts {
-                        return Some(last_connection);
-                    }
-                }
-            }
-            None
+            let last_connections = e.last_connections(rti, true, self.common().filter.clone());
+            last_connections.first().map(|x| x.0)
         })
     }
 
