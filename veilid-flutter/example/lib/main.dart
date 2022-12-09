@@ -1,12 +1,20 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:veilid/veilid.dart';
-import 'package:flutter_loggy/flutter_loggy.dart';
+//import 'package:flutter_loggy/flutter_loggy.dart';
 import 'package:loggy/loggy.dart';
+import 'platform_menu.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart';
+import 'package:xterm/xterm.dart';
+import 'home.dart';
 
 import 'config.dart';
 
@@ -62,15 +70,33 @@ void setRootLogLevel(LogLevel? level) {
 }
 
 void initLoggy() {
-  Loggy.initLoggy(
-    logPrinter: StreamPrinter(ConsolePrinter(
-      const PrettyDeveloperPrinter(),
-    )),
-    logOptions: getLogOptions(null),
-  );
+  // Loggy.initLoggy(
+  //   logPrinter: StreamPrinter(ConsolePrinter(
+  //     const PrettyDeveloperPrinter(),
+  //   )),
+  //   logOptions: getLogOptions(null),
+  // );
 }
 
-// Entrypoint
+/////////////////////////////// Acrylic
+
+bool get isDesktop {
+  if (kIsWeb) return false;
+  return [
+    TargetPlatform.windows,
+    TargetPlatform.linux,
+    TargetPlatform.macOS,
+  ].contains(defaultTargetPlatform);
+}
+
+Future<void> setupAcrylic() async {
+  await Window.initialize();
+  await Window.makeTitlebarTransparent();
+  await Window.setEffect(effect: WindowEffect.aero, color: Color(0xFFFFFFFF));
+  await Window.setBlurViewState(MacOSBlurViewState.active);
+}
+
+/////////////////////////////// Entrypoint
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -106,7 +132,7 @@ void main() {
   runApp(MaterialApp(
       title: 'Veilid Plugin Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: '#6667AB',
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const MyApp()));
@@ -220,7 +246,28 @@ class _MyAppState extends State<MyApp> with UiLoggy {
               child: Container(
             color: ThemeData.dark().scaffoldBackgroundColor,
             height: MediaQuery.of(context).size.height * 0.4,
-            child: LoggyStreamWidget(logLevel: loggy.level.logLevel),
+            child: SafeArea(
+              child: TerminalView(
+                terminal,
+                controller: terminalController,
+                autofocus: true,
+                backgroundOpacity: 0.7,
+                onSecondaryTapDown: (details, offset) async {
+                  final selection = terminalController.selection;
+                  if (selection != null) {
+                    final text = terminal.buffer.getText(selection);
+                    terminalController.clearSelection();
+                    await Clipboard.setData(ClipboardData(text: text));
+                  } else {
+                    final data = await Clipboard.getData('text/plain');
+                    final text = data?.text;
+                    if (text != null) {
+                      terminal.paste(text);
+                    }
+                  }
+                },
+              ),
+            ),
           )),
           Container(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),

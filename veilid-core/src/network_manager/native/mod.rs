@@ -832,10 +832,12 @@ impl Network {
 
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
         editor.clear_dial_info_details();
+        editor.set_network_class(None);
         editor.commit().await;
 
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
         editor.clear_dial_info_details();
+        editor.set_network_class(None);
         editor.commit().await;
 
         // Reset state including network class

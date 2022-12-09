@@ -290,6 +290,7 @@ impl Network {
             protocol_config.inbound,
             protocol_config.family_global,
         );
+        editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
 
         // commit routing table edits
         editor_public_internet.commit().await;
@@ -319,6 +320,7 @@ impl Network {
         // Drop all dial info
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
         editor.clear_dial_info_details();
+        editor.set_network_class(None);
         editor.commit().await;
 
         // Cancels all async background tasks by dropping join handles
@@ -346,15 +348,6 @@ impl Network {
 
     pub fn needs_public_dial_info_check(&self) -> bool {
         false
-    }
-
-    pub fn get_network_class(&self, _routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        // xxx eventually detect tor browser?
-        return if self.inner.lock().network_started {
-            Some(NetworkClass::WebApp)
-        } else {
-            None
-        };
     }
 
     pub fn get_protocol_config(&self) -> ProtocolConfig {
