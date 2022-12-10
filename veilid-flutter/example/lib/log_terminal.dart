@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 import 'log.dart';
+import 'veilid_theme.dart';
+
+const kDefaultTerminalStyle = TerminalStyle(
+    fontSize: kDefaultMonoTerminalFontSize,
+    height: kDefaultMonoTerminalFontHeight,
+    fontFamily: kDefaultMonoTerminalFontFamily);
 
 class LogTerminal extends StatefulWidget {
   const LogTerminal({Key? key}) : super(key: key);
@@ -31,30 +37,26 @@ class _LogTerminalState extends State<LogTerminal> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: TerminalView(
-          terminal,
-          controller: terminalController,
-          autofocus: true,
-          backgroundOpacity: 0.7,
-          onSecondaryTapDown: (details, offset) async {
-            final selection = terminalController.selection;
-            if (selection != null) {
-              final text = terminal.buffer.getText(selection);
-              terminalController.clearSelection();
-              await Clipboard.setData(ClipboardData(text: text));
-            } else {
-              final data = await Clipboard.getData('text/plain');
-              final text = data?.text;
-              if (text != null) {
-                terminal.paste(text);
-              }
-            }
-          },
-        ),
-      ),
+    return TerminalView(
+      terminal,
+      textStyle: kDefaultTerminalStyle,
+      controller: terminalController,
+      autofocus: true,
+      backgroundOpacity: 0.7,
+      onSecondaryTapDown: (details, offset) async {
+        final selection = terminalController.selection;
+        if (selection != null) {
+          final text = terminal.buffer.getText(selection);
+          terminalController.clearSelection();
+          await Clipboard.setData(ClipboardData(text: text));
+        } else {
+          final data = await Clipboard.getData('text/plain');
+          final text = data?.text;
+          if (text != null) {
+            terminal.paste(text);
+          }
+        }
+      },
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:veilid/veilid.dart';
 import 'package:loggy/loggy.dart';
+import 'package:veilid_example/veilid_theme.dart';
 
 import 'log_terminal.dart';
 import 'config.dart';
@@ -18,6 +19,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with UiLoggy {
   String _veilidVersion = 'Unknown';
+  bool _startedUp = false;
   Stream<VeilidUpdate>? _updateStream;
   Future<void>? _updateProcessor;
 
@@ -102,11 +104,31 @@ class _MyAppState extends State<MyApp> with UiLoggy {
     }
   }
 
+  Future<void> toggleStartup(bool startup) async {
+    if (startup && !_startedUp) {
+      var updateStream = await Veilid.instance
+          .startupVeilidCore(await getDefaultVeilidConfig());
+      setState(() {
+        _updateStream = updateStream;
+        _updateProcessor = processUpdates();
+        _startedUp = true;
+      });
+      await Veilid.instance.attach();
+    } else if (!startup && _startedUp) {
+      await Veilid.instance.shutdownVeilidCore();
+      if (_updateProcessor != null) {
+        await _updateProcessor;
+      }
+      setState(() {
+        _updateProcessor = null;
+        _updateStream = null;
+        _startedUp = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ButtonStyle buttonStyle =
-        ElevatedButton.styleFrom(textStyle: const TextStyle(fontSize: 20));
-
     return Scaffold(
         appBar: AppBar(
           title: Text('Veilid Plugin Version $_veilidVersion'),
@@ -114,73 +136,53 @@ class _MyAppState extends State<MyApp> with UiLoggy {
         body: Column(children: [
           const Expanded(child: LogTerminal()),
           Container(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-              child: Row(children: [
-                ElevatedButton(
-                  style: buttonStyle,
-                  onPressed: _updateStream != null
-                      ? null
-                      : () async {
-                          var updateStream = await Veilid.instance
-                              .startupVeilidCore(
-                                  await getDefaultVeilidConfig());
-                          setState(() {
-                            _updateStream = updateStream;
-                            _updateProcessor = processUpdates();
-                          });
-                          await Veilid.instance.attach();
-                        },
-                  child: const Text('Startup'),
-                ),
-                ElevatedButton(
-                  style: buttonStyle,
-                  onPressed: _updateStream == null
-                      ? null
-                      : () async {
-                          await Veilid.instance.shutdownVeilidCore();
-                          if (_updateProcessor != null) {
-                            await _updateProcessor;
-                          }
-                          setState(() {
-                            _updateProcessor = null;
-                            _updateStream = null;
-                          });
-                        },
-                  child: const Text('Shutdown'),
-                ),
-              ])),
-          Row(children: [
-            Expanded(
-                child: TextField(
-                    decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'Debug Command'),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (String v) async {
-                      loggy.info(await Veilid.instance.debug(v));
-                    })),
-            DropdownButton<LogLevel>(
-                value: loggy.level.logLevel,
-                onChanged: (LogLevel? newLevel) {
-                  setState(() {
-                    setRootLogLevel(newLevel);
-                  });
-                },
-                items: const [
-                  DropdownMenuItem<LogLevel>(
-                      value: LogLevel.error, child: Text("Error")),
-                  DropdownMenuItem<LogLevel>(
-                      value: LogLevel.warning, child: Text("Warning")),
-                  DropdownMenuItem<LogLevel>(
-                      value: LogLevel.info, child: Text("Info")),
-                  DropdownMenuItem<LogLevel>(
-                      value: LogLevel.debug, child: Text("Debug")),
-                  DropdownMenuItem<LogLevel>(
-                      value: traceLevel, child: Text("Trace")),
-                  DropdownMenuItem<LogLevel>(
-                      value: LogLevel.all, child: Text("All")),
-                ])
-          ]),
+            decoration: BoxDecoration(color: materialPrimaryColor, boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                spreadRadius: 4,
+                blurRadius: 4,
+              )
+            ]),
+            padding: const EdgeInsets.all(5.0),
+            child: Row(children: [
+              Expanded(
+                  child: pad(TextField(
+                      decoration:
+                          newInputDecoration('Debug Command', _startedUp),
+                      textInputAction: TextInputAction.send,
+                      enabled: _startedUp,
+                      onSubmitted: (String v) async {
+                        loggy.info(await Veilid.instance.debug(v));
+                      }))),
+              pad(const Text('Startup')),
+              pad(Switch(
+                  value: _startedUp,
+                  onChanged: (bool value) async {
+                    await toggleStartup(value);
+                  })),
+              pad(DropdownButton<LogLevel>(
+                  value: loggy.level.logLevel,
+                  onChanged: (LogLevel? newLevel) {
+                    setState(() {
+                      setRootLogLevel(newLevel);
+                    });
+                  },
+                  items: const [
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.error, child: Text("Error")),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.warning, child: Text("Warning")),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.info, child: Text("Info")),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.debug, child: Text("Debug")),
+                    DropdownMenuItem<LogLevel>(
+                        value: traceLevel, child: Text("Trace")),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.all, child: Text("All")),
+                  ])),
+            ]),
+          ),
         ]));
   }
 }

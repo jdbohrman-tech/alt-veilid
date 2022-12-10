@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:veilid/veilid.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 
-import 'veilid_color.dart';
+import 'veilid_theme.dart';
 import 'log.dart';
 import 'app.dart';
 import 'veilid_init.dart';

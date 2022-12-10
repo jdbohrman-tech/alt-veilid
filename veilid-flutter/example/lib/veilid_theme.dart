@@ -9,6 +9,9 @@
 
 import 'package:flutter/material.dart';
 
+/////////////////////////////////////////////////////////
+// Colors
+
 const Map<int, Color> primaryColorSwatch = {
   50: Color(0xffe9e9f3),
   100: Color(0xffc7c8e2),
@@ -233,10 +236,58 @@ const Map<int, Color> popComplentaryColorSwatch = {
 const MaterialColor materialPopComplementaryColor =
     MaterialColor(0xff59f282, popComplentaryColorSwatch);
 
+/////////////////////////////////////////////////////////
+// Spacing
+
+const kDefaultSpacingFactor = 4.0;
+
+const kDefaultMonoTerminalFontFamily = "CascadiaMonoPL.ttf";
+const kDefaultMonoTerminalFontHeight = 1.2;
+const kDefaultMonoTerminalFontSize = 12.0;
+
+double spacingFactor(double multiplier) {
+  return multiplier * kDefaultSpacingFactor;
+}
+
+Padding pad(Widget child) {
+  return Padding(
+      padding: const EdgeInsets.all(kDefaultSpacingFactor), child: child);
+}
+
+/////////////////////////////////////////////////////////
+// Theme
+
+InputDecoration newInputDecoration(String labelText, bool enabled) {
+  return InputDecoration(
+      labelText: labelText,
+      fillColor: enabled
+          ? materialPrimaryColor.shade200
+          : materialPrimaryColor.shade200.withOpacity(0.5));
+}
+
+InputDecorationTheme newInputDecorationTheme() {
+  return InputDecorationTheme(
+      border: const OutlineInputBorder(),
+      filled: true,
+      fillColor: materialPrimaryColor.shade200,
+      disabledBorder: const OutlineInputBorder(
+          borderSide:
+              BorderSide(color: Color.fromARGB(0, 0, 0, 0), width: 0.0)),
+      focusedBorder: OutlineInputBorder(
+          borderSide:
+              BorderSide(color: materialPrimaryColor.shade900, width: 0.0)),
+      floatingLabelBehavior: FloatingLabelBehavior.never,
+      floatingLabelStyle: TextStyle(
+        color: materialPrimaryColor.shade900,
+        letterSpacing: 1.2,
+      ));
+}
+
 ThemeData newVeilidTheme() {
   return ThemeData(
     primarySwatch: materialPrimaryColor,
     secondaryHeaderColor: materialSecondaryColor,
     visualDensity: VisualDensity.adaptivePlatformDensity,
+    inputDecorationTheme: newInputDecorationTheme(),
   );
 }
