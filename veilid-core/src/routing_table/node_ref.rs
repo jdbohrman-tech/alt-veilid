@@ -319,7 +319,7 @@ pub trait NodeRefBase: Sized {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_down(bytes);
             rti.latency_stats_accounting()
-                .record_latency(recv_ts - send_ts);
+                .record_latency(recv_ts.saturating_sub(send_ts));
             e.answer_rcvd(send_ts, recv_ts, bytes);
         })
     }

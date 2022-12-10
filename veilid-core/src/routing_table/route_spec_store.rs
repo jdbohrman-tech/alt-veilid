@@ -1597,7 +1597,7 @@ impl RouteSpecStore {
             .remote_private_route_cache
             .entry(pr_pubkey)
             .and_modify(|rpr| {
-                if cur_ts - rpr.last_touched_ts >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+                if cur_ts.saturating_sub(rpr.last_touched_ts) >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
                     // Start fresh if this had expired
                     rpr.last_seen_our_node_info_ts = 0;
                     rpr.last_touched_ts = cur_ts;
@@ -1640,7 +1640,7 @@ impl RouteSpecStore {
         F: FnOnce(&mut RemotePrivateRouteInfo) -> R,
     {
         let rpr = inner.cache.remote_private_route_cache.get_mut(key)?;
-        if cur_ts - rpr.last_touched_ts < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+        if cur_ts.saturating_sub(rpr.last_touched_ts) < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
             rpr.last_touched_ts = cur_ts;
             return Some(f(rpr));
         }
@@ -1662,7 +1662,7 @@ impl RouteSpecStore {
         match inner.cache.remote_private_route_cache.entry(*key) {
             hashlink::lru_cache::Entry::Occupied(mut o) => {
                 let rpr = o.get_mut();
-                if cur_ts - rpr.last_touched_ts < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
+                if cur_ts.saturating_sub(rpr.last_touched_ts) < REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
                     return Some(f(rpr));
                 }
                 o.remove();

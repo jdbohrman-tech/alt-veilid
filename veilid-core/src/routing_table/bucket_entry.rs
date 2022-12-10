@@ -721,7 +721,7 @@ impl BucketEntryInner {
         self.transfer_stats_accounting.add_down(bytes);
         self.peer_stats.rpc_stats.messages_rcvd += 1;
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
-        self.record_latency(recv_ts - send_ts);
+        self.record_latency(recv_ts.saturating_sub(send_ts));
         self.touch_last_seen(recv_ts);
         self.peer_stats.rpc_stats.recent_lost_answers = 0;
     }

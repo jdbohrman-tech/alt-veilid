@@ -1346,19 +1346,19 @@ impl NetworkManager {
         let ts = get_timestamp();
         let ets = envelope.get_timestamp();
         if let Some(tsbehind) = tsbehind {
-            if tsbehind > 0 && (ts > ets && ts - ets > tsbehind) {
+            if tsbehind > 0 && (ts > ets && ts.saturating_sub(ets) > tsbehind) {
                 log_net!(debug
                     "envelope time was too far in the past: {}ms ",
-                    timestamp_to_secs(ts - ets) * 1000f64
+                    timestamp_to_secs(ts.saturating_sub(ets)) * 1000f64
                 );
                 return Ok(false);
             }
         }
         if let Some(tsahead) = tsahead {
-            if tsahead > 0 && (ts < ets && ets - ts > tsahead) {
+            if tsahead > 0 && (ts < ets && ets.saturating_sub(ts) > tsahead) {
                 log_net!(debug
                     "envelope time was too far in the future: {}ms",
-                    timestamp_to_secs(ets - ts) * 1000f64
+                    timestamp_to_secs(ets.saturating_sub(ts)) * 1000f64
                 );
                 return Ok(false);
             }

@@ -45,7 +45,7 @@ impl TransferStatsAccounting {
         cur_ts: u64,
         transfer_stats: &mut TransferStatsDownUp,
     ) {
-        let dur_ms = (cur_ts - last_ts) / 1000u64;
+        let dur_ms = cur_ts.saturating_sub(last_ts) / 1000u64;
         while self.rolling_transfers.len() >= ROLLING_TRANSFERS_SIZE {
             self.rolling_transfers.pop_front();
         }

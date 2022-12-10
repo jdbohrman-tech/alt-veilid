@@ -130,7 +130,7 @@ where
                 //xxx: causes crash (Missing otel data span extensions)
                 // Span::current().follows_from(span_id);
 
-                (ret, end_ts - start_ts)
+                (ret, end_ts.saturating_sub(start_ts))
             }))
     }
 }
