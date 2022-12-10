@@ -11,7 +11,6 @@ class VirtualKeyboardView extends StatelessWidget {
     return AnimatedBuilder(
       animation: keyboard,
       builder: (context, child) => ToggleButtons(
-        children: [Text('Ctrl'), Text('Alt'), Text('Shift')],
         isSelected: [keyboard.ctrl, keyboard.alt, keyboard.shift],
         onPressed: (index) {
           switch (index) {
@@ -26,6 +25,7 @@ class VirtualKeyboardView extends StatelessWidget {
               break;
           }
         },
+        children: const [Text('Ctrl'), Text('Alt'), Text('Shift')],
       ),
     );
   }

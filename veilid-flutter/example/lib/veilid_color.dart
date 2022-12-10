@@ -232,3 +232,11 @@ const Map<int, Color> popComplentaryColorSwatch = {
 
 const MaterialColor materialPopComplementaryColor =
     MaterialColor(0xff59f282, popComplentaryColorSwatch);
+
+ThemeData newVeilidTheme() {
+  return ThemeData(
+    primarySwatch: materialPrimaryColor,
+    secondaryHeaderColor: materialSecondaryColor,
+    visualDensity: VisualDensity.adaptivePlatformDensity,
+  );
+}

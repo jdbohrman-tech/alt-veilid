@@ -3,60 +3,30 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_pty/flutter_pty.dart';
 import 'package:xterm/xterm.dart';
+import 'log.dart';
 
-class Home extends StatefulWidget {
-  Home({Key? key}) : super(key: key);
+class LogTerminal extends StatefulWidget {
+  const LogTerminal({Key? key}) : super(key: key);
 
   @override
   // ignore: library_private_types_in_public_api
-  _HomeState createState() => _HomeState();
+  _LogTerminalState createState() => _LogTerminalState();
 }
 
-class _HomeState extends State<Home> {
+class _LogTerminalState extends State<LogTerminal> {
   final terminal = Terminal(
     maxLines: 10000,
   );
 
   final terminalController = TerminalController();
 
-  late final Pty pty;
-
   @override
   void initState() {
     super.initState();
-
-    WidgetsBinding.instance.endOfFrame.then(
-      (_) {
-        if (mounted) _startPty();
-      },
-    );
-  }
-
-  void _startPty() {
-    pty = Pty.start(
-      shell,
-      columns: terminal.viewWidth,
-      rows: terminal.viewHeight,
-    );
-
-    pty.output
-        .cast<List<int>>()
-        .transform(Utf8Decoder())
-        .listen(terminal.write);
-
-    pty.exitCode.then((code) {
-      terminal.write('the process exited with exit code $code');
-    });
-
-    terminal.onOutput = (data) {
-      pty.write(const Utf8Encoder().convert(data));
-    };
-
-    terminal.onResize = (w, h, pw, ph) {
-      pty.resize(h, w);
-    };
+    terminal.setLineFeedMode(true);
+    globalTerminalPrinter
+        .setCallback((log) => {terminal.write("${log.pretty()}\n")});
   }
 
   @override
@@ -87,16 +57,4 @@ class _HomeState extends State<Home> {
       ),
     );
   }
-}
-
-String get shell {
-  if (Platform.isMacOS || Platform.isLinux) {
-    return Platform.environment['SHELL'] ?? 'bash';
-  }
-
-  if (Platform.isWindows) {
-    return 'cmd.exe';
-  }
-
-  return 'sh';
 }
