@@ -512,7 +512,7 @@ impl Network {
                 &peer_socket_addr,
                 &descriptor.local().map(|sa| sa.to_socket_addr()),
             ) {
-                network_result_value_or_log!(debug ph.clone()
+                network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
                     .await
                     .wrap_err("sending data to existing conection")? => { return Ok(Some(data)); } );

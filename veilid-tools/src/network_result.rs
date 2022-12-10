@@ -328,7 +328,7 @@ macro_rules! log_network_result {
 
 #[macro_export]
 macro_rules! network_result_value_or_log {
-    ($level: ident $r: expr => $f:tt) => {
+    ($r: expr => $f:tt) => {
         match $r {
             NetworkResult::Timeout => {
                 log_network_result!(

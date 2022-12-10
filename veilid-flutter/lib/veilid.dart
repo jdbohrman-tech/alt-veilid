@@ -1474,8 +1474,8 @@ class VeilidStateRoute {
   });
 
   VeilidStateRoute.fromJson(Map<String, dynamic> json)
-      : deadRoutes = jsonDecode(json['dead_routes']),
-        deadRemoteRoutes = jsonDecode(json['dead_remote_routes']);
+      : deadRoutes = json['dead_routes'],
+        deadRemoteRoutes = json['dead_remote_routes'];
 
   Map<String, dynamic> get json {
     return {'dead_routes': deadRoutes, 'dead_remote_routes': deadRemoteRoutes};

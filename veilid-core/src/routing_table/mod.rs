@@ -891,7 +891,7 @@ impl RoutingTable {
         // and then contact those nodes to inform -them- that we exist
 
         // Ask bootstrap server for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(debug match self.find_self(node_ref.clone()).await {
+        let closest_nodes = network_result_value_or_log!(match self.find_self(node_ref.clone()).await {
             Err(e) => {
                 log_rtab!(error
                     "find_self failed for {:?}: {:?}",
@@ -907,7 +907,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(debug match self.find_self(closest_nr.clone()).await {
+                network_result_value_or_log!(match self.find_self(closest_nr.clone()).await {
                     Err(e) => {
                         log_rtab!(error
                             "find_self failed for {:?}: {:?}",

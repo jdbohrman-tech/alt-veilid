@@ -814,7 +814,7 @@ impl NetworkManager {
 
         // Send receipt directly
         log_net!(debug "send_out_of_band_receipt: dial_info={}", dial_info);
-        network_result_value_or_log!(debug self
+        network_result_value_or_log!(self
             .net()
             .send_data_unbound_to_dial_info(dial_info, rcpt_data)
             .await? => {
@@ -1243,7 +1243,7 @@ impl NetworkManager {
         let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
-        let out_data: Vec<u8> = network_result_value_or_log!(debug self
+        let out_data: Vec<u8> = network_result_value_or_log!(self
             .net()
             .send_recv_data_unbound_to_dial_info(dial_info, data, timeout_ms)
             .await? =>
@@ -1315,13 +1315,13 @@ impl NetworkManager {
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(debug self.handle_boot_request(connection_descriptor).await? => {});
+            network_result_value_or_log!(self.handle_boot_request(connection_descriptor).await? => {});
             return Ok(true);
         }
 
         // Is this an out-of-band receipt instead of an envelope?
         if data[0..4] == *RECEIPT_MAGIC {
-            network_result_value_or_log!(debug self.handle_out_of_band_receipt(data).await => {});
+            network_result_value_or_log!(self.handle_out_of_band_receipt(data).await => {});
             return Ok(true);
         }
 
@@ -1396,7 +1396,7 @@ impl NetworkManager {
             if let Some(relay_nr) = some_relay_nr {
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
-                network_result_value_or_log!(debug self.send_data(relay_nr, data.to_vec())
+                network_result_value_or_log!(self.send_data(relay_nr, data.to_vec())
                     .await
                     .wrap_err("failed to forward envelope")? => {
                         return Ok(false);

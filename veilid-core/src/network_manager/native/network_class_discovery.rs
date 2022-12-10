@@ -83,7 +83,7 @@ impl DiscoveryContext {
     async fn request_public_address(&self, node_ref: NodeRef) -> Option<SocketAddress> {
         let rpc = self.routing_table.rpc_processor();
 
-        let res = network_result_value_or_log!(debug match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
+        let res = network_result_value_or_log!(match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(error

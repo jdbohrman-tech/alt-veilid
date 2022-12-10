@@ -14,7 +14,7 @@ impl RawUdpProtocolHandler {
     // #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor))]
     pub async fn recv_message(&self, data: &mut [u8]) -> io::Result<(usize, ConnectionDescriptor)> {
         let (size, descriptor) = loop {
-            let (size, remote_addr) = network_result_value_or_log!(debug self.socket.recv_from(data).await.into_network_result()? => continue);
+            let (size, remote_addr) = network_result_value_or_log!(self.socket.recv_from(data).await.into_network_result()? => continue);
             if size > MAX_MESSAGE_SIZE {
                 log_net!(debug "{}({}) at {}@{}:{}", "Invalid message".green(), "received too large UDP message", file!(), line!(), column!());
                 continue;

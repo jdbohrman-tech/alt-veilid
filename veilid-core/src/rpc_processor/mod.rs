@@ -1344,13 +1344,8 @@ impl RPCProcessor {
 
                 Ok(v) => v,
             };
-            cfg_if::cfg_if! {
-                if #[cfg(debug_assertions)] {
-                    network_result_value_or_log!(warn res => {});
-                } else {
-                    network_result_value_or_log!(debug res => {});
-                }
-            }
+
+            network_result_value_or_log!(res => {});
         }
     }
 

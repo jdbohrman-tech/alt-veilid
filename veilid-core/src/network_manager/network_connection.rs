@@ -301,7 +301,7 @@ impl NetworkConnection {
                             match res {
                                 Ok(v) => {
                                     
-                                    let message = network_result_value_or_log!(debug v => {
+                                    let message = network_result_value_or_log!(v => {
                                         return RecvLoopAction::Finish;
                                     });
 
