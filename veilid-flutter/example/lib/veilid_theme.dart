@@ -241,7 +241,7 @@ const MaterialColor materialPopComplementaryColor =
 
 const kDefaultSpacingFactor = 4.0;
 
-const kDefaultMonoTerminalFontFamily = "CascadiaMonoPL.ttf";
+const kDefaultMonoTerminalFontFamily = "Fira Code";
 const kDefaultMonoTerminalFontHeight = 1.2;
 const kDefaultMonoTerminalFontSize = 12.0;
 

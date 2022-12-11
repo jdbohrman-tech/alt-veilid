@@ -1474,11 +1474,15 @@ class VeilidStateRoute {
   });
 
   VeilidStateRoute.fromJson(Map<String, dynamic> json)
-      : deadRoutes = json['dead_routes'],
-        deadRemoteRoutes = json['dead_remote_routes'];
+      : deadRoutes = List<String>.from(json['dead_routes'].map((j) => j)),
+        deadRemoteRoutes =
+            List<String>.from(json['dead_remote_routes'].map((j) => j));
 
   Map<String, dynamic> get json {
-    return {'dead_routes': deadRoutes, 'dead_remote_routes': deadRemoteRoutes};
+    return {
+      'dead_routes': deadRoutes.map((p) => p).toList(),
+      'dead_remote_routes': deadRemoteRoutes.map((p) => p).toList()
+    };
   }
 }
 

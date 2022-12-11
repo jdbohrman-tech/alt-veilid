@@ -94,3 +94,11 @@ flutter:
     - family: Cascadia Mono
       fonts:
         - asset: fonts/CascadiaMonoPL.ttf
+    - family: Fira Code
+      fonts:
+        - asset: fonts/FiraCode-VF.ttf
+    - family: Fraunces
+      fonts:
+        - asset: fonts/Fraunces-VariableFont_SOFT,WONK,opsz,wght.ttf
+        - asset: fonts/Fraunces-Italic-VariableFont_SOFT,WONK,opsz,wght.ttf
+          style: italic

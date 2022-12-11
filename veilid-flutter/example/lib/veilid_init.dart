@@ -11,7 +11,7 @@ void veilidInit() {
                 enabled: true,
                 level: VeilidConfigLogLevel.debug,
                 logsInTimings: true,
-                logsInConsole: true),
+                logsInConsole: false),
             api: VeilidWASMConfigLoggingApi(
                 enabled: true, level: VeilidConfigLogLevel.info)));
     Veilid.instance.initializeVeilidCore(platformConfig.json);

@@ -1087,7 +1087,7 @@ impl RouteSpecStore {
                 && detail.1.sequencing >= sequencing
                 && detail.1.hops.len() >= min_hop_count
                 && detail.1.hops.len() <= max_hop_count
-                && detail.1.directions.is_subset(directions)
+                && detail.1.directions.is_superset(directions)
                 && !detail.1.published
                 && !detail.1.stats.needs_testing(cur_ts)
             {
@@ -1742,6 +1742,11 @@ impl RouteSpecStore {
         F: FnOnce(&mut RouteStats) -> R,
     {
         let inner = &mut *self.inner.lock();
+
+        // Check for stub route
+        if *key == self.unlocked_inner.routing_table.node_id() {
+            return None;
+        }
         // Check for local route
         if let Some(rsd) = Self::detail_mut(inner, key) {
             return Some(f(&mut rsd.stats));

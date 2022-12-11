@@ -701,10 +701,17 @@ impl VeilidAPI {
         let rss = routing_table.route_spec_store();
 
         let routes = rss.list_allocated_routes(|k, _| Some(*k));
-        let mut out = format!("Routes: (count = {}):\n", routes.len());
+        let mut out = format!("Allocated Routes: (count = {}):\n", routes.len());
         for r in routes {
             out.push_str(&format!("{}\n", r.encode()));
         }
+
+        let remote_routes = rss.list_remote_routes(|k, _| Some(*k));
+        let mut out = format!("Remote Routes: (count = {}):\n", remote_routes.len());
+        for r in remote_routes {
+            out.push_str(&format!("{}\n", r.encode()));
+        }
+
         Ok(out)
     }
     async fn debug_route_import(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
@@ -858,9 +865,9 @@ impl VeilidAPI {
                 Ok(">>> Unknown command\n".to_owned())
             }
         };
-        if let Ok(res) = &res {
-            debug!("{}", res);
-        }
+        // if let Ok(res) = &res {
+        //     debug!("{}", res);
+        // }
         res
     }
 }

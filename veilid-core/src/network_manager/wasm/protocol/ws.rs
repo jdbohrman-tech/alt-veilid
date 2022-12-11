@@ -11,12 +11,20 @@ struct WebsocketNetworkConnectionInner {
 
 fn to_io(err: WsErr) -> io::Error {
     match err {
-        WsErr::InvalidWsState { supplied: _ } => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::InvalidWsState { supplied: _ } => {
+            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
+        }
         WsErr::ConnectionNotOpen => io::Error::new(io::ErrorKind::NotConnected, err.to_string()),
-        WsErr::InvalidUrl { supplied: _ } => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
-        WsErr::InvalidCloseCode { supplied: _ } => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::InvalidUrl { supplied: _ } => {
+            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
+        }
+        WsErr::InvalidCloseCode { supplied: _ } => {
+            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
+        }
         WsErr::ReasonStringToLong => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
-        WsErr::ConnectionFailed { event: _ }  => io::Error::new(io::ErrorKind::ConnectionRefused, err.to_string()),
+        WsErr::ConnectionFailed { event: _ } => {
+            io::Error::new(io::ErrorKind::ConnectionRefused, err.to_string())
+        }
         WsErr::InvalidEncoding => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
         WsErr::CantDecodeBlob => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
         WsErr::UnknownDataType => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
@@ -80,19 +88,19 @@ impl WebsocketNetworkConnection {
         let out = match SendWrapper::new(self.inner.ws_stream.clone().next()).await {
             Some(WsMessage::Binary(v)) => {
                 if v.len() > MAX_MESSAGE_SIZE {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "too large ws message",
-                    ));
+                    return Ok(NetworkResult::invalid_message("too large ws message"));
                 }
                 NetworkResult::Value(v)
             }
-            Some(_) => NetworkResult::NoConnection(io::Error::new(
+            Some(_) => NetworkResult::no_connection_other(io::Error::new(
                 io::ErrorKind::ConnectionReset,
                 "Unexpected WS message type",
             )),
             None => {
-                bail_io_error_other!("WS stream closed");
+                return Ok(NetworkResult::no_connection(io::Error::new(
+                    io::ErrorKind::ConnectionReset,
+                    "WS stream closed",
+                )));
             }
         };
         // tracing::Span::current().record("network_result", &tracing::field::display(&out));
@@ -126,7 +134,7 @@ impl WebsocketProtocolHandler {
         let fut = SendWrapper::new(timeout(timeout_ms, async move {
             WsMeta::connect(request, None).await.map_err(to_io)
         }));
-        
+
         let (wsmeta, wsio) = network_result_try!(network_result_try!(fut
             .await
             .into_network_result())

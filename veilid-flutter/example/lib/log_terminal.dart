@@ -42,7 +42,7 @@ class _LogTerminalState extends State<LogTerminal> {
       textStyle: kDefaultTerminalStyle,
       controller: terminalController,
       autofocus: true,
-      backgroundOpacity: 0.7,
+      backgroundOpacity: 0.9,
       onSecondaryTapDown: (details, offset) async {
         final selection = terminalController.selection;
         if (selection != null) {

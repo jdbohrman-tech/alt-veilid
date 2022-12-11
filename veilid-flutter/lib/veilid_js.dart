@@ -185,8 +185,9 @@ class VeilidJS implements Veilid {
   }
 
   @override
-  Future<String> debug(String command) {
-    return _wrapApiPromise(js_util.callMethod(wasm, "debug", [command]));
+  Future<String> debug(String command) async {
+    return jsonDecode(
+        await _wrapApiPromise(js_util.callMethod(wasm, "debug", [command])));
   }
 
   @override
