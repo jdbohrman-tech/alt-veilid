@@ -707,7 +707,10 @@ impl VeilidAPI {
         }
 
         let remote_routes = rss.list_remote_routes(|k, _| Some(*k));
-        let mut out = format!("Remote Routes: (count = {}):\n", remote_routes.len());
+        out.push_str(&format!(
+            "Remote Routes: (count = {}):\n",
+            remote_routes.len()
+        ));
         for r in remote_routes {
             out.push_str(&format!("{}\n", r.encode()));
         }
