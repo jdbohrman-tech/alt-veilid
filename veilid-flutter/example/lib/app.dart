@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:veilid/veilid.dart';
 import 'package:loggy/loggy.dart';
 import 'package:veilid_example/veilid_theme.dart';
@@ -8,6 +9,7 @@ import 'package:veilid_example/veilid_theme.dart';
 import 'log_terminal.dart';
 import 'config.dart';
 import 'log.dart';
+import 'history_wrapper.dart';
 
 // Main App
 class MyApp extends StatefulWidget {
@@ -22,6 +24,8 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   bool _startedUp = false;
   Stream<VeilidUpdate>? _updateStream;
   Future<void>? _updateProcessor;
+  final _debugHistoryWrapper = HistoryWrapper();
+  String? _errorText;
 
   @override
   void initState() {
@@ -136,51 +140,79 @@ class _MyAppState extends State<MyApp> with UiLoggy {
         body: Column(children: [
           const Expanded(child: LogTerminal()),
           Container(
-            decoration: BoxDecoration(color: materialPrimaryColor, boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                spreadRadius: 4,
-                blurRadius: 4,
-              )
-            ]),
+            decoration: BoxDecoration(
+                color: materialBackgroundColor.shade100,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    spreadRadius: 4,
+                    blurRadius: 4,
+                  )
+                ]),
             padding: const EdgeInsets.all(5.0),
             child: Row(children: [
               Expanded(
-                  child: pad(TextField(
-                      decoration:
-                          newInputDecoration('Debug Command', _startedUp),
-                      textInputAction: TextInputAction.send,
-                      enabled: _startedUp,
-                      onSubmitted: (String v) async {
-                        loggy.info(await Veilid.instance.debug(v));
-                      }))),
-              pad(const Text('Startup')),
-              pad(Switch(
-                  value: _startedUp,
-                  onChanged: (bool value) async {
-                    await toggleStartup(value);
-                  })),
-              pad(DropdownButton<LogLevel>(
-                  value: loggy.level.logLevel,
-                  onChanged: (LogLevel? newLevel) {
-                    setState(() {
-                      setRootLogLevel(newLevel);
-                    });
-                  },
-                  items: const [
-                    DropdownMenuItem<LogLevel>(
-                        value: LogLevel.error, child: Text("Error")),
-                    DropdownMenuItem<LogLevel>(
-                        value: LogLevel.warning, child: Text("Warning")),
-                    DropdownMenuItem<LogLevel>(
-                        value: LogLevel.info, child: Text("Info")),
-                    DropdownMenuItem<LogLevel>(
-                        value: LogLevel.debug, child: Text("Debug")),
-                    DropdownMenuItem<LogLevel>(
-                        value: traceLevel, child: Text("Trace")),
-                    DropdownMenuItem<LogLevel>(
-                        value: LogLevel.all, child: Text("All")),
-                  ])),
+                  child: pad(_debugHistoryWrapper.wrap(
+                setState,
+                TextField(
+                    controller: _debugHistoryWrapper.controller,
+                    decoration: newInputDecoration(
+                        'Debug Command', _errorText, _startedUp),
+                    textInputAction: TextInputAction.unspecified,
+                    enabled: _startedUp,
+                    onChanged: (v) {
+                      setState(() {
+                        _errorText = null;
+                      });
+                    },
+                    onSubmitted: (String v) async {
+                      try {
+                        var res = await Veilid.instance.debug(v);
+                        loggy.info(res);
+                        setState(() {
+                          _debugHistoryWrapper.submit(v);
+                        });
+                      } on VeilidAPIException catch (e) {
+                        setState(() {
+                          _errorText = e.toDisplayError();
+                        });
+                      }
+                    }),
+              ))),
+              pad(
+                Column(children: [
+                  const Text('Startup'),
+                  Switch(
+                      value: _startedUp,
+                      onChanged: (bool value) async {
+                        await toggleStartup(value);
+                      }),
+                ]),
+              ),
+              pad(Column(children: [
+                const Text('Log Level'),
+                DropdownButton<LogLevel>(
+                    value: loggy.level.logLevel,
+                    onChanged: (LogLevel? newLevel) {
+                      setState(() {
+                        setRootLogLevel(newLevel);
+                      });
+                    },
+                    items: const [
+                      DropdownMenuItem<LogLevel>(
+                          value: LogLevel.error, child: Text("Error")),
+                      DropdownMenuItem<LogLevel>(
+                          value: LogLevel.warning, child: Text("Warning")),
+                      DropdownMenuItem<LogLevel>(
+                          value: LogLevel.info, child: Text("Info")),
+                      DropdownMenuItem<LogLevel>(
+                          value: LogLevel.debug, child: Text("Debug")),
+                      DropdownMenuItem<LogLevel>(
+                          value: traceLevel, child: Text("Trace")),
+                      DropdownMenuItem<LogLevel>(
+                          value: LogLevel.all, child: Text("All")),
+                    ]),
+              ])),
             ]),
           ),
         ]));

@@ -445,6 +445,10 @@ impl VeilidAPI {
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {
                 // Purge route spec store
+                {
+                    let mut dc = DEBUG_CACHE.lock();
+                    dc.imported_routes.clear();
+                }
                 let rss = self.network_manager()?.routing_table().route_spec_store();
                 match rss.purge().await {
                     Ok(_) => Ok("Routes purged".to_owned()),
@@ -865,12 +869,9 @@ impl VeilidAPI {
             } else if arg == "route" {
                 self.debug_route(rest).await
             } else {
-                Ok(">>> Unknown command\n".to_owned())
+                Err(VeilidAPIError::generic("Unknown debug command"))
             }
         };
-        // if let Ok(res) = &res {
-        //     debug!("{}", res);
-        // }
         res
     }
 }

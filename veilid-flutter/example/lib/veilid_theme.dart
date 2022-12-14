@@ -257,29 +257,38 @@ Padding pad(Widget child) {
 /////////////////////////////////////////////////////////
 // Theme
 
-InputDecoration newInputDecoration(String labelText, bool enabled) {
+InputDecoration newInputDecoration(
+    String labelText, String? errorText, bool enabled) {
   return InputDecoration(
       labelText: labelText,
-      fillColor: enabled
-          ? materialPrimaryColor.shade200
-          : materialPrimaryColor.shade200.withOpacity(0.5));
+      errorText: errorText,
+      filled: !enabled,
+      fillColor: materialPrimaryColor.shade300.withOpacity(0.1));
 }
 
 InputDecorationTheme newInputDecorationTheme() {
   return InputDecorationTheme(
-      border: const OutlineInputBorder(),
-      filled: true,
-      fillColor: materialPrimaryColor.shade200,
-      disabledBorder: const OutlineInputBorder(
+      border: OutlineInputBorder(
           borderSide:
-              BorderSide(color: Color.fromARGB(0, 0, 0, 0), width: 0.0)),
+              BorderSide(color: materialPrimaryColor.shade300, width: 1.0)),
+      disabledBorder: OutlineInputBorder(
+          borderSide:
+              BorderSide(color: materialPrimaryColor.shade600, width: 1.0)),
       focusedBorder: OutlineInputBorder(
           borderSide:
-              BorderSide(color: materialPrimaryColor.shade900, width: 0.0)),
-      floatingLabelBehavior: FloatingLabelBehavior.never,
+              BorderSide(color: materialPrimaryColor.shade900, width: 1.0)),
+      errorBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: materialPopColor.shade800, width: 1.0)),
+      focusedErrorBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: materialPopColor.shade600, width: 1.0)),
+      errorStyle: TextStyle(
+        color: materialPopColor.shade600,
+        letterSpacing: 1.1,
+      ),
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
       floatingLabelStyle: TextStyle(
         color: materialPrimaryColor.shade900,
-        letterSpacing: 1.2,
+        letterSpacing: 1.1,
       ));
 }
 

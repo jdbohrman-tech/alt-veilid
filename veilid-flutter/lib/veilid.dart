@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:html';
 import 'dart:typed_data';
 import 'dart:convert';
 
@@ -1571,12 +1572,19 @@ abstract class VeilidAPIException implements Exception {
         }
     }
   }
+
+  String toDisplayError();
 }
 
 class VeilidAPIExceptionNotInitialized implements VeilidAPIException {
   @override
   String toString() {
     return "VeilidAPIException: NotInitialized";
+  }
+
+  @override
+  String toDisplayError() {
+    return "Not initialized";
   }
 }
 
@@ -1585,6 +1593,11 @@ class VeilidAPIExceptionAlreadyInitialized implements VeilidAPIException {
   String toString() {
     return "VeilidAPIException: AlreadyInitialized";
   }
+
+  @override
+  String toDisplayError() {
+    return "Already initialized";
+  }
 }
 
 class VeilidAPIExceptionTimeout implements VeilidAPIException {
@@ -1592,12 +1605,22 @@ class VeilidAPIExceptionTimeout implements VeilidAPIException {
   String toString() {
     return "VeilidAPIException: Timeout";
   }
+
+  @override
+  String toDisplayError() {
+    return "Timeout";
+  }
 }
 
 class VeilidAPIExceptionShutdown implements VeilidAPIException {
   @override
   String toString() {
     return "VeilidAPIException: Shutdown";
+  }
+
+  @override
+  String toDisplayError() {
+    return "Currently shut down";
   }
 }
 
@@ -1607,6 +1630,11 @@ class VeilidAPIExceptionNodeNotFound implements VeilidAPIException {
   @override
   String toString() {
     return "VeilidAPIException: NodeNotFound (nodeId: $nodeId)";
+  }
+
+  @override
+  String toDisplayError() {
+    return "Node node found: $nodeId";
   }
 
   //
@@ -1621,6 +1649,11 @@ class VeilidAPIExceptionNoDialInfo implements VeilidAPIException {
     return "VeilidAPIException: NoDialInfo (nodeId: $nodeId)";
   }
 
+  @override
+  String toDisplayError() {
+    return "No dial info: $nodeId";
+  }
+
   //
   VeilidAPIExceptionNoDialInfo(this.nodeId);
 }
@@ -1631,6 +1664,11 @@ class VeilidAPIExceptionInternal implements VeilidAPIException {
   @override
   String toString() {
     return "VeilidAPIException: Internal ($message)";
+  }
+
+  @override
+  String toDisplayError() {
+    return "Internal error: $message";
   }
 
   //
@@ -1645,6 +1683,11 @@ class VeilidAPIExceptionUnimplemented implements VeilidAPIException {
     return "VeilidAPIException: Unimplemented ($message)";
   }
 
+  @override
+  String toDisplayError() {
+    return "Unimplemented: $message";
+  }
+
   //
   VeilidAPIExceptionUnimplemented(this.message);
 }
@@ -1656,6 +1699,11 @@ class VeilidAPIExceptionParseError implements VeilidAPIException {
   @override
   String toString() {
     return "VeilidAPIException: ParseError ($message)\n    value: $value";
+  }
+
+  @override
+  String toDisplayError() {
+    return "Parse error: $message";
   }
 
   //
@@ -1672,6 +1720,11 @@ class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
     return "VeilidAPIException: InvalidArgument ($context:$argument)\n    value: $value";
   }
 
+  @override
+  String toDisplayError() {
+    return "Invalid argument for $context: $argument";
+  }
+
   //
   VeilidAPIExceptionInvalidArgument(this.context, this.argument, this.value);
 }
@@ -1685,6 +1738,11 @@ class VeilidAPIExceptionMissingArgument implements VeilidAPIException {
     return "VeilidAPIException: MissingArgument ($context:$argument)";
   }
 
+  @override
+  String toDisplayError() {
+    return "Missing argument for $context: $argument";
+  }
+
   //
   VeilidAPIExceptionMissingArgument(this.context, this.argument);
 }
@@ -1695,6 +1753,11 @@ class VeilidAPIExceptionGeneric implements VeilidAPIException {
   @override
   String toString() {
     return "VeilidAPIException: Generic (message: $message)";
+  }
+
+  @override
+  String toDisplayError() {
+    return message;
   }
 
   //

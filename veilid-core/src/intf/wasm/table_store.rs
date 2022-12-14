@@ -101,9 +101,11 @@ impl TableStore {
         let db = Database::open(table_name.clone(), column_count)
             .await
             .wrap_err("failed to open tabledb")?;
-        info!(
+        trace!(
             "opened table store '{}' with table name '{:?}' with {} columns",
-            name, table_name, column_count
+            name,
+            table_name,
+            column_count
         );
 
         let table_db = TableDB::new(table_name.clone(), self.clone(), db);
