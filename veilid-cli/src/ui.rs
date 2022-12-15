@@ -353,7 +353,6 @@ impl UI {
                     format!("  Error: {}", e),
                     color,
                 ));
-                return;
             }
         }
         // save to history unless it's a duplicate

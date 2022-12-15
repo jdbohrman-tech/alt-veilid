@@ -188,6 +188,12 @@ impl RouteSpecDetail {
     pub fn get_stats_mut(&mut self) -> &mut RouteStats {
         &mut self.stats
     }
+    pub fn is_published(&self) -> bool {
+        self.published
+    }
+    pub fn hop_count(&self) -> usize {
+        self.hops.len()
+    }
 }
 
 /// The core representation of the RouteSpecStore that can be serialized
@@ -1082,6 +1088,11 @@ impl RouteSpecStore {
         avoid_node_ids: &[DHTKey],
     ) -> Option<DHTKey> {
         let cur_ts = get_timestamp();
+
+        let mut routes = Vec::new();
+
+        // Get all valid routes, allow routes that need testing
+        // but definitely prefer routes that have been recently tested
         for detail in &inner.content.details {
             if detail.1.stability >= stability
                 && detail.1.sequencing >= sequencing
@@ -1089,7 +1100,6 @@ impl RouteSpecStore {
                 && detail.1.hops.len() <= max_hop_count
                 && detail.1.directions.is_superset(directions)
                 && !detail.1.published
-                && !detail.1.stats.needs_testing(cur_ts)
             {
                 let mut avoid = false;
                 for h in &detail.1.hops {
@@ -1099,11 +1109,29 @@ impl RouteSpecStore {
                     }
                 }
                 if !avoid {
-                    return Some(*detail.0);
+                    routes.push(detail);
                 }
             }
         }
-        None
+
+        // Sort the routes by preference
+        routes.sort_by(|a, b| {
+            let a_needs_testing = a.1.stats.needs_testing(cur_ts);
+            let b_needs_testing = b.1.stats.needs_testing(cur_ts);
+            if !a_needs_testing && b_needs_testing {
+                return cmp::Ordering::Less;
+            }
+            if !b_needs_testing && a_needs_testing {
+                return cmp::Ordering::Greater;
+            }
+            let a_latency = a.1.stats.latency_stats().average;
+            let b_latency = b.1.stats.latency_stats().average;
+
+            a_latency.cmp(&b_latency)
+        });
+
+        // Return the best one if we got one
+        routes.first().map(|r| *r.0)
     }
 
     /// List all allocated routes
