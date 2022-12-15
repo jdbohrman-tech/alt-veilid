@@ -14,20 +14,19 @@ impl RoutingTable {
         stop_token: StopToken,
         routes_needing_testing: Vec<DHTKey>,
     ) -> EyreResult<()> {
-        let rss = self.route_spec_store();
+        if routes_needing_testing.is_empty() {
+            return Ok(());
+        }
         log_rtab!(debug "Testing routes: {:?}", routes_needing_testing);
 
+        // Test all the routes that need testing at the same time
+        let rss = self.route_spec_store();
         #[derive(Default, Debug)]
         struct TestRouteContext {
             failed: bool,
             dead_routes: Vec<DHTKey>,
         }
 
-        if routes_needing_testing.is_empty() {
-            return Ok(());
-        }
-
-        // Test all the routes that need testing at the same time
         let mut unord = FuturesUnordered::new();
         let ctx = Arc::new(Mutex::new(TestRouteContext::default()));
         for r in routes_needing_testing {
@@ -97,8 +96,10 @@ impl RoutingTable {
                 return None;
             }
         });
-        self.test_route_set(stop_token.clone(), routes_needing_testing)
-            .await?;
+        if !routes_needing_testing.is_empty() {
+            self.test_route_set(stop_token.clone(), routes_needing_testing)
+                .await?;
+        }
 
         // Ensure we have a minimum of N allocated local, unpublished routes with the default number of hops
         let default_route_hop_count =
@@ -130,8 +131,10 @@ impl RoutingTable {
             }
 
             // Immediately test them
-            self.test_route_set(stop_token.clone(), newly_allocated_routes)
-                .await?;
+            if !newly_allocated_routes.is_empty() {
+                self.test_route_set(stop_token.clone(), newly_allocated_routes)
+                    .await?;
+            }
         }
 
         // Test remote routes next
@@ -143,8 +146,10 @@ impl RoutingTable {
                 return None;
             }
         });
-        self.test_route_set(stop_token.clone(), remote_routes_needing_testing)
-            .await?;
+        if !remote_routes_needing_testing.is_empty() {
+            self.test_route_set(stop_token.clone(), remote_routes_needing_testing)
+                .await?;
+        }
 
         // Send update (also may send updates for released routes done by other parts of the program)
         rss.send_route_update();
