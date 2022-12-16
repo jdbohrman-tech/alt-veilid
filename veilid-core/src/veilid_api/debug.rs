@@ -541,6 +541,9 @@ impl VeilidAPI {
             NetworkResult::Timeout => {
                 return Ok("Timeout".to_owned());
             }
+            NetworkResult::ServiceUnavailable => {
+                return Ok("ServiceUnavailable".to_owned());
+            }
             NetworkResult::NoConnection(e) => {
                 return Ok(format!("NoConnection({})", e));
             }

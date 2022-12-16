@@ -92,18 +92,16 @@ impl RPCProcessor {
 
         // add node information for the requesting node to our routing table
         let routing_table = self.routing_table();
-        let own_peer_info = routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
-        let has_valid_own_node_info = own_peer_info.is_some();
+        let Some(own_peer_info) = routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
+            // Our own node info is not yet available, drop this request.
+            return Ok(NetworkResult::service_unavailable());
+        };
 
         // find N nodes closest to the target node in our routing table
 
         let filter = Box::new(
             move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
-                rti.filter_has_valid_signed_node_info(
-                    RoutingDomain::PublicInternet,
-                    has_valid_own_node_info,
-                    v,
-                )
+                rti.filter_has_valid_signed_node_info(RoutingDomain::PublicInternet, true, v)
             },
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
@@ -113,12 +111,7 @@ impl RPCProcessor {
             filters,
             // transform
             |rti, k, v| {
-                rti.transform_to_peer_info(
-                    RoutingDomain::PublicInternet,
-                    own_peer_info.as_ref().unwrap().clone(),
-                    k,
-                    v,
-                )
+                rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, k, v)
             },
         );
 

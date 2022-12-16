@@ -68,6 +68,7 @@ impl<T, E> NetworkResultResultExt<T, E> for NetworkResult<Result<T, E>> {
     fn into_result_network_result(self) -> Result<NetworkResult<T>, E> {
         match self {
             NetworkResult::Timeout => Ok(NetworkResult::<T>::Timeout),
+            NetworkResult::ServiceUnavailable => Ok(NetworkResult::<T>::ServiceUnavailable),
             NetworkResult::NoConnection(e) => Ok(NetworkResult::<T>::NoConnection(e)),
             NetworkResult::AlreadyExists(e) => Ok(NetworkResult::<T>::AlreadyExists(e)),
             NetworkResult::InvalidMessage(s) => Ok(NetworkResult::<T>::InvalidMessage(s)),
@@ -160,6 +161,7 @@ impl<T> FoldedNetworkResultExt<T> for io::Result<NetworkResult<T>> {
 #[must_use]
 pub enum NetworkResult<T> {
     Timeout,
+    ServiceUnavailable,
     NoConnection(io::Error),
     AlreadyExists(io::Error),
     InvalidMessage(String),
@@ -169,6 +171,9 @@ pub enum NetworkResult<T> {
 impl<T> NetworkResult<T> {
     pub fn timeout() -> Self {
         Self::Timeout
+    }
+    pub fn service_unavailable() -> Self {
+        Self::ServiceUnavailable
     }
     pub fn no_connection(e: io::Error) -> Self {
         Self::NoConnection(e)
@@ -201,6 +206,7 @@ impl<T> NetworkResult<T> {
     pub fn map<X, F: Fn(T) -> X>(self, f: F) -> NetworkResult<X> {
         match self {
             Self::Timeout => NetworkResult::<X>::Timeout,
+            Self::ServiceUnavailable => NetworkResult::<X>::ServiceUnavailable,
             Self::NoConnection(e) => NetworkResult::<X>::NoConnection(e),
             Self::AlreadyExists(e) => NetworkResult::<X>::AlreadyExists(e),
             Self::InvalidMessage(s) => NetworkResult::<X>::InvalidMessage(s),
@@ -210,6 +216,10 @@ impl<T> NetworkResult<T> {
     pub fn into_result(self) -> Result<T, io::Error> {
         match self {
             Self::Timeout => Err(io::Error::new(io::ErrorKind::TimedOut, "Timed out")),
+            Self::ServiceUnavailable => Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Service unavailable",
+            )),
             Self::NoConnection(e) => Err(e),
             Self::AlreadyExists(e) => Err(e),
             Self::InvalidMessage(s) => Err(io::Error::new(
@@ -230,21 +240,11 @@ impl<T> From<NetworkResult<T>> for Option<T> {
     }
 }
 
-// impl<T: Clone> Clone for NetworkResult<T> {
-//     fn clone(&self) -> Self {
-//         match self {
-//             Self::Timeout => Self::Timeout,
-//             Self::NoConnection(e) => Self::NoConnection(e.clone()),
-//             Self::InvalidMessage(s) => Self::InvalidMessage(s.clone()),
-//             Self::Value(t) => Self::Value(t.clone()),
-//         }
-//     }
-// }
-
 impl<T: Debug> Debug for NetworkResult<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Timeout => write!(f, "Timeout"),
+            Self::ServiceUnavailable => write!(f, "ServiceUnavailable"),
             Self::NoConnection(e) => f.debug_tuple("NoConnection").field(e).finish(),
             Self::AlreadyExists(e) => f.debug_tuple("AlreadyExists").field(e).finish(),
             Self::InvalidMessage(s) => f.debug_tuple("InvalidMessage").field(s).finish(),
@@ -257,6 +257,7 @@ impl<T> Display for NetworkResult<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Timeout => write!(f, "Timeout"),
+            Self::ServiceUnavailable => write!(f, "ServiceUnavailable"),
             Self::NoConnection(e) => write!(f, "NoConnection({})", e.kind()),
             Self::AlreadyExists(e) => write!(f, "AlreadyExists({})", e.kind()),
             Self::InvalidMessage(s) => write!(f, "InvalidMessage({})", s),
@@ -275,6 +276,7 @@ macro_rules! network_result_try {
     ($r: expr) => {
         match $r {
             NetworkResult::Timeout => return Ok(NetworkResult::Timeout),
+            NetworkResult::ServiceUnavailable => return Ok(NetworkResult::ServiceUnavailable),
             NetworkResult::NoConnection(e) => return Ok(NetworkResult::NoConnection(e)),
             NetworkResult::AlreadyExists(e) => return Ok(NetworkResult::AlreadyExists(e)),
             NetworkResult::InvalidMessage(s) => return Ok(NetworkResult::InvalidMessage(s)),
@@ -286,6 +288,10 @@ macro_rules! network_result_try {
             NetworkResult::Timeout => {
                 $f;
                 return Ok(NetworkResult::Timeout);
+            }
+            NetworkResult::ServiceUnavailable => {
+                $f;
+                return Ok(NetworkResult::ServiceUnavailable);
             }
             NetworkResult::NoConnection(e) => {
                 $f;
@@ -334,6 +340,16 @@ macro_rules! network_result_value_or_log {
                 log_network_result!(
                     "{} at {}@{}:{}",
                     "Timeout".cyan(),
+                    file!(),
+                    line!(),
+                    column!()
+                );
+                $f
+            }
+            NetworkResult::ServiceUnavailable => {
+                log_network_result!(
+                    "{} at {}@{}:{}",
+                    "ServiceUnavailable".cyan(),
                     file!(),
                     line!(),
                     column!()

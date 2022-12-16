@@ -10,6 +10,14 @@ macro_rules! apibail_timeout {
 
 #[allow(unused_macros)]
 #[macro_export]
+macro_rules! apibail_try_again {
+    () => {
+        return Err(VeilidAPIError::try_again())
+    };
+}
+
+#[allow(unused_macros)]
+#[macro_export]
 macro_rules! apibail_generic {
     ($x:expr) => {
         return Err(VeilidAPIError::generic($x))
@@ -95,6 +103,8 @@ pub enum VeilidAPIError {
     AlreadyInitialized,
     #[error("Timeout")]
     Timeout,
+    #[error("TryAgain")]
+    TryAgain,
     #[error("Shutdown")]
     Shutdown,
     #[error("Key not found: {key}")]
@@ -130,6 +140,9 @@ impl VeilidAPIError {
     }
     pub fn timeout() -> Self {
         Self::Timeout
+    }
+    pub fn try_again() -> Self {
+        Self::TryAgain
     }
     pub fn shutdown() -> Self {
         Self::Shutdown

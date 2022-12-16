@@ -799,12 +799,12 @@ impl RoutingTableInner {
     pub fn transform_to_peer_info(
         &self,
         routing_domain: RoutingDomain,
-        own_peer_info: PeerInfo,
+        own_peer_info: &PeerInfo,
         k: DHTKey,
         v: Option<Arc<BucketEntry>>,
     ) -> PeerInfo {
         match v {
-            None => own_peer_info,
+            None => own_peer_info.clone(),
             Some(entry) => entry.with(self, |_rti, e| e.make_peer_info(k, routing_domain).unwrap()),
         }
     }

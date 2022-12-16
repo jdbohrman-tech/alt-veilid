@@ -1682,7 +1682,7 @@ impl NetworkManager {
                 // }
 
                 inconsistent
-            } else {
+            } else if matches!(public_internet_network_class, NetworkClass::OutboundOnly) {
                 // If we are currently outbound only, we don't have any public dial info
                 // but if we are starting to see consistent socket address from multiple reporting peers
                 // then we may be become inbound capable, so zap the network class so we can re-detect it and any public dial info
@@ -1710,6 +1710,10 @@ impl NetworkManager {
                     }
                 }
                 consistent
+            } else {
+                // If we are a webapp we never do this.
+                // If we have invalid network class, then public address detection is already going to happen via the network_class_discovery task
+                false
             };
 
         if needs_public_address_detection {
