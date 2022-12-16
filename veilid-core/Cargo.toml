@@ -64,6 +64,7 @@ keyvaluedb = { path = "../external/keyvaluedb/keyvaluedb" }
 #rkyv = { version = "^0", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
 rkyv = { git = "https://github.com/rkyv/rkyv.git", rev = "57e2a8d", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
 bytecheck = "^0"
+data-encoding = { version = "^2" }
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
@@ -85,8 +86,6 @@ rustls = "^0.19"
 rustls-pemfile = "^0.2"
 futures-util = { version = "^0", default-features = false, features = ["async-await", "sink", "std", "io"] }
 keyvaluedb-sqlite = { path = "../external/keyvaluedb/keyvaluedb-sqlite" }
-data-encoding = { version = "^2" }
-
 socket2 = "^0"
 bugsalot = "^0"
 chrono = "^0"
@@ -99,7 +98,6 @@ wasm-bindgen = "^0"
 js-sys = "^0"
 wasm-bindgen-futures = "^0"
 keyvaluedb-web = { path = "../external/keyvaluedb/keyvaluedb-web" }
-data-encoding = { version = "^2", default_features = false, features = ["alloc"] }
 getrandom = { version = "^0", features = ["js"] }
 ws_stream_wasm = "^0"
 async_executors = { version = "^0", default-features = false, features = [ "bindgen", "timer" ]}

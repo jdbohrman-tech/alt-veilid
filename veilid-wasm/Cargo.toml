@@ -25,7 +25,7 @@ serde_json = "^1"
 serde = "^1"
 lazy_static = "^1"
 send_wrapper = "^0"
-futures-util = { version = "^0", default_features = false, features = ["alloc"] }
+futures-util = { version = "^0" }
 data-encoding = { version = "^2" }
 gloo-utils = { version = "^0", features = ["serde"] }
 
