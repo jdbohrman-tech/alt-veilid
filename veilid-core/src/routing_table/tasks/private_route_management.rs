@@ -17,7 +17,7 @@ impl RoutingTable {
         if routes_needing_testing.is_empty() {
             return Ok(());
         }
-        log_rtab!(debug "Testing routes: {:?}", routes_needing_testing);
+        log_rtab!("Testing routes: {:?}", routes_needing_testing);
 
         // Test all the routes that need testing at the same time
         let rss = self.route_spec_store();
