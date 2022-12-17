@@ -16,7 +16,6 @@ use js_sys::*;
 use lazy_static::*;
 use send_wrapper::*;
 use serde::*;
-use tracing::*;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
 use tracing_wasm::{WASMLayerConfigBuilder, *};
