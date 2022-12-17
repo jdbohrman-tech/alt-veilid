@@ -93,7 +93,7 @@ where
                 .waiting_op_table
                 .remove(&op_id)
                 .ok_or_else(RPCError::else_internal(format!(
-                    "Unmatched app call id, possibly too late for timeout: {}",
+                    "Unmatched operation id: {}",
                     op_id
                 )))?
         };
