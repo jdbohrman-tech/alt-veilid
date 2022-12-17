@@ -38,12 +38,12 @@ use wasm::*;
 
 pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
-pub const IPADDR_MAX_INACTIVE_DURATION_US: u64 = 300_000_000u64; // 5 minutes
+pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration = TimestampDuration::new(300_000_000u64); // 5 minutes
 pub const PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT: usize = 3;
 pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 8;
 pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
-pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: u64 = 300_000_000u64; // 5 minutes
-pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: u64 = 3600_000_000u64; // 60 minutes
+pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration = TimestampDuration::new(300_000_000u64); // 5 minutes
+pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration = TimestampDuration::new(3600_000_000u64); // 60 minutes
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -138,7 +138,7 @@ struct NetworkManagerInner {
     public_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
-        BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, u64>>,
+        BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, Timestamp>>,
 }
 
 struct NetworkManagerUnlockedInner {
@@ -426,7 +426,7 @@ impl NetworkManager {
     pub fn purge_client_whitelist(&self) {
         let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
         let mut inner = self.inner.lock();
-        let cutoff_timestamp = get_aligned_timestamp() - ((timeout_ms as u64) * 1000u64);
+        let cutoff_timestamp = get_aligned_timestamp() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
         // Remove clients from the whitelist that haven't been since since our whitelist timeout
         while inner
             .client_whitelist
@@ -1285,7 +1285,7 @@ impl NetworkManager {
         // Network accounting
         self.stats_packet_rcvd(
             connection_descriptor.remote_address().to_ip_addr(),
-            data.len() as u64,
+            ByteCount::new(data.len() as u64),
         );
 
         // If this is a zero length packet, just drop it, because these are used for hole punching
@@ -1447,7 +1447,7 @@ impl NetworkManager {
     }
 
     // Callbacks from low level network for statistics gathering
-    pub fn stats_packet_sent(&self, addr: IpAddr, bytes: u64) {
+    pub fn stats_packet_sent(&self, addr: IpAddr, bytes: ByteCount) {
         let inner = &mut *self.inner.lock();
         inner
             .stats
@@ -1463,7 +1463,7 @@ impl NetworkManager {
             .add_up(bytes);
     }
 
-    pub fn stats_packet_rcvd(&self, addr: IpAddr, bytes: u64) {
+    pub fn stats_packet_rcvd(&self, addr: IpAddr, bytes: ByteCount) {
         let inner = &mut *self.inner.lock();
         inner
             .stats

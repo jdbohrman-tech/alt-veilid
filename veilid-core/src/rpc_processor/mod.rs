@@ -254,7 +254,7 @@ impl RPCProcessor {
         // set up channel
         let mut concurrency = c.network.rpc.concurrency;
         let queue_size = c.network.rpc.queue_size;
-        let timeout = ms_to_us(c.network.rpc.timeout_ms);
+        let timeout_us = TimestampDuration::new(ms_to_us(c.network.rpc.timeout_ms));
         let max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
         if concurrency == 0 {
             concurrency = get_concurrency() / 2;
@@ -265,7 +265,7 @@ impl RPCProcessor {
         let validate_dial_info_receipt_time_ms = c.network.dht.validate_dial_info_receipt_time_ms;
 
         RPCProcessorUnlockedInner {
-            timeout_us: timeout,
+            timeout_us,
             queue_size,
             concurrency,
             max_route_hop_count,
@@ -879,8 +879,8 @@ impl RPCProcessor {
         let rss = self.routing_table.route_spec_store();
 
         // Get latency for all local routes
-        let mut total_local_latency = 0u64;
-        let total_latency = recv_ts.saturating_sub(send_ts);
+        let mut total_local_latency = TimestampDuration::new(0u64);
+        let total_latency: TimestampDuration = recv_ts.saturating_sub(send_ts);
 
         // If safety route was used, record route there
         if let Some(sr_pubkey) = &safety_route {
@@ -932,12 +932,12 @@ impl RPCProcessor {
             if let Some(sr_pubkey) = &safety_route {
                 let rss = self.routing_table.route_spec_store();
                 rss.with_route_stats(send_ts, sr_pubkey, |s| {
-                    s.record_latency(total_latency / 2);
+                    s.record_latency(total_latency / 2u64);
                 });
             }
             if let Some(pr_pubkey) = &reply_private_route {
                 rss.with_route_stats(send_ts, pr_pubkey, |s| {
-                    s.record_latency(total_latency / 2);
+                    s.record_latency(total_latency / 2u64);
                 });
             }
         }
@@ -1365,7 +1365,7 @@ impl RPCProcessor {
                     routing_domain,
                 }),
                 timestamp: get_aligned_timestamp(),
-                body_len: body.len() as u64,
+                body_len: ByteCount::new(body.len() as u64),
             },
             data: RPCMessageData { contents: body },
         };

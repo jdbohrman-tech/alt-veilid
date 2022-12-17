@@ -18,7 +18,7 @@ impl RoutingTable {
                 .set_routine(move |s, l, t| {
                     Box::pin(
                         this.clone()
-                            .rolling_transfers_task_routine(s, l, t)
+                            .rolling_transfers_task_routine(s, Timestamp::new(l), Timestamp::new(t))
                             .instrument(trace_span!(
                                 parent: None,
                                 "RoutingTable rolling transfers task routine"
@@ -35,7 +35,7 @@ impl RoutingTable {
                 .set_routine(move |s, l, t| {
                     Box::pin(
                         this.clone()
-                            .kick_buckets_task_routine(s, l, t)
+                            .kick_buckets_task_routine(s, Timestamp::new(l), Timestamp::new(t))
                             .instrument(trace_span!(parent: None, "kick buckets task routine")),
                     )
                 });
@@ -80,7 +80,7 @@ impl RoutingTable {
                 .set_routine(move |s, l, t| {
                     Box::pin(
                         this.clone()
-                            .ping_validator_task_routine(s, l, t)
+                            .ping_validator_task_routine(s, Timestamp::new(l), Timestamp::new(t))
                             .instrument(trace_span!(parent: None, "ping validator task routine")),
                     )
                 });
@@ -94,7 +94,7 @@ impl RoutingTable {
                 .set_routine(move |s, l, t| {
                     Box::pin(
                         this.clone()
-                            .relay_management_task_routine(s, l, t)
+                            .relay_management_task_routine(s, Timestamp::new(l), Timestamp::new(t))
                             .instrument(trace_span!(parent: None, "relay management task routine")),
                     )
                 });
@@ -108,7 +108,11 @@ impl RoutingTable {
                 .set_routine(move |s, l, t| {
                     Box::pin(
                         this.clone()
-                            .private_route_management_task_routine(s, l, t)
+                            .private_route_management_task_routine(
+                                s,
+                                Timestamp::new(l),
+                                Timestamp::new(t),
+                            )
                             .instrument(trace_span!(
                                 parent: None,
                                 "private route management task routine"

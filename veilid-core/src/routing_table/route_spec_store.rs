@@ -7,7 +7,7 @@ use rkyv::{
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
 /// Remote private route cache entries expire in 5 minutes if they haven't been used
-const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: TimestampDuration = 300_000_000u64.into();
+const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: TimestampDuration = TimestampDuration::new(300_000_000u64);
 /// Amount of time a route can remain idle before it gets tested
 const ROUTE_MIN_IDLE_TIME_MS: u32 = 30_000;
 
@@ -39,16 +39,16 @@ pub struct RouteStats {
     #[with(Skip)]
     pub questions_lost: u32,
     /// Timestamp of when the route was created
-    pub created_ts: u64,
+    pub created_ts: Timestamp,
     /// Timestamp of when the route was last checked for validity
     #[with(Skip)]
-    pub last_tested_ts: Option<u64>,
+    pub last_tested_ts: Option<Timestamp>,
     /// Timestamp of when the route was last sent to
     #[with(Skip)]
-    pub last_sent_ts: Option<u64>,
+    pub last_sent_ts: Option<Timestamp>,
     /// Timestamp of when the route was last received over
     #[with(Skip)]
-    pub last_received_ts: Option<u64>,
+    pub last_received_ts: Option<Timestamp>,
     /// Transfers up and down
     pub transfer_stats_down_up: TransferStatsDownUp,
     /// Latency stats
@@ -63,7 +63,7 @@ pub struct RouteStats {
 
 impl RouteStats {
     /// Make new route stats
-    pub fn new(created_ts: u64) -> Self {
+    pub fn new(created_ts: Timestamp) -> Self {
         Self {
             created_ts,
             ..Default::default()
@@ -143,7 +143,9 @@ impl RouteStats {
         // Has the route been tested within the idle time we'd want to check things?
         // (also if we've received successfully over the route, this will get set)
         if let Some(last_tested_ts) = self.last_tested_ts {
-            if cur_ts.saturating_sub(last_tested_ts) > (ROUTE_MIN_IDLE_TIME_MS as u64 * 1000u64) {
+            if cur_ts.saturating_sub(last_tested_ts)
+                > TimestampDuration::new(ROUTE_MIN_IDLE_TIME_MS as u64 * 1000u64)
+            {
                 return true;
             }
         } else {
@@ -210,9 +212,9 @@ pub struct RemotePrivateRouteInfo {
     // The private route itself
     private_route: Option<PrivateRoute>,
     /// Did this remote private route see our node info due to no safety route in use
-    last_seen_our_node_info_ts: u64,
+    last_seen_our_node_info_ts: Timestamp,
     /// Last time this remote private route was requested for any reason (cache expiration)
-    last_touched_ts: u64,
+    last_touched_ts: Timestamp,
     /// Stats
     stats: RouteStats,
 }
@@ -1630,7 +1632,7 @@ impl RouteSpecStore {
             .and_modify(|rpr| {
                 if cur_ts.saturating_sub(rpr.last_touched_ts) >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY {
                     // Start fresh if this had expired
-                    rpr.last_seen_our_node_info_ts = 0;
+                    rpr.last_seen_our_node_info_ts = Timestamp::new(0);
                     rpr.last_touched_ts = cur_ts;
                     rpr.stats = RouteStats::new(cur_ts);
                 } else {
@@ -1641,7 +1643,7 @@ impl RouteSpecStore {
             .or_insert_with(|| RemotePrivateRouteInfo {
                 // New remote private route cache entry
                 private_route: Some(private_route),
-                last_seen_our_node_info_ts: 0,
+                last_seen_our_node_info_ts: Timestamp::new(0),
                 last_touched_ts: cur_ts,
                 stats: RouteStats::new(cur_ts),
             });

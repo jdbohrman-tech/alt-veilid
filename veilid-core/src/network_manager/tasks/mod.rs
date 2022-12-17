@@ -13,7 +13,7 @@ impl NetworkManager {
                 .set_routine(move |s, l, t| {
                     Box::pin(
                         this.clone()
-                            .rolling_transfers_task_routine(s, l, t)
+                            .rolling_transfers_task_routine(s, Timestamp::new(l), Timestamp::new(t))
                             .instrument(trace_span!(
                                 parent: None,
                                 "NetworkManager rolling transfers task routine"
@@ -30,7 +30,11 @@ impl NetworkManager {
                 .set_routine(move |s, l, t| {
                     Box::pin(
                         this.clone()
-                            .public_address_check_task_routine(s, l, t)
+                            .public_address_check_task_routine(
+                                s,
+                                Timestamp::new(l),
+                                Timestamp::new(t),
+                            )
                             .instrument(trace_span!(
                                 parent: None,
                                 "public address check task routine"

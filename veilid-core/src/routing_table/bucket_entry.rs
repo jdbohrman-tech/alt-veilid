@@ -384,11 +384,11 @@ impl BucketEntryInner {
         rti: &RoutingTableInner,
         only_live: bool,
         filter: Option<NodeRefFilter>,
-    ) -> Vec<(ConnectionDescriptor, u64)> {
+    ) -> Vec<(ConnectionDescriptor, Timestamp)> {
         let connection_manager =
             rti.unlocked_inner.network_manager.connection_manager();
 
-        let mut out: Vec<(ConnectionDescriptor, u64)> = self
+        let mut out: Vec<(ConnectionDescriptor, Timestamp)> = self
             .last_connections
             .iter()
             .filter_map(|(k, v)| {
@@ -432,7 +432,7 @@ impl BucketEntryInner {
                         // If this is not connection oriented, then we check our last seen time
                         // to see if this mapping has expired (beyond our timeout)
                         let cur_ts = get_aligned_timestamp();
-                        (v.1 + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts
+                        (v.1 + TimestampDuration::new(CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts
                     };
 
                 if alive {
@@ -554,7 +554,7 @@ impl BucketEntryInner {
         match self.peer_stats.rpc_stats.first_consecutive_seen_ts {
             None => false,
             Some(ts) => {
-                cur_ts.saturating_sub(ts) >= (UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
+                cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }
         }
     }
@@ -569,7 +569,7 @@ impl BucketEntryInner {
         match self.peer_stats.rpc_stats.last_seen_ts {
             None => self.peer_stats.rpc_stats.recent_lost_answers < NEVER_REACHED_PING_COUNT,
             Some(ts) => {
-                cur_ts.saturating_sub(ts) >= (UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
+                cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }
         }
     }
@@ -582,7 +582,7 @@ impl BucketEntryInner {
             .max(self.peer_stats.rpc_stats.last_question_ts)
     }
 
-    fn needs_constant_ping(&self, cur_ts: Timestamp, interval: Timestamp) -> bool {
+    fn needs_constant_ping(&self, cur_ts: Timestamp, interval_us: TimestampDuration) -> bool {
         // If we have not either seen the node in the last 'interval' then we should ping it
         let latest_contact_time = self.latest_contact_time();
 
@@ -590,7 +590,7 @@ impl BucketEntryInner {
             None => true,
             Some(latest_contact_time) => {
                 // If we haven't done anything with this node in 'interval' seconds
-                cur_ts.saturating_sub(latest_contact_time) >= (interval * 1000000u64)
+                cur_ts.saturating_sub(latest_contact_time) >= interval_us
             }
         }
     }
@@ -603,7 +603,7 @@ impl BucketEntryInner {
         // If this entry needs a keepalive (like a relay node),
         // then we should ping it regularly to keep our association alive
         if needs_keepalive {
-            return self.needs_constant_ping(cur_ts, KEEPALIVE_PING_INTERVAL_SECS as u64);
+            return self.needs_constant_ping(cur_ts, TimestampDuration::new(KEEPALIVE_PING_INTERVAL_SECS as u64 * 1000000u64));
         }
 
         // If we don't have node status for this node, then we should ping it to get some node status
@@ -636,8 +636,8 @@ impl BucketEntryInner {
                             latest_contact_time.saturating_sub(start_of_reliable_time);
 
                         retry_falloff_log(
-                            reliable_last,
-                            reliable_cur,
+                            reliable_last.as_u64(),
+                            reliable_cur.as_u64(),
                             RELIABLE_PING_INTERVAL_START_SECS as u64 * 1_000_000u64,
                             RELIABLE_PING_INTERVAL_MAX_SECS as u64 * 1_000_000u64,
                             RELIABLE_PING_INTERVAL_MULTIPLIER,
@@ -647,7 +647,7 @@ impl BucketEntryInner {
             }
             BucketEntryState::Unreliable => {
                 // If we are in an unreliable state, we need a ping every UNRELIABLE_PING_INTERVAL_SECS seconds
-                self.needs_constant_ping(cur_ts, UNRELIABLE_PING_INTERVAL_SECS as u64)
+                self.needs_constant_ping(cur_ts, TimestampDuration::new(UNRELIABLE_PING_INTERVAL_SECS as u64 * 1000000u64))
             }
             BucketEntryState::Dead => false,
         }
@@ -673,7 +673,7 @@ impl BucketEntryInner {
         {
             format!(
                 "{}s ago",
-                timestamp_to_secs(cur_ts.saturating_sub(first_consecutive_seen_ts))
+                timestamp_to_secs(cur_ts.saturating_sub(first_consecutive_seen_ts).as_u64())
             )
         } else {
             "never".to_owned()
@@ -681,7 +681,7 @@ impl BucketEntryInner {
         let last_seen_ts_str = if let Some(last_seen_ts) = self.peer_stats.rpc_stats.last_seen_ts {
             format!(
                 "{}s ago",
-                timestamp_to_secs(cur_ts.saturating_sub(last_seen_ts))
+                timestamp_to_secs(cur_ts.saturating_sub(last_seen_ts).as_u64())
             )
         } else {
             "never".to_owned()
@@ -698,7 +698,7 @@ impl BucketEntryInner {
     ////////////////////////////////////////////////////////////////
     /// Called when rpc processor things happen
 
-    pub(super) fn question_sent(&mut self, ts: Timestamp, bytes: u64, expects_answer: bool) {
+    pub(super) fn question_sent(&mut self, ts: Timestamp, bytes: ByteCount, expects_answer: bool) {
         self.transfer_stats_accounting.add_up(bytes);
         self.peer_stats.rpc_stats.messages_sent += 1;
         self.peer_stats.rpc_stats.failed_to_send = 0;
@@ -707,7 +707,7 @@ impl BucketEntryInner {
             self.peer_stats.rpc_stats.last_question_ts = Some(ts);
         }
     }
-    pub(super) fn question_rcvd(&mut self, ts: Timestamp, bytes: u64) {
+    pub(super) fn question_rcvd(&mut self, ts: Timestamp, bytes: ByteCount) {
         self.transfer_stats_accounting.add_down(bytes);
         self.peer_stats.rpc_stats.messages_rcvd += 1;
         self.touch_last_seen(ts);
@@ -755,12 +755,12 @@ impl BucketEntry {
                 updated_since_last_network_change: false,
                 last_connections: BTreeMap::new(),
                 local_network: BucketEntryLocalNetwork {
-                    last_seen_our_node_info_ts: 0,
+                    last_seen_our_node_info_ts: Timestamp::new(0u64),
                     signed_node_info: None,
                     node_status: None,
                 },
                 public_internet: BucketEntryPublicInternet {
-                    last_seen_our_node_info_ts: 0,
+                    last_seen_our_node_info_ts: Timestamp::new(0u64),
                     signed_node_info: None,
                     node_status: None,
                 },

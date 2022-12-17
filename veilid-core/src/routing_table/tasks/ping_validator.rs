@@ -91,7 +91,7 @@ impl RoutingTable {
     #[instrument(level = "trace", skip(self), err)]
     fn ping_validator_local_network(
         &self,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         unord: &mut FuturesUnordered<
             SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
         >,
@@ -122,8 +122,8 @@ impl RoutingTable {
     pub(crate) async fn ping_validator_task_routine(
         self,
         stop_token: StopToken,
-        _last_ts: u64,
-        cur_ts: u64,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
     ) -> EyreResult<()> {
         let mut unord = FuturesUnordered::new();
 

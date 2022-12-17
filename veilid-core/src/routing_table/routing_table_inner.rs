@@ -262,7 +262,7 @@ impl RoutingTableInner {
     }
 
     /// Return our current node info timestamp
-    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<u64> {
+    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<Timestamp> {
         self.with_routing_domain(routing_domain, |rdd| {
             if !rdd.common().has_valid_own_node_info() {
                 None
@@ -440,7 +440,7 @@ impl RoutingTableInner {
 
     pub fn with_entries<T, F: FnMut(&RoutingTableInner, DHTKey, Arc<BucketEntry>) -> Option<T>>(
         &self,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
@@ -812,7 +812,7 @@ impl RoutingTableInner {
     pub fn find_peers_with_sort_and_filter<C, T, O>(
         &self,
         node_count: usize,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         mut filters: VecDeque<RoutingTableEntryFilter>,
         mut compare: C,
         mut transform: T,

@@ -89,11 +89,23 @@ impl<Rhs: Into<u64>> core::ops::Mul<Rhs> for AlignedU64 {
     }
 }
 
+impl<Rhs: Into<u64>> core::ops::MulAssign<Rhs> for AlignedU64 {
+    fn mul_assign(&mut self, rhs: Rhs) {
+        self.0 *= rhs.into();
+    }
+}
+
 impl<Rhs: Into<u64>> core::ops::Div<Rhs> for AlignedU64 {
     type Output = Self;
 
     fn div(self, rhs: Rhs) -> Self {
         Self(self.0 / rhs.into())
+    }
+}
+
+impl<Rhs: Into<u64>> core::ops::DivAssign<Rhs> for AlignedU64 {
+    fn div_assign(&mut self, rhs: Rhs) {
+        self.0 /= rhs.into();
     }
 }
 

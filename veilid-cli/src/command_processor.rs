@@ -47,7 +47,7 @@ struct CommandProcessorInner {
     autoreconnect: bool,
     server_addr: Option<SocketAddr>,
     connection_waker: Eventual,
-    last_call_id: Option<u64>,
+    last_call_id: Option<OperationId>,
 }
 
 type Handle<T> = Rc<RefCell<T>>;
@@ -249,7 +249,7 @@ reply               - reply to an AppCall not handled directly by the server
                     }
                     Ok(v) => v,
                 };
-                (id, second)
+                (OperationId::new(id), second)
             } else {
                 let id = match some_last_id {
                     None => {
@@ -394,8 +394,8 @@ reply               - reply to an AppCall not handled directly by the server
     pub fn update_network_status(&mut self, network: veilid_core::VeilidStateNetwork) {
         self.inner_mut().ui.set_network_status(
             network.started,
-            network.bps_down,
-            network.bps_up,
+            network.bps_down.as_u64(),
+            network.bps_up.as_u64(),
             network.peers,
         );
     }
@@ -471,7 +471,9 @@ reply               - reply to an AppCall not handled directly by the server
 
         self.inner().ui.add_node_event(format!(
             "AppCall ({:?}) id = {:016x} : {}",
-            call.sender, call.id, strmsg
+            call.sender,
+            call.id.as_u64(),
+            strmsg
         ));
 
         self.inner_mut().last_call_id = Some(call.id);

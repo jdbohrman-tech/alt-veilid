@@ -261,7 +261,7 @@ impl veilid_server::Server for VeilidServerImpl {
     ) -> Promise<(), ::capnp::Error> {
         trace!("VeilidServerImpl::app_call_reply");
 
-        let id = pry!(params.get()).get_id();
+        let id = OperationId::new(pry!(params.get()).get_id());
         let message = pry!(pry!(params.get()).get_message()).to_owned();
 
         let veilid_api = self.veilid_api.clone();

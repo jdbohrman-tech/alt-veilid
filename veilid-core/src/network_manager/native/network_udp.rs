@@ -65,7 +65,7 @@ impl Network {
                                     // Network accounting
                                     network_manager.stats_packet_rcvd(
                                         descriptor.remote_address().to_ip_addr(),
-                                        size as u64,
+                                        ByteCount::new(size as u64),
                                     );
 
                                     // Pass it up for processing

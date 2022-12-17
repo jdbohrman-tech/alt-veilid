@@ -56,12 +56,12 @@ impl TransferStatsAccounting {
 
         self.current_transfer = TransferCount::default();
 
-        transfer_stats.down.maximum = 0;
-        transfer_stats.up.maximum = 0;
-        transfer_stats.down.minimum = u64::MAX;
-        transfer_stats.up.minimum = u64::MAX;
-        transfer_stats.down.average = 0;
-        transfer_stats.up.average = 0;
+        transfer_stats.down.maximum = 0.into();
+        transfer_stats.up.maximum = 0.into();
+        transfer_stats.down.minimum = u64::MAX.into();
+        transfer_stats.up.minimum = u64::MAX.into();
+        transfer_stats.down.average = 0.into();
+        transfer_stats.up.average = 0.into();
         for xfer in &self.rolling_transfers {
             let bpsd = xfer.down * 1000u64 / dur_ms;
             let bpsu = xfer.up * 1000u64 / dur_ms;
@@ -97,9 +97,9 @@ impl LatencyStatsAccounting {
         self.rolling_latencies.push_back(latency);
 
         let mut ls = LatencyStats {
-            fastest: u64::MAX,
-            average: 0,
-            slowest: 0,
+            fastest: u64::MAX.into(),
+            average: 0.into(),
+            slowest: 0.into(),
         };
         for rl in &self.rolling_latencies {
             ls.fastest.min_assign(*rl);

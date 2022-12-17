@@ -1961,7 +1961,7 @@ impl SignedRelayedNodeInfo {
         sig_bytes.append(&mut builder_to_vec(ri_msg).map_err(VeilidAPIError::internal)?);
 
         // Add timestamp to signature
-        sig_bytes.append(&mut timestamp.to_le_bytes().to_vec());
+        sig_bytes.append(&mut timestamp.as_u64().to_le_bytes().to_vec());
 
         Ok(sig_bytes)
     }

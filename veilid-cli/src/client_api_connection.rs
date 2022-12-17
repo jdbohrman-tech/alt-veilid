@@ -444,7 +444,11 @@ impl ClientApiConnection {
         res.map_err(map_to_string)
     }
 
-    pub async fn server_appcall_reply(&mut self, id: u64, msg: Vec<u8>) -> Result<(), String> {
+    pub async fn server_appcall_reply(
+        &mut self,
+        id: OperationId,
+        msg: Vec<u8>,
+    ) -> Result<(), String> {
         trace!("ClientApiConnection::appcall_reply");
         let server = {
             let inner = self.inner.borrow();
@@ -455,7 +459,7 @@ impl ClientApiConnection {
                 .clone()
         };
         let mut request = server.borrow().app_call_reply_request();
-        request.get().set_id(id);
+        request.get().set_id(id.as_u64());
         request.get().set_message(&msg);
         let response = self
             .cancellable(request.send().promise)

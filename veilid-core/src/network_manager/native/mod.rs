@@ -406,7 +406,7 @@ impl Network {
         }
         // Network accounting
         self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
         Ok(NetworkResult::Value(()))
     }
@@ -440,7 +440,7 @@ impl Network {
                     .await
                     .wrap_err("send message failure")?);
                 self.network_manager()
-                    .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+                    .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
                 // receive single response
                 let mut out = vec![0u8; MAX_MESSAGE_SIZE];
@@ -454,7 +454,7 @@ impl Network {
 
                 let recv_socket_addr = recv_addr.remote_address().to_socket_addr();
                 self.network_manager()
-                    .stats_packet_rcvd(recv_socket_addr.ip(), recv_len as u64);
+                    .stats_packet_rcvd(recv_socket_addr.ip(), ByteCount::new(recv_len as u64));
 
                 // if the from address is not the same as the one we sent to, then drop this
                 if recv_socket_addr != peer_socket_addr {
@@ -481,7 +481,7 @@ impl Network {
 
                 network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
                 self.network_manager()
-                    .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+                    .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
                 let out = network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
                     .await
@@ -489,7 +489,7 @@ impl Network {
                 .wrap_err("recv failure")?);
 
                 self.network_manager()
-                    .stats_packet_rcvd(dial_info.to_ip_addr(), out.len() as u64);
+                    .stats_packet_rcvd(dial_info.to_ip_addr(), ByteCount::new(out.len() as u64));
 
                 Ok(NetworkResult::Value(out))
             }
@@ -519,7 +519,7 @@ impl Network {
 
                 // Network accounting
                 self.network_manager()
-                    .stats_packet_sent(peer_socket_addr.ip(), data_len as u64);
+                    .stats_packet_sent(peer_socket_addr.ip(), ByteCount::new(data_len as u64));
 
                 // Data was consumed
                 return Ok(None);
@@ -536,7 +536,7 @@ impl Network {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
                         descriptor.remote().to_socket_addr().ip(),
-                        data_len as u64,
+                        ByteCount::new(data_len as u64),
                     );
 
                     // Data was consumed
@@ -595,7 +595,7 @@ impl Network {
 
         // Network accounting
         self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
         Ok(NetworkResult::value(connection_descriptor))
     }

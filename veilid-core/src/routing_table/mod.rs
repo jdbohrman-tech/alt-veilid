@@ -402,7 +402,7 @@ impl RoutingTable {
     }
 
     /// Return our current node info timestamp
-    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<u64> {
+    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<Timestamp> {
         self.inner.read().get_own_node_info_ts(routing_domain)
     }
 
