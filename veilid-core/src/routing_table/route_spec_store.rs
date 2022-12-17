@@ -1791,7 +1791,6 @@ impl RouteSpecStore {
             return Some(res);
         }
 
-        log_rtab!(debug "route missing for stats: {}", key);
         None
     }
 
