@@ -344,11 +344,6 @@ impl UI {
             Ok(_) => {}
             Err(e) => {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Error).unwrap();
-
-                cursive_flexi_logger_view::push_to_log(StyledString::styled(
-                    format!("> {}", text),
-                    color,
-                ));
                 cursive_flexi_logger_view::push_to_log(StyledString::styled(
                     format!("  Error: {}", e),
                     color,
@@ -877,8 +872,12 @@ impl UI {
     pub fn add_node_event(&self, event: String) {
         let inner = self.inner.borrow();
         let color = *inner.log_colors.get(&Level::Info).unwrap();
+        let mut starting_style: Style = color.into();
         for line in event.lines() {
-            cursive_flexi_logger_view::push_to_log(StyledString::styled(line, color));
+            let (spanned_string, end_style) =
+                cursive::utils::markup::ansi::parse_with_starting_style(starting_style, line);
+            cursive_flexi_logger_view::push_to_log(spanned_string);
+            starting_style = end_style;
         }
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
