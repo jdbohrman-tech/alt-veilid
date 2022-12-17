@@ -1988,7 +1988,6 @@ impl SignedNodeInfo {
             SignedNodeInfo::Relayed(r) => r.timestamp,
         }
     }
-
     pub fn node_info(&self) -> &NodeInfo {
         match self {
             SignedNodeInfo::Direct(d) => &d.node_info,

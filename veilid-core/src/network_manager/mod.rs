@@ -1379,9 +1379,13 @@ impl NetworkManager {
 
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
-                rpc.resolve_node(recipient_id).await.wrap_err(
-                    "failed to resolve recipient node for relay, dropping outbound relayed packet",
-                )?
+                match rpc.resolve_node(recipient_id).await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);
+                        return Ok(false);
+                    }
+                }
             } else {
                 // If this is not a node in the client whitelist, only allow inbound relay
                 // which only performs a lightweight lookup before passing the packet back out
@@ -1396,9 +1400,14 @@ impl NetworkManager {
             if let Some(relay_nr) = some_relay_nr {
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
-                network_result_value_or_log!(self.send_data(relay_nr, data.to_vec())
-                    .await
-                    .wrap_err("failed to forward envelope")? => {
+                network_result_value_or_log!(match self.send_data(relay_nr, data.to_vec())
+                    .await {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log_net!(debug "failed to forward envelope: {}" ,e);
+                            return Ok(false);    
+                        }
+                    } => {
                         return Ok(false);
                     }
                 );
@@ -1411,10 +1420,15 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret();
 
         // Decrypt the envelope body
-        // xxx: punish nodes that send messages that fail to decrypt eventually
-        let body = envelope
-            .decrypt_body(self.crypto(), data, &node_id_secret)
-            .wrap_err("failed to decrypt envelope body")?;
+        let body = match envelope
+            .decrypt_body(self.crypto(), data, &node_id_secret) {
+                Ok(v) => v,
+                Err(e) => {
+                    log_net!(debug "failed to decrypt envelope body: {}",e);
+                    // xxx: punish nodes that send messages that fail to decrypt eventually
+                    return Ok(false);
+                }
+            };
 
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(

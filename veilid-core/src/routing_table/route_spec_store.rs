@@ -646,22 +646,43 @@ impl RouteSpecStore {
                 let v = v.unwrap();
 
                 // Exclude our relay if we have one
-                if let Some(relay_id) = opt_relay_id {
-                    if k == relay_id {
+                if let Some(own_relay_id) = opt_relay_id {
+                    if k == own_relay_id {
                         return false;
                     }
                 }
 
-                // Exclude nodes on our local network
-                let on_local_network = v.with(rti, |_rti, e| {
-                    e.node_info(RoutingDomain::LocalNetwork).is_some()
-                });
-                if on_local_network {
+                // Exclude nodes we have specifically chosen to avoid
+                if avoid_node_ids.contains(&k) {
                     return false;
                 }
 
-                // Exclude nodes we have specifically chosen to avoid
-                if avoid_node_ids.contains(&k) {
+                // Process node info exclusions
+                let keep = v.with(rti, |_rti, e| {
+                    // Exclude nodes on our local network
+                    if e.node_info(RoutingDomain::LocalNetwork).is_some() {
+                        return false;
+                    }
+                    // Exclude nodes that have no publicinternet signednodeinfo
+                    let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) else {    
+                        return false;
+                    };
+                    // Relay check
+                    if let Some(relay_id) = sni.relay_id() {
+                        // Exclude nodes whose relays we have chosen to avoid
+                        if avoid_node_ids.contains(&relay_id.key) {
+                            return false;
+                        }
+                        // Exclude nodes whose relay is our own relay if we have one
+                        if let Some(own_relay_id) = opt_relay_id {
+                            if own_relay_id == relay_id.key {
+                                return false;
+                            }
+                        }
+                    }
+                    return true;
+                });
+                if !keep {
                     return false;
                 }
 
@@ -772,6 +793,22 @@ impl RouteSpecStore {
             // Skip routes we have already seen
             if inner.cache.hop_cache.contains(&cache_key) {
                 return None;
+            }
+
+            // Ensure the route doesn't contain both a node and its relay
+            let mut seen_nodes: HashSet<DHTKey> = HashSet::new();
+            for n in permutation {
+                let node = nodes.get(*n).unwrap();
+                if !seen_nodes.insert(node.node_id.key) {
+                    // Already seen this node, should not be in the route twice
+                    return None;
+                }
+                if let Some(relay_id) = node.signed_node_info.relay_id() {
+                    if !seen_nodes.insert(relay_id.key) {
+                        // Already seen this node, should not be in the route twice
+                        return None;
+                    }
+                }
             }
 
             // Ensure this route is viable by checking that each node can contact the next one
