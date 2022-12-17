@@ -16,7 +16,7 @@ pub fn encode_signed_relayed_node_info(
 
     builder
         .reborrow()
-        .set_timestamp(signed_relayed_node_info.timestamp);
+        .set_timestamp(signed_relayed_node_info.timestamp.into());
 
     let mut sig_builder = builder.reborrow().init_signature();
     encode_signature(&signed_relayed_node_info.signature, &mut sig_builder);
@@ -50,7 +50,7 @@ pub fn decode_signed_relayed_node_info(
         .reborrow()
         .get_signature()
         .map_err(RPCError::protocol)?;
-    let timestamp = reader.reborrow().get_timestamp();
+    let timestamp = reader.reborrow().get_timestamp().into();
 
     let signature = decode_signature(&sig_reader);
 

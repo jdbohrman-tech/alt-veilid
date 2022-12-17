@@ -196,7 +196,6 @@ impl RPCProcessor {
                 &routed_operation.data,
                 sender_id,
             )
-            .map_err(RPCError::protocol)? 
             else {
                 return Ok(NetworkResult::invalid_message("signatures did not validate for private route"));
             };

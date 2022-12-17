@@ -103,7 +103,7 @@ impl TryFrom<String> for AttachmentState {
 pub struct AttachmentManagerInner {
     attachment_machine: CallbackStateMachine<Attachment>,
     maintain_peers: bool,
-    attach_timestamp: Option<u64>,
+    attach_ts: Option<Timestamp>,
     update_callback: Option<UpdateCallback>,
     attachment_maintainer_jh: Option<MustJoinHandle<()>>,
 }
@@ -142,7 +142,7 @@ impl AttachmentManager {
         AttachmentManagerInner {
             attachment_machine: CallbackStateMachine::new(),
             maintain_peers: false,
-            attach_timestamp: None,
+            attach_ts: None,
             update_callback: None,
             attachment_maintainer_jh: None,
         }
@@ -183,8 +183,8 @@ impl AttachmentManager {
         matches!(s, AttachmentState::Detached)
     }
 
-    pub fn get_attach_timestamp(&self) -> Option<u64> {
-        self.inner.lock().attach_timestamp
+    pub fn get_attach_timestamp(&self) -> Option<Timestamp> {
+        self.inner.lock().attach_ts
     }
 
     fn translate_routing_table_health(
@@ -252,7 +252,7 @@ impl AttachmentManager {
     #[instrument(level = "debug", skip(self))]
     async fn attachment_maintainer(self) {
         debug!("attachment starting");
-        self.inner.lock().attach_timestamp = Some(get_timestamp());
+        self.inner.lock().attach_ts = Some(get_aligned_timestamp());
         let netman = self.network_manager();
 
         let mut restart;
@@ -306,7 +306,7 @@ impl AttachmentManager {
             .consume(&AttachmentInput::AttachmentStopped)
             .await;
         debug!("attachment stopped");
-        self.inner.lock().attach_timestamp = None;
+        self.inner.lock().attach_ts = None;
     }
 
     #[instrument(level = "debug", skip_all, err)]

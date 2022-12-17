@@ -13,8 +13,8 @@ pub const ROLLING_TRANSFERS_INTERVAL_SECS: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TransferCount {
-    down: u64,
-    up: u64,
+    down: ByteCount,
+    up: ByteCount,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -31,18 +31,18 @@ impl TransferStatsAccounting {
         }
     }
 
-    pub fn add_down(&mut self, bytes: u64) {
+    pub fn add_down(&mut self, bytes: ByteCount) {
         self.current_transfer.down += bytes;
     }
 
-    pub fn add_up(&mut self, bytes: u64) {
+    pub fn add_up(&mut self, bytes: ByteCount) {
         self.current_transfer.up += bytes;
     }
 
     pub fn roll_transfers(
         &mut self,
-        last_ts: u64,
-        cur_ts: u64,
+        last_ts: Timestamp,
+        cur_ts: Timestamp,
         transfer_stats: &mut TransferStatsDownUp,
     ) {
         let dur_ms = cur_ts.saturating_sub(last_ts) / 1000u64;
@@ -80,7 +80,7 @@ impl TransferStatsAccounting {
 
 #[derive(Debug, Clone, Default)]
 pub struct LatencyStatsAccounting {
-    rolling_latencies: VecDeque<u64>,
+    rolling_latencies: VecDeque<TimestampDuration>,
 }
 
 impl LatencyStatsAccounting {
@@ -90,7 +90,7 @@ impl LatencyStatsAccounting {
         }
     }
 
-    pub fn record_latency(&mut self, latency: u64) -> veilid_api::LatencyStats {
+    pub fn record_latency(&mut self, latency: TimestampDuration) -> veilid_api::LatencyStats {
         while self.rolling_latencies.len() >= ROLLING_LATENCIES_SIZE {
             self.rolling_latencies.pop_front();
         }

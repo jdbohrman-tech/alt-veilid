@@ -72,8 +72,8 @@ impl RoutingTable {
     pub(crate) async fn private_route_management_task_routine(
         self,
         stop_token: StopToken,
-        _last_ts: u64,
-        cur_ts: u64,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
     ) -> EyreResult<()> {
         // Get our node's current node info and network class and do the right thing
         let network_class = self

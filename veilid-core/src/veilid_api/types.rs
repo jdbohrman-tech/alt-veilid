@@ -2,6 +2,20 @@ use super::*;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Microseconds since epoch
+pub type Timestamp = AlignedU64;
+pub fn get_aligned_timestamp() -> Timestamp {
+    get_timestamp().into()
+}
+/// Microseconds duration
+pub type TimestampDuration = AlignedU64;
+/// Request/Response matching id
+pub type OperationId = AlignedU64;
+/// Number of bytes
+pub type ByteCount = AlignedU64;
+/// Tunnel identifier
+pub type TunnelId = AlignedU64;
+
 #[derive(
     Debug,
     Clone,
@@ -113,7 +127,7 @@ pub struct VeilidAppCall {
     pub message: Vec<u8>,
     /// The id to reply to
     #[serde(with = "json_as_string")]
-    pub id: u64,
+    pub id: OperationId,
 }
 
 #[derive(
@@ -141,9 +155,9 @@ pub struct PeerTableData {
 pub struct VeilidStateNetwork {
     pub started: bool,
     #[serde(with = "json_as_string")]
-    pub bps_down: u64,
+    pub bps_down: ByteCount,
     #[serde(with = "json_as_string")]
-    pub bps_up: u64,
+    pub bps_up: ByteCount,
     pub peers: Vec<PeerTableData>,
 }
 
@@ -1801,7 +1815,7 @@ impl MatchesDialInfoFilter for DialInfo {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedDirectNodeInfo {
     pub node_info: NodeInfo,
-    pub timestamp: u64,
+    pub timestamp: Timestamp,
     pub signature: Option<DHTSignature>,
 }
 
@@ -1809,7 +1823,7 @@ impl SignedDirectNodeInfo {
     pub fn new(
         node_id: NodeId,
         node_info: NodeInfo,
-        timestamp: u64,
+        timestamp: Timestamp,
         signature: DHTSignature,
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
@@ -1826,7 +1840,7 @@ impl SignedDirectNodeInfo {
         node_info: NodeInfo,
         secret: &DHTKeySecret,
     ) -> Result<Self, VeilidAPIError> {
-        let timestamp = get_timestamp();
+        let timestamp = get_aligned_timestamp();
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
         let signature = sign(&node_id.key, secret, &node_info_bytes)?;
         Ok(Self {
@@ -1838,7 +1852,7 @@ impl SignedDirectNodeInfo {
 
     fn make_signature_bytes(
         node_info: &NodeInfo,
-        timestamp: u64,
+        timestamp: Timestamp,
     ) -> Result<Vec<u8>, VeilidAPIError> {
         let mut node_info_bytes = Vec::new();
 
@@ -1849,7 +1863,7 @@ impl SignedDirectNodeInfo {
         node_info_bytes.append(&mut builder_to_vec(ni_msg).map_err(VeilidAPIError::internal)?);
 
         // Add timestamp to signature
-        node_info_bytes.append(&mut timestamp.to_le_bytes().to_vec());
+        node_info_bytes.append(&mut timestamp.as_u64().to_le_bytes().to_vec());
 
         Ok(node_info_bytes)
     }
@@ -1858,7 +1872,7 @@ impl SignedDirectNodeInfo {
         Self {
             node_info,
             signature: None,
-            timestamp: get_timestamp(),
+            timestamp: get_aligned_timestamp(),
         }
     }
 
@@ -1874,7 +1888,7 @@ pub struct SignedRelayedNodeInfo {
     pub node_info: NodeInfo,
     pub relay_id: NodeId,
     pub relay_info: SignedDirectNodeInfo,
-    pub timestamp: u64,
+    pub timestamp: Timestamp,
     pub signature: DHTSignature,
 }
 
@@ -1884,7 +1898,7 @@ impl SignedRelayedNodeInfo {
         node_info: NodeInfo,
         relay_id: NodeId,
         relay_info: SignedDirectNodeInfo,
-        timestamp: u64,
+        timestamp: Timestamp,
         signature: DHTSignature,
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes =
@@ -1906,7 +1920,7 @@ impl SignedRelayedNodeInfo {
         relay_info: SignedDirectNodeInfo,
         secret: &DHTKeySecret,
     ) -> Result<Self, VeilidAPIError> {
-        let timestamp = get_timestamp();
+        let timestamp = get_aligned_timestamp();
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_id, &relay_info, timestamp)?;
         let signature = sign(&node_id.key, secret, &node_info_bytes)?;
@@ -1923,7 +1937,7 @@ impl SignedRelayedNodeInfo {
         node_info: &NodeInfo,
         relay_id: &NodeId,
         relay_info: &SignedDirectNodeInfo,
-        timestamp: u64,
+        timestamp: Timestamp,
     ) -> Result<Vec<u8>, VeilidAPIError> {
         let mut sig_bytes = Vec::new();
 
@@ -1968,7 +1982,7 @@ impl SignedNodeInfo {
         }
     }
 
-    pub fn timestamp(&self) -> u64 {
+    pub fn timestamp(&self) -> Timestamp {
         match self {
             SignedNodeInfo::Direct(d) => d.timestamp,
             SignedNodeInfo::Relayed(r) => r.timestamp,
@@ -2201,11 +2215,11 @@ impl MatchesDialInfoFilter for ConnectionDescriptor {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct LatencyStats {
     #[serde(with = "json_as_string")]
-    pub fastest: u64, // fastest latency in the ROLLING_LATENCIES_SIZE last latencies
+    pub fastest: TimestampDuration, // fastest latency in the ROLLING_LATENCIES_SIZE last latencies
     #[serde(with = "json_as_string")]
-    pub average: u64, // average latency over the ROLLING_LATENCIES_SIZE last latencies
+    pub average: TimestampDuration, // average latency over the ROLLING_LATENCIES_SIZE last latencies
     #[serde(with = "json_as_string")]
-    pub slowest: u64, // slowest latency in the ROLLING_LATENCIES_SIZE last latencies
+    pub slowest: TimestampDuration, // slowest latency in the ROLLING_LATENCIES_SIZE last latencies
 }
 
 #[derive(
@@ -2223,13 +2237,13 @@ pub struct LatencyStats {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TransferStats {
     #[serde(with = "json_as_string")]
-    pub total: u64, // total amount transferred ever
+    pub total: ByteCount, // total amount transferred ever
     #[serde(with = "json_as_string")]
-    pub maximum: u64, // maximum rate over the ROLLING_TRANSFERS_SIZE last amounts
+    pub maximum: ByteCount, // maximum rate over the ROLLING_TRANSFERS_SIZE last amounts
     #[serde(with = "json_as_string")]
-    pub average: u64, // average rate over the ROLLING_TRANSFERS_SIZE last amounts
+    pub average: ByteCount, // average rate over the ROLLING_TRANSFERS_SIZE last amounts
     #[serde(with = "json_as_string")]
-    pub minimum: u64, // minimum rate over the ROLLING_TRANSFERS_SIZE last amounts
+    pub minimum: ByteCount, // minimum rate over the ROLLING_TRANSFERS_SIZE last amounts
 }
 
 #[derive(
@@ -2268,11 +2282,11 @@ pub struct RPCStats {
     pub messages_rcvd: u32, // number of rpcs that have been received in the total_time range
     pub questions_in_flight: u32, // number of questions issued that have yet to be answered
     #[serde(with = "opt_json_as_string")]
-    pub last_question: Option<u64>, // when the peer was last questioned (either successfully or not) and we wanted an answer
+    pub last_question_ts: Option<Timestamp>, // when the peer was last questioned (either successfully or not) and we wanted an answer
     #[serde(with = "opt_json_as_string")]
-    pub last_seen_ts: Option<u64>, // when the peer was last seen for any reason, including when we first attempted to reach out to it
+    pub last_seen_ts: Option<Timestamp>, // when the peer was last seen for any reason, including when we first attempted to reach out to it
     #[serde(with = "opt_json_as_string")]
-    pub first_consecutive_seen_ts: Option<u64>, // the timestamp of the first consecutive proof-of-life for this node (an answer or received question)
+    pub first_consecutive_seen_ts: Option<Timestamp>, // the timestamp of the first consecutive proof-of-life for this node (an answer or received question)
     pub recent_lost_answers: u32, // number of answers that have been lost since we lost reliability
     pub failed_to_send: u32, // number of messages that have failed to send since we last successfully sent one
 }
@@ -2292,7 +2306,7 @@ pub struct RPCStats {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerStats {
     #[serde(with = "json_as_string")]
-    pub time_added: u64, // when the peer was added to the routing table
+    pub time_added: Timestamp, // when the peer was added to the routing table
     pub rpc_stats: RPCStats,           // information about RPCs
     pub latency: Option<LatencyStats>, // latencies for communications with the peer
     pub transfer: TransferStatsDownUp, // Stats for communications with the peer
@@ -2362,8 +2376,6 @@ pub enum TunnelError {
     NoCapacity,   // Endpoint is full
 }
 
-pub type TunnelId = u64;
-
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TunnelEndpoint {
@@ -2386,7 +2398,7 @@ impl Default for TunnelEndpoint {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct FullTunnel {
     pub id: TunnelId,
-    pub timeout: u64,
+    pub timeout: TimestampDuration,
     pub local: TunnelEndpoint,
     pub remote: TunnelEndpoint,
 }
@@ -2397,6 +2409,6 @@ pub struct FullTunnel {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PartialTunnel {
     pub id: TunnelId,
-    pub timeout: u64,
+    pub timeout: TimestampDuration,
     pub local: TunnelEndpoint,
 }

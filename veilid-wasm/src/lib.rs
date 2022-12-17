@@ -209,7 +209,7 @@ pub fn startup_veilid_core(update_callback_js: Function, json_config: String) ->
                 match Function::call1(&update_callback_js, &JsValue::UNDEFINED, &to_json(update)) {
                     Ok(v) => v,
                     Err(e) => {
-                        error!("calling update callback failed: {:?}", e);
+                        console_log(&format!("calling update callback failed: {:?}", e));
                         return;
                     }
                 };

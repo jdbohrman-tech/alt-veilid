@@ -6,8 +6,8 @@ impl RoutingTable {
     pub(crate) async fn relay_management_task_routine(
         self,
         _stop_token: StopToken,
-        _last_ts: u64,
-        cur_ts: u64,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
     ) -> EyreResult<()> {
         // Get our node's current node info and network class and do the right thing
         let Some(own_peer_info) = self.get_own_peer_info(RoutingDomain::PublicInternet) else {

@@ -41,7 +41,7 @@ impl ConnectionLimits {
         }
     }
 
-    fn purge_old_timestamps(&mut self, cur_ts: u64) {
+    fn purge_old_timestamps(&mut self, cur_ts: Timestamp) {
         // v4
         {
             let mut dead_keys = Vec::<Ipv4Addr>::new();
@@ -78,7 +78,7 @@ impl ConnectionLimits {
 
     pub fn add(&mut self, addr: IpAddr) -> Result<(), AddressFilterError> {
         let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
-        let ts = get_timestamp();
+        let ts = get_aligned_timestamp();
 
         self.purge_old_timestamps(ts);
 
@@ -134,7 +134,7 @@ impl ConnectionLimits {
     pub fn remove(&mut self, addr: IpAddr) -> Result<(), AddressNotInTableError> {
         let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
 
-        let ts = get_timestamp();
+        let ts = get_aligned_timestamp();
         self.purge_old_timestamps(ts);
 
         match ipblock {

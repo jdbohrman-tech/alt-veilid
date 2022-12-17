@@ -44,7 +44,7 @@ pub struct Envelope {
     version: u8,
     min_version: u8,
     max_version: u8,
-    timestamp: u64,
+    timestamp: Timestamp,
     nonce: EnvelopeNonce,
     sender_id: DHTKey,
     recipient_id: DHTKey,
@@ -53,7 +53,7 @@ pub struct Envelope {
 impl Envelope {
     pub fn new(
         version: u8,
-        timestamp: u64,
+        timestamp: Timestamp,
         nonce: EnvelopeNonce,
         sender_id: DHTKey,
         recipient_id: DHTKey,
@@ -128,11 +128,12 @@ impl Envelope {
         }
 
         // Get the timestamp
-        let timestamp: u64 = u64::from_le_bytes(
+        let timestamp: Timestamp = u64::from_le_bytes(
             data[0x0A..0x12]
                 .try_into()
                 .map_err(VeilidAPIError::internal)?,
-        );
+        )
+        .into();
 
         // Get nonce and sender node id
         let nonce: EnvelopeNonce = data[0x12..0x2A]
@@ -217,7 +218,7 @@ impl Envelope {
         // Write size
         data[0x08..0x0A].copy_from_slice(&(envelope_size as u16).to_le_bytes());
         // Write timestamp
-        data[0x0A..0x12].copy_from_slice(&self.timestamp.to_le_bytes());
+        data[0x0A..0x12].copy_from_slice(&self.timestamp.as_u64().to_le_bytes());
         // Write nonce
         data[0x12..0x2A].copy_from_slice(&self.nonce);
         // Write sender node id
@@ -260,7 +261,7 @@ impl Envelope {
         }
     }
 
-    pub fn get_timestamp(&self) -> u64 {
+    pub fn get_timestamp(&self) -> Timestamp {
         self.timestamp
     }
 

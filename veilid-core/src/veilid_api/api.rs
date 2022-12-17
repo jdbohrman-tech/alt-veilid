@@ -247,7 +247,11 @@ impl VeilidAPI {
     // App Calls
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn app_call_reply(&self, id: u64, message: Vec<u8>) -> Result<(), VeilidAPIError> {
+    pub async fn app_call_reply(
+        &self,
+        id: OperationId,
+        message: Vec<u8>,
+    ) -> Result<(), VeilidAPIError> {
         let rpc_processor = self.rpc_processor()?;
         rpc_processor
             .app_call_reply(id, message)

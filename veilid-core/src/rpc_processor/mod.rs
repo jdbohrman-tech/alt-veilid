@@ -37,8 +37,6 @@ use stop_token::future::FutureExt;
 
 /////////////////////////////////////////////////////////////////////
 
-type OperationId = u64;
-
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailDirect {
     /// The decoded header of the envelope
@@ -82,9 +80,9 @@ enum RPCMessageHeaderDetail {
 #[derive(Debug, Clone)]
 struct RPCMessageHeader {
     /// Time the message was received, not sent
-    timestamp: u64,
+    timestamp: Timestamp,
     /// The length in bytes of the rpc message body
-    body_len: u64,
+    body_len: ByteCount,
     /// The header detail depending on which way the message was received
     detail: RPCMessageHeaderDetail,
 }
@@ -139,9 +137,9 @@ where
 #[derive(Debug)]
 struct WaitableReply {
     handle: OperationWaitHandle<RPCMessage>,
-    timeout: u64,
+    timeout_us: TimestampDuration,
     node_ref: NodeRef,
-    send_ts: u64,
+    send_ts: Timestamp,
     send_data_kind: SendDataKind,
     safety_route: Option<DHTKey>,
     remote_private_route: Option<DHTKey>,
@@ -152,11 +150,11 @@ struct WaitableReply {
 
 #[derive(Clone, Debug, Default)]
 pub struct Answer<T> {
-    pub latency: u64, // how long it took to get this answer
-    pub answer: T,    // the answer itself
+    pub latency: TimestampDuration, // how long it took to get this answer
+    pub answer: T,                  // the answer itself
 }
 impl<T> Answer<T> {
-    pub fn new(latency: u64, answer: T) -> Self {
+    pub fn new(latency: TimestampDuration, answer: T) -> Self {
         Self { latency, answer }
     }
 }
@@ -185,16 +183,16 @@ pub struct SenderSignedNodeInfo {
     /// The current signed node info of the sender if required
     signed_node_info: Option<SignedNodeInfo>,
     /// The last timestamp of the target's node info to assist remote node with sending its latest node info
-    target_node_info_ts: u64,
+    target_node_info_ts: Timestamp,
 }
 impl SenderSignedNodeInfo {
-    pub fn new_no_sni(target_node_info_ts: u64) -> Self {
+    pub fn new_no_sni(target_node_info_ts: Timestamp) -> Self {
         Self {
             signed_node_info: None,
             target_node_info_ts,
         }
     }
-    pub fn new(sender_signed_node_info: SignedNodeInfo, target_node_info_ts: u64) -> Self {
+    pub fn new(sender_signed_node_info: SignedNodeInfo, target_node_info_ts: Timestamp) -> Self {
         Self {
             signed_node_info: Some(sender_signed_node_info),
             target_node_info_ts,
@@ -218,7 +216,7 @@ pub struct RPCProcessorInner {
 }
 
 pub struct RPCProcessorUnlockedInner {
-    timeout: u64,
+    timeout_us: TimestampDuration,
     queue_size: u32,
     concurrency: u32,
     max_route_hop_count: usize,
@@ -267,7 +265,7 @@ impl RPCProcessor {
         let validate_dial_info_receipt_time_ms = c.network.dht.validate_dial_info_receipt_time_ms;
 
         RPCProcessorUnlockedInner {
-            timeout,
+            timeout_us: timeout,
             queue_size,
             concurrency,
             max_route_hop_count,
@@ -445,11 +443,11 @@ impl RPCProcessor {
     async fn wait_for_reply(
         &self,
         waitable_reply: WaitableReply,
-    ) -> Result<TimeoutOr<(RPCMessage, u64)>, RPCError> {
+    ) -> Result<TimeoutOr<(RPCMessage, TimestampDuration)>, RPCError> {
         let out = self
             .unlocked_inner
             .waiting_rpc_table
-            .wait_for_op(waitable_reply.handle, waitable_reply.timeout)
+            .wait_for_op(waitable_reply.handle, waitable_reply.timeout_us)
             .await;
         match &out {
             Err(_) | Ok(TimeoutOr::Timeout) => {
@@ -463,7 +461,7 @@ impl RPCProcessor {
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
                 // Reply received
-                let recv_ts = get_timestamp();
+                let recv_ts = get_aligned_timestamp();
 
                 // Record answer received
                 self.record_answer_received(
@@ -759,7 +757,7 @@ impl RPCProcessor {
     fn record_send_failure(
         &self,
         rpc_kind: RPCKind,
-        send_ts: u64,
+        send_ts: Timestamp,
         node_ref: NodeRef,
         safety_route: Option<DHTKey>,
         remote_private_route: Option<DHTKey>,
@@ -788,7 +786,7 @@ impl RPCProcessor {
     /// Record question lost to node or route
     fn record_question_lost(
         &self,
-        send_ts: u64,
+        send_ts: Timestamp,
         node_ref: NodeRef,
         safety_route: Option<DHTKey>,
         remote_private_route: Option<DHTKey>,
@@ -827,8 +825,8 @@ impl RPCProcessor {
     fn record_send_success(
         &self,
         rpc_kind: RPCKind,
-        send_ts: u64,
-        bytes: u64,
+        send_ts: Timestamp,
+        bytes: ByteCount,
         node_ref: NodeRef,
         safety_route: Option<DHTKey>,
         remote_private_route: Option<DHTKey>,
@@ -863,9 +861,9 @@ impl RPCProcessor {
     /// Record answer received from node or route
     fn record_answer_received(
         &self,
-        send_ts: u64,
-        recv_ts: u64,
-        bytes: u64,
+        send_ts: Timestamp,
+        recv_ts: Timestamp,
+        bytes: ByteCount,
         node_ref: NodeRef,
         safety_route: Option<DHTKey>,
         remote_private_route: Option<DHTKey>,
@@ -1004,7 +1002,7 @@ impl RPCProcessor {
         let op_id = operation.op_id();
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "question", op_id, desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1019,14 +1017,14 @@ impl RPCProcessor {
 
         // Calculate answer timeout
         // Timeout is number of hops times the timeout per hop
-        let timeout = self.unlocked_inner.timeout * (hop_count as u64);
+        let timeout_us = self.unlocked_inner.timeout_us * (hop_count as u64);
 
         // Set up op id eventual
         let handle = self.unlocked_inner.waiting_rpc_table.add_op_waiter(op_id);
 
         // Send question
-        let bytes = message.len() as u64;
-        let send_ts = get_timestamp();
+        let bytes: ByteCount = (message.len() as u64).into();
+        let send_ts = get_aligned_timestamp();
         let send_data_kind = network_result_try!(self
             .network_manager()
             .send_envelope(node_ref.clone(), Some(node_id), message)
@@ -1054,7 +1052,7 @@ impl RPCProcessor {
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
             handle,
-            timeout,
+            timeout_us,
             node_ref,
             send_ts,
             send_data_kind,
@@ -1078,7 +1076,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_statement(statement, ssni);
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1092,8 +1090,8 @@ impl RPCProcessor {
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send statement
-        let bytes = message.len() as u64;
-        let send_ts = get_timestamp();
+        let bytes: ByteCount = (message.len() as u64).into();
+        let send_ts = get_aligned_timestamp();
         let _send_data_kind = network_result_try!(self
             .network_manager()
             .send_envelope(node_ref.clone(), Some(node_id), message)
@@ -1139,7 +1137,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_answer(&request.operation, answer, ssni);
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id(), desc = operation.kind().desc(), ?dest);
+        trace!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1153,8 +1151,8 @@ impl RPCProcessor {
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send the reply
-        let bytes = message.len() as u64;
-        let send_ts = get_timestamp();
+        let bytes: ByteCount = (message.len() as u64).into();
+        let send_ts = get_aligned_timestamp();
         network_result_try!(self.network_manager()
             .send_envelope(node_ref.clone(), Some(node_id), message)
             .await
@@ -1284,7 +1282,7 @@ impl RPCProcessor {
         };
 
         // Log rpc receive
-        trace!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id(), desc = msg.operation.kind().desc(), header = ?msg.header);
+        trace!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);
 
         // Process specific message kind
         match msg.operation.kind() {
@@ -1366,7 +1364,7 @@ impl RPCProcessor {
                     connection_descriptor,
                     routing_domain,
                 }),
-                timestamp: get_timestamp(),
+                timestamp: get_aligned_timestamp(),
                 body_len: body.len() as u64,
             },
             data: RPCMessageData { contents: body },
@@ -1395,8 +1393,8 @@ impl RPCProcessor {
                     remote_safety_route,
                     sequencing,
                 }),
-                timestamp: get_timestamp(),
-                body_len: body.len() as u64,
+                timestamp: get_aligned_timestamp(),
+                body_len: (body.len() as u64).into(),
             },
             data: RPCMessageData { contents: body },
         };
@@ -1428,8 +1426,8 @@ impl RPCProcessor {
                         safety_spec,
                     },
                 ),
-                timestamp: get_timestamp(),
-                body_len: body.len() as u64,
+                timestamp: get_aligned_timestamp(),
+                body_len: (body.len() as u64).into(),
             },
             data: RPCMessageData { contents: body },
         };

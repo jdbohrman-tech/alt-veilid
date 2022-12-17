@@ -78,19 +78,19 @@ enum RecvLoopAction {
 
 #[derive(Debug, Clone)]
 pub struct NetworkConnectionStats {
-    last_message_sent_time: Option<u64>,
-    last_message_recv_time: Option<u64>,
+    last_message_sent_time: Option<Timestamp>,
+    last_message_recv_time: Option<Timestamp>,
 }
 
 
-pub type NetworkConnectionId = u64;
+pub type NetworkConnectionId = AlignedU64;
 
 #[derive(Debug)]
 pub struct NetworkConnection {
     connection_id: NetworkConnectionId,
     descriptor: ConnectionDescriptor,
     processor: Option<MustJoinHandle<()>>,
-    established_time: u64,
+    established_time: Timestamp,
     stats: Arc<Mutex<NetworkConnectionStats>>,
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
@@ -105,7 +105,7 @@ impl NetworkConnection {
             connection_id: id,
             descriptor,
             processor: None,
-            established_time: get_timestamp(),
+            established_time: get_aligned_timestamp(),
             stats: Arc::new(Mutex::new(NetworkConnectionStats {
                 last_message_sent_time: None,
                 last_message_recv_time: None,
@@ -153,7 +153,7 @@ impl NetworkConnection {
             connection_id,
             descriptor,
             processor: Some(processor),
-            established_time: get_timestamp(),
+            established_time: get_aligned_timestamp(),
             stats,
             sender,
             stop_source: Some(stop_source),
@@ -185,7 +185,7 @@ impl NetworkConnection {
         stats: Arc<Mutex<NetworkConnectionStats>>,
         message: Vec<u8>,
     ) -> io::Result<NetworkResult<()>> {
-        let ts = get_timestamp();
+        let ts = get_aligned_timestamp();
         let out = network_result_try!(protocol_connection.send(message).await?);
 
         let mut stats = stats.lock();
@@ -199,7 +199,7 @@ impl NetworkConnection {
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
     ) -> io::Result<NetworkResult<Vec<u8>>> {
-        let ts = get_timestamp();
+        let ts = get_aligned_timestamp();
         let out = network_result_try!(protocol_connection.recv().await?);
 
         let mut stats = stats.lock();
@@ -217,7 +217,7 @@ impl NetworkConnection {
     }
 
     #[allow(dead_code)]
-    pub fn established_time(&self) -> u64 {
+    pub fn established_time(&self) -> Timestamp {
         self.established_time
     }
 

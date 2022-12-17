@@ -7,8 +7,8 @@ impl RoutingTable {
     pub(crate) async fn kick_buckets_task_routine(
         self,
         _stop_token: StopToken,
-        _last_ts: u64,
-        cur_ts: u64,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
     ) -> EyreResult<()> {
         let kick_queue: Vec<usize> = core::mem::take(&mut *self.unlocked_inner.kick_queue.lock())
             .into_iter()

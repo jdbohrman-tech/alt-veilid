@@ -10,7 +10,7 @@ impl RoutingTable {
     #[instrument(level = "trace", skip(self), err)]
     fn ping_validator_public_internet(
         &self,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         unord: &mut FuturesUnordered<
             SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
         >,

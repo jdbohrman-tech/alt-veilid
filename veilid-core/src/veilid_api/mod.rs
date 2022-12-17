@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod aligned_u64;
 mod api;
 mod debug;
 mod error;
@@ -7,6 +8,7 @@ mod routing_context;
 mod serialize_helpers;
 mod types;
 
+pub use aligned_u64::*;
 pub use api::*;
 pub use debug::*;
 pub use error::*;

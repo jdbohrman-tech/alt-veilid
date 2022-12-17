@@ -227,7 +227,7 @@ impl RoutingTableInner {
     }
 
     pub fn reset_all_updated_since_last_network_change(&mut self) {
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
             v.with_mut(rti, |_rti, e| {
                 e.set_updated_since_last_network_change(false)
@@ -347,7 +347,7 @@ impl RoutingTableInner {
 
         // If the local network topology has changed, nuke the existing local node info and let new local discovery happen
         if changed {
-            let cur_ts = get_timestamp();
+            let cur_ts = get_aligned_timestamp();
             self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, e| {
                 e.with_mut(rti, |_rti, e| {
                     e.clear_signed_node_info(RoutingDomain::LocalNetwork);
@@ -426,7 +426,7 @@ impl RoutingTableInner {
         min_state: BucketEntryState,
     ) -> usize {
         let mut count = 0usize;
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         self.with_entries(cur_ts, min_state, |rti, _, e| {
             if e.with(rti, |rti, e| e.best_routing_domain(rti, routing_domain_set))
                 .is_some()
@@ -466,7 +466,7 @@ impl RoutingTableInner {
         F: FnMut(&mut RoutingTableInner, DHTKey, Arc<BucketEntry>) -> Option<T>,
     >(
         &mut self,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
@@ -491,7 +491,7 @@ impl RoutingTableInner {
         &self,
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
-        cur_ts: u64,
+        cur_ts: Timestamp,
     ) -> Vec<NodeRef> {
         // Collect relay nodes
         let opt_relay_id = self.with_routing_domain(routing_domain, |rd| {
@@ -531,7 +531,7 @@ impl RoutingTableInner {
         node_refs
     }
 
-    pub fn get_all_nodes(&self, outer_self: RoutingTable, cur_ts: u64) -> Vec<NodeRef> {
+    pub fn get_all_nodes(&self, outer_self: RoutingTable, cur_ts: Timestamp) -> Vec<NodeRef> {
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |_rti, k, v| {
             node_refs.push(NodeRef::new(outer_self.clone(), k, v, None));
@@ -700,7 +700,7 @@ impl RoutingTableInner {
         outer_self: RoutingTable,
         node_id: DHTKey,
         descriptor: ConnectionDescriptor,
-        timestamp: u64,
+        timestamp: Timestamp,
     ) -> Option<NodeRef> {
         let out = self.create_node_ref(outer_self, node_id, |_rti, e| {
             // this node is live because it literally just connected to us
@@ -719,7 +719,7 @@ impl RoutingTableInner {
 
     pub fn get_routing_table_health(&self) -> RoutingTableHealth {
         let mut health = RoutingTableHealth::default();
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         for bucket in &self.buckets {
             for (_, v) in bucket.entries() {
                 match v.with(self, |_rti, e| e.state(cur_ts)) {
@@ -876,7 +876,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
 
         // Add filter to remove dead nodes always
         let filter_dead = Box::new(
@@ -961,7 +961,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         let node_count = {
             let config = self.config();
             let c = config.get();

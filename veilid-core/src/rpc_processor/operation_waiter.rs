@@ -104,9 +104,9 @@ where
     pub async fn wait_for_op(
         &self,
         mut handle: OperationWaitHandle<T>,
-        timeout_us: u64,
-    ) -> Result<TimeoutOr<(T, u64)>, RPCError> {
-        let timeout_ms = u32::try_from(timeout_us / 1000u64)
+        timeout_us: TimestampDuration,
+    ) -> Result<TimeoutOr<(T, TimestampDuration)>, RPCError> {
+        let timeout_ms = u32::try_from(timeout_us.as_u64() / 1000u64)
             .map_err(|e| RPCError::map_internal("invalid timeout")(e))?;
 
         // Take the instance
@@ -114,7 +114,7 @@ where
         let eventual_instance = handle.eventual_instance.take().unwrap();
 
         // wait for eventualvalue
-        let start_ts = get_timestamp();
+        let start_ts = get_aligned_timestamp();
         let res = timeout(timeout_ms, eventual_instance)
             .await
             .into_timeout_or();
@@ -125,7 +125,7 @@ where
             })
             .map(|res| {
                 let (_span_id, ret) = res.take_value().unwrap();
-                let end_ts = get_timestamp();
+                let end_ts = get_aligned_timestamp();
 
                 //xxx: causes crash (Missing otel data span extensions)
                 // Span::current().follows_from(span_id);

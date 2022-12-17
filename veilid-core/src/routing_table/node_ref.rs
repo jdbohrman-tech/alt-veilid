@@ -119,7 +119,7 @@ pub trait NodeRefBase: Sized {
     fn set_min_max_version(&self, min_max_version: VersionRange) {
         self.operate_mut(|_rti, e| e.set_min_max_version(min_max_version))
     }
-    fn state(&self, cur_ts: u64) -> BucketEntryState {
+    fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         self.operate(|_rti, e| e.state(cur_ts))
     }
     fn peer_stats(&self) -> PeerStats {
@@ -140,21 +140,21 @@ pub trait NodeRefBase: Sized {
                 .unwrap_or(false)
         })
     }
-    fn node_info_ts(&self, routing_domain: RoutingDomain) -> u64 {
+    fn node_info_ts(&self, routing_domain: RoutingDomain) -> Timestamp {
         self.operate(|_rti, e| {
             e.signed_node_info(routing_domain)
                 .map(|sni| sni.timestamp())
-                .unwrap_or(0u64)
+                .unwrap_or(0u64.into())
         })
     }
     fn has_seen_our_node_info_ts(
         &self,
         routing_domain: RoutingDomain,
-        our_node_info_ts: u64,
+        our_node_info_ts: Timestamp,
     ) -> bool {
         self.operate(|_rti, e| e.has_seen_our_node_info_ts(routing_domain, our_node_info_ts))
     }
-    fn set_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: u64) {
+    fn set_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
         self.operate_mut(|_rti, e| e.set_our_node_info_ts(routing_domain, seen_ts));
     }
     fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
@@ -277,7 +277,7 @@ pub trait NodeRefBase: Sized {
         self.operate_mut(|_rti, e| e.clear_last_connections())
     }
 
-    fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: u64) {
+    fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: Timestamp) {
         self.operate_mut(|rti, e| {
             e.set_last_connection(connection_descriptor, ts);
             rti.touch_recent_peer(self.common().node_id, connection_descriptor);
@@ -297,25 +297,25 @@ pub trait NodeRefBase: Sized {
         })
     }
 
-    fn stats_question_sent(&self, ts: u64, bytes: u64, expects_answer: bool) {
+    fn stats_question_sent(&self, ts: Timestamp, bytes: Timestamp, expects_answer: bool) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_up(bytes);
             e.question_sent(ts, bytes, expects_answer);
         })
     }
-    fn stats_question_rcvd(&self, ts: u64, bytes: u64) {
+    fn stats_question_rcvd(&self, ts: Timestamp, bytes: ByteCount) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_down(bytes);
             e.question_rcvd(ts, bytes);
         })
     }
-    fn stats_answer_sent(&self, bytes: u64) {
+    fn stats_answer_sent(&self, bytes: ByteCount) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_up(bytes);
             e.answer_sent(bytes);
         })
     }
-    fn stats_answer_rcvd(&self, send_ts: u64, recv_ts: u64, bytes: u64) {
+    fn stats_answer_rcvd(&self, send_ts: Timestamp, recv_ts: Timestamp, bytes: ByteCount) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_down(bytes);
             rti.latency_stats_accounting()
@@ -328,7 +328,7 @@ pub trait NodeRefBase: Sized {
             e.question_lost();
         })
     }
-    fn stats_failed_to_send(&self, ts: u64, expects_answer: bool) {
+    fn stats_failed_to_send(&self, ts: Timestamp, expects_answer: bool) {
         self.operate_mut(|_rti, e| {
             e.failed_to_send(ts, expects_answer);
         })

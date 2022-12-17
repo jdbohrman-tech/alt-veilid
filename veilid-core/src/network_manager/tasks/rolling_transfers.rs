@@ -6,8 +6,8 @@ impl NetworkManager {
     pub(crate) async fn rolling_transfers_task_routine(
         self,
         _stop_token: StopToken,
-        last_ts: u64,
-        cur_ts: u64,
+        last_ts: Timestamp,
+        cur_ts: Timestamp,
     ) -> EyreResult<()> {
         // log_net!("--- network manager rolling_transfers task");
         {

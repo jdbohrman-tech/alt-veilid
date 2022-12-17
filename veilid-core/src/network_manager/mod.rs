@@ -67,7 +67,7 @@ struct NetworkComponents {
 // Statistics per address
 #[derive(Clone, Default)]
 pub struct PerAddressStats {
-    last_seen_ts: u64,
+    last_seen_ts: Timestamp,
     transfer_stats_accounting: TransferStatsAccounting,
     transfer_stats: TransferStatsDownUp,
 }
@@ -99,7 +99,7 @@ impl Default for NetworkManagerStats {
 
 #[derive(Debug)]
 struct ClientWhitelistEntry {
-    last_seen_ts: u64,
+    last_seen_ts: Timestamp,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -400,11 +400,11 @@ impl NetworkManager {
         let mut inner = self.inner.lock();
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = get_timestamp()
+                entry.get_mut().last_seen_ts = get_aligned_timestamp()
             }
             hashlink::lru_cache::Entry::Vacant(entry) => {
                 entry.insert(ClientWhitelistEntry {
-                    last_seen_ts: get_timestamp(),
+                    last_seen_ts: get_aligned_timestamp(),
                 });
             }
         }
@@ -416,7 +416,7 @@ impl NetworkManager {
 
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = get_timestamp();
+                entry.get_mut().last_seen_ts = get_aligned_timestamp();
                 true
             }
             hashlink::lru_cache::Entry::Vacant(_) => false,
@@ -426,7 +426,7 @@ impl NetworkManager {
     pub fn purge_client_whitelist(&self) {
         let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
         let mut inner = self.inner.lock();
-        let cutoff_timestamp = get_timestamp() - ((timeout_ms as u64) * 1000u64);
+        let cutoff_timestamp = get_aligned_timestamp() - ((timeout_ms as u64) * 1000u64);
         // Remove clients from the whitelist that haven't been since since our whitelist timeout
         while inner
             .client_whitelist
@@ -526,7 +526,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = get_timestamp() + expiration_us;
+        let exp_ts = get_aligned_timestamp() + expiration_us;
         receipt_manager.record_receipt(receipt, exp_ts, expected_returns, callback);
 
         Ok(out)
@@ -550,7 +550,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = get_timestamp() + expiration_us;
+        let exp_ts = get_aligned_timestamp() + expiration_us;
         let eventual = SingleShotEventual::new(Some(ReceiptEvent::Cancelled));
         let instance = eventual.instance();
         receipt_manager.record_single_shot_receipt(receipt, exp_ts, eventual);
@@ -717,7 +717,7 @@ impl NetworkManager {
                 // XXX: do we need a delay here? or another hole punch packet?
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
-                peer_nr.set_last_connection(connection_descriptor, get_timestamp());
+                peer_nr.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
                 // Return the receipt using the same dial info send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -741,7 +741,7 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret();
 
         // Get timestamp, nonce
-        let ts = get_timestamp();
+        let ts = get_aligned_timestamp();
         let nonce = Crypto::get_random_nonce();
 
         // Encode envelope
@@ -1136,7 +1136,7 @@ impl NetworkManager {
                             // );
 
                             // Update timestamp for this last connection since we just sent to it
-                            node_ref.set_last_connection(connection_descriptor, get_timestamp());
+                            node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
                             return Ok(NetworkResult::value(SendDataKind::Existing(
                                 connection_descriptor,
@@ -1168,7 +1168,7 @@ impl NetworkManager {
                             this.net().send_data_to_dial_info(dial_info, data).await?
                         );
                         // If we connected to this node directly, save off the last connection so we can use it again
-                        node_ref.set_last_connection(connection_descriptor, get_timestamp());
+                        node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
                         Ok(NetworkResult::value(SendDataKind::Direct(
                             connection_descriptor,
@@ -1337,28 +1337,28 @@ impl NetworkManager {
         // Get timestamp range
         let (tsbehind, tsahead) = self.with_config(|c| {
             (
-                c.network.rpc.max_timestamp_behind_ms.map(ms_to_us),
-                c.network.rpc.max_timestamp_ahead_ms.map(ms_to_us),
+                c.network.rpc.max_timestamp_behind_ms.map(ms_to_us).map(TimestampDuration::new),
+                c.network.rpc.max_timestamp_ahead_ms.map(ms_to_us).map(TimestampDuration::new),
             )
         });
 
         // Validate timestamp isn't too old
-        let ts = get_timestamp();
+        let ts = get_aligned_timestamp();
         let ets = envelope.get_timestamp();
         if let Some(tsbehind) = tsbehind {
-            if tsbehind > 0 && (ts > ets && ts.saturating_sub(ets) > tsbehind) {
+            if tsbehind.as_u64() != 0 && (ts > ets && ts.saturating_sub(ets) > tsbehind) {
                 log_net!(debug
                     "envelope time was too far in the past: {}ms ",
-                    timestamp_to_secs(ts.saturating_sub(ets)) * 1000f64
+                    timestamp_to_secs(ts.saturating_sub(ets).as_u64()) * 1000f64
                 );
                 return Ok(false);
             }
         }
         if let Some(tsahead) = tsahead {
-            if tsahead > 0 && (ts < ets && ets.saturating_sub(ts) > tsahead) {
+            if tsahead.as_u64() != 0 && (ts < ets && ets.saturating_sub(ts) > tsahead) {
                 log_net!(debug
                     "envelope time was too far in the future: {}ms",
-                    timestamp_to_secs(ets.saturating_sub(ts)) * 1000f64
+                    timestamp_to_secs(ets.saturating_sub(ts).as_u64()) * 1000f64
                 );
                 return Ok(false);
             }
@@ -1497,8 +1497,8 @@ impl NetworkManager {
         if !has_state {
             return VeilidStateNetwork {
                 started: false,
-                bps_down: 0,
-                bps_up: 0,
+                bps_down: 0.into(),
+                bps_up: 0.into(),
                 peers: Vec::new(),
             };
         }
@@ -1650,7 +1650,7 @@ impl NetworkManager {
                 // public dialinfo
                 let inconsistent = if inconsistencies.len() >= PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT
                 {
-                    let exp_ts = get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
+                    let exp_ts = get_aligned_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
                     for i in &inconsistencies {
                         pait.insert(*i, exp_ts);
                     }
@@ -1664,7 +1664,7 @@ impl NetworkManager {
                             .entry(key)
                             .or_insert_with(|| HashMap::new());
                         let exp_ts =
-                            get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
+                            get_aligned_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
                         for i in inconsistencies {
                             pait.insert(i, exp_ts);
                         }

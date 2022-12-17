@@ -70,7 +70,7 @@ impl fmt::Debug for ReceiptRecordCallbackType {
 }
 
 pub struct ReceiptRecord {
-    expiration_ts: u64,
+    expiration_ts: Timestamp,
     receipt: Receipt,
     expected_returns: u32,
     returns_so_far: u32,
@@ -92,7 +92,7 @@ impl fmt::Debug for ReceiptRecord {
 impl ReceiptRecord {
     pub fn new(
         receipt: Receipt,
-        expiration_ts: u64,
+        expiration_ts: Timestamp,
         expected_returns: u32,
         receipt_callback: impl ReceiptCallback,
     ) -> Self {
@@ -107,7 +107,7 @@ impl ReceiptRecord {
 
     pub fn new_single_shot(
         receipt: Receipt,
-        expiration_ts: u64,
+        expiration_ts: Timestamp,
         eventual: ReceiptSingleShotType,
     ) -> Self {
         Self {
@@ -123,7 +123,7 @@ impl ReceiptRecord {
 /* XXX: may be useful for O(1) timestamp expiration
 #[derive(Clone, Debug)]
 struct ReceiptRecordTimestampSort {
-    expiration_ts: u64,
+    expiration_ts: Timestamp,
     record: Arc<Mutex<ReceiptRecord>>,
 }
 
@@ -150,7 +150,7 @@ impl PartialOrd for ReceiptRecordTimestampSort {
 pub struct ReceiptManagerInner {
     network_manager: NetworkManager,
     records_by_nonce: BTreeMap<ReceiptNonce, Arc<Mutex<ReceiptRecord>>>,
-    next_oldest_ts: Option<u64>,
+    next_oldest_ts: Option<Timestamp>,
     stop_source: Option<StopSource>,
     timeout_task: MustJoinSingleFuture<()>,
 }
@@ -219,9 +219,9 @@ impl ReceiptManager {
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn timeout_task_routine(self, now: u64, stop_token: StopToken) {
+    pub async fn timeout_task_routine(self, now: Timestamp, stop_token: StopToken) {
         // Go through all receipts and build a list of expired nonces
-        let mut new_next_oldest_ts: Option<u64> = None;
+        let mut new_next_oldest_ts: Option<Timestamp> = None;
         let mut expired_records = Vec::new();
         {
             let mut inner = self.inner.lock();
@@ -280,7 +280,7 @@ impl ReceiptManager {
             };
             (inner.next_oldest_ts, inner.timeout_task.clone(), stop_token)
         };
-        let now = get_timestamp();
+        let now = get_aligned_timestamp();
         // If we have at least one timestamp to expire, lets do it
         if let Some(next_oldest_ts) = next_oldest_ts {
             if now >= next_oldest_ts {
@@ -318,7 +318,7 @@ impl ReceiptManager {
     pub fn record_receipt(
         &self,
         receipt: Receipt,
-        expiration: u64,
+        expiration: Timestamp,
         expected_returns: u32,
         callback: impl ReceiptCallback,
     ) {
@@ -339,7 +339,7 @@ impl ReceiptManager {
     pub fn record_single_shot_receipt(
         &self,
         receipt: Receipt,
-        expiration: u64,
+        expiration: Timestamp,
         eventual: ReceiptSingleShotType,
     ) {
         let receipt_nonce = receipt.get_nonce();
@@ -356,7 +356,7 @@ impl ReceiptManager {
 
     fn update_next_oldest_timestamp(inner: &mut ReceiptManagerInner) {
         // Update the next oldest timestamp
-        let mut new_next_oldest_ts: Option<u64> = None;
+        let mut new_next_oldest_ts: Option<Timestamp> = None;
         for v in inner.records_by_nonce.values() {
             let receipt_inner = v.lock();
             if new_next_oldest_ts.is_none()

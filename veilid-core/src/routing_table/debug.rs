@@ -104,7 +104,7 @@ impl RoutingTable {
     pub(crate) fn debug_info_entries(&self, limit: usize, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
 
         let mut out = String::new();
 
@@ -164,7 +164,7 @@ impl RoutingTable {
     pub(crate) fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
 
         let mut out = String::new();
         const COLS: usize = 16;

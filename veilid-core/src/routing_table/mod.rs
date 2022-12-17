@@ -468,14 +468,14 @@ impl RoutingTable {
     pub fn get_nodes_needing_ping(
         &self,
         routing_domain: RoutingDomain,
-        cur_ts: u64,
+        cur_ts: Timestamp,
     ) -> Vec<NodeRef> {
         self.inner
             .read()
             .get_nodes_needing_ping(self.clone(), routing_domain, cur_ts)
     }
 
-    pub fn get_all_nodes(&self, cur_ts: u64) -> Vec<NodeRef> {
+    pub fn get_all_nodes(&self, cur_ts: Timestamp) -> Vec<NodeRef> {
         let inner = self.inner.read();
         inner.get_all_nodes(self.clone(), cur_ts)
     }
@@ -542,7 +542,7 @@ impl RoutingTable {
         &self,
         node_id: DHTKey,
         descriptor: ConnectionDescriptor,
-        timestamp: u64,
+        timestamp: Timestamp,
     ) -> Option<NodeRef> {
         self.inner.write().register_node_with_existing_connection(
             self.clone(),
@@ -774,7 +774,7 @@ impl RoutingTable {
     pub fn find_peers_with_sort_and_filter<C, T, O>(
         &self,
         node_count: usize,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         filters: VecDeque<RoutingTableEntryFilter>,
         compare: C,
         transform: T,
@@ -969,7 +969,7 @@ impl RoutingTable {
     pub fn find_inbound_relay(
         &self,
         routing_domain: RoutingDomain,
-        cur_ts: u64,
+        cur_ts: Timestamp,
     ) -> Option<NodeRef> {
         // Get relay filter function
         let relay_node_filter = match routing_domain {

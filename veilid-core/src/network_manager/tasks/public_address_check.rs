@@ -6,8 +6,8 @@ impl NetworkManager {
     pub(crate) async fn public_address_check_task_routine(
         self,
         stop_token: StopToken,
-        _last_ts: u64,
-        cur_ts: u64,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
     ) -> EyreResult<()> {
         // go through public_address_inconsistencies_table and time out things that have expired
         let mut inner = self.inner.lock();

@@ -51,7 +51,7 @@ pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
     /// The last node info timestamp of ours that this entry has seen
-    last_seen_our_node_info_ts: u64,
+    last_seen_our_node_info_ts: Timestamp,
     /// Last known node status
     node_status: Option<PublicInternetNodeStatus>,
 }
@@ -63,7 +63,7 @@ pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
     /// The last node info timestamp of ours that this entry has seen
-    last_seen_our_node_info_ts: u64,
+    last_seen_our_node_info_ts: Timestamp,
     /// Last known node status
     node_status: Option<LocalNetworkNodeStatus>,
 }
@@ -93,7 +93,7 @@ pub struct BucketEntryInner {
     updated_since_last_network_change: bool,
     /// The last connection descriptors used to contact this node, per protocol type
     #[with(Skip)]
-    last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
+    last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, Timestamp)>,
     /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
     /// The node info for this entry on the localnetwork routing domain
@@ -148,7 +148,7 @@ impl BucketEntryInner {
     }
 
     // Less is more reliable then faster
-    pub fn cmp_fastest_reliable(cur_ts: u64, e1: &Self, e2: &Self) -> std::cmp::Ordering {
+    pub fn cmp_fastest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
         let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
         if ret != std::cmp::Ordering::Equal {
@@ -170,7 +170,7 @@ impl BucketEntryInner {
     }
 
     // Less is more reliable then older
-    pub fn cmp_oldest_reliable(cur_ts: u64, e1: &Self, e2: &Self) -> std::cmp::Ordering {
+    pub fn cmp_oldest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
         let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
         if ret != std::cmp::Ordering::Equal {
@@ -191,7 +191,7 @@ impl BucketEntryInner {
         }
     }
 
-    pub fn sort_fastest_reliable_fn(cur_ts: u64) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
+    pub fn sort_fastest_reliable_fn(cur_ts: Timestamp) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
@@ -231,7 +231,7 @@ impl BucketEntryInner {
                         // No need to update the signednodeinfo though since the timestamp is the same
                         // Touch the node and let it try to live again
                         self.updated_since_last_network_change = true;
-                        self.touch_last_seen(get_timestamp());
+                        self.touch_last_seen(get_aligned_timestamp());
                     }
                     return;
                 }
@@ -258,7 +258,7 @@ impl BucketEntryInner {
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
         self.updated_since_last_network_change = true;
-        self.touch_last_seen(get_timestamp());
+        self.touch_last_seen(get_aligned_timestamp());
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
@@ -367,7 +367,7 @@ impl BucketEntryInner {
     }
 
     // Stores a connection descriptor in this entry's table of last connections
-    pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: u64) {
+    pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: Timestamp) {
         let key = self.descriptor_to_key(last_connection);
         self.last_connections
             .insert(key, (last_connection, timestamp));
@@ -431,7 +431,7 @@ impl BucketEntryInner {
                     } else {
                         // If this is not connection oriented, then we check our last seen time
                         // to see if this mapping has expired (beyond our timeout)
-                        let cur_ts = get_timestamp();
+                        let cur_ts = get_aligned_timestamp();
                         (v.1 + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts
                     };
 
@@ -455,7 +455,7 @@ impl BucketEntryInner {
         self.min_max_version
     }
 
-    pub fn state(&self, cur_ts: u64) -> BucketEntryState {
+    pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         if self.check_reliable(cur_ts) {
             BucketEntryState::Reliable
         } else if self.check_dead(cur_ts) {
@@ -494,7 +494,7 @@ impl BucketEntryInner {
         }
     }
 
-    pub fn set_our_node_info_ts(&mut self, routing_domain: RoutingDomain, seen_ts: u64) {
+    pub fn set_our_node_info_ts(&mut self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
         match routing_domain {
             RoutingDomain::LocalNetwork => {
                 self.local_network.last_seen_our_node_info_ts = seen_ts;
@@ -508,7 +508,7 @@ impl BucketEntryInner {
     pub fn has_seen_our_node_info_ts(
         &self,
         routing_domain: RoutingDomain,
-        our_node_info_ts: u64,
+        our_node_info_ts: Timestamp,
     ) -> bool {
         match routing_domain {
             RoutingDomain::LocalNetwork => {
@@ -530,7 +530,7 @@ impl BucketEntryInner {
 
     ///// stats methods
     // called every ROLLING_TRANSFERS_INTERVAL_SECS seconds
-    pub(super) fn roll_transfers(&mut self, last_ts: u64, cur_ts: u64) {
+    pub(super) fn roll_transfers(&mut self, last_ts: Timestamp, cur_ts: Timestamp) {
         self.transfer_stats_accounting.roll_transfers(
             last_ts,
             cur_ts,
@@ -539,12 +539,12 @@ impl BucketEntryInner {
     }
 
     // Called for every round trip packet we receive
-    fn record_latency(&mut self, latency: u64) {
+    fn record_latency(&mut self, latency: TimestampDuration) {
         self.peer_stats.latency = Some(self.latency_stats_accounting.record_latency(latency));
     }
 
     ///// state machine handling
-    pub(super) fn check_reliable(&self, cur_ts: u64) -> bool {
+    pub(super) fn check_reliable(&self, cur_ts: Timestamp) -> bool {
         // If we have had any failures to send, this is not reliable
         if self.peer_stats.rpc_stats.failed_to_send > 0 {
             return false;
@@ -558,7 +558,7 @@ impl BucketEntryInner {
             }
         }
     }
-    pub(super) fn check_dead(&self, cur_ts: u64) -> bool {
+    pub(super) fn check_dead(&self, cur_ts: Timestamp) -> bool {
         // If we have failured to send NEVER_REACHED_PING_COUNT times in a row, the node is dead
         if self.peer_stats.rpc_stats.failed_to_send >= NEVER_REACHED_PING_COUNT {
             return true;
@@ -575,14 +575,14 @@ impl BucketEntryInner {
     }
 
     /// Return the last time we either saw a node, or asked it a question
-    fn latest_contact_time(&self) -> Option<u64> {
+    fn latest_contact_time(&self) -> Option<Timestamp> {
         self.peer_stats
             .rpc_stats
             .last_seen_ts
-            .max(self.peer_stats.rpc_stats.last_question)
+            .max(self.peer_stats.rpc_stats.last_question_ts)
     }
 
-    fn needs_constant_ping(&self, cur_ts: u64, interval: u64) -> bool {
+    fn needs_constant_ping(&self, cur_ts: Timestamp, interval: Timestamp) -> bool {
         // If we have not either seen the node in the last 'interval' then we should ping it
         let latest_contact_time = self.latest_contact_time();
 
@@ -596,7 +596,7 @@ impl BucketEntryInner {
     }
 
     // Check if this node needs a ping right now to validate it is still reachable
-    pub(super) fn needs_ping(&self, cur_ts: u64, needs_keepalive: bool) -> bool {
+    pub(super) fn needs_ping(&self, cur_ts: Timestamp, needs_keepalive: bool) -> bool {
         // See which ping pattern we are to use
         let state = self.state(cur_ts);
 
@@ -653,7 +653,7 @@ impl BucketEntryInner {
         }
     }
 
-    pub(super) fn touch_last_seen(&mut self, ts: u64) {
+    pub(super) fn touch_last_seen(&mut self, ts: Timestamp) {
         // Mark the node as seen
         if self
             .peer_stats
@@ -667,7 +667,7 @@ impl BucketEntryInner {
         self.peer_stats.rpc_stats.last_seen_ts = Some(ts);
     }
 
-    pub(super) fn _state_debug_info(&self, cur_ts: u64) -> String {
+    pub(super) fn _state_debug_info(&self, cur_ts: Timestamp) -> String {
         let first_consecutive_seen_ts = if let Some(first_consecutive_seen_ts) =
             self.peer_stats.rpc_stats.first_consecutive_seen_ts
         {
@@ -698,26 +698,26 @@ impl BucketEntryInner {
     ////////////////////////////////////////////////////////////////
     /// Called when rpc processor things happen
 
-    pub(super) fn question_sent(&mut self, ts: u64, bytes: u64, expects_answer: bool) {
+    pub(super) fn question_sent(&mut self, ts: Timestamp, bytes: u64, expects_answer: bool) {
         self.transfer_stats_accounting.add_up(bytes);
         self.peer_stats.rpc_stats.messages_sent += 1;
         self.peer_stats.rpc_stats.failed_to_send = 0;
         if expects_answer {
             self.peer_stats.rpc_stats.questions_in_flight += 1;
-            self.peer_stats.rpc_stats.last_question = Some(ts);
+            self.peer_stats.rpc_stats.last_question_ts = Some(ts);
         }
     }
-    pub(super) fn question_rcvd(&mut self, ts: u64, bytes: u64) {
+    pub(super) fn question_rcvd(&mut self, ts: Timestamp, bytes: u64) {
         self.transfer_stats_accounting.add_down(bytes);
         self.peer_stats.rpc_stats.messages_rcvd += 1;
         self.touch_last_seen(ts);
     }
-    pub(super) fn answer_sent(&mut self, bytes: u64) {
+    pub(super) fn answer_sent(&mut self, bytes: ByteCount) {
         self.transfer_stats_accounting.add_up(bytes);
         self.peer_stats.rpc_stats.messages_sent += 1;
         self.peer_stats.rpc_stats.failed_to_send = 0;
     }
-    pub(super) fn answer_rcvd(&mut self, send_ts: u64, recv_ts: u64, bytes: u64) {
+    pub(super) fn answer_rcvd(&mut self, send_ts: Timestamp, recv_ts: Timestamp, bytes: ByteCount) {
         self.transfer_stats_accounting.add_down(bytes);
         self.peer_stats.rpc_stats.messages_rcvd += 1;
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
@@ -730,9 +730,9 @@ impl BucketEntryInner {
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
         self.peer_stats.rpc_stats.recent_lost_answers += 1;
     }
-    pub(super) fn failed_to_send(&mut self, ts: u64, expects_answer: bool) {
+    pub(super) fn failed_to_send(&mut self, ts: Timestamp, expects_answer: bool) {
         if expects_answer {
-            self.peer_stats.rpc_stats.last_question = Some(ts);
+            self.peer_stats.rpc_stats.last_question_ts = Some(ts);
         }
         self.peer_stats.rpc_stats.failed_to_send += 1;
         self.peer_stats.rpc_stats.first_consecutive_seen_ts = None;
@@ -747,7 +747,7 @@ pub struct BucketEntry {
 
 impl BucketEntry {
     pub(super) fn new() -> Self {
-        let now = get_timestamp();
+        let now = get_aligned_timestamp();
         Self {
             ref_count: AtomicU32::new(0),
             inner: RwLock::new(BucketEntryInner {

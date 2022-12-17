@@ -53,9 +53,9 @@ impl RPCOperationKind {
 
 #[derive(Debug, Clone)]
 pub struct RPCOperation {
-    op_id: u64,
+    op_id: OperationId,
     sender_node_info: Option<SignedNodeInfo>,
-    target_node_info_ts: u64,
+    target_node_info_ts: Timestamp,
     kind: RPCOperationKind,
 }
 
@@ -65,7 +65,7 @@ impl RPCOperation {
         sender_signed_node_info: SenderSignedNodeInfo,
     ) -> Self {
         Self {
-            op_id: get_random_u64(),
+            op_id: OperationId::new(get_random_u64()),
             sender_node_info: sender_signed_node_info.signed_node_info,
             target_node_info_ts: sender_signed_node_info.target_node_info_ts,
             kind: RPCOperationKind::Question(question),
@@ -76,7 +76,7 @@ impl RPCOperation {
         sender_signed_node_info: SenderSignedNodeInfo,
     ) -> Self {
         Self {
-            op_id: get_random_u64(),
+            op_id: OperationId::new(get_random_u64()),
             sender_node_info: sender_signed_node_info.signed_node_info,
             target_node_info_ts: sender_signed_node_info.target_node_info_ts,
             kind: RPCOperationKind::Statement(statement),
@@ -96,14 +96,14 @@ impl RPCOperation {
         }
     }
 
-    pub fn op_id(&self) -> u64 {
+    pub fn op_id(&self) -> OperationId {
         self.op_id
     }
 
     pub fn sender_node_info(&self) -> Option<&SignedNodeInfo> {
         self.sender_node_info.as_ref()
     }
-    pub fn target_node_info_ts(&self) -> u64 {
+    pub fn target_node_info_ts(&self) -> Timestamp {
         self.target_node_info_ts
     }
 
@@ -119,7 +119,7 @@ impl RPCOperation {
         operation_reader: &veilid_capnp::operation::Reader,
         opt_sender_node_id: Option<&DHTKey>,
     ) -> Result<Self, RPCError> {
-        let op_id = operation_reader.get_op_id();
+        let op_id = OperationId::new(operation_reader.get_op_id());
 
         let sender_node_info = if operation_reader.has_sender_node_info() {
             if let Some(sender_node_id) = opt_sender_node_id {
@@ -135,7 +135,7 @@ impl RPCOperation {
             None
         };
 
-        let target_node_info_ts = operation_reader.get_target_node_info_ts();
+        let target_node_info_ts = Timestamp::new(operation_reader.get_target_node_info_ts());
 
         let kind_reader = operation_reader.get_kind();
         let kind = RPCOperationKind::decode(&kind_reader)?;
@@ -149,12 +149,12 @@ impl RPCOperation {
     }
 
     pub fn encode(&self, builder: &mut veilid_capnp::operation::Builder) -> Result<(), RPCError> {
-        builder.set_op_id(self.op_id);
+        builder.set_op_id(self.op_id.as_u64());
         if let Some(sender_info) = &self.sender_node_info {
             let mut si_builder = builder.reborrow().init_sender_node_info();
             encode_signed_node_info(&sender_info, &mut si_builder)?;
         }
-        builder.set_target_node_info_ts(self.target_node_info_ts);
+        builder.set_target_node_info_ts(self.target_node_info_ts.as_u64());
         let mut k_builder = builder.reborrow().init_kind();
         self.kind.encode(&mut k_builder)?;
         Ok(())

@@ -48,9 +48,9 @@ impl ConnectionManager {
         async_processor_jh: MustJoinHandle<()>,
     ) -> ConnectionManagerInner {
         ConnectionManagerInner {
-            next_id: 0,
+            next_id: 0.into(),
             stop_source: Some(stop_source),
-            sender: sender,
+            sender,
             async_processor_jh: Some(async_processor_jh),
         }
     }
@@ -149,7 +149,7 @@ impl ConnectionManager {
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
         // Get next connection id to use
         let id = inner.next_id;
-        inner.next_id += 1;
+        inner.next_id += 1u64;
         log_net!(
             "on_new_protocol_network_connection: id={} prot_conn={:?}",
             id,
@@ -398,7 +398,7 @@ impl ConnectionManager {
     // Callback from network connection receive loop when it exits
     // cleans up the entry in the connection table
     #[instrument(level = "trace", skip(self))]
-    pub(super) async fn report_connection_finished(&self, connection_id: u64) {
+    pub(super) async fn report_connection_finished(&self, connection_id: NetworkConnectionId) {
         // Get channel sender
         let sender = {
             let mut inner = self.arc.inner.lock();

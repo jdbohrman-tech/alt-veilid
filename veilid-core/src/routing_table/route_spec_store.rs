@@ -7,7 +7,7 @@ use rkyv::{
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
 /// Remote private route cache entries expire in 5 minutes if they haven't been used
-const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: u64 = 300_000_000u64;
+const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: TimestampDuration = 300_000_000u64.into();
 /// Amount of time a route can remain idle before it gets tested
 const ROUTE_MIN_IDLE_TIME_MS: u32 = 30_000;
 
@@ -80,25 +80,25 @@ impl RouteStats {
     }
 
     /// Mark a route as having received something
-    pub fn record_received(&mut self, cur_ts: u64, bytes: u64) {
+    pub fn record_received(&mut self, cur_ts: Timestamp, bytes: ByteCount) {
         self.last_received_ts = Some(cur_ts);
         self.last_tested_ts = Some(cur_ts);
         self.transfer_stats_accounting.add_down(bytes);
     }
 
     /// Mark a route as having been sent to
-    pub fn record_sent(&mut self, cur_ts: u64, bytes: u64) {
+    pub fn record_sent(&mut self, cur_ts: Timestamp, bytes: ByteCount) {
         self.last_sent_ts = Some(cur_ts);
         self.transfer_stats_accounting.add_up(bytes);
     }
 
     /// Mark a route as having been sent to
-    pub fn record_latency(&mut self, latency: u64) {
+    pub fn record_latency(&mut self, latency: TimestampDuration) {
         self.latency_stats = self.latency_stats_accounting.record_latency(latency);
     }
 
     /// Mark a route as having been tested
-    pub fn record_tested(&mut self, cur_ts: u64) {
+    pub fn record_tested(&mut self, cur_ts: Timestamp) {
         self.last_tested_ts = Some(cur_ts);
 
         // Reset question_lost and failed_to_send if we test clean
@@ -107,7 +107,7 @@ impl RouteStats {
     }
 
     /// Roll transfers for these route stats
-    pub fn roll_transfers(&mut self, last_ts: u64, cur_ts: u64) {
+    pub fn roll_transfers(&mut self, last_ts: Timestamp, cur_ts: Timestamp) {
         self.transfer_stats_accounting.roll_transfers(
             last_ts,
             cur_ts,
@@ -133,7 +133,7 @@ impl RouteStats {
     }
 
     /// Check if a route needs testing
-    pub fn needs_testing(&self, cur_ts: u64) -> bool {
+    pub fn needs_testing(&self, cur_ts: Timestamp) -> bool {
         // Has the route had any failures lately?
         if self.questions_lost > 0 || self.failed_to_send > 0 {
             // If so, always test
@@ -634,7 +634,7 @@ impl RouteSpecStore {
             .map(|nr| nr.node_id());
 
         // Get list of all nodes, and sort them for selection
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         let filter = Box::new(
             move |rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| -> bool {
                 // Exclude our own node from routes
@@ -872,22 +872,25 @@ impl RouteSpecStore {
         Ok(Some(public_key))
     }
 
-    #[instrument(level = "trace", skip(self, data), ret, err)]
+    #[instrument(level = "trace", skip(self, data), ret)]
     pub fn validate_signatures(
         &self,
         public_key: &DHTKey,
         signatures: &[DHTSignature],
         data: &[u8],
         last_hop_id: DHTKey,
-    ) -> EyreResult<Option<(DHTKeySecret, SafetySpec)>> {
+    ) -> Option<(DHTKeySecret, SafetySpec)> {
         let inner = &*self.inner.lock();
-        let rsd = Self::detail(inner, &public_key).ok_or_else(|| eyre!("route does not exist"))?;
+        let Some(rsd) = Self::detail(inner, &public_key) else {
+            log_rpc!(debug "route does not exist: {:?}", public_key);
+            return None;
+        };
 
         // Ensure we have the right number of signatures
         if signatures.len() != rsd.hops.len() - 1 {
             // Wrong number of signatures
             log_rpc!(debug "wrong number of signatures ({} should be {}) for routed operation on private route {}", signatures.len(), rsd.hops.len() - 1, public_key);
-            return Ok(None);
+            return None;
         }
         // Validate signatures to ensure the route was handled by the nodes and not messed with
         // This is in private route (reverse) order as we are receiving over the route
@@ -897,18 +900,18 @@ impl RouteSpecStore {
                 // Verify the node we received the routed operation from is the last hop in our route
                 if *hop_public_key != last_hop_id {
                     log_rpc!(debug "received routed operation from the wrong hop ({} should be {}) on private route {}", hop_public_key.encode(), last_hop_id.encode(), public_key);
-                    return Ok(None);
+                    return None;
                 }
             } else {
                 // Verify a signature for a hop node along the route
                 if let Err(e) = verify(hop_public_key, data, &signatures[hop_n]) {
                     log_rpc!(debug "failed to verify signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
-                    return Ok(None);
+                    return None;
                 }
             }
         }
         // We got the correct signatures, return a key and response safety spec
-        Ok(Some((
+        Some((
             rsd.secret_key,
             SafetySpec {
                 preferred_route: Some(*public_key),
@@ -916,7 +919,7 @@ impl RouteSpecStore {
                 stability: rsd.stability,
                 sequencing: rsd.sequencing,
             },
-        )))
+        ))
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
@@ -1002,7 +1005,7 @@ impl RouteSpecStore {
     pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
         let is_remote = {
             let inner = &mut *self.inner.lock();
-            let cur_ts = get_timestamp();
+            let cur_ts = get_aligned_timestamp();
             Self::with_peek_remote_private_route(inner, cur_ts, key, |_| {}).is_some()
         };
         if is_remote {
@@ -1066,7 +1069,7 @@ impl RouteSpecStore {
     pub fn release_route(&self, key: &DHTKey) -> bool {
         let is_remote = {
             let inner = &mut *self.inner.lock();
-            let cur_ts = get_timestamp();
+            let cur_ts = get_aligned_timestamp();
             Self::with_peek_remote_private_route(inner, cur_ts, key, |_| {}).is_some()
         };
         if is_remote {
@@ -1087,7 +1090,7 @@ impl RouteSpecStore {
         directions: DirectionSet,
         avoid_node_ids: &[DHTKey],
     ) -> Option<DHTKey> {
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
 
         let mut routes = Vec::new();
 
@@ -1167,7 +1170,7 @@ impl RouteSpecStore {
     /// Get the debug description of a route
     pub fn debug_route(&self, key: &DHTKey) -> Option<String> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         // If this is a remote route, print it
         if let Some(s) =
             Self::with_peek_remote_private_route(inner, cur_ts, key, |rpi| format!("{:#?}", rpi))
@@ -1570,7 +1573,7 @@ impl RouteSpecStore {
         }
 
         // store the private route in our cache
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         let key = Self::with_create_remote_private_route(inner, cur_ts, private_route, |r| {
             r.private_route.as_ref().unwrap().public_key.clone()
         });
@@ -1593,7 +1596,7 @@ impl RouteSpecStore {
     /// Retrieve an imported remote private route by its public key
     pub fn get_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
             r.private_route.as_ref().unwrap().clone()
         })
@@ -1602,7 +1605,7 @@ impl RouteSpecStore {
     /// Retrieve an imported remote private route by its public key but don't 'touch' it
     pub fn peek_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         Self::with_peek_remote_private_route(inner, cur_ts, key, |r| {
             r.private_route.as_ref().unwrap().clone()
         })
@@ -1611,7 +1614,7 @@ impl RouteSpecStore {
     // get or create a remote private route cache entry
     fn with_create_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         private_route: PrivateRoute,
         f: F,
     ) -> R
@@ -1660,7 +1663,7 @@ impl RouteSpecStore {
     // get a remote private route cache entry
     fn with_get_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         key: &DHTKey,
         f: F,
     ) -> Option<R>
@@ -1680,7 +1683,7 @@ impl RouteSpecStore {
     // peek a remote private route cache entry
     fn with_peek_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         key: &DHTKey,
         f: F,
     ) -> Option<R>
@@ -1714,7 +1717,7 @@ impl RouteSpecStore {
 
         let opt_rpr_node_info_ts = {
             let inner = &mut *self.inner.lock();
-            let cur_ts = get_timestamp();
+            let cur_ts = get_aligned_timestamp();
             Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| {
                 rpr.last_seen_our_node_info_ts
             })
@@ -1736,7 +1739,7 @@ impl RouteSpecStore {
     pub fn mark_remote_private_route_seen_our_node_info(
         &self,
         key: &DHTKey,
-        cur_ts: u64,
+        cur_ts: Timestamp,
     ) -> EyreResult<()> {
         let our_node_info_ts = {
             let rti = &*self.unlocked_inner.routing_table.inner.read();
@@ -1765,7 +1768,7 @@ impl RouteSpecStore {
     }
 
     /// Get the route statistics for any route we know about, local or remote
-    pub fn with_route_stats<F, R>(&self, cur_ts: u64, key: &DHTKey, f: F) -> Option<R>
+    pub fn with_route_stats<F, R>(&self, cur_ts: Timestamp, key: &DHTKey, f: F) -> Option<R>
     where
         F: FnOnce(&mut RouteStats) -> R,
     {
@@ -1822,7 +1825,7 @@ impl RouteSpecStore {
     }
 
     /// Process transfer statistics to get averages
-    pub fn roll_transfers(&self, last_ts: u64, cur_ts: u64) {
+    pub fn roll_transfers(&self, last_ts: Timestamp, cur_ts: Timestamp) {
         let inner = &mut *self.inner.lock();
 
         // Roll transfers for locally allocated routes
