@@ -10,6 +10,16 @@ const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
 const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: TimestampDuration = TimestampDuration::new(300_000_000u64);
 /// Amount of time a route can remain idle before it gets tested
 const ROUTE_MIN_IDLE_TIME_MS: u32 = 30_000;
+/// The size of the compiled route cache
+const COMPILED_ROUTE_CACHE_SIZE: usize = 256;
+
+
+// Compiled route key for caching
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+struct CompiledRouteCacheKey {
+    sr_pubkey: DHTKey,
+    pr_pubkey: DHTKey,    
+}
 
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]
@@ -239,6 +249,8 @@ pub struct RouteSpecStoreCache {
     hop_cache: HashSet<Vec<u8>>,
     /// Has a remote private route responded to a question and when
     remote_private_route_cache: LruCache<DHTKey, RemotePrivateRouteInfo>,
+    /// Compiled route cache
+    compiled_route_cache: LruCache<CompiledRouteCacheKey, SafetyRoute>,
     /// List of dead allocated routes
     dead_routes: Vec<DHTKey>,
     /// List of dead remote routes
@@ -252,6 +264,7 @@ impl Default for RouteSpecStoreCache {
             used_end_nodes: Default::default(),
             hop_cache: Default::default(),
             remote_private_route_cache: LruCache::new(REMOTE_PRIVATE_ROUTE_CACHE_SIZE),
+            compiled_route_cache: LruCache::new(COMPILED_ROUTE_CACHE_SIZE),
             dead_routes: Default::default(),
             dead_remote_routes: Default::default(),
         }
@@ -1106,11 +1119,18 @@ impl RouteSpecStore {
     /// Release an allocated or remote route that is no longer in use
     #[instrument(level = "trace", skip(self), ret)]
     pub fn release_route(&self, key: &DHTKey) -> bool {
+
         let is_remote = {
             let inner = &mut *self.inner.lock();
+
+            // Release from compiled route cache if it's used there
+            self.invalidate_compiled_route_cache(inner, key);
+
+            // Check to see if this is a remote route
             let cur_ts = get_aligned_timestamp();
             Self::with_peek_remote_private_route(inner, cur_ts, key, |_| {}).is_some()
         };
+
         if is_remote {
             self.release_remote_private_route(key)
         } else {
@@ -1222,6 +1242,41 @@ impl RouteSpecStore {
 
     //////////////////////////////////////////////////////////////////////
 
+    // Route cache
+    fn add_to_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, pr_pubkey: DHTKey, safety_route: SafetyRoute)
+    {
+        let key = CompiledRouteCacheKey {
+            sr_pubkey: safety_route.public_key,
+            pr_pubkey,
+        };
+
+        if let Some(v) = inner.cache.compiled_route_cache.insert(key, safety_route) {
+            log_rtab!(error "route cache already contained key: sr_pubkey={:?}, pr_pubkey={:?}", v.public_key, pr_pubkey);
+        }
+    }
+
+    fn lookup_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, sr_pubkey: DHTKey, pr_pubkey: DHTKey) -> Option<SafetyRoute> {
+
+        let key = CompiledRouteCacheKey {
+            sr_pubkey,
+            pr_pubkey,
+        };
+
+        inner.cache.compiled_route_cache.get(&key).cloned()
+    }
+
+    fn invalidate_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, dead_key: &DHTKey) {
+        let mut dead_entries = Vec::new();
+        for (k, _v) in inner.cache.compiled_route_cache.iter() {
+            if k.sr_pubkey == *dead_key || k.pr_pubkey == *dead_key {
+                dead_entries.push(k.clone());
+            }
+        }
+        for d in dead_entries {
+            inner.cache.compiled_route_cache.remove(&d);
+        }
+    }
+
     /// Compiles a safety route to the private route, with caching
     /// Returns an Err() if the parameters are wrong
     /// Returns Ok(None) if no allocation could happen at this time (not an error)
@@ -1234,6 +1289,7 @@ impl RouteSpecStore {
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &mut *routing_table.inner.write();
 
+        let pr_pubkey = private_route.public_key;
         let pr_hopcount = private_route.hop_count as usize;
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
         // Check private route hop count isn't larger than the max route hop count plus one for the 'first hop' header
@@ -1293,12 +1349,45 @@ impl RouteSpecStore {
             };
             sr_pubkey
         };
-        let safety_rsd = Self::detail_mut(inner, &sr_pubkey).unwrap();
+        
+        // Look up a few things from the safety route detail we want for the compiled route and don't borrow inner
+        let (optimize, first_hop, secret) = {
+            let safety_rsd = Self::detail(inner, &sr_pubkey).ok_or_else(|| eyre!("route missing"))?;
+            
+            // We can optimize the peer info in this safety route if it has been successfully
+            // communicated over either via an outbound test, or used as a private route inbound
+            // and we are replying over the same route as our safety route outbound
+            let optimize = safety_rsd.stats.last_tested_ts.is_some() || safety_rsd.stats.last_received_ts.is_some();
 
-        // xxx implement caching here!
+            // Get the first hop noderef of the safety route
+            let mut first_hop = safety_rsd.hop_node_refs.first().unwrap().clone();
+            // Ensure sequencing requirement is set on first hop
+            first_hop.set_sequencing(safety_spec.sequencing);
+
+            // Get the safety route secret key
+            let secret = safety_rsd.secret_key;
+
+            (optimize, first_hop, secret)
+        };
+
+        // See if we have a cached route we can use
+        if optimize {
+            if let Some(safety_route) = self.lookup_compiled_route_cache(inner, sr_pubkey, pr_pubkey) {
+                // Build compiled route
+                let compiled_route = CompiledRoute {
+                    safety_route,
+                    secret,
+                    first_hop,
+                };
+                // Return compiled route
+                return Ok(Some(compiled_route));
+            }
+        }
 
         // Create hops
         let hops = {
+            let safety_rsd = Self::detail(inner, &sr_pubkey).ok_or_else(|| eyre!("route missing"))?;
+
             // start last blob-to-encrypt data off as private route
             let mut blob_data = {
                 let mut pr_message = ::capnp::message::Builder::new_default();
@@ -1310,12 +1399,6 @@ impl RouteSpecStore {
                 blob_data.push(1u8);
                 blob_data
             };
-
-            // We can optimize the peer info in this safety route if it has been successfully
-            // communicated over either via an outbound test, or used as a private route inbound
-            // and we are replying over the same route as our safety route outbound
-            let optimize = safety_rsd.stats.last_tested_ts.is_some()
-                || safety_rsd.stats.last_received_ts.is_some();
 
             // Encode each hop from inside to outside
             // skips the outermost hop since that's entering the
@@ -1402,19 +1485,17 @@ impl RouteSpecStore {
             hops,
         };
 
-        let mut first_hop = safety_rsd.hop_node_refs.first().unwrap().clone();
-
-        // Ensure sequencing requirement is set on first hop
-        first_hop.set_sequencing(safety_spec.sequencing);
+        // Add to cache but only if we have an optimized route
+        if optimize {
+            self.add_to_compiled_route_cache(inner, pr_pubkey, safety_route.clone());
+        }
 
         // Build compiled route
         let compiled_route = CompiledRoute {
             safety_route,
-            secret: safety_rsd.secret_key,
+            secret,
             first_hop,
         };
-
-        // xxx: add cache here
 
         // Return compiled route
         Ok(Some(compiled_route))
