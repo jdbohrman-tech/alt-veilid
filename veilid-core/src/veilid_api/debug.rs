@@ -53,7 +53,11 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
     };
 }
 
-fn get_safety_selection(text: &str, rss: RouteSpecStore) -> Option<SafetySelection> {
+fn get_safety_selection(text: &str, routing_table: RoutingTable) -> Option<SafetySelection> {
+    let rss = routing_table.route_spec_store();
+    let default_route_hop_count =
+        routing_table.with_config(|c| c.network.rpc.default_route_hop_count as usize);
+
     if text.len() != 0 && &text[0..1] == "-" {
         // Unsafe
         let text = &text[1..];
@@ -62,7 +66,7 @@ fn get_safety_selection(text: &str, rss: RouteSpecStore) -> Option<SafetySelecti
     } else {
         // Safe
         let mut preferred_route = None;
-        let mut hop_count = 2;
+        let mut hop_count = default_route_hop_count;
         let mut stability = Stability::default();
         let mut sequencing = Sequencing::default();
         for x in text.split(",") {
@@ -111,7 +115,7 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
     move |text| {
         // Safety selection
         let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-            let ss = get_safety_selection(second, routing_table.route_spec_store())?;
+            let ss = get_safety_selection(second, routing_table.clone())?;
             (first, Some(ss))
         } else {
             (text, None)

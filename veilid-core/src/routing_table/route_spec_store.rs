@@ -1285,6 +1285,8 @@ impl RouteSpecStore {
         safety_selection: SafetySelection,
         mut private_route: PrivateRoute,
     ) -> EyreResult<Option<CompiledRoute>> {
+        // let profile_start_ts = get_timestamp();
+
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &mut *routing_table.inner.write();
@@ -1327,6 +1329,7 @@ impl RouteSpecStore {
                 first_hop.set_sequencing(sequencing);
 
                 // Return the compiled safety route
+                //println!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(Some(CompiledRoute {
                     safety_route: SafetyRoute::new_stub(routing_table.node_id(), private_route),
                     secret: routing_table.node_id_secret(),
@@ -1380,6 +1383,7 @@ impl RouteSpecStore {
                     first_hop,
                 };
                 // Return compiled route
+                //println!("compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(Some(compiled_route));
             }
         }
@@ -1498,6 +1502,7 @@ impl RouteSpecStore {
         };
 
         // Return compiled route
+        //println!("compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
         Ok(Some(compiled_route))
     }
 
