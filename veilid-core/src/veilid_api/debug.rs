@@ -32,6 +32,9 @@ fn get_string(text: &str) -> Option<String> {
 
 fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
     return move |text: &str| {
+        if text.is_empty() {
+            return None;
+        }
         match DHTKey::try_decode(text).ok() {
             Some(key) => {
                 let routes = rss.list_allocated_routes(|k, _| Some(*k));
