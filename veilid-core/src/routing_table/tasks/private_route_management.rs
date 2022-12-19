@@ -42,7 +42,7 @@ impl RoutingTable {
         let rss = self.route_spec_store();
         let mut must_test_routes = Vec::<DHTKey>::new();
         let mut unpublished_routes = Vec::<(DHTKey, u64)>::new();
-        let mut dead_routes = Vec::<DHTKey>::new();
+        let mut expired_routes = Vec::<DHTKey>::new();
         rss.list_allocated_routes(|k, v| {
             let stats = v.get_stats();
             // Ignore nodes that don't need testing
@@ -60,7 +60,7 @@ impl RoutingTable {
             }
             // Else this is a route that hasnt been used recently enough and we can tear it down
             else {
-                dead_routes.push(*k);
+                expired_routes.push(*k);
             }
             Option::<()>::None
         });
@@ -76,13 +76,13 @@ impl RoutingTable {
         // Kill off all but N unpublished routes rather than testing them
         if unpublished_routes.len() > BACKGROUND_SAFETY_ROUTE_COUNT {
             for x in &unpublished_routes[BACKGROUND_SAFETY_ROUTE_COUNT..] {
-                dead_routes.push(x.0);
+                expired_routes.push(x.0);
             }
         }
 
         // Process dead routes
-        for r in &dead_routes {
-            log_rtab!(debug "Dead route no test: {}", r);
+        for r in &expired_routes {
+            log_rtab!(debug "Expired route: {}", r);
             rss.release_route(r);
         }
 
