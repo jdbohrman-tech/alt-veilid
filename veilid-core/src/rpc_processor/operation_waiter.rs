@@ -121,7 +121,7 @@ where
         Ok(res
             .on_timeout(|| {
                 log_rpc!(debug "op wait timed out: {}", handle.op_id);
-                log_rpc!(debug "backtrace: {}", debug_backtrace());
+                debug_print_backtrace();
                 self.cancel_op_waiter(handle.op_id);
             })
             .map(|res| {

@@ -303,3 +303,28 @@ pub fn debug_backtrace() -> String {
     let bt = backtrace::Backtrace::new();
     format!("{:?}", bt)
 }
+
+pub fn debug_print_backtrace() {
+    if is_debug_backtrace_enabled() {
+        debug!("{}", debug_backtrace());
+    }
+}
+
+pub fn is_debug_backtrace_enabled() -> bool {
+    cfg_if! {
+        if #[cfg(debug_assertions)] {
+            cfg_if! {
+                if #[cfg(target_arch = "wasm32")] {
+                    let rbenv = get_wasm_global_string_value("RUST_BACKTRACE").unwrap_or_default();
+                }
+                else
+                {
+                    let rbenv = std::env::var("RUST_BACKTRACE").unwrap_or_default();
+                }
+            }
+            rbenv == "1" || rbenv == "full"
+        } else {
+            false
+        }
+    }
+}

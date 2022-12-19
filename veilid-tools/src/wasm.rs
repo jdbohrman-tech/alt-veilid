@@ -21,7 +21,7 @@ pub fn is_browser() -> bool {
         return cache != 0;
     }
 
-    let res = Reflect::has(&global().as_ref(), &"window".into()).unwrap_or_default();
+    let res = Reflect::has(&global().as_ref(), &"navigator".into()).unwrap_or_default();
 
     CACHE.store(res as i8, Ordering::Relaxed);
 
@@ -35,13 +35,20 @@ pub fn is_browser_https() -> bool {
         return cache != 0;
     }
 
-    let res = js_sys::eval("window.location.protocol === 'https'")
+    let res = js_sys::eval("self.location.protocol === 'https'")
         .map(|res| res.is_truthy())
         .unwrap_or_default();
 
     CACHE.store(res as i8, Ordering::Relaxed);
 
     res
+}
+
+pub fn get_wasm_global_string_value<K: AsRef<str>>(key: K) -> Option<String> {
+    let Ok(v) = Reflect::get(&global().as_ref(), &JsValue::from_str(key.as_ref())) else {
+        return None;
+    };
+    v.as_string()
 }
 
 #[derive(ThisError, Debug, Clone, Eq, PartialEq)]
