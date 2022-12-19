@@ -188,7 +188,7 @@ enum DialInfoClass @0x880005edfdd38b1e {
     portRestrictedNAT       @5;                         # P = Device without portmap behind address-and-port restricted NAT
 }
 
-enum Sequencing {
+enum Sequencing @0xb6735890f7818a1c {
     noPreference            @0;
     preferOrdered           @1;
     ensureOrdered           @2;
