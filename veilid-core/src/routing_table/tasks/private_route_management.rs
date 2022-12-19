@@ -49,11 +49,17 @@ impl RoutingTable {
             if !stats.needs_testing(cur_ts) {
                 return Option::<()>::None;
             }
-            if v.is_published() {
+            // If this has been published, always test if we need it
+            // Also if the route has never been tested, test it at least once
+            if v.is_published() || stats.last_tested_ts.is_none() {
                 must_test_routes.push(*k);
-            } else if v.hop_count() == default_route_hop_count {
+            }
+            // If this is a default route hop length, include it in routes to keep alive
+            else if v.hop_count() == default_route_hop_count {
                 unpublished_routes.push((*k, stats.latency_stats.average.as_u64()));
-            } else {
+            }
+            // Else this is a route that hasnt been used recently enough and we can tear it down
+            else {
                 dead_routes.push(*k);
             }
             Option::<()>::None
