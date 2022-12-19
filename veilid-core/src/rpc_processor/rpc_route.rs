@@ -26,7 +26,7 @@ impl RPCProcessor {
         }
 
         // Get next hop node ref
-        let next_hop_nr = match route_hop.node {
+        let mut next_hop_nr = match route_hop.node {
             RouteNode::NodeId(id) => {
                 //
                 let Some(nr) = self.routing_table.lookup_node_ref(id.key) else {
@@ -52,6 +52,9 @@ impl RPCProcessor {
                 nr
             }
         };
+
+        // Apply sequencing preference
+        next_hop_nr.set_sequencing(routed_operation.sequencing);
 
         // Pass along the route
         let next_hop_route = RPCOperationRoute {
@@ -85,7 +88,7 @@ impl RPCProcessor {
         }
 
         // Get next hop node ref
-        let next_hop_nr = match &next_route_node {
+        let mut next_hop_nr = match &next_route_node {
             RouteNode::NodeId(id) => {
                 //
                 self.routing_table
@@ -109,6 +112,9 @@ impl RPCProcessor {
                     })
             }
         }?;
+
+        // Apply sequencing preference
+        next_hop_nr.set_sequencing(routed_operation.sequencing);
 
         // Pass along the route
         let next_hop_route = RPCOperationRoute {
@@ -134,20 +140,10 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip_all, err)]
     fn process_safety_routed_operation(
         &self,
-        detail: RPCMessageHeaderDetailDirect,
+        _detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
         remote_sr_pubkey: DHTKey,
     ) -> Result<NetworkResult<()>, RPCError> {
-        // Get sequencing preference
-        let sequencing = if detail
-            .connection_descriptor
-            .protocol_type()
-            .is_connection_oriented()
-        {
-            Sequencing::EnsureOrdered
-        } else {
-            Sequencing::NoPreference
-        };
 
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually? How to do this for safety routes?
@@ -169,7 +165,7 @@ impl RPCProcessor {
         };
         
         // Pass message to RPC system
-        self.enqueue_safety_routed_message(remote_sr_pubkey, sequencing, body)
+        self.enqueue_safety_routed_message(remote_sr_pubkey, routed_operation.sequencing, body)
             .map_err(RPCError::internal)?;
 
         Ok(NetworkResult::value(()))
@@ -188,17 +184,30 @@ impl RPCProcessor {
         let sender_id = detail.envelope.get_sender_id();
 
         // Look up the private route and ensure it's one in our spec store
+        // Ensure the route is validated, and construct a return safetyspec that matches the inbound preferences
         let rss = self.routing_table.route_spec_store();
         let Some((secret_key, safety_spec)) = rss
-            .validate_signatures(
+            .with_signature_validated_route(
                 &pr_pubkey,
                 &routed_operation.signatures,
                 &routed_operation.data,
                 sender_id,
+                |rsd| {
+                    (
+                        rsd.get_secret_key(),
+                        SafetySpec {
+                            preferred_route: Some(pr_pubkey),
+                            hop_count: rsd.hop_count(),
+                            stability: rsd.get_stability(),
+                            sequencing: routed_operation.sequencing,
+                        },
+                    )
+                }
             )
             else {
                 return Ok(NetworkResult::invalid_message("signatures did not validate for private route"));
             };
+
 
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually. How to do this for private routes?
@@ -231,7 +240,7 @@ impl RPCProcessor {
         remote_sr_pubkey: DHTKey,
         pr_pubkey: DHTKey,
     ) -> Result<NetworkResult<()>, RPCError> {
-       
+
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
         if pr_pubkey == self.routing_table.node_id() {

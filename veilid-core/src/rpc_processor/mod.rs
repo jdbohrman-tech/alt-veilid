@@ -520,7 +520,12 @@ impl RPCProcessor {
 
         // Make the routed operation
         // xxx: replace MAX_CRYPTO_VERSION with the version from the factory
-        let operation = RoutedOperation::new(MAX_CRYPTO_VERSION, nonce, enc_msg_data);
+        let operation = RoutedOperation::new(
+            MAX_CRYPTO_VERSION,
+            safety_selection.get_sequencing(),
+            nonce,
+            enc_msg_data,
+        );
 
         // Prepare route operation
         let sr_hop_count = compiled_route.safety_route.hop_count;

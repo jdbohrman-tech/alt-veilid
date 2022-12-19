@@ -188,6 +188,12 @@ enum DialInfoClass @0x880005edfdd38b1e {
     portRestrictedNAT       @5;                         # P = Device without portmap behind address-and-port restricted NAT
 }
 
+enum Sequencing {
+    noPreference            @0;
+    preferOrdered           @1;
+    ensureOrdered           @2;
+}
+
 struct DialInfoDetail @0x96423aa1d67b74d8 {
     dialInfo                @0  :DialInfo;
     class                   @1  :DialInfoClass;
@@ -266,9 +272,10 @@ struct PeerInfo @0xfe2d722d5d3c4bcb {
 
 struct RoutedOperation @0xcbcb8535b839e9dd {
     version                 @0  :UInt8;                 # crypto version in use for the data
-    signatures              @1  :List(Signature);       # signatures from nodes that have handled the private route
-    nonce                   @2  :Nonce;                 # nonce Xmsg
-    data                    @3  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
+    sequencing              @1  :Sequencing;            # sequencing preference to use to pass the message along
+    signatures              @2  :List(Signature);       # signatures from nodes that have handled the private route
+    nonce                   @3  :Nonce;                 # nonce Xmsg
+    data                    @4  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
 }
 
 struct OperationStatusQ @0x865d80cea70d884a {

@@ -298,3 +298,8 @@ pub unsafe fn aligned_8_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
         cap_units * mem::size_of::<AlignToEight>(),
     )
 }
+
+pub fn debug_backtrace() -> String {
+    let bt = backtrace::Backtrace::new();
+    format!("{:?}", bt)
+}

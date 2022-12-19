@@ -462,6 +462,15 @@ pub enum SafetySelection {
     Safe(SafetySpec),
 }
 
+impl SafetySelection {
+    pub fn get_sequencing(&self) -> Sequencing {
+        match self {
+            SafetySelection::Unsafe(seq) => *seq,
+            SafetySelection::Safe(ss) => ss.sequencing,
+        }
+    }
+}
+
 /// Options for safety routes (sender privacy)
 #[derive(
     Copy,

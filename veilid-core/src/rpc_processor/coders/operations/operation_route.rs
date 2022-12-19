@@ -3,15 +3,17 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct RoutedOperation {
     pub version: u8,
+    pub sequencing: Sequencing,
     pub signatures: Vec<DHTSignature>,
     pub nonce: Nonce,
     pub data: Vec<u8>,
 }
 
 impl RoutedOperation {
-    pub fn new(version: u8, nonce: Nonce, data: Vec<u8>) -> Self {
+    pub fn new(version: u8, sequencing: Sequencing, nonce: Nonce, data: Vec<u8>) -> Self {
         Self {
             version,
+            sequencing,
             signatures: Vec::new(),
             nonce,
             data,
@@ -34,12 +36,14 @@ impl RoutedOperation {
         }
 
         let version = reader.get_version();
+        let sequencing = decode_sequencing(reader.get_sequencing().map_err(RPCError::protocol)?);
         let n_reader = reader.get_nonce().map_err(RPCError::protocol)?;
         let nonce = decode_nonce(&n_reader);
         let data = reader.get_data().map_err(RPCError::protocol)?.to_vec();
 
         Ok(RoutedOperation {
             version,
+            sequencing,
             signatures,
             nonce,
             data,
@@ -51,6 +55,9 @@ impl RoutedOperation {
         builder: &mut veilid_capnp::routed_operation::Builder,
     ) -> Result<(), RPCError> {
         builder.reborrow().set_version(self.version);
+        builder
+            .reborrow()
+            .set_sequencing(encode_sequencing(self.sequencing));
         let mut sigs_builder = builder.reborrow().init_signatures(
             self.signatures
                 .len()

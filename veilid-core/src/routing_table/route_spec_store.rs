@@ -187,8 +187,8 @@ pub struct RouteSpecDetail {
     directions: DirectionSet,
     /// Stability preference (prefer reliable nodes over faster)
     stability: Stability,
-    /// Sequencing preference (connection oriented protocols vs datagram)
-    sequencing: Sequencing,
+    /// Sequencing capability (connection oriented protocols vs datagram)
+    can_do_sequenced: bool,
     /// Stats
     stats: RouteStats,
 }
@@ -205,6 +205,21 @@ impl RouteSpecDetail {
     }
     pub fn hop_count(&self) -> usize {
         self.hops.len()
+    }
+    pub fn get_secret_key(&self) -> DHTKeySecret {
+        self.secret_key
+    }
+    pub fn get_stability(&self) -> Stability {
+        self.stability
+    }
+    pub fn is_sequencing_match(&self, sequencing: Sequencing) -> bool {
+        match sequencing {
+            Sequencing::NoPreference => true,
+            Sequencing::PreferOrdered => true,
+            Sequencing::EnsureOrdered => {
+                self.can_do_sequenced
+            }
+        }
     }
 }
 
@@ -336,8 +351,8 @@ fn _get_route_permutation_count(hop_count: usize) -> usize {
     // hop_count = 4 -> 3! -> 6
     (3..hop_count).into_iter().fold(2usize, |acc, x| acc * x)
 }
-
-type PermFunc<'t> = Box<dyn Fn(&[usize]) -> Option<(Vec<usize>, Vec<u8>)> + Send + 't>;
+type PermReturnType = (Vec<usize>, Vec<u8>, bool);
+type PermFunc<'t> = Box<dyn Fn(&[usize]) -> Option<PermReturnType> + Send + 't>;
 
 /// get the route permutation at particular 'perm' index, starting at the 'start' index
 /// for a set of 'hop_count' nodes. the first node is always fixed, and the maximum
@@ -347,7 +362,7 @@ fn with_route_permutations(
     hop_count: usize,
     start: usize,
     f: &PermFunc,
-) -> Option<(Vec<usize>, Vec<u8>)> {
+) -> Option<PermReturnType> {
     if hop_count == 0 {
         unreachable!();
     }
@@ -366,7 +381,7 @@ fn with_route_permutations(
         permutation: &mut [usize],
         size: usize,
         f: &PermFunc,
-    ) -> Option<(Vec<usize>, Vec<u8>)> {
+    ) -> Option<PermReturnType> {
         if size == 1 {
             return f(&permutation);
         }
@@ -759,6 +774,24 @@ impl RouteSpecStore {
                 return cmp_used;
             }
 
+            // apply sequencing preference
+            // ensureordered will be taken care of by filter
+            // and nopreference doesn't care
+            if matches!(sequencing, Sequencing::PreferOrdered) {
+                let cmp_seq = v1.1.as_ref().unwrap().with(rti, |rti, e1| {
+                    v2.1.as_ref()
+                        .unwrap()
+                        .with(rti, |_rti, e2| {
+                            let e1_can_do_ordered = e1.signed_node_info(RoutingDomain::PublicInternet).map(|sni| sni.has_sequencing_matched_dial_info(sequencing)).unwrap_or(false);
+                            let e2_can_do_ordered = e2.signed_node_info(RoutingDomain::PublicInternet).map(|sni| sni.has_sequencing_matched_dial_info(sequencing)).unwrap_or(false);
+                            e2_can_do_ordered.cmp(&e1_can_do_ordered)
+                        })
+                });
+                if !matches!(cmp_seq, Ordering::Equal) {
+                    return cmp_seq;
+                }
+            }
+
             // always prioritize reliable nodes, but sort by oldest or fastest
             let cmpout = v1.1.as_ref().unwrap().with(rti, |rti, e1| {
                 v2.1.as_ref()
@@ -825,6 +858,7 @@ impl RouteSpecStore {
             }
 
             // Ensure this route is viable by checking that each node can contact the next one
+            let mut can_do_sequenced = true;
             if directions.contains(Direction::Outbound) {
                 let mut previous_node = &our_peer_info;
                 let mut reachable = true;
@@ -841,6 +875,21 @@ impl RouteSpecStore {
                         reachable = false;
                         break;
                     }
+
+                    // Check if we can do sequenced specifically
+                    if can_do_sequenced {
+                        let cm = rti.get_contact_method(
+                            RoutingDomain::PublicInternet,
+                            previous_node,
+                            current_node,
+                            DialInfoFilter::all(),
+                            Sequencing::EnsureOrdered,
+                        );
+                        if matches!(cm, ContactMethod::Unreachable) {
+                            can_do_sequenced = false;
+                        }
+                    }
+
                     previous_node = current_node;
                 }
                 if !reachable {
@@ -863,6 +912,20 @@ impl RouteSpecStore {
                         reachable = false;
                         break;
                     }
+
+                    // Check if we can do sequenced specifically
+                    if can_do_sequenced {
+                        let cm = rti.get_contact_method(
+                            RoutingDomain::PublicInternet,
+                            next_node,
+                            current_node,
+                            DialInfoFilter::all(),
+                            Sequencing::EnsureOrdered,
+                        );
+                        if matches!(cm, ContactMethod::Unreachable) {
+                            can_do_sequenced = false;
+                        }
+                    }
                     next_node = current_node;
                 }
                 if !reachable {
@@ -871,17 +934,19 @@ impl RouteSpecStore {
             }
             // Keep this route
             let route_nodes = permutation.to_vec();
-            Some((route_nodes, cache_key))
+            Some((route_nodes, cache_key, can_do_sequenced))
         }) as PermFunc;
 
         let mut route_nodes: Vec<usize> = Vec::new();
         let mut cache_key: Vec<u8> = Vec::new();
+        let mut can_do_sequenced: bool = true;
 
         for start in 0..(nodes.len() - hop_count) {
             // Try the permutations available starting with 'start'
-            if let Some((rn, ck)) = with_route_permutations(hop_count, start, &perm_func) {
+            if let Some((rn, ck, cds)) = with_route_permutations(hop_count, start, &perm_func) {
                 route_nodes = rn;
                 cache_key = ck;
+                can_do_sequenced = cds;
                 break;
             }
         }
@@ -902,6 +967,8 @@ impl RouteSpecStore {
 
         let (public_key, secret_key) = generate_secret();
 
+        
+
         let rsd = RouteSpecDetail {
             secret_key,
             hops,
@@ -909,7 +976,7 @@ impl RouteSpecStore {
             published: false,
             directions,
             stability,
-            sequencing,
+            can_do_sequenced,
             stats: RouteStats::new(cur_ts),
         };
 
@@ -924,14 +991,18 @@ impl RouteSpecStore {
         Ok(Some(public_key))
     }
 
-    #[instrument(level = "trace", skip(self, data), ret)]
-    pub fn validate_signatures(
+    #[instrument(level = "trace", skip(self, data, callback), ret)]
+    pub fn with_signature_validated_route<F,R>(
         &self,
         public_key: &DHTKey,
         signatures: &[DHTSignature],
         data: &[u8],
         last_hop_id: DHTKey,
-    ) -> Option<(DHTKeySecret, SafetySpec)> {
+        callback: F,
+    ) -> Option<R> 
+    where F: FnOnce(&RouteSpecDetail) -> R, 
+    R: fmt::Debug,
+    {
         let inner = &*self.inner.lock();
         let Some(rsd) = Self::detail(inner, &public_key) else {
             log_rpc!(debug "route does not exist: {:?}", public_key);
@@ -962,16 +1033,8 @@ impl RouteSpecStore {
                 }
             }
         }
-        // We got the correct signatures, return a key and response safety spec
-        Some((
-            rsd.secret_key,
-            SafetySpec {
-                preferred_route: Some(*public_key),
-                hop_count: rsd.hops.len(),
-                stability: rsd.stability,
-                sequencing: rsd.sequencing,
-            },
-        ))
+        // We got the correct signatures, return a key and response safety spec     
+        Some(callback(rsd))
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
@@ -982,9 +1045,13 @@ impl RouteSpecStore {
 
             let inner = &mut *self.inner.lock();
             let rsd = Self::detail(inner, &key).ok_or_else(|| eyre!("route does not exist"))?;
+
+            // Match the private route's hop length for safety route length
             let hop_count = rsd.hops.len();
-            let stability = rsd.stability;
-            let sequencing = rsd.sequencing;
+            // Always test routes with safety routes that are more likely to succeed
+            let stability = Stability::Reliable;
+            // Routes can test with whatever sequencing they were allocated with
+            let sequencing = Sequencing::NoPreference;
 
             let safety_spec = SafetySpec {
                 preferred_route: Some(key.clone()),
@@ -1157,7 +1224,7 @@ impl RouteSpecStore {
         // but definitely prefer routes that have been recently tested
         for detail in &inner.content.details {
             if detail.1.stability >= stability
-                && detail.1.sequencing >= sequencing
+                && detail.1.is_sequencing_match(sequencing)
                 && detail.1.hops.len() >= min_hop_count
                 && detail.1.hops.len() <= max_hop_count
                 && detail.1.directions.is_superset(directions)

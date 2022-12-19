@@ -6051,6 +6051,7 @@ dependencies = [
  "async-lock",
  "async-std",
  "async_executors",
+ "backtrace",
  "cfg-if 1.0.0",
  "console_error_panic_hook",
  "eyre",
