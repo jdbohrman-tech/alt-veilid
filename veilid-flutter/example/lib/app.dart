@@ -167,6 +167,9 @@ class _MyAppState extends State<MyApp> with UiLoggy {
                     },
                     onSubmitted: (String v) async {
                       try {
+                        if (v.isEmpty) {
+                          return;
+                        }
                         var res = await Veilid.instance.debug(v);
                         loggy.info(res);
                         setState(() {

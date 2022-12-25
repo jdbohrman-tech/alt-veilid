@@ -1,6 +1,11 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+if [[ "$(uname)" != "Linux" ]]; then 
+    echo Not running Linux
+    exit 1
+fi
+
 if [ "$(lsb_release -d | grep -qEi 'debian|buntu|mint')" ]; then
     echo Not a supported Linux
     exit 1
