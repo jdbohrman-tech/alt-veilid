@@ -178,7 +178,7 @@ impl AttachmentManager {
         {
             let mut inner = self.inner.lock();
             inner.last_attachment_state = AttachmentState::Attaching;
-            self.inner.lock().attach_ts = Some(get_aligned_timestamp());
+            inner.attach_ts = Some(get_aligned_timestamp());
             debug!("attachment starting");
         }
         let netman = self.network_manager();
