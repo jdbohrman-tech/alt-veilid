@@ -2,106 +2,10 @@ use crate::crypto::Crypto;
 use crate::network_manager::*;
 use crate::routing_table::*;
 use crate::*;
-use core::convert::TryFrom;
-use core::fmt;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use serde::*;
-
-state_machine! {
-    derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,)
-    pub Attachment(Detached)
-//---
-    Detached(AttachRequested) => Attaching [StartAttachment],
-    Attaching => {
-        AttachmentStopped => Detached,
-        WeakPeers => AttachedWeak,
-        GoodPeers => AttachedGood,
-        StrongPeers => AttachedStrong,
-        FullPeers => FullyAttached,
-        TooManyPeers => OverAttached,
-        DetachRequested => Detaching [StopAttachment]
-    },
-    AttachedWeak => {
-        NoPeers => Attaching,
-        GoodPeers => AttachedGood,
-        StrongPeers => AttachedStrong,
-        FullPeers => FullyAttached,
-        TooManyPeers => OverAttached,
-        DetachRequested => Detaching [StopAttachment]
-    },
-    AttachedGood => {
-        NoPeers => Attaching,
-        WeakPeers => AttachedWeak,
-        StrongPeers => AttachedStrong,
-        FullPeers => FullyAttached,
-        TooManyPeers => OverAttached,
-        DetachRequested => Detaching [StopAttachment]
-    },
-    AttachedStrong => {
-        NoPeers => Attaching,
-        WeakPeers => AttachedWeak,
-        GoodPeers => AttachedGood,
-        FullPeers => FullyAttached,
-        TooManyPeers => OverAttached,
-        DetachRequested => Detaching [StopAttachment]
-    },
-    FullyAttached => {
-        NoPeers => Attaching,
-        WeakPeers => AttachedWeak,
-        GoodPeers => AttachedGood,
-        StrongPeers => AttachedStrong,
-        TooManyPeers => OverAttached,
-        DetachRequested => Detaching [StopAttachment]
-    },
-    OverAttached => {
-        NoPeers => Attaching,
-        WeakPeers => AttachedWeak,
-        GoodPeers => AttachedGood,
-        StrongPeers => AttachedStrong,
-        FullPeers => FullyAttached,
-        DetachRequested => Detaching [StopAttachment]
-    },
-    Detaching => {
-        AttachmentStopped => Detached,
-    },
-}
-
-impl fmt::Display for AttachmentState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        let out = match self {
-            AttachmentState::Attaching => "attaching".to_owned(),
-            AttachmentState::AttachedWeak => "attached_weak".to_owned(),
-            AttachmentState::AttachedGood => "attached_good".to_owned(),
-            AttachmentState::AttachedStrong => "attached_strong".to_owned(),
-            AttachmentState::FullyAttached => "fully_attached".to_owned(),
-            AttachmentState::OverAttached => "over_attached".to_owned(),
-            AttachmentState::Detaching => "detaching".to_owned(),
-            AttachmentState::Detached => "detached".to_owned(),
-        };
-        write!(f, "{}", out)
-    }
-}
-
-impl TryFrom<String> for AttachmentState {
-    type Error = ();
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Ok(match s.as_str() {
-            "attaching" => AttachmentState::Attaching,
-            "attached_weak" => AttachmentState::AttachedWeak,
-            "attached_good" => AttachmentState::AttachedGood,
-            "attached_strong" => AttachmentState::AttachedStrong,
-            "fully_attached" => AttachmentState::FullyAttached,
-            "over_attached" => AttachmentState::OverAttached,
-            "detaching" => AttachmentState::Detaching,
-            "detached" => AttachmentState::Detached,
-            _ => return Err(()),
-        })
-    }
-}
 
 pub struct AttachmentManagerInner {
-    attachment_machine: CallbackStateMachine<Attachment>,
+    last_attachment_state: AttachmentState,
+    last_routing_table_health: Option<RoutingTableHealth>,
     maintain_peers: bool,
     attach_ts: Option<Timestamp>,
     update_callback: Option<UpdateCallback>,
@@ -140,7 +44,8 @@ impl AttachmentManager {
     }
     fn new_inner() -> AttachmentManagerInner {
         AttachmentManagerInner {
-            attachment_machine: CallbackStateMachine::new(),
+            last_attachment_state: AttachmentState::Detached,
+            last_routing_table_health: None,
             maintain_peers: false,
             attach_ts: None,
             update_callback: None,
@@ -175,11 +80,11 @@ impl AttachmentManager {
     }
 
     pub fn is_attached(&self) -> bool {
-        let s = self.inner.lock().attachment_machine.state();
+        let s = self.inner.lock().last_attachment_state;
         !matches!(s, AttachmentState::Detached | AttachmentState::Detaching)
     }
     pub fn is_detached(&self) -> bool {
-        let s = self.inner.lock().attachment_machine.state();
+        let s = self.inner.lock().last_attachment_state;
         matches!(s, AttachmentState::Detached)
     }
 
@@ -188,71 +93,94 @@ impl AttachmentManager {
     }
 
     fn translate_routing_table_health(
-        health: RoutingTableHealth,
+        health: &RoutingTableHealth,
         config: &VeilidConfigRoutingTable,
-    ) -> AttachmentInput {
+    ) -> AttachmentState {
         if health.reliable_entry_count >= config.limit_over_attached.try_into().unwrap() {
-            return AttachmentInput::TooManyPeers;
+            return AttachmentState::OverAttached;
         }
         if health.reliable_entry_count >= config.limit_fully_attached.try_into().unwrap() {
-            return AttachmentInput::FullPeers;
+            return AttachmentState::FullyAttached;
         }
         if health.reliable_entry_count >= config.limit_attached_strong.try_into().unwrap() {
-            return AttachmentInput::StrongPeers;
+            return AttachmentState::AttachedStrong;
         }
         if health.reliable_entry_count >= config.limit_attached_good.try_into().unwrap() {
-            return AttachmentInput::GoodPeers;
+            return AttachmentState::AttachedGood;
         }
         if health.reliable_entry_count >= config.limit_attached_weak.try_into().unwrap()
             || health.unreliable_entry_count >= config.limit_attached_weak.try_into().unwrap()
         {
-            return AttachmentInput::WeakPeers;
+            return AttachmentState::AttachedWeak;
         }
-        AttachmentInput::NoPeers
-    }
-    fn translate_attachment_state(state: &AttachmentState) -> AttachmentInput {
-        match state {
-            AttachmentState::OverAttached => AttachmentInput::TooManyPeers,
-            AttachmentState::FullyAttached => AttachmentInput::FullPeers,
-            AttachmentState::AttachedStrong => AttachmentInput::StrongPeers,
-            AttachmentState::AttachedGood => AttachmentInput::GoodPeers,
-            AttachmentState::AttachedWeak => AttachmentInput::WeakPeers,
-            AttachmentState::Attaching => AttachmentInput::NoPeers,
-            _ => panic!("Invalid state"),
-        }
+        AttachmentState::Attaching
     }
 
-    async fn update_attachment(&self) {
-        let new_peer_state_input = {
-            let inner = self.inner.lock();
+    /// Update attachment and network readiness state
+    /// and possibly send a VeilidUpdate::Attachment
+    fn update_attachment(&self) {
+        // update the routing table health
+        let routing_table = self.network_manager().routing_table();
+        let health = routing_table.get_routing_table_health();
+        let opt_update = {
+            let mut inner = self.inner.lock();
 
-            let old_peer_state_input =
-                AttachmentManager::translate_attachment_state(&inner.attachment_machine.state());
+            // Check if the routing table health is different
+            if let Some(last_routing_table_health) = &inner.last_routing_table_health {
+                // If things are the same, just return
+                if last_routing_table_health == &health {
+                    return;
+                }
+            }
 
-            // get reliable peer count from routing table
-            let routing_table = self.network_manager().routing_table();
-            let health = routing_table.get_routing_table_health();
+            // Swap in new health numbers
+            let opt_previous_health = inner.last_routing_table_health.take();
+            inner.last_routing_table_health = Some(health.clone());
+
+            // Calculate new attachment state
             let config = self.config();
             let routing_table_config = &config.get().network.routing_table;
+            let previous_attachment_state = inner.last_attachment_state;
+            inner.last_attachment_state =
+                AttachmentManager::translate_routing_table_health(&health, routing_table_config);
 
-            let new_peer_state_input =
-                AttachmentManager::translate_routing_table_health(health, routing_table_config);
+            // If we don't have an update callback yet for some reason, just return now
+            let Some(update_callback) = inner.update_callback.clone() else {
+                return;
+            };
 
-            if old_peer_state_input == new_peer_state_input {
-                None
+            // Send update if one of:
+            // * the attachment state has changed
+            // * routing domain readiness has changed
+            // * this is our first routing table health check
+            let send_update = previous_attachment_state != inner.last_attachment_state
+                || opt_previous_health
+                    .map(|x| {
+                        x.public_internet_ready != health.public_internet_ready
+                            || x.local_network_ready != health.local_network_ready
+                    })
+                    .unwrap_or(true);
+            if send_update {
+                Some((update_callback, Self::get_veilid_state_inner(&*inner)))
             } else {
-                Some(new_peer_state_input)
+                None
             }
         };
-        if let Some(next_input) = new_peer_state_input {
-            let _ = self.process_input(&next_input).await;
+
+        // Send the update outside of the lock
+        if let Some(update) = opt_update {
+            (update.0)(VeilidUpdate::Attachment(update.1));
         }
     }
 
     #[instrument(level = "debug", skip(self))]
     async fn attachment_maintainer(self) {
-        debug!("attachment starting");
-        self.inner.lock().attach_ts = Some(get_aligned_timestamp());
+        {
+            let mut inner = self.inner.lock();
+            inner.last_attachment_state = AttachmentState::Attaching;
+            self.inner.lock().attach_ts = Some(get_aligned_timestamp());
+            debug!("attachment starting");
+        }
         let netman = self.network_manager();
 
         let mut restart;
@@ -281,12 +209,20 @@ impl AttachmentManager {
                     break;
                 }
 
-                self.update_attachment().await;
+                // Update attachment and network readiness state
+                // and possibly send a VeilidUpdate::Attachment
+                self.update_attachment();
 
                 // sleep should be at the end in case maintain_peers changes state
                 sleep(1000).await;
             }
             debug!("stopped maintaining peers");
+
+            if !restart {
+                let mut inner = self.inner.lock();
+                inner.last_attachment_state = AttachmentState::Detaching;
+                debug!("attachment stopping");
+            }
 
             debug!("stopping network");
             netman.shutdown().await;
@@ -300,13 +236,12 @@ impl AttachmentManager {
             sleep(1000).await;
         }
 
-        trace!("stopping attachment");
-        let attachment_machine = self.inner.lock().attachment_machine.clone();
-        let _output = attachment_machine
-            .consume(&AttachmentInput::AttachmentStopped)
-            .await;
-        debug!("attachment stopped");
-        self.inner.lock().attach_ts = None;
+        {
+            let mut inner = self.inner.lock();
+            inner.last_attachment_state = AttachmentState::Detached;
+            inner.attach_ts = None;
+            debug!("attachment stopped");
+        }
     }
 
     #[instrument(level = "debug", skip_all, err)]
@@ -315,15 +250,7 @@ impl AttachmentManager {
         {
             let mut inner = self.inner.lock();
             inner.update_callback = Some(update_callback.clone());
-            let update_callback2 = update_callback.clone();
-            inner.attachment_machine.set_state_change_callback(Arc::new(
-                move |_old_state: AttachmentState, new_state: AttachmentState| {
-                    update_callback2(VeilidUpdate::Attachment(VeilidStateAttachment {
-                        state: new_state,
-                    }))
-                },
-            ));
-        };
+        }
 
         self.network_manager().init(update_callback).await?;
 
@@ -339,18 +266,20 @@ impl AttachmentManager {
     }
 
     #[instrument(level = "trace", skip(self))]
-    fn attach(&self) {
+    pub async fn attach(&self) -> bool {
         // Create long-running connection maintenance routine
         let mut inner = self.inner.lock();
         if inner.attachment_maintainer_jh.is_some() {
-            return;
+            return false;
         }
         inner.maintain_peers = true;
         inner.attachment_maintainer_jh = Some(spawn(self.clone().attachment_maintainer()));
+
+        true
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn detach(&self) {
+    pub async fn detach(&self) -> bool {
         let attachment_maintainer_jh = {
             let mut inner = self.inner.lock();
             let attachment_maintainer_jh = inner.attachment_maintainer_jh.take();
@@ -362,57 +291,34 @@ impl AttachmentManager {
         };
         if let Some(jh) = attachment_maintainer_jh {
             jh.await;
+            true
+        } else {
+            false
         }
     }
 
-    async fn handle_output(&self, output: &AttachmentOutput) {
-        match output {
-            AttachmentOutput::StartAttachment => self.attach(),
-            AttachmentOutput::StopAttachment => self.detach().await,
+    pub fn get_attachment_state(&self) -> AttachmentState {
+        self.inner.lock().last_attachment_state
+    }
+
+    fn get_veilid_state_inner(inner: &AttachmentManagerInner) -> VeilidStateAttachment {
+        VeilidStateAttachment {
+            state: inner.last_attachment_state,
+            public_internet_ready: inner
+                .last_routing_table_health
+                .as_ref()
+                .map(|x| x.public_internet_ready)
+                .unwrap_or(false),
+            local_network_ready: inner
+                .last_routing_table_health
+                .as_ref()
+                .map(|x| x.local_network_ready)
+                .unwrap_or(false),
         }
-    }
-
-    async fn process_input(&self, input: &AttachmentInput) -> EyreResult<()> {
-        let attachment_machine = self.inner.lock().attachment_machine.clone();
-        let output = attachment_machine.consume(input).await;
-        match output {
-            Err(e) => Err(eyre!(
-                "invalid input '{:?}' for state machine in state '{:?}': {:?}",
-                input,
-                attachment_machine.state(),
-                e
-            )),
-            Ok(v) => {
-                if let Some(o) = v {
-                    self.handle_output(&o).await;
-                }
-                Ok(())
-            }
-        }
-    }
-
-    #[instrument(level = "trace", skip(self), err)]
-    pub async fn request_attach(&self) -> EyreResult<()> {
-        self.process_input(&AttachmentInput::AttachRequested)
-            .await
-            .map_err(|e| eyre!("Attach request failed: {}", e))
-    }
-
-    #[instrument(level = "trace", skip(self), err)]
-    pub async fn request_detach(&self) -> EyreResult<()> {
-        self.process_input(&AttachmentInput::DetachRequested)
-            .await
-            .map_err(|e| eyre!("Detach request failed: {}", e))
-    }
-
-    pub fn get_state(&self) -> AttachmentState {
-        let attachment_machine = self.inner.lock().attachment_machine.clone();
-        attachment_machine.state()
     }
 
     pub fn get_veilid_state(&self) -> VeilidStateAttachment {
-        VeilidStateAttachment {
-            state: self.get_state(),
-        }
+        let inner = self.inner.lock();
+        Self::get_veilid_state_inner(&*inner)
     }
 }

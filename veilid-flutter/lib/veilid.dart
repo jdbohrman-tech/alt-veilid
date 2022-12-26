@@ -1400,15 +1400,22 @@ class VeilidUpdateRoute implements VeilidUpdate {
 
 class VeilidStateAttachment {
   final AttachmentState state;
+  final bool publicInternetReady;
+  final bool localNetworkReady;
 
-  VeilidStateAttachment(this.state);
+  VeilidStateAttachment(
+      this.state, this.publicInternetReady, this.localNetworkReady);
 
   VeilidStateAttachment.fromJson(Map<String, dynamic> json)
-      : state = attachmentStateFromJson(json['state']);
+      : state = attachmentStateFromJson(json['state']),
+        publicInternetReady = json['public_internet_ready'],
+        localNetworkReady = json['local_network_ready'];
 
   Map<String, dynamic> get json {
     return {
       'state': state.json,
+      'public_internet_ready': publicInternetReady,
+      'local_network_ready': localNetworkReady,
     };
   }
 }

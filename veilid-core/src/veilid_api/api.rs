@@ -139,20 +139,20 @@ impl VeilidAPI {
     #[instrument(level = "debug", err, skip_all)]
     pub async fn attach(&self) -> Result<(), VeilidAPIError> {
         let attachment_manager = self.attachment_manager()?;
-        attachment_manager
-            .request_attach()
-            .await
-            .map_err(|e| VeilidAPIError::internal(e))
+        if !attachment_manager.attach().await {
+            apibail_generic!("Already attached");
+        }
+        Ok(())
     }
 
     // disconnect from the network
     #[instrument(level = "debug", err, skip_all)]
     pub async fn detach(&self) -> Result<(), VeilidAPIError> {
         let attachment_manager = self.attachment_manager()?;
-        attachment_manager
-            .request_detach()
-            .await
-            .map_err(|e| VeilidAPIError::internal(e))
+        if !attachment_manager.detach().await {
+            apibail_generic!("Already detached");
+        }
+        Ok(())
     }
 
     ////////////////////////////////////////////////////////////////

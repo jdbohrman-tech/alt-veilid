@@ -336,6 +336,8 @@ pub struct VeilidConfigRoutingTable {
     pub limit_attached_strong: u32,
     pub limit_attached_good: u32,
     pub limit_attached_weak: u32,
+    // xxx pub enable_public_internet: bool,
+    // xxx pub enable_local_network: bool,
 }
 
 #[derive(

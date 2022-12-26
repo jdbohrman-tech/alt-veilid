@@ -388,7 +388,11 @@ reply               - reply to an AppCall not handled directly by the server
     ////////////////////////////////////////////
 
     pub fn update_attachment(&mut self, attachment: veilid_core::VeilidStateAttachment) {
-        self.inner_mut().ui.set_attachment_state(attachment.state);
+        self.inner_mut().ui.set_attachment_state(
+            attachment.state,
+            attachment.public_internet_ready,
+            attachment.local_network_ready,
+        );
     }
 
     pub fn update_network_status(&mut self, network: veilid_core::VeilidStateNetwork) {

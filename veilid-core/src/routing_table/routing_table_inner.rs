@@ -318,10 +318,8 @@ impl RoutingTableInner {
             4 => 16,
             5 => 8,
             6 => 4,
-            7 => 4,
-            8 => 4,
-            9 => 4,
-            _ => 4,
+            7 => 2,
+            _ => 1,
         }
     }
 
@@ -718,24 +716,45 @@ impl RoutingTableInner {
     // Routing Table Health Metrics
 
     pub fn get_routing_table_health(&self) -> RoutingTableHealth {
-        let mut health = RoutingTableHealth::default();
+        let mut reliable_entry_count: usize = 0;
+        let mut unreliable_entry_count: usize = 0;
+        let mut dead_entry_count: usize = 0;
+
         let cur_ts = get_aligned_timestamp();
         for bucket in &self.buckets {
             for (_, v) in bucket.entries() {
                 match v.with(self, |_rti, e| e.state(cur_ts)) {
                     BucketEntryState::Reliable => {
-                        health.reliable_entry_count += 1;
+                        reliable_entry_count += 1;
                     }
                     BucketEntryState::Unreliable => {
-                        health.unreliable_entry_count += 1;
+                        unreliable_entry_count += 1;
                     }
                     BucketEntryState::Dead => {
-                        health.dead_entry_count += 1;
+                        dead_entry_count += 1;
                     }
                 }
             }
         }
-        health
+
+        let public_internet_ready = matches!(
+            self.get_network_class(RoutingDomain::PublicInternet)
+                .unwrap_or_default(),
+            NetworkClass::Invalid
+        );
+        let local_network_ready = matches!(
+            self.get_network_class(RoutingDomain::LocalNetwork)
+                .unwrap_or_default(),
+            NetworkClass::Invalid
+        );
+
+        RoutingTableHealth {
+            reliable_entry_count,
+            unreliable_entry_count,
+            dead_entry_count,
+            public_internet_ready,
+            local_network_ready,
+        }
     }
 
     pub fn touch_recent_peer(&mut self, node_id: DHTKey, last_connection: ConnectionDescriptor) {

@@ -51,6 +51,8 @@ pub type UICallback = Box<dyn Fn(&mut Cursive) + Send>;
 
 struct UIState {
     attachment_state: Dirty<AttachmentState>,
+    public_internet_ready: Dirty<bool>,
+    local_network_ready: Dirty<bool>,
     network_started: Dirty<bool>,
     network_down_up: Dirty<(f32, f32)>,
     connection_state: Dirty<ConnectionState>,
@@ -62,6 +64,8 @@ impl UIState {
     pub fn new() -> Self {
         Self {
             attachment_state: Dirty::new(AttachmentState::Detached),
+            public_internet_ready: Dirty::new(false),
+            local_network_ready: Dirty::new(false),
             network_started: Dirty::new(false),
             network_down_up: Dirty::new((0.0, 0.0)),
             connection_state: Dirty::new(ConnectionState::Disconnected),
@@ -234,17 +238,28 @@ impl UI {
     fn peers(s: &mut Cursive) -> ViewRef<PeersTableView> {
         s.find_name("peers").unwrap()
     }
-    fn render_attachment_state<'a>(inner: &mut UIInner) -> &'a str {
-        match inner.ui_state.attachment_state.get() {
-            AttachmentState::Detached => " Detached [----]",
-            AttachmentState::Attaching => "Attaching [/   ]",
-            AttachmentState::AttachedWeak => " Attached [|   ]",
-            AttachmentState::AttachedGood => " Attached [||  ]",
-            AttachmentState::AttachedStrong => " Attached [||| ]",
-            AttachmentState::FullyAttached => " Attached [||||]",
-            AttachmentState::OverAttached => " Attached [++++]",
-            AttachmentState::Detaching => "Detaching [////]",
-        }
+    fn render_attachment_state(inner: &mut UIInner) -> String {
+        let att = match inner.ui_state.attachment_state.get() {
+            AttachmentState::Detached => "[----]",
+            AttachmentState::Attaching => "[/   ]",
+            AttachmentState::AttachedWeak => "[|   ]",
+            AttachmentState::AttachedGood => "[||  ]",
+            AttachmentState::AttachedStrong => "[||| ]",
+            AttachmentState::FullyAttached => "[||||]",
+            AttachmentState::OverAttached => "[++++]",
+            AttachmentState::Detaching => "[////]",
+        };
+        let pi = if *inner.ui_state.public_internet_ready.get() {
+            "+P"
+        } else {
+            "-p"
+        };
+        let ln = if *inner.ui_state.local_network_ready.get() {
+            "+L"
+        } else {
+            "-l"
+        };
+        format!("{}{}{}", att, pi, ln)
     }
     fn render_network_status(inner: &mut UIInner) -> String {
         match inner.ui_state.network_started.get() {
@@ -832,9 +847,20 @@ impl UI {
         inner.cmdproc = Some(cmdproc);
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
-    pub fn set_attachment_state(&mut self, state: AttachmentState) {
+    pub fn set_attachment_state(
+        &mut self,
+        state: AttachmentState,
+        public_internet_ready: bool,
+        local_network_ready: bool,
+    ) {
         let mut inner = self.inner.borrow_mut();
         inner.ui_state.attachment_state.set(state);
+        inner
+            .ui_state
+            .public_internet_ready
+            .set(public_internet_ready);
+        inner.ui_state.local_network_ready.set(local_network_ready);
+
         let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
     pub fn set_network_status(

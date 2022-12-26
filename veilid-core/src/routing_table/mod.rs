@@ -51,7 +51,7 @@ pub struct LowLevelPortInfo {
 pub type RoutingTableEntryFilter<'t> =
     Box<dyn FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RoutingTableHealth {
     /// Number of reliable (responsive) entries in the routing table
     pub reliable_entry_count: usize,
@@ -60,9 +60,9 @@ pub struct RoutingTableHealth {
     /// Number of dead (always unresponsive) entries in the routing table
     pub dead_entry_count: usize,
     /// If PublicInternet network class is valid yet
-    pub public_internet_network_class_valid: bool, xxx do this and add to attachment calculation
+    pub public_internet_ready: bool,
     /// If LocalNetwork network class is valid yet
-    pub local_network_network_class_valid: bool,
+    pub local_network_ready: bool,
 }
 
 pub(super) struct RoutingTableUnlockedInner {
@@ -78,7 +78,7 @@ pub(super) struct RoutingTableUnlockedInner {
     kick_queue: Mutex<BTreeSet<usize>>,
     /// Background process for computing statistics
     rolling_transfers_task: TickTask<EyreReport>,
-    /// Backgroup process to purge dead routing table entries when necessary
+    /// Background process to purge dead routing table entries when necessary
     kick_buckets_task: TickTask<EyreReport>,
     /// Background process to get our initial routing table
     bootstrap_task: TickTask<EyreReport>,
