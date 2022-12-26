@@ -7,7 +7,6 @@ import 'package:loggy/loggy.dart';
 import 'package:veilid_example/veilid_theme.dart';
 
 import 'log_terminal.dart';
-import 'config.dart';
 import 'log.dart';
 import 'history_wrapper.dart';
 
@@ -110,8 +109,8 @@ class _MyAppState extends State<MyApp> with UiLoggy {
 
   Future<void> toggleStartup(bool startup) async {
     if (startup && !_startedUp) {
-      var updateStream = await Veilid.instance
-          .startupVeilidCore(await getDefaultVeilidConfig());
+      var updateStream = await Veilid.instance.startupVeilidCore(
+          await getDefaultVeilidConfig("Veilid Plugin Example"));
       setState(() {
         _updateStream = updateStream;
         _updateProcessor = processUpdates();

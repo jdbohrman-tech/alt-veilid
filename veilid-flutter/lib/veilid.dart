@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:html';
 import 'dart:typed_data';
 import 'dart:convert';
 
@@ -10,6 +9,8 @@ import 'veilid_stub.dart'
     if (dart.library.js) 'veilid_js.dart';
 
 //////////////////////////////////////////////////////////
+
+export 'default_config.dart';
 
 //////////////////////////////////////////////////////////
 // FFI Platform-specific config

@@ -59,6 +59,10 @@ pub struct RoutingTableHealth {
     pub unreliable_entry_count: usize,
     /// Number of dead (always unresponsive) entries in the routing table
     pub dead_entry_count: usize,
+    /// If PublicInternet network class is valid yet
+    pub public_internet_network_class_valid: bool, xxx do this and add to attachment calculation
+    /// If LocalNetwork network class is valid yet
+    pub local_network_network_class_valid: bool,
 }
 
 pub(super) struct RoutingTableUnlockedInner {

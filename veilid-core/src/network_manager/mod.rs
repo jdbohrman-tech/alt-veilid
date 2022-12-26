@@ -1514,6 +1514,7 @@ impl NetworkManager {
                 bps_down: 0.into(),
                 bps_up: 0.into(),
                 peers: Vec::new(),
+                
             };
         }
         let routing_table = self.routing_table();
