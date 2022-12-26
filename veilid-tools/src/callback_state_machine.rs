@@ -54,14 +54,14 @@ where
         self.inner.lock().callback = Some(callback);
     }
 
-    // pub fn clear_state_change_callback(&self) {
-    //     self.inner.lock().callback = None;
-    // }
+    pub fn clear_state_change_callback(&self) {
+        self.inner.lock().callback = None;
+    }
 
-    // pub fn state_eventual_instance(&self) -> (T::State, EventualValueCloneFuture<T::State>) {
-    //     let inner = self.inner.lock();
-    //     (inner.state, inner.eventual.instance())
-    // }
+    pub fn state_eventual_instance(&self) -> (T::State, EventualValueCloneFuture<T::State>) {
+        let inner = self.inner.lock();
+        (inner.state, inner.eventual.instance())
+    }
 
     pub async fn consume(&self, input: &T::Input) -> Result<Option<T::Output>, ()> {
         let current_state = self.inner.lock().state;
