@@ -737,12 +737,12 @@ impl RoutingTableInner {
             }
         }
 
-        let public_internet_ready = matches!(
+        let public_internet_ready = !matches!(
             self.get_network_class(RoutingDomain::PublicInternet)
                 .unwrap_or_default(),
             NetworkClass::Invalid
         );
-        let local_network_ready = matches!(
+        let local_network_ready = !matches!(
             self.get_network_class(RoutingDomain::LocalNetwork)
                 .unwrap_or_default(),
             NetworkClass::Invalid
