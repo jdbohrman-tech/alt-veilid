@@ -1847,6 +1847,14 @@ abstract class VeilidRoutingContext {
   Future<void> appMessage(String target, Uint8List message);
 }
 
+/////////////////////////////////////
+/// VeilidTableDB
+abstract class VeilidTableDB {
+  int getColumnCount();
+  List<Uint8List> getKeys();
+  VeilidTableDBTransaction transact()
+}
+
 //////////////////////////////////////
 /// Veilid singleton factory
 
@@ -1873,6 +1881,10 @@ abstract class Veilid {
 
   // App calls
   Future<void> appCallReply(String id, Uint8List message);
+
+  // TableStore
+  Future<VeilidTableDB> openTableDB(String name, int columnCount);
+  Future<bool> deleteTableDB(String name);
 
   // Misc
   String veilidVersionString();

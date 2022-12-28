@@ -2787,6 +2787,9 @@ dependencies = [
  "keyvaluedb",
  "keyvaluedb-shared-tests",
  "parking_lot 0.12.1",
+ "tokio 1.23.0",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -2815,6 +2818,7 @@ dependencies = [
  "rusqlite",
  "sysinfo",
  "tempfile",
+ "tokio 1.23.0",
 ]
 
 [[package]]
@@ -2822,6 +2826,7 @@ name = "keyvaluedb-web"
 version = "0.1.0"
 dependencies = [
  "console_log",
+ "flume",
  "futures",
  "js-sys",
  "keyvaluedb",

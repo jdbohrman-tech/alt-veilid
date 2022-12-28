@@ -17,13 +17,19 @@ pub struct TableDBInner {
     database: Database,
 }
 
+impl fmt::Debug for TableDBInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TableDBInner(table={})", self.table)
+    }
+}
+
 impl Drop for TableDBInner {
     fn drop(&mut self) {
         self.table_store.on_table_db_drop(self.table.clone());
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TableDB {
     inner: Arc<Mutex<TableDBInner>>,
 }
@@ -68,12 +74,12 @@ impl TableDB {
     }
 
     /// Start a TableDB write transaction. The transaction object must be committed or rolled back before dropping.
-    pub fn transact<'a>(&'a self) -> TableDBTransaction<'a> {
+    pub fn transact(&self) -> TableDBTransaction {
         let dbt = {
             let db = &self.inner.lock().database;
             db.transaction()
         };
-        TableDBTransaction::new(self, dbt)
+        TableDBTransaction::new(self.clone(), dbt)
     }
 
     /// Store a key with a value in a column in the TableDB. Performs a single transaction immediately.
@@ -172,31 +178,54 @@ impl TableDB {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// A TableDB transaction
-/// Atomically commits a group of writes or deletes to the TableDB
-pub struct TableDBTransaction<'a> {
-    db: &'a TableDB,
+struct TableDBTransactionInner {
     dbt: Option<DBTransaction>,
-    _phantom: core::marker::PhantomData<&'a ()>,
 }
 
-impl<'a> TableDBTransaction<'a> {
-    fn new(db: &'a TableDB, dbt: DBTransaction) -> Self {
+impl fmt::Debug for TableDBTransactionInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TableDBTransactionInner({})",
+            match &self.dbt {
+                Some(dbt) => format!("len={}", dbt.ops.len()),
+                None => "".to_owned(),
+            }
+        )
+    }
+}
+
+/// A TableDB transaction
+/// Atomically commits a group of writes or deletes to the TableDB
+#[derive(Debug, Clone)]
+pub struct TableDBTransaction {
+    db: TableDB,
+    inner: Arc<Mutex<TableDBTransactionInner>>,
+}
+
+impl TableDBTransaction {
+    fn new(db: TableDB, dbt: DBTransaction) -> Self {
         Self {
             db,
-            dbt: Some(dbt),
-            _phantom: Default::default(),
+            inner: Arc::new(Mutex::new(TableDBTransactionInner { dbt: Some(dbt) })),
         }
     }
 
     /// Commit the transaction. Performs all actions atomically.
     pub fn commit(mut self) -> EyreResult<()> {
+        let dbt = {
+            let inner = self.inner.lock();
+            inner
+                .dbt
+                .take()
+                .ok_or_else(|| Err(eyre!("transaction already completed")))?
+        };
         self.db
             .inner
             .lock()
             .database
-            .write(self.dbt.take().unwrap())
-            .wrap_err("commit failed")
+            .write(dbt)
+            .wrap_err("commit failed, transaction lost")
     }
 
     /// Rollback the transaction. Does nothing to the TableDB.
@@ -235,7 +264,7 @@ impl<'a> TableDBTransaction<'a> {
     }
 }
 
-impl<'a> Drop for TableDBTransaction<'a> {
+impl Drop for TableDBTransactionInner {
     fn drop(&mut self) {
         if self.dbt.is_some() {
             warn!("Dropped transaction without commit or rollback");
