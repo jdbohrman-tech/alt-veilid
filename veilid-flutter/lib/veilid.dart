@@ -1849,10 +1849,26 @@ abstract class VeilidRoutingContext {
 
 /////////////////////////////////////
 /// VeilidTableDB
+abstract class VeilidTableDBTransaction {
+  Future<void> commit();
+  Future<void> rollback();
+  Future<void> store(int col, Uint8List key, Uint8List value);
+  Future<void> storeJson(int col, Uint8List key, Object? object,
+      {Object? Function(Object? nonEncodable) toEncodable});
+  Future<bool> delete(int col, Uint8List key);
+}
+
 abstract class VeilidTableDB {
   int getColumnCount();
-  List<Uint8List> getKeys();
-  VeilidTableDBTransaction transact()
+  List<Uint8List> getKeys(int col);
+  VeilidTableDBTransaction transact();
+  Future<void> store(int col, Uint8List key, Uint8List value);
+  Future<void> storeJson(int col, Uint8List key, Object? object,
+      {Object? Function(Object? nonEncodable) toEncodable});
+  Future<Uint8List?> load(int col, Uint8List key);
+  Future<Object?> loadJson(int col, Uint8List key,
+      {Object? Function(Object? key, Object? value) reviver});
+  Future<bool> delete(int col, Uint8List key);
 }
 
 //////////////////////////////////////

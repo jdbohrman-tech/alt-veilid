@@ -512,7 +512,7 @@ impl RouteSpecStore {
             .network_manager()
             .table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        rsstdb.store_rkyv(0, b"content", &content)?;
+        rsstdb.store_rkyv(0, b"content", &content).await?;
 
         // // Keep secrets in protected store as well
         let pstore = self

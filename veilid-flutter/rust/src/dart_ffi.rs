@@ -2,6 +2,7 @@ use crate::dart_isolate_wrapper::*;
 use crate::tools::*;
 use allo_isolate::*;
 use cfg_if::*;
+use data_encoding::BASE64URL_NOPAD;
 use ffi_support::*;
 use lazy_static::*;
 use opentelemetry::sdk::*;
@@ -22,6 +23,10 @@ lazy_static! {
     static ref FILTERS: Mutex<BTreeMap<&'static str, veilid_core::VeilidLayerFilter>> =
         Mutex::new(BTreeMap::new());
     static ref ROUTING_CONTEXTS: Mutex<BTreeMap<u32, veilid_core::RoutingContext>> =
+        Mutex::new(BTreeMap::new());
+    static ref TABLE_DBS: Mutex<BTreeMap<u32, veilid_core::TableDB>> =
+        Mutex::new(BTreeMap::new());
+    static ref TABLE_DB_TRANSACTIONS: Mutex<BTreeMap<u32, veilid_core::TableDBTransaction>> =
         Mutex::new(BTreeMap::new());
 }
 
@@ -548,6 +553,266 @@ pub extern "C" fn app_call_reply(port: i64, id: FfiStr, message: FfiStr) {
         let veilid_api = get_veilid_api().await?;
         veilid_api.app_call_reply(id, message).await?;
         APIRESULT_VOID
+    });
+}
+
+fn add_table_db(table_db: veilid_core::TableDB) -> u32 {
+    let mut next_id: u32 = 1;
+    let mut rc = TABLE_DBS.lock();
+    while rc.contains_key(&next_id) {
+        next_id += 1;
+    }
+    rc.insert(next_id, table_db);
+    next_id
+}
+
+#[no_mangle]
+pub extern "C" fn open_table_db(port: i64, name: FfiStr, column_count: u32) {
+    let name = name.into_opt_string().unwrap_or_default();
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+        let tstore = veilid_api.table_store()?;
+        let table_db = tstore.open(&name, column_count).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        let new_id = add_table_db(table_db);
+        APIResult::Ok(new_id)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn release_table_db(id: u32) -> i32 {
+    let mut rc = TABLE_DBS.lock();
+    if rc.remove(&id).is_none() {
+        return 0;
+    }
+    return 1;
+}
+
+#[no_mangle]
+pub extern "C" fn delete_table_db(port: i64, name: FfiStr) {
+    let name = name.into_opt_string().unwrap_or_default();
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+        let tstore = veilid_api.table_store()?;
+        let deleted = tstore.delete(&name).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        APIResult::Ok(deleted)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn table_db_get_column_count(id: u32) -> u32 {
+    let table_dbs = TABLE_DBS.lock();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return 0;
+    };
+    let Ok(cc) = table_db.clone().get_column_count() else {
+        return 0;
+    };
+    return cc;
+}
+
+#[no_mangle]
+pub extern "C" fn table_db_get_keys(id: u32, col: u32) -> *mut c_char {
+    let table_dbs = TABLE_DBS.lock();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return std::ptr::null_mut();
+    };
+    let Ok(keys) = table_db.clone().get_keys(col) else {
+        return std::ptr::null_mut();
+    };
+    let keys: Vec<String> = keys.into_iter().map(|k| BASE64URL_NOPAD.encode(&k)).collect();
+    let out = veilid_core::serialize_json(keys);
+    out.into_ffi_value()
+}
+
+fn add_table_db_transaction(tdbt: veilid_core::TableDBTransaction) -> u32 {
+    let mut next_id: u32 = 1;
+    let mut tdbts = TABLE_DB_TRANSACTIONS.lock();
+    while tdbts.contains_key(&next_id) {
+        next_id += 1;
+    }
+    tdbts.insert(next_id, tdbt);
+    next_id
+}
+
+#[no_mangle]
+pub extern "C" fn table_db_transact(id: u32) -> u32 {
+    let table_dbs = TABLE_DBS.lock();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return 0;
+    };
+    let tdbt = table_db.clone().transact();
+    let tdbtid = add_table_db_transaction(tdbt);
+    return tdbtid;
+}
+
+#[no_mangle]
+pub extern "C" fn release_table_db_transaction(id: u32) -> i32 {
+    let mut tdbts = TABLE_DB_TRANSACTIONS.lock();
+    if tdbts.remove(&id).is_none() {
+        return 0;
+    }
+    return 1;
+}
+
+
+#[no_mangle]
+pub extern "C" fn table_db_transaction_commit(port: i64, id: u32) {
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let tdbt = {
+            let tdbts = TABLE_DB_TRANSACTIONS.lock();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_commit", "id", id));
+            };
+            tdbt.clone()
+        };
+        
+        tdbt.commit().await.map_err(veilid_core::VeilidAPIError::generic)?;
+        APIRESULT_VOID
+    });
+}
+#[no_mangle]
+pub extern "C" fn table_db_transaction_rollback(port: i64, id: u32) {
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let tdbt = {
+            let tdbts = TABLE_DB_TRANSACTIONS.lock();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_rollback", "id", id));
+            };
+            tdbt.clone()
+        };
+        
+        tdbt.rollback();
+        APIRESULT_VOID
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn table_db_transaction_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr) {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(value.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let tdbt = {
+            let tdbts = TABLE_DB_TRANSACTIONS.lock();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_store", "id", id));
+            };
+            tdbt.clone()
+        };
+        
+        tdbt.store(col, &key, &value);
+        APIRESULT_VOID
+    });
+}
+
+
+#[no_mangle]
+pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key: FfiStr) {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let tdbt = {
+            let tdbts = TABLE_DB_TRANSACTIONS.lock();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_delete", "id", id));
+            };
+            tdbt.clone()
+        };
+        
+        let out = tdbt.delete(col, &key);
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr) {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(value.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let table_db = {
+            let table_dbs = TABLE_DBS.lock();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_store", "id", id));
+            };
+            table_db.clone()
+        };
+        
+        table_db.store(col, &key, &value).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        APIRESULT_VOID
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr) {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let table_db = {
+            let table_dbs = TABLE_DBS.lock();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_load", "id", id));
+            };
+            table_db.clone()
+        };
+        
+        let out = table_db.load(col, &key).map_err(veilid_core::VeilidAPIError::generic)?;
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr) {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let table_db = {
+            let table_dbs = TABLE_DBS.lock();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_delete", "id", id));
+            };
+            table_db.clone()
+        };
+        
+        let out = table_db.delete(col, &key).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        APIResult::Ok(out)
     });
 }
 

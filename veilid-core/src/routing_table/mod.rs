@@ -241,7 +241,7 @@ impl RoutingTable {
         let table_store = self.network_manager().table_store();
         let tdb = table_store.open("routing_table", 1).await?;
         let bucket_count = bucketvec.len();
-        let mut dbx = tdb.transact();
+        let dbx = tdb.transact();
         if let Err(e) = dbx.store_rkyv(0, b"bucket_count", &bucket_count) {
             dbx.rollback();
             return Err(e);
@@ -250,7 +250,7 @@ impl RoutingTable {
         for (n, b) in bucketvec.iter().enumerate() {
             dbx.store(0, format!("bucket_{}", n).as_bytes(), b)
         }
-        dbx.commit()?;
+        dbx.commit().await?;
         Ok(())
     }
 

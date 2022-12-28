@@ -132,7 +132,7 @@ impl Crypto {
             drop(db);
             table_store.delete("crypto_caches").await?;
             db = table_store.open("crypto_caches", 1).await?;
-            db.store(0, b"node_id", &node_id.unwrap().bytes)?;
+            db.store(0, b"node_id", &node_id.unwrap().bytes).await?;
         }
 
         // Schedule flushing
@@ -159,7 +159,7 @@ impl Crypto {
         };
 
         let db = table_store.open("crypto_caches", 1).await?;
-        db.store(0, b"dh_cache", &cache_bytes)?;
+        db.store(0, b"dh_cache", &cache_bytes).await?;
         Ok(())
     }
 

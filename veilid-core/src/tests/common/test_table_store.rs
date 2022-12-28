@@ -63,7 +63,7 @@ pub async fn test_store_delete_load(ts: TableStore) {
         "should not load missing key"
     );
     assert!(
-        db.store(1, b"foo", b"1234567890").is_ok(),
+        db.store(1, b"foo", b"1234567890").await.is_ok(),
         "should store new key"
     );
     assert_eq!(
@@ -74,23 +74,25 @@ pub async fn test_store_delete_load(ts: TableStore) {
     assert_eq!(db.load(1, b"foo").unwrap(), Some(b"1234567890".to_vec()));
 
     assert!(
-        db.store(1, b"bar", b"FNORD").is_ok(),
+        db.store(1, b"bar", b"FNORD").await.is_ok(),
         "should store new key"
     );
     assert!(
-        db.store(0, b"bar", b"ABCDEFGHIJKLMNOPQRSTUVWXYZ").is_ok(),
+        db.store(0, b"bar", b"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+            .await
+            .is_ok(),
         "should store new key"
     );
     assert!(
-        db.store(2, b"bar", b"FNORD").is_ok(),
+        db.store(2, b"bar", b"FNORD").await.is_ok(),
         "should store new key"
     );
     assert!(
-        db.store(2, b"baz", b"QWERTY").is_ok(),
+        db.store(2, b"baz", b"QWERTY").await.is_ok(),
         "should store new key"
     );
     assert!(
-        db.store(2, b"bar", b"QWERTYUIOP").is_ok(),
+        db.store(2, b"bar", b"QWERTYUIOP").await.is_ok(),
         "should store new key"
     );
 
@@ -102,10 +104,10 @@ pub async fn test_store_delete_load(ts: TableStore) {
     assert_eq!(db.load(2, b"bar").unwrap(), Some(b"QWERTYUIOP".to_vec()));
     assert_eq!(db.load(2, b"baz").unwrap(), Some(b"QWERTY".to_vec()));
 
-    assert_eq!(db.delete(1, b"bar").unwrap(), true);
-    assert_eq!(db.delete(1, b"bar").unwrap(), false);
+    assert_eq!(db.delete(1, b"bar").await.unwrap(), true);
+    assert_eq!(db.delete(1, b"bar").await.unwrap(), false);
     assert!(
-        db.delete(4, b"bar").is_err(),
+        db.delete(4, b"bar").await.is_err(),
         "can't delete from column that doesn't exist"
     );
 
@@ -128,7 +130,7 @@ pub async fn test_frozen(ts: TableStore) {
     let db = ts.open("test", 3).await.expect("should have opened");
     let (dht_key, _) = generate_secret();
 
-    assert!(db.store_rkyv(0, b"asdf", &dht_key).is_ok());
+    assert!(db.store_rkyv(0, b"asdf", &dht_key).await.is_ok());
 
     assert_eq!(db.load_rkyv::<DHTKey>(0, b"qwer").unwrap(), None);
 
@@ -141,7 +143,7 @@ pub async fn test_frozen(ts: TableStore) {
     assert_eq!(d, Some(dht_key), "keys should be equal");
 
     assert!(
-        db.store(1, b"foo", b"1234567890").is_ok(),
+        db.store(1, b"foo", b"1234567890").await.is_ok(),
         "should store new key"
     );
 

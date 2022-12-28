@@ -23,7 +23,7 @@ pub use crypto::Crypto;
 pub use crypto::{generate_secret, sign, verify, DHTKey, DHTKeySecret, DHTSignature, Nonce};
 pub use intf::BlockStore;
 pub use intf::ProtectedStore;
-pub use intf::TableStore;
+pub use intf::{TableDB, TableDBTransaction, TableStore};
 pub use network_manager::NetworkManager;
 pub use routing_table::{NodeRef, NodeRefBase};
 

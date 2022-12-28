@@ -83,42 +83,42 @@ impl TableDB {
     }
 
     /// Store a key with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub fn store(&self, col: u32, key: &[u8], value: &[u8]) -> EyreResult<()> {
-        let db = &self.inner.lock().database;
+    pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> EyreResult<()> {
+        let db = self.inner.lock().database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, value);
-        db.write(dbt).wrap_err("failed to store key")
+        db.write(dbt).await.wrap_err("failed to store key")
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub async fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
         let v = to_rkyv(value)?;
 
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, v.as_slice());
-        db.write(dbt).wrap_err("failed to store key")
+        db.write(dbt).await.wrap_err("failed to store key")
     }
 
     /// Store a key in json format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub async fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: serde::Serialize,
     {
         let v = serde_json::to_vec(value)?;
 
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, v.as_slice());
-        db.write(dbt).wrap_err("failed to store key")
+        db.write(dbt).await.wrap_err("failed to store key")
     }
 
     /// Read a key from a column in the TableDB immediately.
     pub fn load(&self, col: u32, key: &[u8]) -> EyreResult<Option<Vec<u8>>> {
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         db.get(col, key).wrap_err("failed to get key")
     }
 
@@ -131,7 +131,7 @@ impl TableDB {
         <T as RkyvArchive>::Archived:
             RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let out = db.get(col, key).wrap_err("failed to get key")?;
         let b = match out {
             Some(v) => v,
@@ -148,7 +148,7 @@ impl TableDB {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let out = db.get(col, key).wrap_err("failed to get key")?;
         let b = match out {
             Some(v) => v,
@@ -161,15 +161,15 @@ impl TableDB {
     }
 
     /// Delete key with from a column in the TableDB
-    pub fn delete(&self, col: u32, key: &[u8]) -> EyreResult<bool> {
-        let db = &self.inner.lock().database;
+    pub async fn delete(&self, col: u32, key: &[u8]) -> EyreResult<bool> {
+        let db = self.inner.lock().database.clone();
         let found = db.get(col, key).wrap_err("failed to get key")?;
         match found {
             None => Ok(false),
             Some(_) => {
                 let mut dbt = db.transaction();
                 dbt.delete(col, key);
-                db.write(dbt).wrap_err("failed to delete key")?;
+                db.write(dbt).await.wrap_err("failed to delete key")?;
                 Ok(true)
             }
         }
@@ -212,55 +212,58 @@ impl TableDBTransaction {
     }
 
     /// Commit the transaction. Performs all actions atomically.
-    pub fn commit(mut self) -> EyreResult<()> {
+    pub async fn commit(self) -> EyreResult<()> {
         let dbt = {
-            let inner = self.inner.lock();
+            let mut inner = self.inner.lock();
             inner
                 .dbt
                 .take()
-                .ok_or_else(|| Err(eyre!("transaction already completed")))?
+                .ok_or_else(|| eyre!("transaction already completed"))?
         };
-        self.db
-            .inner
-            .lock()
-            .database
-            .write(dbt)
+        let db = self.db.inner.lock().database.clone();
+        db.write(dbt)
+            .await
             .wrap_err("commit failed, transaction lost")
     }
 
     /// Rollback the transaction. Does nothing to the TableDB.
-    pub fn rollback(mut self) {
-        self.dbt = None;
+    pub fn rollback(self) {
+        let mut inner = self.inner.lock();
+        inner.dbt = None;
     }
 
     /// Store a key with a value in a column in the TableDB
-    pub fn store(&mut self, col: u32, key: &[u8], value: &[u8]) {
-        self.dbt.as_mut().unwrap().put(col, key, value);
+    pub fn store(&self, col: u32, key: &[u8], value: &[u8]) {
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().put(col, key, value);
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
-    pub fn store_rkyv<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
         let v = to_rkyv(value)?;
-        self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().put(col, key, v.as_slice());
         Ok(())
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
-    pub fn store_json<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: serde::Serialize,
     {
         let v = serde_json::to_vec(value)?;
-        self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().put(col, key, v.as_slice());
         Ok(())
     }
 
     /// Delete key with from a column in the TableDB
-    pub fn delete(&mut self, col: u32, key: &[u8]) {
-        self.dbt.as_mut().unwrap().delete(col, key);
+    pub fn delete(&self, col: u32, key: &[u8]) {
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().delete(col, key);
     }
 }
 
