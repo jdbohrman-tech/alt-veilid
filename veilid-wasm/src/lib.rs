@@ -37,6 +37,10 @@ lazy_static! {
         SendWrapper::new(RefCell::new(BTreeMap::new()));
     static ref ROUTING_CONTEXTS: SendWrapper<RefCell<BTreeMap<u32, veilid_core::RoutingContext>>> =
         SendWrapper::new(RefCell::new(BTreeMap::new()));
+    static ref TABLE_DBS: SendWrapper<RefCell<BTreeMap<u32, veilid_core::TableDB>>> =
+        SendWrapper::new(RefCell::new(BTreeMap::new()));
+    static ref TABLE_DB_TRANSACTIONS: SendWrapper<RefCell<BTreeMap<u32, veilid_core::TableDBTransaction>>> =
+        SendWrapper::new(RefCell::new(BTreeMap::new()));
 }
 
 fn get_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIError> {
@@ -465,6 +469,255 @@ pub fn app_call_reply(id: String, message: String) -> Promise {
         let veilid_api = get_veilid_api()?;
         let out = veilid_api.app_call_reply(id, message).await?;
         Ok(out)
+    })
+}
+
+fn add_table_db(table_db: veilid_core::TableDB) -> u32 {
+    let mut next_id: u32 = 1;
+    let mut tdbs = (*TABLE_DBS).borrow_mut();
+    while tdbs.contains_key(&next_id) {
+        next_id += 1;
+    }
+    tdbs.insert(next_id, table_db);
+    next_id
+}
+
+#[wasm_bindgen()]
+pub fn open_table_db(name: String, column_count: u32) -> Promise {
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        let tstore = veilid_api.table_store()?;
+        let table_db = tstore
+            .open(&name, column_count)
+            .await
+            .map_err(veilid_core::VeilidAPIError::generic)?;
+        let new_id = add_table_db(table_db);
+        Ok(new_id)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn release_table_db(id: u32) -> i32 {
+    let mut tdbs = (*TABLE_DBS).borrow_mut();
+    if tdbs.remove(&id).is_none() {
+        return 0;
+    }
+    return 1;
+}
+
+#[wasm_bindgen()]
+pub fn delete_table_db(name: String) -> Promise {
+    wrap_api_future(async move {
+        let veilid_api = get_veilid_api()?;
+        let tstore = veilid_api.table_store()?;
+        let deleted = tstore
+            .delete(&name)
+            .await
+            .map_err(veilid_core::VeilidAPIError::generic)?;
+        Ok(deleted)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn table_db_get_column_count(id: u32) -> u32 {
+    let table_dbs = (*TABLE_DBS).borrow();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return 0;
+    };
+    let Ok(cc) = table_db.clone().get_column_count() else {
+        return 0;
+    };
+    return cc;
+}
+
+#[wasm_bindgen()]
+pub fn table_db_get_keys(id: u32, col: u32) -> Option<String> {
+    let table_dbs = (*TABLE_DBS).borrow();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return None;
+    };
+    let Ok(keys) = table_db.clone().get_keys(col) else {
+        return None;
+    };
+    let keys: Vec<String> = keys
+        .into_iter()
+        .map(|k| data_encoding::BASE64URL_NOPAD.encode(&k))
+        .collect();
+    let out = veilid_core::serialize_json(keys);
+    Some(out)
+}
+
+fn add_table_db_transaction(tdbt: veilid_core::TableDBTransaction) -> u32 {
+    let mut next_id: u32 = 1;
+    let mut tdbts = (*TABLE_DB_TRANSACTIONS).borrow_mut();
+    while tdbts.contains_key(&next_id) {
+        next_id += 1;
+    }
+    tdbts.insert(next_id, tdbt);
+    next_id
+}
+
+#[wasm_bindgen()]
+pub fn table_db_transact(id: u32) -> u32 {
+    let table_dbs = (*TABLE_DBS).borrow();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return 0;
+    };
+    let tdbt = table_db.clone().transact();
+    let tdbtid = add_table_db_transaction(tdbt);
+    return tdbtid;
+}
+
+#[wasm_bindgen()]
+pub fn release_table_db_transaction(id: u32) -> i32 {
+    let mut tdbts = (*TABLE_DB_TRANSACTIONS).borrow_mut();
+    if tdbts.remove(&id).is_none() {
+        return 0;
+    }
+    return 1;
+}
+
+#[wasm_bindgen()]
+pub fn table_db_transaction_commit(id: u32) -> Promise {
+    wrap_api_future(async move {
+        let tdbt = {
+            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_commit", "id", id));
+            };
+            tdbt.clone()
+        };
+
+        tdbt.commit()
+            .await
+            .map_err(veilid_core::VeilidAPIError::generic)?;
+        APIRESULT_UNDEFINED
+    })
+}
+
+#[wasm_bindgen()]
+pub fn table_db_transaction_rollback(id: u32) -> Promise {
+    wrap_api_future(async move {
+        let tdbt = {
+            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_rollback", "id", id));
+            };
+            tdbt.clone()
+        };
+
+        tdbt.rollback();
+        APIRESULT_UNDEFINED
+    })
+}
+
+#[wasm_bindgen()]
+pub fn table_db_transaction_store(id: u32, col: u32, key: String, value: String) -> Promise {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(key.as_bytes())
+        .unwrap();
+    let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(value.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let tdbt = {
+            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_store", "id", id));
+            };
+            tdbt.clone()
+        };
+
+        tdbt.store(col, &key, &value);
+        APIRESULT_UNDEFINED
+    })
+}
+
+#[wasm_bindgen()]
+pub fn table_db_transaction_delete(id: u32, col: u32, key: String) -> Promise {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(key.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let tdbt = {
+            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
+            let Some(tdbt) = tdbts.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_transaction_delete", "id", id));
+            };
+            tdbt.clone()
+        };
+
+        let out = tdbt.delete(col, &key);
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn table_db_store(id: u32, col: u32, key: String, value: String) -> Promise {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(key.as_bytes())
+        .unwrap();
+    let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(value.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let table_db = {
+            let table_dbs = (*TABLE_DBS).borrow();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_store", "id", id));
+            };
+            table_db.clone()
+        };
+
+        table_db
+            .store(col, &key, &value)
+            .await
+            .map_err(veilid_core::VeilidAPIError::generic)?;
+        APIRESULT_UNDEFINED
+    })
+}
+
+#[wasm_bindgen()]
+pub fn table_db_load(id: u32, col: u32, key: String) -> Promise {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(key.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let table_db = {
+            let table_dbs = (*TABLE_DBS).borrow();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_load", "id", id));
+            };
+            table_db.clone()
+        };
+
+        let out = table_db
+            .load(col, &key)
+            .map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn table_db_delete(id: u32, col: u32, key: String) -> Promise {
+    let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(key.as_bytes())
+        .unwrap();
+    wrap_api_future(async move {
+        let table_db = {
+            let table_dbs = (*TABLE_DBS).borrow();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_delete", "id", id));
+            };
+            table_db.clone()
+        };
+
+        let out = table_db
+            .delete(col, &key)
+            .await
+            .map_err(veilid_core::VeilidAPIError::generic)?;
+        APIResult::Ok(out)
     })
 }
 

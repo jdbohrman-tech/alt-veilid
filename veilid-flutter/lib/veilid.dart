@@ -31,7 +31,7 @@ class VeilidFFIConfigLoggingTerminal {
     };
   }
 
-  VeilidFFIConfigLoggingTerminal.fromJson(Map<String, dynamic> json)
+  VeilidFFIConfigLoggingTerminal.fromJson(dynamic json)
       : enabled = json['enabled'],
         level = veilidConfigLogLevelFromJson(json['level']);
 }
@@ -58,7 +58,7 @@ class VeilidFFIConfigLoggingOtlp {
     };
   }
 
-  VeilidFFIConfigLoggingOtlp.fromJson(Map<String, dynamic> json)
+  VeilidFFIConfigLoggingOtlp.fromJson(dynamic json)
       : enabled = json['enabled'],
         level = veilidConfigLogLevelFromJson(json['level']),
         grpcEndpoint = json['grpc_endpoint'],
@@ -81,7 +81,7 @@ class VeilidFFIConfigLoggingApi {
     };
   }
 
-  VeilidFFIConfigLoggingApi.fromJson(Map<String, dynamic> json)
+  VeilidFFIConfigLoggingApi.fromJson(dynamic json)
       : enabled = json['enabled'],
         level = veilidConfigLogLevelFromJson(json['level']);
 }
@@ -102,7 +102,7 @@ class VeilidFFIConfigLogging {
     };
   }
 
-  VeilidFFIConfigLogging.fromJson(Map<String, dynamic> json)
+  VeilidFFIConfigLogging.fromJson(dynamic json)
       : terminal = VeilidFFIConfigLoggingTerminal.fromJson(json['terminal']),
         otlp = VeilidFFIConfigLoggingOtlp.fromJson(json['otlp']),
         api = VeilidFFIConfigLoggingApi.fromJson(json['api']);
@@ -150,7 +150,7 @@ class VeilidWASMConfigLoggingPerformance {
     };
   }
 
-  VeilidWASMConfigLoggingPerformance.fromJson(Map<String, dynamic> json)
+  VeilidWASMConfigLoggingPerformance.fromJson(dynamic json)
       : enabled = json['enabled'],
         level = veilidConfigLogLevelFromJson(json['level']),
         logsInTimings = json['logs_in_timings'],
@@ -173,7 +173,7 @@ class VeilidWASMConfigLoggingApi {
     };
   }
 
-  VeilidWASMConfigLoggingApi.fromJson(Map<String, dynamic> json)
+  VeilidWASMConfigLoggingApi.fromJson(dynamic json)
       : enabled = json['enabled'],
         level = veilidConfigLogLevelFromJson(json['level']);
 }
@@ -191,7 +191,7 @@ class VeilidWASMConfigLogging {
     };
   }
 
-  VeilidWASMConfigLogging.fromJson(Map<String, dynamic> json)
+  VeilidWASMConfigLogging.fromJson(dynamic json)
       : performance =
             VeilidWASMConfigLoggingPerformance.fromJson(json['performance']),
         api = VeilidWASMConfigLoggingApi.fromJson(json['api']);
@@ -210,7 +210,7 @@ class VeilidWASMConfig {
     };
   }
 
-  VeilidWASMConfig.fromJson(Map<String, dynamic> json)
+  VeilidWASMConfig.fromJson(dynamic json)
       : logging = VeilidWASMConfigLogging.fromJson(json['logging']);
 }
 
@@ -324,7 +324,7 @@ class VeilidConfigHTTPS {
     };
   }
 
-  VeilidConfigHTTPS.fromJson(Map<String, dynamic> json)
+  VeilidConfigHTTPS.fromJson(dynamic json)
       : enabled = json['enabled'],
         listenAddress = json['listen_address'],
         path = json['path'],
@@ -355,7 +355,7 @@ class VeilidConfigHTTP {
     };
   }
 
-  VeilidConfigHTTP.fromJson(Map<String, dynamic> json)
+  VeilidConfigHTTP.fromJson(dynamic json)
       : enabled = json['enabled'],
         listenAddress = json['listen_address'],
         path = json['path'],
@@ -380,7 +380,7 @@ class VeilidConfigApplication {
     };
   }
 
-  VeilidConfigApplication.fromJson(Map<String, dynamic> json)
+  VeilidConfigApplication.fromJson(dynamic json)
       : https = VeilidConfigHTTPS.fromJson(json['https']),
         http = VeilidConfigHTTP.fromJson(json['http']);
 }
@@ -408,7 +408,7 @@ class VeilidConfigUDP {
     };
   }
 
-  VeilidConfigUDP.fromJson(Map<String, dynamic> json)
+  VeilidConfigUDP.fromJson(dynamic json)
       : enabled = json['enabled'],
         socketPoolSize = json['socket_pool_size'],
         listenAddress = json['listen_address'],
@@ -441,7 +441,7 @@ class VeilidConfigTCP {
     };
   }
 
-  VeilidConfigTCP.fromJson(Map<String, dynamic> json)
+  VeilidConfigTCP.fromJson(dynamic json)
       : connect = json['connect'],
         listen = json['listen'],
         maxConnections = json['max_connections'],
@@ -478,7 +478,7 @@ class VeilidConfigWS {
     };
   }
 
-  VeilidConfigWS.fromJson(Map<String, dynamic> json)
+  VeilidConfigWS.fromJson(dynamic json)
       : connect = json['connect'],
         listen = json['listen'],
         maxConnections = json['max_connections'],
@@ -516,7 +516,7 @@ class VeilidConfigWSS {
     };
   }
 
-  VeilidConfigWSS.fromJson(Map<String, dynamic> json)
+  VeilidConfigWSS.fromJson(dynamic json)
       : connect = json['connect'],
         listen = json['listen'],
         maxConnections = json['max_connections'],
@@ -549,7 +549,7 @@ class VeilidConfigProtocol {
     };
   }
 
-  VeilidConfigProtocol.fromJson(Map<String, dynamic> json)
+  VeilidConfigProtocol.fromJson(dynamic json)
       : udp = VeilidConfigUDP.fromJson(json['udp']),
         tcp = VeilidConfigTCP.fromJson(json['tcp']),
         ws = VeilidConfigWS.fromJson(json['ws']),
@@ -577,7 +577,7 @@ class VeilidConfigTLS {
     };
   }
 
-  VeilidConfigTLS.fromJson(Map<String, dynamic> json)
+  VeilidConfigTLS.fromJson(dynamic json)
       : certificatePath = json['certificate_path'],
         privateKeyPath = json['private_key_path'],
         connectionInitialTimeoutMs = json['connection_initial_timeout_ms'];
@@ -633,7 +633,7 @@ class VeilidConfigDHT {
     };
   }
 
-  VeilidConfigDHT.fromJson(Map<String, dynamic> json)
+  VeilidConfigDHT.fromJson(dynamic json)
       : resolveNodeTimeoutMs = json['resolve_node_timeout_ms'],
         resolveNodeCount = json['resolve_node_count'],
         resolveNodeFanout = json['resolve_node_fanout'],
@@ -682,7 +682,7 @@ class VeilidConfigRPC {
     };
   }
 
-  VeilidConfigRPC.fromJson(Map<String, dynamic> json)
+  VeilidConfigRPC.fromJson(dynamic json)
       : concurrency = json['concurrency'],
         queueSize = json['queue_size'],
         maxTimestampBehindMs = json['max_timestamp_behind_ms'],
@@ -719,7 +719,7 @@ class VeilidConfigRoutingTable {
     };
   }
 
-  VeilidConfigRoutingTable.fromJson(Map<String, dynamic> json)
+  VeilidConfigRoutingTable.fromJson(dynamic json)
       : limitOverAttached = json['limit_over_attached'],
         limitFullyAttached = json['limit_fully_attached'],
         limitAttachedStrong = json['limit_attached_strong'],
@@ -805,7 +805,7 @@ class VeilidConfigNetwork {
     };
   }
 
-  VeilidConfigNetwork.fromJson(Map<String, dynamic> json)
+  VeilidConfigNetwork.fromJson(dynamic json)
       : connectionInitialTimeoutMs = json['connection_initial_timeout_ms'],
         connectionInactivityTimeoutMs =
             json['connection_inactivity_timeout_ms'],
@@ -848,7 +848,7 @@ class VeilidConfigTableStore {
     return {'directory': directory, 'delete': delete};
   }
 
-  VeilidConfigTableStore.fromJson(Map<String, dynamic> json)
+  VeilidConfigTableStore.fromJson(dynamic json)
       : directory = json['directory'],
         delete = json['delete'];
 }
@@ -868,7 +868,7 @@ class VeilidConfigBlockStore {
     return {'directory': directory, 'delete': delete};
   }
 
-  VeilidConfigBlockStore.fromJson(Map<String, dynamic> json)
+  VeilidConfigBlockStore.fromJson(dynamic json)
       : directory = json['directory'],
         delete = json['delete'];
 }
@@ -897,7 +897,7 @@ class VeilidConfigProtectedStore {
     };
   }
 
-  VeilidConfigProtectedStore.fromJson(Map<String, dynamic> json)
+  VeilidConfigProtectedStore.fromJson(dynamic json)
       : allowInsecureFallback = json['allow_insecure_fallback'],
         alwaysUseInsecureStorage = json['always_use_insecure_storage'],
         insecureFallbackDirectory = json['insecure_fallback_directory'],
@@ -937,7 +937,7 @@ class VeilidConfigCapabilities {
     };
   }
 
-  VeilidConfigCapabilities.fromJson(Map<String, dynamic> json)
+  VeilidConfigCapabilities.fromJson(dynamic json)
       : protocolUDP = json['protocol_udp'],
         protocolConnectTCP = json['protocol_connect_tcp'],
         protocolAcceptTCP = json['protocol_accept_tcp'],
@@ -980,7 +980,7 @@ class VeilidConfig {
     };
   }
 
-  VeilidConfig.fromJson(Map<String, dynamic> json)
+  VeilidConfig.fromJson(dynamic json)
       : programName = json['program_name'],
         namespace = json['namespace'],
         capabilities = VeilidConfigCapabilities.fromJson(json['capabilities']),
@@ -1012,7 +1012,7 @@ class LatencyStats {
     };
   }
 
-  LatencyStats.fromJson(Map<String, dynamic> json)
+  LatencyStats.fromJson(dynamic json)
       : fastest = BigInt.parse(json['fastest']),
         average = BigInt.parse(json['average']),
         slowest = BigInt.parse(json['slowest']);
@@ -1042,7 +1042,7 @@ class TransferStats {
     };
   }
 
-  TransferStats.fromJson(Map<String, dynamic> json)
+  TransferStats.fromJson(dynamic json)
       : total = BigInt.parse(json['total']),
         maximum = BigInt.parse(json['maximum']),
         average = BigInt.parse(json['average']),
@@ -1067,7 +1067,7 @@ class TransferStatsDownUp {
     };
   }
 
-  TransferStatsDownUp.fromJson(Map<String, dynamic> json)
+  TransferStatsDownUp.fromJson(dynamic json)
       : down = TransferStats.fromJson(json['down']),
         up = TransferStats.fromJson(json['up']);
 }
@@ -1108,7 +1108,7 @@ class RPCStats {
     };
   }
 
-  RPCStats.fromJson(Map<String, dynamic> json)
+  RPCStats.fromJson(dynamic json)
       : messagesSent = json['messages_sent'],
         messagesRcvd = json['messages_rcvd'],
         questionsInFlight = json['questions_in_flight'],
@@ -1149,7 +1149,7 @@ class PeerStats {
     };
   }
 
-  PeerStats.fromJson(Map<String, dynamic> json)
+  PeerStats.fromJson(dynamic json)
       : timeAdded = BigInt.parse(json['time_added']),
         rpcStats = RPCStats.fromJson(json['rpc_stats']),
         latency = json['latency'] != null
@@ -1179,7 +1179,7 @@ class PeerTableData {
     };
   }
 
-  PeerTableData.fromJson(Map<String, dynamic> json)
+  PeerTableData.fromJson(dynamic json)
       : nodeId = json['node_id'],
         peerAddress = PeerAddress.fromJson(json['peer_address']),
         peerStats = PeerStats.fromJson(json['peer_stats']);
@@ -1223,7 +1223,7 @@ class PeerAddress {
     };
   }
 
-  PeerAddress.fromJson(Map<String, dynamic> json)
+  PeerAddress.fromJson(dynamic json)
       : protocolType = protocolTypeFromJson(json['protocol_type']),
         socketAddress = json['socket_address'];
 }
@@ -1232,7 +1232,7 @@ class PeerAddress {
 /// VeilidUpdate
 
 abstract class VeilidUpdate {
-  factory VeilidUpdate.fromJson(Map<String, dynamic> json) {
+  factory VeilidUpdate.fromJson(dynamic json) {
     switch (json["kind"]) {
       case "Log":
         {
@@ -1406,7 +1406,7 @@ class VeilidStateAttachment {
   VeilidStateAttachment(
       this.state, this.publicInternetReady, this.localNetworkReady);
 
-  VeilidStateAttachment.fromJson(Map<String, dynamic> json)
+  VeilidStateAttachment.fromJson(dynamic json)
       : state = attachmentStateFromJson(json['state']),
         publicInternetReady = json['public_internet_ready'],
         localNetworkReady = json['local_network_ready'];
@@ -1435,7 +1435,7 @@ class VeilidStateNetwork {
       required this.bpsUp,
       required this.peers});
 
-  VeilidStateNetwork.fromJson(Map<String, dynamic> json)
+  VeilidStateNetwork.fromJson(dynamic json)
       : started = json['started'],
         bpsDown = BigInt.parse(json['bps_down']),
         bpsUp = BigInt.parse(json['bps_up']),
@@ -1462,8 +1462,7 @@ class VeilidStateConfig {
     required this.config,
   });
 
-  VeilidStateConfig.fromJson(Map<String, dynamic> json)
-      : config = json['config'];
+  VeilidStateConfig.fromJson(dynamic json) : config = json['config'];
 
   Map<String, dynamic> get json {
     return {'config': config};
@@ -1482,7 +1481,7 @@ class VeilidStateRoute {
     required this.deadRemoteRoutes,
   });
 
-  VeilidStateRoute.fromJson(Map<String, dynamic> json)
+  VeilidStateRoute.fromJson(dynamic json)
       : deadRoutes = List<String>.from(json['dead_routes'].map((j) => j)),
         deadRemoteRoutes =
             List<String>.from(json['dead_remote_routes'].map((j) => j));
@@ -1503,7 +1502,7 @@ class VeilidState {
   final VeilidStateNetwork network;
   final VeilidStateConfig config;
 
-  VeilidState.fromJson(Map<String, dynamic> json)
+  VeilidState.fromJson(dynamic json)
       : attachment = VeilidStateAttachment.fromJson(json['attachment']),
         network = VeilidStateNetwork.fromJson(json['network']),
         config = VeilidStateConfig.fromJson(json['config']);
@@ -1521,7 +1520,7 @@ class VeilidState {
 /// VeilidAPIException
 
 abstract class VeilidAPIException implements Exception {
-  factory VeilidAPIException.fromJson(Map<String, dynamic> json) {
+  factory VeilidAPIException.fromJson(dynamic json) {
     switch (json["kind"]) {
       case "NotInitialized":
         {
@@ -1828,7 +1827,7 @@ class KeyBlob {
 
   KeyBlob(this.key, this.blob);
 
-  KeyBlob.fromJson(Map<String, dynamic> json)
+  KeyBlob.fromJson(dynamic json)
       : key = json['key'],
         blob = base64Decode(json['blob']);
 
@@ -1853,9 +1852,13 @@ abstract class VeilidTableDBTransaction {
   Future<void> commit();
   Future<void> rollback();
   Future<void> store(int col, Uint8List key, Uint8List value);
-  Future<void> storeJson(int col, Uint8List key, Object? object,
-      {Object? Function(Object? nonEncodable) toEncodable});
   Future<bool> delete(int col, Uint8List key);
+
+  Future<void> storeJson(int col, Uint8List key, Object? object,
+      {Object? Function(Object? nonEncodable)? toEncodable}) async {
+    return store(col, key,
+        utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
+  }
 }
 
 abstract class VeilidTableDB {
@@ -1863,12 +1866,23 @@ abstract class VeilidTableDB {
   List<Uint8List> getKeys(int col);
   VeilidTableDBTransaction transact();
   Future<void> store(int col, Uint8List key, Uint8List value);
-  Future<void> storeJson(int col, Uint8List key, Object? object,
-      {Object? Function(Object? nonEncodable) toEncodable});
   Future<Uint8List?> load(int col, Uint8List key);
-  Future<Object?> loadJson(int col, Uint8List key,
-      {Object? Function(Object? key, Object? value) reviver});
   Future<bool> delete(int col, Uint8List key);
+
+  Future<void> storeJson(int col, Uint8List key, Object? object,
+      {Object? Function(Object? nonEncodable)? toEncodable}) {
+    return store(col, key,
+        utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
+  }
+
+  Future<Object?> loadJson(int col, Uint8List key,
+      {Object? Function(Object? key, Object? value)? reviver}) async {
+    var s = await load(col, key);
+    if (s == null) {
+      return null;
+    }
+    return jsonDecode(utf8.decode(s, allowMalformed: false));
+  }
 }
 
 //////////////////////////////////////

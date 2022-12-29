@@ -409,7 +409,7 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
         veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
     let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(request.into_opt_string())
+            request.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )
@@ -445,7 +445,7 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
         veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
     let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(message.into_opt_string())
+            message.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )
@@ -690,14 +690,14 @@ pub extern "C" fn table_db_transaction_rollback(port: i64, id: u32) {
 pub extern "C" fn table_db_transaction_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr) {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+            key.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )
         .unwrap();
     let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(value.into_opt_string())
+            value.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )
@@ -721,7 +721,7 @@ pub extern "C" fn table_db_transaction_store(port: i64, id: u32, col: u32, key: 
 pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key: FfiStr) {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+            key.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )
@@ -744,14 +744,14 @@ pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key:
 pub extern "C" fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr) {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+            key.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )
         .unwrap();
     let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(value.into_opt_string())
+            value.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )
@@ -773,13 +773,12 @@ pub extern "C" fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, valu
 #[no_mangle]
 pub extern "C" fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr) {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
-        .decode(
-            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+        .decode(key.into_opt_string()
                 .unwrap()
-                .as_bytes(),
+                .as_bytes()
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let table_db = {
             let table_dbs = TABLE_DBS.lock();
             let Some(table_db) = table_dbs.get(&id) else {
@@ -789,6 +788,7 @@ pub extern "C" fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr) {
         };
         
         let out = table_db.load(col, &key).map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     });
 }
@@ -797,7 +797,7 @@ pub extern "C" fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr) {
 pub extern "C" fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr) {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
-            veilid_core::deserialize_opt_json::<String>(key.into_opt_string())
+            key.into_opt_string()
                 .unwrap()
                 .as_bytes(),
         )

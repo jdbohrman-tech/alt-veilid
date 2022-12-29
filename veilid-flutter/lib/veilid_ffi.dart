@@ -95,6 +95,55 @@ typedef _ReleasePrivateRouteDart = void Function(int, Pointer<Utf8>);
 typedef _AppCallReplyC = Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>);
 typedef _AppCallReplyDart = void Function(int, Pointer<Utf8>, Pointer<Utf8>);
 
+// fn open_table_db(port: i64, name: FfiStr, column_count: u32)
+typedef _OpenTableDbC = Void Function(Int64, Pointer<Utf8>, Uint32);
+typedef _OpenTableDbDart = void Function(int, Pointer<Utf8>, int);
+// fn release_table_db(id: u32) -> i32
+typedef _ReleaseTableDbC = Int32 Function(Uint32);
+typedef _ReleaseTableDbDart = int Function(int);
+// fn delete_table_db(port: i64, name: FfiStr)
+typedef _DeleteTableDbC = Void Function(Int64, Pointer<Utf8>);
+typedef _DeleteTableDbDart = void Function(int, Pointer<Utf8>);
+// fn table_db_get_column_count(id: u32) -> u32
+typedef _TableDbGetColumnCountC = Uint32 Function(Uint32);
+typedef _TableDbGetColumnCountDart = int Function(int);
+// fn table_db_get_keys(id: u32, col: u32) -> *mut c_char
+typedef _TableDbGetKeysC = Pointer<Utf8> Function(Uint32, Uint32);
+typedef _TableDbGetKeysDart = Pointer<Utf8> Function(int, int);
+// fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr)
+typedef _TableDbStoreC = Void Function(
+    Int64, Uint32, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _TableDbStoreDart = void Function(
+    int, int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr)
+typedef _TableDbLoadC = Void Function(Int64, Uint32, Uint32, Pointer<Utf8>);
+typedef _TableDbLoadDart = void Function(int, int, int, Pointer<Utf8>);
+// fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr)
+typedef _TableDbDeleteC = Void Function(Int64, Uint32, Uint32, Pointer<Utf8>);
+typedef _TableDbDeleteDart = void Function(int, int, int, Pointer<Utf8>);
+// fn table_db_transact(id: u32) -> u32
+typedef _TableDbTransactC = Uint32 Function(Uint32);
+typedef _TableDbTransactDart = int Function(int);
+// fn release_table_db_transaction(id: u32) -> i32
+typedef _ReleaseTableDbTransactionC = Int32 Function(Uint32);
+typedef _ReleaseTableDbTransactionDart = int Function(int);
+// fn table_db_transaction_commit(port: i64, id: u32)
+typedef _TableDbTransactionCommitC = Void Function(Uint64, Uint32);
+typedef _TableDbTransactionCommitDart = void Function(int, int);
+// fn table_db_transaction_rollback(port: i64, id: u32)
+typedef _TableDbTransactionRollbackC = Void Function(Uint64, Uint32);
+typedef _TableDbTransactionRollbackDart = void Function(int, int);
+// fn table_db_transaction_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr)
+typedef _TableDbTransactionStoreC = Void Function(
+    Int64, Uint32, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _TableDbTransactionStoreDart = void Function(
+    int, int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn table_db_transaction_delete(port: i64, id: u32, col: u32, key: FfiStr)
+typedef _TableDbTransactionDeleteC = Void Function(
+    Int64, Uint32, Uint32, Pointer<Utf8>);
+typedef _TableDbTransactionDeleteDart = void Function(
+    int, int, int, Pointer<Utf8>);
+
 // fn debug(port: i64, log_level: FfiStr)
 typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
 typedef _DebugDart = void Function(int, Pointer<Utf8>);
@@ -168,7 +217,7 @@ Future<T> processFuturePlain<T>(Future<dynamic> future) {
 }
 
 Future<T> processFutureJson<T>(
-    T Function(Map<String, dynamic>) jsonConstructor, Future<dynamic> future) {
+    T Function(dynamic) jsonConstructor, Future<dynamic> future) {
   return future.then((value) {
     final list = value as List<dynamic>;
     switch (list[0] as int) {
@@ -388,14 +437,178 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
 
   @override
   Future<void> appMessage(String target, Uint8List message) async {
-    var nativeEncodedTarget = target.toNativeUtf8();
-    var nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
+    final nativeEncodedTarget = target.toNativeUtf8();
+    final nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
 
     final recvPort = ReceivePort("routing_context_app_message");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextAppMessage(sendPort.nativePort, _ctx.id,
         nativeEncodedTarget, nativeEncodedMessage);
     return processFutureVoid(recvPort.first);
+  }
+}
+
+class _TDBT {
+  final int id;
+  VeilidTableDBFFI tdbffi;
+  VeilidFFI ffi;
+
+  _TDBT(this.id, this.tdbffi, this.ffi);
+}
+
+// FFI implementation of VeilidTableDBTransaction
+class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
+  final _TDBT _tdbt;
+  static final Finalizer<_TDBT> _finalizer =
+      Finalizer((tdbt) => {tdbt.ffi._releaseTableDbTransaction(tdbt.id)});
+
+  VeilidTableDBTransactionFFI._(this._tdbt) {
+    _finalizer.attach(this, _tdbt, detach: this);
+  }
+
+  @override
+  Future<void> commit() {
+    final recvPort = ReceivePort("veilid_table_db_transaction_commit");
+    final sendPort = recvPort.sendPort;
+    _tdbt.ffi._tableDbTransactionCommit(
+      sendPort.nativePort,
+      _tdbt.id,
+    );
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<void> rollback() {
+    final recvPort = ReceivePort("veilid_table_db_transaction_rollback");
+    final sendPort = recvPort.sendPort;
+    _tdbt.ffi._tableDbTransactionRollback(
+      sendPort.nativePort,
+      _tdbt.id,
+    );
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<void> store(int col, Uint8List key, Uint8List value) {
+    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+    final nativeEncodedValue = base64UrlEncode(value).toNativeUtf8();
+
+    final recvPort = ReceivePort("veilid_table_db_transaction_store");
+    final sendPort = recvPort.sendPort;
+    _tdbt.ffi._tableDbTransactionStore(
+      sendPort.nativePort,
+      _tdbt.id,
+      col,
+      nativeEncodedKey,
+      nativeEncodedValue,
+    );
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<bool> delete(int col, Uint8List key) {
+    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+
+    final recvPort = ReceivePort("veilid_table_db_transaction_delete");
+    final sendPort = recvPort.sendPort;
+    _tdbt.ffi._tableDbTransactionDelete(
+      sendPort.nativePort,
+      _tdbt.id,
+      col,
+      nativeEncodedKey,
+    );
+    return processFuturePlain(recvPort.first);
+  }
+}
+
+class _TDB {
+  final int id;
+  VeilidFFI ffi;
+  _TDB(this.id, this.ffi);
+}
+
+// FFI implementation of VeilidTableDB
+class VeilidTableDBFFI extends VeilidTableDB {
+  final _TDB _tdb;
+  static final Finalizer<_TDB> _finalizer =
+      Finalizer((tdb) => {tdb.ffi._releaseTableDb(tdb.id)});
+
+  VeilidTableDBFFI._(this._tdb) {
+    _finalizer.attach(this, _tdb, detach: this);
+  }
+
+  @override
+  int getColumnCount() {
+    return _tdb.ffi._tableDbGetColumnCount(_tdb.id);
+  }
+
+  @override
+  List<Uint8List> getKeys(int col) {
+    final s = _tdb.ffi._tableDbGetKeys(_tdb.id, col);
+    if (s.address == nullptr.address) {
+      throw VeilidAPIExceptionInternal("No db for id");
+    }
+    String ja = s.toDartString();
+    _tdb.ffi._freeString(s);
+    List<dynamic> jarr = jsonDecode(ja);
+    return jarr.map((e) => base64Decode(e)).toList();
+  }
+
+  @override
+  VeilidTableDBTransaction transact() {
+    final id = _tdb.ffi._tableDbTransact(_tdb.id);
+    return VeilidTableDBTransactionFFI._(_TDBT(id, this, _tdb.ffi));
+  }
+
+  @override
+  Future<void> store(int col, Uint8List key, Uint8List value) {
+    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+    final nativeEncodedValue = base64UrlEncode(value).toNativeUtf8();
+
+    final recvPort = ReceivePort("veilid_table_db_store");
+    final sendPort = recvPort.sendPort;
+    _tdb.ffi._tableDbStore(
+      sendPort.nativePort,
+      _tdb.id,
+      col,
+      nativeEncodedKey,
+      nativeEncodedValue,
+    );
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<Uint8List?> load(int col, Uint8List key) async {
+    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+
+    final recvPort = ReceivePort("veilid_table_db_load");
+    final sendPort = recvPort.sendPort;
+    _tdb.ffi._tableDbLoad(
+      sendPort.nativePort,
+      _tdb.id,
+      col,
+      nativeEncodedKey,
+    );
+    String? out = await processFuturePlain(recvPort.first);
+    if (out == null) {
+      return null;
+    }
+    return base64Decode(out);
+  }
+
+  @override
+  Future<bool> delete(int col, Uint8List key) {
+    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+
+    final recvPort = ReceivePort("veilid_table_db_delete");
+    final sendPort = recvPort.sendPort;
+    _tdb.ffi._tableDbLoad(
+      sendPort.nativePort,
+      _tdb.id,
+      col,
+      nativeEncodedKey,
+    );
+    return processFuturePlain(recvPort.first);
   }
 }
 
@@ -428,6 +641,21 @@ class VeilidFFI implements Veilid {
   final _ReleasePrivateRouteDart _releasePrivateRoute;
 
   final _AppCallReplyDart _appCallReply;
+
+  final _OpenTableDbDart _openTableDb;
+  final _ReleaseTableDbDart _releaseTableDb;
+  final _DeleteTableDbDart _deleteTableDb;
+  final _TableDbGetColumnCountDart _tableDbGetColumnCount;
+  final _TableDbGetKeysDart _tableDbGetKeys;
+  final _TableDbStoreDart _tableDbStore;
+  final _TableDbLoadDart _tableDbLoad;
+  final _TableDbDeleteDart _tableDbDelete;
+  final _TableDbTransactDart _tableDbTransact;
+  final _ReleaseTableDbTransactionDart _releaseTableDbTransaction;
+  final _TableDbTransactionCommitDart _tableDbTransactionCommit;
+  final _TableDbTransactionRollbackDart _tableDbTransactionRollback;
+  final _TableDbTransactionStoreDart _tableDbTransactionStore;
+  final _TableDbTransactionDeleteDart _tableDbTransactionDelete;
 
   final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
@@ -486,6 +714,44 @@ class VeilidFFI implements Veilid {
             _ReleasePrivateRouteDart>('release_private_route'),
         _appCallReply = dylib.lookupFunction<_AppCallReplyC, _AppCallReplyDart>(
             'app_call_reply'),
+        _openTableDb = dylib
+            .lookupFunction<_OpenTableDbC, _OpenTableDbDart>('open_table_db'),
+        _releaseTableDb =
+            dylib.lookupFunction<_ReleaseTableDbC, _ReleaseTableDbDart>(
+                'release_table_db'),
+        _deleteTableDb =
+            dylib.lookupFunction<_DeleteTableDbC, _DeleteTableDbDart>(
+                'delete_table_db'),
+        _tableDbGetColumnCount = dylib.lookupFunction<_TableDbGetColumnCountC,
+            _TableDbGetColumnCountDart>('table_db_get_column_count'),
+        _tableDbGetKeys =
+            dylib.lookupFunction<_TableDbGetKeysC, _TableDbGetKeysDart>(
+                'table_db_get_keys'),
+        _tableDbStore = dylib.lookupFunction<_TableDbStoreC, _TableDbStoreDart>(
+            'table_db_store'),
+        _tableDbLoad = dylib
+            .lookupFunction<_TableDbLoadC, _TableDbLoadDart>('table_db_load'),
+        _tableDbDelete =
+            dylib.lookupFunction<_TableDbDeleteC, _TableDbDeleteDart>(
+                'table_db_delete'),
+        _tableDbTransact =
+            dylib.lookupFunction<_TableDbTransactC, _TableDbTransactDart>(
+                'table_db_transact'),
+        _releaseTableDbTransaction = dylib.lookupFunction<
+            _ReleaseTableDbTransactionC,
+            _ReleaseTableDbTransactionDart>('release_table_db_transaction'),
+        _tableDbTransactionCommit = dylib.lookupFunction<
+            _TableDbTransactionCommitC,
+            _TableDbTransactionCommitDart>('table_db_transaction_commit'),
+        _tableDbTransactionRollback = dylib.lookupFunction<
+            _TableDbTransactionRollbackC,
+            _TableDbTransactionRollbackDart>('table_db_transaction_rollback'),
+        _tableDbTransactionStore = dylib.lookupFunction<
+            _TableDbTransactionStoreC,
+            _TableDbTransactionStoreDart>('table_db_transaction_store'),
+        _tableDbTransactionDelete = dylib.lookupFunction<
+            _TableDbTransactionDeleteC,
+            _TableDbTransactionDeleteDart>('table_db_transaction_delete'),
         _debug = dylib.lookupFunction<_DebugC, _DebugDart>('debug'),
         _veilidVersionString = dylib.lookupFunction<_VeilidVersionStringC,
             _VeilidVersionStringDart>('veilid_version_string'),
@@ -539,7 +805,7 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<VeilidState> getVeilidState() async {
+  Future<VeilidState> getVeilidState() {
     final recvPort = ReceivePort("get_veilid_state");
     final sendPort = recvPort.sendPort;
     _getVeilidState(sendPort.nativePort);
@@ -547,7 +813,7 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<void> attach() async {
+  Future<void> attach() {
     final recvPort = ReceivePort("attach");
     final sendPort = recvPort.sendPort;
     _attach(sendPort.nativePort);
@@ -555,7 +821,7 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<void> detach() async {
+  Future<void> detach() {
     final recvPort = ReceivePort("detach");
     final sendPort = recvPort.sendPort;
     _detach(sendPort.nativePort);
@@ -563,7 +829,7 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<void> shutdownVeilidCore() async {
+  Future<void> shutdownVeilidCore() {
     final recvPort = ReceivePort("shutdown_veilid_core");
     final sendPort = recvPort.sendPort;
     _shutdownVeilidCore(sendPort.nativePort);
@@ -580,7 +846,7 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<KeyBlob> newPrivateRoute() async {
+  Future<KeyBlob> newPrivateRoute() {
     final recvPort = ReceivePort("new_private_route");
     final sendPort = recvPort.sendPort;
     _newPrivateRoute(sendPort.nativePort);
@@ -599,8 +865,8 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<String> importRemotePrivateRoute(Uint8List blob) async {
-    var nativeEncodedBlob = base64UrlEncode(blob).toNativeUtf8();
+  Future<String> importRemotePrivateRoute(Uint8List blob) {
+    final nativeEncodedBlob = base64UrlEncode(blob).toNativeUtf8();
 
     final recvPort = ReceivePort("import_remote_private_route");
     final sendPort = recvPort.sendPort;
@@ -609,8 +875,8 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<void> releasePrivateRoute(String key) async {
-    var nativeEncodedKey = key.toNativeUtf8();
+  Future<void> releasePrivateRoute(String key) {
+    final nativeEncodedKey = key.toNativeUtf8();
 
     final recvPort = ReceivePort("release_private_route");
     final sendPort = recvPort.sendPort;
@@ -619,13 +885,31 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<void> appCallReply(String id, Uint8List message) async {
-    var nativeId = id.toNativeUtf8();
-    var nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
+  Future<void> appCallReply(String id, Uint8List message) {
+    final nativeId = id.toNativeUtf8();
+    final nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
     final recvPort = ReceivePort("app_call_reply");
     final sendPort = recvPort.sendPort;
     _appCallReply(sendPort.nativePort, nativeId, nativeEncodedMessage);
     return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<VeilidTableDB> openTableDB(String name, int columnCount) async {
+    final recvPort = ReceivePort("open_table_db");
+    final sendPort = recvPort.sendPort;
+    _openTableDb(sendPort.nativePort, name.toNativeUtf8(), columnCount);
+    final id = await processFuturePlain(recvPort.first);
+    return VeilidTableDBFFI._(_TDB(id, this));
+  }
+
+  @override
+  Future<bool> deleteTableDB(String name) async {
+    final recvPort = ReceivePort("delete_table_db");
+    final sendPort = recvPort.sendPort;
+    _deleteTableDb(sendPort.nativePort, name.toNativeUtf8());
+    final deleted = await processFuturePlain(recvPort.first);
+    return deleted;
   }
 
   @override
