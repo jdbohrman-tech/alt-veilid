@@ -6,13 +6,13 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.1.0'
+        classpath 'com.android.tools.build:gradle:7.2.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
 plugins {
-    id "org.mozilla.rust-android-gradle.rust-android" version "0.9.0"
+    id "org.mozilla.rust-android-gradle.rust-android" version "0.9.3"
 }
 
 group 'com.veilid.veilid'
@@ -63,7 +63,7 @@ android {
         }
     }
 
-    ndkVersion '22.0.7026061'
+    ndkVersion '25.1.8937393'
  
     // Required to copy libc++_shared.so
     externalNativeBuild {
@@ -85,7 +85,6 @@ cargo {
     libname = "veilid_flutter"
     targets = ["arm", "arm64", "x86", "x86_64"]
     targetDirectory = "../../target"
-    prebuiltToolchains = true
     pythonCommand = "python3"
     profile = gradle.startParameter.taskNames.any{it.toLowerCase().contains("debug")} ? "debug" : "release"
 }

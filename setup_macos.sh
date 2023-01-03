@@ -1,4 +1,6 @@
 #!/bin/bash
+set -eo pipefail
+
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if [ ! "$(uname)" == "Darwin" ]; then
@@ -11,6 +13,14 @@ if [ -d "$ANDROID_SDK_ROOT" ]; then
     echo '[X] $ANDROID_SDK_ROOT is defined and exists' 
 else
     echo '$ANDROID_SDK_ROOT is not defined or does not exist'
+    exit 1
+fi
+
+# ensure Android Command Line Tools exist
+if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
+    echo '[X] Android command line tools are installed' 
+else
+    echo 'Android command line tools are not installed'
     exit 1
 fi
 
@@ -85,6 +95,10 @@ else
     echo 'cargo is not available in the path'
     exit 1
 fi
+
+
+# Ensure android sdk packages are installed
+$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
 
 # install targets
 rustup target add aarch64-apple-darwin aarch64-apple-ios x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android

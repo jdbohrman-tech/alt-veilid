@@ -27,9 +27,11 @@ method is highly recommended as you may run into path problems with the 'flutter
 command line without it. If you do so, you may skip to 
 [Run Veilid setup script](#Run Veilid setup script).
 
-* build-tools;30.0.3
-* ndk;22.0.7026061
+* build-tools;33.0.1
+* ndk;25.1.8937393
 * cmake;3.22.1
+* platform-tools
+* platforms;android-33
 
 #### Setup Dependencies using the CLI
 
@@ -39,8 +41,10 @@ instructions for `sdkmanager`
 the command line to install the requisite package versions:
 
 ```shell
-sdkmanager --install "build-tools;30.0.3"
-sdkmanager --install "ndk;22.0.7026061"
+sdkmanager --install "platform-tools"
+sdkmanager --install "platforms;android-33"
+sdkmanager --install "build-tools;33.0.1"
+sdkmanager --install "ndk;25.1.8937393"
 sdkmanager --install "cmake;3.22.1"
 ```
 
@@ -50,7 +54,7 @@ your path.
 ```shell
 cat << EOF >> ~/.profile 
 export ANDROID_SDK_ROOT=<path to sdk>
-export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/22.0.7026061
+export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.1.8937393
 export PATH=\$PATH:$ANDROID_SDK_ROOT/platform-tools
 EOF
 ```
@@ -88,9 +92,10 @@ Development requires:
 
 You will need to use Android Studio [here](https://developer.android.com/studio) 
 to maintain your Android dependencies. Use the SDK Manager in the IDE to install the following packages (use package details view to select version):
-* Android SDK Build Tools (30.0.3)
-* NDK (Side-by-side) (22.0.7026061)
+* Android SDK Build Tools (33.0.1)
+* NDK (Side-by-side) (25.1.8937393)
 * Cmake (3.22.1)
+* Android SDK 33
 * Android SDK Command Line Tools (latest) (7.0/latest)
 
 #### Setup command line environment
@@ -101,7 +106,7 @@ your path.
 ```shell
 cat << EOF >> ~/.zshenv
 export ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
-export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/22.0.7026061
+export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/25.1.8937393
 export PATH=\$PATH:$HOME/Library/Android/sdk/platform-tools
 EOF
 ```

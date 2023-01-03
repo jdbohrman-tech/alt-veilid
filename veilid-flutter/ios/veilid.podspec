@@ -23,7 +23,9 @@ Veilid Network Plugin
 
   require 'json'
   require 'pathname'
-  workspace_dir = File.dirname(JSON.parse(`cargo locate-project --workspace`)['root'])
+
+  script_dir = File.realpath(File.expand_path(__dir__))
+  workspace_dir = File.dirname(JSON.parse(`(cd #{script_dir}; cargo locate-project --workspace)`)['root'])
   cargo_target_dir = File.join(workspace_dir, 'target')
 
   s.xcconfig = { 

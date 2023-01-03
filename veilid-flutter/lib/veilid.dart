@@ -1875,13 +1875,24 @@ abstract class VeilidTableDB {
         utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
   }
 
+  Future<void> storeStringJson(int col, String key, Object? object,
+      {Object? Function(Object? nonEncodable)? toEncodable}) {
+    return storeJson(col, utf8.encoder.convert(key),
+        utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
+  }
+
   Future<Object?> loadJson(int col, Uint8List key,
       {Object? Function(Object? key, Object? value)? reviver}) async {
     var s = await load(col, key);
     if (s == null) {
       return null;
     }
-    return jsonDecode(utf8.decode(s, allowMalformed: false));
+    return jsonDecode(utf8.decode(s, allowMalformed: false), reviver: reviver);
+  }
+
+  Future<Object?> loadStringJson(int col, String key,
+      {Object? Function(Object? key, Object? value)? reviver}) {
+    return loadJson(col, utf8.encoder.convert(key), reviver: reviver);
   }
 }
 
