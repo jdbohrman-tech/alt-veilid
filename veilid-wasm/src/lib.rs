@@ -492,7 +492,6 @@ fn add_table_db(table_db: veilid_core::TableDB) -> u32 {
         next_id += 1;
     }
     tdbs.insert(next_id, table_db);
-    console_log(&format!("tdb added: {}", next_id));
     next_id
 }
 
@@ -512,7 +511,6 @@ pub fn open_table_db(name: String, column_count: u32) -> Promise {
 
 #[wasm_bindgen()]
 pub fn release_table_db(id: u32) -> i32 {
-    console_log(&format!("tdb released: {}", id));
     let mut tdbs = (*TABLE_DBS).borrow_mut();
     if tdbs.remove(&id).is_none() {
         return 0;

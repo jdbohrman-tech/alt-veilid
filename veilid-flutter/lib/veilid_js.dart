@@ -96,14 +96,14 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
 
   @override
   Future<void> commit() {
-    return _wrapApiPromise(js_util
-        .callMethod(wasm, "veilid_table_db_transaction_commit", [_tdbt.id]));
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "table_db_transaction_commit", [_tdbt.id]));
   }
 
   @override
   Future<void> rollback() {
-    return _wrapApiPromise(js_util
-        .callMethod(wasm, "veilid_table_db_transaction_rollback", [_tdbt.id]));
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "table_db_transaction_rollback", [_tdbt.id]));
   }
 
   @override
@@ -111,10 +111,8 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
     final encodedKey = base64UrlEncode(key);
     final encodedValue = base64UrlEncode(value);
 
-    return _wrapApiPromise(js_util.callMethod(
-        wasm,
-        "veilid_table_db_transaction_store",
-        [_tdbt.id, encodedKey, encodedValue]));
+    return _wrapApiPromise(js_util.callMethod(wasm,
+        "table_db_transaction_store", [_tdbt.id, encodedKey, encodedValue]));
   }
 
   @override
@@ -122,7 +120,7 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
     final encodedKey = base64UrlEncode(key);
 
     return _wrapApiPromise(js_util.callMethod(
-        wasm, "veilid_table_db_transaction_delete", [_tdbt.id, encodedKey]));
+        wasm, "table_db_transaction_delete", [_tdbt.id, encodedKey]));
   }
 }
 
@@ -172,15 +170,15 @@ class VeilidTableDBJS extends VeilidTableDB {
     final encodedValue = base64UrlEncode(value);
 
     return _wrapApiPromise(js_util.callMethod(
-        wasm, "veilid_table_db_store", [_tdb.id, encodedKey, encodedValue]));
+        wasm, "table_db_store", [_tdb.id, encodedKey, encodedValue]));
   }
 
   @override
   Future<Uint8List?> load(int col, Uint8List key) async {
     final encodedKey = base64UrlEncode(key);
 
-    String? out = await _wrapApiPromise(js_util
-        .callMethod(wasm, "veilid_table_db_store", [_tdb.id, encodedKey]));
+    String? out = await _wrapApiPromise(
+        js_util.callMethod(wasm, "table_db_load", [_tdb.id, encodedKey]));
     if (out == null) {
       return null;
     }
@@ -191,8 +189,8 @@ class VeilidTableDBJS extends VeilidTableDB {
   Future<bool> delete(int col, Uint8List key) {
     final encodedKey = base64UrlEncode(key);
 
-    return _wrapApiPromise(js_util
-        .callMethod(wasm, "veilid_table_db_delete", [_tdb.id, encodedKey]));
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "table_db_delete", [_tdb.id, encodedKey]));
   }
 }
 
@@ -307,10 +305,8 @@ class VeilidJS implements Veilid {
 
   @override
   Future<VeilidTableDB> openTableDB(String name, int columnCount) async {
-    print('shit');
     int id = await _wrapApiPromise(
         js_util.callMethod(wasm, "open_table_db", [name, columnCount]));
-    print('qwerqwer');
     return VeilidTableDBJS._(_TDB(id, this));
   }
 
