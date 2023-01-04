@@ -7,7 +7,6 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::*;
-use core::any::{Any, TypeId};
 use core::cell::RefCell;
 use core::fmt::Debug;
 use futures_util::FutureExt;
@@ -61,6 +60,13 @@ pub fn to_json<T: Serialize + Debug>(val: T) -> JsValue {
     JsValue::from_str(&serialize_json(val))
 }
 
+pub fn to_jsvalue<T>(val: T) -> JsValue
+where
+    JsValue: From<T>,
+{
+    JsValue::from(val)
+}
+
 pub fn from_json<T: de::DeserializeOwned + Debug>(
     val: JsValue,
 ) -> Result<T, veilid_core::VeilidAPIError> {
@@ -77,21 +83,28 @@ pub fn from_json<T: de::DeserializeOwned + Debug>(
 type APIResult<T> = Result<T, veilid_core::VeilidAPIError>;
 const APIRESULT_UNDEFINED: APIResult<()> = APIResult::Ok(());
 
-pub fn wrap_api_future<F, T>(future: F) -> Promise
+pub fn wrap_api_future_json<F, T>(future: F) -> Promise
 where
     F: Future<Output = APIResult<T>> + 'static,
     T: Serialize + Debug + 'static,
 {
-    future_to_promise(future.map(|res| {
-        res.map(|v| {
-            if TypeId::of::<()>() == v.type_id() {
-                JsValue::UNDEFINED
-            } else {
-                to_json(v)
-            }
-        })
-        .map_err(|e| to_json(e))
-    }))
+    future_to_promise(future.map(|res| res.map(|v| to_json(v)).map_err(|e| to_json(e))))
+}
+
+pub fn wrap_api_future_plain<F, T>(future: F) -> Promise
+where
+    F: Future<Output = APIResult<T>> + 'static,
+    JsValue: From<T>,
+    T: 'static,
+{
+    future_to_promise(future.map(|res| res.map(|v| to_jsvalue(v)).map_err(|e| to_json(e))))
+}
+
+pub fn wrap_api_future_void<F>(future: F) -> Promise
+where
+    F: Future<Output = APIResult<()>> + 'static,
+{
+    future_to_promise(future.map(|res| res.map(|_| JsValue::UNDEFINED).map_err(|e| to_json(e))))
 }
 
 /////////////////////////////////////////
@@ -206,7 +219,7 @@ pub fn change_log_level(layer: String, log_level: String) {
 #[wasm_bindgen()]
 pub fn startup_veilid_core(update_callback_js: Function, json_config: String) -> Promise {
     let update_callback_js = SendWrapper::new(update_callback_js);
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let update_callback = Arc::new(move |update: VeilidUpdate| {
             let _ret =
                 match Function::call1(&update_callback_js, &JsValue::UNDEFINED, &to_json(update)) {
@@ -230,16 +243,16 @@ pub fn startup_veilid_core(update_callback_js: Function, json_config: String) ->
 
 #[wasm_bindgen()]
 pub fn get_veilid_state() -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_json(async move {
         let veilid_api = get_veilid_api()?;
         let core_state = veilid_api.get_state().await?;
-        Ok(core_state)
+        APIResult::Ok(core_state)
     })
 }
 
 #[wasm_bindgen()]
 pub fn attach() -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         veilid_api.attach().await?;
         APIRESULT_UNDEFINED
@@ -248,7 +261,7 @@ pub fn attach() -> Promise {
 
 #[wasm_bindgen()]
 pub fn detach() -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         veilid_api.detach().await?;
         APIRESULT_UNDEFINED
@@ -257,7 +270,7 @@ pub fn detach() -> Promise {
 
 #[wasm_bindgen()]
 pub fn shutdown_veilid_core() -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let veilid_api = take_veilid_api()?;
         veilid_api.shutdown().await;
         APIRESULT_UNDEFINED
@@ -276,7 +289,7 @@ fn add_routing_context(routing_context: veilid_core::RoutingContext) -> u32 {
 
 #[wasm_bindgen()]
 pub fn routing_context() -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let routing_context = veilid_api.routing_context();
         let new_id = add_routing_context(routing_context);
@@ -339,7 +352,7 @@ pub fn routing_context_app_call(id: u32, target: String, request: String) -> Pro
     let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(request.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let routing_table = veilid_api.routing_table()?;
         let rss = routing_table.route_spec_store();
@@ -372,7 +385,7 @@ pub fn routing_context_app_message(id: u32, target: String, message: String) -> 
     let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(message.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         let routing_table = veilid_api.routing_table()?;
         let rss = routing_table.route_spec_store();
@@ -401,7 +414,7 @@ pub fn routing_context_app_message(id: u32, target: String, message: String) -> 
 
 #[wasm_bindgen()]
 pub fn new_private_route() -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_json(async move {
         let veilid_api = get_veilid_api()?;
 
         let (key, blob) = veilid_api.new_private_route().await?;
@@ -417,7 +430,7 @@ pub fn new_custom_private_route(stability: String, sequencing: String) -> Promis
     let stability: veilid_core::Stability = veilid_core::deserialize_json(&stability).unwrap();
     let sequencing: veilid_core::Sequencing = veilid_core::deserialize_json(&sequencing).unwrap();
 
-    wrap_api_future(async move {
+    wrap_api_future_json(async move {
         let veilid_api = get_veilid_api()?;
 
         let (key, blob) = veilid_api
@@ -435,7 +448,7 @@ pub fn import_remote_private_route(blob: String) -> Promise {
     let blob: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(blob.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
 
         let key = veilid_api.import_remote_private_route(blob)?;
@@ -447,7 +460,7 @@ pub fn import_remote_private_route(blob: String) -> Promise {
 #[wasm_bindgen()]
 pub fn release_private_route(key: String) -> Promise {
     let key: veilid_core::DHTKey = veilid_core::deserialize_json(&key).unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         veilid_api.release_private_route(&key)?;
         APIRESULT_UNDEFINED
@@ -459,7 +472,7 @@ pub fn app_call_reply(id: String, message: String) -> Promise {
     let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(message.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let id = match id.parse() {
             Ok(v) => v,
             Err(e) => {
@@ -467,8 +480,8 @@ pub fn app_call_reply(id: String, message: String) -> Promise {
             }
         };
         let veilid_api = get_veilid_api()?;
-        let out = veilid_api.app_call_reply(id, message).await?;
-        Ok(out)
+        veilid_api.app_call_reply(id, message).await?;
+        APIRESULT_UNDEFINED
     })
 }
 
@@ -479,12 +492,13 @@ fn add_table_db(table_db: veilid_core::TableDB) -> u32 {
         next_id += 1;
     }
     tdbs.insert(next_id, table_db);
+    console_log(&format!("tdb added: {}", next_id));
     next_id
 }
 
 #[wasm_bindgen()]
 pub fn open_table_db(name: String, column_count: u32) -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let tstore = veilid_api.table_store()?;
         let table_db = tstore
@@ -492,12 +506,13 @@ pub fn open_table_db(name: String, column_count: u32) -> Promise {
             .await
             .map_err(veilid_core::VeilidAPIError::generic)?;
         let new_id = add_table_db(table_db);
-        Ok(new_id)
+        APIResult::Ok(new_id)
     })
 }
 
 #[wasm_bindgen()]
 pub fn release_table_db(id: u32) -> i32 {
+    console_log(&format!("tdb released: {}", id));
     let mut tdbs = (*TABLE_DBS).borrow_mut();
     if tdbs.remove(&id).is_none() {
         return 0;
@@ -507,14 +522,14 @@ pub fn release_table_db(id: u32) -> i32 {
 
 #[wasm_bindgen()]
 pub fn delete_table_db(name: String) -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let tstore = veilid_api.table_store()?;
         let deleted = tstore
             .delete(&name)
             .await
             .map_err(veilid_core::VeilidAPIError::generic)?;
-        Ok(deleted)
+        APIResult::Ok(deleted)
     })
 }
 
@@ -579,7 +594,7 @@ pub fn release_table_db_transaction(id: u32) -> i32 {
 
 #[wasm_bindgen()]
 pub fn table_db_transaction_commit(id: u32) -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let tdbt = {
             let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -597,7 +612,7 @@ pub fn table_db_transaction_commit(id: u32) -> Promise {
 
 #[wasm_bindgen()]
 pub fn table_db_transaction_rollback(id: u32) -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let tdbt = {
             let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -619,7 +634,7 @@ pub fn table_db_transaction_store(id: u32, col: u32, key: String, value: String)
     let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(value.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let tdbt = {
             let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -638,7 +653,7 @@ pub fn table_db_transaction_delete(id: u32, col: u32, key: String) -> Promise {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(key.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let tdbt = {
             let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -647,8 +662,8 @@ pub fn table_db_transaction_delete(id: u32, col: u32, key: String) -> Promise {
             tdbt.clone()
         };
 
-        let out = tdbt.delete(col, &key);
-        APIResult::Ok(out)
+        tdbt.delete(col, &key);
+        APIRESULT_UNDEFINED
     })
 }
 
@@ -660,7 +675,7 @@ pub fn table_db_store(id: u32, col: u32, key: String, value: String) -> Promise 
     let value: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(value.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_void(async move {
         let table_db = {
             let table_dbs = (*TABLE_DBS).borrow();
             let Some(table_db) = table_dbs.get(&id) else {
@@ -682,7 +697,7 @@ pub fn table_db_load(id: u32, col: u32, key: String) -> Promise {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(key.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let table_db = {
             let table_dbs = (*TABLE_DBS).borrow();
             let Some(table_db) = table_dbs.get(&id) else {
@@ -704,7 +719,7 @@ pub fn table_db_delete(id: u32, col: u32, key: String) -> Promise {
     let key: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(key.as_bytes())
         .unwrap();
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let table_db = {
             let table_dbs = (*TABLE_DBS).borrow();
             let Some(table_db) = table_dbs.get(&id) else {
@@ -723,10 +738,10 @@ pub fn table_db_delete(id: u32, col: u32, key: String) -> Promise {
 
 #[wasm_bindgen()]
 pub fn debug(command: String) -> Promise {
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let out = veilid_api.debug(command).await?;
-        Ok(out)
+        APIResult::Ok(out)
     })
 }
 

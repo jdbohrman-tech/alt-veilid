@@ -259,8 +259,8 @@ class VeilidJS implements Veilid {
 
   @override
   Future<VeilidRoutingContext> routingContext() async {
-    int id = jsonDecode(
-        await _wrapApiPromise(js_util.callMethod(wasm, "routing_context", [])));
+    int id =
+        await _wrapApiPromise(js_util.callMethod(wasm, "routing_context", []));
     return VeilidRoutingContextJS._(_Ctx(id, this));
   }
 
@@ -307,8 +307,10 @@ class VeilidJS implements Veilid {
 
   @override
   Future<VeilidTableDB> openTableDB(String name, int columnCount) async {
+    print('shit');
     int id = await _wrapApiPromise(
         js_util.callMethod(wasm, "open_table_db", [name, columnCount]));
+    print('qwerqwer');
     return VeilidTableDBJS._(_TDB(id, this));
   }
 
@@ -319,8 +321,7 @@ class VeilidJS implements Veilid {
 
   @override
   Future<String> debug(String command) async {
-    return jsonDecode(
-        await _wrapApiPromise(js_util.callMethod(wasm, "debug", [command])));
+    return await _wrapApiPromise(js_util.callMethod(wasm, "debug", [command]));
   }
 
   @override

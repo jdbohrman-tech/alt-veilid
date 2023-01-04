@@ -257,7 +257,7 @@ pub extern "C" fn change_log_level(layer: FfiStr, log_level: FfiStr) {
 pub extern "C" fn startup_veilid_core(port: i64, stream_port: i64, config: FfiStr) {
     let config = config.into_opt_string();
     let stream = DartIsolateStream::new(stream_port);
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let config_json = match config {
             Some(v) => v,
             None => {
@@ -305,7 +305,7 @@ pub extern "C" fn get_veilid_state(port: i64) {
 
 #[no_mangle]
 pub extern "C" fn attach(port: i64) {
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         veilid_api.attach().await?;
         APIRESULT_VOID
@@ -314,7 +314,7 @@ pub extern "C" fn attach(port: i64) {
 
 #[no_mangle]
 pub extern "C" fn detach(port: i64) {
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         veilid_api.detach().await?;
         APIRESULT_VOID
@@ -324,7 +324,7 @@ pub extern "C" fn detach(port: i64) {
 #[no_mangle]
 #[instrument]
 pub extern "C" fn shutdown_veilid_core(port: i64) {
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = take_veilid_api().await?;
         veilid_api.shutdown().await;
         APIRESULT_VOID
@@ -414,7 +414,7 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
                 .as_bytes(),
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         let routing_table = veilid_api.routing_table()?;
         let rss = routing_table.route_spec_store();
@@ -450,7 +450,7 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
                 .as_bytes(),
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         let routing_table = veilid_api.routing_table()?;
         let rss = routing_table.route_spec_store();
@@ -529,7 +529,7 @@ pub extern "C" fn import_remote_private_route(port: i64, blob: FfiStr) {
 pub extern "C" fn release_private_route(port: i64, key: FfiStr) {
     let key: veilid_core::DHTKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         veilid_api.release_private_route(&key)?;
         APIRESULT_VOID
@@ -657,7 +657,7 @@ pub extern "C" fn release_table_db_transaction(id: u32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn table_db_transaction_commit(port: i64, id: u32) {
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let tdbt = {
             let tdbts = TABLE_DB_TRANSACTIONS.lock();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -672,7 +672,7 @@ pub extern "C" fn table_db_transaction_commit(port: i64, id: u32) {
 }
 #[no_mangle]
 pub extern "C" fn table_db_transaction_rollback(port: i64, id: u32) {
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let tdbt = {
             let tdbts = TABLE_DB_TRANSACTIONS.lock();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -702,7 +702,7 @@ pub extern "C" fn table_db_transaction_store(port: i64, id: u32, col: u32, key: 
                 .as_bytes(),
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let tdbt = {
             let tdbts = TABLE_DB_TRANSACTIONS.lock();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -726,7 +726,7 @@ pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key:
                 .as_bytes(),
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let tdbt = {
             let tdbts = TABLE_DB_TRANSACTIONS.lock();
             let Some(tdbt) = tdbts.get(&id) else {
@@ -756,7 +756,7 @@ pub extern "C" fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, valu
                 .as_bytes(),
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let table_db = {
             let table_dbs = TABLE_DBS.lock();
             let Some(table_db) = table_dbs.get(&id) else {
@@ -802,7 +802,7 @@ pub extern "C" fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr) {
                 .as_bytes(),
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let table_db = {
             let table_dbs = TABLE_DBS.lock();
             let Some(table_db) = table_dbs.get(&id) else {
