@@ -7,6 +7,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'base64url_no_pad.dart';
+
 //////////////////////////////////////////////////////////
 
 Veilid getVeilid() => VeilidJS();
@@ -60,15 +62,15 @@ class VeilidRoutingContextJS implements VeilidRoutingContext {
 
   @override
   Future<Uint8List> appCall(String target, Uint8List request) async {
-    var encodedRequest = base64UrlEncode(request);
+    var encodedRequest = base64UrlNoPadEncode(request);
 
-    return base64Decode(await _wrapApiPromise(js_util.callMethod(
+    return base64UrlNoPadDecode(await _wrapApiPromise(js_util.callMethod(
         wasm, "routing_context_app_call", [_ctx.id, encodedRequest])));
   }
 
   @override
   Future<void> appMessage(String target, Uint8List message) {
-    var encodedMessage = base64UrlEncode(message);
+    var encodedMessage = base64UrlNoPadEncode(message);
 
     return _wrapApiPromise(js_util.callMethod(
         wasm, "routing_context_app_message", [_ctx.id, encodedMessage]));
@@ -108,19 +110,21 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
-    final encodedKey = base64UrlEncode(key);
-    final encodedValue = base64UrlEncode(value);
+    final encodedKey = base64UrlNoPadEncode(key);
+    final encodedValue = base64UrlNoPadEncode(value);
 
-    return _wrapApiPromise(js_util.callMethod(wasm,
-        "table_db_transaction_store", [_tdbt.id, encodedKey, encodedValue]));
+    return _wrapApiPromise(js_util.callMethod(
+        wasm,
+        "table_db_transaction_store",
+        [_tdbt.id, col, encodedKey, encodedValue]));
   }
 
   @override
   Future<bool> delete(int col, Uint8List key) {
-    final encodedKey = base64UrlEncode(key);
+    final encodedKey = base64UrlNoPadEncode(key);
 
     return _wrapApiPromise(js_util.callMethod(
-        wasm, "table_db_transaction_delete", [_tdbt.id, encodedKey]));
+        wasm, "table_db_transaction_delete", [_tdbt.id, col, encodedKey]));
   }
 }
 
@@ -154,7 +158,7 @@ class VeilidTableDBJS extends VeilidTableDB {
       throw VeilidAPIExceptionInternal("No db for id");
     }
     List<dynamic> jarr = jsonDecode(s);
-    return jarr.map((e) => base64Decode(e)).toList();
+    return jarr.map((e) => base64UrlNoPadDecode(e)).toList();
   }
 
   @override
@@ -166,31 +170,31 @@ class VeilidTableDBJS extends VeilidTableDB {
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
-    final encodedKey = base64UrlEncode(key);
-    final encodedValue = base64UrlEncode(value);
+    final encodedKey = base64UrlNoPadEncode(key);
+    final encodedValue = base64UrlNoPadEncode(value);
 
     return _wrapApiPromise(js_util.callMethod(
-        wasm, "table_db_store", [_tdb.id, encodedKey, encodedValue]));
+        wasm, "table_db_store", [_tdb.id, col, encodedKey, encodedValue]));
   }
 
   @override
   Future<Uint8List?> load(int col, Uint8List key) async {
-    final encodedKey = base64UrlEncode(key);
+    final encodedKey = base64UrlNoPadEncode(key);
 
     String? out = await _wrapApiPromise(
-        js_util.callMethod(wasm, "table_db_load", [_tdb.id, encodedKey]));
+        js_util.callMethod(wasm, "table_db_load", [_tdb.id, col, encodedKey]));
     if (out == null) {
       return null;
     }
-    return base64Decode(out);
+    return base64UrlNoPadDecode(out);
   }
 
   @override
   Future<bool> delete(int col, Uint8List key) {
-    final encodedKey = base64UrlEncode(key);
+    final encodedKey = base64UrlNoPadEncode(key);
 
-    return _wrapApiPromise(
-        js_util.callMethod(wasm, "table_db_delete", [_tdb.id, encodedKey]));
+    return _wrapApiPromise(js_util
+        .callMethod(wasm, "table_db_delete", [_tdb.id, col, encodedKey]));
   }
 }
 
@@ -285,7 +289,7 @@ class VeilidJS implements Veilid {
 
   @override
   Future<String> importRemotePrivateRoute(Uint8List blob) {
-    var encodedBlob = base64UrlEncode(blob);
+    var encodedBlob = base64UrlNoPadEncode(blob);
     return _wrapApiPromise(
         js_util.callMethod(wasm, "import_remote_private_route", [encodedBlob]));
   }
@@ -298,7 +302,7 @@ class VeilidJS implements Veilid {
 
   @override
   Future<void> appCallReply(String id, Uint8List message) {
-    var encodedMessage = base64UrlEncode(message);
+    var encodedMessage = base64UrlNoPadEncode(message);
     return _wrapApiPromise(
         js_util.callMethod(wasm, "app_call_reply", [id, encodedMessage]));
   }

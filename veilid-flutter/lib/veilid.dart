@@ -8,6 +8,8 @@ import 'veilid_stub.dart'
     if (dart.library.io) 'veilid_ffi.dart'
     if (dart.library.js) 'veilid_js.dart';
 
+import 'base64url_no_pad.dart';
+
 //////////////////////////////////////////////////////////
 
 export 'default_config.dart';
@@ -1315,7 +1317,7 @@ class VeilidAppMessage implements VeilidUpdate {
     return {
       'kind': "AppMessage",
       'sender': sender,
-      'message': base64UrlEncode(message)
+      'message': base64UrlNoPadEncode(message)
     };
   }
 }
@@ -1337,7 +1339,7 @@ class VeilidAppCall implements VeilidUpdate {
     return {
       'kind': "AppMessage",
       'sender': sender,
-      'message': base64UrlEncode(message),
+      'message': base64UrlNoPadEncode(message),
       'id': id,
     };
   }
@@ -1829,10 +1831,10 @@ class KeyBlob {
 
   KeyBlob.fromJson(dynamic json)
       : key = json['key'],
-        blob = base64Decode(json['blob']);
+        blob = base64UrlNoPadDecode(json['blob']);
 
   Map<String, dynamic> get json {
-    return {'key': key, 'blob': base64UrlEncode(blob)};
+    return {'key': key, 'blob': base64UrlNoPadEncode(blob)};
   }
 }
 

@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import 'veilid.dart';
+import 'base64url_no_pad.dart';
 
 //////////////////////////////////////////////////////////
 
@@ -425,20 +426,20 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   @override
   Future<Uint8List> appCall(String target, Uint8List request) async {
     var nativeEncodedTarget = target.toNativeUtf8();
-    var nativeEncodedRequest = base64UrlEncode(request).toNativeUtf8();
+    var nativeEncodedRequest = base64UrlNoPadEncode(request).toNativeUtf8();
 
     final recvPort = ReceivePort("routing_context_app_call");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextAppCall(sendPort.nativePort, _ctx.id,
         nativeEncodedTarget, nativeEncodedRequest);
     final out = await processFuturePlain(recvPort.first);
-    return base64Decode(out);
+    return base64UrlNoPadDecode(out);
   }
 
   @override
   Future<void> appMessage(String target, Uint8List message) async {
     final nativeEncodedTarget = target.toNativeUtf8();
-    final nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
+    final nativeEncodedMessage = base64UrlNoPadEncode(message).toNativeUtf8();
 
     final recvPort = ReceivePort("routing_context_app_message");
     final sendPort = recvPort.sendPort;
@@ -490,8 +491,8 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
-    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
-    final nativeEncodedValue = base64UrlEncode(value).toNativeUtf8();
+    final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
+    final nativeEncodedValue = base64UrlNoPadEncode(value).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_transaction_store");
     final sendPort = recvPort.sendPort;
@@ -507,7 +508,7 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
 
   @override
   Future<bool> delete(int col, Uint8List key) {
-    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+    final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_transaction_delete");
     final sendPort = recvPort.sendPort;
@@ -551,7 +552,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
     String ja = s.toDartString();
     _tdb.ffi._freeString(s);
     List<dynamic> jarr = jsonDecode(ja);
-    return jarr.map((e) => base64Decode(e)).toList();
+    return jarr.map((e) => base64UrlNoPadDecode(e)).toList();
   }
 
   @override
@@ -562,8 +563,8 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
-    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
-    final nativeEncodedValue = base64UrlEncode(value).toNativeUtf8();
+    final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
+    final nativeEncodedValue = base64UrlNoPadEncode(value).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_store");
     final sendPort = recvPort.sendPort;
@@ -579,7 +580,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
   @override
   Future<Uint8List?> load(int col, Uint8List key) async {
-    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+    final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_load");
     final sendPort = recvPort.sendPort;
@@ -593,12 +594,12 @@ class VeilidTableDBFFI extends VeilidTableDB {
     if (out == null) {
       return null;
     }
-    return base64Decode(out);
+    return base64UrlNoPadDecode(out);
   }
 
   @override
   Future<bool> delete(int col, Uint8List key) {
-    final nativeEncodedKey = base64UrlEncode(key).toNativeUtf8();
+    final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_delete");
     final sendPort = recvPort.sendPort;
@@ -866,7 +867,7 @@ class VeilidFFI implements Veilid {
 
   @override
   Future<String> importRemotePrivateRoute(Uint8List blob) {
-    final nativeEncodedBlob = base64UrlEncode(blob).toNativeUtf8();
+    final nativeEncodedBlob = base64UrlNoPadEncode(blob).toNativeUtf8();
 
     final recvPort = ReceivePort("import_remote_private_route");
     final sendPort = recvPort.sendPort;
@@ -887,7 +888,7 @@ class VeilidFFI implements Veilid {
   @override
   Future<void> appCallReply(String id, Uint8List message) {
     final nativeId = id.toNativeUtf8();
-    final nativeEncodedMessage = base64UrlEncode(message).toNativeUtf8();
+    final nativeEncodedMessage = base64UrlNoPadEncode(message).toNativeUtf8();
     final recvPort = ReceivePort("app_call_reply");
     final sendPort = recvPort.sendPort;
     _appCallReply(sendPort.nativePort, nativeId, nativeEncodedMessage);
