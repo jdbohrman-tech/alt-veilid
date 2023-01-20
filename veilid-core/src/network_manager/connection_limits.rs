@@ -21,8 +21,8 @@ pub struct ConnectionLimits {
     max_connection_frequency_per_min: usize,
     conn_count_by_ip4: BTreeMap<Ipv4Addr, usize>,
     conn_count_by_ip6_prefix: BTreeMap<Ipv6Addr, usize>,
-    conn_timestamps_by_ip4: BTreeMap<Ipv4Addr, Vec<u64>>,
-    conn_timestamps_by_ip6_prefix: BTreeMap<Ipv6Addr, Vec<u64>>,
+    conn_timestamps_by_ip4: BTreeMap<Ipv4Addr, Vec<Timestamp>>,
+    conn_timestamps_by_ip6_prefix: BTreeMap<Ipv6Addr, Vec<Timestamp>>,
 }
 
 impl ConnectionLimits {
@@ -41,14 +41,14 @@ impl ConnectionLimits {
         }
     }
 
-    fn purge_old_timestamps(&mut self, cur_ts: u64) {
+    fn purge_old_timestamps(&mut self, cur_ts: Timestamp) {
         // v4
         {
             let mut dead_keys = Vec::<Ipv4Addr>::new();
             for (key, value) in &mut self.conn_timestamps_by_ip4 {
                 value.retain(|v| {
                     // keep timestamps that are less than a minute away
-                    cur_ts.saturating_sub(*v) < 60_000_000u64
+                    cur_ts.saturating_sub(*v) < TimestampDuration::new(60_000_000u64)
                 });
                 if value.is_empty() {
                     dead_keys.push(*key);
@@ -64,7 +64,7 @@ impl ConnectionLimits {
             for (key, value) in &mut self.conn_timestamps_by_ip6_prefix {
                 value.retain(|v| {
                     // keep timestamps that are less than a minute away
-                    cur_ts.saturating_sub(*v) < 60_000_000u64
+                    cur_ts.saturating_sub(*v) < TimestampDuration::new(60_000_000u64)
                 });
                 if value.is_empty() {
                     dead_keys.push(*key);
@@ -78,7 +78,7 @@ impl ConnectionLimits {
 
     pub fn add(&mut self, addr: IpAddr) -> Result<(), AddressFilterError> {
         let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
-        let ts = intf::get_timestamp();
+        let ts = get_aligned_timestamp();
 
         self.purge_old_timestamps(ts);
 
@@ -95,7 +95,7 @@ impl ConnectionLimits {
                 let tstamps = &mut self.conn_timestamps_by_ip4.entry(v4).or_default();
                 tstamps.retain(|v| {
                     // keep timestamps that are less than a minute away
-                    ts.saturating_sub(*v) < 60_000_000u64
+                    ts.saturating_sub(*v) < TimestampDuration::new(60_000_000u64)
                 });
                 assert!(tstamps.len() <= self.max_connection_frequency_per_min);
                 if tstamps.len() == self.max_connection_frequency_per_min {
@@ -134,7 +134,7 @@ impl ConnectionLimits {
     pub fn remove(&mut self, addr: IpAddr) -> Result<(), AddressNotInTableError> {
         let ipblock = ip_to_ipblock(self.max_connections_per_ip6_prefix_size, addr);
 
-        let ts = intf::get_timestamp();
+        let ts = get_aligned_timestamp();
         self.purge_old_timestamps(ts);
 
         match ipblock {

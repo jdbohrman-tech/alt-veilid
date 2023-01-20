@@ -50,8 +50,8 @@ pub struct LastConnectionKey(ProtocolType, AddressType);
 pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
-    /// If this node has seen our publicinternet node info
-    seen_our_node_info: bool,
+    /// The last node info timestamp of ours that this entry has seen
+    last_seen_our_node_info_ts: Timestamp,
     /// Last known node status
     node_status: Option<PublicInternetNodeStatus>,
 }
@@ -62,8 +62,8 @@ pub struct BucketEntryPublicInternet {
 pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
-    /// If this node has seen our localnetwork node info
-    seen_our_node_info: bool,
+    /// The last node info timestamp of ours that this entry has seen
+    last_seen_our_node_info_ts: Timestamp,
     /// Last known node status
     node_status: Option<LocalNetworkNodeStatus>,
 }
@@ -93,7 +93,7 @@ pub struct BucketEntryInner {
     updated_since_last_network_change: bool,
     /// The last connection descriptors used to contact this node, per protocol type
     #[with(Skip)]
-    last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, u64)>,
+    last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, Timestamp)>,
     /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
     /// The node info for this entry on the localnetwork routing domain
@@ -148,7 +148,7 @@ impl BucketEntryInner {
     }
 
     // Less is more reliable then faster
-    pub fn cmp_fastest_reliable(cur_ts: u64, e1: &Self, e2: &Self) -> std::cmp::Ordering {
+    pub fn cmp_fastest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
         let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
         if ret != std::cmp::Ordering::Equal {
@@ -170,7 +170,7 @@ impl BucketEntryInner {
     }
 
     // Less is more reliable then older
-    pub fn cmp_oldest_reliable(cur_ts: u64, e1: &Self, e2: &Self) -> std::cmp::Ordering {
+    pub fn cmp_oldest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
         let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
         if ret != std::cmp::Ordering::Equal {
@@ -191,7 +191,7 @@ impl BucketEntryInner {
         }
     }
 
-    pub fn sort_fastest_reliable_fn(cur_ts: u64) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
+    pub fn sort_fastest_reliable_fn(cur_ts: Timestamp) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
@@ -231,7 +231,7 @@ impl BucketEntryInner {
                         // No need to update the signednodeinfo though since the timestamp is the same
                         // Touch the node and let it try to live again
                         self.updated_since_last_network_change = true;
-                        self.touch_last_seen(intf::get_timestamp());
+                        self.touch_last_seen(get_aligned_timestamp());
                     }
                     return;
                 }
@@ -258,7 +258,7 @@ impl BucketEntryInner {
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
         self.updated_since_last_network_change = true;
-        self.touch_last_seen(intf::get_timestamp());
+        self.touch_last_seen(get_aligned_timestamp());
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
@@ -273,6 +273,25 @@ impl BucketEntryInner {
             }
         }
         false
+    }
+
+    pub fn exists_in_routing_domain(
+        &self,
+        rti: &RoutingTableInner,
+        routing_domain: RoutingDomain,
+    ) -> bool {
+        // Check node info
+        if self.has_node_info(routing_domain.into()) {
+            return true;
+        }
+
+        // Check connections
+        let last_connections = self.last_connections(
+            rti,
+            true,
+            Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
+        );
+        !last_connections.is_empty()
     }
 
     pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<&NodeInfo> {
@@ -304,8 +323,10 @@ impl BucketEntryInner {
 
     pub fn best_routing_domain(
         &self,
+        rti: &RoutingTableInner,
         routing_domain_set: RoutingDomainSet,
     ) -> Option<RoutingDomain> {
+        // Check node info
         for routing_domain in routing_domain_set {
             let opt_current_sni = match routing_domain {
                 RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
@@ -315,7 +336,27 @@ impl BucketEntryInner {
                 return Some(routing_domain);
             }
         }
-        None
+        // Check connections
+        let mut best_routing_domain: Option<RoutingDomain> = None;
+        let last_connections = self.last_connections(
+            rti,
+            true,
+            Some(NodeRefFilter::new().with_routing_domain_set(routing_domain_set)),
+        );
+        for lc in last_connections {
+            if let Some(rd) =
+                rti.routing_domain_for_address(lc.0.remote_address().address())
+            {
+                if let Some(brd) = best_routing_domain {
+                    if rd < brd {
+                        best_routing_domain = Some(rd);
+                    }
+                } else {
+                    best_routing_domain = Some(rd);
+                }
+            }
+        }
+        best_routing_domain
     }
 
     fn descriptor_to_key(&self, last_connection: ConnectionDescriptor) -> LastConnectionKey {
@@ -326,7 +367,7 @@ impl BucketEntryInner {
     }
 
     // Stores a connection descriptor in this entry's table of last connections
-    pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: u64) {
+    pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: Timestamp) {
         let key = self.descriptor_to_key(last_connection);
         self.last_connections
             .insert(key, (last_connection, timestamp));
@@ -337,13 +378,17 @@ impl BucketEntryInner {
         self.last_connections.clear();
     }
 
-    // Gets all the 'last connections' that match a particular filter
+    // Gets all the 'last connections' that match a particular filter, and their accompanying timestamps of last use
     pub(super) fn last_connections(
         &self,
         rti: &RoutingTableInner,
+        only_live: bool,
         filter: Option<NodeRefFilter>,
-    ) -> Vec<(ConnectionDescriptor, u64)> {
-        let mut out: Vec<(ConnectionDescriptor, u64)> = self
+    ) -> Vec<(ConnectionDescriptor, Timestamp)> {
+        let connection_manager =
+            rti.unlocked_inner.network_manager.connection_manager();
+
+        let mut out: Vec<(ConnectionDescriptor, Timestamp)> = self
             .last_connections
             .iter()
             .filter_map(|(k, v)| {
@@ -368,7 +413,29 @@ impl BucketEntryInner {
                     // no filter
                     true
                 };
-                if include {
+
+                if !include {
+                    return None;
+                }
+
+                if !only_live {
+                    return Some(v.clone());
+                }
+
+                // Check if the connection is still considered live
+                let alive = 
+                    // Should we check the connection table?
+                    if v.0.protocol_type().is_connection_oriented() {
+                        // Look the connection up in the connection manager and see if it's still there
+                        connection_manager.get_connection(v.0).is_some()
+                    } else {
+                        // If this is not connection oriented, then we check our last seen time
+                        // to see if this mapping has expired (beyond our timeout)
+                        let cur_ts = get_aligned_timestamp();
+                        (v.1 + TimestampDuration::new(CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts
+                    };
+
+                if alive {
                     Some(v.clone())
                 } else {
                     None
@@ -388,7 +455,7 @@ impl BucketEntryInner {
         self.min_max_version
     }
 
-    pub fn state(&self, cur_ts: u64) -> BucketEntryState {
+    pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         if self.check_reliable(cur_ts) {
             BucketEntryState::Reliable
         } else if self.check_dead(cur_ts) {
@@ -427,21 +494,29 @@ impl BucketEntryInner {
         }
     }
 
-    pub fn set_seen_our_node_info(&mut self, routing_domain: RoutingDomain, seen: bool) {
+    pub fn set_our_node_info_ts(&mut self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
         match routing_domain {
             RoutingDomain::LocalNetwork => {
-                self.local_network.seen_our_node_info = seen;
+                self.local_network.last_seen_our_node_info_ts = seen_ts;
             }
             RoutingDomain::PublicInternet => {
-                self.public_internet.seen_our_node_info = seen;
+                self.public_internet.last_seen_our_node_info_ts = seen_ts;
             }
         }
     }
 
-    pub fn has_seen_our_node_info(&self, routing_domain: RoutingDomain) -> bool {
+    pub fn has_seen_our_node_info_ts(
+        &self,
+        routing_domain: RoutingDomain,
+        our_node_info_ts: Timestamp,
+    ) -> bool {
         match routing_domain {
-            RoutingDomain::LocalNetwork => self.local_network.seen_our_node_info,
-            RoutingDomain::PublicInternet => self.public_internet.seen_our_node_info,
+            RoutingDomain::LocalNetwork => {
+                our_node_info_ts == self.local_network.last_seen_our_node_info_ts
+            }
+            RoutingDomain::PublicInternet => {
+                our_node_info_ts == self.public_internet.last_seen_our_node_info_ts
+            }
         }
     }
 
@@ -455,7 +530,7 @@ impl BucketEntryInner {
 
     ///// stats methods
     // called every ROLLING_TRANSFERS_INTERVAL_SECS seconds
-    pub(super) fn roll_transfers(&mut self, last_ts: u64, cur_ts: u64) {
+    pub(super) fn roll_transfers(&mut self, last_ts: Timestamp, cur_ts: Timestamp) {
         self.transfer_stats_accounting.roll_transfers(
             last_ts,
             cur_ts,
@@ -464,12 +539,12 @@ impl BucketEntryInner {
     }
 
     // Called for every round trip packet we receive
-    fn record_latency(&mut self, latency: u64) {
+    fn record_latency(&mut self, latency: TimestampDuration) {
         self.peer_stats.latency = Some(self.latency_stats_accounting.record_latency(latency));
     }
 
     ///// state machine handling
-    pub(super) fn check_reliable(&self, cur_ts: u64) -> bool {
+    pub(super) fn check_reliable(&self, cur_ts: Timestamp) -> bool {
         // If we have had any failures to send, this is not reliable
         if self.peer_stats.rpc_stats.failed_to_send > 0 {
             return false;
@@ -479,11 +554,11 @@ impl BucketEntryInner {
         match self.peer_stats.rpc_stats.first_consecutive_seen_ts {
             None => false,
             Some(ts) => {
-                cur_ts.saturating_sub(ts) >= (UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
+                cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }
         }
     }
-    pub(super) fn check_dead(&self, cur_ts: u64) -> bool {
+    pub(super) fn check_dead(&self, cur_ts: Timestamp) -> bool {
         // If we have failured to send NEVER_REACHED_PING_COUNT times in a row, the node is dead
         if self.peer_stats.rpc_stats.failed_to_send >= NEVER_REACHED_PING_COUNT {
             return true;
@@ -494,20 +569,20 @@ impl BucketEntryInner {
         match self.peer_stats.rpc_stats.last_seen_ts {
             None => self.peer_stats.rpc_stats.recent_lost_answers < NEVER_REACHED_PING_COUNT,
             Some(ts) => {
-                cur_ts.saturating_sub(ts) >= (UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
+                cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }
         }
     }
 
     /// Return the last time we either saw a node, or asked it a question
-    fn latest_contact_time(&self) -> Option<u64> {
+    fn latest_contact_time(&self) -> Option<Timestamp> {
         self.peer_stats
             .rpc_stats
             .last_seen_ts
-            .max(self.peer_stats.rpc_stats.last_question)
+            .max(self.peer_stats.rpc_stats.last_question_ts)
     }
 
-    fn needs_constant_ping(&self, cur_ts: u64, interval: u64) -> bool {
+    fn needs_constant_ping(&self, cur_ts: Timestamp, interval_us: TimestampDuration) -> bool {
         // If we have not either seen the node in the last 'interval' then we should ping it
         let latest_contact_time = self.latest_contact_time();
 
@@ -515,20 +590,20 @@ impl BucketEntryInner {
             None => true,
             Some(latest_contact_time) => {
                 // If we haven't done anything with this node in 'interval' seconds
-                cur_ts.saturating_sub(latest_contact_time) >= (interval * 1000000u64)
+                cur_ts.saturating_sub(latest_contact_time) >= interval_us
             }
         }
     }
 
     // Check if this node needs a ping right now to validate it is still reachable
-    pub(super) fn needs_ping(&self, cur_ts: u64, needs_keepalive: bool) -> bool {
+    pub(super) fn needs_ping(&self, cur_ts: Timestamp, needs_keepalive: bool) -> bool {
         // See which ping pattern we are to use
         let state = self.state(cur_ts);
 
         // If this entry needs a keepalive (like a relay node),
         // then we should ping it regularly to keep our association alive
         if needs_keepalive {
-            return self.needs_constant_ping(cur_ts, KEEPALIVE_PING_INTERVAL_SECS as u64);
+            return self.needs_constant_ping(cur_ts, TimestampDuration::new(KEEPALIVE_PING_INTERVAL_SECS as u64 * 1000000u64));
         }
 
         // If we don't have node status for this node, then we should ping it to get some node status
@@ -561,8 +636,8 @@ impl BucketEntryInner {
                             latest_contact_time.saturating_sub(start_of_reliable_time);
 
                         retry_falloff_log(
-                            reliable_last,
-                            reliable_cur,
+                            reliable_last.as_u64(),
+                            reliable_cur.as_u64(),
                             RELIABLE_PING_INTERVAL_START_SECS as u64 * 1_000_000u64,
                             RELIABLE_PING_INTERVAL_MAX_SECS as u64 * 1_000_000u64,
                             RELIABLE_PING_INTERVAL_MULTIPLIER,
@@ -572,13 +647,13 @@ impl BucketEntryInner {
             }
             BucketEntryState::Unreliable => {
                 // If we are in an unreliable state, we need a ping every UNRELIABLE_PING_INTERVAL_SECS seconds
-                self.needs_constant_ping(cur_ts, UNRELIABLE_PING_INTERVAL_SECS as u64)
+                self.needs_constant_ping(cur_ts, TimestampDuration::new(UNRELIABLE_PING_INTERVAL_SECS as u64 * 1000000u64))
             }
             BucketEntryState::Dead => false,
         }
     }
 
-    pub(super) fn touch_last_seen(&mut self, ts: u64) {
+    pub(super) fn touch_last_seen(&mut self, ts: Timestamp) {
         // Mark the node as seen
         if self
             .peer_stats
@@ -592,13 +667,13 @@ impl BucketEntryInner {
         self.peer_stats.rpc_stats.last_seen_ts = Some(ts);
     }
 
-    pub(super) fn _state_debug_info(&self, cur_ts: u64) -> String {
+    pub(super) fn _state_debug_info(&self, cur_ts: Timestamp) -> String {
         let first_consecutive_seen_ts = if let Some(first_consecutive_seen_ts) =
             self.peer_stats.rpc_stats.first_consecutive_seen_ts
         {
             format!(
                 "{}s ago",
-                timestamp_to_secs(cur_ts.saturating_sub(first_consecutive_seen_ts))
+                timestamp_to_secs(cur_ts.saturating_sub(first_consecutive_seen_ts).as_u64())
             )
         } else {
             "never".to_owned()
@@ -606,7 +681,7 @@ impl BucketEntryInner {
         let last_seen_ts_str = if let Some(last_seen_ts) = self.peer_stats.rpc_stats.last_seen_ts {
             format!(
                 "{}s ago",
-                timestamp_to_secs(cur_ts.saturating_sub(last_seen_ts))
+                timestamp_to_secs(cur_ts.saturating_sub(last_seen_ts).as_u64())
             )
         } else {
             "never".to_owned()
@@ -623,30 +698,30 @@ impl BucketEntryInner {
     ////////////////////////////////////////////////////////////////
     /// Called when rpc processor things happen
 
-    pub(super) fn question_sent(&mut self, ts: u64, bytes: u64, expects_answer: bool) {
+    pub(super) fn question_sent(&mut self, ts: Timestamp, bytes: ByteCount, expects_answer: bool) {
         self.transfer_stats_accounting.add_up(bytes);
         self.peer_stats.rpc_stats.messages_sent += 1;
         self.peer_stats.rpc_stats.failed_to_send = 0;
         if expects_answer {
             self.peer_stats.rpc_stats.questions_in_flight += 1;
-            self.peer_stats.rpc_stats.last_question = Some(ts);
+            self.peer_stats.rpc_stats.last_question_ts = Some(ts);
         }
     }
-    pub(super) fn question_rcvd(&mut self, ts: u64, bytes: u64) {
+    pub(super) fn question_rcvd(&mut self, ts: Timestamp, bytes: ByteCount) {
         self.transfer_stats_accounting.add_down(bytes);
         self.peer_stats.rpc_stats.messages_rcvd += 1;
         self.touch_last_seen(ts);
     }
-    pub(super) fn answer_sent(&mut self, bytes: u64) {
+    pub(super) fn answer_sent(&mut self, bytes: ByteCount) {
         self.transfer_stats_accounting.add_up(bytes);
         self.peer_stats.rpc_stats.messages_sent += 1;
         self.peer_stats.rpc_stats.failed_to_send = 0;
     }
-    pub(super) fn answer_rcvd(&mut self, send_ts: u64, recv_ts: u64, bytes: u64) {
+    pub(super) fn answer_rcvd(&mut self, send_ts: Timestamp, recv_ts: Timestamp, bytes: ByteCount) {
         self.transfer_stats_accounting.add_down(bytes);
         self.peer_stats.rpc_stats.messages_rcvd += 1;
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
-        self.record_latency(recv_ts - send_ts);
+        self.record_latency(recv_ts.saturating_sub(send_ts));
         self.touch_last_seen(recv_ts);
         self.peer_stats.rpc_stats.recent_lost_answers = 0;
     }
@@ -655,9 +730,9 @@ impl BucketEntryInner {
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
         self.peer_stats.rpc_stats.recent_lost_answers += 1;
     }
-    pub(super) fn failed_to_send(&mut self, ts: u64, expects_answer: bool) {
+    pub(super) fn failed_to_send(&mut self, ts: Timestamp, expects_answer: bool) {
         if expects_answer {
-            self.peer_stats.rpc_stats.last_question = Some(ts);
+            self.peer_stats.rpc_stats.last_question_ts = Some(ts);
         }
         self.peer_stats.rpc_stats.failed_to_send += 1;
         self.peer_stats.rpc_stats.first_consecutive_seen_ts = None;
@@ -672,7 +747,7 @@ pub struct BucketEntry {
 
 impl BucketEntry {
     pub(super) fn new() -> Self {
-        let now = intf::get_timestamp();
+        let now = get_aligned_timestamp();
         Self {
             ref_count: AtomicU32::new(0),
             inner: RwLock::new(BucketEntryInner {
@@ -680,12 +755,12 @@ impl BucketEntry {
                 updated_since_last_network_change: false,
                 last_connections: BTreeMap::new(),
                 local_network: BucketEntryLocalNetwork {
-                    seen_our_node_info: false,
+                    last_seen_our_node_info_ts: Timestamp::new(0u64),
                     signed_node_info: None,
                     node_status: None,
                 },
                 public_internet: BucketEntryPublicInternet {
-                    seen_our_node_info: false,
+                    last_seen_our_node_info_ts: Timestamp::new(0u64),
                     signed_node_info: None,
                     node_status: None,
                 },

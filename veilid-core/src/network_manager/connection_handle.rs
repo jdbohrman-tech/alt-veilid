@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub struct ConnectionHandle {
-    id: u64,
+    id: NetworkConnectionId,
     descriptor: ConnectionDescriptor,
     channel: flume::Sender<(Option<Id>, Vec<u8>)>,
 }
@@ -15,7 +15,7 @@ pub enum ConnectionHandleSendResult {
 
 impl ConnectionHandle {
     pub(super) fn new(
-        id: u64,
+        id: NetworkConnectionId,
         descriptor: ConnectionDescriptor,
         channel: flume::Sender<(Option<Id>, Vec<u8>)>,
     ) -> Self {
@@ -26,7 +26,7 @@ impl ConnectionHandle {
         }
     }
 
-    pub fn connection_id(&self) -> u64 {
+    pub fn connection_id(&self) -> NetworkConnectionId {
         self.id
     }
 

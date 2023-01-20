@@ -226,18 +226,8 @@ impl RoutingTableInner {
         })
     }
 
-    pub fn reset_all_seen_our_node_info(&mut self, routing_domain: RoutingDomain) {
-        let cur_ts = intf::get_timestamp();
-        self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
-            v.with_mut(rti, |_rti, e| {
-                e.set_seen_our_node_info(routing_domain, false);
-            });
-            Option::<()>::None
-        });
-    }
-
     pub fn reset_all_updated_since_last_network_change(&mut self) {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
             v.with_mut(rti, |_rti, e| {
                 e.set_updated_since_last_network_change(false)
@@ -246,16 +236,43 @@ impl RoutingTableInner {
         });
     }
 
+    /// Return if our node info is valid yet, which is only true if we have a valid network class
+    pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
+        self.with_routing_domain(routing_domain, |rdd| rdd.common().has_valid_own_node_info())
+    }
+
     /// Return a copy of our node's peerinfo
-    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
+    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+        self.with_routing_domain(routing_domain, |rdd| {
+            if !rdd.common().has_valid_own_node_info() {
+                None
+            } else {
+                Some(rdd.common().with_peer_info(self, |pi| pi.clone()))
+            }
+        })
+    }
+
+    /// Return the best effort copy of our node's peerinfo
+    /// This may be invalid and should not be passed to other nodes,
+    /// but may be used for contact method calculation
+    pub fn get_best_effort_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common().with_peer_info(self, |pi| pi.clone())
         })
     }
 
-    /// Return our currently registered network class
-    pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
-        self.with_routing_domain(routing_domain, |rdd| rdd.common().has_valid_own_node_info())
+    /// Return our current node info timestamp
+    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<Timestamp> {
+        self.with_routing_domain(routing_domain, |rdd| {
+            if !rdd.common().has_valid_own_node_info() {
+                None
+            } else {
+                Some(
+                    rdd.common()
+                        .with_peer_info(self, |pi| pi.signed_node_info.timestamp()),
+                )
+            }
+        })
     }
 
     /// Return the domain's currently registered network class
@@ -301,10 +318,8 @@ impl RoutingTableInner {
             4 => 16,
             5 => 8,
             6 => 4,
-            7 => 4,
-            8 => 4,
-            9 => 4,
-            _ => 4,
+            7 => 2,
+            _ => 1,
         }
     }
 
@@ -330,11 +345,10 @@ impl RoutingTableInner {
 
         // If the local network topology has changed, nuke the existing local node info and let new local discovery happen
         if changed {
-            let cur_ts = intf::get_timestamp();
+            let cur_ts = get_aligned_timestamp();
             self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, e| {
                 e.with_mut(rti, |_rti, e| {
                     e.clear_signed_node_info(RoutingDomain::LocalNetwork);
-                    e.set_seen_our_node_info(RoutingDomain::LocalNetwork, false);
                     e.set_updated_since_last_network_change(false);
                 });
                 Option::<()>::None
@@ -410,9 +424,9 @@ impl RoutingTableInner {
         min_state: BucketEntryState,
     ) -> usize {
         let mut count = 0usize;
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         self.with_entries(cur_ts, min_state, |rti, _, e| {
-            if e.with(rti, |_rti, e| e.best_routing_domain(routing_domain_set))
+            if e.with(rti, |rti, e| e.best_routing_domain(rti, routing_domain_set))
                 .is_some()
             {
                 count += 1;
@@ -424,7 +438,7 @@ impl RoutingTableInner {
 
     pub fn with_entries<T, F: FnMut(&RoutingTableInner, DHTKey, Arc<BucketEntry>) -> Option<T>>(
         &self,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
@@ -450,7 +464,7 @@ impl RoutingTableInner {
         F: FnMut(&mut RoutingTableInner, DHTKey, Arc<BucketEntry>) -> Option<T>,
     >(
         &mut self,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
@@ -471,46 +485,37 @@ impl RoutingTableInner {
         None
     }
 
-    pub fn get_nodes_needing_updates(
-        &self,
-        outer_self: RoutingTable,
-        routing_domain: RoutingDomain,
-        cur_ts: u64,
-        all: bool,
-    ) -> Vec<NodeRef> {
-        let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);
-        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
-            // Only update nodes that haven't seen our node info yet
-            if all || !v.with(rti, |_rti, e| e.has_seen_our_node_info(routing_domain)) {
-                node_refs.push(NodeRef::new(
-                    outer_self.clone(),
-                    k,
-                    v,
-                    Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
-                ));
-            }
-            Option::<()>::None
-        });
-        node_refs
-    }
-
     pub fn get_nodes_needing_ping(
         &self,
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
-        cur_ts: u64,
+        cur_ts: Timestamp,
     ) -> Vec<NodeRef> {
         // Collect relay nodes
         let opt_relay_id = self.with_routing_domain(routing_domain, |rd| {
             rd.common().relay_node().map(|rn| rn.node_id())
         });
+        let own_node_info_ts = self.get_own_node_info_ts(routing_domain);
 
         // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
-            if v.with(rti, |_rti, e| {
-                e.has_node_info(routing_domain.into())
-                    && e.needs_ping(cur_ts, opt_relay_id == Some(k))
+            if v.with(rti, |rti, e| {
+                // If this isn't in the routing domain we are checking, don't include it
+                if !e.exists_in_routing_domain(rti, routing_domain) {
+                    return false;
+                }
+                // If we need a ping via the normal timing mechanism, then do it
+                if e.needs_ping(cur_ts, opt_relay_id == Some(k)) {
+                    return true;
+                }
+                // If we need a ping because this node hasn't seen our latest node info, then do it
+                if let Some(own_node_info_ts) = own_node_info_ts {
+                    if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
+                        return true;
+                    }
+                }
+                false
             }) {
                 node_refs.push(NodeRef::new(
                     outer_self.clone(),
@@ -524,7 +529,7 @@ impl RoutingTableInner {
         node_refs
     }
 
-    pub fn get_all_nodes(&self, outer_self: RoutingTable, cur_ts: u64) -> Vec<NodeRef> {
+    pub fn get_all_nodes(&self, outer_self: RoutingTable, cur_ts: Timestamp) -> Vec<NodeRef> {
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |_rti, k, v| {
             node_refs.push(NodeRef::new(outer_self.clone(), k, v, None));
@@ -693,7 +698,7 @@ impl RoutingTableInner {
         outer_self: RoutingTable,
         node_id: DHTKey,
         descriptor: ConnectionDescriptor,
-        timestamp: u64,
+        timestamp: Timestamp,
     ) -> Option<NodeRef> {
         let out = self.create_node_ref(outer_self, node_id, |_rti, e| {
             // this node is live because it literally just connected to us
@@ -711,24 +716,45 @@ impl RoutingTableInner {
     // Routing Table Health Metrics
 
     pub fn get_routing_table_health(&self) -> RoutingTableHealth {
-        let mut health = RoutingTableHealth::default();
-        let cur_ts = intf::get_timestamp();
+        let mut reliable_entry_count: usize = 0;
+        let mut unreliable_entry_count: usize = 0;
+        let mut dead_entry_count: usize = 0;
+
+        let cur_ts = get_aligned_timestamp();
         for bucket in &self.buckets {
             for (_, v) in bucket.entries() {
                 match v.with(self, |_rti, e| e.state(cur_ts)) {
                     BucketEntryState::Reliable => {
-                        health.reliable_entry_count += 1;
+                        reliable_entry_count += 1;
                     }
                     BucketEntryState::Unreliable => {
-                        health.unreliable_entry_count += 1;
+                        unreliable_entry_count += 1;
                     }
                     BucketEntryState::Dead => {
-                        health.dead_entry_count += 1;
+                        dead_entry_count += 1;
                     }
                 }
             }
         }
-        health
+
+        let public_internet_ready = !matches!(
+            self.get_network_class(RoutingDomain::PublicInternet)
+                .unwrap_or_default(),
+            NetworkClass::Invalid
+        );
+        let local_network_ready = !matches!(
+            self.get_network_class(RoutingDomain::LocalNetwork)
+                .unwrap_or_default(),
+            NetworkClass::Invalid
+        );
+
+        RoutingTableHealth {
+            reliable_entry_count,
+            unreliable_entry_count,
+            dead_entry_count,
+            public_internet_ready,
+            local_network_ready,
+        }
     }
 
     pub fn touch_recent_peer(&mut self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
@@ -792,12 +818,12 @@ impl RoutingTableInner {
     pub fn transform_to_peer_info(
         &self,
         routing_domain: RoutingDomain,
-        own_peer_info: PeerInfo,
+        own_peer_info: &PeerInfo,
         k: DHTKey,
         v: Option<Arc<BucketEntry>>,
     ) -> PeerInfo {
         match v {
-            None => own_peer_info,
+            None => own_peer_info.clone(),
             Some(entry) => entry.with(self, |_rti, e| e.make_peer_info(k, routing_domain).unwrap()),
         }
     }
@@ -805,7 +831,7 @@ impl RoutingTableInner {
     pub fn find_peers_with_sort_and_filter<C, T, O>(
         &self,
         node_count: usize,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         mut filters: VecDeque<RoutingTableEntryFilter>,
         mut compare: C,
         mut transform: T,
@@ -869,7 +895,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_aligned_timestamp();
 
         // Add filter to remove dead nodes always
         let filter_dead = Box::new(
@@ -954,7 +980,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_aligned_timestamp();
         let node_count = {
             let config = self.config();
             let c = config.get();

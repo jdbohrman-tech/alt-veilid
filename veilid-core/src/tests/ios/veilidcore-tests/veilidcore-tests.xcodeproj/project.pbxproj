@@ -167,7 +167,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "../../../../ios_build.sh --features ios_tests\n";
+			shellScript = "../../../../../scripts/ios_build.sh veilid_core --features veilid_core_ios_tests,rt-tokio\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -209,7 +209,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = arm64;
+				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -264,6 +264,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -271,7 +272,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = arm64;
+				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -319,6 +320,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -339,11 +341,11 @@
 				);
 				OTHER_LDFLAGS = "";
 				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
-					"-L../../../../../target/aarch64-apple-ios/debug",
+					"-L../../../../../target/lipo-ios/debug",
 					"-lveilid_core",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
-					"-L../../../../../target/x86_64-apple-ios/debug",
+					"-L../../../../../target/lipo-ios-sim/debug",
 					"-lveilid_core",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.veilid.veilidcore-tests";
@@ -371,11 +373,11 @@
 				);
 				OTHER_LDFLAGS = "";
 				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
-					"-L../../../../../target/aarch64-apple-ios/release",
+					"-L../../../../../target/lipo-ios/release",
 					"-lveilid_core",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
-					"-L../../../../../target/x86_64-apple-ios/release",
+					"-L../../../../../target/lipo-ios-sim/release",
 					"-lveilid_core",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.veilid.veilidcore-tests";

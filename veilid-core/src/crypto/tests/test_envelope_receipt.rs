@@ -1,7 +1,5 @@
 use super::*;
 use crate::tests::common::test_veilid_config::*;
-use crate::xx::*;
-use crate::*;
 
 pub async fn test_envelope_round_trip() {
     info!("--- test envelope round trip ---");
@@ -14,7 +12,7 @@ pub async fn test_envelope_round_trip() {
     let crypto = api.crypto().unwrap();
 
     // Create envelope
-    let ts = 0x12345678ABCDEF69u64;
+    let ts = Timestamp::from(0x12345678ABCDEF69u64);
     let nonce = Crypto::get_random_nonce();
     let (sender_id, sender_secret) = generate_secret();
     let (recipient_id, recipient_secret) = generate_secret();

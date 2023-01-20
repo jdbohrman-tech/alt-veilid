@@ -1,4 +1,3 @@
-use crate::xx::*;
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
 use keyring_manager::*;
@@ -56,7 +55,7 @@ impl ProtectedStore {
                 // Attempt to open the secure keyring
                 cfg_if! {
                     if #[cfg(target_os = "android")] {
-                        inner.keyring_manager = KeyringManager::new_secure(&c.program_name, intf::native::utils::android::get_android_globals()).ok();
+                        inner.keyring_manager = KeyringManager::new_secure(&c.program_name, crate::intf::android::get_android_globals()).ok();
                     } else {
                         inner.keyring_manager = KeyringManager::new_secure(&c.program_name).ok();
                     }

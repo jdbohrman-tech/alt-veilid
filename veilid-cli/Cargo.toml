@@ -16,7 +16,7 @@ rt-async-std = [ "async-std", "veilid-core/rt-async-std", "cursive/rt-async-std"
 rt-tokio = [ "tokio", "tokio-util", "veilid-core/rt-tokio", "cursive/rt-tokio" ]
 
 [dependencies]
-cursive = { path = "../external/cursive/cursive", default-features = false, features = [ "crossterm", "toml"]}
+cursive = { path = "../external/cursive/cursive", default-features = false, features = [ "crossterm", "toml", "ansi" ]}
 async-std = { version = "^1.9", features = ["unstable", "attributes"], optional = true }
 tokio = { version = "^1", features = ["full"], optional = true }
 tokio-util = { version = "^0", features = ["compat"], optional = true}

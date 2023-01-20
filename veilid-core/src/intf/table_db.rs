@@ -1,4 +1,3 @@
-use crate::xx::*;
 use crate::*;
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
@@ -18,13 +17,19 @@ pub struct TableDBInner {
     database: Database,
 }
 
+impl fmt::Debug for TableDBInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TableDBInner(table={})", self.table)
+    }
+}
+
 impl Drop for TableDBInner {
     fn drop(&mut self) {
         self.table_store.on_table_db_drop(self.table.clone());
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TableDB {
     inner: Arc<Mutex<TableDBInner>>,
 }
@@ -69,51 +74,51 @@ impl TableDB {
     }
 
     /// Start a TableDB write transaction. The transaction object must be committed or rolled back before dropping.
-    pub fn transact<'a>(&'a self) -> TableDBTransaction<'a> {
+    pub fn transact(&self) -> TableDBTransaction {
         let dbt = {
             let db = &self.inner.lock().database;
             db.transaction()
         };
-        TableDBTransaction::new(self, dbt)
+        TableDBTransaction::new(self.clone(), dbt)
     }
 
     /// Store a key with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub fn store(&self, col: u32, key: &[u8], value: &[u8]) -> EyreResult<()> {
-        let db = &self.inner.lock().database;
+    pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> EyreResult<()> {
+        let db = self.inner.lock().database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, value);
-        db.write(dbt).wrap_err("failed to store key")
+        db.write(dbt).await.wrap_err("failed to store key")
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub async fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
         let v = to_rkyv(value)?;
 
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, v.as_slice());
-        db.write(dbt).wrap_err("failed to store key")
+        db.write(dbt).await.wrap_err("failed to store key")
     }
 
     /// Store a key in json format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub async fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: serde::Serialize,
     {
         let v = serde_json::to_vec(value)?;
 
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, v.as_slice());
-        db.write(dbt).wrap_err("failed to store key")
+        db.write(dbt).await.wrap_err("failed to store key")
     }
 
     /// Read a key from a column in the TableDB immediately.
     pub fn load(&self, col: u32, key: &[u8]) -> EyreResult<Option<Vec<u8>>> {
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         db.get(col, key).wrap_err("failed to get key")
     }
 
@@ -126,7 +131,7 @@ impl TableDB {
         <T as RkyvArchive>::Archived:
             RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let out = db.get(col, key).wrap_err("failed to get key")?;
         let b = match out {
             Some(v) => v,
@@ -143,7 +148,7 @@ impl TableDB {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        let db = &self.inner.lock().database;
+        let db = self.inner.lock().database.clone();
         let out = db.get(col, key).wrap_err("failed to get key")?;
         let b = match out {
             Some(v) => v,
@@ -156,15 +161,15 @@ impl TableDB {
     }
 
     /// Delete key with from a column in the TableDB
-    pub fn delete(&self, col: u32, key: &[u8]) -> EyreResult<bool> {
-        let db = &self.inner.lock().database;
+    pub async fn delete(&self, col: u32, key: &[u8]) -> EyreResult<bool> {
+        let db = self.inner.lock().database.clone();
         let found = db.get(col, key).wrap_err("failed to get key")?;
         match found {
             None => Ok(false),
             Some(_) => {
                 let mut dbt = db.transaction();
                 dbt.delete(col, key);
-                db.write(dbt).wrap_err("failed to delete key")?;
+                db.write(dbt).await.wrap_err("failed to delete key")?;
                 Ok(true)
             }
         }
@@ -173,70 +178,96 @@ impl TableDB {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// A TableDB transaction
-/// Atomically commits a group of writes or deletes to the TableDB
-pub struct TableDBTransaction<'a> {
-    db: &'a TableDB,
+struct TableDBTransactionInner {
     dbt: Option<DBTransaction>,
-    _phantom: core::marker::PhantomData<&'a ()>,
 }
 
-impl<'a> TableDBTransaction<'a> {
-    fn new(db: &'a TableDB, dbt: DBTransaction) -> Self {
+impl fmt::Debug for TableDBTransactionInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TableDBTransactionInner({})",
+            match &self.dbt {
+                Some(dbt) => format!("len={}", dbt.ops.len()),
+                None => "".to_owned(),
+            }
+        )
+    }
+}
+
+/// A TableDB transaction
+/// Atomically commits a group of writes or deletes to the TableDB
+#[derive(Debug, Clone)]
+pub struct TableDBTransaction {
+    db: TableDB,
+    inner: Arc<Mutex<TableDBTransactionInner>>,
+}
+
+impl TableDBTransaction {
+    fn new(db: TableDB, dbt: DBTransaction) -> Self {
         Self {
             db,
-            dbt: Some(dbt),
-            _phantom: Default::default(),
+            inner: Arc::new(Mutex::new(TableDBTransactionInner { dbt: Some(dbt) })),
         }
     }
 
     /// Commit the transaction. Performs all actions atomically.
-    pub fn commit(mut self) -> EyreResult<()> {
-        self.db
-            .inner
-            .lock()
-            .database
-            .write(self.dbt.take().unwrap())
-            .wrap_err("commit failed")
+    pub async fn commit(self) -> EyreResult<()> {
+        let dbt = {
+            let mut inner = self.inner.lock();
+            inner
+                .dbt
+                .take()
+                .ok_or_else(|| eyre!("transaction already completed"))?
+        };
+        let db = self.db.inner.lock().database.clone();
+        db.write(dbt)
+            .await
+            .wrap_err("commit failed, transaction lost")
     }
 
     /// Rollback the transaction. Does nothing to the TableDB.
-    pub fn rollback(mut self) {
-        self.dbt = None;
+    pub fn rollback(self) {
+        let mut inner = self.inner.lock();
+        inner.dbt = None;
     }
 
     /// Store a key with a value in a column in the TableDB
-    pub fn store(&mut self, col: u32, key: &[u8], value: &[u8]) {
-        self.dbt.as_mut().unwrap().put(col, key, value);
+    pub fn store(&self, col: u32, key: &[u8], value: &[u8]) {
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().put(col, key, value);
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
-    pub fn store_rkyv<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
         let v = to_rkyv(value)?;
-        self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().put(col, key, v.as_slice());
         Ok(())
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
-    pub fn store_json<T>(&mut self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
         T: serde::Serialize,
     {
         let v = serde_json::to_vec(value)?;
-        self.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().put(col, key, v.as_slice());
         Ok(())
     }
 
     /// Delete key with from a column in the TableDB
-    pub fn delete(&mut self, col: u32, key: &[u8]) {
-        self.dbt.as_mut().unwrap().delete(col, key);
+    pub fn delete(&self, col: u32, key: &[u8]) {
+        let mut inner = self.inner.lock();
+        inner.dbt.as_mut().unwrap().delete(col, key);
     }
 }
 
-impl<'a> Drop for TableDBTransaction<'a> {
+impl Drop for TableDBTransactionInner {
     fn drop(&mut self) {
         if self.dbt.is_some() {
             warn!("Dropped transaction without commit or rollback");

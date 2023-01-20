@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 #![deny(unused_must_use)]
+#![recursion_limit = "256"]
 
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -20,7 +21,6 @@ extern crate alloc;
 
 mod api_tracing_layer;
 mod attachment_manager;
-mod callback_state_machine;
 mod core_context;
 mod crypto;
 mod intf;
@@ -32,17 +32,13 @@ mod veilid_api;
 #[macro_use]
 mod veilid_config;
 mod veilid_layer_filter;
-mod veilid_rng;
-
-#[macro_use]
-pub mod xx;
 
 pub use self::api_tracing_layer::ApiTracingLayer;
-pub use self::attachment_manager::AttachmentState;
 pub use self::core_context::{api_startup, api_startup_json, UpdateCallback};
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;
+pub use veilid_tools as tools;
 
 pub mod veilid_capnp {
     include!(concat!(env!("OUT_DIR"), "/proto/veilid_capnp.rs"));
@@ -62,7 +58,7 @@ pub fn veilid_version() -> (u32, u32, u32) {
 }
 
 #[cfg(target_os = "android")]
-pub use intf::utils::android::{veilid_core_setup_android, veilid_core_setup_android_no_log};
+pub use intf::android::veilid_core_setup_android;
 
 pub static DEFAULT_LOG_IGNORE_LIST: [&str; 21] = [
     "mio",
@@ -87,3 +83,5 @@ pub static DEFAULT_LOG_IGNORE_LIST: [&str; 21] = [
     "trust_dns_proto",
     "attohttpc",
 ];
+
+use veilid_tools::*;

@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationStartTunnelQ {
@@ -12,7 +11,7 @@ impl RPCOperationStartTunnelQ {
     pub fn decode(
         reader: &veilid_capnp::operation_start_tunnel_q::Reader,
     ) -> Result<RPCOperationStartTunnelQ, RPCError> {
-        let id = reader.get_id();
+        let id = TunnelId::new(reader.get_id());
         let local_mode = match reader.get_local_mode().map_err(RPCError::protocol)? {
             veilid_capnp::TunnelEndpointMode::Raw => TunnelMode::Raw,
             veilid_capnp::TunnelEndpointMode::Turn => TunnelMode::Turn,
@@ -29,7 +28,7 @@ impl RPCOperationStartTunnelQ {
         &self,
         builder: &mut veilid_capnp::operation_start_tunnel_q::Builder,
     ) -> Result<(), RPCError> {
-        builder.set_id(self.id);
+        builder.set_id(self.id.as_u64());
         builder.set_local_mode(match self.local_mode {
             TunnelMode::Raw => veilid_capnp::TunnelEndpointMode::Raw,
             TunnelMode::Turn => veilid_capnp::TunnelEndpointMode::Turn,

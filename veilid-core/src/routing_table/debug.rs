@@ -1,4 +1,5 @@
 use super::*;
+use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION;
 
 impl RoutingTable {
     pub(crate) fn debug_info_nodeinfo(&self) -> String {
@@ -103,7 +104,7 @@ impl RoutingTable {
     pub(crate) fn debug_info_entries(&self, limit: usize, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_aligned_timestamp();
 
         let mut out = String::new();
 
@@ -163,7 +164,7 @@ impl RoutingTable {
     pub(crate) fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
-        let cur_ts = intf::get_timestamp();
+        let cur_ts = get_aligned_timestamp();
 
         let mut out = String::new();
         const COLS: usize = 16;

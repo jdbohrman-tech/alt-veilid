@@ -1,5 +1,4 @@
 use super::test_veilid_config::*;
-use crate::xx::*;
 use crate::*;
 
 pub async fn test_startup_shutdown() {
@@ -20,9 +19,9 @@ pub async fn test_attach_detach() {
         .await
         .expect("startup failed");
     api.attach().await.unwrap();
-    intf::sleep(5000).await;
+    sleep(5000).await;
     api.detach().await.unwrap();
-    intf::sleep(2000).await;
+    sleep(2000).await;
     api.shutdown().await;
 
     info!("--- test auto detach ---");
@@ -31,7 +30,7 @@ pub async fn test_attach_detach() {
         .await
         .expect("startup failed");
     api.attach().await.unwrap();
-    intf::sleep(5000).await;
+    sleep(5000).await;
     api.shutdown().await;
 
     info!("--- test detach without attach ---");

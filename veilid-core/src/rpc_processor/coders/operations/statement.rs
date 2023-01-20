@@ -1,6 +1,4 @@
 use super::*;
-use crate::*;
-use rpc_processor::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCStatement {
@@ -20,12 +18,9 @@ impl RPCStatement {
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
-    pub fn decode(
-        reader: &veilid_capnp::statement::Reader,
-        opt_sender_node_id: Option<&DHTKey>,
-    ) -> Result<RPCStatement, RPCError> {
+    pub fn decode(reader: &veilid_capnp::statement::Reader) -> Result<RPCStatement, RPCError> {
         let d_reader = reader.get_detail();
-        let detail = RPCStatementDetail::decode(&d_reader, opt_sender_node_id)?;
+        let detail = RPCStatementDetail::decode(&d_reader)?;
         Ok(RPCStatement { detail })
     }
     pub fn encode(&self, builder: &mut veilid_capnp::statement::Builder) -> Result<(), RPCError> {
@@ -38,7 +33,6 @@ impl RPCStatement {
 pub enum RPCStatementDetail {
     ValidateDialInfo(RPCOperationValidateDialInfo),
     Route(RPCOperationRoute),
-    NodeInfoUpdate(RPCOperationNodeInfoUpdate),
     ValueChanged(RPCOperationValueChanged),
     Signal(RPCOperationSignal),
     ReturnReceipt(RPCOperationReturnReceipt),
@@ -50,7 +44,6 @@ impl RPCStatementDetail {
         match self {
             RPCStatementDetail::ValidateDialInfo(_) => "ValidateDialInfo",
             RPCStatementDetail::Route(_) => "Route",
-            RPCStatementDetail::NodeInfoUpdate(_) => "NodeInfoUpdate",
             RPCStatementDetail::ValueChanged(_) => "ValueChanged",
             RPCStatementDetail::Signal(_) => "Signal",
             RPCStatementDetail::ReturnReceipt(_) => "ReturnReceipt",
@@ -59,7 +52,6 @@ impl RPCStatementDetail {
     }
     pub fn decode(
         reader: &veilid_capnp::statement::detail::Reader,
-        opt_sender_node_id: Option<&DHTKey>,
     ) -> Result<RPCStatementDetail, RPCError> {
         let which_reader = reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
@@ -72,11 +64,6 @@ impl RPCStatementDetail {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationRoute::decode(&op_reader)?;
                 RPCStatementDetail::Route(out)
-            }
-            veilid_capnp::statement::detail::NodeInfoUpdate(r) => {
-                let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationNodeInfoUpdate::decode(&op_reader, opt_sender_node_id)?;
-                RPCStatementDetail::NodeInfoUpdate(out)
             }
             veilid_capnp::statement::detail::ValueChanged(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
@@ -110,9 +97,6 @@ impl RPCStatementDetail {
                 d.encode(&mut builder.reborrow().init_validate_dial_info())
             }
             RPCStatementDetail::Route(d) => d.encode(&mut builder.reborrow().init_route()),
-            RPCStatementDetail::NodeInfoUpdate(d) => {
-                d.encode(&mut builder.reborrow().init_node_info_update())
-            }
             RPCStatementDetail::ValueChanged(d) => {
                 d.encode(&mut builder.reborrow().init_value_changed())
             }

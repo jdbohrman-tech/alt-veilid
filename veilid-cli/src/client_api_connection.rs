@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use std::net::SocketAddr;
 use std::rc::Rc;
-use veilid_core::xx::*;
+use veilid_core::tools::*;
 use veilid_core::*;
 
 macro_rules! capnp_failed {
@@ -91,6 +91,9 @@ impl veilid_client::Server for VeilidClientImpl {
             }
             VeilidUpdate::Config(config) => {
                 self.comproc.update_config(config);
+            }
+            VeilidUpdate::Route(route) => {
+                self.comproc.update_route(route);
             }
             VeilidUpdate::Shutdown => self.comproc.update_shutdown(),
         }
@@ -226,8 +229,8 @@ impl ClientApiConnection {
 
         // Wait until rpc system completion or disconnect was requested
         let res = rpc_jh.await;
-        #[cfg(feature = "rt-tokio")]
-        let res = res.map_err(|e| format!("join error: {}", e))?;
+        // #[cfg(feature = "rt-tokio")]
+        // let res = res.map_err(|e| format!("join error: {}", e))?;
         res.map_err(|e| format!("client RPC system error: {}", e))
     }
 
@@ -441,7 +444,11 @@ impl ClientApiConnection {
         res.map_err(map_to_string)
     }
 
-    pub async fn server_appcall_reply(&mut self, id: u64, msg: Vec<u8>) -> Result<(), String> {
+    pub async fn server_appcall_reply(
+        &mut self,
+        id: OperationId,
+        msg: Vec<u8>,
+    ) -> Result<(), String> {
         trace!("ClientApiConnection::appcall_reply");
         let server = {
             let inner = self.inner.borrow();
@@ -452,7 +459,7 @@ impl ClientApiConnection {
                 .clone()
         };
         let mut request = server.borrow().app_call_reply_request();
-        request.get().set_id(id);
+        request.get().set_id(id.as_u64());
         request.get().set_message(&msg);
         let response = self
             .cancellable(request.send().promise)

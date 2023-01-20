@@ -205,7 +205,7 @@ impl RPCProcessor {
                 private_route,
                 safety_selection,
             } => {
-                let PrivateRouteHops::FirstHop(pr_first_hop) = &private_route.hops else {
+                let Some(avoid_node_id) = private_route.first_hop_node_id() else {
                     return Err(RPCError::internal("destination private route must have first hop"));
                 };
 
@@ -217,10 +217,19 @@ impl RPCProcessor {
                         let route_node = match rss
                             .has_remote_private_route_seen_our_node_info(&private_route.public_key)
                         {
-                            true => RouteNode::NodeId(NodeId::new(routing_table.node_id())),
-                            false => RouteNode::PeerInfo(
-                                routing_table.get_own_peer_info(RoutingDomain::PublicInternet),
-                            ),
+                            true => {
+                                if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
+                                    return Ok(NetworkResult::no_connection_other("Own node info must be valid to use private route"));
+                                }
+                                RouteNode::NodeId(NodeId::new(routing_table.node_id()))
+                            }
+                            false => {
+                                let Some(own_peer_info) = 
+                                    routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
+                                        return Ok(NetworkResult::no_connection_other("Own peer info must be valid to use private route"));
+                                    };
+                                RouteNode::PeerInfo(own_peer_info)
+                            },
                         };
 
                         Ok(NetworkResult::value(RespondTo::PrivateRoute(
@@ -228,17 +237,23 @@ impl RPCProcessor {
                         )))
                     }
                     SafetySelection::Safe(safety_spec) => {
-                        // Sent directly but with a safety route, respond to private route
-                        let avoid_node_id = match &pr_first_hop.node {
-                            RouteNode::NodeId(n) => n.key,
-                            RouteNode::PeerInfo(p) => p.node_id.key,
-                        };
+                        // Sent to a private route via a safety route, respond to private route
 
-                        let Some(pr_key) = rss
-                            .get_private_route_for_safety_spec(safety_spec, &[avoid_node_id])
-                            .map_err(RPCError::internal)? else {
-                                return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
-                            };
+                        // Check for loopback test
+                        let pr_key = if safety_spec.preferred_route
+                            == Some(private_route.public_key)
+                        {
+                            // Private route is also safety route during loopback test
+                            private_route.public_key
+                        } else {
+                            // Get the privat route to respond to that matches the safety route spec we sent the request with
+                            let Some(pr_key) = rss
+                                .get_private_route_for_safety_spec(safety_spec, &[avoid_node_id])
+                                .map_err(RPCError::internal)? else {
+                                    return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
+                                };
+                            pr_key
+                        };
 
                         // Get the assembled route for response
                         let private_route = rss

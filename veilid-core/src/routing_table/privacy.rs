@@ -83,6 +83,14 @@ impl PrivateRoute {
         }
     }
 
+    /// Check if this is a stub route
+    pub fn is_stub(&self) -> bool {
+        if let PrivateRouteHops::FirstHop(first_hop) = &self.hops {
+            return first_hop.next_hop.is_none();
+        }
+        false
+    }
+
     /// Remove the first unencrypted hop if possible
     pub fn pop_first_hop(&mut self) -> Option<RouteNode> {
         match &mut self.hops {
@@ -107,6 +115,18 @@ impl PrivateRoute {
             PrivateRouteHops::Data(_) => return None,
             PrivateRouteHops::Empty => return None,
         }
+    }
+
+    pub fn first_hop_node_id(&self) -> Option<DHTKey> {
+        let PrivateRouteHops::FirstHop(pr_first_hop) = &self.hops else {
+            return None;
+        };
+
+        // Get the safety route to use from the spec
+        Some(match &pr_first_hop.node {
+            RouteNode::NodeId(n) => n.key,
+            RouteNode::PeerInfo(p) => p.node_id.key,
+        })
     }
 }
 
@@ -149,12 +169,17 @@ pub struct SafetyRoute {
 
 impl SafetyRoute {
     pub fn new_stub(public_key: DHTKey, private_route: PrivateRoute) -> Self {
+        // First hop should have already been popped off for stubbed safety routes since
+        // we are sending directly to the first hop
         assert!(matches!(private_route.hops, PrivateRouteHops::Data(_)));
         Self {
             public_key,
             hop_count: 0,
             hops: SafetyRouteHops::Private(private_route),
         }
+    }
+    pub fn is_stub(&self) -> bool {
+        matches!(self.hops, SafetyRouteHops::Private(_))
     }
 }
 

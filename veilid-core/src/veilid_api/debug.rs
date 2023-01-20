@@ -32,15 +32,18 @@ fn get_string(text: &str) -> Option<String> {
 
 fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
     return move |text: &str| {
+        if text.is_empty() {
+            return None;
+        }
         match DHTKey::try_decode(text).ok() {
             Some(key) => {
-                let routes = rss.list_routes();
+                let routes = rss.list_allocated_routes(|k, _| Some(*k));
                 if routes.contains(&key) {
                     return Some(key);
                 }
             }
             None => {
-                let routes = rss.list_routes();
+                let routes = rss.list_allocated_routes(|k, _| Some(*k));
                 for r in routes {
                     let rkey = r.encode();
                     if rkey.starts_with(text) {
@@ -53,18 +56,22 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
     };
 }
 
-fn get_safety_selection(text: &str, rss: RouteSpecStore) -> Option<SafetySelection> {
+fn get_safety_selection(text: &str, routing_table: RoutingTable) -> Option<SafetySelection> {
+    let rss = routing_table.route_spec_store();
+    let default_route_hop_count =
+        routing_table.with_config(|c| c.network.rpc.default_route_hop_count as usize);
+
     if text.len() != 0 && &text[0..1] == "-" {
         // Unsafe
         let text = &text[1..];
-        let seq = get_sequencing(text).unwrap_or(Sequencing::NoPreference);
+        let seq = get_sequencing(text).unwrap_or_default();
         Some(SafetySelection::Unsafe(seq))
     } else {
         // Safe
         let mut preferred_route = None;
-        let mut hop_count = 2;
-        let mut stability = Stability::LowLatency;
-        let mut sequencing = Sequencing::NoPreference;
+        let mut hop_count = default_route_hop_count;
+        let mut stability = Stability::default();
+        let mut sequencing = Sequencing::default();
         for x in text.split(",") {
             let x = x.trim();
             if let Some(pr) = get_route_id(rss.clone())(x) {
@@ -111,7 +118,7 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
     move |text| {
         // Safety selection
         let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-            let ss = get_safety_selection(second, routing_table.route_spec_store())?;
+            let ss = get_safety_selection(second, routing_table.clone())?;
             (first, Some(ss))
         } else {
             (text, None)
@@ -126,18 +133,15 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
             let mut dc = DEBUG_CACHE.lock();
             let pr_pubkey = dc.imported_routes.get(n)?;
             let rss = routing_table.route_spec_store();
-            let private_route = match rss.get_remote_private_route(&pr_pubkey) {
-                Err(_) => {
-                    // Remove imported route
-                    dc.imported_routes.remove(n);
-                    info!("removed dead imported route {}", n);
-                    return None;
-                }
-                Ok(v) => v,
+            let Some(private_route) = rss.get_remote_private_route(&pr_pubkey) else {
+                // Remove imported route
+                dc.imported_routes.remove(n);
+                info!("removed dead imported route {}", n);
+                return None;
             };
             Some(Destination::private_route(
                 private_route,
-                ss.unwrap_or(SafetySelection::Unsafe(Sequencing::NoPreference)),
+                ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
             ))
         } else {
             let (text, mods) = text
@@ -279,15 +283,10 @@ fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     argument: &str,
     getter: G,
 ) -> Result<T, VeilidAPIError> {
-    if let Some(val) = getter(value) {
-        Ok(val)
-    } else {
-        Err(VeilidAPIError::InvalidArgument {
-            context: context.to_owned(),
-            argument: argument.to_owned(),
-            value: value.to_owned(),
-        })
-    }
+    let Some(val) = getter(value) else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
 }
 fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     debug_args: &[String],
@@ -297,21 +296,13 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     getter: G,
 ) -> Result<T, VeilidAPIError> {
     if pos >= debug_args.len() {
-        return Err(VeilidAPIError::MissingArgument {
-            context: context.to_owned(),
-            argument: argument.to_owned(),
-        });
+        apibail_missing_argument!(context, argument);
     }
     let value = &debug_args[pos];
-    if let Some(val) = getter(value) {
-        Ok(val)
-    } else {
-        Err(VeilidAPIError::InvalidArgument {
-            context: context.to_owned(),
-            argument: argument.to_owned(),
-            value: value.to_owned(),
-        })
-    }
+    let Some(val) = getter(value) else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
 }
 
 impl VeilidAPI {
@@ -354,11 +345,7 @@ impl VeilidAPI {
             } else if let Some(lim) = get_number(&arg) {
                 limit = lim;
             } else {
-                return Err(VeilidAPIError::InvalidArgument {
-                    context: "debug_entries".to_owned(),
-                    argument: "unknown".to_owned(),
-                    value: arg,
-                });
+                apibail_invalid_argument!("debug_entries", "unknown", arg);
             }
         }
 
@@ -415,7 +402,7 @@ impl VeilidAPI {
     async fn debug_restart(&self, args: String) -> Result<String, VeilidAPIError> {
         let args = args.trim_start();
         if args.is_empty() {
-            return Err(VeilidAPIError::missing_argument("debug_restart", "arg_0"));
+            apibail_missing_argument!("debug_restart", "arg_0");
         }
         let (arg, _rest) = args.split_once(' ').unwrap_or((args, ""));
         // let rest = rest.trim_start().to_owned();
@@ -434,11 +421,7 @@ impl VeilidAPI {
 
             Ok("Network restarted".to_owned())
         } else {
-            Err(VeilidAPIError::invalid_argument(
-                "debug_restart",
-                "arg_1",
-                arg,
-            ))
+            apibail_invalid_argument!("debug_restart", "arg_1", arg);
         }
     }
 
@@ -469,6 +452,10 @@ impl VeilidAPI {
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {
                 // Purge route spec store
+                {
+                    let mut dc = DEBUG_CACHE.lock();
+                    dc.imported_routes.clear();
+                }
                 let rss = self.network_manager()?.routing_table().route_spec_store();
                 match rss.purge().await {
                     Ok(_) => Ok("Routes purged".to_owned()),
@@ -561,6 +548,9 @@ impl VeilidAPI {
             NetworkResult::Timeout => {
                 return Ok("Timeout".to_owned());
             }
+            NetworkResult::ServiceUnavailable => {
+                return Ok("ServiceUnavailable".to_owned());
+            }
             NetworkResult::NoConnection(e) => {
                 return Ok(format!("NoConnection({})", e));
             }
@@ -588,8 +578,8 @@ impl VeilidAPI {
         };
 
         let mut ai = 1;
-        let mut sequencing = Sequencing::NoPreference;
-        let mut stability = Stability::LowLatency;
+        let mut sequencing = Sequencing::default();
+        let mut stability = Stability::default();
         let mut hop_count = default_route_hop_count;
         let mut directions = DirectionSet::all();
 
@@ -636,11 +626,9 @@ impl VeilidAPI {
         let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
 
         // Release route
-        let out = match rss.release_route(route_id) {
-            Ok(()) => format!("Released"),
-            Err(e) => {
-                format!("Route release failed: {}", e)
-            }
+        let out = match rss.release_route(&route_id) {
+            true => "Released".to_owned(),
+            false => "Route does not exist".to_owned(),
         };
 
         Ok(out)
@@ -659,11 +647,7 @@ impl VeilidAPI {
                 if full_val == "full" {
                     true
                 } else {
-                    return Err(VeilidAPIError::invalid_argument(
-                        "debug_route",
-                        "full",
-                        full_val,
-                    ));
+                    apibail_invalid_argument!("debug_route", "full", full_val);
                 }
             } else {
                 false
@@ -730,11 +714,21 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let routes = rss.list_routes();
-        let mut out = format!("Routes: (count = {}):\n", routes.len());
+        let routes = rss.list_allocated_routes(|k, _| Some(*k));
+        let mut out = format!("Allocated Routes: (count = {}):\n", routes.len());
         for r in routes {
             out.push_str(&format!("{}\n", r.encode()));
         }
+
+        let remote_routes = rss.list_remote_routes(|k, _| Some(*k));
+        out.push_str(&format!(
+            "Remote Routes: (count = {}):\n",
+            remote_routes.len()
+        ));
+        for r in remote_routes {
+            out.push_str(&format!("{}\n", r.encode()));
+        }
+
         Ok(out)
     }
     async fn debug_route_import(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
@@ -757,8 +751,25 @@ impl VeilidAPI {
         return Ok(out);
     }
 
-    async fn debug_route_test(&self, _args: Vec<String>) -> Result<String, VeilidAPIError> {
-        let out = "xxx".to_string();
+    async fn debug_route_test(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <route id>
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rss = routing_table.route_spec_store();
+
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+
+        let success = rss
+            .test_route(&route_id)
+            .await
+            .map_err(VeilidAPIError::internal)?;
+
+        let out = if success {
+            "SUCCESS".to_owned()
+        } else {
+            "FAILED".to_owned()
+        };
+
         return Ok(out);
     }
 
@@ -828,46 +839,49 @@ impl VeilidAPI {
     }
 
     pub async fn debug(&self, args: String) -> Result<String, VeilidAPIError> {
-        let args = args.trim_start();
-        if args.is_empty() {
-            // No arguments runs help command
-            return self.debug_help("".to_owned()).await;
-        }
-        let (arg, rest) = args.split_once(' ').unwrap_or((args, ""));
-        let rest = rest.trim_start().to_owned();
+        let res = {
+            let args = args.trim_start();
+            if args.is_empty() {
+                // No arguments runs help command
+                return self.debug_help("".to_owned()).await;
+            }
+            let (arg, rest) = args.split_once(' ').unwrap_or((args, ""));
+            let rest = rest.trim_start().to_owned();
 
-        if arg == "help" {
-            self.debug_help(rest).await
-        } else if arg == "buckets" {
-            self.debug_buckets(rest).await
-        } else if arg == "dialinfo" {
-            self.debug_dialinfo(rest).await
-        } else if arg == "txtrecord" {
-            self.debug_txtrecord(rest).await
-        } else if arg == "entries" {
-            self.debug_entries(rest).await
-        } else if arg == "entry" {
-            self.debug_entry(rest).await
-        } else if arg == "ping" {
-            self.debug_ping(rest).await
-        } else if arg == "contact" {
-            self.debug_contact(rest).await
-        } else if arg == "nodeinfo" {
-            self.debug_nodeinfo(rest).await
-        } else if arg == "purge" {
-            self.debug_purge(rest).await
-        } else if arg == "attach" {
-            self.debug_attach(rest).await
-        } else if arg == "detach" {
-            self.debug_detach(rest).await
-        } else if arg == "config" {
-            self.debug_config(rest).await
-        } else if arg == "restart" {
-            self.debug_restart(rest).await
-        } else if arg == "route" {
-            self.debug_route(rest).await
-        } else {
-            Ok(">>> Unknown command\n".to_owned())
-        }
+            if arg == "help" {
+                self.debug_help(rest).await
+            } else if arg == "buckets" {
+                self.debug_buckets(rest).await
+            } else if arg == "dialinfo" {
+                self.debug_dialinfo(rest).await
+            } else if arg == "txtrecord" {
+                self.debug_txtrecord(rest).await
+            } else if arg == "entries" {
+                self.debug_entries(rest).await
+            } else if arg == "entry" {
+                self.debug_entry(rest).await
+            } else if arg == "ping" {
+                self.debug_ping(rest).await
+            } else if arg == "contact" {
+                self.debug_contact(rest).await
+            } else if arg == "nodeinfo" {
+                self.debug_nodeinfo(rest).await
+            } else if arg == "purge" {
+                self.debug_purge(rest).await
+            } else if arg == "attach" {
+                self.debug_attach(rest).await
+            } else if arg == "detach" {
+                self.debug_detach(rest).await
+            } else if arg == "config" {
+                self.debug_config(rest).await
+            } else if arg == "restart" {
+                self.debug_restart(rest).await
+            } else if arg == "route" {
+                self.debug_route(rest).await
+            } else {
+                Err(VeilidAPIError::generic("Unknown debug command"))
+            }
+        };
+        res
     }
 }

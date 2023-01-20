@@ -83,7 +83,7 @@ impl DiscoveryContext {
     async fn request_public_address(&self, node_ref: NodeRef) -> Option<SocketAddress> {
         let rpc = self.routing_table.rpc_processor();
 
-        let res = network_result_value_or_log!(debug match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
+        let res = network_result_value_or_log!(match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(error
@@ -275,7 +275,7 @@ impl DiscoveryContext {
                         LowLevelProtocolType::UDP => "udp",
                         LowLevelProtocolType::TCP => "tcp",
                     });
-                    intf::sleep(PORT_MAP_VALIDATE_DELAY_MS).await
+                    sleep(PORT_MAP_VALIDATE_DELAY_MS).await
                 } else {
                     break;
                 }
@@ -304,9 +304,9 @@ impl DiscoveryContext {
 
     #[instrument(level = "trace", skip(self), ret)]
     async fn try_port_mapping(&self) -> Option<DialInfo> {
-        let (enable_upnp, _enable_natpmp) = {
+        let enable_upnp = {
             let c = self.net.config.get();
-            (c.network.upnp, c.network.natpmp)
+            c.network.upnp
         };
 
         if enable_upnp {
@@ -433,15 +433,6 @@ impl DiscoveryContext {
             // No more retries
             return Ok(true);
         }
-
-        // XXX: is this necessary?
-        // Redo our external_1 dial info detection because a failed port mapping attempt
-        // may cause it to become invalid
-        // Get our external address from some fast node, call it node 1
-        // if !self.protocol_get_external_address_1().await {
-        //     // If we couldn't get an external address, then we should just try the whole network class detection again later
-        //     return Ok(false);
-        // }
 
         // Get the external dial info for our use here
         let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {

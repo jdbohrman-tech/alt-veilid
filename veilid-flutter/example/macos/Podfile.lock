@@ -1,4 +1,6 @@
 PODS:
+  - flutter_acrylic (0.1.0):
+    - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - path_provider_macos (0.0.1):
     - FlutterMacOS
@@ -6,11 +8,14 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
+  - flutter_acrylic (from `Flutter/ephemeral/.symlinks/plugins/flutter_acrylic/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - path_provider_macos (from `Flutter/ephemeral/.symlinks/plugins/path_provider_macos/macos`)
   - veilid (from `Flutter/ephemeral/.symlinks/plugins/veilid/macos`)
 
 EXTERNAL SOURCES:
+  flutter_acrylic:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_acrylic/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   path_provider_macos:
@@ -19,10 +24,11 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/veilid/macos
 
 SPEC CHECKSUMS:
+  flutter_acrylic: c3df24ae52ab6597197837ce59ef2a8542640c17
   FlutterMacOS: ae6af50a8ea7d6103d888583d46bd8328a7e9811
   path_provider_macos: 3c0c3b4b0d4a76d2bf989a913c2de869c5641a19
-  veilid: 6bed3adec63fd8708a2ace498e0e17941c9fc32b
+  veilid: ef97d3a2d5fda3b25a4017eae65c37afa8035203
 
-PODFILE CHECKSUM: 6eac6b3292e5142cfc23bdeb71848a40ec51c14c
+PODFILE CHECKSUM: baac1aaddb7c3a00c396723592a2ffb396a7fed7
 
 COCOAPODS: 1.11.3

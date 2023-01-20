@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_signed_direct_node_info(
     signed_direct_node_info: &SignedDirectNodeInfo,
@@ -11,7 +10,7 @@ pub fn encode_signed_direct_node_info(
 
     builder
         .reborrow()
-        .set_timestamp(signed_direct_node_info.timestamp);
+        .set_timestamp(signed_direct_node_info.timestamp.into());
 
     let mut sig_builder = builder.reborrow().init_signature();
     let Some(signature) = &signed_direct_node_info.signature else {
@@ -37,7 +36,7 @@ pub fn decode_signed_direct_node_info(
         .get_signature()
         .map_err(RPCError::protocol)?;
 
-    let timestamp = reader.reborrow().get_timestamp();
+    let timestamp = reader.reborrow().get_timestamp().into();
 
     let signature = decode_signature(&sig_reader);
 

@@ -73,7 +73,7 @@ impl RPCProcessor {
         let res = self
             .unlocked_inner
             .waiting_app_call_table
-            .wait_for_op(handle, self.unlocked_inner.timeout)
+            .wait_for_op(handle, self.unlocked_inner.timeout_us)
             .await?;
         let (message, _latency) = match res {
             TimeoutOr::Timeout => {
@@ -93,7 +93,7 @@ impl RPCProcessor {
     }
 
     /// Exposed to API for apps to return app call answers
-    pub async fn app_call_reply(&self, id: u64, message: Vec<u8>) -> Result<(), RPCError> {
+    pub async fn app_call_reply(&self, id: OperationId, message: Vec<u8>) -> Result<(), RPCError> {
         self.unlocked_inner
             .waiting_app_call_table
             .complete_op_waiter(id, message)

@@ -1,7 +1,7 @@
 use super::*;
 use cursive_table_view::*;
 use std::cmp::Ordering;
-use veilid_core::PeerTableData;
+use veilid_core::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PeerTableColumn {
@@ -24,7 +24,8 @@ pub enum PeerTableColumn {
 //     }
 // }
 
-fn format_ts(ts: u64) -> String {
+fn format_ts(ts: Timestamp) -> String {
+    let ts = ts.as_u64();
     let secs = timestamp_to_secs(ts);
     if secs >= 1.0 {
         format!("{:.2}s", timestamp_to_secs(ts))
@@ -33,7 +34,8 @@ fn format_ts(ts: u64) -> String {
     }
 }
 
-fn format_bps(bps: u64) -> String {
+fn format_bps(bps: ByteCount) -> String {
+    let bps = bps.as_u64();
     if bps >= 1024u64 * 1024u64 * 1024u64 {
         format!("{:.2}GB/s", (bps / (1024u64 * 1024u64)) as f64 / 1024.0)
     } else if bps >= 1024u64 * 1024u64 {

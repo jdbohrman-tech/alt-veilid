@@ -93,7 +93,7 @@ where
                 .waiting_op_table
                 .remove(&op_id)
                 .ok_or_else(RPCError::else_internal(format!(
-                    "Unmatched app call id, possibly too late for timeout: {}",
+                    "Unmatched operation id: {}",
                     op_id
                 )))?
         };
@@ -104,9 +104,9 @@ where
     pub async fn wait_for_op(
         &self,
         mut handle: OperationWaitHandle<T>,
-        timeout: u64,
-    ) -> Result<TimeoutOr<(T, u64)>, RPCError> {
-        let timeout_ms = u32::try_from(timeout / 1000u64)
+        timeout_us: TimestampDuration,
+    ) -> Result<TimeoutOr<(T, TimestampDuration)>, RPCError> {
+        let timeout_ms = u32::try_from(timeout_us.as_u64() / 1000u64)
             .map_err(|e| RPCError::map_internal("invalid timeout")(e))?;
 
         // Take the instance
@@ -114,23 +114,24 @@ where
         let eventual_instance = handle.eventual_instance.take().unwrap();
 
         // wait for eventualvalue
-        let start_ts = intf::get_timestamp();
-        let res = intf::timeout(timeout_ms, eventual_instance)
+        let start_ts = get_aligned_timestamp();
+        let res = timeout(timeout_ms, eventual_instance)
             .await
             .into_timeout_or();
         Ok(res
             .on_timeout(|| {
                 log_rpc!(debug "op wait timed out: {}", handle.op_id);
+                // debug_print_backtrace();
                 self.cancel_op_waiter(handle.op_id);
             })
             .map(|res| {
                 let (_span_id, ret) = res.take_value().unwrap();
-                let end_ts = intf::get_timestamp();
+                let end_ts = get_aligned_timestamp();
 
                 //xxx: causes crash (Missing otel data span extensions)
                 // Span::current().follows_from(span_id);
 
-                (ret, end_ts - start_ts)
+                (ret, end_ts.saturating_sub(start_ts))
             }))
     }
 }

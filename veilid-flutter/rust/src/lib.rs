@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 mod dart_ffi;
 mod dart_isolate_wrapper;
 mod tools;
@@ -13,5 +15,5 @@ pub extern "system" fn Java_com_veilid_veilid_VeilidPlugin_init_1android(
     _class: JClass,
     ctx: JObject,
 ) {
-    veilid_core::veilid_core_setup_android_no_log(env, ctx);
+    veilid_core::veilid_core_setup_android(env, ctx);
 }

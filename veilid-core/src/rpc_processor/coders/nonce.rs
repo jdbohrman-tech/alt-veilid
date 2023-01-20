@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_nonce(nonce: &Nonce, builder: &mut veilid_capnp::nonce24::Builder) {
     builder.set_u0(u64::from_be_bytes(

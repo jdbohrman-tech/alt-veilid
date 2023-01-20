@@ -1,6 +1,7 @@
 mod protocol;
 
 use super::*;
+
 use crate::routing_table::*;
 use connection_manager::*;
 use protocol::ws::WebsocketProtocolHandler;
@@ -108,7 +109,7 @@ impl Network {
 
         // Network accounting
         self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
         Ok(NetworkResult::Value(()))
     }
@@ -151,7 +152,7 @@ impl Network {
 
                 network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
                 self.network_manager()
-                    .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+                    .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
                 let out = network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
                     .await
@@ -159,7 +160,7 @@ impl Network {
                 .wrap_err("recv failure")?);
 
                 self.network_manager()
-                    .stats_packet_rcvd(dial_info.to_ip_addr(), out.len() as u64);
+                    .stats_packet_rcvd(dial_info.to_ip_addr(), ByteCount::new(out.len() as u64));
 
                 Ok(NetworkResult::Value(out))
             }
@@ -193,7 +194,7 @@ impl Network {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
                         descriptor.remote().to_socket_addr().ip(),
-                        data_len as u64,
+                        ByteCount::new(data_len as u64),
                     );
 
                     // Data was consumed
@@ -242,7 +243,7 @@ impl Network {
 
         // Network accounting
         self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
         Ok(NetworkResult::value(connection_descriptor))
     }
@@ -251,7 +252,7 @@ impl Network {
 
     pub async fn startup(&self) -> EyreResult<()> {
         // get protocol config
-        self.inner.lock().protocol_config = {
+        let protocol_config = {
             let c = self.config.get();
             let inbound = ProtocolTypeSet::new();
             let mut outbound = ProtocolTypeSet::new();
@@ -268,12 +269,31 @@ impl Network {
             let family_local = AddressTypeSet::all();
 
             ProtocolConfig {
-                inbound,
                 outbound,
+                inbound,
                 family_global,
                 family_local,
             }
         };
+        self.inner.lock().protocol_config = protocol_config;
+
+        // Start editing routing table
+        let mut editor_public_internet = self
+            .unlocked_inner
+            .routing_table
+            .edit_routing_domain(RoutingDomain::PublicInternet);
+
+        // set up the routing table's network config
+        // if we have static public dialinfo, upgrade our network class
+        editor_public_internet.setup_network(
+            protocol_config.outbound,
+            protocol_config.inbound,
+            protocol_config.family_global,
+        );
+        editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
+
+        // commit routing table edits
+        editor_public_internet.commit().await;
 
         self.inner.lock().network_started = true;
         Ok(())
@@ -299,13 +319,8 @@ impl Network {
 
         // Drop all dial info
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
-        editor.disable_node_info_updates();
         editor.clear_dial_info_details();
-        editor.commit().await;
-
-        let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
-        editor.disable_node_info_updates();
-        editor.clear_dial_info_details();
+        editor.set_network_class(None);
         editor.commit().await;
 
         // Cancels all async background tasks by dropping join handles
@@ -333,15 +348,6 @@ impl Network {
 
     pub fn needs_public_dial_info_check(&self) -> bool {
         false
-    }
-
-    pub fn get_network_class(&self, _routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        // xxx eventually detect tor browser?
-        return if self.inner.lock().network_started {
-            Some(NetworkClass::WebApp)
-        } else {
-            None
-        };
     }
 
     pub fn get_protocol_config(&self) -> ProtocolConfig {

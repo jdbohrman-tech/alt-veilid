@@ -1,14 +1,15 @@
 #![deny(clippy::all)]
 #![deny(unused_must_use)]
+#![recursion_limit = "256"]
 
-use veilid_core::xx::*;
+use crate::tools::*;
+use veilid_core::tools::*;
 
 use clap::{Arg, ColorChoice, Command};
 use flexi_logger::*;
 use std::ffi::OsStr;
 use std::net::ToSocketAddrs;
 use std::path::Path;
-use tools::*;
 
 mod client_api_connection;
 mod command_processor;

@@ -1,12 +1,12 @@
 use super::*;
-use crate::xx::*;
 use igd::*;
 use std::net::UdpSocket;
+
 
 const UPNP_GATEWAY_DETECT_TIMEOUT_MS: u32 = 5_000;
 const UPNP_MAPPING_LIFETIME_MS: u32 = 120_000;
 const UPNP_MAPPING_ATTEMPTS: u32 = 3;
-const UPNP_MAPPING_LIFETIME_US:u64 = (UPNP_MAPPING_LIFETIME_MS as u64) * 1000u64;
+const UPNP_MAPPING_LIFETIME_US:TimestampDuration = TimestampDuration::new(UPNP_MAPPING_LIFETIME_MS as u64 * 1000u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct PortMapKey {
@@ -19,8 +19,8 @@ struct PortMapKey {
 struct PortMapValue {
     ext_ip: IpAddr,
     mapped_port: u16,
-    timestamp: u64,
-    renewal_lifetime: u64,
+    timestamp: Timestamp,
+    renewal_lifetime: TimestampDuration,
     renewal_attempts: u32,
 }
 
@@ -177,7 +177,7 @@ impl IGDManager {
         mapped_port: u16,
     ) -> Option<()> {
         let this = self.clone();
-        intf::blocking_wrapper(move || {
+        blocking_wrapper(move || {
             let mut inner = this.inner.lock();
 
             // If we already have this port mapped, just return the existing portmap
@@ -216,7 +216,7 @@ impl IGDManager {
         expected_external_address: Option<IpAddr>,
     ) -> Option<SocketAddr> {
         let this = self.clone();
-        intf::blocking_wrapper(move || {
+        blocking_wrapper(move || {
             let mut inner = this.inner.lock();
 
             // If we already have this port mapped, just return the existing portmap
@@ -276,7 +276,7 @@ impl IGDManager {
             };
 
             // Add to mapping list to keep alive
-            let timestamp = intf::get_timestamp();
+            let timestamp = get_aligned_timestamp();
             inner.port_maps.insert(PortMapKey {
                 llpt,
                 at,
@@ -285,7 +285,7 @@ impl IGDManager {
                 ext_ip, 
                 mapped_port, 
                 timestamp, 
-                renewal_lifetime: (UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64, 
+                renewal_lifetime: ((UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64).into(), 
                 renewal_attempts: 0,
             });
 
@@ -302,7 +302,7 @@ impl IGDManager {
         let mut renews: Vec<(PortMapKey, PortMapValue)> = Vec::new();
         {
             let inner = self.inner.lock();
-            let now = intf::get_timestamp();
+            let now = get_aligned_timestamp();
 
             for (k, v) in &inner.port_maps {
                 let mapping_lifetime = now.saturating_sub(v.timestamp);
@@ -324,7 +324,7 @@ impl IGDManager {
         }
 
         let this = self.clone();
-        intf::blocking_wrapper(move || {
+        blocking_wrapper(move || {
             let mut inner = this.inner.lock();
 
             // Process full renewals
@@ -357,8 +357,8 @@ impl IGDManager {
                         inner.port_maps.insert(k, PortMapValue {
                             ext_ip: v.ext_ip,
                             mapped_port, 
-                            timestamp: intf::get_timestamp(), 
-                            renewal_lifetime: (UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64, 
+                            timestamp: get_aligned_timestamp(), 
+                            renewal_lifetime: TimestampDuration::new((UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64), 
                             renewal_attempts: 0,
                         });
                     },
@@ -398,8 +398,8 @@ impl IGDManager {
                         inner.port_maps.insert(k, PortMapValue {
                             ext_ip: v.ext_ip,
                             mapped_port: v.mapped_port, 
-                            timestamp: intf::get_timestamp(), 
-                            renewal_lifetime: (UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64, 
+                            timestamp: get_aligned_timestamp(), 
+                            renewal_lifetime: ((UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64).into(), 
                             renewal_attempts: 0,
                         });
                     },
@@ -407,7 +407,7 @@ impl IGDManager {
                         log_net!(debug "failed to renew mapped port {:?} -> {:?}: {}", v, k, e);
                         
                         // Get closer to the maximum renewal timeline by a factor of two each time
-                        v.renewal_lifetime = (v.renewal_lifetime + UPNP_MAPPING_LIFETIME_US) / 2;
+                        v.renewal_lifetime = (v.renewal_lifetime + UPNP_MAPPING_LIFETIME_US) / 2u64;
                         v.renewal_attempts += 1;
                     
                         // Store new value to try again

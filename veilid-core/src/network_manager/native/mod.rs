@@ -1,5 +1,4 @@
 mod igd_manager;
-mod natpmp_manager;
 mod network_class_discovery;
 mod network_tcp;
 mod network_udp;
@@ -9,12 +8,12 @@ mod start_protocols;
 use super::*;
 use crate::routing_table::*;
 use connection_manager::*;
+use network_interfaces::*;
 use network_tcp::*;
 use protocol::tcp::RawTcpProtocolHandler;
 use protocol::udp::RawUdpProtocolHandler;
 use protocol::ws::WebsocketProtocolHandler;
 pub use protocol::*;
-use utils::network_interfaces::*;
 
 use async_tls::TlsAcceptor;
 use futures_util::StreamExt;
@@ -94,11 +93,9 @@ struct NetworkUnlockedInner {
     update_network_class_task: TickTask<EyreReport>,
     network_interfaces_task: TickTask<EyreReport>,
     upnp_task: TickTask<EyreReport>,
-    natpmp_task: TickTask<EyreReport>,
 
     // Managers
     igd_manager: igd_manager::IGDManager,
-    natpmp_manager: natpmp_manager::NATPMPManager,
 }
 
 #[derive(Clone)]
@@ -150,9 +147,7 @@ impl Network {
             update_network_class_task: TickTask::new(1),
             network_interfaces_task: TickTask::new(5),
             upnp_task: TickTask::new(1),
-            natpmp_task: TickTask::new(1),
             igd_manager: igd_manager::IGDManager::new(config.clone()),
-            natpmp_manager: natpmp_manager::NATPMPManager::new(config),
         }
     }
 
@@ -195,13 +190,6 @@ impl Network {
             this.unlocked_inner
                 .upnp_task
                 .set_routine(move |s, l, t| Box::pin(this2.clone().upnp_task_routine(s, l, t)));
-        }
-        // Set natpmp tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .natpmp_task
-                .set_routine(move |s, l, t| Box::pin(this2.clone().natpmp_task_routine(s, l, t)));
         }
 
         this
@@ -418,7 +406,7 @@ impl Network {
         }
         // Network accounting
         self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
         Ok(NetworkResult::Value(()))
     }
@@ -452,7 +440,7 @@ impl Network {
                     .await
                     .wrap_err("send message failure")?);
                 self.network_manager()
-                    .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+                    .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
                 // receive single response
                 let mut out = vec![0u8; MAX_MESSAGE_SIZE];
@@ -466,7 +454,7 @@ impl Network {
 
                 let recv_socket_addr = recv_addr.remote_address().to_socket_addr();
                 self.network_manager()
-                    .stats_packet_rcvd(recv_socket_addr.ip(), recv_len as u64);
+                    .stats_packet_rcvd(recv_socket_addr.ip(), ByteCount::new(recv_len as u64));
 
                 // if the from address is not the same as the one we sent to, then drop this
                 if recv_socket_addr != peer_socket_addr {
@@ -493,7 +481,7 @@ impl Network {
 
                 network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
                 self.network_manager()
-                    .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+                    .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
                 let out = network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
                     .await
@@ -501,7 +489,7 @@ impl Network {
                 .wrap_err("recv failure")?);
 
                 self.network_manager()
-                    .stats_packet_rcvd(dial_info.to_ip_addr(), out.len() as u64);
+                    .stats_packet_rcvd(dial_info.to_ip_addr(), ByteCount::new(out.len() as u64));
 
                 Ok(NetworkResult::Value(out))
             }
@@ -524,14 +512,14 @@ impl Network {
                 &peer_socket_addr,
                 &descriptor.local().map(|sa| sa.to_socket_addr()),
             ) {
-                network_result_value_or_log!(debug ph.clone()
+                network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
                     .await
                     .wrap_err("sending data to existing conection")? => { return Ok(Some(data)); } );
 
                 // Network accounting
                 self.network_manager()
-                    .stats_packet_sent(peer_socket_addr.ip(), data_len as u64);
+                    .stats_packet_sent(peer_socket_addr.ip(), ByteCount::new(data_len as u64));
 
                 // Data was consumed
                 return Ok(None);
@@ -548,7 +536,7 @@ impl Network {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
                         descriptor.remote().to_socket_addr().ip(),
-                        data_len as u64,
+                        ByteCount::new(data_len as u64),
                     );
 
                     // Data was consumed
@@ -607,7 +595,7 @@ impl Network {
 
         // Network accounting
         self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), data_len as u64);
+            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
         Ok(NetworkResult::value(connection_descriptor))
     }
@@ -722,8 +710,8 @@ impl Network {
                 }
 
                 ProtocolConfig {
-                    inbound,
                     outbound,
+                    inbound,
                     family_global,
                     family_local,
                 }
@@ -770,13 +758,13 @@ impl Network {
         // if we have static public dialinfo, upgrade our network class
 
         editor_public_internet.setup_network(
-            protocol_config.inbound,
             protocol_config.outbound,
+            protocol_config.inbound,
             protocol_config.family_global,
         );
         editor_local_network.setup_network(
-            protocol_config.inbound,
             protocol_config.outbound,
+            protocol_config.inbound,
             protocol_config.family_local,
         );
         let detect_address_changes = {
@@ -843,13 +831,13 @@ impl Network {
         debug!("clearing dial info");
 
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
-        editor.disable_node_info_updates();
         editor.clear_dial_info_details();
+        editor.set_network_class(None);
         editor.commit().await;
 
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
-        editor.disable_node_info_updates();
         editor.clear_dial_info_details();
+        editor.set_network_class(None);
         editor.commit().await;
 
         // Reset state including network class
@@ -904,31 +892,11 @@ impl Network {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self), err)]
-    pub async fn natpmp_task_routine(
-        self,
-        stop_token: StopToken,
-        _l: u64,
-        _t: u64,
-    ) -> EyreResult<()> {
-        if !self.unlocked_inner.natpmp_manager.tick().await? {
-            info!("natpmp failed, restarting local network");
-            let mut inner = self.inner.lock();
-            inner.network_needs_restart = true;
-        }
-
-        Ok(())
-    }
-
     pub async fn tick(&self) -> EyreResult<()> {
-        let (detect_address_changes, upnp, natpmp) = {
+        let (detect_address_changes, upnp) = {
             let config = self.network_manager().config();
             let c = config.get();
-            (
-                c.network.detect_address_changes,
-                c.network.upnp,
-                c.network.natpmp,
-            )
+            (c.network.detect_address_changes, c.network.upnp)
         };
 
         // If we need to figure out our network class, tick the task for it
@@ -960,11 +928,6 @@ impl Network {
         // If we need to tick upnp, do it
         if upnp && !self.needs_restart() {
             self.unlocked_inner.upnp_task.tick().await?;
-        }
-
-        // If we need to tick natpmp, do it
-        if natpmp && !self.needs_restart() {
-            self.unlocked_inner.natpmp_task.tick().await?;
         }
 
         Ok(())

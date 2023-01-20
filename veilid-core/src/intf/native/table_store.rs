@@ -1,5 +1,5 @@
-use crate::intf::table_db::*;
-use crate::xx::*;
+use crate::intf::table_db::TableDBInner;
+pub use crate::intf::table_db::{TableDB, TableDBTransaction};
 use crate::*;
 use keyvaluedb_sqlite::*;
 use std::path::PathBuf;

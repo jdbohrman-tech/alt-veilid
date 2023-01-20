@@ -1,8 +1,7 @@
+use super::*;
+
 use super::connection_table::*;
-use super::network_connection::*;
 use crate::tests::common::test_veilid_config::*;
-use crate::xx::*;
-use crate::*;
 
 pub async fn test_add_get_remove() {
     let config = get_config();
@@ -51,13 +50,13 @@ pub async fn test_add_get_remove() {
         ))),
     );
 
-    let c1 = NetworkConnection::dummy(1, a1);
-    let c1b = NetworkConnection::dummy(10, a1);
+    let c1 = NetworkConnection::dummy(1.into(), a1);
+    let c1b = NetworkConnection::dummy(10.into(), a1);
     let c1h = c1.get_handle();
-    let c2 = NetworkConnection::dummy(2, a2);
-    let c3 = NetworkConnection::dummy(3, a3);
-    let c4 = NetworkConnection::dummy(4, a4);
-    let c5 = NetworkConnection::dummy(5, a5);
+    let c2 = NetworkConnection::dummy(2.into(), a2);
+    let c3 = NetworkConnection::dummy(3.into(), a3);
+    let c4 = NetworkConnection::dummy(4.into(), a4);
+    let c5 = NetworkConnection::dummy(5.into(), a5);
 
     assert_eq!(a1, c2.connection_descriptor());
     assert_ne!(a3, c4.connection_descriptor());
@@ -69,8 +68,8 @@ pub async fn test_add_get_remove() {
     assert!(table.add_connection(c1b).is_err());
 
     assert_eq!(table.connection_count(), 1);
-    assert!(table.remove_connection_by_id(4).is_none());
-    assert!(table.remove_connection_by_id(5).is_none());
+    assert!(table.remove_connection_by_id(4.into()).is_none());
+    assert!(table.remove_connection_by_id(5.into()).is_none());
     assert_eq!(table.connection_count(), 1);
     assert_eq!(table.get_connection_by_descriptor(a1), Some(c1h.clone()));
     assert_eq!(table.get_connection_by_descriptor(a1), Some(c1h.clone()));
@@ -82,41 +81,41 @@ pub async fn test_add_get_remove() {
     assert_eq!(table.connection_count(), 1);
     assert_eq!(
         table
-            .remove_connection_by_id(1)
+            .remove_connection_by_id(1.into())
             .map(|c| c.connection_descriptor())
             .unwrap(),
         a1
     );
     assert_eq!(table.connection_count(), 0);
-    assert!(table.remove_connection_by_id(2).is_none());
+    assert!(table.remove_connection_by_id(2.into()).is_none());
     assert_eq!(table.connection_count(), 0);
     assert_eq!(table.get_connection_by_descriptor(a2), None);
     assert_eq!(table.get_connection_by_descriptor(a1), None);
     assert_eq!(table.connection_count(), 0);
-    let c1 = NetworkConnection::dummy(6, a1);
+    let c1 = NetworkConnection::dummy(6.into(), a1);
     table.add_connection(c1).unwrap();
-    let c2 = NetworkConnection::dummy(7, a2);
+    let c2 = NetworkConnection::dummy(7.into(), a2);
     assert_err!(table.add_connection(c2));
     table.add_connection(c3).unwrap();
     table.add_connection(c4).unwrap();
     assert_eq!(table.connection_count(), 3);
     assert_eq!(
         table
-            .remove_connection_by_id(6)
+            .remove_connection_by_id(6.into())
             .map(|c| c.connection_descriptor())
             .unwrap(),
         a2
     );
     assert_eq!(
         table
-            .remove_connection_by_id(3)
+            .remove_connection_by_id(3.into())
             .map(|c| c.connection_descriptor())
             .unwrap(),
         a3
     );
     assert_eq!(
         table
-            .remove_connection_by_id(4)
+            .remove_connection_by_id(4.into())
             .map(|c| c.connection_descriptor())
             .unwrap(),
         a4

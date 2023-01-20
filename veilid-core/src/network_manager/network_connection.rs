@@ -78,19 +78,19 @@ enum RecvLoopAction {
 
 #[derive(Debug, Clone)]
 pub struct NetworkConnectionStats {
-    last_message_sent_time: Option<u64>,
-    last_message_recv_time: Option<u64>,
+    last_message_sent_time: Option<Timestamp>,
+    last_message_recv_time: Option<Timestamp>,
 }
 
 
-pub type NetworkConnectionId = u64;
+pub type NetworkConnectionId = AlignedU64;
 
 #[derive(Debug)]
 pub struct NetworkConnection {
     connection_id: NetworkConnectionId,
     descriptor: ConnectionDescriptor,
     processor: Option<MustJoinHandle<()>>,
-    established_time: u64,
+    established_time: Timestamp,
     stats: Arc<Mutex<NetworkConnectionStats>>,
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
@@ -99,13 +99,13 @@ pub struct NetworkConnection {
 impl NetworkConnection {
     pub(super) fn dummy(id: NetworkConnectionId, descriptor: ConnectionDescriptor) -> Self {
         // Create handle for sending (dummy is immediately disconnected)
-        let (sender, _receiver) = flume::bounded(intf::get_concurrency() as usize);
+        let (sender, _receiver) = flume::bounded(get_concurrency() as usize);
 
         Self {
             connection_id: id,
             descriptor,
             processor: None,
-            established_time: intf::get_timestamp(),
+            established_time: get_aligned_timestamp(),
             stats: Arc::new(Mutex::new(NetworkConnectionStats {
                 last_message_sent_time: None,
                 last_message_recv_time: None,
@@ -125,7 +125,7 @@ impl NetworkConnection {
         let descriptor = protocol_connection.descriptor();
 
         // Create handle for sending
-        let (sender, receiver) = flume::bounded(intf::get_concurrency() as usize);
+        let (sender, receiver) = flume::bounded(get_concurrency() as usize);
 
         // Create stats
         let stats = Arc::new(Mutex::new(NetworkConnectionStats {
@@ -137,7 +137,7 @@ impl NetworkConnection {
         let local_stop_token = stop_source.token();
 
         // Spawn connection processor and pass in protocol connection
-        let processor = intf::spawn(Self::process_connection(
+        let processor = spawn(Self::process_connection(
             connection_manager,
             local_stop_token,
             manager_stop_token,
@@ -153,7 +153,7 @@ impl NetworkConnection {
             connection_id,
             descriptor,
             processor: Some(processor),
-            established_time: intf::get_timestamp(),
+            established_time: get_aligned_timestamp(),
             stats,
             sender,
             stop_source: Some(stop_source),
@@ -185,7 +185,7 @@ impl NetworkConnection {
         stats: Arc<Mutex<NetworkConnectionStats>>,
         message: Vec<u8>,
     ) -> io::Result<NetworkResult<()>> {
-        let ts = intf::get_timestamp();
+        let ts = get_aligned_timestamp();
         let out = network_result_try!(protocol_connection.send(message).await?);
 
         let mut stats = stats.lock();
@@ -199,7 +199,7 @@ impl NetworkConnection {
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
     ) -> io::Result<NetworkResult<Vec<u8>>> {
-        let ts = intf::get_timestamp();
+        let ts = get_aligned_timestamp();
         let out = network_result_try!(protocol_connection.recv().await?);
 
         let mut stats = stats.lock();
@@ -217,7 +217,7 @@ impl NetworkConnection {
     }
 
     #[allow(dead_code)]
-    pub fn established_time(&self) -> u64 {
+    pub fn established_time(&self) -> Timestamp {
         self.established_time
     }
 
@@ -246,7 +246,7 @@ impl NetworkConnection {
             // Push mutable timer so we can reset it
             // Normally we would use an io::timeout here, but WASM won't support that, so we use a mutable sleep future
             let new_timer = || {
-                intf::sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
+                sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
                     log_net!("== Connection timeout on {:?}", descriptor.green());
                     RecvLoopAction::Timeout
@@ -301,7 +301,7 @@ impl NetworkConnection {
                             match res {
                                 Ok(v) => {
                                     
-                                    let message = network_result_value_or_log!(debug v => {
+                                    let message = network_result_value_or_log!(v => {
                                         return RecvLoopAction::Finish;
                                     });
 

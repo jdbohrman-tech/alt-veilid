@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 pub fn encode_tunnel_mode(tunnel_mode: TunnelMode) -> veilid_capnp::TunnelEndpointMode {
     match tunnel_mode {
@@ -59,8 +58,8 @@ pub fn encode_full_tunnel(
     full_tunnel: &FullTunnel,
     builder: &mut veilid_capnp::full_tunnel::Builder,
 ) -> Result<(), RPCError> {
-    builder.set_id(full_tunnel.id);
-    builder.set_timeout(full_tunnel.timeout);
+    builder.set_id(full_tunnel.id.as_u64());
+    builder.set_timeout(full_tunnel.timeout.as_u64());
     let mut l_builder = builder.reborrow().init_local();
     encode_tunnel_endpoint(&full_tunnel.local, &mut l_builder)?;
     let mut r_builder = builder.reborrow().init_remote();
@@ -71,8 +70,8 @@ pub fn encode_full_tunnel(
 pub fn decode_full_tunnel(
     reader: &veilid_capnp::full_tunnel::Reader,
 ) -> Result<FullTunnel, RPCError> {
-    let id = reader.get_id();
-    let timeout = reader.get_timeout();
+    let id = TunnelId::new(reader.get_id());
+    let timeout = TimestampDuration::new(reader.get_timeout());
     let l_reader = reader.get_local().map_err(RPCError::protocol)?;
     let local = decode_tunnel_endpoint(&l_reader)?;
     let r_reader = reader.get_remote().map_err(RPCError::protocol)?;
@@ -90,8 +89,8 @@ pub fn encode_partial_tunnel(
     partial_tunnel: &PartialTunnel,
     builder: &mut veilid_capnp::partial_tunnel::Builder,
 ) -> Result<(), RPCError> {
-    builder.set_id(partial_tunnel.id);
-    builder.set_timeout(partial_tunnel.timeout);
+    builder.set_id(partial_tunnel.id.as_u64());
+    builder.set_timeout(partial_tunnel.timeout.as_u64());
     let mut l_builder = builder.reborrow().init_local();
     encode_tunnel_endpoint(&partial_tunnel.local, &mut l_builder)?;
     Ok(())
@@ -100,8 +99,8 @@ pub fn encode_partial_tunnel(
 pub fn decode_partial_tunnel(
     reader: &veilid_capnp::partial_tunnel::Reader,
 ) -> Result<PartialTunnel, RPCError> {
-    let id = reader.get_id();
-    let timeout = reader.get_timeout();
+    let id = TunnelId::new(reader.get_id());
+    let timeout = TimestampDuration::new(reader.get_timeout());
     let l_reader = reader.get_local().map_err(RPCError::protocol)?;
     let local = decode_tunnel_endpoint(&l_reader)?;
 

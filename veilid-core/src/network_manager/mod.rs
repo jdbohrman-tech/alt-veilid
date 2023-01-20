@@ -23,7 +23,7 @@ pub use network_connection::*;
 use connection_handle::*;
 use connection_limits::*;
 use crypto::*;
-use futures_util::stream::{FuturesOrdered, FuturesUnordered, StreamExt};
+use futures_util::stream::FuturesUnordered;
 use hashlink::LruCache;
 use intf::*;
 #[cfg(not(target_arch = "wasm32"))]
@@ -33,30 +33,18 @@ use routing_table::*;
 use rpc_processor::*;
 #[cfg(target_arch = "wasm32")]
 use wasm::*;
-use xx::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
-pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
-pub const IPADDR_MAX_INACTIVE_DURATION_US: u64 = 300_000_000u64; // 5 minutes
+pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration = TimestampDuration::new(300_000_000u64); // 5 minutes
 pub const PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT: usize = 3;
 pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 8;
 pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
-pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: u64 = 300_000_000u64; // 5 minutes
-pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: u64 = 3600_000_000u64; // 60 minutes
+pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration = TimestampDuration::new(300_000_000u64); // 5 minutes
+pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration = TimestampDuration::new(3600_000_000u64); // 60 minutes
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
-pub const BOOTSTRAP_TXT_VERSION: u8 = 0;
-
-#[derive(Clone, Debug)]
-pub struct BootstrapRecord {
-    min_version: u8,
-    max_version: u8,
-    dial_info_details: Vec<DialInfoDetail>,
-}
-pub type BootstrapRecordMap = BTreeMap<DHTKey, BootstrapRecord>;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ProtocolConfig {
@@ -79,7 +67,7 @@ struct NetworkComponents {
 // Statistics per address
 #[derive(Clone, Default)]
 pub struct PerAddressStats {
-    last_seen_ts: u64,
+    last_seen_ts: Timestamp,
     transfer_stats_accounting: TransferStatsAccounting,
     transfer_stats: TransferStatsDownUp,
 }
@@ -111,7 +99,7 @@ impl Default for NetworkManagerStats {
 
 #[derive(Debug)]
 struct ClientWhitelistEntry {
-    last_seen_ts: u64,
+    last_seen_ts: Timestamp,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -150,7 +138,7 @@ struct NetworkManagerInner {
     public_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
-        BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, u64>>,
+        BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, Timestamp>>,
 }
 
 struct NetworkManagerUnlockedInner {
@@ -166,13 +154,7 @@ struct NetworkManagerUnlockedInner {
     update_callback: RwLock<Option<UpdateCallback>>,
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
-    relay_management_task: TickTask<EyreReport>,
-    private_route_management_task: TickTask<EyreReport>,
-    bootstrap_task: TickTask<EyreReport>,
-    peer_minimum_refresh_task: TickTask<EyreReport>,
-    ping_validator_task: TickTask<EyreReport>,
     public_address_check_task: TickTask<EyreReport>,
-    node_info_update_single_future: MustJoinSingleFuture<()>,
 }
 
 #[derive(Clone)]
@@ -197,7 +179,6 @@ impl NetworkManager {
         block_store: BlockStore,
         crypto: Crypto,
     ) -> NetworkManagerUnlockedInner {
-        let min_peer_refresh_time_ms = config.get().network.dht.min_peer_refresh_time_ms;
         NetworkManagerUnlockedInner {
             config,
             protected_store,
@@ -208,13 +189,7 @@ impl NetworkManager {
             components: RwLock::new(None),
             update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
-            relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
-            private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
-            bootstrap_task: TickTask::new(1),
-            peer_minimum_refresh_task: TickTask::new_ms(min_peer_refresh_time_ms),
-            ping_validator_task: TickTask::new(1),
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
-            node_info_update_single_future: MustJoinSingleFuture::new(),
         }
     }
 
@@ -235,116 +210,9 @@ impl NetworkManager {
                 crypto,
             )),
         };
-        // Set rolling transfers tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .rolling_transfers_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .rolling_transfers_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "NetworkManager rolling transfers task routine"
-                            )),
-                    )
-                });
-        }
-        // Set relay management tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .relay_management_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .relay_management_task_routine(s, l, t)
-                            .instrument(trace_span!(parent: None, "relay management task routine")),
-                    )
-                });
-        }
-        // Set private route management tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .private_route_management_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .private_route_management_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "private route management task routine"
-                            )),
-                    )
-                });
-        }
-        // Set bootstrap tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .bootstrap_task
-                .set_routine(move |s, _l, _t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .bootstrap_task_routine(s)
-                            .instrument(trace_span!(parent: None, "bootstrap task routine")),
-                    )
-                });
-        }
-        // Set peer minimum refresh tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .peer_minimum_refresh_task
-                .set_routine(move |s, _l, _t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .peer_minimum_refresh_task_routine(s)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "peer minimum refresh task routine"
-                            )),
-                    )
-                });
-        }
-        // Set ping validator tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .ping_validator_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .ping_validator_task_routine(s, l, t)
-                            .instrument(trace_span!(parent: None, "ping validator task routine")),
-                    )
-                });
-        }
-        // Set public address check task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .public_address_check_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .public_address_check_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "public address check task routine"
-                            )),
-                    )
-                });
-        }
+
+        this.start_tasks();
+
         this
     }
     pub fn config(&self) -> VeilidConfig {
@@ -410,6 +278,14 @@ impl NetworkManager {
             .as_ref()
             .unwrap()
             .connection_manager
+            .clone()
+    }
+    pub fn update_callback(&self) -> UpdateCallback {
+        self.unlocked_inner
+            .update_callback
+            .read()
+            .as_ref()
+            .unwrap()
             .clone()
     }
 
@@ -492,36 +368,7 @@ impl NetworkManager {
         debug!("starting network manager shutdown");
 
         // Cancel all tasks
-        debug!("stopping rolling transfers task");
-        if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
-            warn!("rolling_transfers_task not stopped: {}", e);
-        }
-        debug!("stopping relay management task");
-        if let Err(e) = self.unlocked_inner.relay_management_task.stop().await {
-            warn!("relay_management_task not stopped: {}", e);
-        }
-        debug!("stopping bootstrap task");
-        if let Err(e) = self.unlocked_inner.bootstrap_task.stop().await {
-            error!("bootstrap_task not stopped: {}", e);
-        }
-        debug!("stopping peer minimum refresh task");
-        if let Err(e) = self.unlocked_inner.peer_minimum_refresh_task.stop().await {
-            error!("peer_minimum_refresh_task not stopped: {}", e);
-        }
-        debug!("stopping ping_validator task");
-        if let Err(e) = self.unlocked_inner.ping_validator_task.stop().await {
-            error!("ping_validator_task not stopped: {}", e);
-        }
-        debug!("stopping node info update singlefuture");
-        if self
-            .unlocked_inner
-            .node_info_update_single_future
-            .join()
-            .await
-            .is_err()
-        {
-            error!("node_info_update_single_future not stopped");
-        }
+        self.stop_tasks().await;
 
         // Shutdown network components if they started up
         debug!("shutting down network components");
@@ -553,11 +400,11 @@ impl NetworkManager {
         let mut inner = self.inner.lock();
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = intf::get_timestamp()
+                entry.get_mut().last_seen_ts = get_aligned_timestamp()
             }
             hashlink::lru_cache::Entry::Vacant(entry) => {
                 entry.insert(ClientWhitelistEntry {
-                    last_seen_ts: intf::get_timestamp(),
+                    last_seen_ts: get_aligned_timestamp(),
                 });
             }
         }
@@ -569,7 +416,7 @@ impl NetworkManager {
 
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = intf::get_timestamp();
+                entry.get_mut().last_seen_ts = get_aligned_timestamp();
                 true
             }
             hashlink::lru_cache::Entry::Vacant(_) => false,
@@ -579,7 +426,7 @@ impl NetworkManager {
     pub fn purge_client_whitelist(&self) {
         let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
         let mut inner = self.inner.lock();
-        let cutoff_timestamp = intf::get_timestamp() - ((timeout_ms as u64) * 1000u64);
+        let cutoff_timestamp = get_aligned_timestamp() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
         // Remove clients from the whitelist that haven't been since since our whitelist timeout
         while inner
             .client_whitelist
@@ -597,58 +444,19 @@ impl NetworkManager {
         net.needs_restart()
     }
 
-    pub async fn tick(&self) -> EyreResult<()> {
-        let routing_table = self.routing_table();
-        let net = self.net();
-        let receipt_manager = self.receipt_manager();
-
-        // Run the rolling transfers task
-        self.unlocked_inner.rolling_transfers_task.tick().await?;
-
-        // Run the relay management task
-        self.unlocked_inner.relay_management_task.tick().await?;
-
-        // See how many live PublicInternet entries we have
-        let live_public_internet_entry_count = routing_table.get_entry_count(
-            RoutingDomain::PublicInternet.into(),
-            BucketEntryState::Unreliable,
-        );
-        let min_peer_count = self.with_config(|c| c.network.dht.min_peer_count as usize);
-
-        // If none, then add the bootstrap nodes to it
-        if live_public_internet_entry_count == 0 {
-            self.unlocked_inner.bootstrap_task.tick().await?;
-        }
-        // If we still don't have enough peers, find nodes until we do
-        else if !self.unlocked_inner.bootstrap_task.is_running()
-            && live_public_internet_entry_count < min_peer_count
-        {
-            self.unlocked_inner.peer_minimum_refresh_task.tick().await?;
-        }
-
-        // Ping validate some nodes to groom the table
-        self.unlocked_inner.ping_validator_task.tick().await?;
-
-        // Run the routing table tick
-        routing_table.tick().await?;
-
-        // Run the low level network tick
-        net.tick().await?;
-
-        // Run the receipt manager tick
-        receipt_manager.tick().await?;
-
-        // Purge the client whitelist
-        self.purge_client_whitelist();
-
-        Ok(())
-    }
-
     /// Get our node's capabilities in the PublicInternet routing domain
     fn generate_public_internet_node_status(&self) -> PublicInternetNodeStatus {
-        let own_peer_info = self
+        let Some(own_peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(RoutingDomain::PublicInternet) else {
+                return PublicInternetNodeStatus {
+                    will_route: false,
+                    will_tunnel: false,
+                    will_signal: false,
+                    will_relay: false,
+                    will_validate_dial_info: false,
+                };  
+            };
         let own_node_info = own_peer_info.signed_node_info.node_info();
 
         let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
@@ -667,9 +475,14 @@ impl NetworkManager {
     }
     /// Get our node's capabilities in the LocalNetwork routing domain
     fn generate_local_network_node_status(&self) -> LocalNetworkNodeStatus {
-        let own_peer_info = self
+        let Some(own_peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::LocalNetwork);
+            .get_own_peer_info(RoutingDomain::LocalNetwork) else {
+                return LocalNetworkNodeStatus {
+                    will_relay: false,
+                    will_validate_dial_info: false,
+                };  
+            };
 
         let own_node_info = own_peer_info.signed_node_info.node_info();
 
@@ -713,7 +526,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = intf::get_timestamp() + expiration_us;
+        let exp_ts = get_aligned_timestamp() + expiration_us;
         receipt_manager.record_receipt(receipt, exp_ts, expected_returns, callback);
 
         Ok(out)
@@ -737,7 +550,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = intf::get_timestamp() + expiration_us;
+        let exp_ts = get_aligned_timestamp() + expiration_us;
         let eventual = SingleShotEventual::new(Some(ReceiptEvent::Cancelled));
         let instance = eventual.instance();
         receipt_manager.record_single_shot_receipt(receipt, exp_ts, eventual);
@@ -904,7 +717,7 @@ impl NetworkManager {
                 // XXX: do we need a delay here? or another hole punch packet?
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
-                peer_nr.set_last_connection(connection_descriptor, intf::get_timestamp());
+                peer_nr.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
                 // Return the receipt using the same dial info send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -928,7 +741,7 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret();
 
         // Get timestamp, nonce
-        let ts = intf::get_timestamp();
+        let ts = get_aligned_timestamp();
         let nonce = Crypto::get_random_nonce();
 
         // Encode envelope
@@ -1001,7 +814,7 @@ impl NetworkManager {
 
         // Send receipt directly
         log_net!(debug "send_out_of_band_receipt: dial_info={}", dial_info);
-        network_result_value_or_log!(debug self
+        network_result_value_or_log!(self
             .net()
             .send_data_unbound_to_dial_info(dial_info, rcpt_data)
             .await? => {
@@ -1031,10 +844,17 @@ impl NetworkManager {
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 
+        // Get target routing domain
+        let Some(routing_domain) = target_nr.best_routing_domain() else {
+            return Ok(NetworkResult::no_connection_other("No routing domain for target"));
+        };
+
         // Get our peer info
-        let peer_info = self
+        let Some(peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(routing_domain) else {
+            return Ok(NetworkResult::no_connection_other("Own peer info not available"));
+        };    
 
         // Issue the signal
         let rpc = self.rpc_processor();
@@ -1098,16 +918,10 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
         // Ensure we are filtered down to UDP (the only hole punch protocol supported today)
-        // and only in the PublicInternet routing domain
         assert!(target_nr
             .filter_ref()
             .map(|nrf| nrf.dial_info_filter.protocol_type_set
                 == ProtocolTypeSet::only(ProtocolType::UDP))
-            .unwrap_or_default());
-        assert!(target_nr
-            .filter_ref()
-            .map(|nrf| nrf.routing_domain_set
-                == RoutingDomainSet::only(RoutingDomain::PublicInternet))
             .unwrap_or_default());
 
         // Build a return receipt for the signal
@@ -1119,10 +933,18 @@ impl NetworkManager {
                 .hole_punch_receipt_time_ms,
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
+
+        // Get target routing domain
+        let Some(routing_domain) = target_nr.best_routing_domain() else {
+            return Ok(NetworkResult::no_connection_other("No routing domain for target"));
+        };
+
         // Get our peer info
-        let peer_info = self
+        let Some(peer_info) = self
             .routing_table()
-            .get_own_peer_info(RoutingDomain::PublicInternet);
+            .get_own_peer_info(routing_domain) else {
+                return Ok(NetworkResult::no_connection_other("Own peer info not available"));
+            };
 
         // Get the udp direct dialinfo for the hole punch
         let hole_punch_did = target_nr
@@ -1214,7 +1036,8 @@ impl NetworkManager {
         };
 
         // Node A is our own node
-        let peer_a = routing_table.get_own_peer_info(routing_domain);
+        // Use whatever node info we've calculated so far
+        let peer_a = routing_table.get_best_effort_own_peer_info(routing_domain);
 
         // Node B is the target node
         let peer_b = match target_node_ref.make_peer_info(routing_domain) {
@@ -1313,8 +1136,7 @@ impl NetworkManager {
                             // );
 
                             // Update timestamp for this last connection since we just sent to it
-                            node_ref
-                                .set_last_connection(connection_descriptor, intf::get_timestamp());
+                            node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
                             return Ok(NetworkResult::value(SendDataKind::Existing(
                                 connection_descriptor,
@@ -1346,7 +1168,7 @@ impl NetworkManager {
                             this.net().send_data_to_dial_info(dial_info, data).await?
                         );
                         // If we connected to this node directly, save off the last connection so we can use it again
-                        node_ref.set_last_connection(connection_descriptor, intf::get_timestamp());
+                        node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
                         Ok(NetworkResult::value(SendDataKind::Direct(
                             connection_descriptor,
@@ -1421,7 +1243,7 @@ impl NetworkManager {
         let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
-        let out_data: Vec<u8> = network_result_value_or_log!(debug self
+        let out_data: Vec<u8> = network_result_value_or_log!(self
             .net()
             .send_recv_data_unbound_to_dial_info(dial_info, data, timeout_ms)
             .await? =>
@@ -1463,7 +1285,7 @@ impl NetworkManager {
         // Network accounting
         self.stats_packet_rcvd(
             connection_descriptor.remote_address().to_ip_addr(),
-            data.len() as u64,
+            ByteCount::new(data.len() as u64),
         );
 
         // If this is a zero length packet, just drop it, because these are used for hole punching
@@ -1493,13 +1315,13 @@ impl NetworkManager {
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(debug self.handle_boot_request(connection_descriptor).await? => {});
+            network_result_value_or_log!(self.handle_boot_request(connection_descriptor).await? => {});
             return Ok(true);
         }
 
         // Is this an out-of-band receipt instead of an envelope?
         if data[0..4] == *RECEIPT_MAGIC {
-            network_result_value_or_log!(debug self.handle_out_of_band_receipt(data).await => {});
+            network_result_value_or_log!(self.handle_out_of_band_receipt(data).await => {});
             return Ok(true);
         }
 
@@ -1515,28 +1337,28 @@ impl NetworkManager {
         // Get timestamp range
         let (tsbehind, tsahead) = self.with_config(|c| {
             (
-                c.network.rpc.max_timestamp_behind_ms.map(ms_to_us),
-                c.network.rpc.max_timestamp_ahead_ms.map(ms_to_us),
+                c.network.rpc.max_timestamp_behind_ms.map(ms_to_us).map(TimestampDuration::new),
+                c.network.rpc.max_timestamp_ahead_ms.map(ms_to_us).map(TimestampDuration::new),
             )
         });
 
         // Validate timestamp isn't too old
-        let ts = intf::get_timestamp();
+        let ts = get_aligned_timestamp();
         let ets = envelope.get_timestamp();
         if let Some(tsbehind) = tsbehind {
-            if tsbehind > 0 && (ts > ets && ts - ets > tsbehind) {
+            if tsbehind.as_u64() != 0 && (ts > ets && ts.saturating_sub(ets) > tsbehind) {
                 log_net!(debug
                     "envelope time was too far in the past: {}ms ",
-                    timestamp_to_secs(ts - ets) * 1000f64
+                    timestamp_to_secs(ts.saturating_sub(ets).as_u64()) * 1000f64
                 );
                 return Ok(false);
             }
         }
         if let Some(tsahead) = tsahead {
-            if tsahead > 0 && (ts < ets && ets - ts > tsahead) {
+            if tsahead.as_u64() != 0 && (ts < ets && ets.saturating_sub(ts) > tsahead) {
                 log_net!(debug
                     "envelope time was too far in the future: {}ms",
-                    timestamp_to_secs(ets - ts) * 1000f64
+                    timestamp_to_secs(ets.saturating_sub(ts).as_u64()) * 1000f64
                 );
                 return Ok(false);
             }
@@ -1557,9 +1379,13 @@ impl NetworkManager {
 
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
-                rpc.resolve_node(recipient_id).await.wrap_err(
-                    "failed to resolve recipient node for relay, dropping outbound relayed packet",
-                )?
+                match rpc.resolve_node(recipient_id).await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);
+                        return Ok(false);
+                    }
+                }
             } else {
                 // If this is not a node in the client whitelist, only allow inbound relay
                 // which only performs a lightweight lookup before passing the packet back out
@@ -1574,9 +1400,14 @@ impl NetworkManager {
             if let Some(relay_nr) = some_relay_nr {
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
-                network_result_value_or_log!(debug self.send_data(relay_nr, data.to_vec())
-                    .await
-                    .wrap_err("failed to forward envelope")? => {
+                network_result_value_or_log!(match self.send_data(relay_nr, data.to_vec())
+                    .await {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log_net!(debug "failed to forward envelope: {}" ,e);
+                            return Ok(false);    
+                        }
+                    } => {
                         return Ok(false);
                     }
                 );
@@ -1589,10 +1420,15 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret();
 
         // Decrypt the envelope body
-        // xxx: punish nodes that send messages that fail to decrypt eventually
-        let body = envelope
-            .decrypt_body(self.crypto(), data, &node_id_secret)
-            .wrap_err("failed to decrypt envelope body")?;
+        let body = match envelope
+            .decrypt_body(self.crypto(), data, &node_id_secret) {
+                Ok(v) => v,
+                Err(e) => {
+                    log_net!(debug "failed to decrypt envelope body: {}",e);
+                    // xxx: punish nodes that send messages that fail to decrypt eventually
+                    return Ok(false);
+                }
+            };
 
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
@@ -1625,7 +1461,7 @@ impl NetworkManager {
     }
 
     // Callbacks from low level network for statistics gathering
-    pub fn stats_packet_sent(&self, addr: IpAddr, bytes: u64) {
+    pub fn stats_packet_sent(&self, addr: IpAddr, bytes: ByteCount) {
         let inner = &mut *self.inner.lock();
         inner
             .stats
@@ -1641,7 +1477,7 @@ impl NetworkManager {
             .add_up(bytes);
     }
 
-    pub fn stats_packet_rcvd(&self, addr: IpAddr, bytes: u64) {
+    pub fn stats_packet_rcvd(&self, addr: IpAddr, bytes: ByteCount) {
         let inner = &mut *self.inner.lock();
         inner
             .stats
@@ -1675,9 +1511,10 @@ impl NetworkManager {
         if !has_state {
             return VeilidStateNetwork {
                 started: false,
-                bps_down: 0,
-                bps_up: 0,
+                bps_down: 0.into(),
+                bps_up: 0.into(),
                 peers: Vec::new(),
+                
             };
         }
         let routing_table = self.routing_table();
@@ -1828,7 +1665,7 @@ impl NetworkManager {
                 // public dialinfo
                 let inconsistent = if inconsistencies.len() >= PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT
                 {
-                    let exp_ts = intf::get_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
+                    let exp_ts = get_aligned_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US;
                     for i in &inconsistencies {
                         pait.insert(*i, exp_ts);
                     }
@@ -1841,8 +1678,8 @@ impl NetworkManager {
                             .public_address_inconsistencies_table
                             .entry(key)
                             .or_insert_with(|| HashMap::new());
-                        let exp_ts = intf::get_timestamp()
-                            + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
+                        let exp_ts =
+                            get_aligned_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
                         for i in inconsistencies {
                             pait.insert(i, exp_ts);
                         }
@@ -1860,7 +1697,7 @@ impl NetworkManager {
                 // }
 
                 inconsistent
-            } else {
+            } else if matches!(public_internet_network_class, NetworkClass::OutboundOnly) {
                 // If we are currently outbound only, we don't have any public dial info
                 // but if we are starting to see consistent socket address from multiple reporting peers
                 // then we may be become inbound capable, so zap the network class so we can re-detect it and any public dial info
@@ -1888,6 +1725,10 @@ impl NetworkManager {
                     }
                 }
                 consistent
+            } else {
+                // If we are a webapp we never do this.
+                // If we have invalid network class, then public address detection is already going to happen via the network_class_discovery task
+                false
             };
 
         if needs_public_address_detection {
@@ -1910,62 +1751,4 @@ impl NetworkManager {
         }
     }
 
-    // Inform routing table entries that our dial info has changed
-    pub async fn send_node_info_updates(&self, routing_domain: RoutingDomain, all: bool) {
-        let this = self.clone();
-
-        // Run in background only once
-        let _ = self
-            .clone()
-            .unlocked_inner
-            .node_info_update_single_future
-            .single_spawn(
-                async move {
-                    // Only update if we actually have valid signed node info for this routing domain
-                    if !this.routing_table().has_valid_own_node_info(routing_domain) {
-                        trace!(
-                        "not sending node info update because our network class is not yet valid"
-                    );
-                        return;
-                    }
-
-                    // Get the list of refs to all nodes to update
-                    let cur_ts = intf::get_timestamp();
-                    let node_refs =
-                        this.routing_table()
-                            .get_nodes_needing_updates(routing_domain, cur_ts, all);
-
-                    // Send the updates
-                    log_net!(debug "Sending node info updates to {} nodes", node_refs.len());
-                    let mut unord = FuturesUnordered::new();
-                    for nr in node_refs {
-                        let rpc = this.rpc_processor();
-                        unord.push(
-                            async move {
-                                // Update the node
-                                if let Err(e) = rpc
-                                    .rpc_call_node_info_update(nr.clone(), routing_domain)
-                                    .await
-                                {
-                                    // Not fatal, but we should be able to see if this is happening
-                                    trace!("failed to send node info update to {:?}: {}", nr, e);
-                                    return;
-                                }
-
-                                // Mark the node as having seen our node info
-                                nr.set_seen_our_node_info(routing_domain);
-                            }
-                            .instrument(Span::current()),
-                        );
-                    }
-
-                    // Wait for futures to complete
-                    while unord.next().await.is_some() {}
-
-                    log_rtab!(debug "Finished sending node updates");
-                }
-                .instrument(Span::current()),
-            )
-            .await;
-    }
 }

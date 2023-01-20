@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::*;
-use veilid_core::xx::SingleShotEventual;
+use veilid_core::tools::SingleShotEventual;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ServerMode {

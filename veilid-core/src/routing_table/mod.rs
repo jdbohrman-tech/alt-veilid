@@ -11,11 +11,11 @@ mod routing_table_inner;
 mod stats_accounting;
 mod tasks;
 
+use crate::*;
+
 use crate::crypto::*;
 use crate::network_manager::*;
 use crate::rpc_processor::*;
-use crate::xx::*;
-use crate::*;
 use bucket::*;
 pub use bucket_entry::*;
 pub use debug::*;
@@ -31,6 +31,16 @@ pub use stats_accounting::*;
 
 //////////////////////////////////////////////////////////////////////////
 
+/// How frequently we tick the relay management routine
+pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+
+/// How frequently we tick the private route management routine
+pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+
+// Connectionless protocols like UDP are dependent on a NAT translation timeout
+// We should ping them with some frequency and 30 seconds is typical timeout
+pub const CONNECTIONLESS_TIMEOUT_SECS: u32 = 29;
+
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
@@ -41,7 +51,7 @@ pub struct LowLevelPortInfo {
 pub type RoutingTableEntryFilter<'t> =
     Box<dyn FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RoutingTableHealth {
     /// Number of reliable (responsive) entries in the routing table
     pub reliable_entry_count: usize,
@@ -49,6 +59,10 @@ pub struct RoutingTableHealth {
     pub unreliable_entry_count: usize,
     /// Number of dead (always unresponsive) entries in the routing table
     pub dead_entry_count: usize,
+    /// If PublicInternet network class is valid yet
+    pub public_internet_ready: bool,
+    /// If LocalNetwork network class is valid yet
+    pub local_network_ready: bool,
 }
 
 pub(super) struct RoutingTableUnlockedInner {
@@ -64,8 +78,18 @@ pub(super) struct RoutingTableUnlockedInner {
     kick_queue: Mutex<BTreeSet<usize>>,
     /// Background process for computing statistics
     rolling_transfers_task: TickTask<EyreReport>,
-    /// Backgroup process to purge dead routing table entries when necessary
+    /// Background process to purge dead routing table entries when necessary
     kick_buckets_task: TickTask<EyreReport>,
+    /// Background process to get our initial routing table
+    bootstrap_task: TickTask<EyreReport>,
+    /// Background process to ensure we have enough nodes in our routing table
+    peer_minimum_refresh_task: TickTask<EyreReport>,
+    /// Background process to check nodes to see if they are still alive and for reliability
+    ping_validator_task: TickTask<EyreReport>,
+    /// Background process to keep relays up
+    relay_management_task: TickTask<EyreReport>,
+    /// Background process to keep private routes up
+    private_route_management_task: TickTask<EyreReport>,
 }
 
 #[derive(Clone)]
@@ -88,6 +112,11 @@ impl RoutingTable {
             kick_queue: Mutex::new(BTreeSet::default()),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),
+            bootstrap_task: TickTask::new(1),
+            peer_minimum_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
+            ping_validator_task: TickTask::new(1),
+            relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
+            private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
         }
     }
     pub fn new(network_manager: NetworkManager) -> Self {
@@ -99,38 +128,8 @@ impl RoutingTable {
             unlocked_inner,
         };
 
-        // Set rolling transfers tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .rolling_transfers_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .rolling_transfers_task_routine(s, l, t)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "RoutingTable rolling transfers task routine"
-                            )),
-                    )
-                });
-        }
+        this.start_tasks();
 
-        // Set kick buckets tick task
-        {
-            let this2 = this.clone();
-            this.unlocked_inner
-                .kick_buckets_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this2
-                            .clone()
-                            .kick_buckets_task_routine(s, l, t)
-                            .instrument(trace_span!(parent: None, "kick buckets task routine")),
-                    )
-                });
-        }
         this
     }
 
@@ -139,6 +138,15 @@ impl RoutingTable {
     }
     pub fn rpc_processor(&self) -> RPCProcessor {
         self.network_manager().rpc_processor()
+    }
+    pub fn update_callback(&self) -> UpdateCallback {
+        self.network_manager().update_callback()
+    }
+    pub fn with_config<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&VeilidConfigInner) -> R,
+    {
+        f(&*self.unlocked_inner.config.get())
     }
 
     pub fn node_id(&self) -> DHTKey {
@@ -194,15 +202,8 @@ impl RoutingTable {
     pub async fn terminate(&self) {
         debug!("starting routing table terminate");
 
-        // Cancel all tasks being ticked
-        debug!("stopping rolling transfers task");
-        if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
-            error!("rolling_transfers_task not stopped: {}", e);
-        }
-        debug!("stopping kick buckets task");
-        if let Err(e) = self.unlocked_inner.kick_buckets_task.stop().await {
-            error!("kick_buckets_task not stopped: {}", e);
-        }
+        // Stop tasks
+        self.stop_tasks().await;
 
         // Load bucket entries from table db if possible
         debug!("saving routing table entries");
@@ -240,7 +241,7 @@ impl RoutingTable {
         let table_store = self.network_manager().table_store();
         let tdb = table_store.open("routing_table", 1).await?;
         let bucket_count = bucketvec.len();
-        let mut dbx = tdb.transact();
+        let dbx = tdb.transact();
         if let Err(e) = dbx.store_rkyv(0, b"bucket_count", &bucket_count) {
             dbx.rollback();
             return Err(e);
@@ -249,7 +250,7 @@ impl RoutingTable {
         for (n, b) in bucketvec.iter().enumerate() {
             dbx.store(0, format!("bucket_{}", n).as_bytes(), b)
         }
-        dbx.commit()?;
+        dbx.commit().await?;
         Ok(())
     }
 
@@ -385,13 +386,28 @@ impl RoutingTable {
     }
 
     /// Return a copy of our node's peerinfo
-    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
+    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
         self.inner.read().get_own_peer_info(routing_domain)
     }
 
+    /// Return the best effort copy of our node's peerinfo
+    /// This may be invalid and should not be passed to other nodes,
+    /// but may be used for contact method calculation
+    pub fn get_best_effort_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
+        self.inner
+            .read()
+            .get_best_effort_own_peer_info(routing_domain)
+    }
+
     /// If we have a valid network class in this routing domain, then our 'NodeInfo' is valid
+    /// If this is true, we can get our final peer info, otherwise we only have a 'best effort' peer info
     pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
         self.inner.read().has_valid_own_node_info(routing_domain)
+    }
+
+    /// Return our current node info timestamp
+    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<Timestamp> {
+        self.inner.read().get_own_node_info_ts(routing_domain)
     }
 
     /// Return the domain's currently registered network class
@@ -453,28 +469,17 @@ impl RoutingTable {
             .get_entry_count(routing_domain_set, min_state)
     }
 
-    pub fn get_nodes_needing_updates(
-        &self,
-        routing_domain: RoutingDomain,
-        cur_ts: u64,
-        all: bool,
-    ) -> Vec<NodeRef> {
-        self.inner
-            .read()
-            .get_nodes_needing_updates(self.clone(), routing_domain, cur_ts, all)
-    }
-
     pub fn get_nodes_needing_ping(
         &self,
         routing_domain: RoutingDomain,
-        cur_ts: u64,
+        cur_ts: Timestamp,
     ) -> Vec<NodeRef> {
         self.inner
             .read()
             .get_nodes_needing_ping(self.clone(), routing_domain, cur_ts)
     }
 
-    pub fn get_all_nodes(&self, cur_ts: u64) -> Vec<NodeRef> {
+    pub fn get_all_nodes(&self, cur_ts: Timestamp) -> Vec<NodeRef> {
         let inner = self.inner.read();
         inner.get_all_nodes(self.clone(), cur_ts)
     }
@@ -541,7 +546,7 @@ impl RoutingTable {
         &self,
         node_id: DHTKey,
         descriptor: ConnectionDescriptor,
-        timestamp: u64,
+        timestamp: Timestamp,
     ) -> Option<NodeRef> {
         self.inner.write().register_node_with_existing_connection(
             self.clone(),
@@ -549,21 +554,6 @@ impl RoutingTable {
             descriptor,
             timestamp,
         )
-    }
-
-    /// Ticks about once per second
-    /// to run tick tasks which may run at slower tick rates as configured
-    pub async fn tick(&self) -> EyreResult<()> {
-        // Do rolling transfers every ROLLING_TRANSFERS_INTERVAL_SECS secs
-        self.unlocked_inner.rolling_transfers_task.tick().await?;
-
-        // Kick buckets task
-        let kick_bucket_queue_count = self.unlocked_inner.kick_queue.lock().len();
-        if kick_bucket_queue_count > 0 {
-            self.unlocked_inner.kick_buckets_task.tick().await?;
-        }
-
-        Ok(())
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -788,7 +778,7 @@ impl RoutingTable {
     pub fn find_peers_with_sort_and_filter<C, T, O>(
         &self,
         node_count: usize,
-        cur_ts: u64,
+        cur_ts: Timestamp,
         filters: VecDeque<RoutingTableEntryFilter>,
         compare: C,
         transform: T,
@@ -905,7 +895,7 @@ impl RoutingTable {
         // and then contact those nodes to inform -them- that we exist
 
         // Ask bootstrap server for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(debug match self.find_self(node_ref.clone()).await {
+        let closest_nodes = network_result_value_or_log!(match self.find_self(node_ref.clone()).await {
             Err(e) => {
                 log_rtab!(error
                     "find_self failed for {:?}: {:?}",
@@ -921,7 +911,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(debug match self.find_self(closest_nr.clone()).await {
+                network_result_value_or_log!(match self.find_self(closest_nr.clone()).await {
                     Err(e) => {
                         log_rtab!(error
                             "find_self failed for {:?}: {:?}",
@@ -983,7 +973,7 @@ impl RoutingTable {
     pub fn find_inbound_relay(
         &self,
         routing_domain: RoutingDomain,
-        cur_ts: u64,
+        cur_ts: Timestamp,
     ) -> Option<NodeRef> {
         // Get relay filter function
         let relay_node_filter = match routing_domain {

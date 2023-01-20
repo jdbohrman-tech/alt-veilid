@@ -1,7 +1,5 @@
-use super::*;
-
-use crate::intf::table_db::*;
-use crate::xx::*;
+use crate::intf::table_db::TableDBInner;
+pub use crate::intf::table_db::{TableDB, TableDBTransaction};
 use crate::*;
 use keyvaluedb_web::*;
 
@@ -104,9 +102,11 @@ impl TableStore {
         let db = Database::open(table_name.clone(), column_count)
             .await
             .wrap_err("failed to open tabledb")?;
-        info!(
+        trace!(
             "opened table store '{}' with table name '{:?}' with {} columns",
-            name, table_name, column_count
+            name,
+            table_name,
+            column_count
         );
 
         let table_db = TableDB::new(table_name.clone(), self.clone(), db);
@@ -136,7 +136,7 @@ impl TableStore {
             }
         }
 
-        if utils::is_browser() {
+        if is_browser() {
             let out = match Database::delete(table_name.clone()).await {
                 Ok(_) => true,
                 Err(_) => false,

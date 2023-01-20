@@ -1,4 +1,5 @@
 use super::*;
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, Debug)]
@@ -39,14 +40,19 @@ impl RoutingContext {
             api,
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_selection: SafetySelection::Unsafe(Sequencing::NoPreference),
+                safety_selection: SafetySelection::Unsafe(Sequencing::default()),
             }),
         }
     }
 
-    pub fn with_default_privacy(self) -> Result<Self, VeilidAPIError> {
+    pub fn with_privacy(self) -> Result<Self, VeilidAPIError> {
+        self.with_custom_privacy(Stability::default())
+    }
+
+    pub fn with_custom_privacy(self, stability: Stability) -> Result<Self, VeilidAPIError> {
         let config = self.api.config()?;
         let c = config.get();
+
         Ok(Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
@@ -54,22 +60,13 @@ impl RoutingContext {
                 safety_selection: SafetySelection::Safe(SafetySpec {
                     preferred_route: None,
                     hop_count: c.network.rpc.default_route_hop_count as usize,
-                    stability: Stability::LowLatency,
-                    sequencing: Sequencing::NoPreference,
+                    stability,
+                    sequencing: self.sequencing(),
                 }),
             }),
         })
     }
-    pub fn with_privacy(self, safety_spec: SafetySpec) -> Result<Self, VeilidAPIError> {
-        Ok(Self {
-            api: self.api.clone(),
-            inner: Arc::new(Mutex::new(RoutingContextInner {})),
-            unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_selection: SafetySelection::Safe(safety_spec),
-            }),
-        })
-    }
-
+    
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
         Self {
             api: self.api.clone(),
@@ -87,16 +84,11 @@ impl RoutingContext {
             }),
         }
     }
-    pub fn sequencing(&self) -> Sequencing {
+
+    fn sequencing(&self) -> Sequencing {
         match self.unlocked_inner.safety_selection {
             SafetySelection::Unsafe(sequencing) => sequencing,
             SafetySelection::Safe(safety_spec) => safety_spec.sequencing,
-        }
-    }
-    pub fn safety_spec(&self) -> Option<SafetySpec> {
-        match self.unlocked_inner.safety_selection {
-            SafetySelection::Unsafe(_) => None,
-            SafetySelection::Safe(safety_spec) => Some(safety_spec.clone()),
         }
     }
 
@@ -115,7 +107,7 @@ impl RoutingContext {
                 // Resolve node
                 let mut nr = match rpc_processor.resolve_node(node_id.key).await {
                     Ok(Some(nr)) => nr,
-                    Ok(None) => return Err(VeilidAPIError::KeyNotFound { key: node_id.key }),
+                    Ok(None) => apibail_key_not_found!(node_id.key),
                     Err(e) => return Err(e.into()),
                 };
                 // Apply sequencing to match safety selection
@@ -129,9 +121,12 @@ impl RoutingContext {
             Target::PrivateRoute(pr) => {
                 // Get remote private route
                 let rss = self.api.routing_table()?.route_spec_store();
-                let private_route = rss
-                    .get_remote_private_route(&pr)
-                    .map_err(|_| VeilidAPIError::KeyNotFound { key: pr })?;
+                let Some(private_route) = rss
+                    .get_remote_private_route(&pr) 
+                    else {
+                        apibail_key_not_found!(pr);
+                    };
+
                 Ok(rpc_processor::Destination::PrivateRoute {
                     private_route,
                     safety_selection: self.unlocked_inner.safety_selection,
@@ -157,15 +152,14 @@ impl RoutingContext {
         // Send app message
         let answer = match rpc_processor.rpc_call_app_call(dest, request).await {
             Ok(NetworkResult::Value(v)) => v,
-            Ok(NetworkResult::Timeout) => return Err(VeilidAPIError::Timeout),
+            Ok(NetworkResult::Timeout) => apibail_timeout!(),
+            Ok(NetworkResult::ServiceUnavailable) => apibail_try_again!(),
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
-                return Err(VeilidAPIError::NoConnection {
-                    message: e.to_string(),
-                })
+                apibail_no_connection!(e);
             }
 
             Ok(NetworkResult::InvalidMessage(message)) => {
-                return Err(VeilidAPIError::Generic { message })
+                apibail_generic!(message);
             }
             Err(e) => return Err(e.into()),
         };
@@ -187,14 +181,13 @@ impl RoutingContext {
         // Send app message
         match rpc_processor.rpc_call_app_message(dest, message).await {
             Ok(NetworkResult::Value(())) => {}
-            Ok(NetworkResult::Timeout) => return Err(VeilidAPIError::Timeout),
+            Ok(NetworkResult::Timeout) => apibail_timeout!(),
+            Ok(NetworkResult::ServiceUnavailable) => apibail_try_again!(),
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
-                return Err(VeilidAPIError::NoConnection {
-                    message: e.to_string(),
-                })
+                apibail_no_connection!(e);
             }
             Ok(NetworkResult::InvalidMessage(message)) => {
-                return Err(VeilidAPIError::Generic { message })
+                apibail_generic!(message);
             }
             Err(e) => return Err(e.into()),
         };

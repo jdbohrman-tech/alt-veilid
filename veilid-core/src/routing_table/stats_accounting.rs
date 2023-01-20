@@ -1,4 +1,3 @@
-use crate::xx::*;
 use crate::*;
 use alloc::collections::VecDeque;
 
@@ -14,8 +13,8 @@ pub const ROLLING_TRANSFERS_INTERVAL_SECS: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TransferCount {
-    down: u64,
-    up: u64,
+    down: ByteCount,
+    up: ByteCount,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -32,21 +31,21 @@ impl TransferStatsAccounting {
         }
     }
 
-    pub fn add_down(&mut self, bytes: u64) {
+    pub fn add_down(&mut self, bytes: ByteCount) {
         self.current_transfer.down += bytes;
     }
 
-    pub fn add_up(&mut self, bytes: u64) {
+    pub fn add_up(&mut self, bytes: ByteCount) {
         self.current_transfer.up += bytes;
     }
 
     pub fn roll_transfers(
         &mut self,
-        last_ts: u64,
-        cur_ts: u64,
+        last_ts: Timestamp,
+        cur_ts: Timestamp,
         transfer_stats: &mut TransferStatsDownUp,
     ) {
-        let dur_ms = (cur_ts - last_ts) / 1000u64;
+        let dur_ms = cur_ts.saturating_sub(last_ts) / 1000u64;
         while self.rolling_transfers.len() >= ROLLING_TRANSFERS_SIZE {
             self.rolling_transfers.pop_front();
         }
@@ -57,12 +56,12 @@ impl TransferStatsAccounting {
 
         self.current_transfer = TransferCount::default();
 
-        transfer_stats.down.maximum = 0;
-        transfer_stats.up.maximum = 0;
-        transfer_stats.down.minimum = u64::MAX;
-        transfer_stats.up.minimum = u64::MAX;
-        transfer_stats.down.average = 0;
-        transfer_stats.up.average = 0;
+        transfer_stats.down.maximum = 0.into();
+        transfer_stats.up.maximum = 0.into();
+        transfer_stats.down.minimum = u64::MAX.into();
+        transfer_stats.up.minimum = u64::MAX.into();
+        transfer_stats.down.average = 0.into();
+        transfer_stats.up.average = 0.into();
         for xfer in &self.rolling_transfers {
             let bpsd = xfer.down * 1000u64 / dur_ms;
             let bpsu = xfer.up * 1000u64 / dur_ms;
@@ -81,7 +80,7 @@ impl TransferStatsAccounting {
 
 #[derive(Debug, Clone, Default)]
 pub struct LatencyStatsAccounting {
-    rolling_latencies: VecDeque<u64>,
+    rolling_latencies: VecDeque<TimestampDuration>,
 }
 
 impl LatencyStatsAccounting {
@@ -91,16 +90,16 @@ impl LatencyStatsAccounting {
         }
     }
 
-    pub fn record_latency(&mut self, latency: u64) -> veilid_api::LatencyStats {
+    pub fn record_latency(&mut self, latency: TimestampDuration) -> veilid_api::LatencyStats {
         while self.rolling_latencies.len() >= ROLLING_LATENCIES_SIZE {
             self.rolling_latencies.pop_front();
         }
         self.rolling_latencies.push_back(latency);
 
         let mut ls = LatencyStats {
-            fastest: u64::MAX,
-            average: 0,
-            slowest: 0,
+            fastest: u64::MAX.into(),
+            average: 0.into(),
+            slowest: 0.into(),
         };
         for rl in &self.rolling_latencies {
             ls.fastest.min_assign(*rl);

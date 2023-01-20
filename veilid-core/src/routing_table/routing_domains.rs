@@ -294,8 +294,10 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             // Get the target's inbound relay, it must have one or it is not reachable
             if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
                 let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
+
                 // Note that relay_peer_info could be node_a, in which case a connection already exists
-                // and we shouldn't have even gotten here
+                // and we only get here if the connection had dropped, in which case node_a is unreachable until
+                // it gets a new relay connection up
                 if node_b_relay_id.key == peer_a.node_id.key {
                     return ContactMethod::Existing;
                 }
@@ -375,6 +377,13 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         // If the node B has no direct dial info, it needs to have an inbound relay
         else if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
             let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
+            
+            // Note that relay_peer_info could be node_a, in which case a connection already exists
+            // and we only get here if the connection had dropped, in which case node_a is unreachable until
+            // it gets a new relay connection up
+            if node_b_relay_id.key == peer_a.node_id.key {
+                return ContactMethod::Existing;
+            }
 
             // Can we reach the full relay?
             if first_filtered_dial_info_detail(

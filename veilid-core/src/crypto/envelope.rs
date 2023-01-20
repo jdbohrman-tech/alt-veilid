@@ -2,7 +2,6 @@
 #![allow(clippy::absurd_extreme_comparisons)]
 use super::*;
 use crate::routing_table::VersionRange;
-use crate::xx::*;
 use crate::*;
 use core::convert::TryInto;
 
@@ -45,7 +44,7 @@ pub struct Envelope {
     version: u8,
     min_version: u8,
     max_version: u8,
-    timestamp: u64,
+    timestamp: Timestamp,
     nonce: EnvelopeNonce,
     sender_id: DHTKey,
     recipient_id: DHTKey,
@@ -54,7 +53,7 @@ pub struct Envelope {
 impl Envelope {
     pub fn new(
         version: u8,
-        timestamp: u64,
+        timestamp: Timestamp,
         nonce: EnvelopeNonce,
         sender_id: DHTKey,
         recipient_id: DHTKey,
@@ -76,7 +75,7 @@ impl Envelope {
         // Ensure we are at least the length of the envelope
         // Silent drop here, as we use zero length packets as part of the protocol for hole punching
         if data.len() < MIN_ENVELOPE_SIZE {
-            return Err(VeilidAPIError::generic("envelope data too small"));
+            apibail_generic!("envelope data too small");
         }
 
         // Verify magic number
@@ -84,31 +83,28 @@ impl Envelope {
             .try_into()
             .map_err(VeilidAPIError::internal)?;
         if magic != *ENVELOPE_MAGIC {
-            return Err(VeilidAPIError::generic("bad magic number"));
+            apibail_generic!("bad magic number");
         }
 
         // Check version
         let version = data[0x04];
         if version > MAX_CRYPTO_VERSION || version < MIN_CRYPTO_VERSION {
-            return Err(VeilidAPIError::parse_error(
-                "unsupported cryptography version",
-                version,
-            ));
+            apibail_parse_error!("unsupported cryptography version", version);
         }
 
         // Get min version
         let min_version = data[0x05];
         if min_version > version {
-            return Err(VeilidAPIError::parse_error("version too low", version));
+            apibail_parse_error!("version too low", version);
         }
 
         // Get max version
         let max_version = data[0x06];
         if version > max_version {
-            return Err(VeilidAPIError::parse_error("version too high", version));
+            apibail_parse_error!("version too high", version);
         }
         if min_version > max_version {
-            return Err(VeilidAPIError::generic("version information invalid"));
+            apibail_generic!("version information invalid");
         }
 
         // Get size and ensure it matches the size of the envelope and is less than the maximum message size
@@ -118,25 +114,26 @@ impl Envelope {
                 .map_err(VeilidAPIError::internal)?,
         );
         if (size as usize) > MAX_ENVELOPE_SIZE {
-            return Err(VeilidAPIError::parse_error("envelope too large", size));
+            apibail_parse_error!("envelope too large", size);
         }
         if (size as usize) != data.len() {
-            return Err(VeilidAPIError::parse_error(
+            apibail_parse_error!(
                 "size doesn't match envelope size",
                 format!(
                     "size doesn't match envelope size: size={} data.len()={}",
                     size,
                     data.len()
-                ),
-            ));
+                )
+            );
         }
 
         // Get the timestamp
-        let timestamp: u64 = u64::from_le_bytes(
+        let timestamp: Timestamp = u64::from_le_bytes(
             data[0x0A..0x12]
                 .try_into()
                 .map_err(VeilidAPIError::internal)?,
-        );
+        )
+        .into();
 
         // Get nonce and sender node id
         let nonce: EnvelopeNonce = data[0x12..0x2A]
@@ -153,10 +150,10 @@ impl Envelope {
 
         // Ensure sender_id and recipient_id are not the same
         if sender_id == recipient_id {
-            return Err(VeilidAPIError::parse_error(
+            apibail_parse_error!(
                 "sender_id should not be same as recipient_id",
-                recipient_id.encode(),
-            ));
+                recipient_id.encode()
+            );
         }
 
         // Get signature
@@ -206,10 +203,7 @@ impl Envelope {
         // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;
         if envelope_size > MAX_ENVELOPE_SIZE {
-            return Err(VeilidAPIError::parse_error(
-                "envelope size is too large",
-                envelope_size,
-            ));
+            apibail_parse_error!("envelope size is too large", envelope_size);
         }
         let mut data = vec![0u8; envelope_size];
 
@@ -224,7 +218,7 @@ impl Envelope {
         // Write size
         data[0x08..0x0A].copy_from_slice(&(envelope_size as u16).to_le_bytes());
         // Write timestamp
-        data[0x0A..0x12].copy_from_slice(&self.timestamp.to_le_bytes());
+        data[0x0A..0x12].copy_from_slice(&self.timestamp.as_u64().to_le_bytes());
         // Write nonce
         data[0x12..0x2A].copy_from_slice(&self.nonce);
         // Write sender node id
@@ -267,7 +261,7 @@ impl Envelope {
         }
     }
 
-    pub fn get_timestamp(&self) -> u64 {
+    pub fn get_timestamp(&self) -> Timestamp {
         self.timestamp
     }
 

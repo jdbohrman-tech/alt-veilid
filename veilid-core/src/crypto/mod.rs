@@ -13,7 +13,6 @@ pub use value::*;
 pub const MIN_CRYPTO_VERSION: u8 = 0u8;
 pub const MAX_CRYPTO_VERSION: u8 = 0u8;
 
-use crate::xx::*;
 use crate::*;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::XChaCha20;
@@ -25,6 +24,7 @@ use ed25519_dalek as ed;
 use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
 use serde::{Deserialize, Serialize};
+
 use x25519_dalek as xd;
 
 pub type SharedSecret = [u8; 32];
@@ -132,12 +132,12 @@ impl Crypto {
             drop(db);
             table_store.delete("crypto_caches").await?;
             db = table_store.open("crypto_caches", 1).await?;
-            db.store(0, b"node_id", &node_id.unwrap().bytes)?;
+            db.store(0, b"node_id", &node_id.unwrap().bytes).await?;
         }
 
         // Schedule flushing
         let this = self.clone();
-        let flush_future = intf::interval(60000, move || {
+        let flush_future = interval(60000, move || {
             let this = this.clone();
             async move {
                 if let Err(e) = this.flush().await {
@@ -159,7 +159,7 @@ impl Crypto {
         };
 
         let db = table_store.open("crypto_caches", 1).await?;
-        db.store(0, b"dh_cache", &cache_bytes)?;
+        db.store(0, b"dh_cache", &cache_bytes).await?;
         Ok(())
     }
 
@@ -229,13 +229,13 @@ impl Crypto {
 
     pub fn get_random_nonce() -> Nonce {
         let mut nonce = [0u8; 24];
-        intf::random_bytes(&mut nonce).unwrap();
+        random_bytes(&mut nonce).unwrap();
         nonce
     }
 
     pub fn get_random_secret() -> SharedSecret {
         let mut s = [0u8; 32];
-        intf::random_bytes(&mut s).unwrap();
+        random_bytes(&mut s).unwrap();
         s
     }
 

@@ -1,5 +1,4 @@
-use crate::*;
-use rpc_processor::*;
+use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationCancelTunnelQ {
@@ -10,7 +9,7 @@ impl RPCOperationCancelTunnelQ {
     pub fn decode(
         reader: &veilid_capnp::operation_cancel_tunnel_q::Reader,
     ) -> Result<RPCOperationCancelTunnelQ, RPCError> {
-        let id = reader.get_id();
+        let id = TunnelId::new(reader.get_id());
 
         Ok(RPCOperationCancelTunnelQ { id })
     }
@@ -18,7 +17,7 @@ impl RPCOperationCancelTunnelQ {
         &self,
         builder: &mut veilid_capnp::operation_cancel_tunnel_q::Builder,
     ) -> Result<(), RPCError> {
-        builder.set_id(self.id);
+        builder.set_id(self.id.as_u64());
 
         Ok(())
     }
@@ -36,7 +35,7 @@ impl RPCOperationCancelTunnelA {
     ) -> Result<RPCOperationCancelTunnelA, RPCError> {
         match reader.which().map_err(RPCError::protocol)? {
             veilid_capnp::operation_cancel_tunnel_a::Which::Tunnel(r) => {
-                Ok(RPCOperationCancelTunnelA::Tunnel(r))
+                Ok(RPCOperationCancelTunnelA::Tunnel(TunnelId::new(r)))
             }
             veilid_capnp::operation_cancel_tunnel_a::Which::Error(r) => {
                 let tunnel_error = decode_tunnel_error(r.map_err(RPCError::protocol)?);
@@ -50,7 +49,7 @@ impl RPCOperationCancelTunnelA {
     ) -> Result<(), RPCError> {
         match self {
             RPCOperationCancelTunnelA::Tunnel(p) => {
-                builder.set_tunnel(*p);
+                builder.set_tunnel(p.as_u64());
             }
             RPCOperationCancelTunnelA::Error(e) => {
                 builder.set_error(encode_tunnel_error(*e));

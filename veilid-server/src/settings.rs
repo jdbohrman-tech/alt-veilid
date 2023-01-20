@@ -1,16 +1,13 @@
 #![allow(clippy::bool_assert_comparison)]
 
 use directories::*;
-use parking_lot::*;
 
 use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::sync::Arc;
 use url::Url;
-use veilid_core::xx::*;
+use veilid_core::tools::*;
 use veilid_core::*;
 
 pub fn load_default_config() -> EyreResult<config::Config> {
@@ -100,7 +97,6 @@ core:
             min_peer_refresh_time_ms: 2000
             validate_dial_info_receipt_time_ms: 2000
         upnp: true
-        natpmp: false
         detect_address_changes: true
         restricted_nat_retries: 0
         tls:
@@ -607,7 +603,6 @@ pub struct Network {
     pub rpc: Rpc,
     pub dht: Dht,
     pub upnp: bool,
-    pub natpmp: bool,
     pub detect_address_changes: bool,
     pub restricted_nat_retries: u32,
     pub tls: Tls,
@@ -1005,7 +1000,6 @@ impl Settings {
             value
         );
         set_config_value!(inner.core.network.upnp, value);
-        set_config_value!(inner.core.network.natpmp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
         set_config_value!(inner.core.network.restricted_nat_retries, value);
         set_config_value!(inner.core.network.tls.certificate_path, value);
@@ -1206,7 +1200,6 @@ impl Settings {
                     inner.core.network.dht.validate_dial_info_receipt_time_ms,
                 )),
                 "network.upnp" => Ok(Box::new(inner.core.network.upnp)),
-                "network.natpmp" => Ok(Box::new(inner.core.network.natpmp)),
                 "network.detect_address_changes" => {
                     Ok(Box::new(inner.core.network.detect_address_changes))
                 }
@@ -1530,7 +1523,6 @@ mod tests {
         );
         //
         assert_eq!(s.core.network.upnp, true);
-        assert_eq!(s.core.network.natpmp, false);
         assert_eq!(s.core.network.detect_address_changes, true);
         assert_eq!(s.core.network.restricted_nat_retries, 0u32);
         //

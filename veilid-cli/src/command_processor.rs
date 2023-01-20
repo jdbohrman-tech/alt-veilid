@@ -1,13 +1,11 @@
 use crate::client_api_connection::*;
 use crate::settings::Settings;
-use crate::tools::*;
 use crate::ui::*;
-use log::*;
 use std::cell::*;
 use std::net::SocketAddr;
 use std::rc::Rc;
-use std::time::{Duration, SystemTime};
-use veilid_core::xx::{Eventual, EventualCommon};
+use std::time::SystemTime;
+use veilid_core::tools::*;
 use veilid_core::*;
 
 pub fn convert_loglevel(s: &str) -> Result<VeilidConfigLogLevel, String> {
@@ -49,7 +47,7 @@ struct CommandProcessorInner {
     autoreconnect: bool,
     server_addr: Option<SocketAddr>,
     connection_waker: Eventual,
-    last_call_id: Option<u64>,
+    last_call_id: Option<OperationId>,
 }
 
 type Handle<T> = Rc<RefCell<T>>;
@@ -251,7 +249,7 @@ reply               - reply to an AppCall not handled directly by the server
                     }
                     Ok(v) => v,
                 };
-                (id, second)
+                (OperationId::new(id), second)
             } else {
                 let id = match some_last_id {
                     None => {
@@ -366,7 +364,7 @@ reply               - reply to an AppCall not handled directly by the server
                 debug!("Connection lost, retrying in 2 seconds");
                 {
                     let waker = self.inner_mut().connection_waker.instance_clone(());
-                    let _ = timeout(Duration::from_millis(2000), waker).await;
+                    let _ = timeout(2000, waker).await;
                 }
                 self.inner_mut().connection_waker.reset();
                 first = false;
@@ -390,19 +388,41 @@ reply               - reply to an AppCall not handled directly by the server
     ////////////////////////////////////////////
 
     pub fn update_attachment(&mut self, attachment: veilid_core::VeilidStateAttachment) {
-        self.inner_mut().ui.set_attachment_state(attachment.state);
+        self.inner_mut().ui.set_attachment_state(
+            attachment.state,
+            attachment.public_internet_ready,
+            attachment.local_network_ready,
+        );
     }
 
     pub fn update_network_status(&mut self, network: veilid_core::VeilidStateNetwork) {
         self.inner_mut().ui.set_network_status(
             network.started,
-            network.bps_down,
-            network.bps_up,
+            network.bps_down.as_u64(),
+            network.bps_up.as_u64(),
             network.peers,
         );
     }
     pub fn update_config(&mut self, config: veilid_core::VeilidStateConfig) {
         self.inner_mut().ui.set_config(config.config)
+    }
+    pub fn update_route(&mut self, route: veilid_core::VeilidStateRoute) {
+        let mut out = String::new();
+        if !route.dead_routes.is_empty() {
+            out.push_str(&format!("Dead routes: {:?}", route.dead_routes));
+        }
+        if !route.dead_remote_routes.is_empty() {
+            if !out.is_empty() {
+                out.push_str("\n");
+            }
+            out.push_str(&format!(
+                "Dead remote routes: {:?}",
+                route.dead_remote_routes
+            ));
+        }
+        if !out.is_empty() {
+            self.inner().ui.add_node_event(out);
+        }
     }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidLog) {
@@ -455,7 +475,9 @@ reply               - reply to an AppCall not handled directly by the server
 
         self.inner().ui.add_node_event(format!(
             "AppCall ({:?}) id = {:016x} : {}",
-            call.sender, call.id, strmsg
+            call.sender,
+            call.id.as_u64(),
+            strmsg
         ));
 
         self.inner_mut().last_call_id = Some(call.id);

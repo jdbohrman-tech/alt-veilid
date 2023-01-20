@@ -1,4 +1,3 @@
-use crate::xx::*;
 use crate::*;
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use serde::*;
@@ -337,6 +336,8 @@ pub struct VeilidConfigRoutingTable {
     pub limit_attached_strong: u32,
     pub limit_attached_good: u32,
     pub limit_attached_weak: u32,
+    // xxx pub enable_public_internet: bool,
+    // xxx pub enable_local_network: bool,
 }
 
 #[derive(
@@ -369,7 +370,6 @@ pub struct VeilidConfigNetwork {
     pub rpc: VeilidConfigRPC,
     pub dht: VeilidConfigDHT,
     pub upnp: bool,
-    pub natpmp: bool,
     pub detect_address_changes: bool,
     pub restricted_nat_retries: u32,
     pub tls: VeilidConfigTLS,
@@ -599,11 +599,13 @@ impl VeilidConfig {
         macro_rules! get_config {
             ($key:expr) => {
                 let keyname = &stringify!($key)[6..];
-                $key = *cb(keyname.to_owned())?.downcast().map_err(|_| {
-                    let err = format!("incorrect type for key {}", keyname);
-                    debug!("{}", err);
-                    VeilidAPIError::generic(err)
-                })?;
+                let v = cb(keyname.to_owned())?;
+                $key = match v.downcast() {
+                    Ok(v) => *v,
+                    Err(_) => {
+                        apibail_generic!(format!("incorrect type for key {}", keyname))
+                    }
+                };
             };
         }
 
@@ -665,7 +667,6 @@ impl VeilidConfig {
             get_config!(inner.network.rpc.max_route_hop_count);
             get_config!(inner.network.rpc.default_route_hop_count);
             get_config!(inner.network.upnp);
-            get_config!(inner.network.natpmp);
             get_config!(inner.network.detect_address_changes);
             get_config!(inner.network.restricted_nat_retries);
             get_config!(inner.network.tls.certificate_path);
@@ -756,7 +757,7 @@ impl VeilidConfig {
             let mut out = &jvc;
             for k in keypath {
                 if !out.has_key(k) {
-                    apibail_parse!(format!("invalid subkey in key '{}'", key), k);
+                    apibail_parse_error!(format!("invalid subkey in key '{}'", key), k);
                 }
                 out = &out[k];
             }
@@ -781,12 +782,12 @@ impl VeilidConfig {
                 let mut out = &mut jvc;
                 for k in objkeypath {
                     if !out.has_key(*k) {
-                        apibail_parse!(format!("invalid subkey in key '{}'", key), k);
+                        apibail_parse_error!(format!("invalid subkey in key '{}'", key), k);
                     }
                     out = &mut out[*k];
                 }
                 if !out.has_key(objkeyname) {
-                    apibail_parse!(format!("invalid subkey in key '{}'", key), objkeyname);
+                    apibail_parse_error!(format!("invalid subkey in key '{}'", key), objkeyname);
                 }
                 out[*objkeyname] = newval;
                 jvc.to_string()

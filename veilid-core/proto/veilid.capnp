@@ -156,17 +156,12 @@ using ValueSeqNum = UInt32;                             # sequence numbers for v
 
 struct ValueKey @0xe64b0992c21a0736 {
     publicKey               @0  :ValueID;               # the location of the value
-    subkey                  @1  :Text;                  # the name of the subkey (or empty if the whole key)
+    subkey                  @1  :Text;                  # the name of the subkey (or empty for the default subkey)
 }
 
-# struct ValueKeySeq {
-#    key                     @0  :ValueKey;              # the location of the value
-#    seq                     @1  :ValueSeqNum;           # the sequence number of the value subkey
-# }
-
 struct ValueData @0xb4b7416f169f2a3d {
-    data                    @0  :Data;                  # value or subvalue contents
-    seq                     @1  :ValueSeqNum;           # sequence number of value
+    seq                     @0  :ValueSeqNum;           # sequence number of value
+    data                    @1  :Data;                  # value or subvalue contents
 }
 
 # Operations
@@ -186,6 +181,12 @@ enum DialInfoClass @0x880005edfdd38b1e {
     blocked                 @3;                         # B = Inbound blocked at firewall but may hole punch with public address
     addressRestrictedNAT    @4;                         # A = Device without portmap behind address-only restricted NAT
     portRestrictedNAT       @5;                         # P = Device without portmap behind address-and-port restricted NAT
+}
+
+enum Sequencing @0xb6735890f7818a1c {
+    noPreference            @0;
+    preferOrdered           @1;
+    ensureOrdered           @2;
 }
 
 struct DialInfoDetail @0x96423aa1d67b74d8 {
@@ -266,9 +267,10 @@ struct PeerInfo @0xfe2d722d5d3c4bcb {
 
 struct RoutedOperation @0xcbcb8535b839e9dd {
     version                 @0  :UInt8;                 # crypto version in use for the data
-    signatures              @1  :List(Signature);       # signatures from nodes that have handled the private route
-    nonce                   @2  :Nonce;                 # nonce Xmsg
-    data                    @3  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
+    sequencing              @1  :Sequencing;            # sequencing preference to use to pass the message along
+    signatures              @2  :List(Signature);       # signatures from nodes that have handled the private route
+    nonce                   @3  :Nonce;                 # nonce Xmsg
+    data                    @4  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
 }
 
 struct OperationStatusQ @0x865d80cea70d884a {
@@ -302,11 +304,6 @@ struct OperationRoute @0x96741859ce6ac7dd {
     safetyRoute             @0  :SafetyRoute;           # Where this should go
     operation               @1  :RoutedOperation;       # The operation to be routed
 }
-
-struct OperationNodeInfoUpdate @0xc9647b32a48b66ce {
-    signedNodeInfo          @0  :SignedNodeInfo;        # Our signed node info
-}
-
 
 struct OperationAppCallQ @0xade67b9f09784507 {
     message                    @0  :Data;                  # Opaque request to application
@@ -466,12 +463,12 @@ struct Question @0xd8510bc33492ef70 {
         findNodeQ           @3  :OperationFindNodeQ;
         
         # Routable operations
-        getValueQ           @4  :OperationGetValueQ;
-        setValueQ           @5  :OperationSetValueQ;
-        watchValueQ         @6  :OperationWatchValueQ;
-        supplyBlockQ        @7  :OperationSupplyBlockQ;
-        findBlockQ          @8  :OperationFindBlockQ;
-        appCallQ            @9  :OperationAppCallQ;
+        appCallQ            @4  :OperationAppCallQ;
+        getValueQ           @5  :OperationGetValueQ;
+        setValueQ           @6  :OperationSetValueQ;
+        watchValueQ         @7  :OperationWatchValueQ;
+        supplyBlockQ        @8  :OperationSupplyBlockQ;
+        findBlockQ          @9  :OperationFindBlockQ;
         
         # Tunnel operations
         startTunnelQ        @10 :OperationStartTunnelQ;
@@ -486,13 +483,12 @@ struct Statement @0x990e20828f404ae1 {
         # Direct operations
         validateDialInfo    @0  :OperationValidateDialInfo;
         route               @1  :OperationRoute;
-        nodeInfoUpdate      @2  :OperationNodeInfoUpdate;
         
         # Routable operations
-        valueChanged        @3  :OperationValueChanged;
-        signal              @4  :OperationSignal;
-        returnReceipt       @5  :OperationReturnReceipt;
-        appMessage          @6  :OperationAppMessage;
+        signal              @2  :OperationSignal;
+        returnReceipt       @3  :OperationReturnReceipt;
+        appMessage          @4  :OperationAppMessage;
+        valueChanged        @5  :OperationValueChanged;
     }
 }
 
@@ -504,12 +500,12 @@ struct Answer @0xacacb8b6988c1058 {
         findNodeA           @1  :OperationFindNodeA;
         
         # Routable operations
-        getValueA           @2  :OperationGetValueA;
-        setValueA           @3  :OperationSetValueA;
-        watchValueA         @4  :OperationWatchValueA;    
-        supplyBlockA        @5  :OperationSupplyBlockA; 
-        findBlockA          @6  :OperationFindBlockA;
-        appCallA            @7  :OperationAppCallA;
+        appCallA            @2  :OperationAppCallA;
+        getValueA           @3  :OperationGetValueA;
+        setValueA           @4  :OperationSetValueA;
+        watchValueA         @5  :OperationWatchValueA;    
+        supplyBlockA        @6  :OperationSupplyBlockA; 
+        findBlockA          @7  :OperationFindBlockA;
     
         # Tunnel operations
         startTunnelA        @8  :OperationStartTunnelA;
@@ -521,9 +517,10 @@ struct Answer @0xacacb8b6988c1058 {
 struct Operation @0xbf2811c435403c3b {
     opId                    @0  :UInt64;                # Random RPC ID. Must be random to foil reply forgery attacks. 
     senderNodeInfo          @1  :SignedNodeInfo;        # (optional) SignedNodeInfo for the sender to be cached by the receiver.
+    targetNodeInfoTs        @2  :UInt64;                # Timestamp the sender believes the target's node info to be at or zero if not sent
     kind :union {
-        question            @2  :Question;
-        statement           @3  :Statement;
-        answer              @4  :Answer;
+        question            @3  :Question;
+        statement           @4  :Statement;
+        answer              @5  :Answer;
     }
 }

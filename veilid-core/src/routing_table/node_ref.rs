@@ -2,10 +2,6 @@ use super::*;
 use crate::crypto::*;
 use alloc::fmt;
 
-// Connectionless protocols like UDP are dependent on a NAT translation timeout
-// We should ping them with some frequency and 30 seconds is typical timeout
-const CONNECTIONLESS_TIMEOUT_SECS: u32 = 29;
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub struct NodeRefBaseCommon {
@@ -87,8 +83,9 @@ pub trait NodeRefBase: Sized {
     }
 
     fn best_routing_domain(&self) -> Option<RoutingDomain> {
-        self.operate(|_rti, e| {
+        self.operate(|rti, e| {
             e.best_routing_domain(
+                rti,
                 self.common()
                     .filter
                     .as_ref()
@@ -122,7 +119,7 @@ pub trait NodeRefBase: Sized {
     fn set_min_max_version(&self, min_max_version: VersionRange) {
         self.operate_mut(|_rti, e| e.set_min_max_version(min_max_version))
     }
-    fn state(&self, cur_ts: u64) -> BucketEntryState {
+    fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         self.operate(|_rti, e| e.state(cur_ts))
     }
     fn peer_stats(&self) -> PeerStats {
@@ -143,11 +140,22 @@ pub trait NodeRefBase: Sized {
                 .unwrap_or(false)
         })
     }
-    fn has_seen_our_node_info(&self, routing_domain: RoutingDomain) -> bool {
-        self.operate(|_rti, e| e.has_seen_our_node_info(routing_domain))
+    fn node_info_ts(&self, routing_domain: RoutingDomain) -> Timestamp {
+        self.operate(|_rti, e| {
+            e.signed_node_info(routing_domain)
+                .map(|sni| sni.timestamp())
+                .unwrap_or(0u64.into())
+        })
     }
-    fn set_seen_our_node_info(&self, routing_domain: RoutingDomain) {
-        self.operate_mut(|_rti, e| e.set_seen_our_node_info(routing_domain, true));
+    fn has_seen_our_node_info_ts(
+        &self,
+        routing_domain: RoutingDomain,
+        our_node_info_ts: Timestamp,
+    ) -> bool {
+        self.operate(|_rti, e| e.has_seen_our_node_info_ts(routing_domain, our_node_info_ts))
+    }
+    fn set_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
+        self.operate_mut(|_rti, e| e.set_our_node_info_ts(routing_domain, seen_ts));
     }
     fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
         self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class))
@@ -260,28 +268,8 @@ pub trait NodeRefBase: Sized {
         // Get the last connections and the last time we saw anything with this connection
         // Filtered first and then sorted by most recent
         self.operate(|rti, e| {
-            let last_connections = e.last_connections(rti, self.common().filter.clone());
-
-            // Do some checks to ensure these are possibly still 'live'
-            for (last_connection, last_seen) in last_connections {
-                // Should we check the connection table?
-                if last_connection.protocol_type().is_connection_oriented() {
-                    // Look the connection up in the connection manager and see if it's still there
-                    let connection_manager =
-                        rti.unlocked_inner.network_manager.connection_manager();
-                    if connection_manager.get_connection(last_connection).is_some() {
-                        return Some(last_connection);
-                    }
-                } else {
-                    // If this is not connection oriented, then we check our last seen time
-                    // to see if this mapping has expired (beyond our timeout)
-                    let cur_ts = intf::get_timestamp();
-                    if (last_seen + (CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts {
-                        return Some(last_connection);
-                    }
-                }
-            }
-            None
+            let last_connections = e.last_connections(rti, true, self.common().filter.clone());
+            last_connections.first().map(|x| x.0)
         })
     }
 
@@ -289,7 +277,7 @@ pub trait NodeRefBase: Sized {
         self.operate_mut(|_rti, e| e.clear_last_connections())
     }
 
-    fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: u64) {
+    fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: Timestamp) {
         self.operate_mut(|rti, e| {
             e.set_last_connection(connection_descriptor, ts);
             rti.touch_recent_peer(self.common().node_id, connection_descriptor);
@@ -309,29 +297,29 @@ pub trait NodeRefBase: Sized {
         })
     }
 
-    fn stats_question_sent(&self, ts: u64, bytes: u64, expects_answer: bool) {
+    fn stats_question_sent(&self, ts: Timestamp, bytes: Timestamp, expects_answer: bool) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_up(bytes);
             e.question_sent(ts, bytes, expects_answer);
         })
     }
-    fn stats_question_rcvd(&self, ts: u64, bytes: u64) {
+    fn stats_question_rcvd(&self, ts: Timestamp, bytes: ByteCount) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_down(bytes);
             e.question_rcvd(ts, bytes);
         })
     }
-    fn stats_answer_sent(&self, bytes: u64) {
+    fn stats_answer_sent(&self, bytes: ByteCount) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_up(bytes);
             e.answer_sent(bytes);
         })
     }
-    fn stats_answer_rcvd(&self, send_ts: u64, recv_ts: u64, bytes: u64) {
+    fn stats_answer_rcvd(&self, send_ts: Timestamp, recv_ts: Timestamp, bytes: ByteCount) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_down(bytes);
             rti.latency_stats_accounting()
-                .record_latency(recv_ts - send_ts);
+                .record_latency(recv_ts.saturating_sub(send_ts));
             e.answer_rcvd(send_ts, recv_ts, bytes);
         })
     }
@@ -340,7 +328,7 @@ pub trait NodeRefBase: Sized {
             e.question_lost();
         })
     }
-    fn stats_failed_to_send(&self, ts: u64, expects_answer: bool) {
+    fn stats_failed_to_send(&self, ts: Timestamp, expects_answer: bool) {
         self.operate_mut(|_rti, e| {
             e.failed_to_send(ts, expects_answer);
         })
