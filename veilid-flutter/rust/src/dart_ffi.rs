@@ -19,6 +19,7 @@ use tracing_subscriber::*;
 
 // Globals
 lazy_static! {
+    static ref CORE_INITIALIZED: Mutex<bool> = Mutex::new(false);
     static ref VEILID_API: AsyncMutex<Option<veilid_core::VeilidAPI>> = AsyncMutex::new(None);
     static ref FILTERS: Mutex<BTreeMap<&'static str, veilid_core::VeilidLayerFilter>> =
         Mutex::new(BTreeMap::new());
@@ -144,6 +145,17 @@ pub extern "C" fn initialize_veilid_flutter(dart_post_c_object_ptr: ffi::DartPos
 #[no_mangle]
 #[instrument]
 pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
+
+    // Only do this once, ever
+    // Until we have Dart native finalizers running on hot-restart, this will cause a crash if run more than once
+    {
+        let mut core_init = CORE_INITIALIZED.lock();
+        if *core_init {
+            return;
+        }
+        *core_init = true;
+    }
+
     let platform_config = platform_config.into_opt_string();
     let platform_config: VeilidFFIConfig = veilid_core::deserialize_opt_json(platform_config)
         .expect("failed to deserialize plaform config json");

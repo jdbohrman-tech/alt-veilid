@@ -156,17 +156,12 @@ using ValueSeqNum = UInt32;                             # sequence numbers for v
 
 struct ValueKey @0xe64b0992c21a0736 {
     publicKey               @0  :ValueID;               # the location of the value
-    subkey                  @1  :Text;                  # the name of the subkey (or empty if the whole key)
+    subkey                  @1  :Text;                  # the name of the subkey (or empty for the default subkey)
 }
 
-# struct ValueKeySeq {
-#    key                     @0  :ValueKey;              # the location of the value
-#    seq                     @1  :ValueSeqNum;           # the sequence number of the value subkey
-# }
-
 struct ValueData @0xb4b7416f169f2a3d {
-    data                    @0  :Data;                  # value or subvalue contents
-    seq                     @1  :ValueSeqNum;           # sequence number of value
+    seq                     @0  :ValueSeqNum;           # sequence number of value
+    data                    @1  :Data;                  # value or subvalue contents
 }
 
 # Operations
