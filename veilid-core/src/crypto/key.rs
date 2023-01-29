@@ -6,10 +6,7 @@ use core::fmt;
 use core::hash::Hash;
 
 use data_encoding::BASE64URL_NOPAD;
-use digest::generic_array::typenum::U64;
-use digest::{Digest, Output};
-use ed25519_dalek::{Keypair, PublicKey, Signature};
-use generic_array::GenericArray;
+
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 //////////////////////////////////////////////////////////////////////
@@ -225,165 +222,9 @@ macro_rules! byte_array_type {
     };
 }
 
+/////////////////////////////////////////
+
 byte_array_type!(DHTKey, DHT_KEY_LENGTH);
 byte_array_type!(DHTKeySecret, DHT_KEY_SECRET_LENGTH);
 byte_array_type!(DHTSignature, DHT_SIGNATURE_LENGTH);
 byte_array_type!(DHTKeyDistance, DHT_KEY_LENGTH);
-
-/////////////////////////////////////////
-
-struct Blake3Digest512 {
-    dig: blake3::Hasher,
-}
-
-impl Digest for Blake3Digest512 {
-    type OutputSize = U64;
-
-    fn new() -> Self {
-        Self {
-            dig: blake3::Hasher::new(),
-        }
-    }
-
-    fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.dig.update(data.as_ref());
-    }
-
-    fn chain(mut self, data: impl AsRef<[u8]>) -> Self
-    where
-        Self: Sized,
-    {
-        self.update(data);
-        self
-    }
-
-    fn finalize(self) -> Output<Self> {
-        let mut b = [0u8; 64];
-        self.dig.finalize_xof().fill(&mut b);
-        let mut out = GenericArray::<u8, U64>::default();
-        for n in 0..64 {
-            out[n] = b[n];
-        }
-        out
-    }
-
-    fn finalize_reset(&mut self) -> Output<Self> {
-        let mut b = [0u8; 64];
-        self.dig.finalize_xof().fill(&mut b);
-        let mut out = GenericArray::<u8, U64>::default();
-        for n in 0..64 {
-            out[n] = b[n];
-        }
-        self.reset();
-        out
-    }
-
-    fn reset(&mut self) {
-        self.dig.reset();
-    }
-
-    fn output_size() -> usize {
-        64
-    }
-
-    fn digest(data: &[u8]) -> Output<Self> {
-        let mut dig = blake3::Hasher::new();
-        dig.update(data);
-        let mut b = [0u8; 64];
-        dig.finalize_xof().fill(&mut b);
-        let mut out = GenericArray::<u8, U64>::default();
-        for n in 0..64 {
-            out[n] = b[n];
-        }
-        out
-    }
-}
-
-/////////////////////////////////////////
-
-pub fn generate_secret() -> (DHTKey, DHTKeySecret) {
-    let mut csprng = VeilidRng {};
-    let keypair = Keypair::generate(&mut csprng);
-    let dht_key = DHTKey::new(keypair.public.to_bytes());
-    let dht_key_secret = DHTKeySecret::new(keypair.secret.to_bytes());
-
-    (dht_key, dht_key_secret)
-}
-
-pub fn sign(
-    dht_key: &DHTKey,
-    dht_key_secret: &DHTKeySecret,
-    data: &[u8],
-) -> Result<DHTSignature, VeilidAPIError> {
-    let mut kpb: [u8; DHT_KEY_SECRET_LENGTH + DHT_KEY_LENGTH] =
-        [0u8; DHT_KEY_SECRET_LENGTH + DHT_KEY_LENGTH];
-
-    kpb[..DHT_KEY_SECRET_LENGTH].copy_from_slice(&dht_key_secret.bytes);
-    kpb[DHT_KEY_SECRET_LENGTH..].copy_from_slice(&dht_key.bytes);
-    let keypair = Keypair::from_bytes(&kpb)
-        .map_err(|e| VeilidAPIError::parse_error("Keypair is invalid", e))?;
-
-    let mut dig = Blake3Digest512::new();
-    dig.update(data);
-
-    let sig = keypair
-        .sign_prehashed(dig, None)
-        .map_err(VeilidAPIError::internal)?;
-
-    let dht_sig = DHTSignature::new(sig.to_bytes());
-    Ok(dht_sig)
-}
-
-pub fn verify(
-    dht_key: &DHTKey,
-    data: &[u8],
-    signature: &DHTSignature,
-) -> Result<(), VeilidAPIError> {
-    let pk = PublicKey::from_bytes(&dht_key.bytes)
-        .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
-    let sig = Signature::from_bytes(&signature.bytes)
-        .map_err(|e| VeilidAPIError::parse_error("Signature is invalid", e))?;
-
-    let mut dig = Blake3Digest512::new();
-    dig.update(data);
-
-    pk.verify_prehashed(dig, None, &sig)
-        .map_err(|e| VeilidAPIError::parse_error("Verification failed", e))?;
-    Ok(())
-}
-
-pub fn generate_hash(data: &[u8]) -> DHTKey {
-    DHTKey::new(*blake3::hash(data).as_bytes())
-}
-
-pub fn validate_hash(data: &[u8], dht_key: &DHTKey) -> bool {
-    let bytes = *blake3::hash(data).as_bytes();
-
-    bytes == dht_key.bytes
-}
-
-pub fn validate_key(dht_key: &DHTKey, dht_key_secret: &DHTKeySecret) -> bool {
-    let data = vec![0u8; 512];
-    let sig = match sign(dht_key, dht_key_secret, &data) {
-        Ok(s) => s,
-        Err(_) => {
-            return false;
-        }
-    };
-    verify(dht_key, &data, &sig).is_ok()
-}
-
-pub fn distance(key1: &DHTKey, key2: &DHTKey) -> DHTKeyDistance {
-    let mut bytes = [0u8; DHT_KEY_LENGTH];
-
-    for (n, byte) in bytes.iter_mut().enumerate() {
-        *byte = key1.bytes[n] ^ key2.bytes[n];
-    }
-
-    DHTKeyDistance::new(bytes)
-}
-
-#[allow(dead_code)]
-pub fn sort_closest_fn(key: DHTKey) -> impl FnMut(&DHTKey, &DHTKey) -> std::cmp::Ordering {
-    move |k1, k2| distance(k1, &key).cmp(&distance(k2, &key))
-}

@@ -5,26 +5,30 @@ use crate::*;
 use core::convert::TryInto;
 use data_encoding::BASE64URL_NOPAD;
 
-// #[repr(C, packed)]
-// struct ReceiptHeader {
-//     // Size is at least 8 bytes. Depending on the version specified, the size may vary and should be case to the appropriate struct
-//     magic: [u8; 4],              // 0x00: 0x52 0x43 0x50 0x54 ("RCPT")
-//     version: u8,                 // 0x04: 0 = ReceiptV0
-//     reserved: u8,                // 0x05: Reserved for future use
-// }
-
-// #[repr(C, packed)]
-// struct ReceiptV0 {
-//     // Size is 106 bytes.
-//     magic: [u8; 4],              // 0x00: 0x52 0x43 0x50 0x54 ("RCPT")
-//     version: u8,                 // 0x04: 0 = ReceiptV0
-//     reserved: u8,                // 0x05: Reserved for future use
-//     size: u16,                   // 0x06: Total size of the receipt including the extra data and the signature. Maximum size is 1152 bytes.
-//     nonce: [u8; 24],             // 0x08: Randomly chosen bytes that represent a unique receipt. Could be used to encrypt the extra data, but it's not required.
-//     sender_id: [u8; 32],         // 0x20: Node ID of the message source, which is the Ed25519 public key of the sender
-//     extra_data: [u8; ??],        // 0x40: Extra data is appended (arbitrary extra data, not encrypted by receipt itself, maximum size is 1024 bytes)
-//     signature: [u8; 64],         // 0x?? (end-0x40): Ed25519 signature of the entire receipt including header and extra data is appended to the packet
-// }
+/// Out-of-band receipts are versioned along with crypto versions
+///
+/// These are the formats for the on-the-wire serialization performed by this module
+///
+/// #[repr(C, packed)]
+/// struct ReceiptHeader {
+///     // Size is at least 8 bytes. Depending on the version specified, the size may vary and should be case to the appropriate struct
+///     magic: [u8; 4],              // 0x00: 0x52 0x43 0x50 0x54 ("RCPT")
+///     version: u8,                 // 0x04: 0 = ReceiptV0
+///     reserved: u8,                // 0x05: Reserved for future use
+/// }
+///
+/// #[repr(C, packed)]
+/// struct ReceiptV0 {
+///     // Size is 106 bytes.
+///     magic: [u8; 4],              // 0x00: 0x52 0x43 0x50 0x54 ("RCPT")
+///     version: u8,                 // 0x04: 0 = ReceiptV0
+///     reserved: u8,                // 0x05: Reserved for future use
+///     size: u16,                   // 0x06: Total size of the receipt including the extra data and the signature. Maximum size is 1152 bytes.
+///     nonce: [u8; 24],             // 0x08: Randomly chosen bytes that represent a unique receipt. Could be used to encrypt the extra data, but it's not required.
+///     sender_id: [u8; 32],         // 0x20: Node ID of the message source, which is the Ed25519 public key of the sender
+///     extra_data: [u8; ??],        // 0x40: Extra data is appended (arbitrary extra data, not encrypted by receipt itself, maximum size is 1024 bytes)
+///     signature: [u8; 64],         // 0x?? (end-0x40): Ed25519 signature of the entire receipt including header and extra data is appended to the packet
+/// }
 
 pub const MAX_RECEIPT_SIZE: usize = 1152;
 pub const MAX_EXTRA_DATA_SIZE: usize = 1024;

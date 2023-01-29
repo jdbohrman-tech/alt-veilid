@@ -5,34 +5,38 @@ use crate::routing_table::VersionRange;
 use crate::*;
 use core::convert::TryInto;
 
-// #[repr(C, packed)]
-// struct EnvelopeHeader {
-//     // Size is at least 8 bytes. Depending on the version specified, the size may vary and should be case to the appropriate struct
-//     magic: [u8; 4],              // 0x00: 0x56 0x4C 0x49 0x44 ("VLID")
-//     version: u8,                 // 0x04: 0 = EnvelopeV0
-//     min_version: u8,             // 0x05: 0 = EnvelopeV0
-//     max_version: u8,             // 0x06: 0 = EnvelopeV0
-//     reserved: u8,                // 0x07: Reserved for future use
-// }
-
-// #[repr(C, packed)]
-// struct EnvelopeV0 {
-//     // Size is 106 bytes.
-//     magic: [u8; 4],              // 0x00: 0x56 0x4C 0x49 0x44 ("VLID")
-//     version: u8,                 // 0x04: 0 = EnvelopeV0
-//     min_version: u8,             // 0x05: 0 = EnvelopeV0
-//     max_version: u8,             // 0x06: 0 = EnvelopeV0
-//     reserved: u8,                // 0x07: Reserved for future use
-//     size: u16,                   // 0x08: Total size of the envelope including the encrypted operations message. Maximum size is 65,507 bytes, which is the data size limit for a single UDP message on IPv4.
-//     timestamp: u64,              // 0x0A: Duration since UNIX_EPOCH in microseconds when this message is sent. Messages older than 10 seconds are dropped.
-//     nonce: [u8; 24],             // 0x12: Random nonce for replay protection and for x25519
-//     sender_id: [u8; 32],         // 0x2A: Node ID of the message source, which is the Ed25519 public key of the sender (must be verified with find_node if this is a new node_id/address combination)
-//     recipient_id: [u8; 32],      // 0x4A: Node ID of the intended recipient, which is the Ed25519 public key of the recipient (must be the receiving node, or a relay lease holder)
-//                                  // 0x6A: message is appended (operations)
-//                                  // encrypted by XChaCha20Poly1305(nonce,x25519(recipient_id, sender_secret_key))
-//     signature: [u8; 64],         // 0x?? (end-0x40): Ed25519 signature of the entire envelope including header is appended to the packet
-//                                  // entire header needs to be included in message digest, relays are not allowed to modify the envelope without invalidating the signature.
-// }
+/// Envelopes are versioned along with crypto versions
+///
+/// These are the formats for the on-the-wire serialization performed by this module
+///
+/// #[repr(C, packed)]
+/// struct EnvelopeHeader {
+///     // Size is at least 8 bytes. Depending on the version specified, the size may vary and should be case to the appropriate struct
+///     magic: [u8; 4],              // 0x00: 0x56 0x4C 0x49 0x44 ("VLID")
+///     version: u8,                 // 0x04: 0 = EnvelopeV0
+///     min_version: u8,             // 0x05: 0 = EnvelopeV0
+///     max_version: u8,             // 0x06: 0 = EnvelopeV0
+///     reserved: u8,                // 0x07: Reserved for future use
+/// }
+///
+/// #[repr(C, packed)]
+/// struct EnvelopeV0 {
+///     // Size is 106 bytes.
+///     magic: [u8; 4],              // 0x00: 0x56 0x4C 0x49 0x44 ("VLID")
+///     version: u8,                 // 0x04: 0 = EnvelopeV0
+///     min_version: u8,             // 0x05: 0 = EnvelopeV0
+///     max_version: u8,             // 0x06: 0 = EnvelopeV0
+///     reserved: u8,                // 0x07: Reserved for future use
+///     size: u16,                   // 0x08: Total size of the envelope including the encrypted operations message. Maximum size is 65,507 bytes, which is the data size limit for a single UDP message on IPv4.
+///     timestamp: u64,              // 0x0A: Duration since UNIX_EPOCH in microseconds when this message is sent. Messages older than 10 seconds are dropped.
+///     nonce: [u8; 24],             // 0x12: Random nonce for replay protection and for x25519
+///     sender_id: [u8; 32],         // 0x2A: Node ID of the message source, which is the Ed25519 public key of the sender (must be verified with find_node if this is a new node_id/address combination)
+///     recipient_id: [u8; 32],      // 0x4A: Node ID of the intended recipient, which is the Ed25519 public key of the recipient (must be the receiving node, or a relay lease holder)
+///                                  // 0x6A: message is appended (operations)
+///                                  // encrypted by XChaCha20Poly1305(nonce,x25519(recipient_id, sender_secret_key))
+///     signature: [u8; 64],         // 0x?? (end-0x40): Ed25519 signature of the entire envelope including header is appended to the packet
+///                                  // entire header needs to be included in message digest, relays are not allowed to modify the envelope without invalidating the signature.
+/// }
 
 pub const MAX_ENVELOPE_SIZE: usize = 65507;
 pub const MIN_ENVELOPE_SIZE: usize = 0x6A + 0x40; // Header + Signature
@@ -186,10 +190,12 @@ impl Envelope {
         node_id_secret: &DHTKeySecret,
     ) -> Result<Vec<u8>, VeilidAPIError> {
         // Get DH secret
-        let dh_secret = crypto.cached_dh(&self.sender_id, node_id_secret)?;
+        let vcrypto = crypto.get(self.version)?;
+        let dh_secret = vcrypto.cached_dh(&self.sender_id, node_id_secret)?;
 
         // Decrypt message without authentication
-        let body = Crypto::crypt_no_auth(&data[0x6A..data.len() - 64], &self.nonce, &dh_secret);
+        let body =
+            vcrypto.crypt_no_auth_aligned_8(&data[0x6A..data.len() - 64], &self.nonce, &dh_secret);
 
         Ok(body)
     }
@@ -227,10 +233,11 @@ impl Envelope {
         data[0x4A..0x6A].copy_from_slice(&self.recipient_id.bytes);
 
         // Generate dh secret
-        let dh_secret = crypto.cached_dh(&self.recipient_id, node_id_secret)?;
+        let vcrypto = crypto.get(self.version)?;
+        let dh_secret = vcrypto.cached_dh(&self.recipient_id, node_id_secret)?;
 
         // Encrypt and authenticate message
-        let encrypted_body = Crypto::crypt_no_auth(body, &self.nonce, &dh_secret);
+        let encrypted_body = vcrypto.crypt_no_auth_aligned_8(body, &self.nonce, &dh_secret);
 
         // Write body
         if !encrypted_body.is_empty() {

@@ -299,6 +299,14 @@ pub unsafe fn aligned_8_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
     )
 }
 
+pub unsafe fn unaligned_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
+    let mut unaligned: Vec<u8> = Vec::with_capacity(n_bytes);
+    let ptr = unaligned.as_mut_ptr();
+    mem::forget(unaligned);
+
+    Vec::from_raw_parts(ptr as *mut u8, n_bytes, n_bytes)
+}
+
 pub fn debug_backtrace() -> String {
     let bt = backtrace::Backtrace::new();
     format!("{:?}", bt)

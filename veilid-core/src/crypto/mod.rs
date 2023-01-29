@@ -3,35 +3,32 @@ mod key;
 mod receipt;
 mod value;
 
+pub mod crypto_system;
 pub mod tests;
+pub mod v0;
 
+pub use crypto_system::*;
 pub use envelope::*;
 pub use key::*;
 pub use receipt::*;
 pub use value::*;
 
-pub const MIN_CRYPTO_VERSION: u8 = 0u8;
-pub const MAX_CRYPTO_VERSION: u8 = 0u8;
+pub type CryptoVersion = u8;
+pub const MIN_CRYPTO_VERSION: CryptoVersion = 0u8;
+pub const MAX_CRYPTO_VERSION: CryptoVersion = 0u8;
 
 use crate::*;
-use chacha20::cipher::{KeyIvInit, StreamCipher};
-use chacha20::XChaCha20;
-use chacha20poly1305 as ch;
-use chacha20poly1305::aead::{AeadInPlace, NewAead};
 use core::convert::TryInto;
-use curve25519_dalek as cd;
-use ed25519_dalek as ed;
 use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
 use serde::{Deserialize, Serialize};
 
-use x25519_dalek as xd;
-
 pub type SharedSecret = [u8; 32];
 pub type Nonce = [u8; 24];
 
-const DH_CACHE_SIZE: usize = 1024;
-pub const AEAD_OVERHEAD: usize = 16;
+pub type CryptoSystemVersion = Arc<dyn CryptoSystem + Send + Sync>;
+
+const DH_CACHE_SIZE: usize = 4096;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 struct DHCacheKey {
@@ -79,6 +76,7 @@ struct CryptoInner {
     node_id_secret: DHTKeySecret,
     dh_cache: DHCache,
     flush_future: Option<SendPinBoxFuture<()>>,
+    crypto_v0: Option<Arc<dyn CryptoSystem + Send + Sync>>,
 }
 
 #[derive(Clone)]
@@ -95,14 +93,19 @@ impl Crypto {
             node_id_secret: Default::default(),
             dh_cache: DHCache::new(DH_CACHE_SIZE),
             flush_future: None,
+            crypto_v0: None,
         }
     }
 
     pub fn new(config: VeilidConfig, table_store: TableStore) -> Self {
-        Self {
+        let out = Self {
             config,
             inner: Arc::new(Mutex::new(Self::new_inner(table_store))),
-        }
+        };
+
+        out.inner.lock().crypto_v0 = Some(Arc::new(v0::CryptoV0System::new(out.clone())));
+
+        out
     }
 
     pub async fn init(&self) -> EyreResult<()> {
@@ -180,24 +183,24 @@ impl Crypto {
         };
     }
 
-    fn ed25519_to_x25519_pk(key: &ed::PublicKey) -> Result<xd::PublicKey, VeilidAPIError> {
-        let bytes = key.to_bytes();
-        let compressed = cd::edwards::CompressedEdwardsY(bytes);
-        let point = compressed
-            .decompress()
-            .ok_or_else(|| VeilidAPIError::internal("ed25519_to_x25519_pk failed"))?;
-        let mp = point.to_montgomery();
-        Ok(xd::PublicKey::from(mp.to_bytes()))
-    }
-    fn ed25519_to_x25519_sk(key: &ed::SecretKey) -> Result<xd::StaticSecret, VeilidAPIError> {
-        let exp = ed::ExpandedSecretKey::from(key);
-        let bytes: [u8; ed::EXPANDED_SECRET_KEY_LENGTH] = exp.to_bytes();
-        let lowbytes: [u8; 32] = bytes[0..32].try_into().map_err(VeilidAPIError::internal)?;
-        Ok(xd::StaticSecret::from(lowbytes))
+    // Factory
+    fn get(&self, version: CryptoVersion) -> Result<CryptoSystemVersion, VeilidAPIError> {
+        let inner = self.inner.lock();
+        match version {
+            0u8 => Ok(inner.crypto_v0.clone().unwrap()),
+            _ => Err(VeilidAPIError::InvalidArgument {
+                context: "Unsupported crypto version".to_owned(),
+                argument: "version".to_owned(),
+                value: format!("{}", version),
+            }),
+        }
     }
 
-    pub fn cached_dh(
+    // Internal utilities
+
+    fn cached_dh_internal<T: CryptoSystem>(
         &self,
+        vcrypto: &T,
         key: &DHTKey,
         secret: &DHTKeySecret,
     ) -> Result<SharedSecret, VeilidAPIError> {
@@ -208,111 +211,11 @@ impl Crypto {
             }) {
                 Entry::Occupied(e) => e.get().shared_secret,
                 Entry::Vacant(e) => {
-                    let shared_secret = Self::compute_dh(key, secret)?;
+                    let shared_secret = vcrypto.compute_dh(key, secret)?;
                     e.insert(DHCacheValue { shared_secret });
                     shared_secret
                 }
             },
         )
-    }
-
-    ///////////
-    // These are safe to use regardless of initialization status
-
-    pub fn compute_dh(key: &DHTKey, secret: &DHTKeySecret) -> Result<SharedSecret, VeilidAPIError> {
-        let pk_ed = ed::PublicKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
-        let pk_xd = Self::ed25519_to_x25519_pk(&pk_ed)?;
-        let sk_ed = ed::SecretKey::from_bytes(&secret.bytes).map_err(VeilidAPIError::internal)?;
-        let sk_xd = Self::ed25519_to_x25519_sk(&sk_ed)?;
-        Ok(sk_xd.diffie_hellman(&pk_xd).to_bytes())
-    }
-
-    pub fn get_random_nonce() -> Nonce {
-        let mut nonce = [0u8; 24];
-        random_bytes(&mut nonce).unwrap();
-        nonce
-    }
-
-    pub fn get_random_secret() -> SharedSecret {
-        let mut s = [0u8; 32];
-        random_bytes(&mut s).unwrap();
-        s
-    }
-
-    pub fn decrypt_in_place_aead(
-        body: &mut Vec<u8>,
-        nonce: &Nonce,
-        shared_secret: &SharedSecret,
-        associated_data: Option<&[u8]>,
-    ) -> Result<(), VeilidAPIError> {
-        let key = ch::Key::from(*shared_secret);
-        let xnonce = ch::XNonce::from(*nonce);
-        let aead = ch::XChaCha20Poly1305::new(&key);
-        aead.decrypt_in_place(&xnonce, associated_data.unwrap_or(b""), body)
-            .map_err(map_to_string)
-            .map_err(VeilidAPIError::generic)
-    }
-
-    pub fn decrypt_aead(
-        body: &[u8],
-        nonce: &Nonce,
-        shared_secret: &SharedSecret,
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
-        let mut out = body.to_vec();
-        Self::decrypt_in_place_aead(&mut out, nonce, shared_secret, associated_data)
-            .map_err(map_to_string)
-            .map_err(VeilidAPIError::generic)?;
-        Ok(out)
-    }
-
-    pub fn encrypt_in_place_aead(
-        body: &mut Vec<u8>,
-        nonce: &Nonce,
-        shared_secret: &SharedSecret,
-        associated_data: Option<&[u8]>,
-    ) -> Result<(), VeilidAPIError> {
-        let key = ch::Key::from(*shared_secret);
-        let xnonce = ch::XNonce::from(*nonce);
-        let aead = ch::XChaCha20Poly1305::new(&key);
-
-        aead.encrypt_in_place(&xnonce, associated_data.unwrap_or(b""), body)
-            .map_err(map_to_string)
-            .map_err(VeilidAPIError::generic)
-    }
-
-    pub fn encrypt_aead(
-        body: &[u8],
-        nonce: &Nonce,
-        shared_secret: &SharedSecret,
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
-        let mut out = body.to_vec();
-        Self::encrypt_in_place_aead(&mut out, nonce, shared_secret, associated_data)
-            .map_err(map_to_string)
-            .map_err(VeilidAPIError::generic)?;
-        Ok(out)
-    }
-
-    pub fn crypt_in_place_no_auth(body: &mut Vec<u8>, nonce: &Nonce, shared_secret: &SharedSecret) {
-        let mut cipher = XChaCha20::new(shared_secret.into(), nonce.into());
-        cipher.apply_keystream(body);
-    }
-
-    pub fn crypt_b2b_no_auth(
-        in_buf: &[u8],
-        nonce: &Nonce,
-        shared_secret: &SharedSecret,
-    ) -> Vec<u8> {
-        let mut cipher = XChaCha20::new(shared_secret.into(), nonce.into());
-        // Allocate uninitialized memory, aligned to 8 byte boundary because capnp is faster this way
-        // and the Vec returned here will be used to hold decrypted rpc messages
-        let mut out_buf = unsafe { aligned_8_u8_vec_uninit(in_buf.len()) };
-        cipher.apply_keystream_b2b(in_buf, &mut out_buf).unwrap();
-        out_buf
-    }
-
-    pub fn crypt_no_auth(body: &[u8], nonce: &Nonce, shared_secret: &SharedSecret) -> Vec<u8> {
-        Self::crypt_b2b_no_auth(body, nonce, shared_secret)
     }
 }
