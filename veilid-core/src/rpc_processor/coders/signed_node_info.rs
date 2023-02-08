@@ -20,20 +20,21 @@ pub fn encode_signed_node_info(
 
 pub fn decode_signed_node_info(
     reader: &veilid_capnp::signed_node_info::Reader,
-    node_id: &PublicKey,
+    crypto: Crypto,
+    node_ids: &[TypedKey],
 ) -> Result<SignedNodeInfo, RPCError> {
     match reader
         .which()
-        .map_err(RPCError::map_internal("invalid signal operation"))?
+        .map_err(RPCError::map_internal("invalid signed node info"))?
     {
         veilid_capnp::signed_node_info::Direct(d) => {
             let d_reader = d.map_err(RPCError::protocol)?;
-            let sdni = decode_signed_direct_node_info(&d_reader, node_id)?;
+            let sdni = decode_signed_direct_node_info(&d_reader, crypto, node_ids)?;
             Ok(SignedNodeInfo::Direct(sdni))
         }
         veilid_capnp::signed_node_info::Relayed(r) => {
             let r_reader = r.map_err(RPCError::protocol)?;
-            let srni = decode_signed_relayed_node_info(&r_reader, node_id)?;
+            let srni = decode_signed_relayed_node_info(&r_reader, crypto, node_ids)?;
             Ok(SignedNodeInfo::Relayed(srni))
         }
     }

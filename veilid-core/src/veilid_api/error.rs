@@ -112,7 +112,7 @@ pub enum VeilidAPIError {
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("No peer info: {node_id}")]
-    NoPeerInfo { node_id: NodeId },
+    NoPeerInfo { node_id: PublicKey },
     #[error("Internal: {message}")]
     Internal { message: String },
     #[error("Unimplemented: {message}")]
@@ -155,7 +155,7 @@ impl VeilidAPIError {
             message: msg.to_string(),
         }
     }
-    pub fn no_peer_info(node_id: NodeId) -> Self {
+    pub fn no_peer_info(node_id: PublicKey) -> Self {
         Self::NoPeerInfo { node_id }
     }
     pub fn internal<T: ToString>(msg: T) -> Self {

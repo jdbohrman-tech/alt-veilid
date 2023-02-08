@@ -14,7 +14,7 @@ use ed25519_dalek as ed;
 use x25519_dalek as xd;
 
 const AEAD_OVERHEAD: usize = 16;
-pub const CRYPTO_KIND_VLD0: CryptoKind = CryptoKind([b'V', b'L', b'D', b'0']);
+pub const CRYPTO_KIND_VLD0: CryptoKind = FourCC([b'V', b'L', b'D', b'0']);
 
 fn ed25519_to_x25519_pk(key: &ed::PublicKey) -> Result<xd::PublicKey, VeilidAPIError> {
     let bytes = key.to_bytes();

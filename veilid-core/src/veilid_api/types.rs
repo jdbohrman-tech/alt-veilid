@@ -15,7 +15,56 @@ pub type OperationId = AlignedU64;
 pub type ByteCount = AlignedU64;
 /// Tunnel identifier
 pub type TunnelId = AlignedU64;
+/// Value schema
+pub type ValueSchema = FourCC;
 
+/// FOURCC code
+#[derive(
+    Copy,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes, PartialOrd, Ord, PartialEq, Eq))]
+pub struct FourCC(pub [u8; 4]);
+
+impl From<[u8; 4]> for FourCC {
+    fn from(b: [u8; 4]) -> Self {
+        Self(b)
+    }
+}
+impl TryFrom<&[u8]> for FourCC {
+    type Error = VeilidAPIError;
+    fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(b.try_into().map_err(VeilidAPIError::generic)?))
+    }
+}
+
+impl fmt::Display for FourCC {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+impl FromStr for FourCC {
+    type Err = VeilidAPIError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(
+            s.as_bytes().try_into().map_err(VeilidAPIError::generic)?,
+        ))
+    }
+}
+
+/// Log level for VeilidCore
 #[derive(
     Debug,
     Clone,
@@ -91,6 +140,7 @@ impl fmt::Display for VeilidLogLevel {
     }
 }
 
+/// A VeilidCore log message with optional backtrace
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
@@ -101,6 +151,7 @@ pub struct VeilidLog {
     pub backtrace: Option<String>,
 }
 
+/// Direct statement blob passed to hosting application for processing
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
@@ -114,6 +165,7 @@ pub struct VeilidAppMessage {
     pub message: Vec<u8>,
 }
 
+/// Direct question blob passed to hosting application for processing to send an eventual AppReply
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
@@ -130,6 +182,7 @@ pub struct VeilidAppCall {
     pub id: OperationId,
 }
 
+/// Attachment abstraction for network 'signal strength'
 #[derive(
     Debug,
     PartialEq,
@@ -278,41 +331,21 @@ pub struct VeilidState {
     RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct ValueKey {
-    pub key: TypedKey,
-    pub subkey: u32,
-}
-impl ValueKey {
-    pub fn new(key: TypedKey, subkey: u32) -> Self {
-        Self { key, subkey }
-    }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
     pub data: Vec<u8>,
+    pub schema: ValueSchema,
     pub seq: u32,
 }
 impl ValueData {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self { data, seq: 0 }
+    pub fn new(data: Vec<u8>, schema: ValueSchema) -> Self {
+        Self {
+            data,
+            schema,
+            seq: 0,
+        }
     }
-    pub fn new_with_seq(data: Vec<u8>, seq: u32) -> Self {
-        Self { data, seq }
+    pub fn new_with_seq(data: Vec<u8>, schema: ValueSchema, seq: u32) -> Self {
+        Self { data, schema, seq }
     }
     pub fn change(&mut self, data: Vec<u8>) {
         self.data = data;
@@ -1820,39 +1853,38 @@ pub struct SignedDirectNodeInfo {
 impl SignedDirectNodeInfo {
     pub fn new(
         crypto: Crypto,
+        node_ids: &[TypedKey],
         node_info: NodeInfo,
         timestamp: Timestamp,
-        keyed_signatures: Vec<TypedKeySignature>,
+        typed_signatures: Vec<TypedSignature>,
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
-        let signatures = crypto.verify_signatures(
-            &node_info_bytes,
-            &keyed_signatures,
-            TypedSignature::from_keyed,
-        )?;
+
+        // Verify the signatures that we can
+        crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
         Ok(Self {
             node_info,
             timestamp,
-            signatures,
+            signatures: typed_signatures,
         })
     }
 
     pub fn make_signatures(
         crypto: Crypto,
+        typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
-        keypairs: Vec<TypedKeyPair>,
     ) -> Result<Self, VeilidAPIError> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
-        let signatures = crypto.generate_signatures(
+        let typed_signatures = crypto.generate_signatures(
             &node_info_bytes,
-            &keypairs,
+            &typed_key_pairs,
             TypedSignature::from_pair_sig,
         )?;
         Ok(Self {
             node_info,
             timestamp,
-            signatures,
+            signatures: typed_signatures,
         })
     }
 
@@ -1877,8 +1909,8 @@ impl SignedDirectNodeInfo {
     pub fn with_no_signature(node_info: NodeInfo) -> Self {
         Self {
             node_info,
-            signatures: Vec::new(),
             timestamp: get_aligned_timestamp(),
+            signatures: Vec::new(),
         }
     }
 
@@ -1901,25 +1933,22 @@ pub struct SignedRelayedNodeInfo {
 impl SignedRelayedNodeInfo {
     pub fn new(
         crypto: Crypto,
+        node_ids: &[TypedKey],
         node_info: NodeInfo,
         relay_ids: Vec<TypedKey>,
         relay_info: SignedDirectNodeInfo,
         timestamp: Timestamp,
-        keyed_signatures: Vec<TypedKeySignature>,
+        typed_signatures: Vec<TypedSignature>,
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
-        let signatures = crypto.verify_signatures(
-            &node_info_bytes,
-            &keyed_signatures,
-            TypedSignature::from_keyed,
-        )?;
+        crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
         Ok(Self {
             node_info,
             relay_ids,
             relay_info,
             timestamp,
-            signatures,
+            signatures: typed_signatures,
         })
     }
 
@@ -1928,22 +1957,22 @@ impl SignedRelayedNodeInfo {
         node_info: NodeInfo,
         relay_ids: Vec<TypedKey>,
         relay_info: SignedDirectNodeInfo,
-        keypairs: Vec<TypedKeyPair>,
+        typed_key_pairs: Vec<TypedKeyPair>,
     ) -> Result<Self, VeilidAPIError> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
-        let signatures = crypto.generate_signatures(
+        let typed_signatures = crypto.generate_signatures(
             &node_info_bytes,
-            &keypairs,
+            &typed_key_pairs,
             TypedSignature::from_pair_sig,
         )?;
         Ok(Self {
             node_info,
             relay_ids,
             relay_info,
-            signatures,
             timestamp,
+            signatures: typed_signatures,
         })
     }
 
@@ -1962,10 +1991,12 @@ impl SignedRelayedNodeInfo {
         sig_bytes.append(&mut builder_to_vec(ni_msg).map_err(VeilidAPIError::internal)?);
 
         // Add relay ids to signature
-        let mut rid_msg = ::capnp::message::Builder::new_default();
-        let mut rid_builder = rid_msg.init_root::<veilid_capnp::key256::Builder>();
-        encode_dht_key(&relay_id.key, &mut rid_builder).map_err(VeilidAPIError::internal)?;
-        sig_bytes.append(&mut builder_to_vec(rid_msg).map_err(VeilidAPIError::internal)?);
+        for relay_id in relay_ids {
+            let mut rid_msg = ::capnp::message::Builder::new_default();
+            let mut rid_builder = rid_msg.init_root::<veilid_capnp::typed_key::Builder>();
+            encode_typed_key(relay_id, &mut rid_builder);
+            sig_bytes.append(&mut builder_to_vec(rid_msg).map_err(VeilidAPIError::internal)?);
+        }
 
         // Add relay info to signature
         let mut ri_msg = ::capnp::message::Builder::new_default();
@@ -1979,6 +2010,10 @@ impl SignedRelayedNodeInfo {
 
         Ok(sig_bytes)
     }
+
+    pub fn has_any_signature(&self) -> bool {
+        !self.signatures.is_empty()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
@@ -1989,10 +2024,10 @@ pub enum SignedNodeInfo {
 }
 
 impl SignedNodeInfo {
-    pub fn has_valid_signature(&self) -> bool {
+    pub fn has_any_signature(&self) -> bool {
         match self {
             SignedNodeInfo::Direct(d) => d.has_any_signature(),
-            SignedNodeInfo::Relayed(_) => true,
+            SignedNodeInfo::Relayed(r) => r.has_any_signature(),
         }
     }
 
@@ -2325,8 +2360,9 @@ pub struct PeerStats {
     pub transfer: TransferStatsDownUp, // Stats for communications with the peer
 }
 
-pub type ValueChangeCallback =
-    Arc<dyn Fn(ValueKey, Vec<u8>) -> SendPinBoxFuture<()> + Send + Sync + 'static>;
+pub type ValueChangeCallback = Arc<
+    dyn Fn(TypedKey, Vec<(u32, u32)>, u32, Vec<u8>) -> SendPinBoxFuture<()> + Send + Sync + 'static,
+>;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 

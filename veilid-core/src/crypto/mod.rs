@@ -231,23 +231,22 @@ impl Crypto {
     /// Returns the set of signature cryptokinds that validate and are supported
     /// If any cryptokinds are supported and do not validate, the whole operation
     /// returns an error
-    pub fn verify_signatures<F, R>(
+    pub fn verify_signatures(
         &self,
+        node_ids: &[TypedKey],
         data: &[u8],
-        signatures: &[TypedKeySignature],
-        transform: F,
-    ) -> Result<Vec<R>, VeilidAPIError>
-    where
-        F: Fn(&TypedKeySignature) -> R,
-    {
-        let mut out = Vec::<R>::with_capacity(signatures.len());
-        for sig in signatures {
-            if let Some(vcrypto) = self.get(sig.kind) {
-                vcrypto.verify(&sig.key, data, &sig.signature)?;
-                out.push(transform(sig));
+        typed_signatures: &[TypedSignature],
+    ) -> Result<(), VeilidAPIError> {
+        for sig in typed_signatures {
+            for nid in node_ids {
+                if nid.kind == sig.kind {
+                    if let Some(vcrypto) = self.get(sig.kind) {
+                        vcrypto.verify(&nid.key, data, &sig.signature)?;
+                    }
+                }
             }
         }
-        Ok(out)
+        Ok(())
     }
 
     /// Signature set generation
@@ -256,14 +255,14 @@ impl Crypto {
     pub fn generate_signatures<F, R>(
         &self,
         data: &[u8],
-        keypairs: &[TypedKeyPair],
+        typed_key_pairs: &[TypedKeyPair],
         transform: F,
     ) -> Result<Vec<R>, VeilidAPIError>
     where
         F: Fn(&TypedKeyPair, Signature) -> R,
     {
-        let mut out = Vec::<R>::with_capacity(keypairs.len());
-        for kp in keypairs {
+        let mut out = Vec::<R>::with_capacity(typed_key_pairs.len());
+        for kp in typed_key_pairs {
             if let Some(vcrypto) = self.get(kp.kind) {
                 let sig = vcrypto.sign(&kp.key, &kp.secret, data)?;
                 out.push(transform(kp, sig))

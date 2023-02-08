@@ -10,7 +10,7 @@ impl RPCOperationFindNodeQ {
         reader: &veilid_capnp::operation_find_node_q::Reader,
     ) -> Result<RPCOperationFindNodeQ, RPCError> {
         let ni_reader = reader.get_node_id().map_err(RPCError::protocol)?;
-        let node_id = decode_dht_key(&ni_reader);
+        let node_id = decode_key256(&ni_reader);
         Ok(RPCOperationFindNodeQ { node_id })
     }
     pub fn encode(
@@ -18,7 +18,7 @@ impl RPCOperationFindNodeQ {
         builder: &mut veilid_capnp::operation_find_node_q::Builder,
     ) -> Result<(), RPCError> {
         let mut ni_builder = builder.reborrow().init_node_id();
-        encode_dht_key(&self.node_id, &mut ni_builder)?;
+        encode_key256(&self.node_id, &mut ni_builder)?;
         Ok(())
     }
 }

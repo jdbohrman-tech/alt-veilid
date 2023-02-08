@@ -136,7 +136,7 @@ pub trait NodeRefBase: Sized {
     fn signed_node_info_has_valid_signature(&self, routing_domain: RoutingDomain) -> bool {
         self.operate(|_rti, e| {
             e.signed_node_info(routing_domain)
-                .map(|sni| sni.has_valid_signature())
+                .map(|sni| sni.has_any_signature())
                 .unwrap_or(false)
         })
     }

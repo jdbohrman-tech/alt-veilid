@@ -1,60 +1,29 @@
 use super::*;
 
 use core::cmp::{Eq, Ord, PartialEq, PartialOrd};
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryInto;
 use core::fmt;
 use core::hash::Hash;
 
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 /// Cryptography version fourcc code
+pub type CryptoKind = FourCC;
+
 #[derive(
+    Clone,
     Copy,
     Debug,
-    Default,
-    Clone,
-    Hash,
+    Serialize,
+    Deserialize,
     PartialOrd,
     Ord,
     PartialEq,
     Eq,
-    Serialize,
-    Deserialize,
+    Hash,
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes, PartialOrd, Ord, PartialEq, Eq))]
-pub struct CryptoKind(pub [u8; 4]);
-
-impl From<[u8; 4]> for CryptoKind {
-    fn from(b: [u8; 4]) -> Self {
-        Self(b)
-    }
-}
-impl TryFrom<&[u8]> for CryptoKind {
-    type Error = VeilidAPIError;
-    fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self(b.try_into().map_err(VeilidAPIError::generic)?))
-    }
-}
-
-impl fmt::Display for CryptoKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
-    }
-}
-impl FromStr for CryptoKind {
-    type Err = VeilidAPIError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(
-            s.as_bytes().try_into().map_err(VeilidAPIError::generic)?,
-        ))
-    }
-}
-
-#[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TypedKey {
@@ -87,7 +56,19 @@ impl FromStr for TypedKey {
 }
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TypedKeyPair {
@@ -131,7 +112,19 @@ impl FromStr for TypedKeyPair {
 }
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TypedSignature {
@@ -175,7 +168,19 @@ impl FromStr for TypedSignature {
 }
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TypedKeySignature {

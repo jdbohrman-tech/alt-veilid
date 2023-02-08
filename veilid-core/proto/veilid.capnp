@@ -36,12 +36,12 @@ using ValueSeqNum = UInt32;                             # sequence numbers for v
 using ValueSchema = UInt32;                             # FOURCC code for schema (0 = freeform, SUB0 = subkey control v0)
 using Subkey = UInt32;                                  # subkey index for dht
 
-struct TypedKey {
+struct TypedKey @0xe2d567a9f1e61b29 {
     kind                    @0  :CryptoKind;
     key                     @1  :PublicKey;
 }
 
-struct TypedSignature {
+struct TypedSignature @0x963170c7298e3884 {
     kind                    @0  :CryptoKind;
     signature               @1  :Signature;
 }
@@ -160,25 +160,6 @@ struct SafetyRoute @0xf554734d07cb5d59 {
     }
 }
 
-# Values
-##############################
-
-struct SubkeyRange {
-    start                   @0  :Subkey;                # the start of a subkey range
-    end                     @1  :Subkey;                # the end of a subkey range
-}
-
-struct ValueKey @0xe64b0992c21a0736 {
-    publicKey               @0  :TypedKey;              # the location of the value
-    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
-}
-
-struct ValueData @0xb4b7416f169f2a3d {
-    seq                     @0  :ValueSeqNum;           # sequence number of value
-    schema                  @1  :ValueSchema;           # fourcc code of schema for value
-    data                    @2  :Data;                  # value or subvalue contents
-}
-
 # Operations
 ##############################
 
@@ -249,8 +230,8 @@ struct NodeInfo @0xe125d847e3f9f419 {
     networkClass            @0  :NetworkClass;          # network class of this node
     outboundProtocols       @1  :ProtocolTypeSet;       # protocols that can go outbound
     addressTypes            @2  :AddressTypeSet;        # address types supported
-    envelopeSupport         @3  :UInt8;                 # minimum protocol version for rpc
-    maxVersion              @4  :UInt8;                 # maximum protocol version for rpc
+    envelopeSupport         @3  :List(UInt8);           # supported envelope versions
+    cryptoSupport           @4  :List(CryptoKind);      # maximum protocol version for rpc
     dialInfoDetailList      @5  :List(DialInfoDetail);  # inbound dial info details for this node
 }
 
@@ -262,7 +243,7 @@ struct SignedDirectNodeInfo @0xe0e7ea3e893a3dd7 {
 
 struct SignedRelayedNodeInfo @0xb39e8428ccd87cbb {
     nodeInfo                @0  :NodeInfo;              # node info
-    relayId                 @1  :List(TypedKey);        # node ids for relay
+    relayIds                @1  :List(TypedKey);        # node ids for relay
     relayInfo               @2  :SignedDirectNodeInfo;  # signed node info for relay
     timestamp               @3  :UInt64;                # when signed node info was generated
     signatures              @4  :List(TypedSignature);  # signatures
@@ -331,6 +312,17 @@ struct OperationAppMessage @0x9baf542d81b411f5 {
     message                 @0  :Data;                  # opaque message to application
 }
 
+struct SubkeyRange {
+    start                   @0  :Subkey;                # the start of a subkey range
+    end                     @1  :Subkey;                # the end of a subkey range
+}
+
+struct ValueData @0xb4b7416f169f2a3d {
+    seq                     @0  :ValueSeqNum;           # sequence number of value
+    schema                  @1  :ValueSchema;           # fourcc code of schema for value
+    data                    @2  :Data;                  # value or subvalue contents
+}
+
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
     publicKey               @0  :TypedKey;              # the location of the value
     subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
@@ -358,19 +350,19 @@ struct OperationSetValueA @0x9378d0732dc95be2 {
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     publicKey               @0  :TypedKey;              # key for value to watch
-    subkeys                 @1  :List(SubkeyRange)      # subkey range to watch, if empty, watch everything
+    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch, if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = continuous, 1 = single shot, 2+ = counter)
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
     expiration              @0  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch failed)
-    peers                   @2  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
+    peers                   @1  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
 }
 
 struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     publicKey               @0  :TypedKey;              # key for value that changed
-    subkeys                 @1  :List(SubkeyRange)      # subkey range that changed (up to 512 ranges at a time)
+    subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
     value                   @3  :ValueData;             # first value that changed (the rest can be gotten with getvalue)
 }

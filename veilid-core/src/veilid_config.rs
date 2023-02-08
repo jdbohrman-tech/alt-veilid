@@ -672,7 +672,7 @@ impl VeilidConfig {
             get_config!(inner.network.client_whitelist_timeout_ms);
             get_config!(inner.network.reverse_connection_receipt_time_ms);
             get_config!(inner.network.hole_punch_receipt_time_ms);
-            for ck in &VALID_CRYPTO_KINDS {
+            for ck in VALID_CRYPTO_KINDS {
                 get_config_indexed!(inner.network.routing_table.node_ids, ck, node_id);
                 get_config_indexed!(inner.network.routing_table.node_ids, ck, node_id_secret);
             }
@@ -951,7 +951,9 @@ impl VeilidConfig {
         protected_store: intf::ProtectedStore,
     ) -> Result<(), VeilidAPIError> {
         for ck in VALID_CRYPTO_KINDS {
-            let vcrypto = crypto.get(ck)?;
+            let vcrypto = crypto
+                .get(ck)
+                .expect("Valid crypto kind is not actually valid.");
 
             let mut node_id = self
                 .inner
@@ -975,15 +977,15 @@ impl VeilidConfig {
             if node_id.is_none() {
                 debug!("pulling node_id_{} from storage", ck);
                 if let Some(s) = protected_store
-                    .load_user_secret_string(format!("node_id_v{}", version))
+                    .load_user_secret_string(format!("node_id_{}", ck))
                     .await
                     .map_err(VeilidAPIError::internal)?
                 {
-                    debug!("node id v{} found in storage", version);
+                    debug!("node_id_{} found in storage", ck);
                     node_id =
                         Some(PublicKey::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
                 } else {
-                    debug!("node id v{} not found in storage", version);
+                    debug!("node_id_{} not found in storage", ck);
                 }
             }
 
@@ -991,15 +993,15 @@ impl VeilidConfig {
             if node_id_secret.is_none() {
                 debug!("pulling node id secret from storage");
                 if let Some(s) = protected_store
-                    .load_user_secret_string(format!("node_id_secret_v{}", version))
+                    .load_user_secret_string(format!("node_id_secret_{}", ck))
                     .await
                     .map_err(VeilidAPIError::internal)?
                 {
-                    debug!("node id v{} secret found in storage", version);
+                    debug!("node_id_secret_{} found in storage", ck);
                     node_id_secret =
                         Some(SecretKey::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
                 } else {
-                    debug!("node id v{} secret not found in storage", version);
+                    debug!("node_id_secret_{} not found in storage", ck);
                 }
             }
 
@@ -1009,39 +1011,39 @@ impl VeilidConfig {
                     // Validate node id
                     if !vcrypto.validate_keypair(&node_id, &node_id_secret) {
                         apibail_generic!(format!(
-                            "version {} node id secret and node id key don't match",
-                            version
+                            "node_id_secret_{} and node_id_key_{} don't match",
+                            ck, ck
                         ));
                     }
                     (node_id, node_id_secret)
                 } else {
                     // If we still don't have a valid node id, generate one
-                    debug!("generating new node id v{}", version);
+                    debug!("generating new node_id_{}", ck);
                     vcrypto.generate_keypair()
                 };
-            info!("Node Id v{} is {}", version, node_id.encode());
+            info!("Node Id ({}) is {}", ck, node_id.encode());
 
             // Save the node id / secret in storage
             protected_store
-                .save_user_secret_string(format!("node_id_v{}", version), node_id.encode().as_str())
+                .save_user_secret_string(format!("node_id_{}", ck), node_id.encode().as_str())
                 .await
                 .map_err(VeilidAPIError::internal)?;
             protected_store
                 .save_user_secret_string(
-                    format!("node_id_secret_v{}", version),
+                    format!("node_id_secret_{}", ck),
                     node_id_secret.encode().as_str(),
                 )
                 .await
                 .map_err(VeilidAPIError::internal)?;
 
             self.with_mut(|c| {
-                let n = c.network.routing_table.node_ids.entry(version).or_default();
+                let n = c.network.routing_table.node_ids.entry(ck).or_default();
                 n.node_id = Some(node_id);
                 n.node_id_secret = Some(node_id_secret);
                 Ok(())
             })?;
         }
-        trace!("init_node_id complete");
+        trace!("init_node_ids complete");
 
         Ok(())
     }

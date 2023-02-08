@@ -90,7 +90,7 @@ impl Receipt {
         }
 
         // Check crypto kind
-        let crypto_kind = CryptoKind(
+        let crypto_kind = FourCC(
             data[0x04..0x08]
                 .try_into()
                 .map_err(VeilidAPIError::internal)?,

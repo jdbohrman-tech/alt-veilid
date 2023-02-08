@@ -1,7 +1,7 @@
 use super::*;
 use core::convert::TryInto;
 
-pub fn decode_dht_key(public_key: &veilid_capnp::key256::Reader) -> PublicKey {
+pub fn decode_key256(public_key: &veilid_capnp::key256::Reader) -> PublicKey {
     let u0 = public_key.get_u0().to_be_bytes();
     let u1 = public_key.get_u1().to_be_bytes();
     let u2 = public_key.get_u2().to_be_bytes();
@@ -16,29 +16,25 @@ pub fn decode_dht_key(public_key: &veilid_capnp::key256::Reader) -> PublicKey {
     PublicKey::new(x)
 }
 
-pub fn encode_dht_key(
-    key: &PublicKey,
-    builder: &mut veilid_capnp::key256::Builder,
-) -> Result<(), RPCError> {
+pub fn encode_key256(key: &PublicKey, builder: &mut veilid_capnp::key256::Builder) {
     builder.set_u0(u64::from_be_bytes(
         key.bytes[0..8]
             .try_into()
-            .map_err(RPCError::map_protocol("slice with incorrect length"))?,
+            .expect("slice with incorrect length"),
     ));
     builder.set_u1(u64::from_be_bytes(
         key.bytes[8..16]
             .try_into()
-            .map_err(RPCError::map_protocol("slice with incorrect length"))?,
+            .expect("slice with incorrect length"),
     ));
     builder.set_u2(u64::from_be_bytes(
         key.bytes[16..24]
             .try_into()
-            .map_err(RPCError::map_protocol("slice with incorrect length"))?,
+            .expect("slice with incorrect length"),
     ));
     builder.set_u3(u64::from_be_bytes(
         key.bytes[24..32]
             .try_into()
-            .map_err(RPCError::map_protocol("slice with incorrect length"))?,
+            .expect("slice with incorrect length"),
     ));
-    Ok(())
 }

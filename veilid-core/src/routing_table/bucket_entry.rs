@@ -219,7 +219,7 @@ impl BucketEntryInner {
         // See if we have an existing signed_node_info to update or not
         if let Some(current_sni) = opt_current_sni {
             // Always allow overwriting invalid/unsigned node
-            if current_sni.has_valid_signature() {
+            if current_sni.has_any_signature() {
                 // If the timestamp hasn't changed or is less, ignore this update
                 if signed_node_info.timestamp() <= current_sni.timestamp() {
                     // If we received a node update with the same timestamp

@@ -4,7 +4,7 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(NodeId),
+    NodeId(PublicKey),
     PrivateRoute(PublicKey),
 }
 
@@ -105,9 +105,9 @@ impl RoutingContext {
         match target {
             Target::NodeId(node_id) => {
                 // Resolve node
-                let mut nr = match rpc_processor.resolve_node(node_id.key).await {
+                let mut nr = match rpc_processor.resolve_node(node_id).await {
                     Ok(Some(nr)) => nr,
-                    Ok(None) => apibail_key_not_found!(node_id.key),
+                    Ok(None) => apibail_key_not_found!(node_id),
                     Err(e) => return Err(e.into()),
                 };
                 // Apply sequencing to match safety selection
@@ -225,11 +225,11 @@ impl RoutingContext {
     ///////////////////////////////////
     /// Block Store
 
-    pub async fn find_block(&self, _block_id: BlockId) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn find_block(&self, _block_id: TypedKey) -> Result<Vec<u8>, VeilidAPIError> {
         panic!("unimplemented");
     }
 
-    pub async fn supply_block(&self, _block_id: BlockId) -> Result<bool, VeilidAPIError> {
+    pub async fn supply_block(&self, _block_id: TypedKey) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 }

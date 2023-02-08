@@ -671,7 +671,7 @@ impl RoutingTableInner {
         }
         if !allow_invalid {
             // verify signature
-            if !signed_node_info.has_valid_signature() {
+            if !signed_node_info.has_any_signature() {
                 log_rtab!(debug "signed node info for {} has invalid signature", node_id);
                 return None;
             }
@@ -812,7 +812,7 @@ impl RoutingTableInner {
             None => has_valid_own_node_info,
             Some(entry) => entry.with(self, |_rti, e| {
                 e.signed_node_info(routing_domain.into())
-                    .map(|sni| sni.has_valid_signature())
+                    .map(|sni| sni.has_any_signature())
                     .unwrap_or(false)
             }),
         }

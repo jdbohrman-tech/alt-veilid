@@ -12,18 +12,30 @@ pub fn encode_signed_direct_node_info(
         .reborrow()
         .set_timestamp(signed_direct_node_info.timestamp.into());
 
-    let mut sig_builder = builder.reborrow().init_signature();
-    let Some(signature) = &signed_direct_node_info.signature else {
-        return Err(RPCError::internal("Should not encode SignedDirectNodeInfo without signature!"));
-    };
-    encode_signature(signature, &mut sig_builder);
+    let mut sigs_builder = builder.reborrow().init_signatures(
+        signed_direct_node_info
+            .signatures
+            .len()
+            .try_into()
+            .map_err(RPCError::map_invalid_format("out of bound error"))?,
+    );
+    for (i, typed_signature) in signed_direct_node_info.signatures.iter().enumerate() {
+        encode_typed_signature(
+            typed_signature,
+            &mut sigs_builder.get(
+                i.try_into()
+                    .map_err(RPCError::map_invalid_format("out of bound error"))?,
+            ),
+        );
+    }
 
     Ok(())
 }
 
 pub fn decode_signed_direct_node_info(
     reader: &veilid_capnp::signed_direct_node_info::Reader,
-    node_id: &PublicKey,
+    crypto: Crypto,
+    node_ids: &[TypedKey],
 ) -> Result<SignedDirectNodeInfo, RPCError> {
     let ni_reader = reader
         .reborrow()
@@ -31,15 +43,19 @@ pub fn decode_signed_direct_node_info(
         .map_err(RPCError::protocol)?;
     let node_info = decode_node_info(&ni_reader)?;
 
-    let sig_reader = reader
+    let sigs_reader = reader
         .reborrow()
-        .get_signature()
+        .get_signatures()
         .map_err(RPCError::protocol)?;
 
     let timestamp = reader.reborrow().get_timestamp().into();
 
-    let signature = decode_signature(&sig_reader);
+    let mut typed_signatures = Vec::with_capacity(sigs_reader.len() as usize);
+    for sig_reader in sigs_reader {
+        let typed_signature = decode_typed_signature(&sig_reader)?;
+        typed_signatures.push(typed_signature);
+    }
 
-    SignedDirectNodeInfo::new(NodeId::new(*node_id), node_info, timestamp, signature)
+    SignedDirectNodeInfo::new(crypto, node_ids, node_info, timestamp, typed_signatures)
         .map_err(RPCError::protocol)
 }
