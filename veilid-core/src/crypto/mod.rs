@@ -1,21 +1,20 @@
+mod byte_array_types;
 mod envelope;
-mod key;
 mod receipt;
+mod types;
 mod value;
 
 pub mod crypto_system;
 pub mod tests;
-pub mod v0;
+pub mod vld0;
 
+pub use byte_array_types::*;
 pub use crypto_system::*;
 pub use envelope::*;
-pub use key::*;
 pub use receipt::*;
+pub use types::*;
 pub use value::*;
-
-pub type CryptoVersion = u8;
-pub const MIN_CRYPTO_VERSION: CryptoVersion = 0u8;
-pub const MAX_CRYPTO_VERSION: CryptoVersion = 0u8;
+pub use vld0::*;
 
 use crate::*;
 use core::convert::TryInto;
@@ -23,17 +22,18 @@ use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
 use serde::{Deserialize, Serialize};
 
-pub type SharedSecret = [u8; 32];
-pub type Nonce = [u8; 24];
-
 pub type CryptoSystemVersion = Arc<dyn CryptoSystem + Send + Sync>;
+pub const VALID_CRYPTO_KINDS: [CryptoKind; 1] = [CRYPTO_KIND_VLD0];
+
+pub const MIN_ENVELOPE_VERSION: u8 = 0u8;
+pub const MAX_ENVELOPE_VERSION: u8 = 0u8;
 
 const DH_CACHE_SIZE: usize = 4096;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 struct DHCacheKey {
-    key: DHTKey,
-    secret: DHTKeySecret,
+    key: PublicKey,
+    secret: SecretKey,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -48,7 +48,7 @@ fn cache_to_bytes(cache: &DHCache) -> Vec<u8> {
     for e in cache.iter() {
         out.extend(&e.0.key.bytes);
         out.extend(&e.0.secret.bytes);
-        out.extend(&e.1.shared_secret);
+        out.extend(&e.1.shared_secret.bytes);
     }
     let mut rev: Vec<u8> = Vec::with_capacity(out.len());
     for d in out.chunks(32 + 32 + 32).rev() {
@@ -60,70 +60,101 @@ fn cache_to_bytes(cache: &DHCache) -> Vec<u8> {
 fn bytes_to_cache(bytes: &[u8], cache: &mut DHCache) {
     for d in bytes.chunks(32 + 32 + 32) {
         let k = DHCacheKey {
-            key: DHTKey::new(d[0..32].try_into().expect("asdf")),
-            secret: DHTKeySecret::new(d[32..64].try_into().expect("asdf")),
+            key: PublicKey::new(d[0..32].try_into().expect("asdf")),
+            secret: SecretKey::new(d[32..64].try_into().expect("asdf")),
         };
         let v = DHCacheValue {
-            shared_secret: d[64..96].try_into().expect("asdf"),
+            shared_secret: SharedSecret::new(d[64..96].try_into().expect("asdf")),
         };
         cache.insert(k, v);
     }
 }
 
 struct CryptoInner {
-    table_store: TableStore,
-    node_id: DHTKey,
-    node_id_secret: DHTKeySecret,
     dh_cache: DHCache,
     flush_future: Option<SendPinBoxFuture<()>>,
-    crypto_v0: Option<Arc<dyn CryptoSystem + Send + Sync>>,
+    crypto_vld0: Option<Arc<dyn CryptoSystem + Send + Sync>>,
 }
 
+struct CryptoUnlockedInner {
+    config: VeilidConfig,
+    table_store: TableStore,
+    protected_store: ProtectedStore,
+}
+
+/// Crypto factory implementation
 #[derive(Clone)]
 pub struct Crypto {
-    config: VeilidConfig,
+    unlocked_inner: Arc<CryptoUnlockedInner>,
     inner: Arc<Mutex<CryptoInner>>,
 }
 
 impl Crypto {
-    fn new_inner(table_store: TableStore) -> CryptoInner {
+    fn new_inner() -> CryptoInner {
         CryptoInner {
-            table_store,
-            node_id: Default::default(),
-            node_id_secret: Default::default(),
             dh_cache: DHCache::new(DH_CACHE_SIZE),
             flush_future: None,
-            crypto_v0: None,
+            crypto_vld0: None,
         }
     }
 
-    pub fn new(config: VeilidConfig, table_store: TableStore) -> Self {
+    pub fn new(
+        config: VeilidConfig,
+        table_store: TableStore,
+        protected_store: ProtectedStore,
+    ) -> Self {
         let out = Self {
-            config,
-            inner: Arc::new(Mutex::new(Self::new_inner(table_store))),
+            unlocked_inner: Arc::new(CryptoUnlockedInner {
+                config,
+                table_store,
+                protected_store,
+            }),
+            inner: Arc::new(Mutex::new(Self::new_inner())),
         };
 
-        out.inner.lock().crypto_v0 = Some(Arc::new(v0::CryptoV0System::new(out.clone())));
+        out.inner.lock().crypto_vld0 = Some(Arc::new(vld0::CryptoSystemVLD0::new(out.clone())));
 
         out
     }
 
     pub async fn init(&self) -> EyreResult<()> {
         trace!("Crypto::init");
+        let table_store = self.unlocked_inner.table_store.clone();
+
+        // Init node id from config
+        if let Err(e) = self
+            .unlocked_inner
+            .config
+            .init_node_ids(self.clone(), self.unlocked_inner.protected_store.clone())
+            .await
+        {
+            return Err(e).wrap_err("init node id failed");
+        }
 
         // make local copy of node id for easy access
-        let (table_store, node_id) = {
-            let mut inner = self.inner.lock();
-            let c = self.config.get();
-            inner.node_id = c.network.node_id.unwrap();
-            inner.node_id_secret = c.network.node_id_secret.unwrap();
-            (inner.table_store.clone(), c.network.node_id)
+        let mut cache_validity_key: Vec<u8> = Vec::new();
+        {
+            let c = self.unlocked_inner.config.get();
+            for ck in &VALID_CRYPTO_KINDS {
+                cache_validity_key.append(
+                    &mut c
+                        .network
+                        .routing_table
+                        .node_ids
+                        .get(ck)
+                        .unwrap()
+                        .node_id
+                        .unwrap()
+                        .bytes
+                        .to_vec(),
+                );
+            }
         };
 
         // load caches if they are valid for this node id
         let mut db = table_store.open("crypto_caches", 1).await?;
-        let caches_valid = match db.load(0, b"node_id")? {
-            Some(v) => v.as_slice() == node_id.unwrap().bytes,
+        let caches_valid = match db.load(0, b"cache_validity_key")? {
+            Some(v) => v == cache_validity_key,
             None => false,
         };
         if caches_valid {
@@ -135,7 +166,8 @@ impl Crypto {
             drop(db);
             table_store.delete("crypto_caches").await?;
             db = table_store.open("crypto_caches", 1).await?;
-            db.store(0, b"node_id", &node_id.unwrap().bytes).await?;
+            db.store(0, b"cache_validity_key", &cache_validity_key)
+                .await?;
         }
 
         // Schedule flushing
@@ -155,13 +187,16 @@ impl Crypto {
 
     pub async fn flush(&self) -> EyreResult<()> {
         //trace!("Crypto::flush");
-        let (table_store, cache_bytes) = {
+        let cache_bytes = {
             let inner = self.inner.lock();
-            let cache_bytes = cache_to_bytes(&inner.dh_cache);
-            (inner.table_store.clone(), cache_bytes)
+            cache_to_bytes(&inner.dh_cache)
         };
 
-        let db = table_store.open("crypto_caches", 1).await?;
+        let db = self
+            .unlocked_inner
+            .table_store
+            .open("crypto_caches", 1)
+            .await?;
         db.store(0, b"dh_cache", &cache_bytes).await?;
         Ok(())
     }
@@ -183,17 +218,58 @@ impl Crypto {
         };
     }
 
-    // Factory
-    fn get(&self, version: CryptoVersion) -> Result<CryptoSystemVersion, VeilidAPIError> {
+    /// Factory method to get a specific crypto version
+    pub fn get(&self, kind: CryptoKind) -> Option<CryptoSystemVersion> {
         let inner = self.inner.lock();
-        match version {
-            0u8 => Ok(inner.crypto_v0.clone().unwrap()),
-            _ => Err(VeilidAPIError::InvalidArgument {
-                context: "Unsupported crypto version".to_owned(),
-                argument: "version".to_owned(),
-                value: format!("{}", version),
-            }),
+        match kind {
+            CRYPTO_KIND_VLD0 => Some(inner.crypto_vld0.clone().unwrap()),
+            _ => None,
         }
+    }
+
+    /// Signature set verification
+    /// Returns the set of signature cryptokinds that validate and are supported
+    /// If any cryptokinds are supported and do not validate, the whole operation
+    /// returns an error
+    pub fn verify_signatures<F, R>(
+        &self,
+        data: &[u8],
+        signatures: &[TypedKeySignature],
+        transform: F,
+    ) -> Result<Vec<R>, VeilidAPIError>
+    where
+        F: Fn(&TypedKeySignature) -> R,
+    {
+        let mut out = Vec::<R>::with_capacity(signatures.len());
+        for sig in signatures {
+            if let Some(vcrypto) = self.get(sig.kind) {
+                vcrypto.verify(&sig.key, data, &sig.signature)?;
+                out.push(transform(sig));
+            }
+        }
+        Ok(out)
+    }
+
+    /// Signature set generation
+    /// Generates the set of signatures that are supported
+    /// Any cryptokinds that are not supported are silently dropped
+    pub fn generate_signatures<F, R>(
+        &self,
+        data: &[u8],
+        keypairs: &[TypedKeyPair],
+        transform: F,
+    ) -> Result<Vec<R>, VeilidAPIError>
+    where
+        F: Fn(&TypedKeyPair, Signature) -> R,
+    {
+        let mut out = Vec::<R>::with_capacity(keypairs.len());
+        for kp in keypairs {
+            if let Some(vcrypto) = self.get(kp.kind) {
+                let sig = vcrypto.sign(&kp.key, &kp.secret, data)?;
+                out.push(transform(kp, sig))
+            }
+        }
+        Ok(out)
     }
 
     // Internal utilities
@@ -201,8 +277,8 @@ impl Crypto {
     fn cached_dh_internal<T: CryptoSystem>(
         &self,
         vcrypto: &T,
-        key: &DHTKey,
-        secret: &DHTKeySecret,
+        key: &PublicKey,
+        secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError> {
         Ok(
             match self.inner.lock().dh_cache.entry(DHCacheKey {

@@ -26,7 +26,7 @@ pub fn encode_signed_relayed_node_info(
 
 pub fn decode_signed_relayed_node_info(
     reader: &veilid_capnp::signed_relayed_node_info::Reader,
-    node_id: &DHTKey,
+    node_id: &PublicKey,
 ) -> Result<SignedRelayedNodeInfo, RPCError> {
     let ni_reader = reader
         .reborrow()

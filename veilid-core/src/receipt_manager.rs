@@ -11,7 +11,7 @@ pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },
     ReturnedSafety,
-    ReturnedPrivate { private_route: DHTKey },
+    ReturnedPrivate { private_route: PublicKey },
     Expired,
     Cancelled,
 }
@@ -21,7 +21,7 @@ pub enum ReceiptReturned {
     OutOfBand,
     InBand { inbound_noderef: NodeRef },
     Safety,
-    Private { private_route: DHTKey },
+    Private { private_route: PublicKey },
 }
 
 pub trait ReceiptCallback: Send + 'static {
@@ -149,7 +149,7 @@ impl PartialOrd for ReceiptRecordTimestampSort {
 
 pub struct ReceiptManagerInner {
     network_manager: NetworkManager,
-    records_by_nonce: BTreeMap<ReceiptNonce, Arc<Mutex<ReceiptRecord>>>,
+    records_by_nonce: BTreeMap<Nonce, Arc<Mutex<ReceiptRecord>>>,
     next_oldest_ts: Option<Timestamp>,
     stop_source: Option<StopSource>,
     timeout_task: MustJoinSingleFuture<()>,
@@ -370,7 +370,7 @@ impl ReceiptManager {
         inner.next_oldest_ts = new_next_oldest_ts;
     }
 
-    pub async fn cancel_receipt(&self, nonce: &ReceiptNonce) -> EyreResult<()> {
+    pub async fn cancel_receipt(&self, nonce: &Nonce) -> EyreResult<()> {
         log_rpc!(debug "== Cancel Receipt {}", nonce.encode());
 
         // Remove the record

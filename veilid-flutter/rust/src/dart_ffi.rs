@@ -93,7 +93,7 @@ pub struct VeilidFFIConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidFFIKeyBlob {
-    pub key: veilid_core::DHTKey,
+    pub key: veilid_core::PublicKey,
     #[serde(with = "veilid_core::json_as_base64")]
     pub blob: Vec<u8>,
 }
@@ -417,7 +417,7 @@ pub extern "C" fn routing_context_with_sequencing(id: u32, sequencing: FfiStr) -
 
 #[no_mangle]
 pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, request: FfiStr) {
-    let target: veilid_core::DHTKey =
+    let target: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
     let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
@@ -453,7 +453,7 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
 
 #[no_mangle]
 pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr, message: FfiStr) {
-    let target: veilid_core::DHTKey =
+    let target: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
     let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
@@ -539,7 +539,7 @@ pub extern "C" fn import_remote_private_route(port: i64, blob: FfiStr) {
 
 #[no_mangle]
 pub extern "C" fn release_private_route(port: i64, key: FfiStr) {
-    let key: veilid_core::DHTKey =
+    let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;

@@ -1,7 +1,7 @@
 use super::*;
 use core::convert::TryInto;
 
-pub fn decode_dht_key(public_key: &veilid_capnp::key256::Reader) -> DHTKey {
+pub fn decode_dht_key(public_key: &veilid_capnp::key256::Reader) -> PublicKey {
     let u0 = public_key.get_u0().to_be_bytes();
     let u1 = public_key.get_u1().to_be_bytes();
     let u2 = public_key.get_u2().to_be_bytes();
@@ -13,11 +13,11 @@ pub fn decode_dht_key(public_key: &veilid_capnp::key256::Reader) -> DHTKey {
     x[16..24].copy_from_slice(&u2);
     x[24..32].copy_from_slice(&u3);
 
-    DHTKey::new(x)
+    PublicKey::new(x)
 }
 
 pub fn encode_dht_key(
-    key: &DHTKey,
+    key: &PublicKey,
     builder: &mut veilid_capnp::key256::Builder,
 ) -> Result<(), RPCError> {
     builder.set_u0(u64::from_be_bytes(

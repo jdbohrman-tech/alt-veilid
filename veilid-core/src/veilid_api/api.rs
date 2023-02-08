@@ -167,7 +167,7 @@ impl VeilidAPI {
     // Private route allocation
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn new_private_route(&self) -> Result<(DHTKey, Vec<u8>), VeilidAPIError> {
+    pub async fn new_private_route(&self) -> Result<(PublicKey, Vec<u8>), VeilidAPIError> {
         self.new_custom_private_route(Stability::default(), Sequencing::default())
             .await
     }
@@ -177,7 +177,7 @@ impl VeilidAPI {
         &self,
         stability: Stability,
         sequencing: Sequencing,
-    ) -> Result<(DHTKey, Vec<u8>), VeilidAPIError> {
+    ) -> Result<(PublicKey, Vec<u8>), VeilidAPIError> {
         let default_route_hop_count: usize = {
             let config = self.config()?;
             let c = config.get();
@@ -223,14 +223,14 @@ impl VeilidAPI {
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> Result<DHTKey, VeilidAPIError> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> Result<PublicKey, VeilidAPIError> {
         let rss = self.routing_table()?.route_spec_store();
         rss.import_remote_private_route(blob)
             .map_err(|e| VeilidAPIError::invalid_argument(e, "blob", "private route blob"))
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn release_private_route(&self, key: &DHTKey) -> Result<(), VeilidAPIError> {
+    pub fn release_private_route(&self, key: &PublicKey) -> Result<(), VeilidAPIError> {
         let rss = self.routing_table()?.route_spec_store();
         if rss.release_route(key) {
             Ok(())

@@ -137,7 +137,7 @@ pub struct VeilidWASMConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidKeyBlob {
-    pub key: veilid_core::DHTKey,
+    pub key: veilid_core::PublicKey,
     #[serde(with = "veilid_core::json_as_base64")]
     pub blob: Vec<u8>,
 }
@@ -459,7 +459,7 @@ pub fn import_remote_private_route(blob: String) -> Promise {
 
 #[wasm_bindgen()]
 pub fn release_private_route(key: String) -> Promise {
-    let key: veilid_core::DHTKey = veilid_core::deserialize_json(&key).unwrap();
+    let key: veilid_core::PublicKey = veilid_core::deserialize_json(&key).unwrap();
     wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         veilid_api.release_private_route(&key)?;

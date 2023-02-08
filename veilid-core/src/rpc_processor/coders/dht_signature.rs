@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn encode_signature(sig: &DHTSignature, builder: &mut veilid_capnp::signature512::Builder) {
+pub fn encode_signature(sig: &Signature, builder: &mut veilid_capnp::signature512::Builder) {
     let sig = &sig.bytes;
 
     builder.set_u0(u64::from_be_bytes(
@@ -29,7 +29,7 @@ pub fn encode_signature(sig: &DHTSignature, builder: &mut veilid_capnp::signatur
     ));
 }
 
-pub fn decode_signature(reader: &veilid_capnp::signature512::Reader) -> DHTSignature {
+pub fn decode_signature(reader: &veilid_capnp::signature512::Reader) -> Signature {
     let u0 = reader.get_u0().to_be_bytes();
     let u1 = reader.get_u1().to_be_bytes();
     let u2 = reader.get_u2().to_be_bytes();
@@ -39,7 +39,7 @@ pub fn decode_signature(reader: &veilid_capnp::signature512::Reader) -> DHTSigna
     let u6 = reader.get_u6().to_be_bytes();
     let u7 = reader.get_u7().to_be_bytes();
 
-    DHTSignature::new([
+    Signature::new([
         u0[0], u0[1], u0[2], u0[3], u0[4], u0[5], u0[6], u0[7], // u0
         u1[0], u1[1], u1[2], u1[3], u1[4], u1[5], u1[6], u1[7], // u1
         u2[0], u2[1], u2[2], u2[3], u2[4], u2[5], u2[6], u2[7], // u2

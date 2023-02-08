@@ -10,13 +10,13 @@ pub enum ContactMethod {
     /// Contact the node directly
     Direct(DialInfo),
     /// Request via signal the node connect back directly (relay, target)
-    SignalReverse(DHTKey, DHTKey),
+    SignalReverse(PublicKey, PublicKey),
     /// Request via signal the node negotiate a hole punch (relay, target_node)
-    SignalHolePunch(DHTKey, DHTKey),
+    SignalHolePunch(PublicKey, PublicKey),
     /// Must use an inbound relay to reach the node
-    InboundRelay(DHTKey),
+    InboundRelay(PublicKey),
     /// Must use outbound relay to reach the node
-    OutboundRelay(DHTKey),
+    OutboundRelay(PublicKey),
 }
 
 #[derive(Debug)]
@@ -131,7 +131,7 @@ impl RoutingDomainDetailCommon {
 
         let signed_node_info = match relay_info {
             Some((relay_id, relay_sdni)) => SignedNodeInfo::Relayed(
-                SignedRelayedNodeInfo::with_secret(
+                SignedRelayedNodeInfo::make_signatures(
                     NodeId::new(rti.unlocked_inner.node_id),
                     node_info,
                     relay_id,

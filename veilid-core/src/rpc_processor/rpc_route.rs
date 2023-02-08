@@ -77,7 +77,7 @@ impl RPCProcessor {
         &self,
         routed_operation: RoutedOperation,
         next_route_node: RouteNode,
-        safety_route_public_key: DHTKey,
+        safety_route_public_key: PublicKey,
         next_private_route: PrivateRoute,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Make sure hop count makes sense
@@ -142,7 +142,7 @@ impl RPCProcessor {
         &self,
         _detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
-        remote_sr_pubkey: DHTKey,
+        remote_sr_pubkey: PublicKey,
     ) -> Result<NetworkResult<()>, RPCError> {
 
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
@@ -177,8 +177,8 @@ impl RPCProcessor {
         &self,
         detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
-        remote_sr_pubkey: DHTKey,
-        pr_pubkey: DHTKey,
+        remote_sr_pubkey: PublicKey,
+        pr_pubkey: PublicKey,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get sender id
         let sender_id = detail.envelope.get_sender_id();
@@ -237,8 +237,8 @@ impl RPCProcessor {
         &self,
         detail: RPCMessageHeaderDetailDirect,
         routed_operation: RoutedOperation,
-        remote_sr_pubkey: DHTKey,
-        pr_pubkey: DHTKey,
+        remote_sr_pubkey: PublicKey,
+        pr_pubkey: PublicKey,
     ) -> Result<NetworkResult<()>, RPCError> {
 
         // If the private route public key is our node id, then this was sent via safety route to our node directly
@@ -260,7 +260,7 @@ impl RPCProcessor {
     pub(crate) async fn process_private_route_first_hop(
         &self,
         mut routed_operation: RoutedOperation,
-        sr_pubkey: DHTKey,
+        sr_pubkey: PublicKey,
         mut private_route: PrivateRoute,
     ) -> Result<NetworkResult<()>, RPCError> {
         let Some(pr_first_hop) = private_route.pop_first_hop() else {
@@ -312,7 +312,7 @@ impl RPCProcessor {
     }
 
     /// Decrypt route hop data and sign routed operation
-    pub(crate) fn decrypt_private_route_hop_data(&self, route_hop_data: &RouteHopData, pr_pubkey: &DHTKey, route_operation: &mut RoutedOperation) -> Result<NetworkResult<RouteHop>, RPCError>
+    pub(crate) fn decrypt_private_route_hop_data(&self, route_hop_data: &RouteHopData, pr_pubkey: &PublicKey, route_operation: &mut RoutedOperation) -> Result<NetworkResult<RouteHop>, RPCError>
     {
         // Decrypt the blob with DEC(nonce, DH(the PR's public key, this hop's secret)
         let node_id_secret = self.routing_table.node_id_secret();

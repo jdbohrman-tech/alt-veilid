@@ -91,7 +91,7 @@ pub async fn test_signed_node_info() {
 
     let (pkey2, skey2) = generate_secret();
 
-    let sni2 = SignedRelayedNodeInfo::with_secret(
+    let sni2 = SignedRelayedNodeInfo::make_signatures(
         NodeId::new(pkey2.clone()),
         node_info2.clone(),
         NodeId::new(pkey.clone()),

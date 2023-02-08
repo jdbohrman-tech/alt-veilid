@@ -17,8 +17,8 @@ const COMPILED_ROUTE_CACHE_SIZE: usize = 256;
 // Compiled route key for caching
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct CompiledRouteCacheKey {
-    sr_pubkey: DHTKey,
-    pr_pubkey: DHTKey,    
+    sr_pubkey: PublicKey,
+    pr_pubkey: PublicKey,    
 }
 
 /// Compiled route (safety route + private route)
@@ -27,7 +27,7 @@ pub struct CompiledRoute {
     /// The safety route attached to the private route
     pub safety_route: SafetyRoute,
     /// The secret used to encrypt the message payload
-    pub secret: DHTKeySecret,
+    pub secret: SecretKey,
     /// The node ref to the first hop in the compiled route
     pub first_hop: NodeRef,
 }
@@ -35,8 +35,8 @@ pub struct CompiledRoute {
 #[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct KeyPair {
-    key: DHTKey,
-    secret: DHTKeySecret,
+    key: PublicKey,
+    secret: SecretKey,
 }
 
 #[derive(Clone, Debug, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
@@ -172,9 +172,9 @@ impl RouteStats {
 pub struct RouteSpecDetail {
     /// Secret key
     #[with(Skip)]
-    secret_key: DHTKeySecret,
+    secret_key: SecretKey,
     /// Route hops
-    hops: Vec<DHTKey>,
+    hops: Vec<PublicKey>,
     /// Route noderefs
     #[with(Skip)]
     hop_node_refs: Vec<NodeRef>,
@@ -206,7 +206,7 @@ impl RouteSpecDetail {
     pub fn hop_count(&self) -> usize {
         self.hops.len()
     }
-    pub fn get_secret_key(&self) -> DHTKeySecret {
+    pub fn get_secret_key(&self) -> SecretKey {
         self.secret_key
     }
     pub fn get_stability(&self) -> Stability {
@@ -228,7 +228,7 @@ impl RouteSpecDetail {
 #[archive_attr(repr(C, align(8)), derive(CheckBytes))]
 pub struct RouteSpecStoreContent {
     /// All of the routes we have allocated so far
-    details: HashMap<DHTKey, RouteSpecDetail>,
+    details: HashMap<PublicKey, RouteSpecDetail>,
 }
 
 /// What remote private routes have seen
@@ -257,19 +257,19 @@ impl RemotePrivateRouteInfo {
 #[derive(Debug)]
 pub struct RouteSpecStoreCache {
     /// How many times nodes have been used
-    used_nodes: HashMap<DHTKey, usize>,
+    used_nodes: HashMap<PublicKey, usize>,
     /// How many times nodes have been used at the terminal point of a route
-    used_end_nodes: HashMap<DHTKey, usize>,
+    used_end_nodes: HashMap<PublicKey, usize>,
     /// Route spec hop cache, used to quickly disqualify routes
     hop_cache: HashSet<Vec<u8>>,
     /// Has a remote private route responded to a question and when
-    remote_private_route_cache: LruCache<DHTKey, RemotePrivateRouteInfo>,
+    remote_private_route_cache: LruCache<PublicKey, RemotePrivateRouteInfo>,
     /// Compiled route cache
     compiled_route_cache: LruCache<CompiledRouteCacheKey, SafetyRoute>,
     /// List of dead allocated routes
-    dead_routes: Vec<DHTKey>,
+    dead_routes: Vec<PublicKey>,
     /// List of dead remote routes
-    dead_remote_routes: Vec<DHTKey>,
+    dead_remote_routes: Vec<PublicKey>,
 }
 
 impl Default for RouteSpecStoreCache {
@@ -319,8 +319,8 @@ pub struct RouteSpecStore {
     unlocked_inner: Arc<RouteSpecStoreUnlockedInner>,
 }
 
-fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {
-    let mut cache: Vec<u8> = Vec::with_capacity(hops.len() * DHT_KEY_LENGTH);
+fn route_hops_to_hop_cache(hops: &[PublicKey]) -> Vec<u8> {
+    let mut cache: Vec<u8> = Vec::with_capacity(hops.len() * PUBLIC_KEY_LENGTH);
     for hop in hops {
         cache.extend_from_slice(&hop.bytes);
     }
@@ -329,7 +329,7 @@ fn route_hops_to_hop_cache(hops: &[DHTKey]) -> Vec<u8> {
 
 /// get the hop cache key for a particular route permutation
 fn route_permutation_to_hop_cache(nodes: &[PeerInfo], perm: &[usize]) -> Vec<u8> {
-    let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * DHT_KEY_LENGTH);
+    let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * PUBLIC_KEY_LENGTH);
     for n in perm {
         cache.extend_from_slice(&nodes[*n].node_id.key.bytes)
     }
@@ -584,13 +584,13 @@ impl RouteSpecStore {
 
     fn detail<'a>(
         inner: &'a RouteSpecStoreInner,
-        public_key: &DHTKey,
+        public_key: &PublicKey,
     ) -> Option<&'a RouteSpecDetail> {
         inner.content.details.get(public_key)
     }
     fn detail_mut<'a>(
         inner: &'a mut RouteSpecStoreInner,
-        public_key: &DHTKey,
+        public_key: &PublicKey,
     ) -> Option<&'a mut RouteSpecDetail> {
         inner.content.details.get_mut(public_key)
     }
@@ -616,8 +616,8 @@ impl RouteSpecStore {
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
-        avoid_node_ids: &[DHTKey],
-    ) -> EyreResult<Option<DHTKey>> {
+        avoid_node_ids: &[PublicKey],
+    ) -> EyreResult<Option<PublicKey>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &mut *routing_table.inner.write();
@@ -642,8 +642,8 @@ impl RouteSpecStore {
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
-        avoid_node_ids: &[DHTKey],
-    ) -> EyreResult<Option<DHTKey>> {
+        avoid_node_ids: &[PublicKey],
+    ) -> EyreResult<Option<PublicKey>> {
         use core::cmp::Ordering;
 
         if hop_count < 1 {
@@ -666,7 +666,7 @@ impl RouteSpecStore {
         // Get list of all nodes, and sort them for selection
         let cur_ts = get_aligned_timestamp();
         let filter = Box::new(
-            move |rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| -> bool {
+            move |rti: &RoutingTableInner, k: PublicKey, v: Option<Arc<BucketEntry>>| -> bool {
                 // Exclude our own node from routes
                 if v.is_none() {
                     return false;
@@ -735,8 +735,8 @@ impl RouteSpecStore {
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
         let compare = |rti: &RoutingTableInner,
-                       v1: &(DHTKey, Option<Arc<BucketEntry>>),
-                       v2: &(DHTKey, Option<Arc<BucketEntry>>)|
+                       v1: &(PublicKey, Option<Arc<BucketEntry>>),
+                       v2: &(PublicKey, Option<Arc<BucketEntry>>)|
          -> Ordering {
             // deprioritize nodes that we have already used as end points
             let e1_used_end = inner
@@ -808,7 +808,7 @@ impl RouteSpecStore {
             cmpout
         };
         let transform =
-            |rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| -> PeerInfo {
+            |rti: &RoutingTableInner, k: PublicKey, v: Option<Arc<BucketEntry>>| -> PeerInfo {
                 // Return the peerinfo for that key
                 v.unwrap().with(rti, |_rti, e| {
                     e.make_peer_info(k, RoutingDomain::PublicInternet.into())
@@ -842,7 +842,7 @@ impl RouteSpecStore {
             }
 
             // Ensure the route doesn't contain both a node and its relay
-            let mut seen_nodes: HashSet<DHTKey> = HashSet::new();
+            let mut seen_nodes: HashSet<PublicKey> = HashSet::new();
             for n in permutation {
                 let node = nodes.get(*n).unwrap();
                 if !seen_nodes.insert(node.node_id.key) {
@@ -956,7 +956,7 @@ impl RouteSpecStore {
         }
 
         // Got a unique route, lets build the detail, register it, and return it
-        let hops: Vec<DHTKey> = route_nodes.iter().map(|v| nodes[*v].node_id.key).collect();
+        let hops: Vec<PublicKey> = route_nodes.iter().map(|v| nodes[*v].node_id.key).collect();
         let hop_node_refs = hops
             .iter()
             .map(|k| {
@@ -994,10 +994,10 @@ impl RouteSpecStore {
     #[instrument(level = "trace", skip(self, data, callback), ret)]
     pub fn with_signature_validated_route<F,R>(
         &self,
-        public_key: &DHTKey,
-        signatures: &[DHTSignature],
+        public_key: &PublicKey,
+        signatures: &[Signature],
         data: &[u8],
-        last_hop_id: DHTKey,
+        last_hop_id: PublicKey,
         callback: F,
     ) -> Option<R> 
     where F: FnOnce(&RouteSpecDetail) -> R, 
@@ -1038,7 +1038,7 @@ impl RouteSpecStore {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    async fn test_allocated_route(&self, key: &DHTKey) -> EyreResult<bool> {
+    async fn test_allocated_route(&self, key: &PublicKey) -> EyreResult<bool> {
         // Make loopback route to test with
         let dest = {
             let private_route = self.assemble_private_route(key, None)?;
@@ -1081,7 +1081,7 @@ impl RouteSpecStore {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    async fn test_remote_route(&self, key: &DHTKey) -> EyreResult<bool> {
+    async fn test_remote_route(&self, key: &PublicKey) -> EyreResult<bool> {
         // Make private route test
         let dest = {
             // Get the route to test
@@ -1121,7 +1121,7 @@ impl RouteSpecStore {
 
     /// Test an allocated route for continuity
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn test_route(&self, key: &DHTKey) -> EyreResult<bool> {
+    pub async fn test_route(&self, key: &PublicKey) -> EyreResult<bool> {
         let is_remote = {
             let inner = &mut *self.inner.lock();
             let cur_ts = get_aligned_timestamp();
@@ -1136,7 +1136,7 @@ impl RouteSpecStore {
 
     /// Release an allocated route that is no longer in use
     #[instrument(level = "trace", skip(self), ret)]
-    fn release_allocated_route(&self, public_key: &DHTKey) -> bool {
+    fn release_allocated_route(&self, public_key: &PublicKey) -> bool {
         let mut inner = self.inner.lock();
         let Some(detail) = inner.content.details.remove(public_key) else {
             return false;
@@ -1185,7 +1185,7 @@ impl RouteSpecStore {
 
     /// Release an allocated or remote route that is no longer in use
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn release_route(&self, key: &DHTKey) -> bool {
+    pub fn release_route(&self, key: &PublicKey) -> bool {
 
         let is_remote = {
             let inner = &mut *self.inner.lock();
@@ -1214,8 +1214,8 @@ impl RouteSpecStore {
         stability: Stability,
         sequencing: Sequencing,
         directions: DirectionSet,
-        avoid_node_ids: &[DHTKey],
-    ) -> Option<DHTKey> {
+        avoid_node_ids: &[PublicKey],
+    ) -> Option<PublicKey> {
         let cur_ts = get_aligned_timestamp();
 
         let mut routes = Vec::new();
@@ -1266,7 +1266,7 @@ impl RouteSpecStore {
     /// List all allocated routes
     pub fn list_allocated_routes<F, R>(&self, mut filter: F) -> Vec<R>
     where
-        F: FnMut(&DHTKey, &RouteSpecDetail) -> Option<R>,
+        F: FnMut(&PublicKey, &RouteSpecDetail) -> Option<R>,
     {
         let inner = self.inner.lock();
         let mut out = Vec::with_capacity(inner.content.details.len());
@@ -1281,7 +1281,7 @@ impl RouteSpecStore {
     /// List all allocated routes
     pub fn list_remote_routes<F, R>(&self, mut filter: F) -> Vec<R>
     where
-        F: FnMut(&DHTKey, &RemotePrivateRouteInfo) -> Option<R>,
+        F: FnMut(&PublicKey, &RemotePrivateRouteInfo) -> Option<R>,
     {
         let inner = self.inner.lock();
         let mut out = Vec::with_capacity(inner.cache.remote_private_route_cache.len());
@@ -1294,7 +1294,7 @@ impl RouteSpecStore {
     }
 
     /// Get the debug description of a route
-    pub fn debug_route(&self, key: &DHTKey) -> Option<String> {
+    pub fn debug_route(&self, key: &PublicKey) -> Option<String> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         // If this is a remote route, print it
@@ -1310,7 +1310,7 @@ impl RouteSpecStore {
     //////////////////////////////////////////////////////////////////////
 
     // Route cache
-    fn add_to_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, pr_pubkey: DHTKey, safety_route: SafetyRoute)
+    fn add_to_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, pr_pubkey: PublicKey, safety_route: SafetyRoute)
     {
         let key = CompiledRouteCacheKey {
             sr_pubkey: safety_route.public_key,
@@ -1322,7 +1322,7 @@ impl RouteSpecStore {
         }
     }
 
-    fn lookup_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, sr_pubkey: DHTKey, pr_pubkey: DHTKey) -> Option<SafetyRoute> {
+    fn lookup_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, sr_pubkey: PublicKey, pr_pubkey: PublicKey) -> Option<SafetyRoute> {
 
         let key = CompiledRouteCacheKey {
             sr_pubkey,
@@ -1332,7 +1332,7 @@ impl RouteSpecStore {
         inner.cache.compiled_route_cache.get(&key).cloned()
     }
 
-    fn invalidate_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, dead_key: &DHTKey) {
+    fn invalidate_compiled_route_cache(&self, inner: &mut RouteSpecStoreInner, dead_key: &PublicKey) {
         let mut dead_entries = Vec::new();
         for (k, _v) in inner.cache.compiled_route_cache.iter() {
             if k.sr_pubkey == *dead_key || k.pr_pubkey == *dead_key {
@@ -1581,8 +1581,8 @@ impl RouteSpecStore {
         rti: &RoutingTableInner,
         safety_spec: &SafetySpec,
         direction: DirectionSet,
-        avoid_node_ids: &[DHTKey],
-    ) -> EyreResult<Option<DHTKey>> {
+        avoid_node_ids: &[PublicKey],
+    ) -> EyreResult<Option<PublicKey>> {
         // Ensure the total hop count isn't too long for our config
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
         if safety_spec.hop_count == 0 {
@@ -1641,8 +1641,8 @@ impl RouteSpecStore {
     pub fn get_private_route_for_safety_spec(
         &self,
         safety_spec: &SafetySpec,
-        avoid_node_ids: &[DHTKey],
-    ) -> EyreResult<Option<DHTKey>> {
+        avoid_node_ids: &[PublicKey],
+    ) -> EyreResult<Option<PublicKey>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &*routing_table.inner.read();
@@ -1660,7 +1660,7 @@ impl RouteSpecStore {
     #[instrument(level = "trace", skip(self), err)]
     pub fn assemble_private_route(
         &self,
-        key: &DHTKey,
+        key: &PublicKey,
         optimized: Option<bool>,
     ) -> EyreResult<PrivateRoute> {
         let inner = &*self.inner.lock();
@@ -1749,7 +1749,7 @@ impl RouteSpecStore {
 
     /// Import a remote private route for compilation
     #[instrument(level = "trace", skip(self, blob), ret, err)]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<DHTKey> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<PublicKey> {
         // decode the pr blob
         let private_route = RouteSpecStore::blob_to_private_route(blob)?;
 
@@ -1774,7 +1774,7 @@ impl RouteSpecStore {
 
     /// Release a remote private route that is no longer in use
     #[instrument(level = "trace", skip(self), ret)]
-    fn release_remote_private_route(&self, key: &DHTKey) -> bool {
+    fn release_remote_private_route(&self, key: &PublicKey) -> bool {
         let inner = &mut *self.inner.lock();
         if inner.cache.remote_private_route_cache.remove(key).is_some() {
             // Mark it as dead for the update
@@ -1786,7 +1786,7 @@ impl RouteSpecStore {
     }
 
     /// Retrieve an imported remote private route by its public key
-    pub fn get_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
+    pub fn get_remote_private_route(&self, key: &PublicKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
@@ -1795,7 +1795,7 @@ impl RouteSpecStore {
     }
 
     /// Retrieve an imported remote private route by its public key but don't 'touch' it
-    pub fn peek_remote_private_route(&self, key: &DHTKey) -> Option<PrivateRoute> {
+    pub fn peek_remote_private_route(&self, key: &PublicKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         Self::with_peek_remote_private_route(inner, cur_ts, key, |r| {
@@ -1856,7 +1856,7 @@ impl RouteSpecStore {
     fn with_get_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
         cur_ts: Timestamp,
-        key: &DHTKey,
+        key: &PublicKey,
         f: F,
     ) -> Option<R>
     where
@@ -1876,7 +1876,7 @@ impl RouteSpecStore {
     fn with_peek_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
         cur_ts: Timestamp,
-        key: &DHTKey,
+        key: &PublicKey,
         f: F,
     ) -> Option<R>
     where
@@ -1898,7 +1898,7 @@ impl RouteSpecStore {
 
     /// Check to see if this remote (not ours) private route has seen our current node info yet
     /// This happens when you communicate with a private route without a safety route
-    pub fn has_remote_private_route_seen_our_node_info(&self, key: &DHTKey) -> bool {
+    pub fn has_remote_private_route_seen_our_node_info(&self, key: &PublicKey) -> bool {
         let our_node_info_ts = {
             let rti = &*self.unlocked_inner.routing_table.inner.read();
             let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
@@ -1930,7 +1930,7 @@ impl RouteSpecStore {
     /// was that node that had the private route.
     pub fn mark_remote_private_route_seen_our_node_info(
         &self,
-        key: &DHTKey,
+        key: &PublicKey,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
         let our_node_info_ts = {
@@ -1960,7 +1960,7 @@ impl RouteSpecStore {
     }
 
     /// Get the route statistics for any route we know about, local or remote
-    pub fn with_route_stats<F, R>(&self, cur_ts: Timestamp, key: &DHTKey, f: F) -> Option<R>
+    pub fn with_route_stats<F, R>(&self, cur_ts: Timestamp, key: &PublicKey, f: F) -> Option<R>
     where
         F: FnOnce(&mut RouteStats) -> R,
     {
@@ -2007,7 +2007,7 @@ impl RouteSpecStore {
     /// Mark route as published
     /// When first deserialized, routes must be re-published in order to ensure they remain
     /// in the RouteSpecStore.
-    pub fn mark_route_published(&self, key: &DHTKey, published: bool) -> EyreResult<()> {
+    pub fn mark_route_published(&self, key: &PublicKey, published: bool) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
         Self::detail_mut(inner, key)
             .ok_or_else(|| eyre!("route does not exist"))?

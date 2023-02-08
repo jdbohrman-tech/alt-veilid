@@ -12,7 +12,7 @@ pub async fn run_all_tests() {
     info!("TEST: test_host_interface");
     test_host_interface::test_all().await;
     info!("TEST: test_dht_key");
-    test_dht_key::test_all().await;
+    test_types::test_all().await;
     info!("TEST: test_veilid_core");
     test_veilid_core::test_all().await;
     info!("TEST: test_veilid_config");
@@ -85,7 +85,7 @@ cfg_if! {
         fn run_test_dht_key() {
             setup();
             block_on(async {
-                test_dht_key::test_all().await;
+                test_types::test_all().await;
             });
         }
 

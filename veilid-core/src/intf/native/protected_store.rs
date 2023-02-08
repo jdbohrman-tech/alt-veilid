@@ -113,28 +113,35 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value), ret, err)]
-    pub async fn save_user_secret_string(&self, key: &str, value: &str) -> EyreResult<bool> {
+    pub async fn save_user_secret_string<K: AsRef<str> + fmt::Debug, V: AsRef<str> + fmt::Debug>(
+        &self,
+        key: K,
+        value: V,
+    ) -> EyreResult<bool> {
         let inner = self.inner.lock();
         inner
             .keyring_manager
             .as_ref()
             .ok_or_else(|| eyre!("Protected store not initialized"))?
-            .with_keyring(&self.service_name(), key, |kr| {
+            .with_keyring(&self.service_name(), key.as_ref(), |kr| {
                 let existed = kr.get_value().is_ok();
-                kr.set_value(value)?;
+                kr.set_value(value.as_ref())?;
                 Ok(existed)
             })
             .wrap_err("failed to save user secret")
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn load_user_secret_string(&self, key: &str) -> EyreResult<Option<String>> {
+    pub async fn load_user_secret_string<K: AsRef<str> + fmt::Debug>(
+        &self,
+        key: K,
+    ) -> EyreResult<Option<String>> {
         let inner = self.inner.lock();
         match inner
             .keyring_manager
             .as_ref()
             .ok_or_else(|| eyre!("Protected store not initialized"))?
-            .with_keyring(&self.service_name(), key, |kr| kr.get_value())
+            .with_keyring(&self.service_name(), key.as_ref(), |kr| kr.get_value())
         {
             Ok(v) => Ok(Some(v)),
             Err(KeyringError::NoPasswordFound) => Ok(None),
@@ -143,17 +150,19 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value))]
-    pub async fn save_user_secret_rkyv<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    pub async fn save_user_secret_rkyv<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
     where
+        K: AsRef<str> + fmt::Debug,
         T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
     {
         let v = to_rkyv(value)?;
-        self.save_user_secret(&key, &v).await
+        self.save_user_secret(key, &v).await
     }
 
     #[instrument(level = "trace", skip(self, value))]
-    pub async fn save_user_secret_json<T>(&self, key: &str, value: &T) -> EyreResult<bool>
+    pub async fn save_user_secret_json<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
     where
+        K: AsRef<str> + fmt::Debug,
         T: serde::Serialize,
     {
         let v = serde_json::to_vec(value)?;
@@ -161,8 +170,9 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn load_user_secret_rkyv<T>(&self, key: &str) -> EyreResult<Option<T>>
+    pub async fn load_user_secret_rkyv<K, T>(&self, key: K) -> EyreResult<Option<T>>
     where
+        K: AsRef<str> + fmt::Debug,
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
             for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
@@ -182,8 +192,9 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn load_user_secret_json<T>(&self, key: &str) -> EyreResult<Option<T>>
+    pub async fn load_user_secret_json<K, T>(&self, key: K) -> EyreResult<Option<T>>
     where
+        K: AsRef<str> + fmt::Debug,
         T: for<'de> serde::de::Deserialize<'de>,
     {
         let out = self.load_user_secret(key).await?;
@@ -199,7 +210,11 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value), ret, err)]
-    pub async fn save_user_secret(&self, key: &str, value: &[u8]) -> EyreResult<bool> {
+    pub async fn save_user_secret<K: AsRef<str> + fmt::Debug>(
+        &self,
+        key: K,
+        value: &[u8],
+    ) -> EyreResult<bool> {
         let mut s = BASE64URL_NOPAD.encode(value);
         s.push('!');
 
@@ -207,7 +222,10 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn load_user_secret(&self, key: &str) -> EyreResult<Option<Vec<u8>>> {
+    pub async fn load_user_secret<K: AsRef<str> + fmt::Debug>(
+        &self,
+        key: K,
+    ) -> EyreResult<Option<Vec<u8>>> {
         let mut s = match self.load_user_secret_string(key).await? {
             Some(s) => s,
             None => {
@@ -238,13 +256,13 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn remove_user_secret(&self, key: &str) -> EyreResult<bool> {
+    pub async fn remove_user_secret<K: AsRef<str> + fmt::Debug>(&self, key: K) -> EyreResult<bool> {
         let inner = self.inner.lock();
         match inner
             .keyring_manager
             .as_ref()
             .ok_or_else(|| eyre!("Protected store not initialized"))?
-            .with_keyring(&self.service_name(), key, |kr| kr.delete_value())
+            .with_keyring(&self.service_name(), key.as_ref(), |kr| kr.delete_value())
         {
             Ok(_) => Ok(true),
             Err(KeyringError::NoPasswordFound) => Ok(false),

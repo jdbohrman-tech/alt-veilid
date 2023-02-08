@@ -112,7 +112,7 @@ impl DiscoveryContext {
         &self,
         protocol_type: ProtocolType,
         address_type: AddressType,
-        ignore_node: Option<DHTKey>,
+        ignore_node: Option<PublicKey>,
     ) -> Option<(SocketAddress, NodeRef)> {
         let node_count = {
             let config = self.routing_table.network_manager().config();
@@ -130,7 +130,7 @@ impl DiscoveryContext {
             dial_info_filter.clone(),
         );
         let disallow_relays_filter = Box::new(
-            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            move |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
                 let v = v.unwrap();
                 v.with(rti, |_rti, e| {
                     if let Some(n) = e.signed_node_info(RoutingDomain::PublicInternet) {

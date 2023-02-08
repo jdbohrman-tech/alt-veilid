@@ -2,14 +2,14 @@ use super::*;
 
 pub trait CryptoSystem {
     // Accessors
-    fn version(&self) -> CryptoVersion;
+    fn kind(&self) -> CryptoKind;
     fn crypto(&self) -> Crypto;
 
     // Cached Operations
     fn cached_dh(
         &self,
-        key: &DHTKey,
-        secret: &DHTKeySecret,
+        key: &PublicKey,
+        secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError>;
 
     // Generation
@@ -17,40 +17,40 @@ pub trait CryptoSystem {
     fn random_shared_secret(&self) -> SharedSecret;
     fn compute_dh(
         &self,
-        key: &DHTKey,
-        secret: &DHTKeySecret,
+        key: &PublicKey,
+        secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError>;
-    fn generate_keypair(&self) -> (DHTKey, DHTKeySecret);
-    fn generate_hash(&self, data: &[u8]) -> DHTKey;
+    fn generate_keypair(&self) -> (PublicKey, SecretKey);
+    fn generate_hash(&self, data: &[u8]) -> PublicKey;
     fn generate_hash_reader(
         &self,
         reader: &mut dyn std::io::Read,
-    ) -> Result<DHTKey, VeilidAPIError>;
+    ) -> Result<PublicKey, VeilidAPIError>;
 
     // Validation
-    fn validate_keypair(&self, dht_key: &DHTKey, dht_key_secret: &DHTKeySecret) -> bool;
-    fn validate_hash(&self, data: &[u8], dht_key: &DHTKey) -> bool;
+    fn validate_keypair(&self, dht_key: &PublicKey, dht_key_secret: &SecretKey) -> bool;
+    fn validate_hash(&self, data: &[u8], dht_key: &PublicKey) -> bool;
     fn validate_hash_reader(
         &self,
         reader: &mut dyn std::io::Read,
-        dht_key: &DHTKey,
+        dht_key: &PublicKey,
     ) -> Result<bool, VeilidAPIError>;
 
     // Distance Metric
-    fn distance(&self, key1: &DHTKey, key2: &DHTKey) -> DHTKeyDistance;
+    fn distance(&self, key1: &PublicKey, key2: &PublicKey) -> PublicKeyDistance;
 
     // Authentication
     fn sign(
         &self,
-        dht_key: &DHTKey,
-        dht_key_secret: &DHTKeySecret,
+        dht_key: &PublicKey,
+        dht_key_secret: &SecretKey,
         data: &[u8],
-    ) -> Result<DHTSignature, VeilidAPIError>;
+    ) -> Result<Signature, VeilidAPIError>;
     fn verify(
         &self,
-        dht_key: &DHTKey,
+        dht_key: &PublicKey,
         data: &[u8],
-        signature: &DHTSignature,
+        signature: &Signature,
     ) -> Result<(), VeilidAPIError>;
 
     // AEAD Encrypt/Decrypt

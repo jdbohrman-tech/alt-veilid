@@ -5,7 +5,7 @@ use super::*;
 #[derive(Clone, Debug)]
 pub enum Target {
     NodeId(NodeId),
-    PrivateRoute(DHTKey),
+    PrivateRoute(PublicKey),
 }
 
 pub struct RoutingContextInner {}

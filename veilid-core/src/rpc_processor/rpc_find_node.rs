@@ -11,7 +11,7 @@ impl RPCProcessor {
     pub async fn rpc_call_find_node(
         self,
         dest: Destination,
-        key: DHTKey,
+        key: PublicKey,
     ) -> Result<NetworkResult<Answer<Vec<PeerInfo>>>, RPCError> {
         // Ensure destination never has a private route
         if matches!(
@@ -100,7 +100,7 @@ impl RPCProcessor {
         // find N nodes closest to the target node in our routing table
 
         let filter = Box::new(
-            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            move |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
                 rti.filter_has_valid_signed_node_info(RoutingDomain::PublicInternet, true, v)
             },
         ) as RoutingTableEntryFilter;

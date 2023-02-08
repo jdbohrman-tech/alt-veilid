@@ -1,4 +1,4 @@
-use crate::*;
+use super::*;
 
 use core::cmp::{Eq, Ord, PartialEq, PartialOrd};
 use core::convert::{TryFrom, TryInto};
@@ -11,24 +11,42 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 
 //////////////////////////////////////////////////////////////////////
 
-/// Length of a DHT key in bytes
+/// Length of a public key in bytes
 #[allow(dead_code)]
-pub const DHT_KEY_LENGTH: usize = 32;
-/// Length of a DHT key in bytes after encoding to base64url
+pub const PUBLIC_KEY_LENGTH: usize = 32;
+/// Length of a public key in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const DHT_KEY_LENGTH_ENCODED: usize = 43;
-/// Length of a DHT secret in bytes
+pub const PUBLIC_KEY_LENGTH_ENCODED: usize = 43;
+/// Length of a secret key in bytes
 #[allow(dead_code)]
-pub const DHT_KEY_SECRET_LENGTH: usize = 32;
-/// Length of a DHT secret in bytes after encoding to base64url
+pub const SECRET_KEY_LENGTH: usize = 32;
+/// Length of a secret key in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const DHT_KEY_SECRET_LENGTH_ENCODED: usize = 43;
-/// Length of a DHT signature in bytes
+pub const SECRET_KEY_LENGTH_ENCODED: usize = 43;
+/// Length of a signature in bytes
 #[allow(dead_code)]
-/// Length of a DHT signature in bytes after encoding to base64url
-pub const DHT_SIGNATURE_LENGTH: usize = 64;
+pub const SIGNATURE_LENGTH: usize = 64;
+/// Length of a signature in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const DHT_SIGNATURE_LENGTH_ENCODED: usize = 86;
+pub const SIGNATURE_LENGTH_ENCODED: usize = 86;
+/// Length of a nonce in bytes
+#[allow(dead_code)]
+pub const NONCE_LENGTH: usize = 24;
+/// Length of a nonce in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const NONCE_LENGTH_ENCODED: usize = 32;
+/// Length of a shared secret in bytes
+#[allow(dead_code)]
+pub const SHARED_SECRET_LENGTH: usize = 32;
+/// Length of a shared secret in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const SHARED_SECRET_LENGTH_ENCODED: usize = 43;
+
+//////////////////////////////////////////////////////////////////////
+
+pub trait Encodable {
+    fn encode(&self) -> String;
+}
 
 //////////////////////////////////////////////////////////////////////
 
@@ -141,14 +159,13 @@ macro_rules! byte_array_type {
                 None
             }
 
-            pub fn encode(&self) -> String {
-                BASE64URL_NOPAD.encode(&self.bytes)
-            }
-
             pub fn try_decode<S: AsRef<str>>(input: S) -> Result<Self, VeilidAPIError> {
+                let b = input.as_ref().as_bytes();
+                Self::try_decode_bytes(b)
+            }
+            pub fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError> {
                 let mut bytes = [0u8; $size];
-
-                let res = BASE64URL_NOPAD.decode_len(input.as_ref().len());
+                let res = BASE64URL_NOPAD.decode_len(b.len());
                 match res {
                     Ok(v) => {
                         if v != $size {
@@ -160,7 +177,7 @@ macro_rules! byte_array_type {
                     }
                 }
 
-                let res = BASE64URL_NOPAD.decode_mut(input.as_ref().as_bytes(), &mut bytes);
+                let res = BASE64URL_NOPAD.decode_mut(b, &mut bytes);
                 match res {
                     Ok(_) => Ok(Self::new(bytes)),
                     Err(_) => apibail_generic!("Failed to decode"),
@@ -168,6 +185,11 @@ macro_rules! byte_array_type {
             }
         }
 
+        impl Encodable for $name {
+            fn encode(&self) -> String {
+                BASE64URL_NOPAD.encode(&self.bytes)
+            }
+        }
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 //write!(f, "{}", String::from(self))
@@ -224,7 +246,9 @@ macro_rules! byte_array_type {
 
 /////////////////////////////////////////
 
-byte_array_type!(DHTKey, DHT_KEY_LENGTH);
-byte_array_type!(DHTKeySecret, DHT_KEY_SECRET_LENGTH);
-byte_array_type!(DHTSignature, DHT_SIGNATURE_LENGTH);
-byte_array_type!(DHTKeyDistance, DHT_KEY_LENGTH);
+byte_array_type!(PublicKey, PUBLIC_KEY_LENGTH);
+byte_array_type!(SecretKey, SECRET_KEY_LENGTH);
+byte_array_type!(Signature, SIGNATURE_LENGTH);
+byte_array_type!(PublicKeyDistance, PUBLIC_KEY_LENGTH);
+byte_array_type!(Nonce, NONCE_LENGTH);
+byte_array_type!(SharedSecret, SHARED_SECRET_LENGTH);

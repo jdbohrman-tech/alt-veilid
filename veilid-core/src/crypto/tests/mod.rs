@@ -1,6 +1,6 @@
 pub mod test_crypto;
-pub mod test_dht_key;
 pub mod test_envelope_receipt;
+pub mod test_types;
 
 use super::*;
 use crate::tests::common::test_veilid_config::*;

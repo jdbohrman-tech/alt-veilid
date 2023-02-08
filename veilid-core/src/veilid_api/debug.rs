@@ -7,7 +7,7 @@ use routing_table::*;
 
 #[derive(Default, Debug)]
 struct DebugCache {
-    imported_routes: Vec<DHTKey>,
+    imported_routes: Vec<PublicKey>,
 }
 
 static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
@@ -30,12 +30,12 @@ fn get_string(text: &str) -> Option<String> {
     Some(text.to_owned())
 }
 
-fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
+fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<PublicKey> {
     return move |text: &str| {
         if text.is_empty() {
             return None;
         }
-        match DHTKey::try_decode(text).ok() {
+        match PublicKey::try_decode(text).ok() {
             Some(key) => {
                 let routes = rss.list_allocated_routes(|k, _| Some(*k));
                 if routes.contains(&key) {
@@ -187,8 +187,8 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
 fn get_number(text: &str) -> Option<usize> {
     usize::from_str(text).ok()
 }
-fn get_dht_key(text: &str) -> Option<DHTKey> {
-    DHTKey::try_decode(text).ok()
+fn get_dht_key(text: &str) -> Option<PublicKey> {
+    PublicKey::try_decode(text).ok()
 }
 
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {

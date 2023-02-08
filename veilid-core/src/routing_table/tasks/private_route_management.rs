@@ -8,7 +8,7 @@ const BACKGROUND_SAFETY_ROUTE_COUNT: usize = 2;
 
 impl RoutingTable {
     /// Fastest routes sort
-    fn route_sort_latency_fn(a: &(DHTKey, u64), b: &(DHTKey, u64)) -> cmp::Ordering {
+    fn route_sort_latency_fn(a: &(PublicKey, u64), b: &(PublicKey, u64)) -> cmp::Ordering {
         let mut al = a.1;
         let mut bl = b.1;
         // Treat zero latency as uncalculated
@@ -35,14 +35,14 @@ impl RoutingTable {
     ///
     /// If a route doesn't 'need_testing', then we neither test nor drop it
     #[instrument(level = "trace", skip(self))]
-    fn get_allocated_routes_to_test(&self, cur_ts: Timestamp) -> Vec<DHTKey> {
+    fn get_allocated_routes_to_test(&self, cur_ts: Timestamp) -> Vec<PublicKey> {
         let default_route_hop_count =
             self.with_config(|c| c.network.rpc.default_route_hop_count as usize);
 
         let rss = self.route_spec_store();
-        let mut must_test_routes = Vec::<DHTKey>::new();
-        let mut unpublished_routes = Vec::<(DHTKey, u64)>::new();
-        let mut expired_routes = Vec::<DHTKey>::new();
+        let mut must_test_routes = Vec::<PublicKey>::new();
+        let mut unpublished_routes = Vec::<(PublicKey, u64)>::new();
+        let mut expired_routes = Vec::<PublicKey>::new();
         rss.list_allocated_routes(|k, v| {
             let stats = v.get_stats();
             // Ignore nodes that don't need testing
@@ -95,7 +95,7 @@ impl RoutingTable {
     async fn test_route_set(
         &self,
         stop_token: StopToken,
-        routes_needing_testing: Vec<DHTKey>,
+        routes_needing_testing: Vec<PublicKey>,
     ) -> EyreResult<()> {
         if routes_needing_testing.is_empty() {
             return Ok(());
@@ -107,7 +107,7 @@ impl RoutingTable {
         #[derive(Default, Debug)]
         struct TestRouteContext {
             failed: bool,
-            dead_routes: Vec<DHTKey>,
+            dead_routes: Vec<PublicKey>,
         }
 
         let mut unord = FuturesUnordered::new();

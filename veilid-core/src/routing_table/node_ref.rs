@@ -6,7 +6,7 @@ use alloc::fmt;
 
 pub struct NodeRefBaseCommon {
     routing_table: RoutingTable,
-    node_id: DHTKey,
+    node_id: PublicKey,
     entry: Arc<BucketEntry>,
     filter: Option<NodeRefFilter>,
     sequencing: Sequencing,
@@ -99,7 +99,7 @@ pub trait NodeRefBase: Sized {
     fn routing_table(&self) -> RoutingTable {
         self.common().routing_table.clone()
     }
-    fn node_id(&self) -> DHTKey {
+    fn node_id(&self) -> PublicKey {
         self.common().node_id
     }
     fn has_updated_since_last_network_change(&self) -> bool {
@@ -346,7 +346,7 @@ pub struct NodeRef {
 impl NodeRef {
     pub fn new(
         routing_table: RoutingTable,
-        node_id: DHTKey,
+        node_id: PublicKey,
         entry: Arc<BucketEntry>,
         filter: Option<NodeRefFilter>,
     ) -> Self {

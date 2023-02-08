@@ -27,13 +27,24 @@ struct Nonce24 @0xb6260db25d8d7dfc {
     u2                      @2  :UInt64;
 }
 
-using NodeID = Key256;
-using RoutePublicKey = Key256;
-using ValueID = Key256;
-using Nonce = Nonce24;
-using Signature = Signature512;
-using BlockID = Key256;
-using TunnelID = UInt64;
+using PublicKey = Key256;                               # Node id / DHT key / Route id, etc
+using Nonce = Nonce24;                                  # One-time encryption nonce
+using Signature = Signature512;                         # Signature block
+using TunnelID = UInt64;                                # Id for tunnels
+using CryptoKind = UInt32;                              # FOURCC code for cryptography type
+using ValueSeqNum = UInt32;                             # sequence numbers for values
+using ValueSchema = UInt32;                             # FOURCC code for schema (0 = freeform, SUB0 = subkey control v0)
+using Subkey = UInt32;                                  # subkey index for dht
+
+struct TypedKey {
+    kind                    @0  :CryptoKind;
+    key                     @1  :PublicKey;
+}
+
+struct TypedSignature {
+    kind                    @0  :CryptoKind;
+    signature               @1  :Signature;
+}
 
 # Node Dial Info
 ################################################################
@@ -123,7 +134,7 @@ struct RouteHopData @0x8ce231f9d1b7adf2 {
 
 struct RouteHop @0xf8f672d75cce0c3b {
     node :union {                                       
-        nodeId              @0  :NodeID;                # node id only for established routes
+        nodeId              @0  :TypedKey;              # node id only for established routes
         peerInfo            @1  :PeerInfo;              # full peer info for this hop to establish the route
     }
     nextHop                 @2  :RouteHopData;          # optional: If this the end of a private route, this field will not exist
@@ -131,7 +142,7 @@ struct RouteHop @0xf8f672d75cce0c3b {
 }
 
 struct PrivateRoute @0x8a83fccb0851e776 {
-    publicKey               @0  :RoutePublicKey;        # private route public key (unique per private route)
+    publicKey               @0  :TypedKey;              # private route public key (unique per private route)
     hopCount                @1  :UInt8;                 # Count of hops left in the private route (for timeout calculation purposes only)
     hops :union {
         firstHop            @2  :RouteHop;              # first hop of a private route is unencrypted (hopcount > 0)
@@ -141,7 +152,7 @@ struct PrivateRoute @0x8a83fccb0851e776 {
 } 
 
 struct SafetyRoute @0xf554734d07cb5d59 {
-    publicKey               @0  :RoutePublicKey;        # safety route public key (unique per safety route)
+    publicKey               @0  :TypedKey;              # safety route public key (unique per safety route)
     hopCount                @1  :UInt8;                 # Count of hops left in the safety route (for timeout calculation purposes only)
     hops :union {
         data                @2  :RouteHopData;          # safety route has more hops
@@ -152,16 +163,20 @@ struct SafetyRoute @0xf554734d07cb5d59 {
 # Values
 ##############################
 
-using ValueSeqNum = UInt32;                             # sequence numbers for values
+struct SubkeyRange {
+    start                   @0  :Subkey;                # the start of a subkey range
+    end                     @1  :Subkey;                # the end of a subkey range
+}
 
 struct ValueKey @0xe64b0992c21a0736 {
-    publicKey               @0  :ValueID;               # the location of the value
-    subkey                  @1  :Text;                  # the name of the subkey (or empty for the default subkey)
+    publicKey               @0  :TypedKey;              # the location of the value
+    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
 }
 
 struct ValueData @0xb4b7416f169f2a3d {
     seq                     @0  :ValueSeqNum;           # sequence number of value
-    data                    @1  :Data;                  # value or subvalue contents
+    schema                  @1  :ValueSchema;           # fourcc code of schema for value
+    data                    @2  :Data;                  # value or subvalue contents
 }
 
 # Operations
@@ -234,7 +249,7 @@ struct NodeInfo @0xe125d847e3f9f419 {
     networkClass            @0  :NetworkClass;          # network class of this node
     outboundProtocols       @1  :ProtocolTypeSet;       # protocols that can go outbound
     addressTypes            @2  :AddressTypeSet;        # address types supported
-    minVersion              @3  :UInt8;                 # minimum protocol version for rpc
+    envelopeSupport         @3  :UInt8;                 # minimum protocol version for rpc
     maxVersion              @4  :UInt8;                 # maximum protocol version for rpc
     dialInfoDetailList      @5  :List(DialInfoDetail);  # inbound dial info details for this node
 }
@@ -242,15 +257,15 @@ struct NodeInfo @0xe125d847e3f9f419 {
 struct SignedDirectNodeInfo @0xe0e7ea3e893a3dd7 {
     nodeInfo                @0  :NodeInfo;              # node info
     timestamp               @1  :UInt64;                # when signed node info was generated
-    signature               @2  :Signature;             # signature
+    signatures              @2  :List(TypedSignature);  # signatures
 }
 
 struct SignedRelayedNodeInfo @0xb39e8428ccd87cbb {
     nodeInfo                @0  :NodeInfo;              # node info
-    relayId                 @1  :NodeID;                # node id for relay
+    relayId                 @1  :List(TypedKey);        # node ids for relay
     relayInfo               @2  :SignedDirectNodeInfo;  # signed node info for relay
     timestamp               @3  :UInt64;                # when signed node info was generated
-    signature               @4  :Signature;             # signature
+    signatures              @4  :List(TypedSignature);  # signatures
 }
 
 struct SignedNodeInfo @0xd2478ce5f593406a {
@@ -261,16 +276,15 @@ struct SignedNodeInfo @0xd2478ce5f593406a {
 }
 
 struct PeerInfo @0xfe2d722d5d3c4bcb {
-    nodeId                  @0  :NodeID;                # node id for 'closer peer'
+    nodeIds                 @0  :List(TypedKey);        # node ids for 'closer peer'
     signedNodeInfo          @1  :SignedNodeInfo;        # signed node info for 'closer peer'
 }
 
 struct RoutedOperation @0xcbcb8535b839e9dd {
-    version                 @0  :UInt8;                 # crypto version in use for the data
-    sequencing              @1  :Sequencing;            # sequencing preference to use to pass the message along
-    signatures              @2  :List(Signature);       # signatures from nodes that have handled the private route
-    nonce                   @3  :Nonce;                 # nonce Xmsg
-    data                    @4  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
+    sequencing              @0  :Sequencing;            # sequencing preference to use to pass the message along
+    signatures              @1  :List(TypedSignature);  # signatures from nodes that have handled the private route
+    nonce                   @2  :Nonce;                 # nonce Xmsg
+    data                    @3  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
 }
 
 struct OperationStatusQ @0x865d80cea70d884a {
@@ -293,7 +307,7 @@ struct OperationReturnReceipt @0xeb0fb5b5a9160eeb {
 }
 
 struct OperationFindNodeQ @0xfdef788fe9623bcd {    
-    nodeId                  @0  :NodeID;                # node id to locate
+    nodeId                  @0  :TypedKey;              # node id to locate
 }
 
 struct OperationFindNodeA @0xa84cf2fb40c77089 {
@@ -301,24 +315,25 @@ struct OperationFindNodeA @0xa84cf2fb40c77089 {
 }
 
 struct OperationRoute @0x96741859ce6ac7dd {
-    safetyRoute             @0  :SafetyRoute;           # Where this should go
-    operation               @1  :RoutedOperation;       # The operation to be routed
+    safetyRoute             @0  :SafetyRoute;           # where this should go
+    operation               @1  :RoutedOperation;       # the operation to be routed
 }
 
 struct OperationAppCallQ @0xade67b9f09784507 {
-    message                    @0  :Data;                  # Opaque request to application
+    message                 @0  :Data;                  # opaque request to application
 }
 
 struct OperationAppCallA @0xf7c797ac85f214b8 {
-    message                    @0  :Data;                  # Opaque response from application
+    message                 @0  :Data;                  # opaque response from application
 }
 
 struct OperationAppMessage @0x9baf542d81b411f5 {
-    message                    @0  :Data;                  # Opaque message to application
+    message                 @0  :Data;                  # opaque message to application
 }
 
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
-    key                     @0  :ValueKey;              # key for value to get
+    publicKey               @0  :TypedKey;              # the location of the value
+    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
 }
 
 struct OperationGetValueA @0xd896bb46f2e0249f {
@@ -329,8 +344,9 @@ struct OperationGetValueA @0xd896bb46f2e0249f {
 }
 
 struct OperationSetValueQ @0xbac06191ff8bdbc5 {
-    key                     @0  :ValueKey;              # key for value to update
-    value                   @1  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
+    publicKey               @0  :TypedKey;              # the location of the value
+    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
+    value                   @2  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
@@ -341,21 +357,26 @@ struct OperationSetValueA @0x9378d0732dc95be2 {
 }
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
-    key                     @0  :ValueKey;              # key for value to watch
+    publicKey               @0  :TypedKey;              # key for value to watch
+    subkeys                 @1  :List(SubkeyRange)      # subkey range to watch, if empty, watch everything
+    expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
+    count                   @3  :UInt32;                # requested number of changes to watch for (0 = continuous, 1 = single shot, 2+ = counter)
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
     expiration              @0  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch failed)
-    peers                   @1  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
+    peers                   @2  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
 }
 
 struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
-    key                     @0  :ValueKey;              # key for value that changed
-    value                   @1  :ValueData;             # value or subvalue contents with sequence number
+    publicKey               @0  :TypedKey;              # key for value that changed
+    subkeys                 @1  :List(SubkeyRange)      # subkey range that changed (up to 512 ranges at a time)
+    count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
+    value                   @3  :ValueData;             # first value that changed (the rest can be gotten with getvalue)
 }
 
 struct OperationSupplyBlockQ @0xadbf4c542d749971 {
-    blockId                 @0  :BlockID;               # hash of the block we can supply
+    blockId                 @0  :TypedKey;              # hash of the block we can supply
 }
 
 struct OperationSupplyBlockA @0xf003822e83b5c0d7 {
@@ -366,7 +387,7 @@ struct OperationSupplyBlockA @0xf003822e83b5c0d7 {
 }
 
 struct OperationFindBlockQ @0xaf4353ff004c7156 {
-    blockId                 @0  :BlockID;               # hash of the block to locate
+    blockId                 @0  :TypedKey;              # hash of the block to locate
 }
 
 struct OperationFindBlockA @0xc51455bc4915465d {

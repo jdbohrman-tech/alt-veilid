@@ -132,9 +132,9 @@ pub async fn test_frozen(ts: TableStore) {
 
     assert!(db.store_rkyv(0, b"asdf", &dht_key).await.is_ok());
 
-    assert_eq!(db.load_rkyv::<DHTKey>(0, b"qwer").unwrap(), None);
+    assert_eq!(db.load_rkyv::<PublicKey>(0, b"qwer").unwrap(), None);
 
-    let d = match db.load_rkyv::<DHTKey>(0, b"asdf") {
+    let d = match db.load_rkyv::<PublicKey>(0, b"asdf") {
         Ok(x) => x,
         Err(e) => {
             panic!("couldn't decode: {}", e);
@@ -148,7 +148,7 @@ pub async fn test_frozen(ts: TableStore) {
     );
 
     assert!(
-        db.load_rkyv::<DHTKey>(1, b"foo").is_err(),
+        db.load_rkyv::<PublicKey>(1, b"foo").is_err(),
         "should fail to unfreeze"
     );
 }

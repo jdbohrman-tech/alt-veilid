@@ -134,7 +134,7 @@ struct PublicAddressCheckCacheKey(ProtocolType, AddressType);
 // The mutable state of the network manager
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
-    client_whitelist: LruCache<DHTKey, ClientWhitelistEntry>,
+    client_whitelist: LruCache<PublicKey, ClientWhitelistEntry>,
     public_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
@@ -396,7 +396,7 @@ impl NetworkManager {
         debug!("finished network manager shutdown");
     }
 
-    pub fn update_client_whitelist(&self, client: DHTKey) {
+    pub fn update_client_whitelist(&self, client: PublicKey) {
         let mut inner = self.inner.lock();
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
@@ -411,7 +411,7 @@ impl NetworkManager {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn check_client_whitelist(&self, client: DHTKey) -> bool {
+    pub fn check_client_whitelist(&self, client: PublicKey) -> bool {
         let mut inner = self.inner.lock();
 
         match inner.client_whitelist.entry(client) {
@@ -624,7 +624,7 @@ impl NetworkManager {
     pub async fn handle_private_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
-        private_route: DHTKey,
+        private_route: PublicKey,
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
@@ -731,7 +731,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self, body), err)]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
-        dest_node_id: DHTKey,
+        dest_node_id: PublicKey,
         version: u8,
         body: B,
     ) -> EyreResult<Vec<u8>> {
@@ -759,7 +759,7 @@ impl NetworkManager {
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
-        envelope_node_id: Option<DHTKey>,
+        envelope_node_id: Option<PublicKey>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataKind>> {
         let via_node_id = node_ref.node_id();

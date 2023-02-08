@@ -57,14 +57,14 @@ pub enum PrivateRouteHops {
 #[derive(Clone, Debug)]
 pub struct PrivateRoute {
     /// The public key used for the entire route
-    pub public_key: DHTKey,
+    pub public_key: PublicKey,
     pub hop_count: u8,
     pub hops: PrivateRouteHops,
 }
 
 impl PrivateRoute {
     /// Empty private route is the form used when receiving the last hop
-    pub fn new_empty(public_key: DHTKey) -> Self {
+    pub fn new_empty(public_key: PublicKey) -> Self {
         Self {
             public_key,
             hop_count: 0,
@@ -72,7 +72,7 @@ impl PrivateRoute {
         }
     }
     /// Stub route is the form used when no privacy is required, but you need to specify the destination for a safety route
-    pub fn new_stub(public_key: DHTKey, node: RouteNode) -> Self {
+    pub fn new_stub(public_key: PublicKey, node: RouteNode) -> Self {
         Self {
             public_key,
             hop_count: 1,
@@ -117,7 +117,7 @@ impl PrivateRoute {
         }
     }
 
-    pub fn first_hop_node_id(&self) -> Option<DHTKey> {
+    pub fn first_hop_node_id(&self) -> Option<PublicKey> {
         let PrivateRouteHops::FirstHop(pr_first_hop) = &self.hops else {
             return None;
         };
@@ -162,13 +162,13 @@ pub enum SafetyRouteHops {
 
 #[derive(Clone, Debug)]
 pub struct SafetyRoute {
-    pub public_key: DHTKey,
+    pub public_key: PublicKey,
     pub hop_count: u8,
     pub hops: SafetyRouteHops,
 }
 
 impl SafetyRoute {
-    pub fn new_stub(public_key: DHTKey, private_route: PrivateRoute) -> Self {
+    pub fn new_stub(public_key: PublicKey, private_route: PrivateRoute) -> Self {
         // First hop should have already been popped off for stubbed safety routes since
         // we are sending directly to the first hop
         assert!(matches!(private_route.hops, PrivateRouteHops::Data(_)));

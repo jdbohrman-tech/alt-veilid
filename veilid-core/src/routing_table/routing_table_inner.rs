@@ -28,7 +28,7 @@ pub struct RoutingTableInner {
     /// Statistics about the total bandwidth to/from this node
     pub(super) self_transfer_stats: TransferStatsDownUp,
     /// Peers we have recently communicated with
-    pub(super) recent_peers: LruCache<DHTKey, RecentPeersEntry>,
+    pub(super) recent_peers: LruCache<PublicKey, RecentPeersEntry>,
     /// Storage for private/safety RouteSpecs
     pub(super) route_spec_store: Option<RouteSpecStore>,
 }
@@ -56,11 +56,11 @@ impl RoutingTableInner {
         self.network_manager().rpc_processor()
     }
 
-    pub fn node_id(&self) -> DHTKey {
+    pub fn node_id(&self) -> PublicKey {
         self.unlocked_inner.node_id
     }
 
-    pub fn node_id_secret(&self) -> DHTKeySecret {
+    pub fn node_id_secret(&self) -> SecretKey {
         self.unlocked_inner.node_id_secret
     }
 
@@ -326,8 +326,8 @@ impl RoutingTableInner {
     pub fn init_buckets(&mut self, routing_table: RoutingTable) {
         // Size the buckets (one per bit)
         self.buckets.clear();
-        self.buckets.reserve(DHT_KEY_LENGTH * 8);
-        for _ in 0..DHT_KEY_LENGTH * 8 {
+        self.buckets.reserve(PUBLIC_KEY_LENGTH * 8);
+        for _ in 0..PUBLIC_KEY_LENGTH * 8 {
             let bucket = Bucket::new(routing_table.clone());
             self.buckets.push(bucket);
         }
@@ -412,7 +412,7 @@ impl RoutingTableInner {
         }
     }
 
-    pub fn find_bucket_index(&self, node_id: DHTKey) -> usize {
+    pub fn find_bucket_index(&self, node_id: PublicKey) -> usize {
         distance(&node_id, &self.unlocked_inner.node_id)
             .first_nonzero_bit()
             .unwrap()
@@ -436,7 +436,10 @@ impl RoutingTableInner {
         count
     }
 
-    pub fn with_entries<T, F: FnMut(&RoutingTableInner, DHTKey, Arc<BucketEntry>) -> Option<T>>(
+    pub fn with_entries<
+        T,
+        F: FnMut(&RoutingTableInner, PublicKey, Arc<BucketEntry>) -> Option<T>,
+    >(
         &self,
         cur_ts: Timestamp,
         min_state: BucketEntryState,
@@ -461,7 +464,7 @@ impl RoutingTableInner {
 
     pub fn with_entries_mut<
         T,
-        F: FnMut(&mut RoutingTableInner, DHTKey, Arc<BucketEntry>) -> Option<T>,
+        F: FnMut(&mut RoutingTableInner, PublicKey, Arc<BucketEntry>) -> Option<T>,
     >(
         &mut self,
         cur_ts: Timestamp,
@@ -544,7 +547,7 @@ impl RoutingTableInner {
     pub fn create_node_ref<F>(
         &mut self,
         outer_self: RoutingTable,
-        node_id: DHTKey,
+        node_id: PublicKey,
         update_func: F,
     ) -> Option<NodeRef>
     where
@@ -597,7 +600,7 @@ impl RoutingTableInner {
     }
 
     /// Resolve an existing routing table entry and return a reference to it
-    pub fn lookup_node_ref(&self, outer_self: RoutingTable, node_id: DHTKey) -> Option<NodeRef> {
+    pub fn lookup_node_ref(&self, outer_self: RoutingTable, node_id: PublicKey) -> Option<NodeRef> {
         if node_id == self.unlocked_inner.node_id {
             log_rtab!(error "can't look up own node id in routing table");
             return None;
@@ -613,7 +616,7 @@ impl RoutingTableInner {
     pub fn lookup_and_filter_noderef(
         &self,
         outer_self: RoutingTable,
-        node_id: DHTKey,
+        node_id: PublicKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> Option<NodeRef> {
@@ -628,7 +631,7 @@ impl RoutingTableInner {
     }
 
     /// Resolve an existing routing table entry and call a function on its entry without using a noderef
-    pub fn with_node_entry<F, R>(&self, node_id: DHTKey, f: F) -> Option<R>
+    pub fn with_node_entry<F, R>(&self, node_id: PublicKey, f: F) -> Option<R>
     where
         F: FnOnce(Arc<BucketEntry>) -> R,
     {
@@ -651,7 +654,7 @@ impl RoutingTableInner {
         &mut self,
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
-        node_id: DHTKey,
+        node_id: PublicKey,
         signed_node_info: SignedNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
@@ -696,7 +699,7 @@ impl RoutingTableInner {
     pub fn register_node_with_existing_connection(
         &mut self,
         outer_self: RoutingTable,
-        node_id: DHTKey,
+        node_id: PublicKey,
         descriptor: ConnectionDescriptor,
         timestamp: Timestamp,
     ) -> Option<NodeRef> {
@@ -757,7 +760,7 @@ impl RoutingTableInner {
         }
     }
 
-    pub fn touch_recent_peer(&mut self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
+    pub fn touch_recent_peer(&mut self, node_id: PublicKey, last_connection: ConnectionDescriptor) {
         self.recent_peers
             .insert(node_id, RecentPeersEntry { last_connection });
     }
@@ -773,7 +776,7 @@ impl RoutingTableInner {
         mut filters: VecDeque<RoutingTableEntryFilter>,
     ) -> Vec<NodeRef> {
         let public_node_filter = Box::new(
-            |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(rti, |_rti, e| {
                     // skip nodes on local network
@@ -793,7 +796,7 @@ impl RoutingTableInner {
         self.find_fastest_nodes(
             node_count,
             filters,
-            |_rti: &RoutingTableInner, k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |_rti: &RoutingTableInner, k: PublicKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(outer_self.clone(), k, v.unwrap().clone(), None)
             },
         )
@@ -819,7 +822,7 @@ impl RoutingTableInner {
         &self,
         routing_domain: RoutingDomain,
         own_peer_info: &PeerInfo,
-        k: DHTKey,
+        k: PublicKey,
         v: Option<Arc<BucketEntry>>,
     ) -> PeerInfo {
         match v {
@@ -839,14 +842,15 @@ impl RoutingTableInner {
     where
         C: for<'a, 'b> FnMut(
             &'a RoutingTableInner,
-            &'b (DHTKey, Option<Arc<BucketEntry>>),
-            &'b (DHTKey, Option<Arc<BucketEntry>>),
+            &'b (PublicKey, Option<Arc<BucketEntry>>),
+            &'b (PublicKey, Option<Arc<BucketEntry>>),
         ) -> core::cmp::Ordering,
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, PublicKey, Option<Arc<BucketEntry>>) -> O,
     {
         // collect all the nodes for sorting
-        let mut nodes =
-            Vec::<(DHTKey, Option<Arc<BucketEntry>>)>::with_capacity(self.bucket_entry_count + 1);
+        let mut nodes = Vec::<(PublicKey, Option<Arc<BucketEntry>>)>::with_capacity(
+            self.bucket_entry_count + 1,
+        );
 
         // add our own node (only one of there with the None entry)
         let mut filtered = false;
@@ -893,13 +897,13 @@ impl RoutingTableInner {
         transform: T,
     ) -> Vec<O>
     where
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, PublicKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = get_aligned_timestamp();
 
         // Add filter to remove dead nodes always
         let filter_dead = Box::new(
-            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            move |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
                 if let Some(entry) = &v {
                     // always filter out dead nodes
                     if entry.with(rti, |_rti, e| e.state(cur_ts) == BucketEntryState::Dead) {
@@ -917,8 +921,8 @@ impl RoutingTableInner {
 
         // Fastest sort
         let sort = |rti: &RoutingTableInner,
-                    (a_key, a_entry): &(DHTKey, Option<Arc<BucketEntry>>),
-                    (b_key, b_entry): &(DHTKey, Option<Arc<BucketEntry>>)| {
+                    (a_key, a_entry): &(PublicKey, Option<Arc<BucketEntry>>),
+                    (b_key, b_entry): &(PublicKey, Option<Arc<BucketEntry>>)| {
             // same nodes are always the same
             if a_key == b_key {
                 return core::cmp::Ordering::Equal;
@@ -973,12 +977,12 @@ impl RoutingTableInner {
 
     pub fn find_closest_nodes<T, O>(
         &self,
-        node_id: DHTKey,
+        node_id: PublicKey,
         filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> Vec<O>
     where
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, PublicKey, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = get_aligned_timestamp();
         let node_count = {
@@ -989,8 +993,8 @@ impl RoutingTableInner {
 
         // closest sort
         let sort = |rti: &RoutingTableInner,
-                    (a_key, a_entry): &(DHTKey, Option<Arc<BucketEntry>>),
-                    (b_key, b_entry): &(DHTKey, Option<Arc<BucketEntry>>)| {
+                    (a_key, a_entry): &(PublicKey, Option<Arc<BucketEntry>>),
+                    (b_key, b_entry): &(PublicKey, Option<Arc<BucketEntry>>)| {
             // same nodes are always the same
             if a_key == b_key {
                 return core::cmp::Ordering::Equal;

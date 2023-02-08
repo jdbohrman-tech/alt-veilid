@@ -4,15 +4,16 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 
 pub struct Bucket {
     routing_table: RoutingTable,
-    entries: BTreeMap<DHTKey, Arc<BucketEntry>>,
-    newest_entry: Option<DHTKey>,
+    entries: BTreeMap<PublicKey, Arc<BucketEntry>>,
+    newest_entry: Option<PublicKey>,
 }
-pub(super) type EntriesIter<'a> = alloc::collections::btree_map::Iter<'a, DHTKey, Arc<BucketEntry>>;
+pub(super) type EntriesIter<'a> =
+    alloc::collections::btree_map::Iter<'a, PublicKey, Arc<BucketEntry>>;
 
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 struct BucketEntryData {
-    key: DHTKey,
+    key: PublicKey,
     value: Vec<u8>,
 }
 
@@ -20,7 +21,7 @@ struct BucketEntryData {
 #[archive_attr(repr(C), derive(CheckBytes))]
 struct BucketData {
     entries: Vec<BucketEntryData>,
-    newest_entry: Option<DHTKey>,
+    newest_entry: Option<PublicKey>,
 }
 
 fn state_ordering(state: BucketEntryState) -> usize {
@@ -70,7 +71,7 @@ impl Bucket {
         Ok(out)
     }
 
-    pub(super) fn add_entry(&mut self, node_id: DHTKey) -> NodeRef {
+    pub(super) fn add_entry(&mut self, node_id: PublicKey) -> NodeRef {
         log_rtab!("Node added: {}", node_id.encode());
 
         // Add new entry
@@ -84,7 +85,7 @@ impl Bucket {
         NodeRef::new(self.routing_table.clone(), node_id, entry, None)
     }
 
-    pub(super) fn remove_entry(&mut self, node_id: &DHTKey) {
+    pub(super) fn remove_entry(&mut self, node_id: &PublicKey) {
         log_rtab!("Node removed: {}", node_id);
 
         // Remove the entry
@@ -93,7 +94,7 @@ impl Bucket {
         // newest_entry is updated by kick_bucket()
     }
 
-    pub(super) fn entry(&self, key: &DHTKey) -> Option<Arc<BucketEntry>> {
+    pub(super) fn entry(&self, key: &PublicKey) -> Option<Arc<BucketEntry>> {
         self.entries.get(key).cloned()
     }
 
@@ -101,7 +102,7 @@ impl Bucket {
         self.entries.iter()
     }
 
-    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<DHTKey>> {
+    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<PublicKey>> {
         // Get number of entries to attempt to purge from bucket
         let bucket_len = self.entries.len();
 
@@ -111,11 +112,11 @@ impl Bucket {
         }
 
         // Try to purge the newest entries that overflow the bucket
-        let mut dead_node_ids: BTreeSet<DHTKey> = BTreeSet::new();
+        let mut dead_node_ids: BTreeSet<PublicKey> = BTreeSet::new();
         let mut extra_entries = bucket_len - bucket_depth;
 
         // Get the sorted list of entries by their kick order
-        let mut sorted_entries: Vec<(DHTKey, Arc<BucketEntry>)> = self
+        let mut sorted_entries: Vec<(PublicKey, Arc<BucketEntry>)> = self
             .entries
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))

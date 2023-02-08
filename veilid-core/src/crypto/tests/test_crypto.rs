@@ -167,7 +167,7 @@ pub async fn test_all() {
     let crypto = api.crypto().unwrap();
 
     // Test versions
-    for v in MIN_CRYPTO_VERSION..=MAX_CRYPTO_VERSION {
+    for v in VALID_CRYPTO_KINDS {
         let vcrypto = crypto.get(v).unwrap();
         test_aead(vcrypto.clone()).await;
         test_no_auth(vcrypto.clone()).await;

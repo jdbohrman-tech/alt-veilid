@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationSupplyBlockQ {
-    pub block_id: DHTKey,
+    pub block_id: PublicKey,
 }
 
 impl RPCOperationSupplyBlockQ {

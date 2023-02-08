@@ -53,7 +53,7 @@ struct RPCMessageHeaderDetailDirect {
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailSafetyRouted {
     /// Remote safety route used
-    remote_safety_route: DHTKey,
+    remote_safety_route: PublicKey,
     /// The sequencing used for this route
     sequencing: Sequencing,
 }
@@ -62,9 +62,9 @@ struct RPCMessageHeaderDetailSafetyRouted {
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailPrivateRouted {
     /// Remote safety route used (or possibly node id the case of no safety route)
-    remote_safety_route: DHTKey,
+    remote_safety_route: PublicKey,
     /// The private route we received the rpc over
-    private_route: DHTKey,
+    private_route: PublicKey,
     // The safety spec for replying to this private routed rpc
     safety_spec: SafetySpec,
 }
@@ -141,9 +141,9 @@ struct WaitableReply {
     node_ref: NodeRef,
     send_ts: Timestamp,
     send_data_kind: SendDataKind,
-    safety_route: Option<DHTKey>,
-    remote_private_route: Option<DHTKey>,
-    reply_private_route: Option<DHTKey>,
+    safety_route: Option<PublicKey>,
+    remote_private_route: Option<PublicKey>,
+    reply_private_route: Option<PublicKey>,
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -164,17 +164,17 @@ struct RenderedOperation {
     /// The rendered operation bytes
     message: Vec<u8>,
     /// Destination node id we're sending to
-    node_id: DHTKey,
+    node_id: PublicKey,
     /// Node to send envelope to (may not be destination node id in case of relay)
     node_ref: NodeRef,
     /// Total safety + private route hop count + 1 hop for the initial send
     hop_count: usize,
     /// The safety route used to send the message
-    safety_route: Option<DHTKey>,
+    safety_route: Option<PublicKey>,
     /// The private route used to send the message
-    remote_private_route: Option<DHTKey>,
+    remote_private_route: Option<PublicKey>,
     /// The private route requested to receive the reply
-    reply_private_route: Option<DHTKey>,
+    reply_private_route: Option<PublicKey>,
 }
 
 /// Node information exchanged during every RPC message
@@ -371,7 +371,7 @@ impl RPCProcessor {
     /// If no node was found in the timeout, this returns None
     pub async fn search_dht_single_key(
         &self,
-        _node_id: DHTKey,
+        _node_id: PublicKey,
         _count: u32,
         _fanout: u32,
         _timeout: Option<u64>,
@@ -386,7 +386,7 @@ impl RPCProcessor {
     /// Search the DHT for the 'count' closest nodes to a key, adding them all to the routing table if they are not there and returning their node references
     pub async fn search_dht_multi_key(
         &self,
-        _node_id: DHTKey,
+        _node_id: PublicKey,
         _count: u32,
         _fanout: u32,
         _timeout: Option<u64>,
@@ -399,7 +399,7 @@ impl RPCProcessor {
     /// Note: This routine can possible be recursive, hence the SendPinBoxFuture async form
     pub fn resolve_node(
         &self,
-        node_id: DHTKey,
+        node_id: PublicKey,
     ) -> SendPinBoxFuture<Result<Option<NodeRef>, RPCError>> {
         let this = self.clone();
         Box::pin(async move {
@@ -483,7 +483,7 @@ impl RPCProcessor {
         &self,
         safety_selection: SafetySelection,
         remote_private_route: PrivateRoute,
-        reply_private_route: Option<DHTKey>,
+        reply_private_route: Option<PublicKey>,
         message_data: Vec<u8>,
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
@@ -764,8 +764,8 @@ impl RPCProcessor {
         rpc_kind: RPCKind,
         send_ts: Timestamp,
         node_ref: NodeRef,
-        safety_route: Option<DHTKey>,
-        remote_private_route: Option<DHTKey>,
+        safety_route: Option<PublicKey>,
+        remote_private_route: Option<PublicKey>,
     ) {
         let wants_answer = matches!(rpc_kind, RPCKind::Question);
 
@@ -793,9 +793,9 @@ impl RPCProcessor {
         &self,
         send_ts: Timestamp,
         node_ref: NodeRef,
-        safety_route: Option<DHTKey>,
-        remote_private_route: Option<DHTKey>,
-        private_route: Option<DHTKey>,
+        safety_route: Option<PublicKey>,
+        remote_private_route: Option<PublicKey>,
+        private_route: Option<PublicKey>,
     ) {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
@@ -833,8 +833,8 @@ impl RPCProcessor {
         send_ts: Timestamp,
         bytes: ByteCount,
         node_ref: NodeRef,
-        safety_route: Option<DHTKey>,
-        remote_private_route: Option<DHTKey>,
+        safety_route: Option<PublicKey>,
+        remote_private_route: Option<PublicKey>,
     ) {
         let wants_answer = matches!(rpc_kind, RPCKind::Question);
 
@@ -870,9 +870,9 @@ impl RPCProcessor {
         recv_ts: Timestamp,
         bytes: ByteCount,
         node_ref: NodeRef,
-        safety_route: Option<DHTKey>,
-        remote_private_route: Option<DHTKey>,
-        reply_private_route: Option<DHTKey>,
+        safety_route: Option<PublicKey>,
+        remote_private_route: Option<PublicKey>,
+        reply_private_route: Option<PublicKey>,
     ) {
         // Record stats for remote node if this was direct
         if safety_route.is_none() && remote_private_route.is_none() && reply_private_route.is_none()
@@ -1388,7 +1388,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_safety_routed_message(
         &self,
-        remote_safety_route: DHTKey,
+        remote_safety_route: PublicKey,
         sequencing: Sequencing,
         body: Vec<u8>,
     ) -> EyreResult<()> {
@@ -1417,8 +1417,8 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_private_routed_message(
         &self,
-        remote_safety_route: DHTKey,
-        private_route: DHTKey,
+        remote_safety_route: PublicKey,
+        private_route: PublicKey,
         safety_spec: SafetySpec,
         body: Vec<u8>,
     ) -> EyreResult<()> {

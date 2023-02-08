@@ -11,7 +11,7 @@ pub struct BootstrapRecord {
     max_version: u8,
     dial_info_details: Vec<DialInfoDetail>,
 }
-pub type BootstrapRecordMap = BTreeMap<DHTKey, BootstrapRecord>;
+pub type BootstrapRecordMap = BTreeMap<PublicKey, BootstrapRecord>;
 
 impl RoutingTable {
     // Bootstrap lookup process
@@ -58,7 +58,7 @@ impl RoutingTable {
                         Ok(v) => v,
                     };
                     // for each record resolve into key/bootstraprecord pairs
-                    let mut bootstrap_records: Vec<(DHTKey, BootstrapRecord)> = Vec::new();
+                    let mut bootstrap_records: Vec<(PublicKey, BootstrapRecord)> = Vec::new();
                     for bsnirecord in bsnirecords {
                         // Bootstrap TXT Record Format Version 0:
                         // txt_version,min_version,max_version,nodeid,hostname,dialinfoshort*
@@ -115,7 +115,7 @@ impl RoutingTable {
 
                         // Node Id
                         let node_id_str = &records[3];
-                        let node_id_key = match DHTKey::try_decode(node_id_str) {
+                        let node_id_key = match PublicKey::try_decode(node_id_str) {
                             Ok(v) => v,
                             Err(e) => {
                                 warn!(

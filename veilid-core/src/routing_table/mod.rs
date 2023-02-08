@@ -49,7 +49,7 @@ pub struct LowLevelPortInfo {
     pub protocol_to_port: ProtocolToPortMapping,
 }
 pub type RoutingTableEntryFilter<'t> =
-    Box<dyn FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
+    Box<dyn FnMut(&RoutingTableInner, PublicKey, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RoutingTableHealth {
@@ -71,9 +71,9 @@ pub(super) struct RoutingTableUnlockedInner {
     network_manager: NetworkManager,
 
     /// The current node's public DHT key
-    node_id: DHTKey,
+    node_id: PublicKey,
     /// The current node's DHT key secret
-    node_id_secret: DHTKeySecret,
+    node_id_secret: SecretKey,
     /// Buckets to kick on our next kick task
     kick_queue: Mutex<BTreeSet<usize>>,
     /// Background process for computing statistics
@@ -149,11 +149,11 @@ impl RoutingTable {
         f(&*self.unlocked_inner.config.get())
     }
 
-    pub fn node_id(&self) -> DHTKey {
+    pub fn node_id(&self) -> PublicKey {
         self.unlocked_inner.node_id
     }
 
-    pub fn node_id_secret(&self) -> DHTKeySecret {
+    pub fn node_id_secret(&self) -> SecretKey {
         self.unlocked_inner.node_id_secret
     }
 
@@ -453,7 +453,7 @@ impl RoutingTable {
         self.inner.write().purge_last_connections();
     }
 
-    fn find_bucket_index(&self, node_id: DHTKey) -> usize {
+    fn find_bucket_index(&self, node_id: PublicKey) -> usize {
         distance(&node_id, &self.unlocked_inner.node_id)
             .first_nonzero_bit()
             .unwrap()
@@ -484,7 +484,7 @@ impl RoutingTable {
         inner.get_all_nodes(self.clone(), cur_ts)
     }
 
-    fn queue_bucket_kick(&self, node_id: DHTKey) {
+    fn queue_bucket_kick(&self, node_id: PublicKey) {
         let idx = self.find_bucket_index(node_id);
         self.unlocked_inner.kick_queue.lock().insert(idx);
     }
@@ -492,7 +492,7 @@ impl RoutingTable {
     /// Create a node reference, possibly creating a bucket entry
     /// the 'update_func' closure is called on the node, and, if created,
     /// in a locked fashion as to ensure the bucket entry state is always valid
-    pub fn create_node_ref<F>(&self, node_id: DHTKey, update_func: F) -> Option<NodeRef>
+    pub fn create_node_ref<F>(&self, node_id: PublicKey, update_func: F) -> Option<NodeRef>
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner),
     {
@@ -502,14 +502,14 @@ impl RoutingTable {
     }
 
     /// Resolve an existing routing table entry and return a reference to it
-    pub fn lookup_node_ref(&self, node_id: DHTKey) -> Option<NodeRef> {
+    pub fn lookup_node_ref(&self, node_id: PublicKey) -> Option<NodeRef> {
         self.inner.read().lookup_node_ref(self.clone(), node_id)
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
     pub fn lookup_and_filter_noderef(
         &self,
-        node_id: DHTKey,
+        node_id: PublicKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> Option<NodeRef> {
@@ -527,7 +527,7 @@ impl RoutingTable {
     pub fn register_node_with_signed_node_info(
         &self,
         routing_domain: RoutingDomain,
-        node_id: DHTKey,
+        node_id: PublicKey,
         signed_node_info: SignedNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
@@ -544,7 +544,7 @@ impl RoutingTable {
     /// and add the last peer address we have for it, since that's pretty common
     pub fn register_node_with_existing_connection(
         &self,
-        node_id: DHTKey,
+        node_id: PublicKey,
         descriptor: ConnectionDescriptor,
         timestamp: Timestamp,
     ) -> Option<NodeRef> {
@@ -563,7 +563,7 @@ impl RoutingTable {
         self.inner.read().get_routing_table_health()
     }
 
-    pub fn get_recent_peers(&self) -> Vec<(DHTKey, RecentPeersEntry)> {
+    pub fn get_recent_peers(&self) -> Vec<(PublicKey, RecentPeersEntry)> {
         let mut recent_peers = Vec::new();
         let mut dead_peers = Vec::new();
         let mut out = Vec::new();
@@ -602,7 +602,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn touch_recent_peer(&self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
+    pub fn touch_recent_peer(&self, node_id: PublicKey, last_connection: ConnectionDescriptor) {
         self.inner
             .write()
             .touch_recent_peer(node_id, last_connection)
@@ -722,7 +722,7 @@ impl RoutingTable {
         let mut nodes_proto_v6 = vec![0usize, 0usize, 0usize, 0usize];
 
         let filter = Box::new(
-            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            move |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
                 let entry = v.unwrap();
                 entry.with(rti, |_rti, e| {
                     // skip nodes on our local network here
@@ -769,7 +769,7 @@ impl RoutingTable {
         self.find_fastest_nodes(
             protocol_types_len * 2 * max_per_type,
             filters,
-            |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
+            |_rti, k: PublicKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
             },
         )
@@ -786,10 +786,10 @@ impl RoutingTable {
     where
         C: for<'a, 'b> FnMut(
             &'a RoutingTableInner,
-            &'b (DHTKey, Option<Arc<BucketEntry>>),
-            &'b (DHTKey, Option<Arc<BucketEntry>>),
+            &'b (PublicKey, Option<Arc<BucketEntry>>),
+            &'b (PublicKey, Option<Arc<BucketEntry>>),
         ) -> core::cmp::Ordering,
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
+        T: for<'r> FnMut(&'r RoutingTableInner, PublicKey, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
@@ -803,7 +803,7 @@ impl RoutingTable {
         transform: T,
     ) -> Vec<O>
     where
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
+        T: for<'r> FnMut(&'r RoutingTableInner, PublicKey, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
@@ -812,12 +812,12 @@ impl RoutingTable {
 
     pub fn find_closest_nodes<'a, T, O>(
         &self,
-        node_id: DHTKey,
+        node_id: PublicKey,
         filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> Vec<O>
     where
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
+        T: for<'r> FnMut(&'r RoutingTableInner, PublicKey, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
@@ -860,7 +860,7 @@ impl RoutingTable {
     pub async fn find_node(
         &self,
         node_ref: NodeRef,
-        node_id: DHTKey,
+        node_id: PublicKey,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let rpc_processor = self.rpc_processor();
 
@@ -986,7 +986,7 @@ impl RoutingTable {
         // Go through all entries and find fastest entry that matches filter function
         let inner = self.inner.read();
         let inner = &*inner;
-        let mut best_inbound_relay: Option<(DHTKey, Arc<BucketEntry>)> = None;
+        let mut best_inbound_relay: Option<(PublicKey, Arc<BucketEntry>)> = None;
 
         // Iterate all known nodes for candidates
         inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {

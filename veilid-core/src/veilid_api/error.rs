@@ -108,7 +108,7 @@ pub enum VeilidAPIError {
     #[error("Shutdown")]
     Shutdown,
     #[error("Key not found: {key}")]
-    KeyNotFound { key: DHTKey },
+    KeyNotFound { key: PublicKey },
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("No peer info: {node_id}")]
@@ -147,7 +147,7 @@ impl VeilidAPIError {
     pub fn shutdown() -> Self {
         Self::Shutdown
     }
-    pub fn key_not_found(key: DHTKey) -> Self {
+    pub fn key_not_found(key: PublicKey) -> Self {
         Self::KeyNotFound { key }
     }
     pub fn no_connection<T: ToString>(msg: T) -> Self {

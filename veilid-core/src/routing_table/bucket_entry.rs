@@ -310,7 +310,7 @@ impl BucketEntryInner {
         opt_current_sni.as_ref().map(|s| s.as_ref())
     }
 
-    pub fn make_peer_info(&self, key: DHTKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+    pub fn make_peer_info(&self, key: PublicKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,

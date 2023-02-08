@@ -23,7 +23,7 @@ pub fn encode_signed_direct_node_info(
 
 pub fn decode_signed_direct_node_info(
     reader: &veilid_capnp::signed_direct_node_info::Reader,
-    node_id: &DHTKey,
+    node_id: &PublicKey,
 ) -> Result<SignedDirectNodeInfo, RPCError> {
     let ni_reader = reader
         .reborrow()

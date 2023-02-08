@@ -5,8 +5,8 @@ use core::convert::TryFrom;
 
 static LOREM_IPSUM:&str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. ";
 static CHEEZBURGER: &str = "I can has cheezburger";
-static EMPTY_KEY: [u8; key::DHT_KEY_LENGTH] = [0u8; key::DHT_KEY_LENGTH];
-static EMPTY_KEY_SECRET: [u8; key::DHT_KEY_SECRET_LENGTH] = [0u8; key::DHT_KEY_SECRET_LENGTH];
+static EMPTY_KEY: [u8; PUBLIC_KEY_LENGTH] = [0u8; PUBLIC_KEY_LENGTH];
+static EMPTY_KEY_SECRET: [u8; SECRET_KEY_LENGTH] = [0u8; SECRET_KEY_LENGTH];
 
 pub async fn test_generate_secret(vcrypto: CryptoSystemVersion) {
     // Verify keys generate
@@ -119,7 +119,7 @@ pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
 
 pub async fn test_key_conversions(vcrypto: CryptoSystemVersion) {
     // Test default key
-    let (dht_key, dht_key_secret) = (key::DHTKey::default(), key::DHTKeySecret::default());
+    let (dht_key, dht_key_secret) = (PublicKey::default(), SecretKey::default());
     assert_eq!(dht_key.bytes, EMPTY_KEY);
     assert_eq!(dht_key_secret.bytes, EMPTY_KEY_SECRET);
     let dht_key_string = String::from(&dht_key);
@@ -150,50 +150,49 @@ pub async fn test_key_conversions(vcrypto: CryptoSystemVersion) {
     assert_ne!(dht_key_secret2_string, dht_key2_string);
 
     // Assert they convert back correctly
-    let dht_key_back = key::DHTKey::try_from(dht_key_string.as_str()).unwrap();
-    let dht_key_back2 = key::DHTKey::try_from(dht_key_string2.as_str()).unwrap();
+    let dht_key_back = PublicKey::try_from(dht_key_string.as_str()).unwrap();
+    let dht_key_back2 = PublicKey::try_from(dht_key_string2.as_str()).unwrap();
     assert_eq!(dht_key_back, dht_key_back2);
     assert_eq!(dht_key_back, dht_key);
     assert_eq!(dht_key_back2, dht_key);
 
-    let dht_key_secret_back = key::DHTKeySecret::try_from(dht_key_secret_string.as_str()).unwrap();
+    let dht_key_secret_back = SecretKey::try_from(dht_key_secret_string.as_str()).unwrap();
     assert_eq!(dht_key_secret_back, dht_key_secret);
 
-    let dht_key2_back = key::DHTKey::try_from(dht_key2_string.as_str()).unwrap();
-    let dht_key2_back2 = key::DHTKey::try_from(dht_key2_string2.as_str()).unwrap();
+    let dht_key2_back = PublicKey::try_from(dht_key2_string.as_str()).unwrap();
+    let dht_key2_back2 = PublicKey::try_from(dht_key2_string2.as_str()).unwrap();
     assert_eq!(dht_key2_back, dht_key2_back2);
     assert_eq!(dht_key2_back, dht_key2);
     assert_eq!(dht_key2_back2, dht_key2);
 
-    let dht_key_secret2_back =
-        key::DHTKeySecret::try_from(dht_key_secret2_string.as_str()).unwrap();
+    let dht_key_secret2_back = SecretKey::try_from(dht_key_secret2_string.as_str()).unwrap();
     assert_eq!(dht_key_secret2_back, dht_key_secret2);
 
     // Assert string roundtrip
     assert_eq!(String::from(&dht_key2_back), dht_key2_string);
     // These conversions should fail
-    assert!(key::DHTKey::try_from("whatever").is_err());
-    assert!(key::DHTKeySecret::try_from("whatever").is_err());
-    assert!(key::DHTKey::try_from("").is_err());
-    assert!(key::DHTKeySecret::try_from("").is_err());
-    assert!(key::DHTKey::try_from(" ").is_err());
-    assert!(key::DHTKeySecret::try_from(" ").is_err());
-    assert!(key::DHTKey::try_from(
+    assert!(PublicKey::try_from("whatever").is_err());
+    assert!(SecretKey::try_from("whatever").is_err());
+    assert!(PublicKey::try_from("").is_err());
+    assert!(SecretKey::try_from("").is_err());
+    assert!(PublicKey::try_from(" ").is_err());
+    assert!(SecretKey::try_from(" ").is_err());
+    assert!(PublicKey::try_from(
         "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     )
     .is_err());
-    assert!(key::DHTKeySecret::try_from(
+    assert!(SecretKey::try_from(
         "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     )
     .is_err());
 }
 
 pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
-    let dht_key = key::DHTKey::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
+    let dht_key = PublicKey::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
     let dht_key_secret =
-        key::DHTKeySecret::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
-    let dht_key_b = key::DHTKey::new(EMPTY_KEY);
-    let dht_key_secret_b = key::DHTKeySecret::new(EMPTY_KEY_SECRET);
+        SecretKey::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
+    let dht_key_b = PublicKey::new(EMPTY_KEY);
+    let dht_key_secret_b = SecretKey::new(EMPTY_KEY_SECRET);
     assert_eq!(dht_key, dht_key_b);
     assert_eq!(dht_key_secret, dht_key_secret_b);
 
@@ -209,31 +208,31 @@ pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
     let e2s = dht_key_secret2.encode();
     trace!("e2s: {:?}", e2s);
 
-    let d1 = key::DHTKey::try_decode(e1.as_str()).unwrap();
+    let d1 = PublicKey::try_decode(e1.as_str()).unwrap();
     trace!("d1:  {:?}", d1);
     assert_eq!(dht_key, d1);
 
-    let d1s = key::DHTKeySecret::try_decode(e1s.as_str()).unwrap();
+    let d1s = SecretKey::try_decode(e1s.as_str()).unwrap();
     trace!("d1s: {:?}", d1s);
     assert_eq!(dht_key_secret, d1s);
 
-    let d2 = key::DHTKey::try_decode(e2.as_str()).unwrap();
+    let d2 = PublicKey::try_decode(e2.as_str()).unwrap();
     trace!("d2:  {:?}", d2);
     assert_eq!(dht_key2, d2);
 
-    let d2s = key::DHTKeySecret::try_decode(e2s.as_str()).unwrap();
+    let d2s = SecretKey::try_decode(e2s.as_str()).unwrap();
     trace!("d2s: {:?}", d2s);
     assert_eq!(dht_key_secret2, d2s);
 
     // Failures
-    let f1 = key::DHTKeySecret::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    let f1 = SecretKey::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     assert!(f1.is_err());
-    let f2 = key::DHTKeySecret::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&");
+    let f2 = SecretKey::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&");
     assert!(f2.is_err());
 }
 
 async fn test_hash(vcrypto: CryptoSystemVersion) {
-    let mut s = BTreeSet::<key::DHTKey>::new();
+    let mut s = BTreeSet::<PublicKey>::new();
 
     let k1 = vcrypto.generate_hash("abc".as_bytes());
     let k2 = vcrypto.generate_hash("abcd".as_bytes());
@@ -333,7 +332,7 @@ pub async fn test_all() {
     let crypto = api.crypto().unwrap();
 
     // Test versions
-    for v in MIN_CRYPTO_VERSION..=MAX_CRYPTO_VERSION {
+    for v in VALID_CRYPTO_KINDS {
         let vcrypto = crypto.get(v).unwrap();
 
         test_generate_secret(vcrypto.clone()).await;
