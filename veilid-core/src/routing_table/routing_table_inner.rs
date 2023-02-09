@@ -52,15 +52,18 @@ impl RoutingTableInner {
     pub fn network_manager(&self) -> NetworkManager {
         self.unlocked_inner.network_manager.clone()
     }
+    pub fn crypto(&self) -> Crypto {
+        self.network_manager().crypto()
+    }
     pub fn rpc_processor(&self) -> RPCProcessor {
         self.network_manager().rpc_processor()
     }
 
-    pub fn node_id(&self) -> PublicKey {
+    pub fn node_id(&self, kind: CryptoKind) -> PublicKey {
         self.unlocked_inner.node_id
     }
 
-    pub fn node_id_secret(&self) -> SecretKey {
+    pub fn node_id_secret(&self, kind: CryptoKind) -> SecretKey {
         self.unlocked_inner.node_id_secret
     }
 
@@ -654,7 +657,7 @@ impl RoutingTableInner {
         &mut self,
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
-        node_id: PublicKey,
+        node_ids: Vec<TypedKey>,
         signed_node_info: SignedNodeInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {

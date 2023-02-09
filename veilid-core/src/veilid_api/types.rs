@@ -332,20 +332,20 @@ pub struct VeilidState {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
-    pub data: Vec<u8>,
-    pub schema: ValueSchema,
     pub seq: u32,
+    pub schema: ValueSchema,
+    pub data: Vec<u8>,
 }
 impl ValueData {
-    pub fn new(data: Vec<u8>, schema: ValueSchema) -> Self {
+    pub fn new(schema: ValueSchema, data: Vec<u8>) -> Self {
         Self {
-            data,
-            schema,
             seq: 0,
+            schema,
+            data,
         }
     }
-    pub fn new_with_seq(data: Vec<u8>, schema: ValueSchema, seq: u32) -> Self {
-        Self { data, schema, seq }
+    pub fn new_with_seq(seq: u32, schema: ValueSchema, data: Vec<u8>) -> Self {
+        Self { seq, schema, data }
     }
     pub fn change(&mut self, data: Vec<u8>) {
         self.data = data;

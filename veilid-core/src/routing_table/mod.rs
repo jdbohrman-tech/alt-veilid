@@ -70,10 +70,8 @@ pub(super) struct RoutingTableUnlockedInner {
     config: VeilidConfig,
     network_manager: NetworkManager,
 
-    /// The current node's public DHT key
-    node_id: PublicKey,
-    /// The current node's DHT key secret
-    node_id_secret: SecretKey,
+    /// The current node's public DHT keys and secrets
+    node_id_keypairs: BTreeMap<CryptoKind, KeyPair>,
     /// Buckets to kick on our next kick task
     kick_queue: Mutex<BTreeSet<usize>>,
     /// Background process for computing statistics
@@ -107,8 +105,19 @@ impl RoutingTable {
         RoutingTableUnlockedInner {
             config: config.clone(),
             network_manager,
-            node_id: c.network.node_id.unwrap(),
-            node_id_secret: c.network.node_id_secret.unwrap(),
+            node_id_keypairs: c
+                .network
+                .routing_table
+                .node_ids
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        *k,
+                        KeyPair::new(v.node_id.unwrap(), v.node_id_secret.unwrap()),
+                    )
+                })
+                .collect(),
+
             kick_queue: Mutex::new(BTreeSet::default()),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),
@@ -136,6 +145,9 @@ impl RoutingTable {
     pub fn network_manager(&self) -> NetworkManager {
         self.unlocked_inner.network_manager.clone()
     }
+    pub fn crypto(&self) -> Crypto {
+        self.network_manager().crypto()
+    }
     pub fn rpc_processor(&self) -> RPCProcessor {
         self.network_manager().rpc_processor()
     }
@@ -149,12 +161,16 @@ impl RoutingTable {
         f(&*self.unlocked_inner.config.get())
     }
 
-    pub fn node_id(&self) -> PublicKey {
-        self.unlocked_inner.node_id
+    pub fn node_id(&self, kind: CryptoKind) -> PublicKey {
+        self.unlocked_inner.node_id_keypairs.get(&kind).unwrap().key
     }
 
-    pub fn node_id_secret(&self) -> SecretKey {
-        self.unlocked_inner.node_id_secret
+    pub fn node_id_secret(&self, kind: CryptoKind) -> SecretKey {
+        self.unlocked_inner
+            .node_id_keypairs
+            .get(&kind)
+            .unwrap()
+            .secret
     }
 
     /////////////////////////////////////
@@ -453,8 +469,10 @@ impl RoutingTable {
         self.inner.write().purge_last_connections();
     }
 
-    fn find_bucket_index(&self, node_id: PublicKey) -> usize {
-        distance(&node_id, &self.unlocked_inner.node_id)
+    fn find_bucket_index(&self, node_id: TypedKey) -> usize {
+        let crypto = self.crypto().get(node_id.kind).unwrap();
+
+            .distance(&node_id, &self.unlocked_inner.node_id)
             .first_nonzero_bit()
             .unwrap()
     }

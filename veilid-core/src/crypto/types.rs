@@ -26,6 +26,33 @@ pub type CryptoKind = FourCC;
     RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
+pub struct KeyPair {
+    pub key: PublicKey,
+    pub secret: SecretKey,
+}
+
+impl KeyPair {
+    pub fn new(key: PublicKey, secret: SecretKey) -> Self {
+        Self { key, secret }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Serialize,
+    Deserialize,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Hash,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TypedKey {
     pub kind: CryptoKind,
     pub key: PublicKey,

@@ -16,7 +16,7 @@ pub struct RouteHopData {
 #[derive(Clone, Debug)]
 pub enum RouteNode {
     /// Route node is optimized, no contact method information as this node id has been seen before
-    NodeId(NodeId),
+    NodeId(TypedKey),
     /// Route node with full contact method information to ensure the peer is reachable
     PeerInfo(PeerInfo),
 }
@@ -57,14 +57,14 @@ pub enum PrivateRouteHops {
 #[derive(Clone, Debug)]
 pub struct PrivateRoute {
     /// The public key used for the entire route
-    pub public_key: PublicKey,
+    pub public_key: TypedKey,
     pub hop_count: u8,
     pub hops: PrivateRouteHops,
 }
 
 impl PrivateRoute {
     /// Empty private route is the form used when receiving the last hop
-    pub fn new_empty(public_key: PublicKey) -> Self {
+    pub fn new_empty(public_key: TypedKey) -> Self {
         Self {
             public_key,
             hop_count: 0,
@@ -72,7 +72,7 @@ impl PrivateRoute {
         }
     }
     /// Stub route is the form used when no privacy is required, but you need to specify the destination for a safety route
-    pub fn new_stub(public_key: PublicKey, node: RouteNode) -> Self {
+    pub fn new_stub(public_key: TypedKey, node: RouteNode) -> Self {
         Self {
             public_key,
             hop_count: 1,
