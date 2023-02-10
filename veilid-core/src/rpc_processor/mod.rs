@@ -1218,7 +1218,7 @@ impl RPCProcessor {
                             "sender signednodeinfo has invalid peer scope",
                         ));
                     }
-                    opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
+                    opt_sender_nr = self.routing_table().register_node_with_peer_info(
                         routing_domain,
                         sender_node_id,
                         sender_node_info.clone(),

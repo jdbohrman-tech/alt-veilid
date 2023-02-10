@@ -12,15 +12,15 @@ pub(super) type EntriesIter<'a> =
 
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
-struct BucketEntryData {
+struct SerializedBucketEntryData {
     key: PublicKey,
-    value: Vec<u8>,
+    value: u32, // index into serialized entries list
 }
 
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
-struct BucketData {
-    entries: Vec<BucketEntryData>,
+struct SerializedBucketData {
+    entries: Vec<SerializedBucketEntryData>,
     newest_entry: Option<PublicKey>,
 }
 
@@ -41,29 +41,41 @@ impl Bucket {
         }
     }
 
-    pub(super) fn load_bucket(&mut self, data: Vec<u8>) -> EyreResult<()> {
-        let bucket_data: BucketData = from_rkyv(data)?;
+    pub(super) fn load_bucket(
+        &mut self,
+        data: Vec<u8>,
+        all_entries: &[Arc<BucketEntry>],
+    ) -> EyreResult<()> {
+        let bucket_data: SerializedBucketData = from_rkyv(data)?;
 
         for e in bucket_data.entries {
-            let entryinner = from_rkyv(e.value).wrap_err("failed to deserialize bucket entry")?;
             self.entries
-                .insert(e.key, Arc::new(BucketEntry::new_with_inner(entryinner)));
+                .insert(e.key, all_entries[e.value as usize].clone());
         }
 
         self.newest_entry = bucket_data.newest_entry;
 
         Ok(())
     }
-    pub(super) fn save_bucket(&self) -> EyreResult<Vec<u8>> {
+
+    pub(super) fn save_bucket(
+        &self,
+        all_entries: &mut Vec<Arc<BucketEntry>>,
+        entry_map: &mut HashMap<*const BucketEntry, u32>,
+    ) -> EyreResult<Vec<u8>> {
         let mut entries = Vec::new();
         for (k, v) in &self.entries {
-            let entry_bytes = v.with_inner(|e| to_rkyv(e))?;
-            entries.push(BucketEntryData {
+            let entry_index = entry_map.entry(Arc::as_ptr(v)).or_insert_with(|| {
+                let entry_index = all_entries.len();
+                all_entries.push(v.clone());
+                entry_index as u32
+            });
+            entries.push(SerializedBucketEntryData {
                 key: *k,
-                value: entry_bytes,
+                value: *entry_index,
             });
         }
-        let bucket_data = BucketData {
+        let bucket_data = SerializedBucketData {
             entries,
             newest_entry: self.newest_entry.clone(),
         };

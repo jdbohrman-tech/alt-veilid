@@ -13,8 +13,8 @@ pub struct RecentPeersEntry {
 pub struct RoutingTableInner {
     /// Extra pointer to unlocked members to simplify access
     pub(super) unlocked_inner: Arc<RoutingTableUnlockedInner>,
-    /// Routing table buckets that hold entries
-    pub(super) buckets: Vec<Bucket>,
+    /// Routing table buckets that hold references to entries, per crypto kind
+    pub(super) buckets: BTreeMap<CryptoKind, Vec<Bucket>>,
     /// A fast counter for the number of entries in the table, total
     pub(super) bucket_entry_count: usize,
     /// The public internet routing domain
@@ -37,7 +37,7 @@ impl RoutingTableInner {
     pub(super) fn new(unlocked_inner: Arc<RoutingTableUnlockedInner>) -> RoutingTableInner {
         RoutingTableInner {
             unlocked_inner,
-            buckets: Vec::new(),
+            buckets: BTreeMap::new(),
             public_internet_routing_domain: PublicInternetRoutingDomainDetail::default(),
             local_network_routing_domain: LocalNetworkRoutingDomainDetail::default(),
             bucket_entry_count: 0,
@@ -47,28 +47,6 @@ impl RoutingTableInner {
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
             route_spec_store: None,
         }
-    }
-
-    pub fn network_manager(&self) -> NetworkManager {
-        self.unlocked_inner.network_manager.clone()
-    }
-    pub fn crypto(&self) -> Crypto {
-        self.network_manager().crypto()
-    }
-    pub fn rpc_processor(&self) -> RPCProcessor {
-        self.network_manager().rpc_processor()
-    }
-
-    pub fn node_id(&self, kind: CryptoKind) -> PublicKey {
-        self.unlocked_inner.node_id
-    }
-
-    pub fn node_id_secret(&self, kind: CryptoKind) -> SecretKey {
-        self.unlocked_inner.node_id_secret
-    }
-
-    pub fn config(&self) -> VeilidConfig {
-        self.unlocked_inner.config.clone()
     }
 
     pub fn transfer_stats_accounting(&mut self) -> &mut TransferStatsAccounting {
@@ -327,12 +305,15 @@ impl RoutingTableInner {
     }
 
     pub fn init_buckets(&mut self, routing_table: RoutingTable) {
-        // Size the buckets (one per bit)
+        // Size the buckets (one per bit), one bucket set per crypto kind
         self.buckets.clear();
-        self.buckets.reserve(PUBLIC_KEY_LENGTH * 8);
-        for _ in 0..PUBLIC_KEY_LENGTH * 8 {
-            let bucket = Bucket::new(routing_table.clone());
-            self.buckets.push(bucket);
+        for ck in VALID_CRYPTO_KINDS {
+            let ckbuckets = Vec::with_capacity(PUBLIC_KEY_LENGTH * 8);
+            for _ in 0..PUBLIC_KEY_LENGTH * 8 {
+                let bucket = Bucket::new(routing_table.clone());
+                ckbuckets.push(bucket);
+            }
+            self.buckets.insert(ck, ckbuckets);
         }
     }
 
@@ -413,12 +394,6 @@ impl RoutingTableInner {
             //inner.closest_nodes.retain(filter);
             //inner.fastest_nodes.retain(filter);
         }
-    }
-
-    pub fn find_bucket_index(&self, node_id: PublicKey) -> usize {
-        distance(&node_id, &self.unlocked_inner.node_id)
-            .first_nonzero_bit()
-            .unwrap()
     }
 
     pub fn get_entry_count(
@@ -547,23 +522,25 @@ impl RoutingTableInner {
     /// Create a node reference, possibly creating a bucket entry
     /// the 'update_func' closure is called on the node, and, if created,
     /// in a locked fashion as to ensure the bucket entry state is always valid
-    pub fn create_node_ref<F>(
+    fn create_node_ref<F>(
         &mut self,
         outer_self: RoutingTable,
-        node_id: PublicKey,
+        node_ids: &[TypedKey],
         update_func: F,
     ) -> Option<NodeRef>
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner),
     {
         // Ensure someone isn't trying register this node itself
-        if node_id == self.node_id() {
+        if self.unlocked_inner.matches_own_node_id(node_ids) {
             log_rtab!(debug "can't register own node");
             return None;
         }
 
         // Look up existing entry
-        let idx = self.find_bucket_index(node_id);
+        let idx = node_ids
+            .iter()
+            .find_map(|x| self.unlocked_inner.find_bucket_index(x));
         let noderef = {
             let bucket = &self.buckets[idx];
             let entry = bucket.entry(&node_id);
@@ -608,7 +585,7 @@ impl RoutingTableInner {
             log_rtab!(error "can't look up own node id in routing table");
             return None;
         }
-        let idx = self.find_bucket_index(node_id);
+        let idx = self.unlocked_inner.find_bucket_index(node_id);
         let bucket = &self.buckets[idx];
         bucket
             .entry(&node_id)
@@ -642,7 +619,7 @@ impl RoutingTableInner {
             log_rtab!(error "can't look up own node id in routing table");
             return None;
         }
-        let idx = self.find_bucket_index(node_id);
+        let idx = self.unlocked_inner.find_bucket_index(node_id);
         let bucket = &self.buckets[idx];
         if let Some(e) = bucket.entry(&node_id) {
             return Some(f(e));
@@ -653,41 +630,44 @@ impl RoutingTableInner {
     /// Shortcut function to add a node to our routing table if it doesn't exist
     /// and add the dial info we have for it. Returns a noderef filtered to
     /// the routing domain in which this node was registered for convenience.
-    pub fn register_node_with_signed_node_info(
+    pub fn register_node_with_peer_info(
         &mut self,
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
-        node_ids: Vec<TypedKey>,
-        signed_node_info: SignedNodeInfo,
+        peer_info: PeerInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
-        // validate signed node info is not something malicious
-        if node_id == self.node_id() {
+        // if our own node if is in the list then ignore it, as we don't add ourselves to our own routing table
+        if self.unlocked_inner.matches_own_node_id(&peer_info.node_ids) {
             log_rtab!(debug "can't register own node id in routing table");
             return None;
         }
-        if let Some(relay_id) = signed_node_info.relay_id() {
-            if relay_id.key == node_id {
-                log_rtab!(debug "node can not be its own relay");
-                return None;
-            }
+
+        // node can not be its own relay
+        let rids = peer_info.signed_node_info.relay_ids();
+        if self.unlocked_inner.matches_own_node_id(&rids) {
+            log_rtab!(debug "node can not be its own relay");
+            return None;
         }
+
         if !allow_invalid {
             // verify signature
-            if !signed_node_info.has_any_signature() {
-                log_rtab!(debug "signed node info for {} has invalid signature", node_id);
+            if !peer_info.signed_node_info.has_any_signature() {
+                log_rtab!(debug "signed node info for {:?} has invalid signature", &peer_info.node_ids);
                 return None;
             }
             // verify signed node info is valid in this routing domain
-            if !self.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
-            {
-                log_rtab!(debug "signed node info for {} not valid in the {:?} routing domain", node_id, routing_domain);
+            if !self.signed_node_info_is_valid_in_routing_domain(
+                routing_domain,
+                &peer_info.signed_node_info,
+            ) {
+                log_rtab!(debug "signed node info for {:?} not valid in the {:?} routing domain", peer_info.node_ids, routing_domain);
                 return None;
             }
         }
 
-        self.create_node_ref(outer_self, node_id, |_rti, e| {
-            e.update_signed_node_info(routing_domain, signed_node_info);
+        self.create_node_ref(outer_self, &peer_info.node_ids, |_rti, e| {
+            e.update_signed_node_info(routing_domain, peer_info.signed_node_info);
         })
         .map(|mut nr| {
             nr.set_filter(Some(

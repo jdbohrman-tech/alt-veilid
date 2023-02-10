@@ -37,7 +37,7 @@ impl RPCProcessor {
             RouteNode::PeerInfo(pi) => {
                 //
                 let Some(nr) = self.routing_table
-                    .register_node_with_signed_node_info(
+                    .register_node_with_peer_info(
                         RoutingDomain::PublicInternet,
                         pi.node_id.key,
                         pi.signed_node_info,
@@ -98,7 +98,7 @@ impl RPCProcessor {
             RouteNode::PeerInfo(pi) => {
                 //
                 self.routing_table
-                    .register_node_with_signed_node_info(
+                    .register_node_with_peer_info(
                         RoutingDomain::PublicInternet,
                         pi.node_id.key,
                         pi.signed_node_info.clone(),

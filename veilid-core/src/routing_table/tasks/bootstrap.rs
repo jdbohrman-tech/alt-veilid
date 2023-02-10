@@ -205,7 +205,7 @@ impl RoutingTable {
             for pi in peer_info {
                 let k = pi.node_id.key;
                 // Register the node
-                if let Some(nr) = self.register_node_with_signed_node_info(
+                if let Some(nr) = self.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
                     k,
                     pi.signed_node_info,
@@ -301,7 +301,7 @@ impl RoutingTable {
             log_rtab!("--- bootstrapping {} with {:?}", k.encode(), &v);
 
             // Make invalid signed node info (no signature)
-            if let Some(nr) = self.register_node_with_signed_node_info(
+            if let Some(nr) = self.register_node_with_peer_info(
                 RoutingDomain::PublicInternet,
                 k,
                 SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo {

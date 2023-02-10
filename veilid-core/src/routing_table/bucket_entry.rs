@@ -82,9 +82,10 @@ pub struct VersionRange {
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryInner {
-    /// The minimum and maximum range of cryptography versions supported by the node,
-    /// inclusive of the requirements of any relay the node may be using
-    min_max_version: Option<VersionRange>,
+    /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
+    node_ids: Vec<TypedKey>,
+    /// The set of envelope versions supported by the node inclusive of the requirements of any relay the node may be using
+    envelope_support: Vec<u8>,
     /// If this node has updated it's SignedNodeInfo since our network
     /// and dial info has last changed, for example when our IP address changes
     /// Used to determine if we should make this entry 'live' again when we receive a signednodeinfo update that
@@ -129,6 +130,11 @@ impl BucketEntryInner {
     #[cfg(feature = "tracking")]
     pub fn untrack(&mut self, track_id: usize) {
         self.node_ref_tracks.remove(&track_id);
+    }
+
+    // Node ids
+    pub fn node_ids(&self) -> Vec<TypedKey> {
+        self.node_ids.clone()
     }
 
     // Less is faster
@@ -310,13 +316,13 @@ impl BucketEntryInner {
         opt_current_sni.as_ref().map(|s| s.as_ref())
     }
 
-    pub fn make_peer_info(&self, key: PublicKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+    pub fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
         opt_current_sni.as_ref().map(|s| PeerInfo {
-            node_id: NodeId::new(key),
+            node_ids: self.node_ids.clone(),
             signed_node_info: *s.clone(),
         })
     }

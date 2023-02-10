@@ -32,13 +32,6 @@ pub struct CompiledRoute {
     pub first_hop: NodeRef,
 }
 
-#[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
-pub struct KeyPair {
-    key: PublicKey,
-    secret: SecretKey,
-}
-
 #[derive(Clone, Debug, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct RouteStats {
@@ -1377,7 +1370,7 @@ impl RouteSpecStore {
 
                 let opt_first_hop = match pr_first_hop_node {
                     RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table.clone(), id.key),
-                    RouteNode::PeerInfo(pi) => rti.register_node_with_signed_node_info(
+                    RouteNode::PeerInfo(pi) => rti.register_node_with_peer_info(
                         routing_table.clone(),
                         RoutingDomain::PublicInternet,
                         pi.node_id.key,

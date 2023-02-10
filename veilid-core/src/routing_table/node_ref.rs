@@ -6,7 +6,6 @@ use alloc::fmt;
 
 pub struct NodeRefBaseCommon {
     routing_table: RoutingTable,
-    node_id: PublicKey,
     entry: Arc<BucketEntry>,
     filter: Option<NodeRefFilter>,
     sequencing: Sequencing,
@@ -99,8 +98,8 @@ pub trait NodeRefBase: Sized {
     fn routing_table(&self) -> RoutingTable {
         self.common().routing_table.clone()
     }
-    fn node_id(&self) -> PublicKey {
-        self.common().node_id
+    fn node_ids(&self) -> Vec<TypedKey> {
+        self.operate(|_rti, e| e.node_ids())
     }
     fn has_updated_since_last_network_change(&self) -> bool {
         self.operate(|_rti, e| e.has_updated_since_last_network_change())
@@ -128,7 +127,7 @@ pub trait NodeRefBase: Sized {
 
     // Per-RoutingDomain accessors
     fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
-        self.operate(|_rti, e| e.make_peer_info(self.node_id(), routing_domain))
+        self.operate(|_rti, e| e.make_peer_info(routing_domain))
     }
     fn node_info(&self, routing_domain: RoutingDomain) -> Option<NodeInfo> {
         self.operate(|_rti, e| e.node_info(routing_domain).cloned())
@@ -180,19 +179,18 @@ pub trait NodeRefBase: Sized {
         self.operate_mut(|rti, e| {
             e.signed_node_info(routing_domain)
                 .and_then(|n| n.relay_peer_info())
-                .and_then(|t| {
+                .and_then(|rpi| {
                     // If relay is ourselves, then return None, because we can't relay through ourselves
                     // and to contact this node we should have had an existing inbound connection
-                    if t.node_id.key == rti.unlocked_inner.node_id {
+                    if rti.unlocked_inner.matches_own_node_id(&rpi.node_ids) {
                         return None;
                     }
 
                     // Register relay node and return noderef
-                    rti.register_node_with_signed_node_info(
+                    rti.register_node_with_peer_info(
                         self.routing_table(),
                         routing_domain,
-                        t.node_id.key,
-                        t.signed_node_info,
+                        rpi,
                         false,
                     )
                 })
@@ -346,7 +344,6 @@ pub struct NodeRef {
 impl NodeRef {
     pub fn new(
         routing_table: RoutingTable,
-        node_id: PublicKey,
         entry: Arc<BucketEntry>,
         filter: Option<NodeRefFilter>,
     ) -> Self {
@@ -355,7 +352,6 @@ impl NodeRef {
         Self {
             common: NodeRefBaseCommon {
                 routing_table,
-                node_id,
                 entry,
                 filter,
                 sequencing: Sequencing::NoPreference,
@@ -415,7 +411,6 @@ impl Clone for NodeRef {
         Self {
             common: NodeRefBaseCommon {
                 routing_table: self.common.routing_table.clone(),
-                node_id: self.common.node_id,
                 entry: self.common.entry.clone(),
                 filter: self.common.filter.clone(),
                 sequencing: self.common.sequencing,

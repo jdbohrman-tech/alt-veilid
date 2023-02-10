@@ -519,6 +519,8 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // Generate receipt and serialized form to return
+xxx add 'preferred_kind' and propagate envelope changes so we can make recent_peers work with cryptokind
+
         let nonce = Crypto::get_random_nonce();
         let receipt = Receipt::try_new(0, nonce, routing_table.node_id(), extra_data)?;
         let out = receipt
@@ -649,7 +651,7 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let peer_nr = match routing_table.register_node_with_signed_node_info(
+                let peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
                     peer_info.node_id.key,
                     peer_info.signed_node_info,
@@ -673,7 +675,7 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let mut peer_nr = match routing_table.register_node_with_signed_node_info(
+                let mut peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
                     peer_info.node_id.key,
                     peer_info.signed_node_info,
@@ -1326,7 +1328,7 @@ impl NetworkManager {
         }
 
         // Decode envelope header (may fail signature validation)
-        let envelope = match Envelope::from_signed_data(data) {
+        let envelope = match Envelope::from_signed_data(self.crypto(), data) {
             Ok(v) => v,
             Err(e) => {
                 log_net!(debug "envelope failed to decode: {}", e);
@@ -1370,8 +1372,8 @@ impl NetworkManager {
 
         // Peek at header and see if we need to relay this
         // If the recipient id is not our node id, then it needs relaying
-        let sender_id = envelope.get_sender_id();
-        let recipient_id = envelope.get_recipient_id();
+        let sender_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id());
+        let recipient_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_recipient_id());
         if recipient_id != routing_table.node_id() {
             // See if the source node is allowed to resolve nodes
             // This is a costly operation, so only outbound-relay permitted
@@ -1537,7 +1539,7 @@ impl NetworkManager {
                     if let Some(nr) = routing_table.lookup_node_ref(k) {
                         let peer_stats = nr.peer_stats();
                         let peer = PeerTableData {
-                            node_id: k,
+                            node_ids: k,
                             peer_address: v.last_connection.remote(),
                             peer_stats,
                         };
