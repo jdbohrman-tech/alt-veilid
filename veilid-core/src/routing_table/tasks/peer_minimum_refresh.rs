@@ -24,7 +24,7 @@ impl RoutingTable {
         let noderefs = routing_table.find_fastest_nodes(
             min_peer_count,
             VecDeque::new(),
-            |_rti, k: PublicKey, v: Option<Arc<BucketEntry>>| {
+            |_rti, k: TypedKey, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(routing_table.clone(), k, v.unwrap().clone(), None)
             },
         );

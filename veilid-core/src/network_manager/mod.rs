@@ -134,7 +134,7 @@ struct PublicAddressCheckCacheKey(ProtocolType, AddressType);
 // The mutable state of the network manager
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
-    client_whitelist: LruCache<PublicKey, ClientWhitelistEntry>,
+    client_whitelist: LruCache<TypedKey, ClientWhitelistEntry>,
     public_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
@@ -396,7 +396,7 @@ impl NetworkManager {
         debug!("finished network manager shutdown");
     }
 
-    pub fn update_client_whitelist(&self, client: PublicKey) {
+    pub fn update_client_whitelist(&self, client: TypedKey) {
         let mut inner = self.inner.lock();
         match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
@@ -411,7 +411,7 @@ impl NetworkManager {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn check_client_whitelist(&self, client: PublicKey) -> bool {
+    pub fn check_client_whitelist(&self, client: TypedKey) -> bool {
         let mut inner = self.inner.lock();
 
         match inner.client_whitelist.entry(client) {
@@ -519,12 +519,15 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // Generate receipt and serialized form to return
-xxx add 'preferred_kind' and propagate envelope changes so we can make recent_peers work with cryptokind
-
-        let nonce = Crypto::get_random_nonce();
-        let receipt = Receipt::try_new(0, nonce, routing_table.node_id(), extra_data)?;
+        let vcrypto = self.crypto().best();
+        
+        let nonce = vcrypto.random_nonce();
+        let node_id = routing_table.node_id(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
+        
+        let receipt = Receipt::try_new(MAX_ENVELOPE_VERSION, node_id.kind, nonce, node_id.key, extra_data)?;
         let out = receipt
-            .to_signed_data(&routing_table.node_id_secret())
+            .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
@@ -545,10 +548,15 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
         let routing_table = self.routing_table();
 
         // Generate receipt and serialized form to return
-        let nonce = Crypto::get_random_nonce();
-        let receipt = Receipt::try_new(0, nonce, routing_table.node_id(), extra_data)?;
+        let vcrypto = self.crypto().best();
+        
+        let nonce = vcrypto.random_nonce();
+        let node_id = routing_table.node_id(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
+        
+        let receipt = Receipt::try_new(MAX_ENVELOPE_VERSION, node_id.kind, nonce, node_id.key, extra_data)?;
         let out = receipt
-            .to_signed_data(&routing_table.node_id_secret())
+            .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
@@ -568,7 +576,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -589,7 +597,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -609,7 +617,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -626,11 +634,11 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
     pub async fn handle_private_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
-        private_route: PublicKey,
+        private_route: TypedKey,
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -653,8 +661,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
                 // Add the peer info to our routing table
                 let peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
-                    peer_info.node_id.key,
-                    peer_info.signed_node_info,
+                    peer_info,
                     false,
                 ) {
                     None => {
@@ -677,8 +684,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
                 // Add the peer info to our routing table
                 let mut peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
-                    peer_info.node_id.key,
-                    peer_info.signed_node_info,
+                    peer_info,
                     false,
                 ) {
                     None => {
@@ -733,21 +739,25 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
     #[instrument(level = "trace", skip(self, body), err)]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
-        dest_node_id: PublicKey,
+        dest_node_id: TypedKey,
         version: u8,
         body: B,
     ) -> EyreResult<Vec<u8>> {
         // DH to get encryption key
         let routing_table = self.routing_table();
-        let node_id = routing_table.node_id();
-        let node_id_secret = routing_table.node_id_secret();
+        let Some(vcrypto) = self.crypto().get(dest_node_id.kind) else {
+            bail!("should not have a destination with incompatible crypto here");
+        };
+
+        let node_id = routing_table.node_id(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
 
         // Get timestamp, nonce
         let ts = get_aligned_timestamp();
-        let nonce = Crypto::get_random_nonce();
+        let nonce = vcrypto.random_nonce();
 
         // Encode envelope
-        let envelope = Envelope::new(version, ts, nonce, node_id, dest_node_id);
+        let envelope = Envelope::new(version, node_id.kind, ts, nonce, node_id.key, dest_node_id.key);
         envelope
             .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret)
             .wrap_err("envelope failed to encode")
@@ -755,19 +765,22 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
 
     /// Called by the RPC handler when we want to issue an RPC request or response
     /// node_ref is the direct destination to which the envelope will be sent
-    /// If 'node_id' is specified, it can be different than node_ref.node_id()
+    /// If 'envelope_node_id' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
     #[instrument(level = "trace", skip(self, body), ret, err)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
-        envelope_node_id: Option<PublicKey>,
+        envelope_node_id: Option<TypedKey>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataKind>> {
-        let via_node_id = node_ref.node_id();
-        let envelope_node_id = envelope_node_id.unwrap_or(via_node_id);
+        let via_node_ids = node_ref.node_ids();
+        let Some(best_via_node_id) = via_node_ids.best() else {
+            bail!("should have a best node id");
+        };
+        let envelope_node_id = envelope_node_id.unwrap_or(best_via_node_id);
 
-        if envelope_node_id != via_node_id {
+        if !via_node_ids.contains(&envelope_node_id) {
             log_net!(
                 "sending envelope to {:?} via {:?}",
                 envelope_node_id,
@@ -776,11 +789,13 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
         } else {
             log_net!("sending envelope to {:?}", node_ref);
         }
-        // Get node's min/max version and see if we can send to it
+
+        // Get node's min/max envelope version and see if we can send to it
         // and if so, get the max version we can use
-        let version = if let Some(min_max_version) = node_ref.min_max_version() {
+        node_ref.envelope_support()
+        let envelope_version = if let Some(min_max_version) =  {
             #[allow(clippy::absurd_extreme_comparisons)]
-            if min_max_version.min > MAX_CRYPTO_VERSION || min_max_version.max < MIN_CRYPTO_VERSION
+            if min_max_version.min > MAX_ENVELOPE_VERSION || min_max_version.max < MIN_ENVELOPE_VERSION
             {
                 bail!(
                     "can't talk to this node {} because version is unsupported: ({},{})",
@@ -1374,7 +1389,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
         // If the recipient id is not our node id, then it needs relaying
         let sender_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id());
         let recipient_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_recipient_id());
-        if recipient_id != routing_table.node_id() {
+        if !routing_table.matches_own_node_id(&[recipient_id]) {
             // See if the source node is allowed to resolve nodes
             // This is a costly operation, so only outbound-relay permitted
             // nodes are allowed to do this, for example PWA users
@@ -1419,7 +1434,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
         }
 
         // DH to get decryption key (cached)
-        let node_id_secret = routing_table.node_id_secret();
+        let node_id_secret = routing_table.node_id_secret(envelope.get_crypto_kind());
 
         // Decrypt the envelope body
         let body = match envelope
@@ -1445,7 +1460,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
             }
             Some(v) => v,
         };
-        source_noderef.set_min_max_version(envelope.get_min_max_version());
+        source_noderef.add_envelope_version(envelope.get_version());
 
         // xxx: deal with spoofing and flooding here?
 
@@ -1539,7 +1554,7 @@ xxx add 'preferred_kind' and propagate envelope changes so we can make recent_pe
                     if let Some(nr) = routing_table.lookup_node_ref(k) {
                         let peer_stats = nr.peer_stats();
                         let peer = PeerTableData {
-                            node_ids: k,
+                            node_ids: nr.node_ids(),
                             peer_address: v.last_connection.remote(),
                             peer_stats,
                         };

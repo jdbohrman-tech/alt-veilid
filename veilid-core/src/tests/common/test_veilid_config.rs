@@ -192,7 +192,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.client_whitelist_timeout_ms" => Ok(Box::new(300_000u32)),
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
-        "network.node_id" => Ok(Box::new(Option::<PublicKey>::None)),
+        "network.node_id" => Ok(Box::new(Option::<TypedKey>::None)),
         "network.node_id_secret" => Ok(Box::new(Option::<SecretKey>::None)),
         "network.bootstrap" => Ok(Box::new(Vec::<String>::new())),
         "network.bootstrap_nodes" => Ok(Box::new(Vec::<String>::new())),

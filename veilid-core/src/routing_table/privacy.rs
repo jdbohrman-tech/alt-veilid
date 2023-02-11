@@ -117,14 +117,14 @@ impl PrivateRoute {
         }
     }
 
-    pub fn first_hop_node_id(&self) -> Option<PublicKey> {
+    pub fn first_hop_node_id(&self) -> Option<TypedKey> {
         let PrivateRouteHops::FirstHop(pr_first_hop) = &self.hops else {
             return None;
         };
 
         // Get the safety route to use from the spec
         Some(match &pr_first_hop.node {
-            RouteNode::NodeId(n) => n.key,
+            RouteNode::NodeId(n) => n,
             RouteNode::PeerInfo(p) => p.node_id.key,
         })
     }
@@ -162,13 +162,13 @@ pub enum SafetyRouteHops {
 
 #[derive(Clone, Debug)]
 pub struct SafetyRoute {
-    pub public_key: PublicKey,
+    pub public_key: TypedKey,
     pub hop_count: u8,
     pub hops: SafetyRouteHops,
 }
 
 impl SafetyRoute {
-    pub fn new_stub(public_key: PublicKey, private_route: PrivateRoute) -> Self {
+    pub fn new_stub(public_key: TypedKey, private_route: PrivateRoute) -> Self {
         // First hop should have already been popped off for stubbed safety routes since
         // we are sending directly to the first hop
         assert!(matches!(private_route.hops, PrivateRouteHops::Data(_)));

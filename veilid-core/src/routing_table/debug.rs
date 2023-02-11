@@ -113,7 +113,7 @@ impl RoutingTable {
         let mut cnt = 0;
         out += &format!("Entries: {}\n", inner.bucket_entry_count);
         while b < blen {
-            let filtered_entries: Vec<(&PublicKey, &Arc<BucketEntry>)> = inner.buckets[b]
+            let filtered_entries: Vec<(&TypedKey, &Arc<BucketEntry>)> = inner.buckets[b]
                 .entries()
                 .filter(|e| {
                     let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
@@ -149,7 +149,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_entry(&self, node_id: PublicKey) -> String {
+    pub(crate) fn debug_info_entry(&self, node_id: TypedKey) -> String {
         let mut out = String::new();
         out += &format!("Entry {:?}:\n", node_id);
         if let Some(nr) = self.lookup_node_ref(node_id) {

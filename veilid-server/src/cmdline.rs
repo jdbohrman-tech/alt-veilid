@@ -4,7 +4,7 @@ use clap::{Arg, ArgMatches, Command};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str::FromStr;
-use veilid_core::{PublicKey, SecretKey};
+use veilid_core::{SecretKey, TypedKey};
 
 fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap::Error> {
     let matches = Command::new("veilid-server")
@@ -246,11 +246,11 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
         // Split or get secret
         let (k, s) = if let Some((k, s)) = v.split_once(':') {
             let k =
-                PublicKey::try_decode(k).wrap_err("failed to decode node id from command line")?;
+                TypedKey::try_decode(k).wrap_err("failed to decode node id from command line")?;
             let s = SecretKey::try_decode(s)?;
             (k, s)
         } else {
-            let k = PublicKey::try_decode(v)?;
+            let k = TypedKey::try_decode(v)?;
             let buffer = rpassword::prompt_password("Enter secret key (will not echo): ")
                 .wrap_err("invalid secret key")?;
             let buffer = buffer.trim().to_string();

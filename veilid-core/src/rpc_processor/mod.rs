@@ -520,12 +520,8 @@ impl RPCProcessor {
 
         // Make the routed operation
         // xxx: replace MAX_CRYPTO_VERSION with the version from the factory
-        let operation = RoutedOperation::new(
-            MAX_CRYPTO_VERSION,
-            safety_selection.get_sequencing(),
-            nonce,
-            enc_msg_data,
-        );
+        let operation =
+            RoutedOperation::new(safety_selection.get_sequencing(), nonce, enc_msg_data);
 
         // Prepare route operation
         let sr_hop_count = compiled_route.safety_route.hop_count;
@@ -1218,7 +1214,7 @@ impl RPCProcessor {
                             "sender signednodeinfo has invalid peer scope",
                         ));
                     }
-                    opt_sender_nr = self.routing_table().register_node_with_peer_info(
+                    opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
                         routing_domain,
                         sender_node_id,
                         sender_node_info.clone(),

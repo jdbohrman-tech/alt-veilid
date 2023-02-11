@@ -256,7 +256,7 @@ pub struct VeilidStateAttachment {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerTableData {
-    pub node_ids: Vec<TypedKey>,
+    pub node_ids: TypedKeySet,
     pub peer_address: PeerAddress,
     pub peer_stats: PeerStats,
 }
@@ -279,8 +279,8 @@ pub struct VeilidStateNetwork {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidStateRoute {
-    pub dead_routes: Vec<PublicKey>,
-    pub dead_remote_routes: Vec<PublicKey>,
+    pub dead_routes: Vec<TypedKey>,
+    pub dead_remote_routes: Vec<TypedKey>,
 }
 
 #[derive(
@@ -513,7 +513,7 @@ impl SafetySelection {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
     /// preferred safety route if it still exists
-    pub preferred_route: Option<PublicKey>,
+    pub preferred_route: Option<TypedKey>,
     /// must be greater than 0
     pub hop_count: usize,
     /// prefer reliability over speed
@@ -1924,7 +1924,7 @@ impl SignedDirectNodeInfo {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedRelayedNodeInfo {
     pub node_info: NodeInfo,
-    pub relay_ids: Vec<TypedKey>,
+    pub relay_ids: TypedKeySet,
     pub relay_info: SignedDirectNodeInfo,
     pub timestamp: Timestamp,
     pub signatures: Vec<TypedSignature>,
@@ -1935,7 +1935,7 @@ impl SignedRelayedNodeInfo {
         crypto: Crypto,
         node_ids: &[TypedKey],
         node_info: NodeInfo,
-        relay_ids: Vec<TypedKey>,
+        relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
         timestamp: Timestamp,
         typed_signatures: Vec<TypedSignature>,
@@ -1955,7 +1955,7 @@ impl SignedRelayedNodeInfo {
     pub fn make_signatures(
         crypto: Crypto,
         node_info: NodeInfo,
-        relay_ids: Vec<TypedKey>,
+        relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
         typed_key_pairs: Vec<TypedKeyPair>,
     ) -> Result<Self, VeilidAPIError> {
@@ -2043,9 +2043,9 @@ impl SignedNodeInfo {
             SignedNodeInfo::Relayed(r) => &r.node_info,
         }
     }
-    pub fn relay_ids(&self) -> Vec<TypedKey> {
+    pub fn relay_ids(&self) -> TypedKeySet {
         match self {
-            SignedNodeInfo::Direct(_) => Vec::new(),
+            SignedNodeInfo::Direct(_) => TypedKeySet::new(),
             SignedNodeInfo::Relayed(r) => r.relay_ids.clone(),
         }
     }
@@ -2107,12 +2107,12 @@ impl SignedNodeInfo {
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerInfo {
-    pub node_ids: Vec<TypedKey>,
+    pub node_ids: TypedKeySet,
     pub signed_node_info: SignedNodeInfo,
 }
 
 impl PeerInfo {
-    pub fn new(node_ids: Vec<TypedKey>, signed_node_info: SignedNodeInfo) -> Self {
+    pub fn new(node_ids: TypedKeySet, signed_node_info: SignedNodeInfo) -> Self {
         Self {
             node_ids,
             signed_node_info,

@@ -1,4 +1,5 @@
 mod byte_array_types;
+mod dh_cache;
 mod envelope;
 mod receipt;
 mod types;
@@ -10,6 +11,7 @@ pub mod vld0;
 
 pub use byte_array_types::*;
 pub use crypto_system::*;
+pub use dh_cache::*;
 pub use envelope::*;
 pub use receipt::*;
 pub use types::*;
@@ -22,52 +24,20 @@ use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
 use serde::{Deserialize, Serialize};
 
+// Handle to a particular cryptosystem
 pub type CryptoSystemVersion = Arc<dyn CryptoSystem + Send + Sync>;
+
+/// Crypto kinds in order of preference, best cryptosystem is the first one, worst is the last one
 pub const VALID_CRYPTO_KINDS: [CryptoKind; 1] = [CRYPTO_KIND_VLD0];
-
-pub const MIN_ENVELOPE_VERSION: u8 = 0u8;
-pub const MAX_ENVELOPE_VERSION: u8 = 0u8;
-
-const DH_CACHE_SIZE: usize = 4096;
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
-struct DHCacheKey {
-    key: PublicKey,
-    secret: SecretKey,
+pub fn best_crypto_kind() -> CryptoKind {
+    VALID_CRYPTO_KINDS[0]
 }
 
-#[derive(Serialize, Deserialize)]
-struct DHCacheValue {
-    shared_secret: SharedSecret,
-}
-type DHCache = LruCache<DHCacheKey, DHCacheValue>;
-
-fn cache_to_bytes(cache: &DHCache) -> Vec<u8> {
-    let cnt: usize = cache.len();
-    let mut out: Vec<u8> = Vec::with_capacity(cnt * (32 + 32 + 32));
-    for e in cache.iter() {
-        out.extend(&e.0.key.bytes);
-        out.extend(&e.0.secret.bytes);
-        out.extend(&e.1.shared_secret.bytes);
-    }
-    let mut rev: Vec<u8> = Vec::with_capacity(out.len());
-    for d in out.chunks(32 + 32 + 32).rev() {
-        rev.extend(d);
-    }
-    rev
-}
-
-fn bytes_to_cache(bytes: &[u8], cache: &mut DHCache) {
-    for d in bytes.chunks(32 + 32 + 32) {
-        let k = DHCacheKey {
-            key: PublicKey::new(d[0..32].try_into().expect("asdf")),
-            secret: SecretKey::new(d[32..64].try_into().expect("asdf")),
-        };
-        let v = DHCacheValue {
-            shared_secret: SharedSecret::new(d[64..96].try_into().expect("asdf")),
-        };
-        cache.insert(k, v);
-    }
+/// Envelope versions in order of preference, best envelope version is the first one, worst is the last one
+pub type EnvelopeVersion = u8;
+pub const VALID_ENVELOPE_VERSIONS: [EnvelopeVersion; 1] = [0u8];
+pub fn best_envelope_version() -> EnvelopeVersion {
+    VALID_ENVELOPE_VERSIONS[0]
 }
 
 struct CryptoInner {
@@ -225,6 +195,11 @@ impl Crypto {
             CRYPTO_KIND_VLD0 => Some(inner.crypto_vld0.clone().unwrap()),
             _ => None,
         }
+    }
+
+    // Factory method to get the best crypto version
+    pub fn best(&self) -> CryptoSystemVersion {
+        self.get(best_crypto_kind()).unwrap()
     }
 
     /// Signature set verification

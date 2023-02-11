@@ -11,7 +11,7 @@ pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },
     ReturnedSafety,
-    ReturnedPrivate { private_route: PublicKey },
+    ReturnedPrivate { private_route: TypedKey },
     Expired,
     Cancelled,
 }
@@ -21,7 +21,7 @@ pub enum ReceiptReturned {
     OutOfBand,
     InBand { inbound_noderef: NodeRef },
     Safety,
-    Private { private_route: PublicKey },
+    Private { private_route: TypedKey },
 }
 
 pub trait ReceiptCallback: Send + 'static {

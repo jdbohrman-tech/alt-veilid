@@ -112,7 +112,7 @@ impl DiscoveryContext {
         &self,
         protocol_type: ProtocolType,
         address_type: AddressType,
-        ignore_node: Option<PublicKey>,
+        ignore_node_ids: Option<TypedKeySet>,
     ) -> Option<(SocketAddress, NodeRef)> {
         let node_count = {
             let config = self.routing_table.network_manager().config();
@@ -121,7 +121,7 @@ impl DiscoveryContext {
         };
 
         // Build an filter that matches our protocol and address type
-        // and excludes relays so we can get an accurate external address
+        // and excludes relayed nodes so we can get an accurate external address
         let dial_info_filter = DialInfoFilter::all()
             .with_protocol_type(protocol_type)
             .with_address_type(address_type);
@@ -130,11 +130,11 @@ impl DiscoveryContext {
             dial_info_filter.clone(),
         );
         let disallow_relays_filter = Box::new(
-            move |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
+            move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                 let v = v.unwrap();
                 v.with(rti, |_rti, e| {
                     if let Some(n) = e.signed_node_info(RoutingDomain::PublicInternet) {
-                        n.relay_id().is_none()
+                        n.relay_ids().is_empty()
                     } else {
                         false
                     }
@@ -158,8 +158,8 @@ impl DiscoveryContext {
 
         // For each peer, if it's not our ignore-node, ask them for our public address, filtering on desired dial info
         for mut peer in peers {
-            if let Some(ignore_node) = ignore_node {
-                if peer.node_id() == ignore_node {
+            if let Some(ignore_node_ids) = &ignore_node_ids {
+                if peer.node_ids().contains_any(ignore_node_ids) {
                     continue;
                 }
             }
@@ -478,12 +478,12 @@ impl DiscoveryContext {
 
         // Get our external address from some fast node, that is not node 1, call it node 2
         let (external_2_address, node_2) = match self
-            .discover_external_address(protocol_type, address_type, Some(node_1.node_id()))
+            .discover_external_address(protocol_type, address_type, Some(node_1.node_ids()))
             .await
         {
             None => {
                 // If we can't get an external address, allow retry
-                log_net!(debug "failed to discover external address 2 for {:?}:{:?}, skipping node {:?}", protocol_type, address_type, node_1.node_id());
+                log_net!(debug "failed to discover external address 2 for {:?}:{:?}, skipping node {:?}", protocol_type, address_type, node_1);
                 return Ok(false);
             }
             Some(v) => v,

@@ -10,6 +10,23 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 /// Cryptography version fourcc code
 pub type CryptoKind = FourCC;
 
+/// Sort best crypto kinds first
+pub fn compare_crypto_kind(a: CryptoKind, b: CryptoKind) -> cmp::Ordering {
+    let a_idx = VALID_CRYPTO_KINDS.iter().position(|&k| k == a);
+    let b_idx = VALID_CRYPTO_KINDS.iter().position(|&k| k == b);
+    if let Some(a_idx) = a_idx {
+        if let Some(b_idx) = b_idx {
+            a_idx.cmp(&b_idx)
+        } else {
+            cmp::Ordering::Less
+        }
+    } else if let Some(b_idx) = b_idx {
+        cmp::Ordering::Greater
+    } else {
+        a.cmp(&b)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -43,8 +60,6 @@ impl KeyPair {
     Debug,
     Serialize,
     Deserialize,
-    PartialOrd,
-    Ord,
     PartialEq,
     Eq,
     Hash,
@@ -61,6 +76,21 @@ pub struct TypedKey {
 impl TypedKey {
     pub fn new(kind: CryptoKind, key: PublicKey) -> Self {
         Self { kind, key }
+    }
+}
+impl PartialOrd for TypedKey {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TypedKey {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        let x = compare_crypto_kind(self.kind, other.kind);
+        if x != cmp::Ordering::Equal {
+            return x;
+        }
+        self.key.cmp(&other.key)
     }
 }
 
@@ -84,10 +114,118 @@ impl FromStr for TypedKey {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
+    Serialize,
+    Deserialize,
     PartialOrd,
     Ord,
+    PartialEq,
+    Eq,
+    Hash,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct TypedKeySet {
+    items: Vec<TypedKey>,
+}
+
+impl TypedKeySet {
+    pub fn new() -> Self {
+        Self { items: Vec::new() }
+    }
+    pub fn with_capacity(cap: usize) -> Self {
+        Self {
+            items: Vec::with_capacity(cap),
+        }
+    }
+    pub fn get(&self, kind: CryptoKind) -> Option<TypedKey> {
+        self.items.iter().find(|x| x.kind == kind).copied()
+    }
+    pub fn add(&mut self, typed_key: TypedKey) {
+        for x in &mut self.items {
+            if x.kind == typed_key.kind {
+                *x = typed_key;
+                return;
+            }
+        }
+        self.items.push(typed_key);
+        self.items.sort()
+    }
+    pub fn remove(&self, kind: CryptoKind) {
+        if let Some(idx) = self.items.iter().position(|x| x.kind == kind) {
+            self.items.remove(idx);
+        }
+    }
+    pub fn best(&self) -> Option<TypedKey> {
+        self.items.first().copied()
+    }
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+    pub fn iter(&self) -> core::slice::Iter<'_, TypedKey> {
+        self.items.iter()
+    }
+    pub fn contains(&self, typed_key: &TypedKey) -> bool {
+        self.items.contains(typed_key)
+    }
+    pub fn contains_any(&self, typed_keys: &[TypedKey]) -> bool {
+        for typed_key in typed_keys {
+            if self.items.contains(typed_key) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+impl core::ops::Deref for TypedKeySet {
+    type Target = [TypedKey];
+
+    #[inline]
+    fn deref(&self) -> &[TypedKey] {
+        &self.items
+    }
+}
+
+impl fmt::Display for TypedKeySet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "[")?;
+        let mut first = true;
+        for x in &self.items {
+            if !first {
+                write!(f, ",")?;
+                first = false;
+            }
+            write!(f, "{}", x)?;
+        }
+        write!(f, "]")
+    }
+}
+impl FromStr for TypedKeySet {
+    type Err = VeilidAPIError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut items = Vec::new();
+        if s.len() < 2 {
+            apibail_parse_error!("invalid length", s);
+        }
+        if &s[0..1] != "[" || &s[(s.len() - 1)..] != "]" {
+            apibail_parse_error!("invalid format", s);
+        }
+        for x in s[1..s.len() - 1].split(",") {
+            let tk = TypedKey::from_str(x.trim())?;
+            items.push(tk);
+        }
+
+        Ok(Self { items })
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
     PartialEq,
     Eq,
     Hash,
@@ -107,6 +245,26 @@ pub struct TypedKeyPair {
 impl TypedKeyPair {
     pub fn new(kind: CryptoKind, key: PublicKey, secret: SecretKey) -> Self {
         Self { kind, key, secret }
+    }
+}
+
+impl PartialOrd for TypedKeyPair {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TypedKeyPair {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        let x = compare_crypto_kind(self.kind, other.kind);
+        if x != cmp::Ordering::Equal {
+            return x;
+        }
+        let x = self.key.cmp(&other.key);
+        if x != cmp::Ordering::Equal {
+            return x;
+        }
+        self.secret.cmp(&other.secret)
     }
 }
 
@@ -142,8 +300,6 @@ impl FromStr for TypedKeyPair {
     Clone,
     Copy,
     Debug,
-    PartialOrd,
-    Ord,
     PartialEq,
     Eq,
     Hash,
@@ -176,6 +332,22 @@ impl TypedSignature {
     }
 }
 
+impl PartialOrd for TypedSignature {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TypedSignature {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        let x = compare_crypto_kind(self.kind, other.kind);
+        if x != cmp::Ordering::Equal {
+            return x;
+        }
+        self.signature.cmp(&other.signature)
+    }
+}
+
 impl fmt::Display for TypedSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}:{}", self.kind, self.signature.encode())
@@ -198,8 +370,6 @@ impl FromStr for TypedSignature {
     Clone,
     Copy,
     Debug,
-    PartialOrd,
-    Ord,
     PartialEq,
     Eq,
     Hash,
@@ -229,6 +399,26 @@ impl TypedKeySignature {
             kind: self.kind,
             signature: self.signature,
         }
+    }
+}
+
+impl PartialOrd for TypedKeySignature {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TypedKeySignature {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        let x = compare_crypto_kind(self.kind, other.kind);
+        if x != cmp::Ordering::Equal {
+            return x;
+        }
+        let x = self.key.cmp(&other.key);
+        if x != cmp::Ordering::Equal {
+            return x;
+        }
+        self.signature.cmp(&other.signature)
     }
 }
 

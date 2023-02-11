@@ -595,7 +595,7 @@ pub struct Network {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
-    pub node_id: Option<veilid_core::PublicKey>,
+    pub node_id: Option<veilid_core::TypedKey>,
     pub node_id_secret: Option<veilid_core::SecretKey>,
     pub bootstrap: Vec<String>,
     pub bootstrap_nodes: Vec<ParsedNodeDialInfo>,

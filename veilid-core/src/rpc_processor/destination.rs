@@ -15,7 +15,7 @@ pub enum Destination {
         /// The relay to send to
         relay: NodeRef,
         /// The final destination the relay should send to
-        target: PublicKey,
+        target: TypedKey,
         /// Require safety route or not
         safety_selection: SafetySelection,
     },
@@ -36,7 +36,7 @@ impl Destination {
             safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
-    pub fn relay(relay: NodeRef, target: PublicKey) -> Self {
+    pub fn relay(relay: NodeRef, target: TypedKey) -> Self {
         let sequencing = relay.sequencing();
         Self::Relay {
             relay,

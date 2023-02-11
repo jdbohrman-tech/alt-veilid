@@ -67,10 +67,10 @@ pub fn decode_signed_relayed_node_info(
         .reborrow()
         .get_relay_ids()
         .map_err(RPCError::protocol)?;
-    let mut relay_ids = Vec::with_capacity(rids_reader.len() as usize);
+    let mut relay_ids = TypedKeySet::with_capacity(rids_reader.len() as usize);
     for rid_reader in rids_reader {
         let relay_id = decode_typed_key(&rid_reader)?;
-        relay_ids.push(relay_id);
+        relay_ids.add(relay_id);
     }
 
     let ri_reader = reader

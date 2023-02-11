@@ -37,7 +37,7 @@ pub const ENVELOPE_MAGIC: &[u8; 3] = b"VLD";
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Envelope {
-    version: u8,
+    version: EnvelopeVersion,
     crypto_kind: CryptoKind,
     timestamp: Timestamp,
     nonce: Nonce,
@@ -47,15 +47,14 @@ pub struct Envelope {
 
 impl Envelope {
     pub fn new(
-        version: u8,
+        version: EnvelopeVersion,
         crypto_kind: CryptoKind,
         timestamp: Timestamp,
         nonce: Nonce,
         sender_id: PublicKey,
         recipient_id: PublicKey,
     ) -> Self {
-        assert!(version >= MIN_ENVELOPE_VERSION);
-        assert!(version <= MAX_ENVELOPE_VERSION);
+        assert!(VALID_ENVELOPE_VERSIONS.contains(&version));
         assert!(VALID_CRYPTO_KINDS.contains(&crypto_kind));
         Self {
             version,
@@ -84,7 +83,7 @@ impl Envelope {
 
         // Check envelope version
         let version = data[0x03];
-        if version > MAX_ENVELOPE_VERSION || version < MIN_ENVELOPE_VERSION {
+        if !VALID_ENVELOPE_VERSIONS.contains(&version) {
             apibail_parse_error!("unsupported envelope version", version);
         }
 

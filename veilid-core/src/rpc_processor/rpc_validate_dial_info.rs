@@ -102,7 +102,7 @@ impl RPCProcessor {
                     dial_info.clone(),
                 );
             let will_validate_dial_info_filter = Box::new(
-                move |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
+                move |rti: &RoutingTableInner, _k: TypedKey, v: Option<Arc<BucketEntry>>| {
                     let entry = v.unwrap();
                     entry.with(rti, move |_rti, e| {
                         if let Some(status) = &e.node_status(routing_domain) {

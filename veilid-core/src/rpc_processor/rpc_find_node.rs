@@ -100,8 +100,8 @@ impl RPCProcessor {
         // find N nodes closest to the target node in our routing table
 
         let filter = Box::new(
-            move |rti: &RoutingTableInner, _k: PublicKey, v: Option<Arc<BucketEntry>>| {
-                rti.filter_has_valid_signed_node_info(RoutingDomain::PublicInternet, true, v)
+            move |rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| {
+                rti.filter_has_valid_signed_node_info(RoutingDomain::PublicInternet, true, entry)
             },
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
@@ -110,8 +110,8 @@ impl RPCProcessor {
             find_node_q.node_id,
             filters,
             // transform
-            |rti, k, v| {
-                rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, k, v)
+            |rti, entry| {
+                rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, entry)
             },
         );
 

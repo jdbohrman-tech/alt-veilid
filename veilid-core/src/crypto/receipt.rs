@@ -50,8 +50,7 @@ impl Receipt {
         sender_id: PublicKey,
         extra_data: D,
     ) -> Result<Self, VeilidAPIError> {
-        assert!(version >= MIN_ENVELOPE_VERSION);
-        assert!(version <= MAX_ENVELOPE_VERSION);
+        assert!(VALID_ENVELOPE_VERSIONS.contains(&version));
         assert!(VALID_CRYPTO_KINDS.contains(&crypto_kind));
 
         if extra_data.as_ref().len() > MAX_EXTRA_DATA_SIZE {
@@ -85,7 +84,7 @@ impl Receipt {
 
         // Check version
         let version = data[0x03];
-        if version > MAX_ENVELOPE_VERSION || version < MIN_ENVELOPE_VERSION {
+        if !VALID_ENVELOPE_VERSIONS.contains(&version) {
             apibail_parse_error!("unsupported envelope version", version);
         }
 

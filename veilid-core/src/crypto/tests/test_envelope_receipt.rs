@@ -1,6 +1,9 @@
 use super::*;
 
-pub async fn test_envelope_round_trip(vcrypto: CryptoSystemVersion) {
+pub async fn test_envelope_round_trip(
+    envelope_version: EnvelopeVersion,
+    vcrypto: CryptoSystemVersion,
+) {
     info!("--- test envelope round trip ---");
 
     // Create envelope
@@ -9,7 +12,7 @@ pub async fn test_envelope_round_trip(vcrypto: CryptoSystemVersion) {
     let (sender_id, sender_secret) = vcrypto.generate_keypair();
     let (recipient_id, recipient_secret) = vcrypto.generate_keypair();
     let envelope = Envelope::new(
-        MAX_ENVELOPE_VERSION,
+        envelope_version,
         vcrypto.kind(),
         ts,
         nonce,
@@ -53,7 +56,10 @@ pub async fn test_envelope_round_trip(vcrypto: CryptoSystemVersion) {
     );
 }
 
-pub async fn test_receipt_round_trip(vcrypto: CryptoSystemVersion) {
+pub async fn test_receipt_round_trip(
+    envelope_version: EnvelopeVersion,
+    vcrypto: CryptoSystemVersion,
+) {
     info!("--- test receipt round trip ---");
     // Create arbitrary body
     let body = b"This is an arbitrary body";
@@ -61,7 +67,7 @@ pub async fn test_receipt_round_trip(vcrypto: CryptoSystemVersion) {
     // Create receipt
     let nonce = vcrypto.random_nonce();
     let (sender_id, sender_secret) = vcrypto.generate_keypair();
-    let receipt = Receipt::try_new(MAX_ENVELOPE_VERSION, vcrypto.kind(), nonce, sender_id, body)
+    let receipt = Receipt::try_new(envelope_version, vcrypto.kind(), nonce, sender_id, body)
         .expect("should not fail");
 
     // Serialize to bytes
@@ -87,11 +93,13 @@ pub async fn test_all() {
     let crypto = api.crypto().unwrap();
 
     // Test versions
-    for v in VALID_CRYPTO_KINDS {
-        let vcrypto = crypto.get(v).unwrap();
+    for ev in VALID_ENVELOPE_VERSIONS {
+        for v in VALID_CRYPTO_KINDS {
+            let vcrypto = crypto.get(v).unwrap();
 
-        test_envelope_round_trip(vcrypto.clone()).await;
-        test_receipt_round_trip(vcrypto).await;
+            test_envelope_round_trip(ev, vcrypto.clone()).await;
+            test_receipt_round_trip(ev, vcrypto).await;
+        }
     }
 
     crypto_tests_shutdown(api.clone()).await;

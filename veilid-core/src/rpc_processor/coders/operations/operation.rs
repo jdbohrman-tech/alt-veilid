@@ -117,7 +117,7 @@ impl RPCOperation {
 
     pub fn decode(
         operation_reader: &veilid_capnp::operation::Reader,
-        opt_sender_node_id: Option<&PublicKey>,
+        opt_sender_node_id: Option<&TypedKey>,
     ) -> Result<Self, RPCError> {
         let op_id = OperationId::new(operation_reader.get_op_id());
 

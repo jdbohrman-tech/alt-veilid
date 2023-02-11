@@ -68,22 +68,12 @@ pub struct BucketEntryLocalNetwork {
     node_status: Option<LocalNetworkNodeStatus>,
 }
 
-/// A range of cryptography versions supported by this entry
-#[derive(Copy, Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
-pub struct VersionRange {
-    /// The minimum cryptography version supported by this entry
-    pub min: u8,
-    /// The maximum cryptography version supported by this entry
-    pub max: u8,
-}
-
 /// The data associated with each bucket entry
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryInner {
     /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
-    node_ids: Vec<TypedKey>,
+    node_ids: TypedKeySet,
     /// The set of envelope versions supported by the node inclusive of the requirements of any relay the node may be using
     envelope_support: Vec<u8>,
     /// If this node has updated it's SignedNodeInfo since our network
@@ -133,8 +123,11 @@ impl BucketEntryInner {
     }
 
     // Node ids
-    pub fn node_ids(&self) -> Vec<TypedKey> {
+    pub fn node_ids(&self) -> TypedKeySet {
         self.node_ids.clone()
+    }
+    pub fn add_node_id(&mut self, node_id: TypedKey) {
+        self.node_ids.add(node_id);
     }
 
     // Less is faster
@@ -453,12 +446,23 @@ impl BucketEntryInner {
         out
     }
 
-    pub fn set_min_max_version(&mut self, min_max_version: VersionRange) {
-        self.min_max_version = Some(min_max_version);
+    pub fn add_envelope_version(&mut self, envelope_version: u8) {
+        if self.envelope_support.contains(&envelope_version) {
+            return;
+        }
+        self.envelope_support.push(envelope_version);
+        self.envelope_support.dedup();
+        self.envelope_support.sort();
     }
 
-    pub fn min_max_version(&self) -> Option<VersionRange> {
-        self.min_max_version
+    pub fn set_envelope_support(&mut self, envelope_support: Vec<u8>) {
+        envelope_support.dedup();
+        envelope_support.sort();
+        self.envelope_support = envelope_support;
+    }
+
+    pub fn envelope_support(&self) -> Vec<u8> {
+        self.envelope_support.clone()
     }
 
     pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
@@ -757,7 +761,8 @@ impl BucketEntry {
         Self {
             ref_count: AtomicU32::new(0),
             inner: RwLock::new(BucketEntryInner {
-                min_max_version: None,
+                node_ids: TypedKeySet::new(),
+                envelope_support: Vec::new(),
                 updated_since_last_network_change: false,
                 last_connections: BTreeMap::new(),
                 local_network: BucketEntryLocalNetwork {

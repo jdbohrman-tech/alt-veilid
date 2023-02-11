@@ -108,11 +108,11 @@ pub enum VeilidAPIError {
     #[error("Shutdown")]
     Shutdown,
     #[error("Key not found: {key}")]
-    KeyNotFound { key: PublicKey },
+    KeyNotFound { key: TypedKey },
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("No peer info: {node_id}")]
-    NoPeerInfo { node_id: PublicKey },
+    NoPeerInfo { node_id: TypedKey },
     #[error("Internal: {message}")]
     Internal { message: String },
     #[error("Unimplemented: {message}")]
@@ -147,7 +147,7 @@ impl VeilidAPIError {
     pub fn shutdown() -> Self {
         Self::Shutdown
     }
-    pub fn key_not_found(key: PublicKey) -> Self {
+    pub fn key_not_found(key: TypedKey) -> Self {
         Self::KeyNotFound { key }
     }
     pub fn no_connection<T: ToString>(msg: T) -> Self {
@@ -155,7 +155,7 @@ impl VeilidAPIError {
             message: msg.to_string(),
         }
     }
-    pub fn no_peer_info(node_id: PublicKey) -> Self {
+    pub fn no_peer_info(node_id: TypedKey) -> Self {
         Self::NoPeerInfo { node_id }
     }
     pub fn internal<T: ToString>(msg: T) -> Self {

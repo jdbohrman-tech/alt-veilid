@@ -2,18 +2,28 @@ use super::*;
 use core::sync::atomic::Ordering;
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
+/// Routing Table Bucket
+/// Stores map of public keys to entries, which may be in multiple routing tables per crypto kind
+/// Keeps entries at a particular 'dht distance' from this cryptokind's node id
+/// Helps to keep managed lists at particular distances so we can evict nodes by priority
+/// where the priority comes from liveness and age of the entry (older is better)
 pub struct Bucket {
+    /// handle to the routing table
     routing_table: RoutingTable,
-    entries: BTreeMap<PublicKey, Arc<BucketEntry>>,
-    newest_entry: Option<PublicKey>,
+    /// Map of keys to entries for this bucket
+    entries: BTreeMap<TypedKey, Arc<BucketEntry>>,
+    /// The most recent entry in this bucket
+    newest_entry: Option<TypedKey>,
+    /// The crypto kind in use for the public keys in this bucket
+    kind: CryptoKind,
 }
 pub(super) type EntriesIter<'a> =
-    alloc::collections::btree_map::Iter<'a, PublicKey, Arc<BucketEntry>>;
+    alloc::collections::btree_map::Iter<'a, TypedKey, Arc<BucketEntry>>;
 
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 struct SerializedBucketEntryData {
-    key: PublicKey,
+    key: TypedKey,
     value: u32, // index into serialized entries list
 }
 
@@ -21,7 +31,7 @@ struct SerializedBucketEntryData {
 #[archive_attr(repr(C), derive(CheckBytes))]
 struct SerializedBucketData {
     entries: Vec<SerializedBucketEntryData>,
-    newest_entry: Option<PublicKey>,
+    newest_entry: Option<TypedKey>,
 }
 
 fn state_ordering(state: BucketEntryState) -> usize {
@@ -33,11 +43,12 @@ fn state_ordering(state: BucketEntryState) -> usize {
 }
 
 impl Bucket {
-    pub fn new(routing_table: RoutingTable) -> Self {
+    pub fn new(routing_table: RoutingTable, kind: CryptoKind) -> Self {
         Self {
             routing_table,
             entries: BTreeMap::new(),
             newest_entry: None,
+            kind,
         }
     }
 
@@ -83,22 +94,43 @@ impl Bucket {
         Ok(out)
     }
 
-    pub(super) fn add_entry(&mut self, node_id: PublicKey) -> NodeRef {
-        log_rtab!("Node added: {}", node_id.encode());
+    /// Create a new entry with a node_id of this crypto kind and return it
+    pub(super) fn add_entry(&mut self, node_id: TypedKey) -> NodeRef {
+        assert_eq!(node_id.kind, self.kind);
+
+        log_rtab!("Node added: {}", node_id);
 
         // Add new entry
-        self.entries.insert(node_id, Arc::new(BucketEntry::new()));
+        let entry = Arc::new(BucketEntry::new());
+        entry.with_mut_inner(|e| e.add_node_id(node_id));
+        self.entries.insert(node_id.key, entry.clone());
 
         // This is now the newest bucket entry
-        self.newest_entry = Some(node_id);
+        self.newest_entry = Some(node_id.key);
 
-        // Get a node ref to return
-        let entry = self.entries.get(&node_id).unwrap().clone();
-        NodeRef::new(self.routing_table.clone(), node_id, entry, None)
+        // Get a node ref to return since this is new
+        NodeRef::new(self.routing_table.clone(), entry, None)
     }
 
-    pub(super) fn remove_entry(&mut self, node_id: &PublicKey) {
-        log_rtab!("Node removed: {}", node_id);
+    /// Add an existing entry with a new node_id for this crypto kind
+    pub(super) fn add_existing_entry(&mut self, node_id: TypedKey, entry: Arc<BucketEntry>) {
+        assert_eq!(node_id.kind, self.kind);
+
+        log_rtab!("Existing node added: {}", node_id);
+
+        // Add existing entry
+        entry.with_mut_inner(|e| e.add_node_id(node_id));
+        self.entries.insert(node_id.key, entry);
+
+        // This is now the newest bucket entry
+        self.newest_entry = Some(node_id.key);
+
+        // No need to return a noderef here because the noderef will already exist in the caller
+    }
+
+    /// Remove an entry with a node_id for this crypto kind from the bucket
+    fn remove_entry(&mut self, node_id: &TypedKey) {
+        log_rtab!("Node removed: {}:{}", self.kind, node_id);
 
         // Remove the entry
         self.entries.remove(node_id);
@@ -106,7 +138,7 @@ impl Bucket {
         // newest_entry is updated by kick_bucket()
     }
 
-    pub(super) fn entry(&self, key: &PublicKey) -> Option<Arc<BucketEntry>> {
+    pub(super) fn entry(&self, key: &TypedKey) -> Option<Arc<BucketEntry>> {
         self.entries.get(key).cloned()
     }
 
@@ -114,7 +146,7 @@ impl Bucket {
         self.entries.iter()
     }
 
-    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<PublicKey>> {
+    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<TypedKey>> {
         // Get number of entries to attempt to purge from bucket
         let bucket_len = self.entries.len();
 
@@ -124,11 +156,11 @@ impl Bucket {
         }
 
         // Try to purge the newest entries that overflow the bucket
-        let mut dead_node_ids: BTreeSet<PublicKey> = BTreeSet::new();
+        let mut dead_node_ids: BTreeSet<TypedKey> = BTreeSet::new();
         let mut extra_entries = bucket_len - bucket_depth;
 
         // Get the sorted list of entries by their kick order
-        let mut sorted_entries: Vec<(PublicKey, Arc<BucketEntry>)> = self
+        let mut sorted_entries: Vec<(TypedKey, Arc<BucketEntry>)> = self
             .entries
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))

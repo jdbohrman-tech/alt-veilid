@@ -98,7 +98,7 @@ pub trait NodeRefBase: Sized {
     fn routing_table(&self) -> RoutingTable {
         self.common().routing_table.clone()
     }
-    fn node_ids(&self) -> Vec<TypedKey> {
+    fn node_ids(&self) -> TypedKeySet {
         self.operate(|_rti, e| e.node_ids())
     }
     fn has_updated_since_last_network_change(&self) -> bool {
@@ -112,11 +112,14 @@ pub trait NodeRefBase: Sized {
             e.update_node_status(node_status);
         });
     }
-    fn min_max_version(&self) -> Option<VersionRange> {
-        self.operate(|_rti, e| e.min_max_version())
+    fn envelope_support(&self) -> Vec<u8> {
+        self.operate(|_rti, e| e.envelope_support())
     }
-    fn set_min_max_version(&self, min_max_version: VersionRange) {
-        self.operate_mut(|_rti, e| e.set_min_max_version(min_max_version))
+    fn add_envelope_version(&self, envelope_version: u8) {
+        self.operate_mut(|_rti, e| e.add_envelope_version(envelope_version))
+    }
+    fn set_envelope_support(&self, envelope_support: Vec<u8>) {
+        self.operate_mut(|_rti, e| e.set_envelope_support(envelope_support))
     }
     fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         self.operate(|_rti, e| e.state(cur_ts))
