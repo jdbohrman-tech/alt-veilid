@@ -101,6 +101,9 @@ pub trait NodeRefBase: Sized {
     fn node_ids(&self) -> TypedKeySet {
         self.operate(|_rti, e| e.node_ids())
     }
+    fn best_node_id(&self) -> TypedKey {
+        self.operate(|_rti, e| e.best_node_id())
+    }
     fn has_updated_since_last_network_change(&self) -> bool {
         self.operate(|_rti, e| e.has_updated_since_last_network_change())
     }
@@ -281,7 +284,7 @@ pub trait NodeRefBase: Sized {
     fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: Timestamp) {
         self.operate_mut(|rti, e| {
             e.set_last_connection(connection_descriptor, ts);
-            rti.touch_recent_peer(self.common().node_id, connection_descriptor);
+            rti.touch_recent_peer(e.best_node_id(), connection_descriptor);
         })
     }
 
@@ -426,14 +429,14 @@ impl Clone for NodeRef {
 
 impl fmt::Display for NodeRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.common.node_id.encode())
+        write!(f, "{}", self.common.entry.with_inner(|e| e.best_node_id()))
     }
 }
 
 impl fmt::Debug for NodeRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeRef")
-            .field("node_id", &self.common.node_id)
+            .field("node_ids", &self.common.entry.with_inner(|e| e.node_ids()))
             .field("filter", &self.common.filter)
             .field("sequencing", &self.common.sequencing)
             .finish()
@@ -453,9 +456,10 @@ impl Drop for NodeRef {
             .fetch_sub(1u32, Ordering::Relaxed)
             - 1;
         if new_ref_count == 0 {
-            self.common
-                .routing_table
-                .queue_bucket_kick(self.common.node_id);
+            // get node ids with inner unlocked because nothing could be referencing this entry now
+            // and we don't know when it will get dropped, possibly inside a lock
+            let node_ids = self.common().entry.with_inner(|e| e.node_ids());
+            self.common.routing_table.queue_bucket_kicks(node_ids);
         }
     }
 }

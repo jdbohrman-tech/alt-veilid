@@ -101,8 +101,7 @@ impl Bucket {
         log_rtab!("Node added: {}", node_id);
 
         // Add new entry
-        let entry = Arc::new(BucketEntry::new());
-        entry.with_mut_inner(|e| e.add_node_id(node_id));
+        let entry = Arc::new(BucketEntry::new(node_id));
         self.entries.insert(node_id.key, entry.clone());
 
         // This is now the newest bucket entry

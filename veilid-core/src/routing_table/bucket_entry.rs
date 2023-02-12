@@ -129,6 +129,9 @@ impl BucketEntryInner {
     pub fn add_node_id(&mut self, node_id: TypedKey) {
         self.node_ids.add(node_id);
     }
+    pub fn best_node_id(&self) -> TypedKey {
+        self.node_ids.best().unwrap()
+    }
 
     // Less is faster
     pub fn cmp_fastest(e1: &Self, e2: &Self) -> std::cmp::Ordering {
@@ -237,22 +240,9 @@ impl BucketEntryInner {
             }
         }
 
-        // Update the protocol min/max version we have to use, to include relay requirements if needed
-        let mut version_range = VersionRange {
-            min: signed_node_info.node_info().min_version,
-            max: signed_node_info.node_info().max_version,
-        };
-        if let Some(relay_info) = signed_node_info.relay_info() {
-            version_range.min.max_assign(relay_info.min_version);
-            version_range.max.min_assign(relay_info.max_version);
-        }
-        if version_range.min <= version_range.max {
-            // Can be reached with at least one crypto version
-            self.min_max_version = Some(version_range);
-        } else {
-            // No valid crypto version in range
-            self.min_max_version = None;
-        }
+        // Update the envelope version support we have to use
+        let mut envelope_support = signed_node_info.node_info().envelope_support.clone();
+        self.set_envelope_support(envelope_support);
 
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
@@ -756,39 +746,41 @@ pub struct BucketEntry {
 }
 
 impl BucketEntry {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(first_node_id: TypedKey) -> Self {
         let now = get_aligned_timestamp();
-        Self {
-            ref_count: AtomicU32::new(0),
-            inner: RwLock::new(BucketEntryInner {
-                node_ids: TypedKeySet::new(),
-                envelope_support: Vec::new(),
-                updated_since_last_network_change: false,
-                last_connections: BTreeMap::new(),
-                local_network: BucketEntryLocalNetwork {
-                    last_seen_our_node_info_ts: Timestamp::new(0u64),
-                    signed_node_info: None,
-                    node_status: None,
-                },
-                public_internet: BucketEntryPublicInternet {
-                    last_seen_our_node_info_ts: Timestamp::new(0u64),
-                    signed_node_info: None,
-                    node_status: None,
-                },
-                peer_stats: PeerStats {
-                    time_added: now,
-                    rpc_stats: RPCStats::default(),
-                    latency: None,
-                    transfer: TransferStatsDownUp::default(),
-                },
-                latency_stats_accounting: LatencyStatsAccounting::new(),
-                transfer_stats_accounting: TransferStatsAccounting::new(),
-                #[cfg(feature = "tracking")]
-                next_track_id: 0,
-                #[cfg(feature = "tracking")]
-                node_ref_tracks: HashMap::new(),
-            }),
-        }
+        let mut node_ids = TypedKeySet::new();
+        node_ids.add(first_node_id);
+
+        let inner = BucketEntryInner {
+            node_ids,
+            envelope_support: Vec::new(),
+            updated_since_last_network_change: false,
+            last_connections: BTreeMap::new(),
+            local_network: BucketEntryLocalNetwork {
+                last_seen_our_node_info_ts: Timestamp::new(0u64),
+                signed_node_info: None,
+                node_status: None,
+            },
+            public_internet: BucketEntryPublicInternet {
+                last_seen_our_node_info_ts: Timestamp::new(0u64),
+                signed_node_info: None,
+                node_status: None,
+            },
+            peer_stats: PeerStats {
+                time_added: now,
+                rpc_stats: RPCStats::default(),
+                latency: None,
+                transfer: TransferStatsDownUp::default(),
+            },
+            latency_stats_accounting: LatencyStatsAccounting::new(),
+            transfer_stats_accounting: TransferStatsAccounting::new(),
+            #[cfg(feature = "tracking")]
+            next_track_id: 0,
+            #[cfg(feature = "tracking")]
+            node_ref_tracks: HashMap::new(),
+        };
+
+        Self::new_with_inner(inner)
     }
 
     pub(super) fn new_with_inner(inner: BucketEntryInner) -> Self {

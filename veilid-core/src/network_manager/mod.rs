@@ -792,25 +792,15 @@ impl NetworkManager {
 
         // Get node's min/max envelope version and see if we can send to it
         // and if so, get the max version we can use
-        node_ref.envelope_support()
-        let envelope_version = if let Some(min_max_version) =  {
-            #[allow(clippy::absurd_extreme_comparisons)]
-            if min_max_version.min > MAX_ENVELOPE_VERSION || min_max_version.max < MIN_ENVELOPE_VERSION
-            {
-                bail!(
-                    "can't talk to this node {} because version is unsupported: ({},{})",
-                    via_node_id,
-                    min_max_version.min,
-                    min_max_version.max
-                );
-            }
-            cmp::min(min_max_version.max, MAX_CRYPTO_VERSION)
-        } else {
-            MAX_CRYPTO_VERSION
+        let Some(envelope_version) = node_ref.envelope_support().iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)) else {
+            bail!(
+                "can't talk to this node {} because we dont support its envelope versions",
+                node_ref
+            );
         };
 
         // Build the envelope to send
-        let out = self.build_envelope(envelope_node_id, version, body)?;
+        let out = self.build_envelope(envelope_node_id, envelope_version, body)?;
 
         // Send the envelope via whatever means necessary
         self.send_data(node_ref.clone(), out).await
@@ -1449,7 +1439,7 @@ impl NetworkManager {
 
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
-            envelope.get_sender_id(),
+            TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id()),
             connection_descriptor,
             ts,
         ) {

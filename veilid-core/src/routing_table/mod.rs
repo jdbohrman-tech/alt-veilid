@@ -571,9 +571,14 @@ impl RoutingTable {
         inner.get_all_nodes(self.clone(), cur_ts)
     }
 
-    fn queue_bucket_kick(&self, node_id: TypedKey) {
-        let idx = self.unlocked_inner.find_bucket_index(node_id).unwrap();
-        self.unlocked_inner.kick_queue.lock().insert(idx);
+    fn queue_bucket_kicks(&self, node_ids: TypedKeySet) {
+        for node_id in node_ids.iter() {
+            let Some(x) = self.unlocked_inner.find_bucket_index(*node_id) else {
+                log_rtab!(error "find bucket index failed for nodeid {}", node_id);
+                continue;
+            };
+            self.unlocked_inner.kick_queue.lock().insert(x);
+        }
     }
 
     /// Resolve an existing routing table entry and return a reference to it
