@@ -352,7 +352,6 @@ pub struct VeilidConfigNodeId {
 pub struct VeilidConfigRoutingTable {
     pub node_ids: BTreeMap<CryptoKind, VeilidConfigNodeId>,
     pub bootstrap: Vec<String>,
-    pub bootstrap_nodes: Vec<String>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
     pub limit_attached_strong: u32,
@@ -677,7 +676,6 @@ impl VeilidConfig {
                 get_config_indexed!(inner.network.routing_table.node_ids, ck, node_id_secret);
             }
             get_config!(inner.network.routing_table.bootstrap);
-            get_config!(inner.network.routing_table.bootstrap_nodes);
             get_config!(inner.network.routing_table.limit_over_attached);
             get_config!(inner.network.routing_table.limit_fully_attached);
             get_config!(inner.network.routing_table.limit_attached_strong);

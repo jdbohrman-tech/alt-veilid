@@ -1,4 +1,5 @@
 use super::*;
+use weak_table::PtrWeakHashSet;
 
 const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
@@ -15,8 +16,8 @@ pub struct RoutingTableInner {
     pub(super) unlocked_inner: Arc<RoutingTableUnlockedInner>,
     /// Routing table buckets that hold references to entries, per crypto kind
     pub(super) buckets: BTreeMap<CryptoKind, Vec<Bucket>>,
-    /// A fast counter for the number of entries in the table, total
-    pub(super) bucket_entry_count: usize,
+    /// A weak set of all the entries we have in the buckets for faster iteration
+    pub(super) all_entries: PtrWeakHashSet<Weak<BucketEntry>>,
     /// The public internet routing domain
     pub(super) public_internet_routing_domain: PublicInternetRoutingDomainDetail,
     /// The dial info we use on the local network
@@ -40,13 +41,17 @@ impl RoutingTableInner {
             buckets: BTreeMap::new(),
             public_internet_routing_domain: PublicInternetRoutingDomainDetail::default(),
             local_network_routing_domain: LocalNetworkRoutingDomainDetail::default(),
-            bucket_entry_count: 0,
+            all_entries: PtrWeakHashSet::new(),
             self_latency_stats_accounting: LatencyStatsAccounting::new(),
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
             route_spec_store: None,
         }
+    }
+
+    pub fn bucket_entry_count(&self) -> usize {
+        self.all_entries.len()
     }
 
     pub fn transfer_stats_accounting(&mut self) -> &mut TransferStatsAccounting {
@@ -209,7 +214,7 @@ impl RoutingTableInner {
 
     pub fn reset_all_updated_since_last_network_change(&mut self) {
         let cur_ts = get_aligned_timestamp();
-        self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, _, v| {
+        self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, v| {
             v.with_mut(rti, |_rti, e| {
                 e.set_updated_since_last_network_change(false)
             });
@@ -310,7 +315,7 @@ impl RoutingTableInner {
         for ck in VALID_CRYPTO_KINDS {
             let ckbuckets = Vec::with_capacity(PUBLIC_KEY_LENGTH * 8);
             for _ in 0..PUBLIC_KEY_LENGTH * 8 {
-                let bucket = Bucket::new(routing_table.clone());
+                let bucket = Bucket::new(routing_table.clone(), ck);
                 ckbuckets.push(bucket);
             }
             self.buckets.insert(ck, ckbuckets);
@@ -345,14 +350,18 @@ impl RoutingTableInner {
     pub fn purge_buckets(&mut self) {
         log_rtab!(
             "Starting routing table buckets purge. Table currently has {} nodes",
-            self.bucket_entry_count
+            self.bucket_entry_count()
         );
-        for bucket in &mut self.buckets {
-            bucket.kick(0);
+        for ck in VALID_CRYPTO_KINDS {
+            for bucket in &mut self.buckets[&ck] {
+                bucket.kick(0);
+            }
         }
+        self.all_entries.remove_expired();
+
         log_rtab!(debug
              "Routing table buckets purge complete. Routing table now has {} nodes",
-            self.bucket_entry_count
+            self.bucket_entry_count()
         );
     }
 
@@ -360,32 +369,36 @@ impl RoutingTableInner {
     pub fn purge_last_connections(&mut self) {
         log_rtab!(
             "Starting routing table last_connections purge. Table currently has {} nodes",
-            self.bucket_entry_count
+            self.bucket_entry_count()
         );
-        for bucket in &self.buckets {
-            for entry in bucket.entries() {
-                entry.1.with_mut_inner(|e| {
-                    e.clear_last_connections();
-                });
+        for ck in VALID_CRYPTO_KINDS {
+            for bucket in &self.buckets[&ck] {
+                for entry in bucket.entries() {
+                    entry.1.with_mut_inner(|e| {
+                        e.clear_last_connections();
+                    });
+                }
             }
         }
+        self.all_entries.remove_expired();
 
         log_rtab!(debug
              "Routing table last_connections purge complete. Routing table now has {} nodes",
-             self.bucket_entry_count
+             self.bucket_entry_count()
         );
     }
 
     /// Attempt to settle buckets and remove entries down to the desired number
     /// which may not be possible due extant NodeRefs
-    pub fn kick_bucket(&mut self, idx: usize) {
-        let bucket = &mut self.buckets[idx];
+    pub fn kick_bucket(&mut self, kind: CryptoKind, idx: usize) {
+        let bucket = &mut self.buckets[&kind][idx];
         let bucket_depth = Self::bucket_depth(idx);
 
         if let Some(dead_node_ids) = bucket.kick(bucket_depth) {
-            // Remove counts
-            self.bucket_entry_count -= dead_node_ids.len();
-            log_rtab!(debug "Routing table now has {} nodes", self.bucket_entry_count);
+            // Remove expired entries
+            self.all_entries.remove_expired();
+
+            log_rtab!(debug "Bucket {}:{} kicked Routing table now has {} nodes", kind, idx, self.bucket_entry_count());
 
             // Now purge the routing table inner vectors
             //let filter = |k: &DHTKey| dead_node_ids.contains(k);
@@ -403,7 +416,7 @@ impl RoutingTableInner {
     ) -> usize {
         let mut count = 0usize;
         let cur_ts = get_aligned_timestamp();
-        self.with_entries(cur_ts, min_state, |rti, _, e| {
+        self.with_entries(cur_ts, min_state, |rti, e| {
             if e.with(rti, |rti, e| e.best_routing_domain(rti, routing_domain_set))
                 .is_some()
             {
@@ -414,52 +427,34 @@ impl RoutingTableInner {
         count
     }
 
-    pub fn with_entries<
-        T,
-        F: FnMut(&RoutingTableInner, TypedKey, Arc<BucketEntry>) -> Option<T>,
-    >(
+    pub fn with_entries<T, F: FnMut(&RoutingTableInner, Arc<BucketEntry>) -> Option<T>>(
         &self,
         cur_ts: Timestamp,
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
-        let mut entryvec = Vec::with_capacity(self.bucket_entry_count);
-        for bucket in &self.buckets {
-            for entry in bucket.entries() {
-                if entry.1.with(self, |_rti, e| e.state(cur_ts) >= min_state) {
-                    entryvec.push((*entry.0, entry.1.clone()));
+        for entry in self.all_entries {
+            if entry.with(self, |_rti, e| e.state(cur_ts) >= min_state) {
+                if let Some(out) = f(self, entry) {
+                    return Some(out);
                 }
-            }
-        }
-        for entry in entryvec {
-            if let Some(out) = f(self, entry.0, entry.1) {
-                return Some(out);
             }
         }
 
         None
     }
 
-    pub fn with_entries_mut<
-        T,
-        F: FnMut(&mut RoutingTableInner, TypedKey, Arc<BucketEntry>) -> Option<T>,
-    >(
+    pub fn with_entries_mut<T, F: FnMut(&mut RoutingTableInner, Arc<BucketEntry>) -> Option<T>>(
         &mut self,
         cur_ts: Timestamp,
         min_state: BucketEntryState,
         mut f: F,
     ) -> Option<T> {
-        let mut entryvec = Vec::with_capacity(self.bucket_entry_count);
-        for bucket in &self.buckets {
-            for entry in bucket.entries() {
-                if entry.1.with(self, |_rti, e| e.state(cur_ts) >= min_state) {
-                    entryvec.push((*entry.0, entry.1.clone()));
+        for entry in self.all_entries {
+            if entry.with(self, |_rti, e| e.state(cur_ts) >= min_state) {
+                if let Some(out) = f(self, entry) {
+                    return Some(out);
                 }
-            }
-        }
-        for entry in entryvec {
-            if let Some(out) = f(self, entry.0, entry.1) {
-                return Some(out);
             }
         }
 
@@ -728,18 +723,16 @@ impl RoutingTableInner {
         let mut dead_entry_count: usize = 0;
 
         let cur_ts = get_aligned_timestamp();
-        for bucket in &self.buckets {
-            for (_, v) in bucket.entries() {
-                match v.with(self, |_rti, e| e.state(cur_ts)) {
-                    BucketEntryState::Reliable => {
-                        reliable_entry_count += 1;
-                    }
-                    BucketEntryState::Unreliable => {
-                        unreliable_entry_count += 1;
-                    }
-                    BucketEntryState::Dead => {
-                        dead_entry_count += 1;
-                    }
+        for entry in self.all_entries {
+            match entry.with(self, |_rti, e| e.state(cur_ts)) {
+                BucketEntryState::Reliable => {
+                    reliable_entry_count += 1;
+                }
+                BucketEntryState::Unreliable => {
+                    unreliable_entry_count += 1;
+                }
+                BucketEntryState::Dead => {
+                    dead_entry_count += 1;
                 }
             }
         }
@@ -798,7 +791,7 @@ impl RoutingTableInner {
         self.find_fastest_nodes(
             node_count,
             filters,
-            |_rti: &RoutingTableInner, k: TypedKey, v: Option<Arc<BucketEntry>>| {
+            |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                 NodeRef::new(outer_self.clone(), v.unwrap().clone(), None)
             },
         )
@@ -846,30 +839,30 @@ impl RoutingTableInner {
             &'b Option<Arc<BucketEntry>>,
             &'b Option<Arc<BucketEntry>>,
         ) -> core::cmp::Ordering,
-        T: for<'r> FnMut(&'r RoutingTableInner, TypedKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
         // collect all the nodes for sorting
         let mut nodes =
-            Vec::<(TypedKey, Option<Arc<BucketEntry>>)>::with_capacity(self.bucket_entry_count + 1);
+            Vec::<Option<Arc<BucketEntry>>>::with_capacity(self.bucket_entry_count() + 1);
 
         // add our own node (only one of there with the None entry)
         let mut filtered = false;
         for filter in &mut filters {
-            if !filter(self, self.unlocked_inner.node_id, None) {
+            if !filter(self, None) {
                 filtered = true;
                 break;
             }
         }
         if !filtered {
-            nodes.push((self.unlocked_inner.node_id, None));
+            nodes.push(None);
         }
 
-        // add all nodes from buckets
-        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
+        // add all nodes that match filter
+        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, v| {
             // Apply filter
             for filter in &mut filters {
-                if filter(rti, k, Some(v.clone())) {
-                    nodes.push((k, Some(v.clone())));
+                if filter(rti, Some(v.clone())) {
+                    nodes.push(Some(v.clone()));
                     break;
                 }
             }
@@ -883,7 +876,7 @@ impl RoutingTableInner {
         let cnt = usize::min(node_count, nodes.len());
         let mut out = Vec::<O>::with_capacity(cnt);
         for node in nodes {
-            let val = transform(self, node.0, node.1);
+            let val = transform(self, node);
             out.push(val);
         }
 
@@ -921,12 +914,19 @@ impl RoutingTableInner {
 
         // Fastest sort
         let sort = |rti: &RoutingTableInner,
-                    (a_key, a_entry): &(TypedKey, Option<Arc<BucketEntry>>),
-                    (b_key, b_entry): &(TypedKey, Option<Arc<BucketEntry>>)| {
+                    a_entry: &Option<Arc<BucketEntry>>,
+                    b_entry: &Option<Arc<BucketEntry>>| {
             // same nodes are always the same
-            if a_key == b_key {
+            if let Some(a_entry) = a_entry {
+                if let Some(b_entry) = b_entry {
+                    if Arc::ptr_eq(&a_entry, &b_entry) {
+                        return core::cmp::Ordering::Equal;
+                    }
+                }
+            } else if b_entry.is_none() {
                 return core::cmp::Ordering::Equal;
             }
+
             // our own node always comes last (should not happen, here for completeness)
             if a_entry.is_none() {
                 return core::cmp::Ordering::Greater;
@@ -977,26 +977,28 @@ impl RoutingTableInner {
 
     pub fn find_closest_nodes<T, O>(
         &self,
+        node_count: usize,
         node_id: TypedKey,
         filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> Vec<O>
     where
-        T: for<'r> FnMut(&'r RoutingTableInner, TypedKey, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = get_aligned_timestamp();
-        let node_count = {
-            let config = self.config();
-            let c = config.get();
-            c.network.dht.max_find_node_count as usize
-        };
 
         // closest sort
         let sort = |rti: &RoutingTableInner,
-                    (a_key, a_entry): &(TypedKey, Option<Arc<BucketEntry>>),
-                    (b_key, b_entry): &(TypedKey, Option<Arc<BucketEntry>>)| {
+                    a_entry: &Option<Arc<BucketEntry>>,
+                    b_entry: &Option<Arc<BucketEntry>>| {
             // same nodes are always the same
-            if a_key == b_key {
+            if let Some(a_entry) = a_entry {
+                if let Some(b_entry) = b_entry {
+                    if Arc::ptr_eq(&a_entry, &b_entry) {
+                        return core::cmp::Ordering::Equal;
+                    }
+                }
+            } else if b_entry.is_none() {
                 return core::cmp::Ordering::Equal;
             }
 

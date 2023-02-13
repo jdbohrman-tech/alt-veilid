@@ -106,7 +106,14 @@ impl RPCProcessor {
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
 
+        let node_count = {
+            let config = self.config();
+            let c = config.get();
+            c.network.dht.max_find_node_count as usize
+        };
+
         let closest_nodes = routing_table.find_closest_nodes(
+            node_count,
             find_node_q.node_id,
             filters,
             // transform

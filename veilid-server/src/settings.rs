@@ -67,7 +67,6 @@ core:
         node_id: null
         node_id_secret: null
         bootstrap: ['bootstrap.dev.veilid.net']
-        bootstrap_nodes: []
         routing_table:
             limit_over_attached: 64
             limit_fully_attached: 32
@@ -297,66 +296,6 @@ impl serde::Serialize for ParsedUrl {
         S: serde::Serializer,
     {
         self.urlstring.serialize(serializer)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ParsedNodeDialInfo {
-    pub node_dial_info_string: String,
-    pub node_id: NodeId,
-    pub dial_info: DialInfo,
-}
-
-// impl ParsedNodeDialInfo {
-//     pub fn offset_port(&mut self, offset: u16) -> Result<(), ()> {
-//         // Bump port on dial_info
-//         self.dial_info
-//             .set_port(self.dial_info.port() + 1);
-//         self.node_dial_info_string = format!("{}@{}",self.node_id, self.dial_info);
-//         Ok(())
-//     }
-// }
-
-impl FromStr for ParsedNodeDialInfo {
-    type Err = veilid_core::VeilidAPIError;
-    fn from_str(
-        node_dial_info_string: &str,
-    ) -> Result<ParsedNodeDialInfo, veilid_core::VeilidAPIError> {
-        let (id_str, di_str) = node_dial_info_string.split_once('@').ok_or_else(|| {
-            VeilidAPIError::invalid_argument(
-                "Invalid node dial info in bootstrap entry",
-                "node_dial_info_string",
-                node_dial_info_string,
-            )
-        })?;
-        let node_id = NodeId::from_str(id_str)
-            .map_err(|e| VeilidAPIError::invalid_argument(e, "node_id", id_str))?;
-        let dial_info = DialInfo::from_str(di_str)
-            .map_err(|e| VeilidAPIError::invalid_argument(e, "dial_info", id_str))?;
-        Ok(Self {
-            node_dial_info_string: node_dial_info_string.to_owned(),
-            node_id,
-            dial_info,
-        })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for ParsedNodeDialInfo {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        ParsedNodeDialInfo::from_str(s.as_str()).map_err(serde::de::Error::custom)
-    }
-}
-
-impl serde::Serialize for ParsedNodeDialInfo {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.node_dial_info_string.serialize(serializer)
     }
 }
 
@@ -598,7 +537,6 @@ pub struct Network {
     pub node_id: Option<veilid_core::TypedKey>,
     pub node_id_secret: Option<veilid_core::SecretKey>,
     pub bootstrap: Vec<String>,
-    pub bootstrap_nodes: Vec<ParsedNodeDialInfo>,
     pub routing_table: RoutingTable,
     pub rpc: Rpc,
     pub dht: Dht,
@@ -967,7 +905,6 @@ impl Settings {
         set_config_value!(inner.core.network.node_id, value);
         set_config_value!(inner.core.network.node_id_secret, value);
         set_config_value!(inner.core.network.bootstrap, value);
-        set_config_value!(inner.core.network.bootstrap_nodes, value);
         set_config_value!(inner.core.network.routing_table.limit_over_attached, value);
         set_config_value!(inner.core.network.routing_table.limit_fully_attached, value);
         set_config_value!(
@@ -1122,16 +1059,6 @@ impl Settings {
                 "network.node_id" => Ok(Box::new(inner.core.network.node_id)),
                 "network.node_id_secret" => Ok(Box::new(inner.core.network.node_id_secret)),
                 "network.bootstrap" => Ok(Box::new(inner.core.network.bootstrap.clone())),
-                "network.bootstrap_nodes" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .bootstrap_nodes
-                        .clone()
-                        .into_iter()
-                        .map(|e| e.node_dial_info_string)
-                        .collect::<Vec<String>>(),
-                )),
                 "network.routing_table.limit_over_attached" => Ok(Box::new(
                     inner.core.network.routing_table.limit_over_attached,
                 )),
@@ -1495,7 +1422,6 @@ mod tests {
             s.core.network.bootstrap,
             vec!["bootstrap.dev.veilid.net".to_owned()]
         );
-        assert_eq!(s.core.network.bootstrap_nodes, vec![]);
         //
         assert_eq!(s.core.network.rpc.concurrency, 0);
         assert_eq!(s.core.network.rpc.queue_size, 1024);

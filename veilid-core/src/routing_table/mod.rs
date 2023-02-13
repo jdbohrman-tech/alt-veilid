@@ -111,7 +111,15 @@ impl RoutingTableUnlockedInner {
     }
 
     pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
-        self.node_id_keypairs.get(&kind).unwrap().key
+        TypedKey::new(kind, self.node_id_keypairs.get(&kind).unwrap().key)
+    }
+
+    pub fn node_ids(&self) -> TypedKeySet {
+        let mut tks = TypedKeySet::new();
+        for x in &self.node_id_keypairs {
+            tks.add(TypedKey::new(*x.0, x.1.key));
+        }
+        tks
     }
 
     pub fn node_id_secret(&self, kind: CryptoKind) -> SecretKey {
@@ -890,6 +898,7 @@ impl RoutingTable {
 
     pub fn find_closest_nodes<'a, T, O>(
         &self,
+        node_count: usize,
         node_id: TypedKey,
         filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
@@ -899,7 +908,7 @@ impl RoutingTable {
     {
         self.inner
             .read()
-            .find_closest_nodes(node_id, filters, transform)
+            .find_closest_nodes(node_count, node_id, filters, transform)
     }
 
     #[instrument(level = "trace", skip(self), ret)]
@@ -940,14 +949,14 @@ impl RoutingTable {
 
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn find_self(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
-        let node_id = self.node_id();
-        self.find_node(node_ref, node_id).await
+        let self_node_id = self.node_id();
+        self.find_node(node_ref, self_node_id).await
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn find_target(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
-        let node_id = node_ref.node_id();
-        self.find_node(node_ref, node_id).await
+        let target_node_id = node_ref.node_id();
+        self.find_node(node_ref, target_node_id).await
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -1047,12 +1056,12 @@ impl RoutingTable {
         // Go through all entries and find fastest entry that matches filter function
         let inner = self.inner.read();
         let inner = &*inner;
-        let mut best_inbound_relay: Option<(TypedKey, Arc<BucketEntry>)> = None;
+        let mut best_inbound_relay: Option<Arc<BucketEntry>> = None;
 
         // Iterate all known nodes for candidates
-        inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
-            let v2 = v.clone();
-            v.with(rti, |rti, e| {
+        inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
+            let entry2 = entry.clone();
+            entry.with(rti, |rti, e| {
                 // Ensure we have the node's status
                 if let Some(node_status) = e.node_status(routing_domain) {
                     // Ensure the node will relay
@@ -1060,18 +1069,18 @@ impl RoutingTable {
                         // Compare against previous candidate
                         if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
                             // Less is faster
-                            let better = best_inbound_relay.1.with(rti, |_rti, best| {
+                            let better = best_inbound_relay.with(rti, |_rti, best| {
                                 // choose low latency stability for relays
                                 BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
                                     == std::cmp::Ordering::Less
                             });
                             // Now apply filter function and see if this node should be included
                             if better && relay_node_filter(e) {
-                                *best_inbound_relay = (k, v2);
+                                *best_inbound_relay = entry2;
                             }
                         } else if relay_node_filter(e) {
                             // Always store the first candidate
-                            best_inbound_relay = Some((k, v2));
+                            best_inbound_relay = Some(entry2);
                         }
                     }
                 }
@@ -1080,6 +1089,6 @@ impl RoutingTable {
             Option::<()>::None
         });
         // Return the best inbound relay noderef
-        best_inbound_relay.map(|(k, e)| NodeRef::new(self.clone(), e, None))
+        best_inbound_relay.map(|e| NodeRef::new(self.clone(), e, None))
     }
 }

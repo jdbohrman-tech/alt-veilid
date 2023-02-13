@@ -1327,7 +1327,7 @@ impl NetworkManager {
         }
 
         // Is this an out-of-band receipt instead of an envelope?
-        if data[0..4] == *RECEIPT_MAGIC {
+        if data[0..3] == *RECEIPT_MAGIC {
             network_result_value_or_log!(self.handle_out_of_band_receipt(data).await => {});
             return Ok(true);
         }

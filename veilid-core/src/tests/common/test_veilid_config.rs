@@ -195,7 +195,6 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.node_id" => Ok(Box::new(Option::<TypedKey>::None)),
         "network.node_id_secret" => Ok(Box::new(Option::<SecretKey>::None)),
         "network.bootstrap" => Ok(Box::new(Vec::<String>::new())),
-        "network.bootstrap_nodes" => Ok(Box::new(Vec::<String>::new())),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
         "network.routing_table.limit_attached_strong" => Ok(Box::new(16u32)),
@@ -319,7 +318,6 @@ pub async fn test_config() {
     assert!(inner.network.node_id.is_none());
     assert!(inner.network.node_id_secret.is_none());
     assert_eq!(inner.network.bootstrap, Vec::<String>::new());
-    assert_eq!(inner.network.bootstrap_nodes, Vec::<String>::new());
     assert_eq!(inner.network.rpc.concurrency, 2u32);
     assert_eq!(inner.network.rpc.queue_size, 1024u32);
     assert_eq!(inner.network.rpc.timeout_ms, 10_000u32);

@@ -11,9 +11,9 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 pub type CryptoKind = FourCC;
 
 /// Sort best crypto kinds first
-pub fn compare_crypto_kind(a: CryptoKind, b: CryptoKind) -> cmp::Ordering {
-    let a_idx = VALID_CRYPTO_KINDS.iter().position(|&k| k == a);
-    let b_idx = VALID_CRYPTO_KINDS.iter().position(|&k| k == b);
+pub fn compare_crypto_kind(a: &CryptoKind, b: &CryptoKind) -> cmp::Ordering {
+    let a_idx = VALID_CRYPTO_KINDS.iter().position(|k| k == a);
+    let b_idx = VALID_CRYPTO_KINDS.iter().position(|k| k == b);
     if let Some(a_idx) = a_idx {
         if let Some(b_idx) = b_idx {
             a_idx.cmp(&b_idx)
@@ -23,7 +23,7 @@ pub fn compare_crypto_kind(a: CryptoKind, b: CryptoKind) -> cmp::Ordering {
     } else if let Some(b_idx) = b_idx {
         cmp::Ordering::Greater
     } else {
-        a.cmp(&b)
+        a.cmp(b)
     }
 }
 
@@ -86,7 +86,7 @@ impl PartialOrd for TypedKey {
 
 impl Ord for TypedKey {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let x = compare_crypto_kind(self.kind, other.kind);
+        let x = compare_crypto_kind(&self.kind, &other.kind);
         if x != cmp::Ordering::Equal {
             return x;
         }
@@ -140,6 +140,14 @@ impl TypedKeySet {
             items: Vec::with_capacity(cap),
         }
     }
+    pub fn kinds(&self) -> Vec<CryptoKind> {
+        let mut out = Vec::new();
+        for tk in &self.items {
+            out.push(tk.kind);
+        }
+        out.sort_by(compare_crypto_kind);
+        out
+    }
     pub fn get(&self, kind: CryptoKind) -> Option<TypedKey> {
         self.items.iter().find(|x| x.kind == kind).copied()
     }
@@ -151,6 +159,18 @@ impl TypedKeySet {
             }
         }
         self.items.push(typed_key);
+        self.items.sort()
+    }
+    pub fn add_all(&mut self, typed_keys: &[TypedKey]) {
+        'outer: for typed_key in typed_keys {
+            for x in &mut self.items {
+                if x.kind == typed_key.kind {
+                    *x = *typed_key;
+                    continue 'outer;
+                }
+            }
+            self.items.push(*typed_key);
+        }
         self.items.sort()
     }
     pub fn remove(&self, kind: CryptoKind) {
@@ -256,7 +276,7 @@ impl PartialOrd for TypedKeyPair {
 
 impl Ord for TypedKeyPair {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let x = compare_crypto_kind(self.kind, other.kind);
+        let x = compare_crypto_kind(&self.kind, &other.kind);
         if x != cmp::Ordering::Equal {
             return x;
         }
@@ -340,7 +360,7 @@ impl PartialOrd for TypedSignature {
 
 impl Ord for TypedSignature {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let x = compare_crypto_kind(self.kind, other.kind);
+        let x = compare_crypto_kind(&self.kind, &other.kind);
         if x != cmp::Ordering::Equal {
             return x;
         }
@@ -410,7 +430,7 @@ impl PartialOrd for TypedKeySignature {
 
 impl Ord for TypedKeySignature {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let x = compare_crypto_kind(self.kind, other.kind);
+        let x = compare_crypto_kind(&self.kind, &other.kind);
         if x != cmp::Ordering::Equal {
             return x;
         }

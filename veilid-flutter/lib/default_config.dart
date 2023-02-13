@@ -51,7 +51,6 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
       bootstrap: kIsWeb
           ? ["ws://bootstrap.dev.veilid.net:5150/ws"]
           : ["bootstrap.dev.veilid.net"],
-      bootstrapNodes: [],
       routingTable: VeilidConfigRoutingTable(
         limitOverAttached: 64,
         limitFullyAttached: 32,

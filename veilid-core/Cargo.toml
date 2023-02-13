@@ -11,11 +11,11 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
 default = []
-rt-async-std = [ "async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std" ]
-rt-tokio = [ "tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket", "veilid-tools/rt-tokio" ]
+rt-async-std = ["async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std"]
+rt-tokio = ["tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket", "veilid-tools/rt-tokio"]
 
-veilid_core_android_tests = [ "dep:paranoid-android" ]
-veilid_core_ios_tests = [ "dep:tracing-oslog" ]
+veilid_core_android_tests = ["dep:paranoid-android"]
+veilid_core_ios_tests = ["dep:tracing-oslog"]
 tracking = []
 
 [dependencies]
@@ -65,6 +65,7 @@ keyvaluedb = { path = "../external/keyvaluedb/keyvaluedb" }
 rkyv = { git = "https://github.com/rkyv/rkyv.git", rev = "57e2a8d", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
 bytecheck = "^0"
 data-encoding = { version = "^2" }
+weak-table = "0.3.2"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

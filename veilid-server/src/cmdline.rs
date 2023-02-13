@@ -123,14 +123,6 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .help("Specify a list of bootstrap hostnames to use")
         )
         .arg(
-            Arg::new("bootstrap-nodes")
-                .conflicts_with("bootstrap")
-                .long("bootstrap-nodes")
-                .takes_value(true)
-                .value_name("BOOTSTRAP_NODE_LIST")
-                .help("Specify a list of bootstrap node dialinfos to use"),
-        )
-        .arg(
             Arg::new("panic")
                 .long("panic")
                 .help("panic on ctrl-c instead of graceful shutdown"),
@@ -278,28 +270,6 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
             }
         };
         settingsrw.core.network.bootstrap = bootstrap_list;
-    }
-
-    if matches.occurrences_of("bootstrap-nodes") != 0 {
-        let bootstrap_list = match matches.value_of("bootstrap-nodes") {
-            Some(x) => {
-                println!("Overriding bootstrap node list with: ");
-                let mut out: Vec<ParsedNodeDialInfo> = Vec::new();
-                for x in x.split(',') {
-                    let x = x.trim();
-                    println!("    {}", x);
-                    out.push(
-                        ParsedNodeDialInfo::from_str(x)
-                            .wrap_err("unable to parse dial info in bootstrap node list")?,
-                    );
-                }
-                out
-            }
-            None => {
-                bail!("value not specified for bootstrap node list");
-            }
-        };
-        settingsrw.core.network.bootstrap_nodes = bootstrap_list;
     }
 
     #[cfg(feature = "rt-tokio")]

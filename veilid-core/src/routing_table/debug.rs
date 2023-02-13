@@ -7,7 +7,7 @@ impl RoutingTable {
         let inner = self.inner.read();
         out += "Routing Table Info:\n";
 
-        out += &format!("   Node Id: {}\n", self.unlocked_inner.node_id.encode());
+        out += &format!("   Node Ids: {}\n", self.unlocked_inner.node_ids());
         out += &format!(
             "   Self Latency Stats Accounting: {:#?}\n\n",
             inner.self_latency_stats_accounting
@@ -55,13 +55,20 @@ impl RoutingTable {
             short_urls.sort();
             short_urls.dedup();
 
+            let valid_envelope_versions = VALID_ENVELOPE_VERSIONS.map(|x| x.to_string()).join(",");
+            let node_ids = self
+                .unlocked_inner
+                .node_ids()
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(",");
             out += "TXT Record:\n";
             out += &format!(
-                "{},{},{},{},{}",
+                "{}|{}|{}|{}|",
                 BOOTSTRAP_TXT_VERSION,
-                MIN_CRYPTO_VERSION,
-                MAX_CRYPTO_VERSION,
-                self.node_id().encode(),
+                valid_envelope_versions,
+                node_ids,
                 some_hostname.unwrap()
             );
             for short_url in short_urls {

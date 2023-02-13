@@ -744,7 +744,6 @@ class VeilidConfigNetwork {
   String? nodeId;
   String? nodeIdSecret;
   List<String> bootstrap;
-  List<String> bootstrapNodes;
   VeilidConfigRoutingTable routingTable;
   VeilidConfigRPC rpc;
   VeilidConfigDHT dht;
@@ -768,7 +767,6 @@ class VeilidConfigNetwork {
     required this.nodeId,
     required this.nodeIdSecret,
     required this.bootstrap,
-    required this.bootstrapNodes,
     required this.routingTable,
     required this.rpc,
     required this.dht,
@@ -794,7 +792,6 @@ class VeilidConfigNetwork {
       'node_id': nodeId,
       'node_id_secret': nodeIdSecret,
       'bootstrap': bootstrap,
-      'bootstrap_nodes': bootstrapNodes,
       'routing_table': routingTable.json,
       'rpc': rpc.json,
       'dht': dht.json,
@@ -823,7 +820,6 @@ class VeilidConfigNetwork {
         nodeId = json['node_id'],
         nodeIdSecret = json['node_id_secret'],
         bootstrap = json['bootstrap'],
-        bootstrapNodes = json['bootstrap_nodes'],
         routingTable = VeilidConfigRoutingTable.fromJson(json['routing_table']),
         rpc = VeilidConfigRPC.fromJson(json['rpc']),
         dht = VeilidConfigDHT.fromJson(json['dht']),
