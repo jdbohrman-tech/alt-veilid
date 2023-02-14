@@ -279,8 +279,8 @@ pub struct VeilidStateNetwork {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidStateRoute {
-    pub dead_routes: Vec<TypedKey>,
-    pub dead_remote_routes: Vec<TypedKey>,
+    pub dead_routes: Vec<PublicKey>,
+    pub dead_remote_routes: Vec<PublicKey>,
 }
 
 #[derive(
@@ -513,7 +513,7 @@ impl SafetySelection {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
     /// preferred safety route if it still exists
-    pub preferred_route: Option<TypedKey>,
+    pub preferred_route: Option<PublicKey>,
     /// must be greater than 0
     pub hop_count: usize,
     /// prefer reliability over speed

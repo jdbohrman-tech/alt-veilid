@@ -29,6 +29,9 @@ pub type CryptoSystemVersion = Arc<dyn CryptoSystem + Send + Sync>;
 
 /// Crypto kinds in order of preference, best cryptosystem is the first one, worst is the last one
 pub const VALID_CRYPTO_KINDS: [CryptoKind; 1] = [CRYPTO_KIND_VLD0];
+/// Number of cryptosystem signatures to keep on structures if many are present beyond the ones we consider valid
+pub const MAX_CRYPTO_KINDS: usize = 3;
+/// Return the best cryptosystem kind we support
 pub fn best_crypto_kind() -> CryptoKind {
     VALID_CRYPTO_KINDS[0]
 }
@@ -85,6 +88,10 @@ impl Crypto {
         out.inner.lock().crypto_vld0 = Some(Arc::new(vld0::CryptoSystemVLD0::new(out.clone())));
 
         out
+    }
+
+    pub fn config(&self) -> VeilidConfig {
+        self.unlocked_inner.config.clone()
     }
 
     pub async fn init(&self) -> EyreResult<()> {

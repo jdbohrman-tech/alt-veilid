@@ -1,5 +1,5 @@
 use super::*;
-use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION;
+use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION_0;
 
 impl RoutingTable {
     pub(crate) fn debug_info_nodeinfo(&self) -> String {
@@ -66,7 +66,7 @@ impl RoutingTable {
             out += "TXT Record:\n";
             out += &format!(
                 "{}|{}|{}|{}|",
-                BOOTSTRAP_TXT_VERSION,
+                BOOTSTRAP_TXT_VERSION_0,
                 valid_envelope_versions,
                 node_ids,
                 some_hostname.unwrap()
@@ -115,42 +115,45 @@ impl RoutingTable {
 
         let mut out = String::new();
 
-        let blen = inner.buckets.len();
         let mut b = 0;
         let mut cnt = 0;
-        out += &format!("Entries: {}\n", inner.bucket_entry_count);
-        while b < blen {
-            let filtered_entries: Vec<(&TypedKey, &Arc<BucketEntry>)> = inner.buckets[b]
-                .entries()
-                .filter(|e| {
-                    let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
-                    state >= min_state
-                })
-                .collect();
-            if !filtered_entries.is_empty() {
-                out += &format!("  Bucket #{}:\n", b);
-                for e in filtered_entries {
-                    let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
-                    out += &format!(
-                        "    {} [{}]\n",
-                        e.0.encode(),
-                        match state {
-                            BucketEntryState::Reliable => "R",
-                            BucketEntryState::Unreliable => "U",
-                            BucketEntryState::Dead => "D",
-                        }
-                    );
+        out += &format!("Entries: {}\n", inner.bucket_entry_count());
 
-                    cnt += 1;
+        for ck in &VALID_CRYPTO_KINDS {
+            let blen = inner.buckets[ck].len();
+            while b < blen {
+                let filtered_entries: Vec<(&PublicKey, &Arc<BucketEntry>)> = inner.buckets[ck][b]
+                    .entries()
+                    .filter(|e| {
+                        let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
+                        state >= min_state
+                    })
+                    .collect();
+                if !filtered_entries.is_empty() {
+                    out += &format!("{} Bucket #{}:\n", ck, b);
+                    for e in filtered_entries {
+                        let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
+                        out += &format!(
+                            "    {} [{}]\n",
+                            e.0.encode(),
+                            match state {
+                                BucketEntryState::Reliable => "R",
+                                BucketEntryState::Unreliable => "U",
+                                BucketEntryState::Dead => "D",
+                            }
+                        );
+
+                        cnt += 1;
+                        if cnt >= limit {
+                            break;
+                        }
+                    }
                     if cnt >= limit {
                         break;
                     }
                 }
-                if cnt >= limit {
-                    break;
-                }
+                b += 1;
             }
-            b += 1;
         }
 
         out
@@ -175,26 +178,28 @@ impl RoutingTable {
 
         let mut out = String::new();
         const COLS: usize = 16;
-        let rows = inner.buckets.len() / COLS;
-        let mut r = 0;
-        let mut b = 0;
         out += "Buckets:\n";
-        while r < rows {
-            let mut c = 0;
-            out += format!("  {:>3}: ", b).as_str();
-            while c < COLS {
-                let mut cnt = 0;
-                for e in inner.buckets[b].entries() {
-                    if e.1.with(inner, |_rti, e| e.state(cur_ts) >= min_state) {
-                        cnt += 1;
+        for ck in &VALID_CRYPTO_KINDS {
+            let rows = inner.buckets[ck].len() / COLS;
+            let mut r = 0;
+            let mut b = 0;
+            while r < rows {
+                let mut c = 0;
+                out += format!("  {:>3}: ", b).as_str();
+                while c < COLS {
+                    let mut cnt = 0;
+                    for e in inner.buckets[ck][b].entries() {
+                        if e.1.with(inner, |_rti, e| e.state(cur_ts) >= min_state) {
+                            cnt += 1;
+                        }
                     }
+                    out += format!("{:>3} ", cnt).as_str();
+                    b += 1;
+                    c += 1;
                 }
-                out += format!("{:>3} ", cnt).as_str();
-                b += 1;
-                c += 1;
+                out += "\n";
+                r += 1;
             }
-            out += "\n";
-            r += 1;
         }
 
         out

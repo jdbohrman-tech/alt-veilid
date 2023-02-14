@@ -67,7 +67,11 @@ pub fn decode_signed_relayed_node_info(
         .reborrow()
         .get_relay_ids()
         .map_err(RPCError::protocol)?;
-    let mut relay_ids = TypedKeySet::with_capacity(rids_reader.len() as usize);
+    let rid_count = rids_reader.len() as usize;
+    if rid_count > MAX_CRYPTO_KINDS {
+        return Err(RPCError::protocol("too many relay ids"));
+    }
+    let mut relay_ids = TypedKeySet::with_capacity(rid_count);
     for rid_reader in rids_reader {
         let relay_id = decode_typed_key(&rid_reader)?;
         relay_ids.add(relay_id);
@@ -79,14 +83,19 @@ pub fn decode_signed_relayed_node_info(
         .map_err(RPCError::protocol)?;
     let relay_info = decode_signed_direct_node_info(&ri_reader, crypto, &relay_ids)?;
 
+    let timestamp = reader.reborrow().get_timestamp().into();
+
     let sigs_reader = reader
         .reborrow()
         .get_signatures()
         .map_err(RPCError::protocol)?;
 
-    let timestamp = reader.reborrow().get_timestamp().into();
+    let sig_count = sigs_reader.len() as usize;
+    if sig_count > MAX_CRYPTO_KINDS {
+        return Err(RPCError::protocol("too many signatures"));
+    }
 
-    let mut typed_signatures = Vec::with_capacity(sigs_reader.len() as usize);
+    let mut typed_signatures = Vec::with_capacity(sig_count);
     for sig_reader in sigs_reader {
         let typed_signature = decode_typed_signature(&sig_reader)?;
         typed_signatures.push(typed_signature);

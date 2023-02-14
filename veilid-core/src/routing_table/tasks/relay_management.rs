@@ -53,8 +53,7 @@ impl RoutingTable {
                     // Register new outbound relay
                     if let Some(nr) = self.register_node_with_peer_info(
                         RoutingDomain::PublicInternet,
-                        outbound_relay_peerinfo.node_id.key,
-                        outbound_relay_peerinfo.signed_node_info,
+                        outbound_relay_peerinfo,
                         false,
                     ) {
                         info!("Outbound relay node selected: {}", nr);

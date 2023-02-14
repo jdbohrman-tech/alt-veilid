@@ -525,7 +525,7 @@ impl NetworkManager {
         let node_id = routing_table.node_id(vcrypto.kind());
         let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
         
-        let receipt = Receipt::try_new(MAX_ENVELOPE_VERSION, node_id.kind, nonce, node_id.key, extra_data)?;
+        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.key, extra_data)?;
         let out = receipt
             .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
@@ -554,7 +554,7 @@ impl NetworkManager {
         let node_id = routing_table.node_id(vcrypto.kind());
         let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
         
-        let receipt = Receipt::try_new(MAX_ENVELOPE_VERSION, node_id.kind, nonce, node_id.key, extra_data)?;
+        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.key, extra_data)?;
         let out = receipt
             .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
@@ -790,9 +790,9 @@ impl NetworkManager {
             log_net!("sending envelope to {:?}", node_ref);
         }
 
-        // Get node's min/max envelope version and see if we can send to it
+        // Get node's envelope versions and see if we can send to it
         // and if so, get the max version we can use
-        let Some(envelope_version) = node_ref.envelope_support().iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)) else {
+        let Some(envelope_version) = node_ref.envelope_support().into_iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)) else {
             bail!(
                 "can't talk to this node {} because we dont support its envelope versions",
                 node_ref

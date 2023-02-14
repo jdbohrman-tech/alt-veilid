@@ -201,27 +201,6 @@ impl RoutingTable {
     }
 
     /////////////////////////////////////
-    /// Unlocked passthrough
-    pub fn network_manager(&self) -> NetworkManager {
-        self.unlocked_inner.network_manager()
-    }
-    pub fn crypto(&self) -> Crypto {
-        self.unlocked_inner.crypto()
-    }
-    pub fn rpc_processor(&self) -> RPCProcessor {
-        self.unlocked_inner.rpc_processor()
-    }
-    pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
-        self.unlocked_inner.node_id(kind)
-    }
-    pub fn node_id_secret(&self, kind: CryptoKind) -> SecretKey {
-        self.unlocked_inner.node_id_secret(kind)
-    }
-    pub fn matches_own_node_id(&self, node_ids: &[TypedKey]) -> bool {
-        self.unlocked_inner.matches_own_node_id(node_ids)
-    }
-
-    /////////////////////////////////////
     /// Initialization
 
     /// Called to initialize the routing table after it is created
@@ -1090,5 +1069,13 @@ impl RoutingTable {
         });
         // Return the best inbound relay noderef
         best_inbound_relay.map(|e| NodeRef::new(self.clone(), e, None))
+    }
+}
+
+impl core::ops::Deref for RoutingTable {
+    type Target = RoutingTableUnlockedInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.unlocked_inner
     }
 }
