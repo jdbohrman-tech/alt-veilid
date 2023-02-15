@@ -221,7 +221,7 @@ impl RouteSpecDetail {
 #[archive_attr(repr(C, align(8)), derive(CheckBytes))]
 pub struct RouteSpecStoreContent {
     /// All of the routes we have allocated so far
-    details: HashMap<PublicKey, RouteSpecDetail>,
+    details: HashMap<TypedKey, RouteSpecDetail>,
 }
 
 /// What remote private routes have seen
@@ -250,19 +250,19 @@ impl RemotePrivateRouteInfo {
 #[derive(Debug)]
 pub struct RouteSpecStoreCache {
     /// How many times nodes have been used
-    used_nodes: HashMap<PublicKey, usize>,
+    used_nodes: HashMap<TypedKey, usize>,
     /// How many times nodes have been used at the terminal point of a route
-    used_end_nodes: HashMap<PublicKey, usize>,
+    used_end_nodes: HashMap<TypedKey, usize>,
     /// Route spec hop cache, used to quickly disqualify routes
     hop_cache: HashSet<Vec<u8>>,
     /// Has a remote private route responded to a question and when
-    remote_private_route_cache: LruCache<PublicKey, RemotePrivateRouteInfo>,
+    remote_private_route_cache: LruCache<TypedKey, RemotePrivateRouteInfo>,
     /// Compiled route cache
     compiled_route_cache: LruCache<CompiledRouteCacheKey, SafetyRoute>,
     /// List of dead allocated routes
-    dead_routes: Vec<PublicKey>,
+    dead_routes: Vec<TypedKey>,
     /// List of dead remote routes
-    dead_remote_routes: Vec<PublicKey>,
+    dead_remote_routes: Vec<TypedKey>,
 }
 
 impl Default for RouteSpecStoreCache {
@@ -577,15 +577,15 @@ impl RouteSpecStore {
 
     fn detail<'a>(
         inner: &'a RouteSpecStoreInner,
-        public_key: &PublicKey,
+        route_spec_key: &TypedKey,
     ) -> Option<&'a RouteSpecDetail> {
-        inner.content.details.get(public_key)
+        inner.content.details.get(route_spec_key)
     }
     fn detail_mut<'a>(
         inner: &'a mut RouteSpecStoreInner,
-        public_key: &PublicKey,
+        route_spec_key: &TypedKey,
     ) -> Option<&'a mut RouteSpecDetail> {
-        inner.content.details.get_mut(public_key)
+        inner.content.details.get_mut(route_spec_key)
     }
 
     /// Purge the route spec store
@@ -605,12 +605,13 @@ impl RouteSpecStore {
     #[instrument(level = "trace", skip(self), ret, err)]
     pub fn allocate_route(
         &self,
+        crypto_kinds: &[CryptoKind],
         stability: Stability,
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
-        avoid_node_ids: &[PublicKey],
-    ) -> EyreResult<Option<PublicKey>> {
+        avoid_nodes: &[TypedKey],
+    ) -> EyreResult<Option<TypedKeySet>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &mut *routing_table.inner.write();
@@ -618,11 +619,12 @@ impl RouteSpecStore {
         self.allocate_route_inner(
             inner,
             rti,
+            crypto_kinds,
             stability,
             sequencing,
             hop_count,
             directions,
-            avoid_node_ids,
+            avoid_nodes,
         )
     }
 
@@ -631,12 +633,13 @@ impl RouteSpecStore {
         &self,
         inner: &mut RouteSpecStoreInner,
         rti: &RoutingTableInner,
+        crypto_kinds: &[CryptoKind],
         stability: Stability,
         sequencing: Sequencing,
         hop_count: usize,
         directions: DirectionSet,
-        avoid_node_ids: &[PublicKey],
-    ) -> EyreResult<Option<PublicKey>> {
+        avoid_nodes: &[TypedKey],
+    ) -> EyreResult<Option<TypedKeySet>> {
         use core::cmp::Ordering;
 
         if hop_count < 1 {
@@ -651,52 +654,60 @@ impl RouteSpecStore {
             bail!("Can't allocate route until we have our own peer info");
         };
 
-        // Get relay node id if we have one
-        let opt_relay_id = rti
-            .relay_node(RoutingDomain::PublicInternet)
-            .map(|nr| nr.node_id());
+        // Get relay node if we have one
+        let opt_own_relay_nr = rti.relay_node(RoutingDomain::PublicInternet).map(|nr| nr.locked(rti));
 
         // Get list of all nodes, and sort them for selection
         let cur_ts = get_aligned_timestamp();
         let filter = Box::new(
-            move |rti: &RoutingTableInner, k: PublicKey, v: Option<Arc<BucketEntry>>| -> bool {
+            move |rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> bool {
                 // Exclude our own node from routes
-                if v.is_none() {
+                if entry.is_none() {
                     return false;
                 }
-                let v = v.unwrap();
+                let entry = entry.unwrap();
 
                 // Exclude our relay if we have one
-                if let Some(own_relay_id) = opt_relay_id {
-                    if k == own_relay_id {
+                if let Some(own_relay_nr) = opt_own_relay_nr {
+                    if own_relay_nr.same_bucket_entry(&entry) {
                         return false;
                     }
                 }
 
-                // Exclude nodes we have specifically chosen to avoid
-                if avoid_node_ids.contains(&k) {
-                    return false;
-                }
-
                 // Process node info exclusions
-                let keep = v.with(rti, |_rti, e| {
+                let keep = entry.with(rti, |_rti, e| {
+                    
+                    // Exclude nodes that don't have our requested crypto kinds
+                    let common_ck = e.common_crypto_kinds(crypto_kinds);
+                    if common_ck.len() != crypto_kinds.len() {
+                        return false;
+                    }
+
+                    // Exclude nodes we have specifically chosen to avoid
+                    if e.node_ids().contains_any(avoid_nodes) {
+                        return false;
+                    }
+
                     // Exclude nodes on our local network
                     if e.node_info(RoutingDomain::LocalNetwork).is_some() {
                         return false;
                     }
+
                     // Exclude nodes that have no publicinternet signednodeinfo
                     let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) else {    
                         return false;
                     };
+
                     // Relay check
-                    if let Some(relay_id) = sni.relay_id() {
+                    let relay_ids = sni.relay_ids();
+                    if relay_ids.len() != 0 {
                         // Exclude nodes whose relays we have chosen to avoid
-                        if avoid_node_ids.contains(&relay_id.key) {
+                        if relay_ids.contains_any(avoid_nodes) {
                             return false;
                         }
                         // Exclude nodes whose relay is our own relay if we have one
-                        if let Some(own_relay_id) = opt_relay_id {
-                            if own_relay_id == relay_id.key {
+                        if let Some(own_relay_nr) = opt_own_relay_nr {
+                            if relay_ids.contains_any(&own_relay_nr.node_ids()) {
                                 return false;
                             }
                         }
@@ -708,7 +719,7 @@ impl RouteSpecStore {
                 }
 
                 // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
-                v.with(rti, move |_rti, e| {
+                entry.with(rti, |_rti, e| {
                     let node_info_ok =
                         if let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) {
                             sni.has_sequencing_matched_dial_info(sequencing)
@@ -728,9 +739,14 @@ impl RouteSpecStore {
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
         let compare = |rti: &RoutingTableInner,
-                       v1: &(PublicKey, Option<Arc<BucketEntry>>),
-                       v2: &(PublicKey, Option<Arc<BucketEntry>>)|
+                       entry1: &Option<Arc<BucketEntry>>,
+                       entry2: &Option<Arc<BucketEntry>>|
          -> Ordering {
+
+
+            // xxx also sort my most overlapping crypto kinds
+
+
             // deprioritize nodes that we have already used as end points
             let e1_used_end = inner
                 .cache
@@ -1031,7 +1047,7 @@ impl RouteSpecStore {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    async fn test_allocated_route(&self, key: &PublicKey) -> EyreResult<bool> {
+    async fn test_allocated_route(&self, key: &TypedKey) -> EyreResult<bool> {
         // Make loopback route to test with
         let dest = {
             let private_route = self.assemble_private_route(key, None)?;
@@ -1074,7 +1090,7 @@ impl RouteSpecStore {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    async fn test_remote_route(&self, key: &PublicKey) -> EyreResult<bool> {
+    async fn test_remote_route(&self, key: &TypedKey) -> EyreResult<bool> {
         // Make private route test
         let dest = {
             // Get the route to test
@@ -1114,7 +1130,7 @@ impl RouteSpecStore {
 
     /// Test an allocated route for continuity
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn test_route(&self, key: &PublicKey) -> EyreResult<bool> {
+    pub async fn test_route(&self, key: &[TypedKey]) -> EyreResult<bool> {
         let is_remote = {
             let inner = &mut *self.inner.lock();
             let cur_ts = get_aligned_timestamp();
@@ -1574,8 +1590,8 @@ impl RouteSpecStore {
         rti: &RoutingTableInner,
         safety_spec: &SafetySpec,
         direction: DirectionSet,
-        avoid_node_ids: &[PublicKey],
-    ) -> EyreResult<Option<PublicKey>> {
+        avoid_nodes: &[TypedKey],
+    ) -> EyreResult<Option<TypedKeySet>> {
         // Ensure the total hop count isn't too long for our config
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
         if safety_spec.hop_count == 0 {
@@ -1634,8 +1650,8 @@ impl RouteSpecStore {
     pub fn get_private_route_for_safety_spec(
         &self,
         safety_spec: &SafetySpec,
-        avoid_node_ids: &[PublicKey],
-    ) -> EyreResult<Option<PublicKey>> {
+        avoid_nodes: &[TypedKey],
+    ) -> EyreResult<Option<TypedKey>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &*routing_table.inner.read();
@@ -1645,7 +1661,7 @@ impl RouteSpecStore {
             rti,
             safety_spec,
             Direction::Inbound.into(),
-            avoid_node_ids,
+            avoid_nodes,
         )?)
     }
 
@@ -1742,7 +1758,7 @@ impl RouteSpecStore {
 
     /// Import a remote private route for compilation
     #[instrument(level = "trace", skip(self, blob), ret, err)]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<PublicKey> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<TypedKey> {
         // decode the pr blob
         let private_route = RouteSpecStore::blob_to_private_route(blob)?;
 
@@ -1767,7 +1783,7 @@ impl RouteSpecStore {
 
     /// Release a remote private route that is no longer in use
     #[instrument(level = "trace", skip(self), ret)]
-    fn release_remote_private_route(&self, key: &PublicKey) -> bool {
+    fn release_remote_private_route(&self, key: &TypedKey) -> bool {
         let inner = &mut *self.inner.lock();
         if inner.cache.remote_private_route_cache.remove(key).is_some() {
             // Mark it as dead for the update
@@ -1779,7 +1795,7 @@ impl RouteSpecStore {
     }
 
     /// Retrieve an imported remote private route by its public key
-    pub fn get_remote_private_route(&self, key: &PublicKey) -> Option<PrivateRoute> {
+    pub fn get_remote_private_route(&self, key: &TypedKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
@@ -1788,7 +1804,7 @@ impl RouteSpecStore {
     }
 
     /// Retrieve an imported remote private route by its public key but don't 'touch' it
-    pub fn peek_remote_private_route(&self, key: &PublicKey) -> Option<PrivateRoute> {
+    pub fn peek_remote_private_route(&self, key: &TypedKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         Self::with_peek_remote_private_route(inner, cur_ts, key, |r| {
@@ -1849,7 +1865,7 @@ impl RouteSpecStore {
     fn with_get_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
         cur_ts: Timestamp,
-        key: &PublicKey,
+        remote_private_route: &TypedKey,
         f: F,
     ) -> Option<R>
     where
@@ -1869,7 +1885,7 @@ impl RouteSpecStore {
     fn with_peek_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
         cur_ts: Timestamp,
-        key: &PublicKey,
+        remote_private_route: &TypedKey,
         f: F,
     ) -> Option<R>
     where
@@ -1891,7 +1907,7 @@ impl RouteSpecStore {
 
     /// Check to see if this remote (not ours) private route has seen our current node info yet
     /// This happens when you communicate with a private route without a safety route
-    pub fn has_remote_private_route_seen_our_node_info(&self, key: &PublicKey) -> bool {
+    pub fn has_remote_private_route_seen_our_node_info(&self, remote_private_route: &TypedKey) -> bool {
         let our_node_info_ts = {
             let rti = &*self.unlocked_inner.routing_table.inner.read();
             let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
@@ -1903,7 +1919,7 @@ impl RouteSpecStore {
         let opt_rpr_node_info_ts = {
             let inner = &mut *self.inner.lock();
             let cur_ts = get_aligned_timestamp();
-            Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| {
+            Self::with_peek_remote_private_route(inner, cur_ts, remote_private_route, |rpr| {
                 rpr.last_seen_our_node_info_ts
             })
         };

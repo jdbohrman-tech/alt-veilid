@@ -133,6 +133,15 @@ impl BucketEntryInner {
         self.node_ids.best().unwrap()
     }
 
+    // Crypto kinds
+    pub fn crypto_kinds(&self) -> Vec<CryptoKind> {
+        self.node_ids.kinds()
+    }
+    pub fn common_crypto_kinds(&self, other: &[CryptoKind]) -> Vec<CryptoKind> {
+        common_crypto_kinds(&self.node_ids.kinds(), other)
+    }
+
+
     // Less is faster
     pub fn cmp_fastest(e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Lower latency to the front

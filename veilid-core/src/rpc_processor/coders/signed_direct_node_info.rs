@@ -35,7 +35,7 @@ pub fn encode_signed_direct_node_info(
 pub fn decode_signed_direct_node_info(
     reader: &veilid_capnp::signed_direct_node_info::Reader,
     crypto: Crypto,
-    node_ids: &[TypedKey],
+    node_ids: &mut TypedKeySet,
 ) -> Result<SignedDirectNodeInfo, RPCError> {
     let ni_reader = reader
         .reborrow()

@@ -360,7 +360,7 @@ impl RoutingTableInner {
         self.all_entries.remove_expired();
 
         log_rtab!(debug
-             "Routing table buckets purge complete. Routing table now has {} nodes",
+            "Routing table buckets purge complete. Routing table now has {} nodes",
             self.bucket_entry_count()
         );
     }
@@ -383,8 +383,8 @@ impl RoutingTableInner {
         self.all_entries.remove_expired();
 
         log_rtab!(debug
-             "Routing table last_connections purge complete. Routing table now has {} nodes",
-             self.bucket_entry_count()
+            "Routing table last_connections purge complete. Routing table now has {} nodes",
+            self.bucket_entry_count()
         );
     }
 
@@ -506,9 +506,9 @@ impl RoutingTableInner {
     }
 
     pub fn get_all_nodes(&self, outer_self: RoutingTable, cur_ts: Timestamp) -> Vec<NodeRef> {
-        let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count);
-        self.with_entries(cur_ts, BucketEntryState::Unreliable, |_rti, k, v| {
-            node_refs.push(NodeRef::new(outer_self.clone(), k, v, None));
+        let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count());
+        self.with_entries(cur_ts, BucketEntryState::Unreliable, |_rti, entry| {
+            node_refs.push(NodeRef::new(outer_self.clone(), entry, None));
             Option::<()>::None
         });
         node_refs
@@ -525,7 +525,7 @@ impl RoutingTableInner {
     ) -> Option<NodeRef>
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner),
-    {
+    {xxx continue here
         // Ensure someone isn't trying register this node itself
         if self.unlocked_inner.matches_own_node_id(node_ids) {
             log_rtab!(debug "can't register own node");

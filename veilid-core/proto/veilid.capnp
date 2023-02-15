@@ -134,7 +134,7 @@ struct RouteHopData @0x8ce231f9d1b7adf2 {
 
 struct RouteHop @0xf8f672d75cce0c3b {
     node :union {                                       
-        nodeId              @0  :TypedKey;              # node id only for established routes
+        nodeId              @0  :PublicKey;             # node id key only for established routes (kind is the same as the pr or sr it is part of)
         peerInfo            @1  :PeerInfo;              # full peer info for this hop to establish the route
     }
     nextHop                 @2  :RouteHopData;          # optional: If this the end of a private route, this field will not exist

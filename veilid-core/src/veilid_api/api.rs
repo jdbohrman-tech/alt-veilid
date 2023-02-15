@@ -167,17 +167,22 @@ impl VeilidAPI {
     // Private route allocation
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn new_private_route(&self) -> Result<(TypedKey, Vec<u8>), VeilidAPIError> {
-        self.new_custom_private_route(Stability::default(), Sequencing::default())
-            .await
+    pub async fn new_private_route(&self) -> Result<(TypedKeySet, Vec<u8>), VeilidAPIError> {
+        self.new_custom_private_route(
+            &VALID_CRYPTO_KINDS,
+            Stability::default(),
+            Sequencing::default(),
+        )
+        .await
     }
 
     #[instrument(level = "debug", skip(self))]
     pub async fn new_custom_private_route(
         &self,
+        crypto_kinds: &[CryptoKind],
         stability: Stability,
         sequencing: Sequencing,
-    ) -> Result<(TypedKey, Vec<u8>), VeilidAPIError> {
+    ) -> Result<(TypedKeySet, Vec<u8>), VeilidAPIError> {
         let default_route_hop_count: usize = {
             let config = self.config()?;
             let c = config.get();
@@ -187,6 +192,7 @@ impl VeilidAPI {
         let rss = self.routing_table()?.route_spec_store();
         let r = rss
             .allocate_route(
+                &crypto_kinds,
                 stability,
                 sequencing,
                 default_route_hop_count,
@@ -194,7 +200,7 @@ impl VeilidAPI {
                 &[],
             )
             .map_err(VeilidAPIError::internal)?;
-        let Some(pr_pubkey) = r else {
+        let Some(pr_keys) = r else {
             apibail_generic!("unable to allocate route");
         };
         if !rss

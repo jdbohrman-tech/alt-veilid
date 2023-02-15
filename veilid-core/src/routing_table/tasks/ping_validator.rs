@@ -25,7 +25,6 @@ impl RoutingTable {
 
         // Get the PublicInternet relay if we are using one
         let opt_relay_nr = self.relay_node(RoutingDomain::PublicInternet);
-        let opt_relay_id = opt_relay_nr.map(|nr| nr.node_id());
 
         // Get our publicinternet dial info
         let dids = self.all_filtered_dial_info_details(
@@ -35,38 +34,42 @@ impl RoutingTable {
 
         // For all nodes needing pings, figure out how many and over what protocols
         for nr in node_refs {
-            // If this is a relay, let's check for NAT keepalives
+            // If this is our relay, let's check for NAT keepalives
             let mut did_pings = false;
-            if Some(nr.node_id()) == opt_relay_id {
-                // Relay nodes get pinged over all protocols we have inbound dialinfo for
-                // This is so we can preserve the inbound NAT mappings at our router
-                for did in &dids {
-                    // Do we need to do this ping?
-                    // Check if we have already pinged over this low-level-protocol/address-type/port combo
-                    // We want to ensure we do the bare minimum required here
-                    let pt = did.dial_info.protocol_type();
-                    let at = did.dial_info.address_type();
-                    let needs_ping = if let Some((llpt, port)) =
-                        mapped_port_info.protocol_to_port.get(&(pt, at))
-                    {
-                        mapped_port_info
-                            .low_level_protocol_ports
-                            .remove(&(*llpt, at, *port))
-                    } else {
-                        false
-                    };
-                    if needs_ping {
-                        let rpc = rpc.clone();
-                        let dif = did.dial_info.make_filter();
-                        let nr_filtered =
-                            nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
-                        log_net!("--> Keepalive ping to {:?}", nr_filtered);
-                        unord.push(
-                            async move { rpc.rpc_call_status(Destination::direct(nr_filtered)).await }
+            if let Some(relay_nr) = opt_relay_nr {
+                if nr.same_entry(&relay_nr) {
+                    // Relay nodes get pinged over all protocols we have inbound dialinfo for
+                    // This is so we can preserve the inbound NAT mappings at our router
+                    for did in &dids {
+                        // Do we need to do this ping?
+                        // Check if we have already pinged over this low-level-protocol/address-type/port combo
+                        // We want to ensure we do the bare minimum required here
+                        let pt = did.dial_info.protocol_type();
+                        let at = did.dial_info.address_type();
+                        let needs_ping = if let Some((llpt, port)) =
+                            mapped_port_info.protocol_to_port.get(&(pt, at))
+                        {
+                            mapped_port_info
+                                .low_level_protocol_ports
+                                .remove(&(*llpt, at, *port))
+                        } else {
+                            false
+                        };
+                        if needs_ping {
+                            let rpc = rpc.clone();
+                            let dif = did.dial_info.make_filter();
+                            let nr_filtered =
+                                nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
+                            log_net!("--> Keepalive ping to {:?}", nr_filtered);
+                            unord.push(
+                                async move {
+                                    rpc.rpc_call_status(Destination::direct(nr_filtered)).await
+                                }
                                 .instrument(Span::current())
                                 .boxed(),
-                        );
-                        did_pings = true;
+                            );
+                            did_pings = true;
+                        }
                     }
                 }
             }

@@ -21,7 +21,7 @@ pub fn encode_signed_node_info(
 pub fn decode_signed_node_info(
     reader: &veilid_capnp::signed_node_info::Reader,
     crypto: Crypto,
-    node_ids: &[TypedKey],
+    node_ids: &mut TypedKeySet,
 ) -> Result<SignedNodeInfo, RPCError> {
     match reader
         .which()

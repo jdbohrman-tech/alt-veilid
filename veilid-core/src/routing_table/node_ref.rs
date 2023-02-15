@@ -20,6 +20,14 @@ pub trait NodeRefBase: Sized {
     fn common(&self) -> &NodeRefBaseCommon;
     fn common_mut(&mut self) -> &mut NodeRefBaseCommon;
 
+    // Comparators
+    fn same_entry<T: NodeRefBase>(&self, other: &T) -> bool {
+        Arc::ptr_eq(&self.common().entry, &other.common().entry)
+    }
+    fn same_bucket_entry(&self, entry: &Arc<BucketEntry>) -> bool {
+        Arc::ptr_eq(&self.common().entry, entry)
+    }
+
     // Implementation-specific operators
     fn operate<T, F>(&self, f: F) -> T
     where

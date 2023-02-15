@@ -893,7 +893,7 @@ impl NetworkManager {
 
         // We expect the inbound noderef to be the same as the target noderef
         // if they aren't the same, we should error on this and figure out what then hell is up
-        if target_nr.node_id() != inbound_nr.node_id() {
+        if !target_nr.same_entry(&inbound_nr) {
             bail!("unexpected noderef mismatch on reverse connect");
         }
 
@@ -998,7 +998,7 @@ impl NetworkManager {
 
         // We expect the inbound noderef to be the same as the target noderef
         // if they aren't the same, we should error on this and figure out what then hell is up
-        if target_nr.node_id() != inbound_nr.node_id() {
+        if !target_nr.same_entry(&inbound_nr) {
             bail!(
                 "unexpected noderef mismatch on hole punch {}, expected {}",
                 inbound_nr,

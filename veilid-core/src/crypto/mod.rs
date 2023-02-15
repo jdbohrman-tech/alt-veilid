@@ -36,9 +36,14 @@ pub fn best_crypto_kind() -> CryptoKind {
     VALID_CRYPTO_KINDS[0]
 }
 
-/// Envelope versions in order of preference, best envelope version is the first one, worst is the last one
+// Version number of envelope format
 pub type EnvelopeVersion = u8;
+
+/// Envelope versions in order of preference, best envelope version is the first one, worst is the last one
 pub const VALID_ENVELOPE_VERSIONS: [EnvelopeVersion; 1] = [0u8];
+/// Number of envelope versions to keep on structures if many are present beyond the ones we consider valid
+pub const MAX_ENVELOPE_VERSIONS: usize = 3;
+/// Return the best envelope version we support
 pub fn best_envelope_version() -> EnvelopeVersion {
     VALID_ENVELOPE_VERSIONS[0]
 }
@@ -218,17 +223,19 @@ impl Crypto {
         node_ids: &[TypedKey],
         data: &[u8],
         typed_signatures: &[TypedSignature],
-    ) -> Result<(), VeilidAPIError> {
+    ) -> Result<Vec<CryptoKind>, VeilidAPIError> {
+        let mut out = Vec::with_capacity(node_ids.len());
         for sig in typed_signatures {
             for nid in node_ids {
                 if nid.kind == sig.kind {
                     if let Some(vcrypto) = self.get(sig.kind) {
                         vcrypto.verify(&nid.key, data, &sig.signature)?;
+                        out.push(nid.kind);
                     }
                 }
             }
         }
-        Ok(())
+        Ok(out)
     }
 
     /// Signature set generation

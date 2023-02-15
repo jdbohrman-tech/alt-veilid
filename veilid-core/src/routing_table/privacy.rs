@@ -20,18 +20,6 @@ pub enum RouteNode {
     /// Route node with full contact method information to ensure the peer is reachable
     PeerInfo(PeerInfo),
 }
-impl fmt::Display for RouteNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                RouteNode::NodeId(x) => x.key.encode(),
-                RouteNode::PeerInfo(pi) => pi.node_id.key.encode(),
-            }
-        )
-    }
-}
 
 /// An unencrypted private/safety route hop
 #[derive(Clone, Debug)]

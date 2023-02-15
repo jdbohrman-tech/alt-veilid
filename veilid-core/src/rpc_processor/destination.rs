@@ -15,7 +15,7 @@ pub enum Destination {
         /// The relay to send to
         relay: NodeRef,
         /// The final destination the relay should send to
-        target: TypedKey,
+        target: NodeRef,
         /// Require safety route or not
         safety_selection: SafetySelection,
     },
@@ -36,7 +36,7 @@ impl Destination {
             safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
-    pub fn relay(relay: NodeRef, target: TypedKey) -> Self {
+    pub fn relay(relay: NodeRef, target: NodeRef) -> Self {
         let sequencing = relay.sequencing();
         Self::Relay {
             relay,
@@ -124,7 +124,7 @@ impl fmt::Display for Destination {
                     ""
                 };
 
-                write!(f, "{}@{}{}", target.encode(), relay, sr)
+                write!(f, "{}@{}{}", target, relay, sr)
             }
             Destination::PrivateRoute {
                 private_route,
@@ -163,7 +163,7 @@ impl RPCProcessor {
                 SafetySelection::Safe(safety_spec) => {
                     // Sent directly but with a safety route, respond to private route
                     let Some(pr_key) = rss
-                            .get_private_route_for_safety_spec(safety_spec, &[target.node_id()])
+                            .get_private_route_for_safety_spec(safety_spec, &target.node_ids())
                             .map_err(RPCError::internal)? else {
                                 return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
                             };
@@ -187,11 +187,13 @@ impl RPCProcessor {
                 }
                 SafetySelection::Safe(safety_spec) => {
                     // Sent via a relay but with a safety route, respond to private route
+                    let mut avoid_nodes = relay.node_ids();
+                    avoid_nodes.add_all(&target.node_ids());
                     let Some(pr_key) = rss
-                       .get_private_route_for_safety_spec(safety_spec, &[relay.node_id(), *target])
-                       .map_err(RPCError::internal)? else {
-                           return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
-                       };
+                        .get_private_route_for_safety_spec(safety_spec, &avoid_nodes)
+                        .map_err(RPCError::internal)? else {
+                            return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
+                        };
 
                     // Get the assembled route for response
                     let private_route = rss
@@ -209,6 +211,8 @@ impl RPCProcessor {
                     return Err(RPCError::internal("destination private route must have first hop"));
                 };
 
+                let crypto_kind = private_route.public_key.kind;
+
                 match safety_selection {
                     SafetySelection::Unsafe(_) => {
                         // Sent to a private route with no safety route, use a stub safety route for the response
@@ -221,7 +225,7 @@ impl RPCProcessor {
                                 if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
                                     return Ok(NetworkResult::no_connection_other("Own node info must be valid to use private route"));
                                 }
-                                RouteNode::NodeId(NodeId::new(routing_table.node_id()))
+                                RouteNode::NodeId(routing_table.node_id(crypto_kind))
                             }
                             false => {
                                 let Some(own_peer_info) = 
@@ -233,7 +237,7 @@ impl RPCProcessor {
                         };
 
                         Ok(NetworkResult::value(RespondTo::PrivateRoute(
-                            PrivateRoute::new_stub(routing_table.node_id(), route_node),
+                            PrivateRoute::new_stub(routing_table.node_id(crypto_kind), route_node),
                         )))
                     }
                     SafetySelection::Safe(safety_spec) => {

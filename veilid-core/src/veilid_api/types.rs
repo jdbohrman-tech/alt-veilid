@@ -35,7 +35,7 @@ pub type ValueSchema = FourCC;
     RkyvSerialize,
     RkyvDeserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes, PartialOrd, Ord, PartialEq, Eq))]
+#[archive_attr(repr(C), derive(CheckBytes, PartialOrd, Ord, PartialEq, Eq, Hash))]
 pub struct FourCC(pub [u8; 4]);
 
 impl From<[u8; 4]> for FourCC {
@@ -513,7 +513,7 @@ impl SafetySelection {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
     /// preferred safety route if it still exists
-    pub preferred_route: Option<PublicKey>,
+    pub preferred_route: Option<TypedKey>,
     /// must be greater than 0
     pub hop_count: usize,
     /// prefer reliability over speed
@@ -1853,7 +1853,7 @@ pub struct SignedDirectNodeInfo {
 impl SignedDirectNodeInfo {
     pub fn new(
         crypto: Crypto,
-        node_ids: &[TypedKey],
+        node_ids: &mut TypedKeySet,
         node_info: NodeInfo,
         timestamp: Timestamp,
         typed_signatures: Vec<TypedSignature>,
@@ -1861,7 +1861,13 @@ impl SignedDirectNodeInfo {
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
 
         // Verify the signatures that we can
-        crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
+        let valid_crypto_kinds =
+            crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
+        node_ids.remove_all(&valid_crypto_kinds);
+        if node_ids.len() == 0 {
+            apibail_generic!("no valid node ids in direct node info");
+        }
+
         Ok(Self {
             node_info,
             timestamp,
@@ -1933,7 +1939,7 @@ pub struct SignedRelayedNodeInfo {
 impl SignedRelayedNodeInfo {
     pub fn new(
         crypto: Crypto,
-        node_ids: &[TypedKey],
+        node_ids: &mut TypedKeySet,
         node_info: NodeInfo,
         relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
@@ -1942,7 +1948,14 @@ impl SignedRelayedNodeInfo {
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
-        crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
+        let valid_crypto_kinds =
+            crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
+
+        node_ids.remove_all(&valid_crypto_kinds);
+        if node_ids.len() == 0 {
+            apibail_generic!("no valid node ids in relayed node info");
+        }
+
         Ok(Self {
             node_info,
             relay_ids,
@@ -2113,6 +2126,7 @@ pub struct PeerInfo {
 
 impl PeerInfo {
     pub fn new(node_ids: TypedKeySet, signed_node_info: SignedNodeInfo) -> Self {
+        assert!(node_ids.len() > 0 && node_ids.len() <= MAX_CRYPTO_KINDS);
         Self {
             node_ids,
             signed_node_info,

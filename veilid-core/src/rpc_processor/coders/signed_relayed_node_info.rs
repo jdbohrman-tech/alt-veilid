@@ -55,7 +55,7 @@ pub fn encode_signed_relayed_node_info(
 pub fn decode_signed_relayed_node_info(
     reader: &veilid_capnp::signed_relayed_node_info::Reader,
     crypto: Crypto,
-    node_ids: &[TypedKey],
+    node_ids: &mut TypedKeySet,
 ) -> Result<SignedRelayedNodeInfo, RPCError> {
     let ni_reader = reader
         .reborrow()
@@ -81,7 +81,20 @@ pub fn decode_signed_relayed_node_info(
         .reborrow()
         .get_relay_info()
         .map_err(RPCError::protocol)?;
-    let relay_info = decode_signed_direct_node_info(&ri_reader, crypto, &relay_ids)?;
+    let relay_info = decode_signed_direct_node_info(&ri_reader, crypto, &mut relay_ids)?;
+
+    // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
+    if common_crypto_kinds(
+        &node_info.crypto_support,
+        &relay_info.node_info.crypto_support,
+    )
+    .len()
+        != node_info.crypto_support.len()
+    {
+        return Err(RPCError::protocol(
+            "relay should have superset of node crypto kinds",
+        ));
+    }
 
     let timestamp = reader.reborrow().get_timestamp().into();
 

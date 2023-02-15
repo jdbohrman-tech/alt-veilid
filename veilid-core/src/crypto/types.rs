@@ -27,6 +27,17 @@ pub fn compare_crypto_kind(a: &CryptoKind, b: &CryptoKind) -> cmp::Ordering {
     }
 }
 
+/// Intersection of crypto kind vectors
+pub fn common_crypto_kinds(a: &[CryptoKind], b: &[CryptoKind]) -> Vec<CryptoKind> {
+    let mut out = Vec::new();
+    for ack in a {
+        if b.contains(ack) {
+            out.push(*ack);
+        }
+    }
+    out
+}
+
 #[derive(
     Clone,
     Copy,
@@ -42,7 +53,7 @@ pub fn compare_crypto_kind(a: &CryptoKind, b: &CryptoKind) -> cmp::Ordering {
     RkyvSerialize,
     RkyvDeserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 pub struct KeyPair {
     pub key: PublicKey,
     pub secret: SecretKey,
@@ -67,7 +78,7 @@ impl KeyPair {
     RkyvSerialize,
     RkyvDeserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 pub struct TypedKey {
     pub kind: CryptoKind,
     pub key: PublicKey,
@@ -126,7 +137,7 @@ impl FromStr for TypedKey {
     RkyvSerialize,
     RkyvDeserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 pub struct TypedKeySet {
     items: Vec<TypedKey>,
 }
@@ -176,6 +187,11 @@ impl TypedKeySet {
     pub fn remove(&self, kind: CryptoKind) {
         if let Some(idx) = self.items.iter().position(|x| x.kind == kind) {
             self.items.remove(idx);
+        }
+    }
+    pub fn remove_all(&self, kinds: &[CryptoKind]) {
+        for k in kinds {
+            self.remove(*k);
         }
     }
     pub fn best(&self) -> Option<TypedKey> {
@@ -255,7 +271,7 @@ impl FromStr for TypedKeySet {
     RkyvSerialize,
     RkyvDeserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 pub struct TypedKeyPair {
     pub kind: CryptoKind,
     pub key: PublicKey,
@@ -329,7 +345,7 @@ impl FromStr for TypedKeyPair {
     RkyvSerialize,
     RkyvDeserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 pub struct TypedSignature {
     pub kind: CryptoKind,
     pub signature: Signature,
@@ -399,7 +415,7 @@ impl FromStr for TypedSignature {
     RkyvSerialize,
     RkyvDeserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 pub struct TypedKeySignature {
     pub kind: CryptoKind,
     pub key: PublicKey,

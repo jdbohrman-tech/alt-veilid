@@ -43,8 +43,10 @@ pub fn decode_peer_info(
     for nid_reader in nids_reader.iter() {
         node_ids.add(decode_typed_key(&nid_reader)?);
     }
-    let signed_node_info = decode_signed_node_info(&sni_reader, crypto, &node_ids)?;
-
+    let signed_node_info = decode_signed_node_info(&sni_reader, crypto, &mut node_ids)?;
+    if node_ids.len() == 0 {
+        return Err(RPCError::protocol("no verified node ids"));
+    }
     Ok(PeerInfo {
         node_ids,
         signed_node_info,
