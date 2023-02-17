@@ -122,21 +122,33 @@ impl BucketEntryInner {
         self.node_ref_tracks.remove(&track_id);
     }
 
-    // Node ids
+    /// Get node ids
     pub fn node_ids(&self) -> TypedKeySet {
         self.node_ids.clone()
     }
-    pub fn add_node_id(&mut self, node_id: TypedKey) {
+    /// Add a node id for a particular crypto kind.
+    /// Returns any previous existing node id associated with that crypto kind
+    pub fn add_node_id(&mut self, node_id: TypedKey) -> Option<TypedKey> {
+        if let Some(old_node_id) = self.node_ids.get(node_id.kind) {
+            // If this was already there we do nothing
+            if old_node_id == node_id {
+                return None;
+            }
+            self.node_ids.add(node_id);    
+            return Some(old_node_id);
+        }
         self.node_ids.add(node_id);
+        None
     }
     pub fn best_node_id(&self) -> TypedKey {
         self.node_ids.best().unwrap()
     }
 
-    // Crypto kinds
+    /// Get crypto kinds
     pub fn crypto_kinds(&self) -> Vec<CryptoKind> {
         self.node_ids.kinds()
     }
+    /// Compare sets of crypto kinds
     pub fn common_crypto_kinds(&self, other: &[CryptoKind]) -> Vec<CryptoKind> {
         common_crypto_kinds(&self.node_ids.kinds(), other)
     }

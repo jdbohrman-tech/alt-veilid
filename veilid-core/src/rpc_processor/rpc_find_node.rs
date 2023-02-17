@@ -107,8 +107,7 @@ impl RPCProcessor {
         let filters = VecDeque::from([filter]);
 
         let node_count = {
-            let config = self.config();
-            let c = config.get();
+            let c = self.config.get();
             c.network.dht.max_find_node_count as usize
         };
 

@@ -137,14 +137,17 @@ impl RoutingTableUnlockedInner {
         false
     }
 
-    pub fn find_bucket_index(&self, node_id: TypedKey) -> Option<(CryptoKind, usize)> {
+    pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> (CryptoKind, usize) {
         let crypto = self.crypto();
-        let self_node_id = self.node_id_keypairs.get(&node_id.kind)?.key;
-        let vcrypto = crypto.get(node_id.kind)?;
-        vcrypto
-            .distance(&node_id.key, &self_node_id)
-            .first_nonzero_bit()
-            .map(|x| (node_id.kind, x))
+        let self_node_id = self.node_id_keypairs.get(&node_id.kind).unwrap().key;
+        let vcrypto = crypto.get(node_id.kind).unwrap();
+        (
+            node_id.kind,
+            vcrypto
+                .distance(&node_id.key, &self_node_id)
+                .first_nonzero_bit()
+                .unwrap(),
+        )
     }
 }
 
@@ -560,10 +563,7 @@ impl RoutingTable {
 
     fn queue_bucket_kicks(&self, node_ids: TypedKeySet) {
         for node_id in node_ids.iter() {
-            let Some(x) = self.unlocked_inner.find_bucket_index(*node_id) else {
-                log_rtab!(error "find bucket index failed for nodeid {}", node_id);
-                continue;
-            };
+            let x = self.unlocked_inner.calculate_bucket_index(node_id);
             self.unlocked_inner.kick_queue.lock().insert(x);
         }
     }

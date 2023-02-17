@@ -300,13 +300,14 @@ impl RPCProcessor {
                 };
 
                 // Reply directly to the request's source
-                let sender_id = detail.envelope.get_sender_id();
+                let sender_id = TypedKey::new(detail.envelope.get_crypto_kind(), detail.envelope.get_sender_id();
 
                 // This may be a different node's reference than the 'sender' in the case of a relay
                 let peer_noderef = detail.peer_noderef.clone();
 
                 // If the sender_id is that of the peer, then this is a direct reply
                 // else it is a relayed reply through the peer
+                xxx continue here, make sure respond to semantics are correct
                 if peer_noderef.node_id() == sender_id {
                     NetworkResult::value(Destination::direct(peer_noderef))
                 } else {

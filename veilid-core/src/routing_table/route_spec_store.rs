@@ -1669,7 +1669,7 @@ impl RouteSpecStore {
     #[instrument(level = "trace", skip(self), err)]
     pub fn assemble_private_route(
         &self,
-        key: &PublicKey,
+        key: &TypedKey,
         optimized: Option<bool>,
     ) -> EyreResult<PrivateRoute> {
         let inner = &*self.inner.lock();

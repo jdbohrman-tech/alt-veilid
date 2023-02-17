@@ -266,6 +266,7 @@ impl Envelope {
     pub fn get_sender_id(&self) -> PublicKey {
         self.sender_id
     }
+
     pub fn get_recipient_id(&self) -> PublicKey {
         self.recipient_id
     }

@@ -12,8 +12,6 @@ pub struct Bucket {
     routing_table: RoutingTable,
     /// Map of keys to entries for this bucket
     entries: BTreeMap<PublicKey, Arc<BucketEntry>>,
-    /// The most recent entry in this bucket
-    newest_entry: Option<PublicKey>,
     /// The crypto kind in use for the public keys in this bucket
     kind: CryptoKind,
 }
@@ -31,7 +29,6 @@ struct SerializedBucketEntryData {
 #[archive_attr(repr(C), derive(CheckBytes))]
 struct SerializedBucketData {
     entries: Vec<SerializedBucketEntryData>,
-    newest_entry: Option<PublicKey>,
 }
 
 fn state_ordering(state: BucketEntryState) -> usize {
@@ -47,7 +44,6 @@ impl Bucket {
         Self {
             routing_table,
             entries: BTreeMap::new(),
-            newest_entry: None,
             kind,
         }
     }
@@ -63,8 +59,6 @@ impl Bucket {
             self.entries
                 .insert(e.key, all_entries[e.value as usize].clone());
         }
-
-        self.newest_entry = bucket_data.newest_entry;
 
         Ok(())
     }
@@ -86,27 +80,21 @@ impl Bucket {
                 value: *entry_index,
             });
         }
-        let bucket_data = SerializedBucketData {
-            entries,
-            newest_entry: self.newest_entry.clone(),
-        };
+        let bucket_data = SerializedBucketData { entries };
         let out = to_rkyv(&bucket_data)?;
         Ok(out)
     }
 
     /// Create a new entry with a node_id of this crypto kind and return it
-    pub(super) fn add_entry(&mut self, node_id_key: PublicKey) -> NodeRef {
+    pub(super) fn add_new_entry(&mut self, node_id_key: PublicKey) -> Arc<BucketEntry> {
         log_rtab!("Node added: {}:{}", self.kind, node_id_key);
 
         // Add new entry
         let entry = Arc::new(BucketEntry::new(TypedKey::new(self.kind, node_id_key)));
         self.entries.insert(node_id_key, entry.clone());
 
-        // This is now the newest bucket entry
-        self.newest_entry = Some(node_id_key);
-
-        // Get a node ref to return since this is new
-        NodeRef::new(self.routing_table.clone(), entry, None)
+        // Return the new entry
+        entry
     }
 
     /// Add an existing entry with a new node_id for this crypto kind
@@ -114,23 +102,15 @@ impl Bucket {
         log_rtab!("Existing node added: {}:{}", self.kind, node_id_key);
 
         // Add existing entry
-        entry.with_mut_inner(|e| e.add_node_id(TypedKey::new(self.kind, node_id_key)));
         self.entries.insert(node_id_key, entry);
-
-        // This is now the newest bucket entry
-        self.newest_entry = Some(node_id_key);
-
-        // No need to return a noderef here because the noderef will already exist in the caller
     }
 
     /// Remove an entry with a node_id for this crypto kind from the bucket
-    fn remove_entry(&mut self, node_id_key: &PublicKey) {
+    pub(super) fn remove_entry(&mut self, node_id_key: &PublicKey) {
         log_rtab!("Node removed: {}:{}", self.kind, node_id_key);
 
         // Remove the entry
         self.entries.remove(node_id_key);
-
-        // newest_entry is updated by kick_bucket()
     }
 
     pub(super) fn entry(&self, key: &PublicKey) -> Option<Arc<BucketEntry>> {
@@ -184,24 +164,15 @@ impl Bucket {
             })
         });
 
-        self.newest_entry = None;
         for entry in sorted_entries {
             // If we're not evicting more entries, exit, noting this may be the newest entry
             if extra_entries == 0 {
-                // The first 'live' entry we find is our newest entry
-                if self.newest_entry.is_none() {
-                    self.newest_entry = Some(entry.0);
-                }
                 break;
             }
             extra_entries -= 1;
 
             // if this entry has references we can't drop it yet
             if entry.1.ref_count.load(Ordering::Acquire) > 0 {
-                // The first 'live' entry we fine is our newest entry
-                if self.newest_entry.is_none() {
-                    self.newest_entry = Some(entry.0);
-                }
                 continue;
             }
 

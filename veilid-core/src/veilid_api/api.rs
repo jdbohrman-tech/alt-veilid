@@ -204,7 +204,7 @@ impl VeilidAPI {
             apibail_generic!("unable to allocate route");
         };
         if !rss
-            .test_route(&pr_pubkey)
+            .test_route(&pr_keys)
             .await
             .map_err(VeilidAPIError::no_connection)?
         {
