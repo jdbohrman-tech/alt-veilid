@@ -116,7 +116,7 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Attach/Detach
 
-    // get a full copy of the current state
+    /// Get a full copy of the current state
     pub async fn get_state(&self) -> Result<VeilidState, VeilidAPIError> {
         let attachment_manager = self.attachment_manager()?;
         let network_manager = attachment_manager.network_manager();
@@ -133,9 +133,7 @@ impl VeilidAPI {
         })
     }
 
-    // get network connectedness
-
-    // connect to the network
+    /// Connect to the network
     #[instrument(level = "debug", err, skip_all)]
     pub async fn attach(&self) -> Result<(), VeilidAPIError> {
         let attachment_manager = self.attachment_manager()?;
@@ -145,7 +143,7 @@ impl VeilidAPI {
         Ok(())
     }
 
-    // disconnect from the network
+    /// Disconnect from the network
     #[instrument(level = "debug", err, skip_all)]
     pub async fn detach(&self) -> Result<(), VeilidAPIError> {
         let attachment_manager = self.attachment_manager()?;
@@ -166,8 +164,12 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Private route allocation
 
+    /// Allocate a new private route set with default cryptography and network options
+    /// Returns a list of the public key and published 'blob' pairs. Publishing as many of these
+    /// pairs as possible to the network is desirable as support for multiple cryptography
+    /// systems will require choosing a compatible route
     #[instrument(level = "debug", skip(self))]
-    pub async fn new_private_route(&self) -> Result<(TypedKeySet, Vec<u8>), VeilidAPIError> {
+    pub async fn new_private_route(&self) -> Result<Vec<(PublicKey, Vec<u8>)>, VeilidAPIError> {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
             Stability::default(),
@@ -176,13 +178,14 @@ impl VeilidAPI {
         .await
     }
 
+    ///
     #[instrument(level = "debug", skip(self))]
     pub async fn new_custom_private_route(
         &self,
         crypto_kinds: &[CryptoKind],
         stability: Stability,
         sequencing: Sequencing,
-    ) -> Result<(TypedKeySet, Vec<u8>), VeilidAPIError> {
+    ) -> Result<Vec<(PublicKey, Vec<u8>)>, VeilidAPIError> {
         let default_route_hop_count: usize = {
             let config = self.config()?;
             let c = config.get();
@@ -229,14 +232,14 @@ impl VeilidAPI {
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> Result<TypedKey, VeilidAPIError> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> Result<PublicKey, VeilidAPIError> {
         let rss = self.routing_table()?.route_spec_store();
         rss.import_remote_private_route(blob)
             .map_err(|e| VeilidAPIError::invalid_argument(e, "blob", "private route blob"))
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn release_private_route(&self, key: &TypedKey) -> Result<(), VeilidAPIError> {
+    pub fn release_private_route(&self, key: &PublicKey) -> Result<(), VeilidAPIError> {
         let rss = self.routing_table()?.route_spec_store();
         if rss.release_route(key) {
             Ok(())

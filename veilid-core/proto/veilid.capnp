@@ -529,7 +529,7 @@ struct Answer @0xacacb8b6988c1058 {
 
 struct Operation @0xbf2811c435403c3b {
     opId                    @0  :UInt64;                # Random RPC ID. Must be random to foil reply forgery attacks. 
-    senderNodeInfo          @1  :SignedNodeInfo;        # (optional) SignedNodeInfo for the sender to be cached by the receiver.
+    senderPeerInfo          @1  :PeerInfo;              # (optional) PeerInfo for the sender to be cached by the receiver.
     targetNodeInfoTs        @2  :UInt64;                # Timestamp the sender believes the target's node info to be at or zero if not sent
     kind :union {
         question            @3  :Question;

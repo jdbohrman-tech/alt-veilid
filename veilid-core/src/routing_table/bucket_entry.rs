@@ -476,6 +476,10 @@ impl BucketEntryInner {
         self.envelope_support.clone()
     }
 
+    pub fn best_envelope_version(&self) -> Option<u8> {
+        self.envelope_support.iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)).copied()
+    }
+
     pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         if self.check_reliable(cur_ts) {
             BucketEntryState::Reliable

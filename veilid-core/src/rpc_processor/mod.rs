@@ -179,22 +179,22 @@ struct RenderedOperation {
 
 /// Node information exchanged during every RPC message
 #[derive(Default, Debug, Clone)]
-pub struct SenderSignedNodeInfo {
-    /// The current signed node info of the sender if required
-    signed_node_info: Option<SignedNodeInfo>,
+pub struct SenderPeerInfo {
+    /// The current peer info of the sender if required
+    opt_sender_peer_info: Option<PeerInfo>,
     /// The last timestamp of the target's node info to assist remote node with sending its latest node info
     target_node_info_ts: Timestamp,
 }
-impl SenderSignedNodeInfo {
-    pub fn new_no_sni(target_node_info_ts: Timestamp) -> Self {
+impl SenderPeerInfo {
+    pub fn new_no_peer_info(target_node_info_ts: Timestamp) -> Self {
         Self {
-            signed_node_info: None,
+            opt_sender_peer_info: None,
             target_node_info_ts,
         }
     }
-    pub fn new(sender_signed_node_info: SignedNodeInfo, target_node_info_ts: Timestamp) -> Self {
+    pub fn new(sender_peer_info: PeerInfo, target_node_info_ts: Timestamp) -> Self {
         Self {
-            signed_node_info: Some(sender_signed_node_info),
+            opt_sender_peer_info: Some(sender_peer_info),
             target_node_info_ts,
         }
     }
@@ -686,17 +686,14 @@ impl RPCProcessor {
     /// Get signed node info to package with RPC messages to improve
     /// routing table caching when it is okay to do so
     #[instrument(level = "trace", skip(self), ret, err)]
-    fn get_sender_signed_node_info(
-        &self,
-        dest: &Destination,
-    ) -> Result<SenderSignedNodeInfo, RPCError> {
+    fn get_sender_signed_node_info(&self, dest: &Destination) -> Result<SenderPeerInfo, RPCError> {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
         match dest.get_safety_selection() {
             SafetySelection::Unsafe(_) => {}
             SafetySelection::Safe(_) => {
-                return Ok(SenderSignedNodeInfo::default());
+                return Ok(SenderPeerInfo::default());
             }
         }
 
@@ -716,14 +713,14 @@ impl RPCProcessor {
                     target
                 } else {
                     // Target was not in our routing table
-                    return Ok(SenderSignedNodeInfo::default());
+                    return Ok(SenderPeerInfo::default());
                 }
             }
             Destination::PrivateRoute {
                 private_route: _,
                 safety_selection: _,
             } => {
-                return Ok(SenderSignedNodeInfo::default());
+                return Ok(SenderPeerInfo::default());
             }
         };
 
@@ -737,7 +734,7 @@ impl RPCProcessor {
 
         // Don't return our node info if it's not valid yet
         let Some(own_peer_info) = routing_table.get_own_peer_info(routing_domain) else {
-            return Ok(SenderSignedNodeInfo::new_no_sni(target_node_info_ts));
+            return Ok(SenderPeerInfo::new_no_peer_info(target_node_info_ts));
         };
 
         // Get our node info timestamp
@@ -745,10 +742,10 @@ impl RPCProcessor {
 
         // If the target has seen our node info already don't send it again
         if target.has_seen_our_node_info_ts(routing_domain, our_node_info_ts) {
-            return Ok(SenderSignedNodeInfo::new_no_sni(target_node_info_ts));
+            return Ok(SenderPeerInfo::new_no_peer_info(target_node_info_ts));
         }
 
-        Ok(SenderSignedNodeInfo::new(
+        Ok(SenderPeerInfo::new(
             own_peer_info.signed_node_info,
             target_node_info_ts,
         ))
@@ -1205,19 +1202,20 @@ impl RPCProcessor {
                     RPCOperation::decode(&op_reader, Some(&sender_node_id))?
                 };
 
-                // Get the sender noderef, incorporating and 'sender node info'
+                // Get the sender noderef, incorporating sender's peer info
                 let mut opt_sender_nr: Option<NodeRef> = None;
-                if let Some(sender_node_info) = operation.sender_node_info() {
-                    // Sender NodeInfo was specified, update our routing table with it
-                    if !self.filter_node_info(routing_domain, &sender_node_info) {
+                if let Some(sender_peer_info) = operation.sender_peer_info() {
+                    // Ensure the sender peer info is for the actual sender specified in the envelope
+
+                    // Sender PeerInfo was specified, update our routing table with it
+                    if !self.filter_node_info(routing_domain, &sender_peer_info) {
                         return Err(RPCError::invalid_format(
-                            "sender signednodeinfo has invalid peer scope",
+                            "sender peerinfo has invalid peer scope",
                         ));
                     }
-                    opt_sender_nr = self.routing_table().register_node_with_signed_node_info(
+                    opt_sender_nr = self.routing_table().register_node_with_peer_info(
                         routing_domain,
-                        sender_node_id,
-                        sender_node_info.clone(),
+                        sender_peer_info,
                         false,
                     );
                 }

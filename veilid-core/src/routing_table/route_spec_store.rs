@@ -163,6 +163,8 @@ impl RouteStats {
 #[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct RouteSpecDetail {
+    /// Crypto kind
+    crypto_kind: CryptoKind,
     /// Secret key
     #[with(Skip)]
     secret_key: SecretKey,
@@ -187,6 +189,9 @@ pub struct RouteSpecDetail {
 }
 
 impl RouteSpecDetail {
+    pub fn get_crypto_kind(&self) -> CryptoKind {
+        self.crypto_kind
+    }
     pub fn get_stats(&self) -> &RouteStats {
         &self.stats
     }
@@ -221,13 +226,13 @@ impl RouteSpecDetail {
 #[archive_attr(repr(C, align(8)), derive(CheckBytes))]
 pub struct RouteSpecStoreContent {
     /// All of the routes we have allocated so far
-    details: HashMap<TypedKey, RouteSpecDetail>,
+    details: HashMap<PublicKey, RouteSpecDetail>,
 }
 
 /// What remote private routes have seen
 #[derive(Debug, Clone, Default)]
 pub struct RemotePrivateRouteInfo {
-    // The private route itself
+    /// The private route itself
     private_route: Option<PrivateRoute>,
     /// Did this remote private route see our node info due to no safety route in use
     last_seen_our_node_info_ts: Timestamp,
@@ -256,13 +261,13 @@ pub struct RouteSpecStoreCache {
     /// Route spec hop cache, used to quickly disqualify routes
     hop_cache: HashSet<Vec<u8>>,
     /// Has a remote private route responded to a question and when
-    remote_private_route_cache: LruCache<TypedKey, RemotePrivateRouteInfo>,
+    remote_private_route_cache: LruCache<PublicKey, RemotePrivateRouteInfo>,
     /// Compiled route cache
     compiled_route_cache: LruCache<CompiledRouteCacheKey, SafetyRoute>,
     /// List of dead allocated routes
-    dead_routes: Vec<TypedKey>,
+    dead_routes: Vec<PublicKey>,
     /// List of dead remote routes
-    dead_remote_routes: Vec<TypedKey>,
+    dead_remote_routes: Vec<PublicKey>,
 }
 
 impl Default for RouteSpecStoreCache {
@@ -602,6 +607,7 @@ impl RouteSpecStore {
     /// Prefers nodes that are not currently in use by another route
     /// The route is not yet tested for its reachability
     /// Returns None if no route could be allocated at this time
+    /// Returns Some list of public keys for the requested set of crypto kinds
     #[instrument(level = "trace", skip(self), ret, err)]
     pub fn allocate_route(
         &self,
@@ -1590,8 +1596,8 @@ impl RouteSpecStore {
         rti: &RoutingTableInner,
         safety_spec: &SafetySpec,
         direction: DirectionSet,
-        avoid_nodes: &[TypedKey],
-    ) -> EyreResult<Option<TypedKeySet>> {
+        avoid_nodes: &[PublicKey],
+    ) -> EyreResult<Option<PublicKey>> {
         // Ensure the total hop count isn't too long for our config
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
         if safety_spec.hop_count == 0 {
@@ -1645,13 +1651,14 @@ impl RouteSpecStore {
         Ok(Some(sr_pubkey))
     }
 
-    /// Get a private sroute to use for the answer to question
+    /// Get a private route to use for the answer to question
     #[instrument(level = "trace", skip(self), ret, err)]
     pub fn get_private_route_for_safety_spec(
         &self,
+        crypto_kind: CryptoKind,
         safety_spec: &SafetySpec,
-        avoid_nodes: &[TypedKey],
-    ) -> EyreResult<Option<TypedKey>> {
+        avoid_nodes: &[PublicKey],
+    ) -> EyreResult<Option<PublicKey>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &*routing_table.inner.read();
@@ -1669,7 +1676,7 @@ impl RouteSpecStore {
     #[instrument(level = "trace", skip(self), err)]
     pub fn assemble_private_route(
         &self,
-        key: &TypedKey,
+        key: &PublicKey,
         optimized: Option<bool>,
     ) -> EyreResult<PrivateRoute> {
         let inner = &*self.inner.lock();
@@ -1758,7 +1765,7 @@ impl RouteSpecStore {
 
     /// Import a remote private route for compilation
     #[instrument(level = "trace", skip(self, blob), ret, err)]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<TypedKey> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<PublicKey> {
         // decode the pr blob
         let private_route = RouteSpecStore::blob_to_private_route(blob)?;
 
@@ -1783,7 +1790,7 @@ impl RouteSpecStore {
 
     /// Release a remote private route that is no longer in use
     #[instrument(level = "trace", skip(self), ret)]
-    fn release_remote_private_route(&self, key: &TypedKey) -> bool {
+    fn release_remote_private_route(&self, key: &PublicKey) -> bool {
         let inner = &mut *self.inner.lock();
         if inner.cache.remote_private_route_cache.remove(key).is_some() {
             // Mark it as dead for the update
@@ -1795,7 +1802,7 @@ impl RouteSpecStore {
     }
 
     /// Retrieve an imported remote private route by its public key
-    pub fn get_remote_private_route(&self, key: &TypedKey) -> Option<PrivateRoute> {
+    pub fn get_remote_private_route(&self, key: &PublicKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
@@ -1804,7 +1811,7 @@ impl RouteSpecStore {
     }
 
     /// Retrieve an imported remote private route by its public key but don't 'touch' it
-    pub fn peek_remote_private_route(&self, key: &TypedKey) -> Option<PrivateRoute> {
+    pub fn peek_remote_private_route(&self, key: &PublicKey) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         Self::with_peek_remote_private_route(inner, cur_ts, key, |r| {
@@ -1865,7 +1872,7 @@ impl RouteSpecStore {
     fn with_get_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
         cur_ts: Timestamp,
-        remote_private_route: &TypedKey,
+        key: &PublicKey,
         f: F,
     ) -> Option<R>
     where
@@ -1885,7 +1892,7 @@ impl RouteSpecStore {
     fn with_peek_remote_private_route<F, R>(
         inner: &mut RouteSpecStoreInner,
         cur_ts: Timestamp,
-        remote_private_route: &TypedKey,
+        key: &PublicKey,
         f: F,
     ) -> Option<R>
     where
@@ -1907,7 +1914,7 @@ impl RouteSpecStore {
 
     /// Check to see if this remote (not ours) private route has seen our current node info yet
     /// This happens when you communicate with a private route without a safety route
-    pub fn has_remote_private_route_seen_our_node_info(&self, remote_private_route: &TypedKey) -> bool {
+    pub fn has_remote_private_route_seen_our_node_info(&self, key: &PublicKey) -> bool {
         let our_node_info_ts = {
             let rti = &*self.unlocked_inner.routing_table.inner.read();
             let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
@@ -1919,7 +1926,7 @@ impl RouteSpecStore {
         let opt_rpr_node_info_ts = {
             let inner = &mut *self.inner.lock();
             let cur_ts = get_aligned_timestamp();
-            Self::with_peek_remote_private_route(inner, cur_ts, remote_private_route, |rpr| {
+            Self::with_peek_remote_private_route(inner, cur_ts, key, |rpr| {
                 rpr.last_seen_our_node_info_ts
             })
         };

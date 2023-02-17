@@ -16,7 +16,7 @@ pub struct RouteHopData {
 #[derive(Clone, Debug)]
 pub enum RouteNode {
     /// Route node is optimized, no contact method information as this node id has been seen before
-    NodeId(TypedKey),
+    NodeId(PublicKey),
     /// Route node with full contact method information to ensure the peer is reachable
     PeerInfo(PeerInfo),
 }
@@ -79,6 +79,11 @@ impl PrivateRoute {
         false
     }
 
+    /// Get the crypto kind in use for this route
+    pub fn crypto_kind(&self) -> CryptoKind {
+        self.public_key.kind
+    }
+
     /// Remove the first unencrypted hop if possible
     pub fn pop_first_hop(&mut self) -> Option<RouteNode> {
         match &mut self.hops {
@@ -112,8 +117,8 @@ impl PrivateRoute {
 
         // Get the safety route to use from the spec
         Some(match &pr_first_hop.node {
-            RouteNode::NodeId(n) => n,
-            RouteNode::PeerInfo(p) => p.node_id.key,
+            RouteNode::NodeId(n) => TypedKey::new(self.public_key.kind, *n),
+            RouteNode::PeerInfo(p) => p.node_ids.get(self.public_key.kind).unwrap(),
         })
     }
 }
@@ -126,8 +131,13 @@ impl fmt::Display for PrivateRoute {
             self.public_key,
             self.hop_count,
             match &self.hops {
-                PrivateRouteHops::FirstHop(fh) => {
-                    format!("->{}", fh.node)
+                PrivateRouteHops::FirstHop(_) => {
+                    format!(
+                        "->{}",
+                        self.first_hop_node_id()
+                            .map(|n| n.to_string())
+                            .unwrap_or_else(|| "None".to_owned())
+                    )
                 }
                 PrivateRouteHops::Data(_) => {
                     "->?".to_owned()
@@ -156,6 +166,7 @@ pub struct SafetyRoute {
 }
 
 impl SafetyRoute {
+    /// Stub route is the form used when no privacy is required, but you need to directly contact a private route
     pub fn new_stub(public_key: TypedKey, private_route: PrivateRoute) -> Self {
         // First hop should have already been popped off for stubbed safety routes since
         // we are sending directly to the first hop
@@ -166,8 +177,15 @@ impl SafetyRoute {
             hops: SafetyRouteHops::Private(private_route),
         }
     }
+
+    /// Check if this is a stub route
     pub fn is_stub(&self) -> bool {
         matches!(self.hops, SafetyRouteHops::Private(_))
+    }
+
+    /// Get the crypto kind in use for this route
+    pub fn crypto_kind(&self) -> CryptoKind {
+        self.public_key.kind
     }
 }
 

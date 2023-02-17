@@ -159,7 +159,7 @@ pub struct VeilidLog {
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    pub sender: Option<TypedKey>,
+    pub sender: Option<PublicKey>,
     /// The content of the message to deliver to the application
     #[serde(with = "json_as_base64")]
     pub message: Vec<u8>,
@@ -173,7 +173,7 @@ pub struct VeilidAppMessage {
 pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    pub sender: Option<TypedKey>,
+    pub sender: Option<PublicKey>,
     /// The content of the request to deliver to the application
     #[serde(with = "json_as_base64")]
     pub message: Vec<u8>,
@@ -513,7 +513,7 @@ impl SafetySelection {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
     /// preferred safety route if it still exists
-    pub preferred_route: Option<TypedKey>,
+    pub preferred_route: Option<PublicKey>,
     /// must be greater than 0
     pub hop_count: usize,
     /// prefer reliability over speed

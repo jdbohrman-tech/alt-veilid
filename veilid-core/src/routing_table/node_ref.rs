@@ -132,6 +132,9 @@ pub trait NodeRefBase: Sized {
     fn set_envelope_support(&self, envelope_support: Vec<u8>) {
         self.operate_mut(|_rti, e| e.set_envelope_support(envelope_support))
     }
+    fn best_envelope_version(&self) -> Option<u8> {
+        self.operate(|_rti, e| e.best_envelope_version())
+    }
     fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         self.operate(|_rti, e| e.state(cur_ts))
     }

@@ -765,34 +765,33 @@ impl NetworkManager {
 
     /// Called by the RPC handler when we want to issue an RPC request or response
     /// node_ref is the direct destination to which the envelope will be sent
-    /// If 'envelope_node_id' is specified, it can be different than the node_ref being sent to
+    /// If 'envelope_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
     #[instrument(level = "trace", skip(self, body), ret, err)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
-        envelope_node_id: Option<TypedKey>,
+        envelope_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataKind>> {
-        let via_node_ids = node_ref.node_ids();
-        let Some(best_via_node_id) = via_node_ids.best() else {
-            bail!("should have a best node id");
-        };
-        let envelope_node_id = envelope_node_id.unwrap_or(best_via_node_id);
 
-        if !via_node_ids.contains(&envelope_node_id) {
+        let end_node_ref = envelope_node_ref.as_ref().unwrap_or(&node_ref).clone();
+        
+        if !node_ref.same_entry(&end_node_ref) {
             log_net!(
                 "sending envelope to {:?} via {:?}",
-                envelope_node_id,
+                end_node_ref,
                 node_ref
             );
         } else {
             log_net!("sending envelope to {:?}", node_ref);
         }
 
+        let best_node_id = end_node_ref.best_node_id();
+
         // Get node's envelope versions and see if we can send to it
         // and if so, get the max version we can use
-        let Some(envelope_version) = node_ref.envelope_support().into_iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)) else {
+        let Some(envelope_version) = end_node_ref.best_envelope_version() else {
             bail!(
                 "can't talk to this node {} because we dont support its envelope versions",
                 node_ref
@@ -800,10 +799,10 @@ impl NetworkManager {
         };
 
         // Build the envelope to send
-        let out = self.build_envelope(envelope_node_id, envelope_version, body)?;
+        let out = self.build_envelope(best_node_id, envelope_version, body)?;
 
         // Send the envelope via whatever means necessary
-        self.send_data(node_ref.clone(), out).await
+        self.send_data(node_ref, out).await
     }
 
     /// Called by the RPC handler when we want to issue an direct receipt
@@ -867,7 +866,7 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::relay(relay_nr, target_nr.node_id()),
+                Destination::relay(relay_nr, target_nr.clone()),
                 SignalInfo::ReverseConnect { receipt, peer_info },
             )
             .await
@@ -972,7 +971,7 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::relay(relay_nr, target_nr.node_id()),
+                Destination::relay(relay_nr, target_nr.clone()),
                 SignalInfo::HolePunch { receipt, peer_info },
             )
             .await
@@ -1076,7 +1075,7 @@ impl NetworkManager {
                 let relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
-                if target_node_ref.node_id() != target_key {
+                if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("target noderef didn't match target key");
                 }
                 NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
@@ -1085,7 +1084,7 @@ impl NetworkManager {
                 let relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
-                if target_node_ref.node_id() != target_key {
+                if target_node_ref.node_ids().contains(&target_key) {
                     bail!("target noderef didn't match target key");
                 }
                 NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref)
@@ -1386,7 +1385,7 @@ impl NetworkManager {
 
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
-                match rpc.resolve_node(recipient_id).await {
+                match rpc.resolve_node(recipient_id.key).await {
                     Ok(v) => v,
                     Err(e) => {
                         log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);

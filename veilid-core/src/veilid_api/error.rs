@@ -147,7 +147,7 @@ impl VeilidAPIError {
     pub fn shutdown() -> Self {
         Self::Shutdown
     }
-    pub fn key_not_found(key: TypedKey) -> Self {
+    pub fn key_not_found(key: PublicKey) -> Self {
         Self::KeyNotFound { key }
     }
     pub fn no_connection<T: ToString>(msg: T) -> Self {

@@ -159,6 +159,13 @@ impl TypedKeySet {
         out.sort_by(compare_crypto_kind);
         out
     }
+    pub fn keys(&self) -> Vec<PublicKey> {
+        let mut out = Vec::new();
+        for tk in &self.items {
+            out.push(tk.key);
+        }
+        out
+    }
     pub fn get(&self, kind: CryptoKind) -> Option<TypedKey> {
         self.items.iter().find(|x| x.kind == kind).copied()
     }

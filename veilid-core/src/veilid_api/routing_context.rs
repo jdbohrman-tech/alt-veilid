@@ -4,8 +4,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(TypedKey),
-    PrivateRoute(TypedKey),
+    NodeId(PublicKey),
+    PrivateRoute(PublicKey),
 }
 
 pub struct RoutingContextInner {}
@@ -225,11 +225,11 @@ impl RoutingContext {
     ///////////////////////////////////
     /// Block Store
 
-    pub async fn find_block(&self, _block_id: TypedKey) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn find_block(&self, _block_id: PublicKey) -> Result<Vec<u8>, VeilidAPIError> {
         panic!("unimplemented");
     }
 
-    pub async fn supply_block(&self, _block_id: TypedKey) -> Result<bool, VeilidAPIError> {
+    pub async fn supply_block(&self, _block_id: PublicKey) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 }
