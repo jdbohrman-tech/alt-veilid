@@ -10,6 +10,7 @@ before_script:
 
 earthly:
   stage: build
+  only: main
   image: earthly/earthly:v0.6.30
   tags:
     - linux
