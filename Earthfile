@@ -13,7 +13,7 @@ deps-base:
 deps-capnp:
     FROM +deps-base
     COPY scripts/earthly/install_capnproto.sh /
-    RUN /bin/bash /install_capnproto.sh; rm /install_capnproto.sh 1
+    RUN /bin/bash /install_capnproto.sh 1; rm /install_capnproto.sh
 
 # Install protoc
 deps-protoc:
