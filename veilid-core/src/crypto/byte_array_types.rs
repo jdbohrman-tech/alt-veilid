@@ -217,6 +217,14 @@ macro_rules! byte_array_type {
             }
         }
 
+        impl FromStr for $name {
+            type Err = VeilidAPIError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                $name::try_from(s)
+            }
+        }
+
         impl TryFrom<String> for $name {
             type Error = VeilidAPIError;
             fn try_from(value: String) -> Result<Self, Self::Error> {

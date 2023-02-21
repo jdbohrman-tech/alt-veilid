@@ -413,6 +413,7 @@ impl RoutingTableInner {
         &self,
         routing_domain_set: RoutingDomainSet,
         min_state: BucketEntryState,
+        crypto_kinds: &[CryptoKind], xxx finish this and peer minimum refresh and bootstrap tick, then both routines
     ) -> usize {
         let mut count = 0usize;
         let cur_ts = get_aligned_timestamp();
@@ -451,7 +452,7 @@ impl RoutingTableInner {
         mut f: F,
     ) -> Option<T> {
         for entry in self.all_entries {
-            if entry.with(self, |_rti, e| e.state(cur_ts) >= min_state) {
+            if entry.with_inner(|e| e.state(cur_ts) >= min_state) {
                 if let Some(out) = f(self, entry) {
                     return Some(out);
                 }
@@ -474,7 +475,7 @@ impl RoutingTableInner {
         // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count());
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
-            if entry.with(rti, |rti, e| {
+            if entry.with_inner(|e| {
                 // If this isn't in the routing domain we are checking, don't include it
                 if !e.exists_in_routing_domain(rti, routing_domain) {
                     return false;
@@ -757,7 +758,7 @@ impl RoutingTableInner {
 
         let cur_ts = get_aligned_timestamp();
         for entry in self.all_entries {
-            match entry.with(self, |_rti, e| e.state(cur_ts)) {
+            match entry.with_inner(|e| e.state(cur_ts)) {
                 BucketEntryState::Reliable => {
                     reliable_entry_count += 1;
                 }
@@ -807,7 +808,7 @@ impl RoutingTableInner {
     ) -> Vec<NodeRef> {
         let public_node_filter = Box::new(|rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
             let entry = v.unwrap();
-            entry.with(rti, |_rti, e| {
+            entry.with_inner(|e| {
                 // skip nodes on local network
                 if e.node_info(RoutingDomain::LocalNetwork).is_some() {
                     return false;
@@ -838,7 +839,7 @@ impl RoutingTableInner {
     ) -> bool {
         match entry {
             None => has_valid_own_node_info,
-            Some(entry) => entry.with(self, |_rti, e| {
+            Some(entry) => entry.with_inner(|e| {
                 e.signed_node_info(routing_domain.into())
                     .map(|sni| sni.has_any_signature())
                     .unwrap_or(false)
@@ -854,7 +855,7 @@ impl RoutingTableInner {
     ) -> PeerInfo {
         match entry {
             None => own_peer_info.clone(),
-            Some(entry) => entry.with(self, |_rti, e| e.make_peer_info(routing_domain).unwrap()),
+            Some(entry) => entry.with_inner(|e| e.make_peer_info(routing_domain).unwrap()),
         }
     }
 
@@ -932,7 +933,7 @@ impl RoutingTableInner {
             move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                 if let Some(entry) = &v {
                     // always filter out dead nodes
-                    if entry.with(rti, |_rti, e| e.state(cur_ts) == BucketEntryState::Dead) {
+                    if entry.with_inner(|e| e.state(cur_ts) == BucketEntryState::Dead) {
                         false
                     } else {
                         true
@@ -970,8 +971,8 @@ impl RoutingTableInner {
             // reliable nodes come first
             let ae = a_entry.as_ref().unwrap();
             let be = b_entry.as_ref().unwrap();
-            ae.with(rti, |rti, ae| {
-                be.with(rti, |_rti, be| {
+            ae.with_inner(|ae| {
+                be.with_inner(|be| {
                     let ra = ae.check_reliable(cur_ts);
                     let rb = be.check_reliable(cur_ts);
                     if ra != rb {
@@ -1020,7 +1021,25 @@ impl RoutingTableInner {
     {
         let cur_ts = get_aligned_timestamp();
 
-        // closest sort
+        // Get the crypto kind
+        let crypto_kind = node_id.kind;
+        let vcrypto = self.unlocked_inner.crypto().get(crypto_kind).unwrap();
+
+        // Filter to ensure entries support the crypto kind in use
+
+        let filter = Box::new(
+            move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
+                if let Some(entry) = opt_entry {
+                    entry.with_inner(|e| e.crypto_kinds().contains(&crypto_kind))
+                } else {
+                    VALID_CRYPTO_KINDS.contains(&crypto_kind)
+                }
+            },
+        ) as RoutingTableEntryFilter;
+        filters.push_front(filter);
+
+        // Closest sort
+        // Distance is done using the node id's distance metric which may vary based on crypto system
         let sort = |rti: &RoutingTableInner,
                     a_entry: &Option<Arc<BucketEntry>>,
                     b_entry: &Option<Arc<BucketEntry>>| {
@@ -1038,10 +1057,10 @@ impl RoutingTableInner {
             // reliable nodes come first, pessimistically treating our own node as unreliable
             let ra = a_entry
                 .as_ref()
-                .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
+                .map_or(false, |x| x.with_inner(|x| x.check_reliable(cur_ts)));
             let rb = b_entry
                 .as_ref()
-                .map_or(false, |x| x.with(rti, |_rti, x| x.check_reliable(cur_ts)));
+                .map_or(false, |x| x.with_inner(|x| x.check_reliable(cur_ts)));
             if ra != rb {
                 if ra {
                     return core::cmp::Ordering::Less;
@@ -1050,9 +1069,24 @@ impl RoutingTableInner {
                 }
             }
 
+            // get keys
+            let a_key = if let Some(a_entry) = a_entry {
+                a_entry.with_inner(|e| e.node_ids().get(crypto_kind).unwrap())
+            } else {
+                self.unlocked_inner.node_id(crypto_kind)
+            };
+            let b_key = if let Some(b_entry) = b_entry {
+                b_entry.with_inner(|e| e.node_ids().get(crypto_kind).unwrap())
+            } else {
+                self.unlocked_inner.node_id(crypto_kind)
+            };
+
             // distance is the next metric, closer nodes first
-            let da = distance(a_key, &node_id);
-            let db = distance(b_key, &node_id);
+            // since multiple cryptosystems are in use, the distance for a key is the shortest
+            // distance to that key over all supported cryptosystems
+
+            let da = vcrypto.distance(&a_key.key, &node_id.key);
+            let db = vcrypto.distance(&b_key.key, &node_id.key);
             da.cmp(&db)
         };
 

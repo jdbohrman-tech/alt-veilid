@@ -29,7 +29,7 @@ impl RoutedOperation {
                 .map_err(RPCError::map_internal("too many signatures"))?,
         );
         for s in sigs_reader.iter() {
-            let sig = decode_typed_signature(&s);
+            let sig = decode_typed_signature(&s)?;
             signatures.push(sig);
         }
 
@@ -80,9 +80,10 @@ pub struct RPCOperationRoute {
 impl RPCOperationRoute {
     pub fn decode(
         reader: &veilid_capnp::operation_route::Reader,
+        crypto: Crypto,
     ) -> Result<RPCOperationRoute, RPCError> {
         let sr_reader = reader.get_safety_route().map_err(RPCError::protocol)?;
-        let safety_route = decode_safety_route(&sr_reader)?;
+        let safety_route = decode_safety_route(&sr_reader, crypto)?;
 
         let o_reader = reader.get_operation().map_err(RPCError::protocol)?;
         let operation = RoutedOperation::decode(&o_reader)?;

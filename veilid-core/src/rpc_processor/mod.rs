@@ -87,7 +87,16 @@ struct RPCMessageHeader {
     detail: RPCMessageHeaderDetail,
 }
 
-impl RPCMessageHeader {}
+impl RPCMessageHeader {
+    /// The crypto kind used on the RPC
+    pub fn crypto_kind(&self) -> CryptoKind {
+        match &self.detail {
+            RPCMessageHeaderDetail::Direct(d) => d.envelope.get_crypto_kind(),
+            RPCMessageHeaderDetail::SafetyRouted(s) => todo!(),
+            RPCMessageHeaderDetail::PrivateRouted(p) => todo!(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct RPCMessageData {

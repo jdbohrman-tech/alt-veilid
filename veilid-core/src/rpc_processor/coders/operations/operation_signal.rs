@@ -8,8 +8,9 @@ pub struct RPCOperationSignal {
 impl RPCOperationSignal {
     pub fn decode(
         reader: &veilid_capnp::operation_signal::Reader,
+        crypto: Crypto,
     ) -> Result<RPCOperationSignal, RPCError> {
-        let signal_info = decode_signal_info(reader)?;
+        let signal_info = decode_signal_info(reader, crypto)?;
         Ok(RPCOperationSignal { signal_info })
     }
     pub fn encode(

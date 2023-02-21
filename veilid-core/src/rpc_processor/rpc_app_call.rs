@@ -44,6 +44,9 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Get the crypto kind used to send this question
+        let crypto_kind = msg.header.crypto_kind();
+
         // Get the question
         let app_call_q = match msg.operation.kind() {
             RPCOperationKind::Question(q) => match q.detail() {
@@ -61,7 +64,7 @@ impl RPCProcessor {
         let sender = msg
             .opt_sender_nr
             .as_ref()
-            .map(|nr| NodeId::new(nr.node_id()));
+            .map(|nr| nr.node_ids().get(crypto_kind).unwrap().key);
         let message = app_call_q.message.clone();
         (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(VeilidAppCall {
             sender,

@@ -262,12 +262,15 @@ impl RoutingTable {
                     self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, false)
                 {
                     // Add this our futures to process in parallel
-                    let routing_table = self.clone();
-                    unord.push(
-                        // lets ask bootstrap to find ourselves now
-                        async move { routing_table.reverse_find_node(nr, true).await }
-                            .instrument(Span::current()),
-                    );
+                    for crypto_kind in VALID_CRYPTO_KINDS {
+                        let routing_table = self.clone();
+                        let nr = nr.clone();
+                        unord.push(
+                            // lets ask bootstrap to find ourselves now
+                            async move { routing_table.reverse_find_node(crypto_kind, nr, true).await }
+                                .instrument(Span::current()),
+                        );
+                    }
                 }
             }
         }
@@ -337,27 +340,32 @@ impl RoutingTable {
                 self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, true)
             {
                 // Add this our futures to process in parallel
-                let routing_table = self.clone();
-                unord.push(
-                    async move {
-                        // Need VALID signed peer info, so ask bootstrap to find_node of itself
-                        // which will ensure it has the bootstrap's signed peer info as part of the response
-                        let _ = routing_table.find_target(nr.clone()).await;
+                for crypto_kind in VALID_CRYPTO_KINDS {
+                    let nr = nr.clone();
+                    let routing_table = self.clone();
+                    unord.push(
+                        async move {
+                            // Need VALID signed peer info, so ask bootstrap to find_node of itself
+                            // which will ensure it has the bootstrap's signed peer info as part of the response
+                            let _ = routing_table.find_target(crypto_kind, nr.clone()).await;
 
-                        // Ensure we got the signed peer info
-                        if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
-                            log_rtab!(warn
-                                "bootstrap at {:?} did not return valid signed node info",
-                                nr
-                            );
-                            // If this node info is invalid, it will time out after being unpingable
-                        } else {
-                            // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                            routing_table.reverse_find_node(nr, true).await
+                            // Ensure we got the signed peer info
+                            if !nr
+                                .signed_node_info_has_valid_signature(RoutingDomain::PublicInternet)
+                            {
+                                log_rtab!(warn
+                                    "bootstrap at {:?} did not return valid signed node info",
+                                    nr
+                                );
+                                // If this node info is invalid, it will time out after being unpingable
+                            } else {
+                                // otherwise this bootstrap is valid, lets ask it to find ourselves now
+                                routing_table.reverse_find_node(crypto_kind, nr, true).await
+                            }
                         }
-                    }
-                    .instrument(Span::current()),
-                );
+                        .instrument(Span::current()),
+                    );
+                }
             }
         }
 

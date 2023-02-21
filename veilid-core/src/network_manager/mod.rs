@@ -634,7 +634,7 @@ impl NetworkManager {
     pub async fn handle_private_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
-        private_route: TypedKey,
+        private_route: PublicKey,
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 

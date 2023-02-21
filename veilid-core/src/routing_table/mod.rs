@@ -891,11 +891,20 @@ impl RoutingTable {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn register_find_node_answer(&self, peers: Vec<PeerInfo>) -> Vec<NodeRef> {
-        // register nodes we'd found
+    pub fn register_find_node_answer(
+        &self,
+        crypto_kind: CryptoKind,
+        peers: Vec<PeerInfo>,
+    ) -> Vec<NodeRef> {
+        // Register nodes we'd found
         let mut out = Vec::<NodeRef>::with_capacity(peers.len());
         for p in peers {
-            // register the node if it's new
+            // Ensure we're getting back nodes we asked for
+            if !p.node_ids.kinds().contains(&crypto_kind) {
+                continue;
+            }
+
+            // Register the node if it's new
             if let Some(nr) =
                 self.register_node_with_peer_info(RoutingDomain::PublicInternet, p, false)
             {
@@ -922,29 +931,41 @@ impl RoutingTable {
 
         // register nodes we'd found
         Ok(NetworkResult::value(
-            self.register_find_node_answer(res.answer),
+            self.register_find_node_answer(node_id.kind, res.answer),
         ))
     }
 
+    /// Ask a remote node to list the nodes it has around the current node
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn find_self(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
-        let self_node_id = self.node_id();
+    pub async fn find_self(
+        &self,
+        crypto_kind: CryptoKind,
+        node_ref: NodeRef,
+    ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
+        let self_node_id = self.node_id(crypto_kind);
         self.find_node(node_ref, self_node_id).await
     }
 
+    /// Ask a remote node to list the nodes it has around itself
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn find_target(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
-        let target_node_id = node_ref.node_id();
+    pub async fn find_target(
+        &self,
+        crypto_kind: CryptoKind,
+        node_ref: NodeRef,
+    ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
+        let Some(target_node_id) = node_ref.node_ids().get(crypto_kind) else {
+            bail!("no target node ids for this crypto kind");
+        };
         self.find_node(node_ref, target_node_id).await
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn reverse_find_node(&self, node_ref: NodeRef, wide: bool) {
-        // Ask bootstrap node to 'find' our own node so we can get some more nodes near ourselves
+    pub async fn reverse_find_node(&self, crypto_kind: CryptoKind, node_ref: NodeRef, wide: bool) {
+        // Ask node to 'find node' on own node so we can get some more nodes near ourselves
         // and then contact those nodes to inform -them- that we exist
 
-        // Ask bootstrap server for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(match self.find_self(node_ref.clone()).await {
+        // Ask node for nodes closest to our own node
+        let closest_nodes = network_result_value_or_log!(match self.find_self(crypto_kind, node_ref.clone()).await {
             Err(e) => {
                 log_rtab!(error
                     "find_self failed for {:?}: {:?}",
@@ -960,7 +981,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(match self.find_self(closest_nr.clone()).await {
+                network_result_value_or_log!(match self.find_self(crypto_kind, closest_nr.clone()).await {
                     Err(e) => {
                         log_rtab!(error
                             "find_self failed for {:?}: {:?}",

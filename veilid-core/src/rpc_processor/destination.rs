@@ -164,7 +164,7 @@ impl RPCProcessor {
                     // Sent directly but with a safety route, respond to private route
                     let ck = target.best_node_id().kind;
                     let Some(pr_key) = rss
-                            .get_private_route_for_safety_spec(ck, safety_spec, &target.node_ids().keys())
+                            .get_private_route_for_safety_spec(ck, safety_spec, &target.node_ids())
                             .map_err(RPCError::internal)? else {
                                 return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
                             };
@@ -193,7 +193,7 @@ impl RPCProcessor {
                     let mut avoid_nodes = relay.node_ids();
                     avoid_nodes.add_all(&target.node_ids());
                     let Some(pr_key) = rss
-                        .get_private_route_for_safety_spec(ck, safety_spec, &avoid_nodes.keys())
+                        .get_private_route_for_safety_spec(ck, safety_spec, &avoid_nodes)
                         .map_err(RPCError::internal)? else {
                             return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
                         };

@@ -29,12 +29,12 @@ impl RPCOperationKind {
             }
             veilid_capnp::operation::kind::Which::Statement(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCStatement::decode(&q_reader)?;
+                let out = RPCStatement::decode(&q_reader, crypto)?;
                 RPCOperationKind::Statement(out)
             }
             veilid_capnp::operation::kind::Which::Answer(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCAnswer::decode(&q_reader)?;
+                let out = RPCAnswer::decode(&q_reader, crypto)?;
                 RPCOperationKind::Answer(out)
             }
         };

@@ -15,9 +15,12 @@ impl RPCAnswer {
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
-    pub fn decode(reader: &veilid_capnp::answer::Reader) -> Result<RPCAnswer, RPCError> {
+    pub fn decode(
+        reader: &veilid_capnp::answer::Reader,
+        crypto: Crypto,
+    ) -> Result<RPCAnswer, RPCError> {
         let d_reader = reader.get_detail();
-        let detail = RPCAnswerDetail::decode(&d_reader)?;
+        let detail = RPCAnswerDetail::decode(&d_reader, crypto)?;
         Ok(RPCAnswer { detail })
     }
     pub fn encode(&self, builder: &mut veilid_capnp::answer::Builder) -> Result<(), RPCError> {
@@ -60,6 +63,7 @@ impl RPCAnswerDetail {
 
     pub fn decode(
         reader: &veilid_capnp::answer::detail::Reader,
+        crypto: Crypto,
     ) -> Result<RPCAnswerDetail, RPCError> {
         let which_reader = reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
@@ -70,7 +74,7 @@ impl RPCAnswerDetail {
             }
             veilid_capnp::answer::detail::FindNodeA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindNodeA::decode(&op_reader)?;
+                let out = RPCOperationFindNodeA::decode(&op_reader, crypto)?;
                 RPCAnswerDetail::FindNodeA(out)
             }
             veilid_capnp::answer::detail::AppCallA(r) => {
@@ -100,7 +104,7 @@ impl RPCAnswerDetail {
             }
             veilid_capnp::answer::detail::FindBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindBlockA::decode(&op_reader)?;
+                let out = RPCOperationFindBlockA::decode(&op_reader, crypto)?;
                 RPCAnswerDetail::FindBlockA(out)
             }
             veilid_capnp::answer::detail::StartTunnelA(r) => {

@@ -88,7 +88,10 @@ impl RPCProcessor {
             // Use the address type though, to ensure we reach an ipv6 capable node if this is
             // an ipv6 address
             let routing_table = self.routing_table();
-            let sender_id = detail.envelope.get_sender_id();
+            let sender_node_id = TypedKey::new(
+                detail.envelope.get_crypto_kind(),
+                detail.envelope.get_sender_id(),
+            );
             let routing_domain = detail.routing_domain;
             let node_count = {
                 let c = self.config.get();
@@ -102,7 +105,7 @@ impl RPCProcessor {
                     dial_info.clone(),
                 );
             let will_validate_dial_info_filter = Box::new(
-                move |rti: &RoutingTableInner, _k: TypedKey, v: Option<Arc<BucketEntry>>| {
+                move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                     let entry = v.unwrap();
                     entry.with(rti, move |_rti, e| {
                         if let Some(status) = &e.node_status(routing_domain) {
@@ -129,7 +132,7 @@ impl RPCProcessor {
             }
             for peer in peers {
                 // Ensure the peer is not the one asking for the validation
-                if peer.node_id() == sender_id {
+                if peer.node_ids().contains(&sender_node_id) {
                     continue;
                 }
 

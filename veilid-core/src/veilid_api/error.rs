@@ -108,7 +108,7 @@ pub enum VeilidAPIError {
     #[error("Shutdown")]
     Shutdown,
     #[error("Key not found: {key}")]
-    KeyNotFound { key: TypedKey },
+    KeyNotFound { key: PublicKey },
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("No peer info: {node_id}")]

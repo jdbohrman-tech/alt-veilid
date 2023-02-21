@@ -20,22 +20,39 @@ impl RoutingTable {
 
         // For the PublicInternet routing domain, get list of all peers we know about
         // even the unreliable ones, and ask them to find nodes close to our node too
-        let routing_table = self.clone();
-        let noderefs = routing_table.find_fastest_nodes(
-            min_peer_count,
-            VecDeque::new(),
-            |_rti, entry: Option<Arc<BucketEntry>>| {
-                NodeRef::new(routing_table.clone(), entry.unwrap().clone(), None)
-            },
-        );
 
         let mut ord = FuturesOrdered::new();
-        for nr in noderefs {
+
+        for crypto_kind in VALID_CRYPTO_KINDS {
             let routing_table = self.clone();
-            ord.push_back(
-                async move { routing_table.reverse_find_node(nr, false).await }
-                    .instrument(Span::current()),
+
+            let mut filters = VecDeque::new();
+            let filter = Box::new(
+                move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
+                    if let Some(entry) = opt_entry {
+                        entry.with_inner(|e| e.crypto_kinds().contains(&crypto_kind))
+                    } else {
+                        VALID_CRYPTO_KINDS.contains(&crypto_kind)
+                    }
+                },
+            ) as RoutingTableEntryFilter;
+            filters.push_front(filter);
+
+            let noderefs = routing_table.find_fastest_nodes(
+                min_peer_count,
+                filters,
+                |_rti, entry: Option<Arc<BucketEntry>>| {
+                    NodeRef::new(routing_table.clone(), entry.unwrap().clone(), None)
+                },
             );
+
+            for nr in noderefs {
+                let routing_table = self.clone();
+                ord.push_back(
+                    async move { routing_table.reverse_find_node(nr, false).await }
+                        .instrument(Span::current()),
+                );
+            }
         }
 
         // do peer minimum search in order from fastest to slowest
