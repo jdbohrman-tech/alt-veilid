@@ -122,6 +122,14 @@ impl RoutingTableUnlockedInner {
         tks
     }
 
+    pub fn node_id_typed_key_pairs(&self) -> Vec<TypedKeyPair> {
+        let mut tkps = Vec::new();
+        for (ck, v) in &self.node_id_keypairs {
+            tkps.push(TypedKeyPair::new(*ck, v.key, v.secret));
+        }
+        tkps
+    }
+
     pub fn node_id_secret(&self, kind: CryptoKind) -> SecretKey {
         self.node_id_keypairs.get(&kind).unwrap().secret
     }

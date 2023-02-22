@@ -120,7 +120,7 @@ pub(crate) enum NodeContactMethod {
     Direct(DialInfo),
     /// Request via signal the node connect back directly (relay, target)
     SignalReverse(NodeRef, NodeRef),
-    /// Request via signal the node negotiate a hole punch (relay, target_node)
+    /// Request via signal the node negotiate a hole punch (relay, target)
     SignalHolePunch(NodeRef, NodeRef),
     /// Must use an inbound relay to reach the node
     InboundRelay(NodeRef),

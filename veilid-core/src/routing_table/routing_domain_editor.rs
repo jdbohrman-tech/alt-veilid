@@ -102,7 +102,7 @@ impl RoutingDomainEditor {
 
         let mut changed = false;
         {
-            let node_id = self.routing_table.node_id();
+            let node_ids = self.routing_table.node_ids();
 
             let mut inner = self.routing_table.inner.write();
             inner.with_routing_domain_mut(self.routing_domain, |detail| {
@@ -134,9 +134,7 @@ impl RoutingDomainEditor {
 
                             info!(
                                 "{:?} Dial Info: {}@{}",
-                                self.routing_domain,
-                                NodeId::new(node_id),
-                                dial_info_detail.dial_info
+                                self.routing_domain, node_ids, dial_info_detail.dial_info
                             );
                             changed = true;
                         }

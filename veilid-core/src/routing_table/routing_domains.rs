@@ -11,7 +11,7 @@ pub enum ContactMethod {
     Direct(DialInfo),
     /// Request via signal the node connect back directly (relay, target)
     SignalReverse(TypedKey, TypedKey),
-    /// Request via signal the node negotiate a hole punch (relay, target_node)
+    /// Request via signal the node negotiate a hole punch (relay, target)
     SignalHolePunch(TypedKey, TypedKey),
     /// Must use an inbound relay to reach the node
     InboundRelay(TypedKey),
@@ -106,8 +106,8 @@ impl RoutingDomainDetailCommon {
             network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
             outbound_protocols: self.outbound_protocols,
             address_types: self.address_types,
-            min_version: MIN_CRYPTO_VERSION,
-            max_version: MAX_CRYPTO_VERSION,
+            envelope_support: VALID_ENVELOPE_VERSIONS.to_vec(),
+            crypto_support: VALID_CRYPTO_KINDS.to_vec(),
             dial_info_detail_list: self.dial_info_details.clone(),
         };
 
@@ -118,7 +118,7 @@ impl RoutingDomainDetailCommon {
                 let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
                 if let Some(relay_pi) = opt_relay_pi {
                     match relay_pi.signed_node_info {
-                        SignedNodeInfo::Direct(d) => Some((relay_pi.node_id, d)), 
+                        SignedNodeInfo::Direct(d) => Some((relay_pi.node_ids, d)), 
                         SignedNodeInfo::Relayed(_) => {
                             warn!("relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
                             None
@@ -130,27 +130,27 @@ impl RoutingDomainDetailCommon {
             });
 
         let signed_node_info = match relay_info {
-            Some((relay_id, relay_sdni)) => SignedNodeInfo::Relayed(
+            Some((relay_ids, relay_sdni)) => SignedNodeInfo::Relayed(
                 SignedRelayedNodeInfo::make_signatures(
-                    NodeId::new(rti.unlocked_inner.node_id),
+                    rti.unlocked_inner.crypto(),
+                    rti.unlocked_inner.node_id_typed_key_pairs(),
                     node_info,
-                    relay_id,
+                    relay_ids,
                     relay_sdni,                    
-                    &rti.unlocked_inner.node_id_secret,
                 )
                 .unwrap(),
             ),
             None => SignedNodeInfo::Direct(
-                SignedDirectNodeInfo::with_secret(
-                    NodeId::new(rti.unlocked_inner.node_id),
+                SignedDirectNodeInfo::make_signatures(
+                    rti.unlocked_inner.crypto(),
+                    rti.unlocked_inner.node_id_typed_key_pairs(),
                     node_info,
-                    &rti.unlocked_inner.node_id_secret,
                 )
                 .unwrap()
             ),
         };
 
-        PeerInfo::new(NodeId::new(rti.unlocked_inner.node_id), signed_node_info)
+        PeerInfo::new(rti.unlocked_inner.node_ids(), signed_node_info)
     }
 
     pub fn with_peer_info<F, R>(&self, rti: &RoutingTableInner, f: F) -> R
@@ -280,7 +280,16 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info.node_info();
         let node_b = peer_b.signed_node_info.node_info();
-        
+
+        // Get the node ids that would be used between these peers
+        let cck = common_crypto_kinds(&peer_a.node_ids.kinds(), &peer_b.node_ids.kinds());
+        let Some(best_ck) = cck.first().copied() else {
+            // No common crypto kinds between these nodes, can't contact
+            return ContactMethod::Unreachable;
+        };
+        let node_a_id = peer_a.node_ids.get(best_ck).unwrap();
+        let node_b_id = peer_b.node_ids.get(best_ck).unwrap();
+
         // Get the best match dial info for node B if we have it
         if let Some(target_did) =
             first_filtered_dial_info_detail(node_a, node_b, &dial_info_filter, sequencing)
@@ -293,14 +302,19 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
             // Get the target's inbound relay, it must have one or it is not reachable
             if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
-                let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
 
                 // Note that relay_peer_info could be node_a, in which case a connection already exists
                 // and we only get here if the connection had dropped, in which case node_a is unreachable until
                 // it gets a new relay connection up
-                if node_b_relay_id.key == peer_a.node_id.key {
+                if peer_b.signed_node_info.relay_ids().contains_any(&peer_a.node_ids) {
                     return ContactMethod::Existing;
                 }
+
+                // Get best node id to contact relay with
+                let Some(node_b_relay_id) = peer_b.signed_node_info.relay_ids().get(best_ck) else {
+                    // No best relay id
+                    return ContactMethod::Unreachable;
+                };
 
                 // Can node A reach the inbound relay directly?
                 if first_filtered_dial_info_detail(
@@ -329,8 +343,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                                 // Can we receive a direct reverse connection?
                                 if !reverse_did.class.requires_signal() {
                                     return ContactMethod::SignalReverse(
-                                        node_b_relay_id.key,
-                                        peer_b.node_id.key,
+                                        node_b_relay_id,
+                                        node_b_id,
                                     );
                                 }
                             }
@@ -361,8 +375,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                                 {
                                     // The target and ourselves have a udp dialinfo that they can reach
                                     return ContactMethod::SignalHolePunch(
-                                        node_b_relay_id.key,
-                                        peer_a.node_id.key,
+                                        node_b_relay_id,
+                                        node_b_id,
                                     );
                                 }
                             }
@@ -370,20 +384,25 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                         // Otherwise we have to inbound relay
                     }
 
-                    return ContactMethod::InboundRelay(node_b_relay_id.key);
+                    return ContactMethod::InboundRelay(node_b_relay_id);
                 }
             }
         }
         // If the node B has no direct dial info, it needs to have an inbound relay
         else if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
-            let node_b_relay_id = peer_b.signed_node_info.relay_id().unwrap();
-            
+
             // Note that relay_peer_info could be node_a, in which case a connection already exists
             // and we only get here if the connection had dropped, in which case node_a is unreachable until
             // it gets a new relay connection up
-            if node_b_relay_id.key == peer_a.node_id.key {
+            if peer_b.signed_node_info.relay_ids().contains_any(&peer_a.node_ids) {
                 return ContactMethod::Existing;
             }
+
+            // Get best node id to contact relay with
+            let Some(node_b_relay_id) = peer_b.signed_node_info.relay_ids().get(best_ck) else {
+                // No best relay id
+                return ContactMethod::Unreachable;
+            };
 
             // Can we reach the full relay?
             if first_filtered_dial_info_detail(
@@ -394,13 +413,13 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             )
             .is_some()
             {
-                return ContactMethod::InboundRelay(node_b_relay_id.key);
+                return ContactMethod::InboundRelay(node_b_relay_id);
             }
         }
 
         // If node A can't reach the node by other means, it may need to use its own relay
-        if let Some(node_a_relay_id) = peer_a.signed_node_info.relay_id() {
-            return ContactMethod::OutboundRelay(node_a_relay_id.key);
+        if let Some(node_a_relay_id) = peer_a.signed_node_info.relay_ids().get(best_ck) {
+            return ContactMethod::OutboundRelay(node_a_relay_id);
         }
 
         ContactMethod::Unreachable

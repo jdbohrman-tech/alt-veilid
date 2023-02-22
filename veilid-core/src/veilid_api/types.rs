@@ -1967,10 +1967,10 @@ impl SignedRelayedNodeInfo {
 
     pub fn make_signatures(
         crypto: Crypto,
+        typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
         relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
-        typed_key_pairs: Vec<TypedKeyPair>,
     ) -> Result<Self, VeilidAPIError> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes =
