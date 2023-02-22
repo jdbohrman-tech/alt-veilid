@@ -2,7 +2,7 @@ use super::*;
 use weak_table::PtrWeakHashSet;
 
 const RECENT_PEERS_TABLE_SIZE: usize = 64;
-
+pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 //////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, Copy)]
@@ -18,6 +18,8 @@ pub struct RoutingTableInner {
     pub(super) buckets: BTreeMap<CryptoKind, Vec<Bucket>>,
     /// A weak set of all the entries we have in the buckets for faster iteration
     pub(super) all_entries: PtrWeakHashSet<Weak<BucketEntry>>,
+    /// A rough count of the entries in the table per routing domain and crypto kind
+    pub(super) live_entry_count: EntryCounts,
     /// The public internet routing domain
     pub(super) public_internet_routing_domain: PublicInternetRoutingDomainDetail,
     /// The dial info we use on the local network
@@ -42,6 +44,7 @@ impl RoutingTableInner {
             public_internet_routing_domain: PublicInternetRoutingDomainDetail::default(),
             local_network_routing_domain: LocalNetworkRoutingDomainDetail::default(),
             all_entries: PtrWeakHashSet::new(),
+            live_entry_count: BTreeMap::new(),
             self_latency_stats_accounting: LatencyStatsAccounting::new(),
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
@@ -409,18 +412,45 @@ impl RoutingTableInner {
         }
     }
 
+    /// Build the counts of entries per routing domain and crypto kind and cache them
+    pub fn refresh_cached_entry_counts(&mut self) -> EntryCounts {
+        self.live_entry_count.clear();
+        let cur_ts = get_aligned_timestamp();
+        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
+            entry.with_inner(|e| {
+                if let Some(rd) = e.best_routing_domain(rti, RoutingDomainSet::all()) {
+                    for crypto_kind in e.crypto_kinds() {
+                        self.live_entry_count
+                            .entry((rd, crypto_kind))
+                            .and_modify(|x| *x += 1)
+                            .or_insert(1);
+                    }
+                }
+            });
+            Option::<()>::None
+        });
+        self.live_entry_count.clone()
+    }
+
+    /// Return the last cached entry counts
+    pub fn cached_entry_counts(&self) -> EntryCounts {
+        self.live_entry_count.clone()
+    }
+
+    /// Count entries that match some criteria
     pub fn get_entry_count(
         &self,
         routing_domain_set: RoutingDomainSet,
         min_state: BucketEntryState,
-        crypto_kinds: &[CryptoKind], xxx finish this and peer minimum refresh and bootstrap tick, then both routines
+        crypto_kinds: &[CryptoKind],
     ) -> usize {
         let mut count = 0usize;
         let cur_ts = get_aligned_timestamp();
         self.with_entries(cur_ts, min_state, |rti, e| {
-            if e.with_inner(|e| e.best_routing_domain(rti, routing_domain_set))
-                .is_some()
-            {
+            if e.with_inner(|e| {
+                e.best_routing_domain(rti, routing_domain_set).is_some()
+                    && !common_crypto_kinds(&e.crypto_kinds(), crypto_kinds).is_empty()
+            }) {
                 count += 1;
             }
             Option::<()>::None
@@ -428,6 +458,33 @@ impl RoutingTableInner {
         count
     }
 
+    /// Count entries per crypto kind that match some criteria
+    pub fn get_entry_count_per_crypto_kind(
+        &self,
+        routing_domain_set: RoutingDomainSet,
+        min_state: BucketEntryState,
+    ) -> BTreeMap<CryptoKind, usize> {
+        let mut counts = BTreeMap::new();
+        let cur_ts = get_aligned_timestamp();
+        self.with_entries(cur_ts, min_state, |rti, e| {
+            if let Some(crypto_kinds) = e.with_inner(|e| {
+                if e.best_routing_domain(rti, routing_domain_set).is_some() {
+                    Some(e.crypto_kinds())
+                } else {
+                    None
+                }
+            }) {
+                // Got crypto kinds, add to map
+                for ck in crypto_kinds {
+                    counts.entry(ck).and_modify(|x| *x += 1).or_insert(1);
+                }
+            }
+            Option::<()>::None
+        });
+        counts
+    }
+
+    /// Iterate entries with a filter
     pub fn with_entries<T, F: FnMut(&RoutingTableInner, Arc<BucketEntry>) -> Option<T>>(
         &self,
         cur_ts: Timestamp,
@@ -445,6 +502,7 @@ impl RoutingTableInner {
         None
     }
 
+    /// Iterate entries with a filter mutably
     pub fn with_entries_mut<T, F: FnMut(&mut RoutingTableInner, Arc<BucketEntry>) -> Option<T>>(
         &mut self,
         cur_ts: Timestamp,
@@ -615,7 +673,7 @@ impl RoutingTableInner {
         new_entry.with_mut_inner(|e| update_func(self, e));
 
         // Kick the bucket
-        log_rtab!(debug "Routing table now has {} nodes, {} live", self.bucket_entry_count(), self.get_entry_count(RoutingDomainSet::all(), BucketEntryState::Unreliable));
+        log_rtab!(debug "Routing table now has {} nodes, {} live", self.bucket_entry_count(), self.get_entry_count(RoutingDomainSet::all(), BucketEntryState::Unreliable, &VALID_CRYPTO_KINDS));
 
         Some(nr)
     }

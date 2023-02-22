@@ -16,6 +16,9 @@ impl RoutingTable {
         self,
         stop_token: StopToken,
     ) -> EyreResult<()> {
+        // Get counts by crypto kind
+        let entry_count = self.inner.read().cached_entry_counts();
+
         let min_peer_count = self.with_config(|c| c.network.dht.min_peer_count as usize);
 
         // For the PublicInternet routing domain, get list of all peers we know about
@@ -24,11 +27,21 @@ impl RoutingTable {
         let mut ord = FuturesOrdered::new();
 
         for crypto_kind in VALID_CRYPTO_KINDS {
+            // Do we need to peer minimum refresh this crypto kind?
+            let eckey = (RoutingDomain::PublicInternet, crypto_kind);
+            let cnt = entry_count.get(&eckey).copied().unwrap_or_default();
+            if cnt == 0 || cnt > min_peer_count {
+                // If we have enough nodes, skip it
+                // If we have zero nodes, bootstrap will get it
+                continue;
+            }
+
             let routing_table = self.clone();
 
             let mut filters = VecDeque::new();
             let filter = Box::new(
                 move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
+                    // Keep only the entries that contain the crypto kind we're looking for
                     if let Some(entry) = opt_entry {
                         entry.with_inner(|e| e.crypto_kinds().contains(&crypto_kind))
                     } else {
@@ -49,8 +62,12 @@ impl RoutingTable {
             for nr in noderefs {
                 let routing_table = self.clone();
                 ord.push_back(
-                    async move { routing_table.reverse_find_node(nr, false).await }
-                        .instrument(Span::current()),
+                    async move {
+                        routing_table
+                            .reverse_find_node(crypto_kind, nr, false)
+                            .await
+                    }
+                    .instrument(Span::current()),
                 );
             }
         }

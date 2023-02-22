@@ -540,10 +540,21 @@ impl RoutingTable {
         &self,
         routing_domain_set: RoutingDomainSet,
         min_state: BucketEntryState,
+        crypto_kinds: &[CryptoKind],
     ) -> usize {
         self.inner
             .read()
-            .get_entry_count(routing_domain_set, min_state)
+            .get_entry_count(routing_domain_set, min_state, crypto_kinds)
+    }
+
+    pub fn get_entry_count_per_crypto_kind(
+        &self,
+        routing_domain_set: RoutingDomainSet,
+        min_state: BucketEntryState,
+    ) -> BTreeMap<CryptoKind, usize> {
+        self.inner
+            .read()
+            .get_entry_count_per_crypto_kind(routing_domain_set, min_state)
     }
 
     pub fn get_nodes_needing_ping(
@@ -774,14 +785,19 @@ impl RoutingTable {
             .find_fast_public_nodes_filtered(self.clone(), node_count, filters)
     }
 
-    /// Retrieve up to N of each type of protocol capable nodes
-    pub fn find_bootstrap_nodes_filtered(&self, max_per_type: usize) -> Vec<NodeRef> {
+    /// Retrieve up to N of each type of protocol capable nodes for a single crypto kind
+    fn find_bootstrap_nodes_filtered_per_crypto_kind(
+        &self,
+        crypto_kind: CryptoKind,
+        max_per_type: usize,
+    ) -> Vec<NodeRef> {
         let protocol_types = vec![
             ProtocolType::UDP,
             ProtocolType::TCP,
             ProtocolType::WS,
             ProtocolType::WSS,
         ];
+
         let protocol_types_len = protocol_types.len();
         let mut nodes_proto_v4 = vec![0usize, 0usize, 0usize, 0usize];
         let mut nodes_proto_v6 = vec![0usize, 0usize, 0usize, 0usize];
@@ -792,6 +808,11 @@ impl RoutingTable {
                 entry.with(rti, |_rti, e| {
                     // skip nodes on our local network here
                     if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
+                        return false;
+                    }
+
+                    // Ensure crypto kind is supported
+                    if !e.crypto_kinds().contains(&crypto_kind) {
                         return false;
                     }
 
@@ -838,6 +859,27 @@ impl RoutingTable {
                 NodeRef::new(self.clone(), entry.unwrap().clone(), None)
             },
         )
+    }
+
+    /// Retrieve up to N of each type of protocol capable nodes for all crypto kinds
+    pub fn find_bootstrap_nodes_filtered(&self, max_per_type: usize) -> Vec<NodeRef> {
+        let mut out =
+            self.find_bootstrap_nodes_filtered_per_crypto_kind(VALID_CRYPTO_KINDS[0], max_per_type);
+
+        // Merge list of nodes so we don't have duplicates
+        for crypto_kind in &VALID_CRYPTO_KINDS[1..] {
+            let nrs =
+                self.find_bootstrap_nodes_filtered_per_crypto_kind(*crypto_kind, max_per_type);
+            'nrloop: for nr in nrs {
+                for nro in out {
+                    if nro.same_entry(&nr) {
+                        continue 'nrloop;
+                    }
+                }
+                out.push(nr);
+            }
+        }
+        out
     }
 
     pub fn find_peers_with_sort_and_filter<C, T, O>(

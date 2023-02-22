@@ -294,6 +294,9 @@ impl RoutingTable {
 
         log_rtab!(debug "--- bootstrap_task");
 
+        // Get counts by crypto kind
+        let entry_count = self.inner.read().cached_entry_counts();
+
         // See if we are specifying a direct dialinfo for bootstrap, if so use the direct mechanism
         let mut bootstrap_dialinfos = Vec::<DialInfo>::new();
         for b in &bootstrap {
@@ -341,6 +344,14 @@ impl RoutingTable {
             {
                 // Add this our futures to process in parallel
                 for crypto_kind in VALID_CRYPTO_KINDS {
+                    // Do we need to bootstrap this crypto kind?
+                    let eckey = (RoutingDomain::PublicInternet, crypto_kind);
+                    let cnt = entry_count.get(&eckey).copied().unwrap_or_default();
+                    if cnt != 0 {
+                        continue;
+                    }
+
+                    // Bootstrap this crypto kind
                     let nr = nr.clone();
                     let routing_table = self.clone();
                     unord.push(
