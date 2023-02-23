@@ -1842,7 +1842,7 @@ impl MatchesDialInfoFilter for DialInfo {
 
 //////////////////////////////////////////////////////////////////////////
 
-// Signed NodeInfo that can be passed around amongst peers and verifiable
+/// Signed NodeInfo that can be passed around amongst peers and verifiable
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedDirectNodeInfo {
@@ -1851,6 +1851,8 @@ pub struct SignedDirectNodeInfo {
     pub signatures: Vec<TypedSignature>,
 }
 impl SignedDirectNodeInfo {
+    /// Returns a new SignedDirectNodeInfo that has its signatures validated. Will modify the node_ids set to only include node_ids whose signatures validate
+    /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
         crypto: Crypto,
         node_ids: &mut TypedKeySet,
@@ -1937,6 +1939,8 @@ pub struct SignedRelayedNodeInfo {
 }
 
 impl SignedRelayedNodeInfo {
+    /// Returns a new SignedRelayedNodeInfo that has its signatures validated. Will modify the node_ids set to only include node_ids whose signatures validate
+    /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
         crypto: Crypto,
         node_ids: &mut TypedKeySet,

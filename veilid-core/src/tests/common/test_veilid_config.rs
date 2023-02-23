@@ -192,9 +192,18 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.client_whitelist_timeout_ms" => Ok(Box::new(300_000u32)),
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
-        "network.node_id" => Ok(Box::new(Option::<TypedKey>::None)),
-        "network.node_id_secret" => Ok(Box::new(Option::<SecretKey>::None)),
-        "network.bootstrap" => Ok(Box::new(Vec::<String>::new())),
+        "network.routing_table.node_ids" => {
+            let mut nids = BTreeMap::<CryptoKind, VeilidConfigNodeId>::new();
+            nids.insert(
+                CRYPTO_KIND_VLD0,
+                VeilidConfigNodeId {
+                    node_id: None,
+                    node_id_secret: None,
+                },
+            );
+            Ok(Box::new(nids))
+        }
+        "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
         "network.routing_table.limit_attached_strong" => Ok(Box::new(16u32)),
@@ -315,14 +324,13 @@ pub async fn test_config() {
     assert_eq!(inner.network.client_whitelist_timeout_ms, 300_000u32);
     assert_eq!(inner.network.reverse_connection_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
-    assert!(inner.network.node_id.is_none());
-    assert!(inner.network.node_id_secret.is_none());
-    assert_eq!(inner.network.bootstrap, Vec::<String>::new());
     assert_eq!(inner.network.rpc.concurrency, 2u32);
     assert_eq!(inner.network.rpc.queue_size, 1024u32);
     assert_eq!(inner.network.rpc.timeout_ms, 10_000u32);
     assert_eq!(inner.network.rpc.max_route_hop_count, 4u8);
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
+    assert_eq!(inner.network.routing_table.node_ids.len(), 1);
+    assert_eq!(inner.network.routing_table.bootstrap, Vec::<String>::new());
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);
     assert_eq!(inner.network.routing_table.limit_attached_strong, 16u32);

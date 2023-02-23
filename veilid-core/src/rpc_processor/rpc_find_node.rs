@@ -89,13 +89,6 @@ impl RPCProcessor {
             _ => panic!("not a question"),
         };
 
-        // Get the crypto kinds the requesting node is capable of
-        let crypto_kinds = if let Some(sender_nr) = msg.opt_sender_nr {
-            sender_nr.node_ids().kinds()
-        } else {
-            vec![msg.header.crypto_kind()]
-        };
-
         // add node information for the requesting node to our routing table
         let routing_table = self.routing_table();
         let Some(own_peer_info) = routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
@@ -106,12 +99,6 @@ impl RPCProcessor {
         // find N nodes closest to the target node in our routing table
         let filter = Box::new(
             move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
-                // ensure the returned nodes have at least the crypto kind used to send the findnodeq
-                if let Some(entry) = opt_entry {
-                    if !entry.with(rti, |_rti, e| e.crypto_kinds().contains(&crypto_kind)) {
-                        return false;
-                    }
-                }
                 // Ensure only things that are valid/signed in the PublicInternet domain are returned
                 rti.filter_has_valid_signed_node_info(
                     RoutingDomain::PublicInternet,

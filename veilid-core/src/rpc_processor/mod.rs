@@ -92,7 +92,7 @@ impl RPCMessageHeader {
     pub fn crypto_kind(&self) -> CryptoKind {
         match &self.detail {
             RPCMessageHeaderDetail::Direct(d) => d.envelope.get_crypto_kind(),
-            RPCMessageHeaderDetail::SafetyRouted(s) => todo!(),
+            RPCMessageHeaderDetail::SafetyRouted(s) => s.remote_safety_route.,
             RPCMessageHeaderDetail::PrivateRouted(p) => todo!(),
         }
     }
@@ -1199,7 +1199,7 @@ impl RPCProcessor {
                 let routing_domain = detail.routing_domain;
 
                 // Decode the operation
-                let sender_node_id = detail.envelope.get_sender_id();
+                let sender_node_id = TypedKey::new(detail.envelope.get_crypto_kind(), detail.envelope.get_sender_id());
 
                 // Decode the RPC message
                 let operation = {
@@ -1208,7 +1208,7 @@ impl RPCProcessor {
                         .get_root::<veilid_capnp::operation::Reader>()
                         .map_err(RPCError::protocol)
                         .map_err(logthru_rpc!())?;
-                    RPCOperation::decode(&op_reader, Some(&sender_node_id))?
+                    RPCOperation::decode(&op_reader, self.crypto.clone())?
                 };
 
                 // Get the sender noderef, incorporating sender's peer info
@@ -1217,14 +1217,14 @@ impl RPCProcessor {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
 
                     // Sender PeerInfo was specified, update our routing table with it
-                    if !self.filter_node_info(routing_domain, &sender_peer_info) {
+                    if !self.filter_node_info(routing_domain, &sender_peer_info.signed_node_info) {
                         return Err(RPCError::invalid_format(
                             "sender peerinfo has invalid peer scope",
                         ));
                     }
                     opt_sender_nr = self.routing_table().register_node_with_peer_info(
                         routing_domain,
-                        sender_peer_info,
+                        sender_peer_info.clone(),
                         false,
                     );
                 }
@@ -1255,7 +1255,7 @@ impl RPCProcessor {
                         .get_root::<veilid_capnp::operation::Reader>()
                         .map_err(RPCError::protocol)
                         .map_err(logthru_rpc!())?;
-                    RPCOperation::decode(&op_reader, None)?
+                    RPCOperation::decode(&op_reader, self.crypto.clone())?
                 };
 
                 // Make the RPC message

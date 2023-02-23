@@ -678,6 +678,17 @@ impl RoutingTableInner {
         Some(nr)
     }
 
+    /// Resolve an existing routing table entry using any crypto kind and return a reference to it
+    pub fn lookup_any_node_ref(
+        &self,
+        outer_self: RoutingTable,
+        node_id_key: PublicKey,
+    ) -> Option<NodeRef> {
+        VALID_CRYPTO_KINDS
+            .iter()
+            .find_map(|ck| self.lookup_node_ref(outer_self, TypedKey::new(*ck, node_id_key)))
+    }
+
     /// Resolve an existing routing table entry and return a reference to it
     pub fn lookup_node_ref(&self, outer_self: RoutingTable, node_id: TypedKey) -> Option<NodeRef> {
         if self.unlocked_inner.matches_own_node_id(&[node_id]) {

@@ -50,64 +50,83 @@ pub async fn test_signed_node_info() {
         .await
         .expect("startup failed");
 
-    // Test direct
-    let node_info = NodeInfo {
-        network_class: NetworkClass::InboundCapable,
-        outbound_protocols: ProtocolTypeSet::all(),
-        address_types: AddressTypeSet::all(),
-        min_version: 0,
-        max_version: 0,
-        dial_info_detail_list: vec![DialInfoDetail {
-            class: DialInfoClass::Mapped,
-            dial_info: DialInfo::udp(SocketAddress::default()),
-        }],
-    };
+    let crypto = api.crypto().unwrap();
+    for ck in VALID_CRYPTO_KINDS {
+        let vcrypto = crypto.get(ck).unwrap();
 
-    let (pkey, skey) = generate_secret();
+        // Test direct
+        let node_info = NodeInfo {
+            network_class: NetworkClass::InboundCapable,
+            outbound_protocols: ProtocolTypeSet::all(),
+            address_types: AddressTypeSet::all(),
+            envelope_support: VALID_ENVELOPE_VERSIONS.to_vec(),
+            crypto_support: VALID_CRYPTO_KINDS.to_vec(),
+            dial_info_detail_list: vec![DialInfoDetail {
+                class: DialInfoClass::Mapped,
+                dial_info: DialInfo::udp(SocketAddress::default()),
+            }],
+        };
 
-    let sni =
-        SignedDirectNodeInfo::with_secret(NodeId::new(pkey.clone()), node_info.clone(), &skey)
-            .unwrap();
-    let _ = SignedDirectNodeInfo::new(
-        NodeId::new(pkey),
-        node_info.clone(),
-        sni.timestamp,
-        sni.signature.unwrap(),
-    )
-    .unwrap();
+        let (pkey, skey) = vcrypto.generate_keypair();
 
-    // Test relayed
-    let node_info2 = NodeInfo {
-        network_class: NetworkClass::OutboundOnly,
-        outbound_protocols: ProtocolTypeSet::all(),
-        address_types: AddressTypeSet::all(),
-        min_version: 0,
-        max_version: 0,
-        dial_info_detail_list: vec![DialInfoDetail {
-            class: DialInfoClass::Blocked,
-            dial_info: DialInfo::udp(SocketAddress::default()),
-        }],
-    };
+        let sni = SignedDirectNodeInfo::make_signatures(
+            crypto.clone(),
+            vec![TypedKeyPair::new(ck, pkey, skey)],
+            node_info.clone(),
+        )
+        .unwrap();
+        let mut tks: TypedKeySet = TypedKey::new(ck, pkey).into();
+        let oldtkslen = tks.len();
+        let _ = SignedDirectNodeInfo::new(
+            crypto.clone(),
+            &mut tks,
+            node_info.clone(),
+            sni.timestamp,
+            sni.signatures.clone(),
+        )
+        .unwrap();
+        assert_eq!(tks.len(), oldtkslen);
+        assert_eq!(tks.len(), sni.signatures.len());
 
-    let (pkey2, skey2) = generate_secret();
+        // Test relayed
+        let node_info2 = NodeInfo {
+            network_class: NetworkClass::OutboundOnly,
+            outbound_protocols: ProtocolTypeSet::all(),
+            address_types: AddressTypeSet::all(),
+            envelope_support: VALID_ENVELOPE_VERSIONS.to_vec(),
+            crypto_support: VALID_CRYPTO_KINDS.to_vec(),
+            dial_info_detail_list: vec![DialInfoDetail {
+                class: DialInfoClass::Blocked,
+                dial_info: DialInfo::udp(SocketAddress::default()),
+            }],
+        };
 
-    let sni2 = SignedRelayedNodeInfo::make_signatures(
-        NodeId::new(pkey2.clone()),
-        node_info2.clone(),
-        NodeId::new(pkey.clone()),
-        sni.clone(),
-        &skey2,
-    )
-    .unwrap();
-    let _ = SignedRelayedNodeInfo::new(
-        NodeId::new(pkey2),
-        node_info2,
-        NodeId::new(pkey),
-        sni,
-        sni2.timestamp,
-        sni2.signature,
-    )
-    .unwrap();
+        let (pkey2, skey2) = vcrypto.generate_keypair();
+        let mut tks2: TypedKeySet = TypedKey::new(ck, pkey2).into();
+        let oldtks2len = tks2.len();
+
+        let sni2 = SignedRelayedNodeInfo::make_signatures(
+            crypto.clone(),
+            vec![TypedKeyPair::new(ck, pkey2, skey2)],
+            node_info2.clone(),
+            tks.clone(),
+            sni.clone(),
+        )
+        .unwrap();
+        let _ = SignedRelayedNodeInfo::new(
+            crypto.clone(),
+            &mut tks2,
+            node_info2,
+            tks,
+            sni,
+            sni2.timestamp,
+            sni2.signatures.clone(),
+        )
+        .unwrap();
+
+        assert_eq!(tks2.len(), oldtks2len);
+        assert_eq!(tks2.len(), sni2.signatures.len());
+    }
 
     api.shutdown().await;
 }

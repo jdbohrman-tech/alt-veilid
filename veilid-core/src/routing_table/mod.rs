@@ -145,6 +145,15 @@ impl RoutingTableUnlockedInner {
         false
     }
 
+    pub fn matches_own_node_id_key(&self, node_id_key: &PublicKey) -> bool {
+        for (ck, v) in &self.node_id_keypairs {
+            if v.key == *node_id_key {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> (CryptoKind, usize) {
         let crypto = self.crypto();
         let self_node_id = self.node_id_keypairs.get(&node_id.kind).unwrap().key;
@@ -585,6 +594,13 @@ impl RoutingTable {
             let x = self.unlocked_inner.calculate_bucket_index(node_id);
             self.unlocked_inner.kick_queue.lock().insert(x);
         }
+    }
+
+    /// Resolve an existing routing table entry using any crypto kind and return a reference to it
+    pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> Option<NodeRef> {
+        self.inner
+            .read()
+            .lookup_any_node_ref(self.clone(), node_id_key)
     }
 
     /// Resolve an existing routing table entry and return a reference to it

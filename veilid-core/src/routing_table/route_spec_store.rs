@@ -1780,7 +1780,7 @@ impl RouteSpecStore {
 
     /// Import a remote private route for compilation
     #[instrument(level = "trace", skip(self, blob), ret, err)]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<TypedKeySet> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<TypedKeySet> { xxx continue here, maybe formalize 'private route set' as having its own non-key identifier for both remote and local routes... just a uuid map to typedkeyset?
         // decode the pr blob
         let private_routes = RouteSpecStore::blob_to_private_routes(blob)?;
 
@@ -2006,7 +2006,7 @@ impl RouteSpecStore {
         let inner = &mut *self.inner.lock();
 
         // Check for stub route
-        if *key == self.unlocked_inner.routing_table.node_id() {
+        if self.unlocked_inner.routing_table.matches_own_node_id_key(key) {
             return None;
         }
         // Check for local route
@@ -2096,7 +2096,7 @@ impl RouteSpecStore {
     }
 
     /// Convert binary blob to private route
-    pub fn blob_to_private_routes(blob: Vec<u8>) -> EyreResult<Vec<PrivateRoute>> {
+    pub fn blob_to_private_routes(crypto: Crypto, blob: Vec<u8>) -> EyreResult<Vec<PrivateRoute>> {
 
         // Deserialize count
         if blob.is_empty() {
@@ -2123,7 +2123,7 @@ impl RouteSpecStore {
                 .get_root::<veilid_capnp::private_route::Reader>()
                 .map_err(RPCError::internal)
                 .wrap_err("failed to make reader for private_route")?;
-            let private_route = decode_private_route(&pr_reader).wrap_err("failed to decode private route")?;
+            let private_route = decode_private_route(&pr_reader, crypto).wrap_err("failed to decode private route")?;
             out.push(private_route);
         }
         Ok(out)

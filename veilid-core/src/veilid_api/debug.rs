@@ -7,7 +7,7 @@ use routing_table::*;
 
 #[derive(Default, Debug)]
 struct DebugCache {
-    imported_routes: Vec<TypedKey>,
+    imported_routes: Vec<TypedKeySet>,
 }
 
 static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
@@ -30,12 +30,12 @@ fn get_string(text: &str) -> Option<String> {
     Some(text.to_owned())
 }
 
-fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<TypedKey> {
+fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<PublicKey> {
     return move |text: &str| {
         if text.is_empty() {
             return None;
         }
-        match TypedKey::from_str(text).ok() {
+        match PublicKey::from_str(text).ok() {
             Some(key) => {
                 let routes = rss.list_allocated_routes(|k, _| Some(*k));
                 if routes.contains(&key) {
@@ -128,12 +128,31 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
         }
         if &text[0..1] == "#" {
             // Private route
-            let text = &text[1..];
+            let mut text = &text[1..];
+            let opt_crypto_kind = if text.len() > 5 {
+                let fcc = &text[0..4];
+                if &text[4..5] != ":" {
+                    return None;
+                }
+                let ck = match FourCC::from_str(fcc) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return None;
+                    }
+                };
+                text = &text[5..];
+                Some(ck)
+            } else {
+                None
+            };
             let n = get_number(text)?;
             let mut dc = DEBUG_CACHE.lock();
-            let pr_pubkey = dc.imported_routes.get(n)?;
+            let pr_pubkey = match opt_crypto_kind {
+                Some(ck) => dc.imported_routes.get(n)?.get(ck)?,
+                None => dc.imported_routes.get(n)?.best()?,
+            };
             let rss = routing_table.route_spec_store();
-            let Some(private_route) = rss.get_remote_private_route(&pr_pubkey) else {
+            let Some(private_route) = rss.get_remote_private_route(&pr_pubkey.key) else {
                 // Remove imported route
                 dc.imported_routes.remove(n);
                 info!("removed dead imported route {}", n);
@@ -150,15 +169,14 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
                 .unwrap_or((text, None));
             if let Some((first, second)) = text.split_once('@') {
                 // Relay
-                let relay_id = get_typed_key(second)?;
-                let mut relay_nr = routing_table.lookup_node_ref(relay_id)?;
-                let target_id = get_typed_key(first)?;
+                let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
+                let target_nr = get_node_ref(routing_table)(first)?;
 
                 if let Some(mods) = mods {
                     relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
                 }
 
-                let mut d = Destination::relay(relay_nr, target_id);
+                let mut d = Destination::relay(relay_nr, target_nr);
                 if let Some(ss) = ss {
                     d = d.with_safety(ss)
                 }
@@ -166,8 +184,7 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
                 Some(d)
             } else {
                 // Direct
-                let target_id = get_typed_key(text)?;
-                let mut target_nr = routing_table.lookup_node_ref(target_id)?;
+                let mut target_nr = get_node_ref(routing_table)(text)?;
 
                 if let Some(mods) = mods {
                     target_nr = get_node_ref_modifiers(target_nr)(mods)?;
@@ -190,6 +207,9 @@ fn get_number(text: &str) -> Option<usize> {
 fn get_typed_key(text: &str) -> Option<TypedKey> {
     TypedKey::from_str(text).ok()
 }
+fn get_public_key(text: &str) -> Option<PublicKey> {
+    PublicKey::from_str(text).ok()
+}
 
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
@@ -198,8 +218,13 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
             .map(|x| (x.0, Some(x.1)))
             .unwrap_or((text, None));
 
-        let node_id = get_typed_key(text)?;
-        let mut nr = routing_table.lookup_node_ref(node_id)?;
+        let mut nr = if let Some(key) = get_public_key(text) {
+            routing_table.lookup_any_node_ref(key)?
+        } else if let Some(key) = get_typed_key(text) {
+            routing_table.lookup_node_ref(key)?
+        } else {
+            return None;
+        };
         if let Some(mods) = mods {
             nr = get_node_ref_modifiers(nr)(mods)?;
         }
@@ -607,8 +632,15 @@ impl VeilidAPI {
         }
 
         // Allocate route
-        let out = match rss.allocate_route(stability, sequencing, hop_count, directions, &[]) {
-            Ok(Some(v)) => format!("{}", v.encode()),
+        let out = match rss.allocate_route(
+            &VALID_CRYPTO_KINDS,
+            stability,
+            sequencing,
+            hop_count,
+            directions,
+            &[],
+        ) {
+            Ok(Some(v)) => format!("{}", v),
             Ok(None) => format!("<unavailable>"),
             Err(e) => {
                 format!("Route allocation failed: {}", e)
@@ -685,7 +717,7 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_typed_key)?;
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_public_key)?;
 
         // Unpublish route
         let out = if let Err(e) = rss.mark_route_published(&route_id, false) {
@@ -701,7 +733,7 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_typed_key)?;
+        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_public_key)?;
 
         match rss.debug_route(&route_id) {
             Some(s) => Ok(s),

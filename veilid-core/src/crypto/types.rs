@@ -201,8 +201,18 @@ impl TypedKeySet {
             self.remove(*k);
         }
     }
+    /// Return preferred typed key of our supported crypto kinds
     pub fn best(&self) -> Option<TypedKey> {
-        self.items.first().copied()
+        match self.items.first().copied() {
+            None => None,
+            Some(k) => {
+                if !VALID_CRYPTO_KINDS.contains(&k.kind) {
+                    None
+                } else {
+                    Some(k)
+                }
+            }
+        }
     }
     pub fn len(&self) -> usize {
         self.items.len()
@@ -216,6 +226,14 @@ impl TypedKeySet {
     pub fn contains_any(&self, typed_keys: &[TypedKey]) -> bool {
         for typed_key in typed_keys {
             if self.items.contains(typed_key) {
+                return true;
+            }
+        }
+        false
+    }
+    pub fn contains_key(&self, key: &PublicKey) -> bool {
+        for tk in &self.items {
+            if tk.key == *key {
                 return true;
             }
         }
@@ -262,6 +280,13 @@ impl FromStr for TypedKeySet {
         }
 
         Ok(Self { items })
+    }
+}
+impl From<TypedKey> for TypedKeySet {
+    fn from(x: TypedKey) -> Self {
+        let mut tks = TypedKeySet::with_capacity(1);
+        tks.add(x);
+        tks
     }
 }
 

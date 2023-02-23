@@ -123,18 +123,18 @@ pub async fn test_store_delete_load(ts: TableStore) {
     assert_eq!(db.load(2, b"baz").unwrap(), Some(b"QWERTY".to_vec()));
 }
 
-pub async fn test_frozen(ts: TableStore) {
+pub async fn test_frozen(vcrypto: CryptoSystemVersion, ts: TableStore) {
     trace!("test_frozen");
 
     let _ = ts.delete("test");
     let db = ts.open("test", 3).await.expect("should have opened");
-    let (dht_key, _) = generate_secret();
+    let (dht_key, _) = vcrypto.generate_keypair();
 
     assert!(db.store_rkyv(0, b"asdf", &dht_key).await.is_ok());
 
-    assert_eq!(db.load_rkyv::<TypedKey>(0, b"qwer").unwrap(), None);
+    assert_eq!(db.load_rkyv::<PublicKey>(0, b"qwer").unwrap(), None);
 
-    let d = match db.load_rkyv::<TypedKey>(0, b"asdf") {
+    let d = match db.load_rkyv::<PublicKey>(0, b"asdf") {
         Ok(x) => x,
         Err(e) => {
             panic!("couldn't decode: {}", e);
@@ -155,12 +155,16 @@ pub async fn test_frozen(ts: TableStore) {
 
 pub async fn test_all() {
     let api = startup().await;
+    let crypto = api.crypto().unwrap();
     let ts = api.table_store().unwrap();
-    test_delete_open_delete(ts.clone()).await;
-    test_store_delete_load(ts.clone()).await;
-    test_frozen(ts.clone()).await;
 
-    let _ = ts.delete("test").await;
+    for ck in VALID_CRYPTO_KINDS {
+        let vcrypto = crypto.get(ck).unwrap();
+        test_delete_open_delete(ts.clone()).await;
+        test_store_delete_load(ts.clone()).await;
+        test_frozen(vcrypto, ts.clone()).await;
+        let _ = ts.delete("test").await;
+    }
 
     shutdown(api).await;
 }
