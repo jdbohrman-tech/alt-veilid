@@ -3,7 +3,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct RoutedOperation {
     pub sequencing: Sequencing,
-    pub signatures: Vec<TypedSignature>,
+    pub signatures: Vec<Signature>,
     pub nonce: Nonce,
     pub data: Vec<u8>,
 }
@@ -22,14 +22,14 @@ impl RoutedOperation {
         reader: &veilid_capnp::routed_operation::Reader,
     ) -> Result<RoutedOperation, RPCError> {
         let sigs_reader = reader.get_signatures().map_err(RPCError::protocol)?;
-        let mut signatures = Vec::<TypedSignature>::with_capacity(
+        let mut signatures = Vec::<Signature>::with_capacity(
             sigs_reader
                 .len()
                 .try_into()
                 .map_err(RPCError::map_internal("too many signatures"))?,
         );
         for s in sigs_reader.iter() {
-            let sig = decode_typed_signature(&s)?;
+            let sig = decode_signature512(&s)?;
             signatures.push(sig);
         }
 
@@ -61,7 +61,7 @@ impl RoutedOperation {
         );
         for (i, sig) in self.signatures.iter().enumerate() {
             let mut sig_builder = sigs_builder.reborrow().get(i as u32);
-            encode_typed_signature(sig, &mut sig_builder);
+            encode_signature512(sig, &mut sig_builder);
         }
         let mut n_builder = builder.reborrow().init_nonce();
         encode_nonce(&self.nonce, &mut n_builder);

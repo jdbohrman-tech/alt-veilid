@@ -33,7 +33,7 @@ pub trait CryptoSystem {
     fn validate_hash_reader(
         &self,
         reader: &mut dyn std::io::Read,
-        dht_key: &PublicKey,
+        key: &PublicKey,
     ) -> Result<bool, VeilidAPIError>;
 
     // Distance Metric
@@ -42,13 +42,13 @@ pub trait CryptoSystem {
     // Authentication
     fn sign(
         &self,
-        dht_key: &PublicKey,
-        dht_key_secret: &SecretKey,
+        key: &PublicKey,
+        secret: &SecretKey,
         data: &[u8],
     ) -> Result<Signature, VeilidAPIError>;
     fn verify(
         &self,
-        dht_key: &PublicKey,
+        key: &PublicKey,
         data: &[u8],
         signature: &Signature,
     ) -> Result<(), VeilidAPIError>;

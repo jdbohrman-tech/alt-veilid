@@ -263,7 +263,7 @@ struct PeerInfo @0xfe2d722d5d3c4bcb {
 
 struct RoutedOperation @0xcbcb8535b839e9dd {
     sequencing              @0  :Sequencing;            # sequencing preference to use to pass the message along
-    signatures              @1  :List(TypedSignature);  # signatures from nodes that have handled the private route
+    signatures              @1  :List(Signature);  # signatures from nodes that have handled the private route
     nonce                   @2  :Nonce;                 # nonce Xmsg
     data                    @3  :Data;                  # operation encrypted with ENC(Xmsg,DH(PKapr,SKbsr))
 }

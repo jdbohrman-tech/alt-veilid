@@ -136,7 +136,9 @@ impl ConnectionTable {
         };
 
         // Add the connection to the table
-        let res = inner.conn_by_id[protocol_index].insert(id, network_connection);
+        let res = inner.conn_by_id[protocol_index].insert(id, network_connection, |_k, _v| {
+            // never lrus, unbounded
+        });
         assert!(res.is_none());
 
         // if we have reached the maximum number of connections per protocol type

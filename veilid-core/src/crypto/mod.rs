@@ -269,10 +269,13 @@ impl Crypto {
         secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError> {
         Ok(
-            match self.inner.lock().dh_cache.entry(DHCacheKey {
-                key: *key,
-                secret: *secret,
-            }) {
+            match self.inner.lock().dh_cache.entry(
+                DHCacheKey {
+                    key: *key,
+                    secret: *secret,
+                },
+                |_k, _v| {},
+            ) {
                 Entry::Occupied(e) => e.get().shared_secret,
                 Entry::Vacant(e) => {
                     let shared_secret = vcrypto.compute_dh(key, secret)?;
