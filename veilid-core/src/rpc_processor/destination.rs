@@ -21,8 +21,8 @@ pub enum Destination {
     },
     /// Send to private route (privateroute)
     PrivateRoute {
-        /// A private route to send to
-        private_route: PrivateRoute,
+        /// A private route set id to send to
+        private_route: String,
         /// Require safety route or not
         safety_selection: SafetySelection,
     },

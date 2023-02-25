@@ -512,8 +512,8 @@ impl SafetySelection {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
-    /// preferred safety route if it still exists
-    pub preferred_route: Option<PublicKey>,
+    /// preferred safety route set id if it still exists
+    pub preferred_route: Option<String>,
     /// must be greater than 0
     pub hop_count: usize,
     /// prefer reliability over speed

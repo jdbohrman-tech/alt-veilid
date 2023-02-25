@@ -4,8 +4,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(PublicKey),
-    PrivateRoute(PublicKey),
+    NodeId(PublicKey),          // Node by any of its public keys
+    PrivateRoute(String),       // Private route by its route set id
 }
 
 pub struct RoutingContextInner {}
@@ -118,17 +118,17 @@ impl RoutingContext {
                     safety_selection: self.unlocked_inner.safety_selection,
                 })
             }
-            Target::PrivateRoute(pr) => {
+            Target::PrivateRoute(rsid) => {
                 // Get remote private route
                 let rss = self.api.routing_table()?.route_spec_store();
                 let Some(private_route) = rss
-                    .get_remote_private_route(&pr) 
+                    .get_remote_private_route(&rsid) 
                     else {
                         apibail_key_not_found!(pr);
                     };
 
                 Ok(rpc_processor::Destination::PrivateRoute {
-                    private_route,
+                    private_route: rsid,
                     safety_selection: self.unlocked_inner.safety_selection,
                 })
             }
