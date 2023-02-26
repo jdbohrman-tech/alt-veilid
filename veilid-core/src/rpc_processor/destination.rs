@@ -162,6 +162,9 @@ impl RPCProcessor {
                 }
                 SafetySelection::Safe(safety_spec) => {
                     // Sent directly but with a safety route, respond to private route
+
+xxx continue here. ensure crypto kind makes sense with get_private_route_for_safety_spec and then make it work.
+
                     let ck = target.best_node_id().kind;
                     let Some(pr_key) = rss
                             .get_private_route_for_safety_spec(ck, safety_spec, &target.node_ids())
@@ -222,7 +225,7 @@ impl RPCProcessor {
 
                         // Determine if we can use optimized nodeinfo
                         let route_node = match rss
-                            .has_remote_private_route_seen_our_node_info(&private_route.public_key.key)
+                            .has_remote_private_route_seen_our_node_info(&private_route_id)
                         {
                             true => {
                                 if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
@@ -247,10 +250,10 @@ impl RPCProcessor {
                         // Sent to a private route via a safety route, respond to private route
 
                         // Check for loopback test
-                        let pr_key = if safety_spec.preferred_route
-                            == Some(private_route.public_key.key)
+                        let pr_key = if safety_spec.preferred_route == Some(private_route_id)
                         {
                             // Private route is also safety route during loopback test
+                            xxx build loopback routine? get_private_route_for_loopback_test?
                             private_route.public_key.key
                         } else {
                             // Get the private route to respond to that matches the safety route spec we sent the request with

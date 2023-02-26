@@ -66,9 +66,17 @@ macro_rules! apibail_no_connection {
 
 #[allow(unused_macros)]
 #[macro_export]
-macro_rules! apibail_key_not_found {
+macro_rules! apibail_invalid_target {
+    () => {
+        return Err(VeilidAPIError::invalid_target())
+    };
+}
+
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! apibail_route_not_found {
     ($x:expr) => {
-        return Err(VeilidAPIError::key_not_found($x))
+        return Err(VeilidAPIError::route_not_found($x))
     };
 }
 
@@ -107,8 +115,8 @@ pub enum VeilidAPIError {
     TryAgain,
     #[error("Shutdown")]
     Shutdown,
-    #[error("Key not found: {key}")]
-    KeyNotFound { key: PublicKey },
+    #[error("Invalid target")]
+    InvalidTarget,
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("No peer info: {node_id}")]
@@ -147,8 +155,8 @@ impl VeilidAPIError {
     pub fn shutdown() -> Self {
         Self::Shutdown
     }
-    pub fn key_not_found(key: PublicKey) -> Self {
-        Self::KeyNotFound { key }
+    pub fn invalid_target() -> Self {
+        Self::InvalidTarget
     }
     pub fn no_connection<T: ToString>(msg: T) -> Self {
         Self::NoConnection {

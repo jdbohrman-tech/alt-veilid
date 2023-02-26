@@ -8,7 +8,6 @@ mod route_spec_store_cache;
 mod route_spec_store_content;
 mod route_stats;
 
-pub use permutation::*;
 pub use remote_private_route_info::*;
 pub use route_set_spec_detail::*;
 pub use route_spec_store::*;

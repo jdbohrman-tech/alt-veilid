@@ -159,15 +159,9 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_entry(&self, node_id: TypedKey) -> String {
+    pub(crate) fn debug_info_entry(&self, node_ref: NodeRef) -> String {
         let mut out = String::new();
-        out += &format!("Entry {:?}:\n", node_id);
-        if let Some(nr) = self.lookup_node_ref(node_id) {
-            out += &nr.operate(|_rt, e| format!("{:#?}\n", e));
-        } else {
-            out += "Entry not found\n";
-        }
-
+        out += &node_ref.operate(|_rt, e| format!("{:#?}\n", e));
         out
     }
 

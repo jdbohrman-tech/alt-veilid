@@ -1134,31 +1134,16 @@ impl RouteSpecStore {
         )?)
     }
 
-    /// Assemble private route for publication
-    /// Returns a PrivateRoute object for an allocated private route
-    #[instrument(level = "trace", skip(self), err)]
-    pub fn assemble_private_route(
-        &self,
-        key: &PublicKey,
-        optimized: Option<bool>,
-    ) -> EyreResult<PrivateRoute> {
-        let inner = &*self.inner.lock();
+    fn assemble_private_route_inner(&self, inner: &RouteSpecStoreInner, key: &PublicKey, rsd: &RouteSpecDetail, optimized: bool) -> EyreResult<PrivateRoute> 
+    {
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &*routing_table.inner.read();
-
-        // Get the route spec detail for the requested private route
-        let rsd = Self::detail(inner, key).ok_or_else(|| eyre!("route does not exist"))?;
 
         // Ensure we get the crypto for it
         let crypto = routing_table.network_manager().crypto();
         let Some(vcrypto) = crypto.get(rsd.crypto_kind) else {
             bail!("crypto not supported for route");
         };
-
-        // See if we can optimize this compilation yet
-        // We don't want to include full nodeinfo if we don't have to
-        let optimized = optimized
-            .unwrap_or(rsd.stats.last_tested_ts.is_some() || rsd.stats.last_received_ts.is_some());
 
         // Make innermost route hop to our own node
         let mut route_hop = RouteHop {
@@ -1233,6 +1218,58 @@ impl RouteSpecStore {
             hops: PrivateRouteHops::FirstHop(route_hop),
         };
         Ok(private_route)
+    }
+    
+    /// Assemble a single private route for publication
+    /// Returns a PrivateRoute object for an allocated private route key
+    #[instrument(level = "trace", skip(self), err)]
+    pub fn assemble_private_route(
+        &self,
+        key: &PublicKey,
+        optimized: Option<bool>,
+    ) -> EyreResult<PrivateRoute> {
+        let inner = &*self.inner.lock();
+        let Some(rsid) = inner.content.get_id_by_key(key) else {
+            bail!("route key does not exist");
+        };
+        let Some(rssd) = inner.content.get_detail(&rsid) else {
+            bail!("route id does not exist");
+        };
+
+        // See if we can optimize this compilation yet
+        // We don't want to include full nodeinfo if we don't have to
+        let optimized = optimized
+            .unwrap_or(rssd.get_stats().last_tested_ts.is_some() || rssd.get_stats().last_received_ts.is_some());
+
+        let rsd = rssd.get_route_by_key(key).expect("route key index is broken");
+        
+        self.assemble_private_route_inner(inner, key, rsd, optimized)
+    }
+
+
+    /// Assemble private route set for publication
+    /// Returns a vec of PrivateRoute objects for an allocated private route
+    #[instrument(level = "trace", skip(self), err)]
+    pub fn assemble_private_routes(
+        &self,
+        id: &RouteId,
+        optimized: Option<bool>,
+    ) -> EyreResult<Vec<PrivateRoute>> {
+        let inner = &*self.inner.lock();
+        let Some(rssd) = inner.content.get_detail(id) else {
+            bail!("route id does not exist");
+        };
+
+        // See if we can optimize this compilation yet
+        // We don't want to include full nodeinfo if we don't have to
+        let optimized = optimized
+            .unwrap_or(rssd.get_stats().last_tested_ts.is_some() || rssd.get_stats().last_received_ts.is_some());
+
+        let mut out = Vec::new();
+        for (key, rsd) in rssd.iter_route_set() {
+            out.push(self.assemble_private_route_inner(inner, key, rsd, optimized)?);
+        }
+        Ok(out)
     }
 
     /// Import a remote private route for compilation
@@ -1407,7 +1444,7 @@ impl RouteSpecStore {
     /// Mark route as published
     /// When first deserialized, routes must be re-published in order to ensure they remain
     /// in the RouteSpecStore.
-    pub fn mark_route_published(&self, id: &String, published: bool) -> EyreResult<()> {
+    pub fn mark_route_published(&self, id: &RouteId, published: bool) -> EyreResult<()> {
         let inner = &mut *self.inner.lock();
         let Some(rssd) = inner.content.get_detail_mut(id) else {
             bail!("route does not exist");

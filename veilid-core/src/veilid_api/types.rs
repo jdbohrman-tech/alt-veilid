@@ -17,6 +17,12 @@ pub type ByteCount = AlignedU64;
 pub type TunnelId = AlignedU64;
 /// Value schema
 pub type ValueSchema = FourCC;
+/// Value subkey
+pub type ValueSubkey = u32;
+/// Value subkey range
+pub type ValueSubkeyRange = (u32, u32);
+/// Value sequence number
+pub type ValueSeqNum = u32;
 
 /// FOURCC code
 #[derive(
@@ -291,6 +297,17 @@ pub struct VeilidStateConfig {
     pub config: VeilidConfigInner,
 }
 
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct VeilidValueChange {
+    key: TypedKey,
+    subkeys: Vec<ValueSubkey>,
+    count: u32,
+    value: ValueData,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]
@@ -302,6 +319,7 @@ pub enum VeilidUpdate {
     Network(VeilidStateNetwork),
     Config(VeilidStateConfig),
     Route(VeilidStateRoute),
+    ValueChange(VeilidValueChange),
     Shutdown,
 }
 
@@ -332,7 +350,7 @@ pub struct VeilidState {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
-    pub seq: u32,
+    pub seq: ValueSeqNum,
     pub schema: ValueSchema,
     pub data: Vec<u8>,
 }
@@ -344,7 +362,7 @@ impl ValueData {
             data,
         }
     }
-    pub fn new_with_seq(seq: u32, schema: ValueSchema, data: Vec<u8>) -> Self {
+    pub fn new_with_seq(seq: ValueSeqNum, schema: ValueSchema, data: Vec<u8>) -> Self {
         Self { seq, schema, data }
     }
     pub fn change(&mut self, data: Vec<u8>) {
@@ -2377,10 +2395,6 @@ pub struct PeerStats {
     pub latency: Option<LatencyStats>, // latencies for communications with the peer
     pub transfer: TransferStatsDownUp, // Stats for communications with the peer
 }
-
-pub type ValueChangeCallback = Arc<
-    dyn Fn(TypedKey, Vec<(u32, u32)>, u32, Vec<u8>) -> SendPinBoxFuture<()> + Send + Sync + 'static,
->;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 

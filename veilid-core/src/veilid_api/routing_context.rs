@@ -4,8 +4,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(PublicKey),                        // Node by any of its public keys
-    PrivateRoute(RouteId),       // Remote private route by its id
+    NodeId(PublicKey),     // Node by any of its public keys
+    PrivateRoute(RouteId), // Remote private route by its id
 }
 
 pub struct RoutingContextInner {}
@@ -66,7 +66,7 @@ impl RoutingContext {
             }),
         })
     }
-    
+
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
         Self {
             api: self.api.clone(),
@@ -107,7 +107,7 @@ impl RoutingContext {
                 // Resolve node
                 let mut nr = match rpc_processor.resolve_node(node_id).await {
                     Ok(Some(nr)) => nr,
-                    Ok(None) => apibail_key_not_found!(node_id),
+                    Ok(None) => apibail_invalid_target!(),
                     Err(e) => return Err(e.into()),
                 };
                 // Apply sequencing to match safety selection
@@ -121,10 +121,9 @@ impl RoutingContext {
             Target::PrivateRoute(rsid) => {
                 // Get remote private route
                 let rss = self.api.routing_table()?.route_spec_store();
-                if !rss.is_valid_remote_private_route(&rsid) 
-                    else {
-                        apibail_key_not_found!(pr);
-                    };
+                if !rss.is_valid_remote_private_route(&rsid) {
+                    apibail_invalid_target!();
+                };
 
                 Ok(rpc_processor::Destination::PrivateRoute {
                     private_route_id: rsid,
@@ -197,27 +196,38 @@ impl RoutingContext {
     ///////////////////////////////////
     /// DHT Values
 
-    pub async fn get_value(&self, _value_key: ValueKey) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn get_value(
+        &self,
+        _key: TypedKey,
+        _subkey: ValueSubkey,
+    ) -> Result<ValueData, VeilidAPIError> {
         panic!("unimplemented");
     }
 
     pub async fn set_value(
         &self,
-        _value_key: ValueKey,
-        _value: Vec<u8>,
+        _key: TypedKey,
+        _subkey: ValueSubkey,
+        _value: ValueData,
     ) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 
     pub async fn watch_value(
         &self,
-        _value_key: ValueKey,
-        _callback: ValueChangeCallback,
+        _key: TypedKey,
+        _subkeys: &[ValueSubkeyRange],
+        _expiration: Timestamp,
+        _count: u32,
     ) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 
-    pub async fn cancel_watch_value(&self, _value_key: ValueKey) -> Result<bool, VeilidAPIError> {
+    pub async fn cancel_watch_value(
+        &self,
+        _key: TypedKey,
+        _subkeys: &[ValueSubkeyRange],
+    ) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 

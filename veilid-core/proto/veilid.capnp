@@ -324,7 +324,7 @@ struct ValueData @0xb4b7416f169f2a3d {
 }
 
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
-    publicKey               @0  :TypedKey;              # the location of the value
+    key                     @0  :TypedKey;              # the location of the value
     subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
 }
 
@@ -336,7 +336,7 @@ struct OperationGetValueA @0xd896bb46f2e0249f {
 }
 
 struct OperationSetValueQ @0xbac06191ff8bdbc5 {
-    publicKey               @0  :TypedKey;              # the location of the value
+    key                     @0  :TypedKey;              # the location of the value
     subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
     value                   @2  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
 }
@@ -349,10 +349,10 @@ struct OperationSetValueA @0x9378d0732dc95be2 {
 }
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
-    publicKey               @0  :TypedKey;              # key for value to watch
+    key                     @0  :TypedKey;              # key for value to watch
     subkeys                 @1  :List(SubkeyRange);     # subkey range to watch, if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
-    count                   @3  :UInt32;                # requested number of changes to watch for (0 = continuous, 1 = single shot, 2+ = counter)
+    count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
@@ -361,7 +361,7 @@ struct OperationWatchValueA @0xa726cab7064ba893 {
 }
 
 struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
-    publicKey               @0  :TypedKey;              # key for value that changed
+    key                     @0  :TypedKey;              # key for value that changed
     subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
     value                   @3  :ValueData;             # first value that changed (the rest can be gotten with getvalue)
