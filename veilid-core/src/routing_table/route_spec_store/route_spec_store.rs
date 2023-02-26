@@ -616,7 +616,7 @@ impl RouteSpecStore {
             let safety_selection = SafetySelection::Safe(safety_spec);
 
             Destination::PrivateRoute {
-                private_route_id,
+                private_route,
                 safety_selection,
             }
         };
@@ -650,7 +650,7 @@ impl RouteSpecStore {
             let safety_selection = SafetySelection::Safe(safety_spec);
 
             Destination::PrivateRoute {
-                private_route_id,
+                private_route,
                 safety_selection,
             }
         };
@@ -816,6 +816,15 @@ impl RouteSpecStore {
 
     //////////////////////////////////////////////////////////////////////
 
+    /// Choose the best private route from a private route set to communicate with
+    pub fn best_remote_private_route(&self, id: &RouteId) -> Option<PrivateRoute> {
+        let inner = &mut *self.inner.lock();
+        let cur_ts = get_aligned_timestamp();
+        let rpri = inner.cache.get_remote_private_route(cur_ts, id)?;
+        rpri.best_private_route()
+    }
+
+
     /// Compiles a safety route to the private route, with caching
     /// Returns an Err() if the parameters are wrong
     /// Returns Ok(None) if no allocation could happen at this time (not an error)
@@ -824,7 +833,7 @@ impl RouteSpecStore {
         safety_selection: SafetySelection,
         mut private_route: PrivateRoute,
     ) -> EyreResult<Option<CompiledRoute>> {
-        // let profile_start_ts = get_timestamp();
+        // let profile_start_ts = get_timestamp();  
 
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
@@ -1313,12 +1322,12 @@ impl RouteSpecStore {
     }
 
     /// Check if a remote private route id is valid
-    #[instrument(level = "trace", skip(self), ret)]
-    pub fn is_valid_remote_private_route(&self, id: &RouteId) -> bool {
-        let inner = &mut *self.inner.lock();
-        let cur_ts = get_aligned_timestamp();
-        inner.cache.peek_remote_private_route_mut(cur_ts, id).is_some()
-    }
+    // #[instrument(level = "trace", skip(self), ret)]
+    // pub fn is_valid_remote_private_route(&self, id: &RouteId) -> bool {
+    //     let inner = &mut *self.inner.lock();
+    //     let cur_ts = get_aligned_timestamp();
+    //     inner.cache.peek_remote_private_route_mut(cur_ts, id).is_some()
+    // }
 
     // /// Retrieve an imported remote private route by its public key
     // pub fn get_remote_private_route(&self, id: &String) -> Option<PrivateRoute> {
@@ -1339,24 +1348,55 @@ impl RouteSpecStore {
     //     })
     // }
 
+    /// Get a route id for a route's public key 
+    pub fn get_route_id_for_key(&self, key: &PublicKey) -> Option<RouteId> 
+    {
+        let inner = &mut *self.inner.lock();
+    
+        // Check for local route
+        if let Some(id) = inner.content.get_id_by_key(key) {
+            return Some(id);
+        }
+    
+        // Check for remote route
+        if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
+            return Some(rrid);
+        }
+
+        None
+    }
+
     /// Check to see if this remote (not ours) private route has seen our current node info yet
     /// This happens when you communicate with a private route without a safety route
-    pub fn has_remote_private_route_seen_our_node_info(&self, id: &RouteId) -> bool {
-        let our_node_info_ts = {
-            let rti = &*self.unlocked_inner.routing_table.inner.read();
-            let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
-                // Node info is invalid, skip this
-                return false;
-            };
-            ts
-        };
+    pub fn has_remote_private_route_seen_our_node_info(&self, key: &PublicKey) -> bool {
 
         let inner = &mut *self.inner.lock();
-        let cur_ts = get_aligned_timestamp();
-        let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &id) else {
-            return false;
-        };
-        rpri.has_seen_our_node_info_ts(our_node_info_ts)
+
+        // Check for local route. If this is not a remote private route,
+        // we may be running a test and using our own local route as the destination private route.
+        // In that case we definitely have already seen our own node info
+        if let Some(_) = inner.content.get_id_by_key(key) {
+            return true;
+        }
+
+        if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
+            let cur_ts = get_aligned_timestamp();
+            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid)
+            {
+                let our_node_info_ts = {
+                    let rti = &*self.unlocked_inner.routing_table.inner.read();
+                    let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
+                        // Node info is invalid, skip this
+                        return false;
+                    };
+                    ts
+                };
+        
+                return rpri.has_seen_our_node_info_ts(our_node_info_ts);
+            }
+        }
+
+        false
     }
 
     /// Mark a remote private route as having seen our current node info

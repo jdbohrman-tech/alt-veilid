@@ -121,12 +121,13 @@ impl RoutingContext {
             Target::PrivateRoute(rsid) => {
                 // Get remote private route
                 let rss = self.api.routing_table()?.route_spec_store();
-                if !rss.is_valid_remote_private_route(&rsid) {
+
+                let Some(private_route) = rss.best_remote_private_route(&rsid) else {
                     apibail_invalid_target!();
                 };
 
                 Ok(rpc_processor::Destination::PrivateRoute {
-                    private_route_id: rsid,
+                    private_route,
                     safety_selection: self.unlocked_inner.safety_selection,
                 })
             }

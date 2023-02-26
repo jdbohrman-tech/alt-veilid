@@ -25,6 +25,19 @@ impl RemotePrivateRouteInfo {
     pub fn get_private_routes(&self) -> &[PrivateRoute] {
         &self.private_routes
     }
+    pub fn best_private_route(&self) -> Option<PrivateRoute> {
+        self.private_routes
+            .iter()
+            .reduce(|acc, x| {
+                if x.public_key < acc.public_key {
+                    x
+                } else {
+                    acc
+                }
+            })
+            .filter(|x| VALID_CRYPTO_KINDS.contains(&x.public_key.kind))
+            .cloned()
+    }
     pub fn get_stats(&self) -> &RouteStats {
         &self.stats
     }

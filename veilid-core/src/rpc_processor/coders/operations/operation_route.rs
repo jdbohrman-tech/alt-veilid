@@ -29,7 +29,7 @@ impl RoutedOperation {
                 .map_err(RPCError::map_internal("too many signatures"))?,
         );
         for s in sigs_reader.iter() {
-            let sig = decode_signature512(&s)?;
+            let sig = decode_signature512(&s);
             signatures.push(sig);
         }
 

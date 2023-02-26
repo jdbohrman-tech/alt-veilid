@@ -53,7 +53,7 @@ impl RPCProcessor {
                         (Some(target.clone()), routing_domain)
                     }
                     Destination::PrivateRoute {
-                        private_route_id: _,
+                        private_route: _,
                         safety_selection: _,
                     } => (None, RoutingDomain::PublicInternet),
                 };
@@ -169,7 +169,7 @@ impl RPCProcessor {
                 safety_selection: _,
             }
             | Destination::PrivateRoute {
-                private_route_id: _,
+                private_route: _,
                 safety_selection: _,
             } => {
                 // sender info is irrelevant over relays and routes

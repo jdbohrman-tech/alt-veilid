@@ -134,14 +134,14 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
             let private_route_id = dc.imported_routes.get(n)?.clone();
 
             let rss = routing_table.route_spec_store();
-            if !rss.is_valid_remote_private_route(&private_route_id) {
+            let Some(private_route) = rss.best_remote_private_route(&private_route_id) else {
                 // Remove imported route
                 dc.imported_routes.remove(n);
                 info!("removed dead imported route {}", n);
                 return None;
             };
             Some(Destination::private_route(
-                private_route_id,
+                private_route,
                 ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
             ))
         } else {

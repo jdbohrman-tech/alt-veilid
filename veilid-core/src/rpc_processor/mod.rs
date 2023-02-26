@@ -172,9 +172,9 @@ impl<T> Answer<T> {
 struct RenderedOperation {
     /// The rendered operation bytes
     message: Vec<u8>,
-    /// Destination node id we're sending to
-    node_id: PublicKey,
-    /// Node to send envelope to (may not be destination node id in case of relay)
+    /// Destination node we're sending to
+    destination_node_ref: NodeRef,
+    /// Node to send envelope to (may not be destination node in case of relay)
     node_ref: NodeRef,
     /// Total safety + private route hop count + 1 hop for the initial send
     hop_count: usize,
@@ -415,7 +415,7 @@ impl RPCProcessor {
             let routing_table = this.routing_table();
 
             // First see if we have the node in our routing table already
-            if let Some(nr) = routing_table.lookup_node_ref(node_id) {
+            if let Some(nr) = routing_table.lookup_any_node_ref(node_id) {
                 // ensure we have some dial info for the entry already,
                 // if not, we should do the find_node anyway
                 if nr.has_any_dial_info() {
@@ -438,7 +438,7 @@ impl RPCProcessor {
                 .await?;
 
             if let Some(nr) = &nr {
-                if nr.node_id() != node_id {
+                if nr.node_ids().contains_key(&node_id) {
                     // found a close node, but not exact within our configured resolve_node timeout
                     return Ok(None);
                 }
@@ -497,9 +497,15 @@ impl RPCProcessor {
     ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
         let routing_table = self.routing_table();
         let rss = routing_table.route_spec_store();
+
+        // Get useful private route properties
         let pr_is_stub = remote_private_route.is_stub();
         let pr_hop_count = remote_private_route.hop_count;
-        let pr_pubkey = remote_private_route.public_key;
+        let pr_pubkey = remote_private_route.public_key.key;
+        let crypto_kind = remote_private_route.crypto_kind();
+        let Some(vcrypto) = self.crypto.get(crypto_kind) else {
+            return Err(RPCError::internal("crypto not available for selected private route"));
+        };
 
         // Compile the safety route with the private route
         let compiled_route: CompiledRoute = match rss
@@ -514,21 +520,18 @@ impl RPCProcessor {
             }
         };
         let sr_is_stub = compiled_route.safety_route.is_stub();
-        let sr_pubkey = compiled_route.safety_route.public_key;
+        let sr_pubkey = compiled_route.safety_route.public_key.key;
 
         // Encrypt routed operation
         // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
-        // xxx use factory method, get version from somewhere...
-        let nonce = Crypto::get_random_nonce();
-        let dh_secret = self
-            .crypto
+        let nonce = vcrypto.random_nonce();
+        let dh_secret = vcrypto
             .cached_dh(&pr_pubkey, &compiled_route.secret)
             .map_err(RPCError::map_internal("dh failed"))?;
-        let enc_msg_data = Crypto::encrypt_aead(&message_data, &nonce, &dh_secret, None)
+        let enc_msg_data = vcrypto.encrypt_aead(&message_data, &nonce, &dh_secret, None)
             .map_err(RPCError::map_internal("encryption failed"))?;
 
         // Make the routed operation
-        // xxx: replace MAX_CRYPTO_VERSION with the version from the factory
         let operation =
             RoutedOperation::new(safety_selection.get_sequencing(), nonce, enc_msg_data);
 
@@ -539,7 +542,7 @@ impl RPCProcessor {
             operation,
         };
         let ssni_route = self
-            .get_sender_signed_node_info(&Destination::direct(compiled_route.first_hop.clone()))?;
+            .get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()))?;
         let operation = RPCOperation::new_statement(
             RPCStatement::new(RPCStatementDetail::Route(route_operation)),
             ssni_route,
@@ -552,12 +555,11 @@ impl RPCProcessor {
         let out_message = builder_to_vec(route_msg)?;
 
         // Get the first hop this is going to
-        let out_node_id = compiled_route.first_hop.node_id();
         let out_hop_count = (1 + sr_hop_count + pr_hop_count) as usize;
 
         let out = RenderedOperation {
             message: out_message,
-            node_id: out_node_id,
+            destination_node_ref: compiled_route.first_hop.clone(),
             node_ref: compiled_route.first_hop,
             hop_count: out_hop_count,
             safety_route: if sr_is_stub { None } else { Some(sr_pubkey) },
@@ -592,7 +594,7 @@ impl RPCProcessor {
         let reply_private_route = match operation.kind() {
             RPCOperationKind::Question(q) => match q.respond_to() {
                 RespondTo::Sender => None,
-                RespondTo::PrivateRoute(pr) => Some(pr.public_key),
+                RespondTo::PrivateRoute(pr) => Some(pr.public_key.key),
             },
             RPCOperationKind::Statement(_) | RPCOperationKind::Answer(_) => None,
         };
@@ -612,16 +614,15 @@ impl RPCProcessor {
                 // --------------------------------------
 
                 // Get the actual destination node id accounting for relays
-                let (node_ref, node_id) = if let Destination::Relay {
+                let (node_ref, destination_node_ref) = if let Destination::Relay {
                     relay: _,
-                    target: ref dht_key,
+                    target: ref target,
                     safety_selection: _,
                 } = dest
                 {
-                    (node_ref.clone(), dht_key.clone())
+                    (node_ref.clone(), target.clone())
                 } else {
-                    let node_id = node_ref.node_id();
-                    (node_ref.clone(), node_id)
+                    (node_ref.clone(), node_ref.clone())
                 };
 
                 // Handle the existence of safety route
@@ -640,7 +641,7 @@ impl RPCProcessor {
                         // route, we can use a direct envelope instead of routing
                         out = NetworkResult::value(RenderedOperation {
                             message,
-                            node_id,
+                            destination_node_ref,
                             node_ref,
                             hop_count: 1,
                             safety_route: None,
@@ -651,7 +652,8 @@ impl RPCProcessor {
                     SafetySelection::Safe(_) => {
                         // No private route was specified for the request
                         // but we are using a safety route, so we must create an empty private route
-                        let peer_info = match node_ref.make_peer_info(RoutingDomain::PublicInternet)
+                        // Destination relay is ignored for safety routed operations
+                        let peer_info = match destination_node_ref.make_peer_info(RoutingDomain::PublicInternet)
                         {
                             None => {
                                 return Ok(NetworkResult::no_connection_other(
@@ -661,7 +663,7 @@ impl RPCProcessor {
                             Some(pi) => pi,
                         };
                         let private_route =
-                            PrivateRoute::new_stub(node_id, RouteNode::PeerInfo(peer_info));
+                            PrivateRoute::new_stub(destination_node_ref.best_node_id(), RouteNode::PeerInfo(peer_info));
 
                         // Wrap with safety route
                         out = self.wrap_with_route(
@@ -674,7 +676,7 @@ impl RPCProcessor {
                 };
             }
             Destination::PrivateRoute {
-                private_route_id,
+                private_route,
                 safety_selection,
             } => {
                 // Send to private route
@@ -695,7 +697,7 @@ impl RPCProcessor {
     /// Get signed node info to package with RPC messages to improve
     /// routing table caching when it is okay to do so
     #[instrument(level = "trace", skip(self), ret, err)]
-    fn get_sender_signed_node_info(&self, dest: &Destination) -> Result<SenderPeerInfo, RPCError> {
+    fn get_sender_peer_info(&self, dest: &Destination) -> Result<SenderPeerInfo, RPCError> {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
@@ -717,16 +719,9 @@ impl RPCProcessor {
                 relay: _,
                 target,
                 safety_selection: _,
-            } => {
-                if let Some(target) = routing_table.lookup_node_ref(*target) {
-                    target
-                } else {
-                    // Target was not in our routing table
-                    return Ok(SenderPeerInfo::default());
-                }
-            }
+            } => target.clone(),
             Destination::PrivateRoute {
-                private_route_id: _,
+                private_route: _,
                 safety_selection: _,
             } => {
                 return Ok(SenderPeerInfo::default());
@@ -755,7 +750,7 @@ impl RPCProcessor {
         }
 
         Ok(SenderPeerInfo::new(
-            own_peer_info.signed_node_info,
+            own_peer_info,
             target_node_info_ts,
         ))
     }
@@ -1001,11 +996,11 @@ impl RPCProcessor {
         dest: Destination,
         question: RPCQuestion,
     ) -> Result<NetworkResult<WaitableReply>, RPCError> {
-        // Get sender signed node info if we should send that
-        let ssni = self.get_sender_signed_node_info(&dest)?;
+        // Get sender peer info if we should send that
+        let spi = self.get_sender_peer_info(&dest)?;
 
         // Wrap question in operation
-        let operation = RPCOperation::new_question(question, ssni);
+        let operation = RPCOperation::new_question(question, spi);
         let op_id = operation.op_id();
 
         // Log rpc send
@@ -1014,7 +1009,7 @@ impl RPCProcessor {
         // Produce rendered operation
         let RenderedOperation {
             message,
-            node_id,
+            destination_node_ref,
             node_ref,
             hop_count,
             safety_route,
@@ -1034,7 +1029,7 @@ impl RPCProcessor {
         let send_ts = get_aligned_timestamp();
         let send_data_kind = network_result_try!(self
             .network_manager()
-            .send_envelope(node_ref.clone(), Some(node_id), message)
+            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
@@ -1076,11 +1071,11 @@ impl RPCProcessor {
         dest: Destination,
         statement: RPCStatement,
     ) -> Result<NetworkResult<()>, RPCError> {
-        // Get sender signed node info if we should send that
-        let ssni = self.get_sender_signed_node_info(&dest)?;
+        // Get sender peer info if we should send that
+        let spi = self.get_sender_peer_info(&dest)?;
 
         // Wrap statement in operation
-        let operation = RPCOperation::new_statement(statement, ssni);
+        let operation = RPCOperation::new_statement(statement, spi);
 
         // Log rpc send
         trace!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
@@ -1088,7 +1083,7 @@ impl RPCProcessor {
         // Produce rendered operation
         let RenderedOperation {
             message,
-            node_id,
+            destination_node_ref,
             node_ref,
             hop_count: _,
             safety_route,
@@ -1101,7 +1096,7 @@ impl RPCProcessor {
         let send_ts = get_aligned_timestamp();
         let _send_data_kind = network_result_try!(self
             .network_manager()
-            .send_envelope(node_ref.clone(), Some(node_id), message)
+            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
@@ -1138,10 +1133,10 @@ impl RPCProcessor {
         let dest = network_result_try!(self.get_respond_to_destination(&request));
 
         // Get sender signed node info if we should send that
-        let ssni = self.get_sender_signed_node_info(&dest)?;
+        let spi = self.get_sender_peer_info(&dest)?;
 
         // Wrap answer in operation
-        let operation = RPCOperation::new_answer(&request.operation, answer, ssni);
+        let operation = RPCOperation::new_answer(&request.operation, answer, spi);
 
         // Log rpc send
         trace!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
@@ -1149,7 +1144,7 @@ impl RPCProcessor {
         // Produce rendered operation
         let RenderedOperation {
             message,
-            node_id,
+            destination_node_ref,
             node_ref,
             hop_count: _,
             safety_route,
@@ -1161,7 +1156,7 @@ impl RPCProcessor {
         let bytes: ByteCount = (message.len() as u64).into();
         let send_ts = get_aligned_timestamp();
         network_result_try!(self.network_manager()
-            .send_envelope(node_ref.clone(), Some(node_id), message)
+            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up

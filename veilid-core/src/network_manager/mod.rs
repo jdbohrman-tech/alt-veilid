@@ -769,33 +769,33 @@ impl NetworkManager {
 
     /// Called by the RPC handler when we want to issue an RPC request or response
     /// node_ref is the direct destination to which the envelope will be sent
-    /// If 'envelope_node_ref' is specified, it can be different than the node_ref being sent to
+    /// If 'destination_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
     #[instrument(level = "trace", skip(self, body), ret, err)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
-        envelope_node_ref: Option<NodeRef>,
+        destination_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataKind>> {
 
-        let end_node_ref = envelope_node_ref.as_ref().unwrap_or(&node_ref).clone();
+        let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
         
-        if !node_ref.same_entry(&end_node_ref) {
+        if !node_ref.same_entry(&destination_node_ref) {
             log_net!(
                 "sending envelope to {:?} via {:?}",
-                end_node_ref,
+                destination_node_ref,
                 node_ref
             );
         } else {
             log_net!("sending envelope to {:?}", node_ref);
         }
 
-        let best_node_id = end_node_ref.best_node_id();
+        let best_node_id = destination_node_ref.best_node_id();
 
         // Get node's envelope versions and see if we can send to it
         // and if so, get the max version we can use
-        let Some(envelope_version) = end_node_ref.best_envelope_version() else {
+        let Some(envelope_version) = destination_node_ref.best_envelope_version() else {
             bail!(
                 "can't talk to this node {} because we dont support its envelope versions",
                 node_ref
