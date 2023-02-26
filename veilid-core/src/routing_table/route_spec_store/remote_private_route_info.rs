@@ -32,6 +32,13 @@ impl RemotePrivateRouteInfo {
         &mut self.stats
     }
 
+    pub fn has_seen_our_node_info_ts(&mut self, our_node_info_ts: Timestamp) -> bool {
+        self.last_seen_our_node_info_ts == our_node_info_ts
+    }
+    pub fn set_last_seen_our_node_info_ts(&mut self, last_seen_our_node_info_ts: Timestamp) {
+        self.last_seen_our_node_info_ts = last_seen_our_node_info_ts;
+    }
+
     // Check to see if this remote private route has expired
     pub fn did_expire(&self, cur_ts: Timestamp) -> bool {
         cur_ts.saturating_sub(self.last_touched_ts) >= REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY

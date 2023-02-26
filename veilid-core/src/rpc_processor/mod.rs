@@ -674,7 +674,7 @@ impl RPCProcessor {
                 };
             }
             Destination::PrivateRoute {
-                private_route,
+                private_route_id,
                 safety_selection,
             } => {
                 // Send to private route
@@ -726,7 +726,7 @@ impl RPCProcessor {
                 }
             }
             Destination::PrivateRoute {
-                private_route: _,
+                private_route_id: _,
                 safety_selection: _,
             } => {
                 return Ok(SenderPeerInfo::default());

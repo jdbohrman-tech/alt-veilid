@@ -1,5 +1,6 @@
 use super::*;
 
+mod permutation;
 mod remote_private_route_info;
 mod route_set_spec_detail;
 mod route_spec_store;
@@ -7,6 +8,7 @@ mod route_spec_store_cache;
 mod route_spec_store_content;
 mod route_stats;
 
+pub use permutation::*;
 pub use remote_private_route_info::*;
 pub use route_set_spec_detail::*;
 pub use route_spec_store::*;
@@ -27,9 +29,3 @@ const REMOTE_PRIVATE_ROUTE_CACHE_EXPIRY: TimestampDuration = TimestampDuration::
 const ROUTE_MIN_IDLE_TIME_MS: u32 = 30_000;
 /// The size of the compiled route cache
 const COMPILED_ROUTE_CACHE_SIZE: usize = 256;
-
-/// The type of an allocated route set id
-pub type RouteSetSpecId = String;
-
-/// Type type of an imported remote route set id
-pub type RemotePrivateRouteId = String;

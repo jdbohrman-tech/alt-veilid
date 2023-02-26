@@ -22,7 +22,7 @@ pub enum Destination {
     /// Send to private route (privateroute)
     PrivateRoute {
         /// A private route set id to send to
-        private_route: String,
+        private_route_id: RouteId,
         /// Require safety route or not
         safety_selection: SafetySelection,
     },
@@ -44,9 +44,9 @@ impl Destination {
             safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
-    pub fn private_route(private_route: PrivateRoute, safety_selection: SafetySelection) -> Self {
+    pub fn private_route(private_route_id: RouteId, safety_selection: SafetySelection) -> Self {
         Self::PrivateRoute {
-            private_route,
+            private_route_id,
             safety_selection,
         }
     }
@@ -70,10 +70,10 @@ impl Destination {
                 safety_selection,
             },
             Destination::PrivateRoute {
-                private_route,
+                private_route_id,
                 safety_selection: _,
             } => Self::PrivateRoute {
-                private_route,
+                private_route_id,
                 safety_selection,
             },
         }
@@ -91,7 +91,7 @@ impl Destination {
                 safety_selection,
             } => safety_selection,
             Destination::PrivateRoute {
-                private_route: _,
+                private_route_id: _,
                 safety_selection,
             } => safety_selection,
         }
@@ -127,7 +127,7 @@ impl fmt::Display for Destination {
                 write!(f, "{}@{}{}", target, relay, sr)
             }
             Destination::PrivateRoute {
-                private_route,
+                private_route_id,
                 safety_selection,
             } => {
                 let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
@@ -136,7 +136,7 @@ impl fmt::Display for Destination {
                     ""
                 };
 
-                write!(f, "{}{}", private_route, sr)
+                write!(f, "{}{}", private_route_id, sr)
             }
         }
     }
@@ -207,7 +207,7 @@ impl RPCProcessor {
                 }
             },
             Destination::PrivateRoute {
-                private_route,
+                private_route_id,
                 safety_selection,
             } => {
                 let Some(avoid_node_id) = private_route.first_hop_node_id() else {

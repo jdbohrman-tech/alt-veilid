@@ -49,10 +49,21 @@ impl RouteSetSpecDetail {
         }
         tks
     }
+    pub fn get_best_route_set_key(&self) -> Option<PublicKey> {
+        self.get_route_set_keys().best().map(|k| k.key)
+    }
+    pub fn set_hop_node_refs(&mut self, node_refs: Vec<NodeRef>) {
+        self.hop_node_refs = node_refs;
+    }
     pub fn iter_route_set(
         &self,
     ) -> alloc::collections::btree_map::Iter<PublicKey, RouteSpecDetail> {
         self.route_set.iter()
+    }
+    pub fn iter_route_set_mut(
+        &self,
+    ) -> alloc::collections::btree_map::IterMut<PublicKey, RouteSpecDetail> {
+        self.route_set.iter_mut()
     }
     pub fn get_stats(&self) -> &RouteStats {
         &self.stats
@@ -88,25 +99,5 @@ impl RouteSetSpecDetail {
             cache.extend_from_slice(&hop.best_node_id().key.bytes);
         }
         cache
-    }
-
-    /// Generate a user-facing identifier for this allocated route
-    pub fn make_id(&self) -> RouteSetSpecId {
-        let mut idbytes = [0u8; 16];
-        for (pk, _) in self.route_set.iter() {
-            for (i, x) in pk.bytes.iter().enumerate() {
-                idbytes[i % 16] ^= *x;
-            }
-        }
-        let id = format!(
-            "{:08x}-{:04x}-{:04x}-{:04x}-{:08x}{:04x}",
-            u32::from_be_bytes(idbytes[0..4].try_into().expect("32 bits")),
-            u16::from_be_bytes(idbytes[4..6].try_into().expect("16 bits")),
-            u16::from_be_bytes(idbytes[6..8].try_into().expect("16 bits")),
-            u16::from_be_bytes(idbytes[8..10].try_into().expect("16 bits")),
-            u32::from_be_bytes(idbytes[10..14].try_into().expect("32 bits")),
-            u16::from_be_bytes(idbytes[14..16].try_into().expect("16 bits"))
-        );
-        id
     }
 }

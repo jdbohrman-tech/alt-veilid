@@ -13,7 +13,7 @@ impl RPCProcessor {
         if matches!(
             dest,
             Destination::PrivateRoute {
-                private_route: _,
+                private_route_id: _,
                 safety_selection: _
             }
         ) {

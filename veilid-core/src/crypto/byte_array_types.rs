@@ -41,6 +41,9 @@ pub const SHARED_SECRET_LENGTH: usize = 32;
 /// Length of a shared secret in bytes after encoding to base64url
 #[allow(dead_code)]
 pub const SHARED_SECRET_LENGTH_ENCODED: usize = 43;
+/// Length of a route id in bytes
+#[allow(dead_code)]
+pub const ROUTE_ID_LENGTH: usize = 32;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -260,3 +263,4 @@ byte_array_type!(Signature, SIGNATURE_LENGTH);
 byte_array_type!(PublicKeyDistance, PUBLIC_KEY_LENGTH);
 byte_array_type!(Nonce, NONCE_LENGTH);
 byte_array_type!(SharedSecret, SHARED_SECRET_LENGTH);
+byte_array_type!(RouteId, ROUTE_ID_LENGTH);

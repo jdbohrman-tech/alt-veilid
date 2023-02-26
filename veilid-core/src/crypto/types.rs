@@ -11,6 +11,7 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 pub type CryptoKind = FourCC;
 
 /// Sort best crypto kinds first
+/// Better crypto kinds are 'less', ordered toward the front of a list
 pub fn compare_crypto_kind(a: &CryptoKind, b: &CryptoKind) -> cmp::Ordering {
     let a_idx = VALID_CRYPTO_KINDS.iter().position(|k| k == a);
     let b_idx = VALID_CRYPTO_KINDS.iter().position(|k| k == b);
