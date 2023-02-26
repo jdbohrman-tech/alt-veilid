@@ -398,7 +398,9 @@ impl NetworkManager {
 
     pub fn update_client_whitelist(&self, client: TypedKey) {
         let mut inner = self.inner.lock();
-        match inner.client_whitelist.entry(client) {
+        match inner.client_whitelist.entry(client, |_k,_v| {
+            // do nothing on LRU evict
+        }) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp()
             }
@@ -414,7 +416,9 @@ impl NetworkManager {
     pub fn check_client_whitelist(&self, client: TypedKey) -> bool {
         let mut inner = self.inner.lock();
 
-        match inner.client_whitelist.entry(client) {
+        match inner.client_whitelist.entry(client, |_k,_v| {
+            // do nothing on LRU evict
+        }) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp();
                 true
@@ -1477,7 +1481,9 @@ impl NetworkManager {
         inner
             .stats
             .per_address_stats
-            .entry(PerAddressStatsKey(addr))
+            .entry(PerAddressStatsKey(addr), |_k,_v| {
+                // do nothing on LRU evict
+            })
             .or_insert(PerAddressStats::default())
             .transfer_stats_accounting
             .add_up(bytes);
@@ -1493,7 +1499,9 @@ impl NetworkManager {
         inner
             .stats
             .per_address_stats
-            .entry(PerAddressStatsKey(addr))
+            .entry(PerAddressStatsKey(addr), |_k,_v| {
+                // do nothing on LRU evict
+            })
             .or_insert(PerAddressStats::default())
             .transfer_stats_accounting
             .add_down(bytes);
@@ -1628,7 +1636,9 @@ impl NetworkManager {
         if pait.contains_key(&ipblock) {
             return;
         }
-        pacc.insert(ipblock, socket_address);
+        pacc.insert(ipblock, socket_address, |_k,_v| {
+            // do nothing on LRU evict
+        });
 
         // Determine if our external address has likely changed
         let mut bad_public_address_detection_punishment: Option<
