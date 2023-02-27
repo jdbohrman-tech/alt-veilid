@@ -162,9 +162,9 @@ impl RPCProcessor {
                 }
                 SafetySelection::Safe(safety_spec) => {
                     // Sent directly but with a safety route, respond to private route
-                    let ck = target.best_node_id().kind;
+                    let crypto_kind = target.best_node_id().kind;
                     let Some(pr_key) = rss
-                            .get_private_route_for_safety_spec(ck, safety_spec, &target.node_ids())
+                            .get_private_route_for_safety_spec(crypto_kind, safety_spec, &target.node_ids())
                             .map_err(RPCError::internal)? else {
                                 return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
                             };
@@ -188,12 +188,12 @@ impl RPCProcessor {
                 }
                 SafetySelection::Safe(safety_spec) => {
                     // Sent via a relay but with a safety route, respond to private route
-                    let ck = target.best_node_id().kind;
+                    let crypto_kind = target.best_node_id().kind;
 
                     let mut avoid_nodes = relay.node_ids();
                     avoid_nodes.add_all(&target.node_ids());
                     let Some(pr_key) = rss
-                        .get_private_route_for_safety_spec(ck, safety_spec, &avoid_nodes)
+                        .get_private_route_for_safety_spec(crypto_kind, safety_spec, &avoid_nodes)
                         .map_err(RPCError::internal)? else {
                             return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
                         };
@@ -246,7 +246,7 @@ impl RPCProcessor {
                         
                         // Check for loopback test
                         let opt_private_route_id = rss.get_route_id_for_key(&private_route.public_key.key);
-                        let pr_key = if safety_spec.preferred_route == opt_private_route_id
+                        let pr_key = if opt_private_route_id.is_some() && safety_spec.preferred_route == opt_private_route_id
                         {
                             // Private route is also safety route during loopback test
                             private_route.public_key.key

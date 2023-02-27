@@ -192,13 +192,13 @@ impl RPCProcessor {
                 &routed_operation.signatures,
                 &routed_operation.data,
                 sender_id,
-                |rsd| {
+                |rssd, rsd| {
                     (
                         rsd.secret_key,
                         SafetySpec {
-                            preferred_route: Some(pr_pubkey),
-                            hop_count: rsd.hop_count(),
-                            stability: rsd.get_stability(),
+                            preferred_route: rss.get_route_id_for_key(&pr_pubkey),
+                            hop_count: rssd.hop_count(),
+                            stability: rssd.get_stability(),
                             sequencing: routed_operation.sequencing,
                         },
                     )

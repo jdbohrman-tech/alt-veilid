@@ -80,8 +80,14 @@ impl RouteSetSpecDetail {
     pub fn hop_count(&self) -> usize {
         self.hop_node_refs.len()
     }
+    pub fn hop_node_ref(&self, idx: usize) -> Option<NodeRef> {
+        self.hop_node_refs.get(idx).cloned()
+    }
     pub fn get_stability(&self) -> Stability {
         self.stability
+    }
+    pub fn get_directions(&self) -> DirectionSet {
+        self.directions
     }
     pub fn is_sequencing_match(&self, sequencing: Sequencing) -> bool {
         match sequencing {
