@@ -90,6 +90,14 @@ impl RouteSetSpecDetail {
             Sequencing::EnsureOrdered => self.can_do_sequenced,
         }
     }
+    pub fn contains_nodes(&self, nodes: &[TypedKey]) -> bool {
+        for h in self.hop_node_refs {
+            if h.node_ids().contains_any(nodes) {
+                return true;
+            }
+        }
+        false
+    }
 
     /// Generate a key for the cache that can be used to uniquely identify this route's contents
     pub fn make_cache_key(&self) -> Vec<u8> {

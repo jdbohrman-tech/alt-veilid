@@ -537,7 +537,7 @@ impl RouteSpecStore {
         last_hop_id: PublicKey,
         callback: F,
     ) -> Option<R> 
-    where F: FnOnce(&RouteSpecDetail) -> R, 
+    where F: FnOnce(&RouteSetSpecDetail, &RouteSpecDetail) -> R, 
     R: fmt::Debug,
     {
         let inner = &*self.inner.lock();
@@ -585,7 +585,7 @@ impl RouteSpecStore {
             }
         }
         // We got the correct signatures, return a key and response safety spec     
-        Some(callback(rsd))
+        Some(callback(rssd, rsd))
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
@@ -593,15 +593,22 @@ impl RouteSpecStore {
         // Make loopback route to test with
         let dest = {
 
-            // Match the private route's hop length for safety route length
-            let hop_count = {
+            // Get the best private route for this id
+            let (key, hop_count) = {
                 let inner = &mut *self.inner.lock();
                 let Some(rssd) = inner.content.get_detail(&private_route_id) else {
                     bail!("route id not allocated");
                 };
-                rssd.hop_count()
+                let Some(key) = rssd.get_best_route_set_key() else {
+                    bail!("no best key to test allocated route");
+                };
+                // Match the private route's hop length for safety route length
+                let hop_count = rssd.hop_count(); 
+                (key, hop_count)
             };
 
+            // Get the private route to send to
+            let private_route = self.assemble_private_route(&key, None)?;
             // Always test routes with safety routes that are more likely to succeed
             let stability = Stability::Reliable;
             // Routes can test with whatever sequencing they were allocated with
@@ -639,6 +646,12 @@ impl RouteSpecStore {
         
         // Make private route test
         let dest = {
+            
+            // Get the route to test
+            let Some(private_route) = self.best_remote_private_route(&private_route_id) else {
+                bail!("no best key to test remote route");
+            };
+
             // Get a safety route that is good enough
             let safety_spec = SafetySpec {
                 preferred_route: None,
@@ -722,7 +735,7 @@ impl RouteSpecStore {
         stability: Stability,
         sequencing: Sequencing,
         directions: DirectionSet,
-        avoid_node_ids: &[PublicKey],
+        avoid_nodes: &[TypedKey],
     ) -> Option<PublicKey> {
         let cur_ts = get_aligned_timestamp();
 
@@ -740,7 +753,7 @@ impl RouteSpecStore {
             {
                 let mut avoid = false;
                 for h in &detail.1.hops {
-                    if avoid_node_ids.contains(h) {
+                    if avoid_nodes.contains(h) {
                         avoid = true;
                         break;
                     }
@@ -1054,7 +1067,7 @@ impl RouteSpecStore {
         Ok(Some(compiled_route))
     }
 
-    /// Get a route that matches a particular safety spec
+    /// Get an allocated route that matches a particular safety spec
     #[instrument(level = "trace", skip(self, inner, rti), ret, err)]
     fn get_route_for_safety_spec_inner(
         &self,
@@ -1076,12 +1089,12 @@ impl RouteSpecStore {
 
         // See if the preferred route is here
         if let Some(preferred_route) = safety_spec.preferred_route {
-            if let Some(preferred_rsd) = inner.content.details.get(&preferred_route) {
+            if let Some(preferred_rssd) = inner.content.get_detail(&preferred_route) {
                 // Only use the preferred route if it has the desire crypto kind
-                if preferred_rsd.crypto_kind == crypto_kind {    
-                    // Only use the preferred route if it doesn't end with the avoid nodes
-                    if !avoid_nodes.contains(&TypedKey::new(crypto_kind, preferred_rsd.hops.last().cloned().unwrap())) {
-                        return Ok(Some(preferred_route));
+                if let Some(preferred_key) = preferred_rssd.get_route_set_keys().get(crypto_kind) {
+                    // Only use the preferred route if it doesn't contain the avoid nodes
+                    if !preferred_rssd.contains_nodes(avoid_nodes) {
+                        return Ok(Some(preferred_key.key));
                     }
                 }
             }
@@ -1095,7 +1108,7 @@ impl RouteSpecStore {
             safety_spec.stability,
             safety_spec.sequencing,
             direction,
-            avoid_node_ids,
+            avoid_nodes,
         ) {
             // Found a route to use
             sr_pubkey
@@ -1105,11 +1118,12 @@ impl RouteSpecStore {
                 .allocate_route_inner(
                     inner,
                     rti,
+                    crypto_kind, ???
                     safety_spec.stability,
                     safety_spec.sequencing,
                     safety_spec.hop_count,
                     direction,
-                    avoid_node_ids,
+                    avoid_nodes,
                 )
                 .map_err(RPCError::internal)?
             {
