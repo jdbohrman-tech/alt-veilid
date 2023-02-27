@@ -52,6 +52,8 @@ struct RPCMessageHeaderDetailDirect {
 /// Header details for rpc messages received over only a safety route but not a private route
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailSafetyRouted {
+    /// Direct header
+    direct: RPCMessageHeaderDetailDirect,
     /// Remote safety route used
     remote_safety_route: PublicKey,
     /// The sequencing used for this route
@@ -61,6 +63,8 @@ struct RPCMessageHeaderDetailSafetyRouted {
 /// Header details for rpc messages received over a private route
 #[derive(Debug, Clone)]
 struct RPCMessageHeaderDetailPrivateRouted {
+    /// Direct header
+    direct: RPCMessageHeaderDetailDirect,
     /// Remote safety route used (or possibly node id the case of no safety route)
     remote_safety_route: PublicKey,
     /// The private route we received the rpc over
@@ -92,8 +96,8 @@ impl RPCMessageHeader {
     pub fn crypto_kind(&self) -> CryptoKind {
         match &self.detail {
             RPCMessageHeaderDetail::Direct(d) => d.envelope.get_crypto_kind(),
-            RPCMessageHeaderDetail::SafetyRouted(s) => s.remote_safety_route.,
-            RPCMessageHeaderDetail::PrivateRouted(p) => todo!(),
+            RPCMessageHeaderDetail::SafetyRouted(s) => s.direct.envelope.get_crypto_kind(),
+            RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.envelope.get_crypto_kind(),
         }
     }
 }
@@ -528,7 +532,8 @@ impl RPCProcessor {
         let dh_secret = vcrypto
             .cached_dh(&pr_pubkey, &compiled_route.secret)
             .map_err(RPCError::map_internal("dh failed"))?;
-        let enc_msg_data = vcrypto.encrypt_aead(&message_data, &nonce, &dh_secret, None)
+        let enc_msg_data = vcrypto
+            .encrypt_aead(&message_data, &nonce, &dh_secret, None)
             .map_err(RPCError::map_internal("encryption failed"))?;
 
         // Make the routed operation
@@ -541,8 +546,8 @@ impl RPCProcessor {
             safety_route: compiled_route.safety_route,
             operation,
         };
-        let ssni_route = self
-            .get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()))?;
+        let ssni_route =
+            self.get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()))?;
         let operation = RPCOperation::new_statement(
             RPCStatement::new(RPCStatementDetail::Route(route_operation)),
             ssni_route,
@@ -653,7 +658,8 @@ impl RPCProcessor {
                         // No private route was specified for the request
                         // but we are using a safety route, so we must create an empty private route
                         // Destination relay is ignored for safety routed operations
-                        let peer_info = match destination_node_ref.make_peer_info(RoutingDomain::PublicInternet)
+                        let peer_info = match destination_node_ref
+                            .make_peer_info(RoutingDomain::PublicInternet)
                         {
                             None => {
                                 return Ok(NetworkResult::no_connection_other(
@@ -662,8 +668,10 @@ impl RPCProcessor {
                             }
                             Some(pi) => pi,
                         };
-                        let private_route =
-                            PrivateRoute::new_stub(destination_node_ref.best_node_id(), RouteNode::PeerInfo(peer_info));
+                        let private_route = PrivateRoute::new_stub(
+                            destination_node_ref.best_node_id(),
+                            RouteNode::PeerInfo(peer_info),
+                        );
 
                         // Wrap with safety route
                         out = self.wrap_with_route(
@@ -749,10 +757,7 @@ impl RPCProcessor {
             return Ok(SenderPeerInfo::new_no_peer_info(target_node_info_ts));
         }
 
-        Ok(SenderPeerInfo::new(
-            own_peer_info,
-            target_node_info_ts,
-        ))
+        Ok(SenderPeerInfo::new(own_peer_info, target_node_info_ts))
     }
 
     /// Record failure to send to node or route
@@ -1194,7 +1199,10 @@ impl RPCProcessor {
                 let routing_domain = detail.routing_domain;
 
                 // Decode the operation
-                let sender_node_id = TypedKey::new(detail.envelope.get_crypto_kind(), detail.envelope.get_sender_id());
+                let sender_node_id = TypedKey::new(
+                    detail.envelope.get_crypto_kind(),
+                    detail.envelope.get_sender_id(),
+                );
 
                 // Decode the RPC message
                 let operation = {
@@ -1386,6 +1394,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_safety_routed_message(
         &self,
+        direct: RPCMessageHeaderDetailDirect,
         remote_safety_route: PublicKey,
         sequencing: Sequencing,
         body: Vec<u8>,
@@ -1393,6 +1402,7 @@ impl RPCProcessor {
         let msg = RPCMessageEncoded {
             header: RPCMessageHeader {
                 detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
+                    direct,
                     remote_safety_route,
                     sequencing,
                 }),
@@ -1415,6 +1425,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", skip(self, body), err)]
     pub fn enqueue_private_routed_message(
         &self,
+        direct: RPCMessageHeaderDetailDirect,
         remote_safety_route: PublicKey,
         private_route: PublicKey,
         safety_spec: SafetySpec,
@@ -1424,6 +1435,7 @@ impl RPCProcessor {
             header: RPCMessageHeader {
                 detail: RPCMessageHeaderDetail::PrivateRouted(
                     RPCMessageHeaderDetailPrivateRouted {
+                        direct,
                         remote_safety_route,
                         private_route,
                         safety_spec,

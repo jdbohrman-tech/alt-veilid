@@ -21,6 +21,43 @@ pub enum RouteNode {
     PeerInfo(PeerInfo),
 }
 
+impl RouteNode {
+    pub fn node_ref(
+        &self,
+        routing_table: RoutingTable,
+        crypto_kind: CryptoKind,
+    ) -> Option<NodeRef> {
+        match self {
+            RouteNode::NodeId(id) => {
+                //
+                routing_table.lookup_node_ref(TypedKey::new(crypto_kind, id))
+            }
+            RouteNode::PeerInfo(pi) => {
+                //
+                routing_table.register_node_with_peer_info(
+                    RoutingDomain::PublicInternet,
+                    pi.clone(),
+                    false,
+                )
+            }
+        }
+    }
+
+    pub fn describe(&self, crypto_kind: CryptoKind) -> String {
+        match self {
+            RouteNode::NodeId(id) => {
+                format!("{}", TypedKey::new(crypto_kind, id))
+            }
+            RouteNode::PeerInfo(pi) => match pi.node_ids.get(crypto_kind) {
+                Some(id) => format!("{}", TypedKey::new(crypto_kind, id)),
+                None => {
+                    format!("({})?{}", crypto_kind, pi.node_ids)
+                }
+            },
+        }
+    }
+}
+
 /// An unencrypted private/safety route hop
 #[derive(Clone, Debug)]
 pub struct RouteHop {
