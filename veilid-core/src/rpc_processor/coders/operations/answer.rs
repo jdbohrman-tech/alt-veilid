@@ -84,22 +84,22 @@ impl RPCAnswerDetail {
             }
             veilid_capnp::answer::detail::GetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationGetValueA::decode(&op_reader)?;
+                let out = RPCOperationGetValueA::decode(&op_reader, crypto)?;
                 RPCAnswerDetail::GetValueA(out)
             }
             veilid_capnp::answer::detail::SetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSetValueA::decode(&op_reader)?;
+                let out = RPCOperationSetValueA::decode(&op_reader, crypto)?;
                 RPCAnswerDetail::SetValueA(out)
             }
             veilid_capnp::answer::detail::WatchValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationWatchValueA::decode(&op_reader)?;
+                let out = RPCOperationWatchValueA::decode(&op_reader, crypto)?;
                 RPCAnswerDetail::WatchValueA(out)
             }
             veilid_capnp::answer::detail::SupplyBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSupplyBlockA::decode(&op_reader)?;
+                let out = RPCOperationSupplyBlockA::decode(&op_reader, crypto)?;
                 RPCAnswerDetail::SupplyBlockA(out)
             }
             veilid_capnp::answer::detail::FindBlockA(r) => {

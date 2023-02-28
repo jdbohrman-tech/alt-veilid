@@ -10,7 +10,7 @@ impl RPCOperationFindBlockQ {
         reader: &veilid_capnp::operation_find_block_q::Reader,
     ) -> Result<RPCOperationFindBlockQ, RPCError> {
         let bi_reader = reader.get_block_id().map_err(RPCError::protocol)?;
-        let block_id = decode_key256(&bi_reader);
+        let block_id = decode_typed_key(&bi_reader)?;
 
         Ok(RPCOperationFindBlockQ { block_id })
     }
@@ -19,7 +19,7 @@ impl RPCOperationFindBlockQ {
         builder: &mut veilid_capnp::operation_find_block_q::Builder,
     ) -> Result<(), RPCError> {
         let mut bi_builder = builder.reborrow().init_block_id();
-        encode_key256(&self.block_id, &mut bi_builder)?;
+        encode_typed_key(&self.block_id, &mut bi_builder);
 
         Ok(())
     }

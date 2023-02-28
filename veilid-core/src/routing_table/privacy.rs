@@ -30,7 +30,7 @@ impl RouteNode {
         match self {
             RouteNode::NodeId(id) => {
                 //
-                routing_table.lookup_node_ref(TypedKey::new(crypto_kind, id))
+                routing_table.lookup_node_ref(TypedKey::new(crypto_kind, *id))
             }
             RouteNode::PeerInfo(pi) => {
                 //
@@ -46,10 +46,10 @@ impl RouteNode {
     pub fn describe(&self, crypto_kind: CryptoKind) -> String {
         match self {
             RouteNode::NodeId(id) => {
-                format!("{}", TypedKey::new(crypto_kind, id))
+                format!("{}", TypedKey::new(crypto_kind, *id))
             }
             RouteNode::PeerInfo(pi) => match pi.node_ids.get(crypto_kind) {
-                Some(id) => format!("{}", TypedKey::new(crypto_kind, id)),
+                Some(id) => format!("{}", id),
                 None => {
                     format!("({})?{}", crypto_kind, pi.node_ids)
                 }
