@@ -19,6 +19,6 @@ pub fn encode_typed_signature(
     builder: &mut veilid_capnp::typed_signature::Builder,
 ) {
     builder.set_kind(u32::from_be_bytes(typed_signature.kind.0));
-    let mut sig_builder = builder.init_signature();
+    let mut sig_builder = builder.reborrow().init_signature();
     encode_signature512(&typed_signature.signature, &mut sig_builder);
 }

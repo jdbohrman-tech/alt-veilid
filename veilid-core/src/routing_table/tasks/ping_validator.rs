@@ -36,8 +36,8 @@ impl RoutingTable {
         for nr in node_refs {
             // If this is our relay, let's check for NAT keepalives
             let mut did_pings = false;
-            if let Some(relay_nr) = opt_relay_nr {
-                if nr.same_entry(&relay_nr) {
+            if let Some(relay_nr) = &opt_relay_nr {
+                if nr.same_entry(relay_nr) {
                     // Relay nodes get pinged over all protocols we have inbound dialinfo for
                     // This is so we can preserve the inbound NAT mappings at our router
                     for did in &dids {

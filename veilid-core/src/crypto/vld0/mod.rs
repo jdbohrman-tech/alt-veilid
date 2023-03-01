@@ -269,7 +269,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         shared_secret: &SharedSecret,
     ) {
         let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), &nonce.bytes.into());
-        cipher.apply_keystream_b2b(in_buf, &mut out_buf).unwrap();
+        cipher.apply_keystream_b2b(in_buf, out_buf).unwrap();
     }
 
     fn crypt_no_auth_aligned_8(

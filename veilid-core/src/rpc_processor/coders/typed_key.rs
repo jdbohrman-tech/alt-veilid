@@ -14,6 +14,6 @@ pub fn decode_typed_key(typed_key: &veilid_capnp::typed_key::Reader) -> Result<T
 
 pub fn encode_typed_key(typed_key: &TypedKey, builder: &mut veilid_capnp::typed_key::Builder) {
     builder.set_kind(u32::from_be_bytes(typed_key.kind.0));
-    let mut key_builder = builder.init_key();
+    let mut key_builder = builder.reborrow().init_key();
     encode_key256(&typed_key.key, &mut key_builder);
 }

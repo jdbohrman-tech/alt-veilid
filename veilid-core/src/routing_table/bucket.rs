@@ -8,8 +8,6 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 /// Helps to keep managed lists at particular distances so we can evict nodes by priority
 /// where the priority comes from liveness and age of the entry (older is better)
 pub struct Bucket {
-    /// handle to the routing table
-    routing_table: RoutingTable,
     /// Map of keys to entries for this bucket
     entries: BTreeMap<PublicKey, Arc<BucketEntry>>,
     /// The crypto kind in use for the public keys in this bucket
@@ -40,9 +38,8 @@ fn state_ordering(state: BucketEntryState) -> usize {
 }
 
 impl Bucket {
-    pub fn new(routing_table: RoutingTable, kind: CryptoKind) -> Self {
+    pub fn new(kind: CryptoKind) -> Self {
         Self {
-            routing_table,
             entries: BTreeMap::new(),
             kind,
         }

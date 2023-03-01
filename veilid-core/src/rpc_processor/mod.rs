@@ -621,7 +621,7 @@ impl RPCProcessor {
                 // Get the actual destination node id accounting for relays
                 let (node_ref, destination_node_ref) = if let Destination::Relay {
                     relay: _,
-                    target: ref target,
+                    ref target,
                     safety_selection: _,
                 } = dest
                 {
@@ -1392,7 +1392,7 @@ impl RPCProcessor {
     }
 
     #[instrument(level = "trace", skip(self, body), err)]
-    pub fn enqueue_safety_routed_message(
+    fn enqueue_safety_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,
         remote_safety_route: PublicKey,
@@ -1423,7 +1423,7 @@ impl RPCProcessor {
     }
 
     #[instrument(level = "trace", skip(self, body), err)]
-    pub fn enqueue_private_routed_message(
+    fn enqueue_private_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,
         remote_safety_route: PublicKey,

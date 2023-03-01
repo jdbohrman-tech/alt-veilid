@@ -4,7 +4,7 @@ use clap::{Arg, ArgMatches, Command};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str::FromStr;
-use veilid_core::{SecretKey, TypedKey};
+use veilid_core::{SecretKey, TypedKeySet};
 
 fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap::Error> {
     let matches = Command::new("veilid-server")
@@ -236,19 +236,14 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
         settingsrw.logging.terminal.enabled = false;
 
         // Split or get secret
-        let (k, s) = if let Some((k, s)) = v.split_once(':') {
-            let k =
-                TypedKey::try_decode(k).wrap_err("failed to decode node id from command line")?;
-            let s = SecretKey::try_decode(s)?;
-            (k, s)
-        } else {
-            let k = TypedKey::try_decode(v)?;
-            let buffer = rpassword::prompt_password("Enter secret key (will not echo): ")
-                .wrap_err("invalid secret key")?;
-            let buffer = buffer.trim().to_string();
-            let s = SecretKey::try_decode(&buffer)?;
-            (k, s)
-        };
+        let tks =
+            TypedKeySet::from_str(v).wrap_err("failed to decode node id set from command line")?;
+
+        let buffer = rpassword::prompt_password("Enter secret key (will not echo): ")
+            .wrap_err("invalid secret key")?;
+        let buffer = buffer.trim().to_string();
+        let s = SecretKey::try_decode(&buffer)?;
+
         settingsrw.core.network.node_id = Some(k);
         settingsrw.core.network.node_id_secret = Some(s);
     }

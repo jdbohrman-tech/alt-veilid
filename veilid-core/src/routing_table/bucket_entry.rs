@@ -262,11 +262,11 @@ impl BucketEntryInner {
         }
 
         // Update the envelope version support we have to use
-        let mut envelope_support = signed_node_info.node_info().envelope_support.clone();
-        self.set_envelope_support(envelope_support);
-
+        let envelope_support = signed_node_info.node_info().envelope_support.clone();
+        
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
+        self.set_envelope_support(envelope_support);
         self.updated_since_last_network_change = true;
         self.touch_last_seen(get_aligned_timestamp());
     }
@@ -466,7 +466,7 @@ impl BucketEntryInner {
         self.envelope_support.sort();
     }
 
-    pub fn set_envelope_support(&mut self, envelope_support: Vec<u8>) {
+    pub fn set_envelope_support(&mut self, mut envelope_support: Vec<u8>) {
         envelope_support.dedup();
         envelope_support.sort();
         self.envelope_support = envelope_support;

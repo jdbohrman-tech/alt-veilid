@@ -15,7 +15,7 @@ pub fn encode_peer_info(
     for (i, nid) in peer_info.node_ids.iter().enumerate() {
         encode_typed_key(
             nid,
-            &mut nids_builder.get(
+            &mut nids_builder.reborrow().get(
                 i.try_into()
                     .map_err(RPCError::map_invalid_format("out of bound error"))?,
             ),
@@ -39,7 +39,7 @@ pub fn decode_peer_info(
         .reborrow()
         .get_signed_node_info()
         .map_err(RPCError::protocol)?;
-    let node_ids = TypedKeySet::with_capacity(nids_reader.len() as usize);
+    let mut node_ids = TypedKeySet::with_capacity(nids_reader.len() as usize);
     for nid_reader in nids_reader.iter() {
         node_ids.add(decode_typed_key(&nid_reader)?);
     }

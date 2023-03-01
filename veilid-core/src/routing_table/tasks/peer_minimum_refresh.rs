@@ -40,7 +40,7 @@ impl RoutingTable {
 
             let mut filters = VecDeque::new();
             let filter = Box::new(
-                move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
+                move |_rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
                     // Keep only the entries that contain the crypto kind we're looking for
                     if let Some(entry) = opt_entry {
                         entry.with_inner(|e| e.crypto_kinds().contains(&crypto_kind))

@@ -18,7 +18,7 @@ pub fn encode_signed_relayed_node_info(
     for (i, typed_key) in signed_relayed_node_info.relay_ids.iter().enumerate() {
         encode_typed_key(
             typed_key,
-            &mut rids_builder.get(
+            &mut rids_builder.reborrow().get(
                 i.try_into()
                     .map_err(RPCError::map_invalid_format("out of bound error"))?,
             ),
@@ -42,7 +42,7 @@ pub fn encode_signed_relayed_node_info(
     for (i, typed_signature) in signed_relayed_node_info.signatures.iter().enumerate() {
         encode_typed_signature(
             typed_signature,
-            &mut sigs_builder.get(
+            &mut sigs_builder.reborrow().get(
                 i.try_into()
                     .map_err(RPCError::map_invalid_format("out of bound error"))?,
             ),
@@ -81,7 +81,7 @@ pub fn decode_signed_relayed_node_info(
         .reborrow()
         .get_relay_info()
         .map_err(RPCError::protocol)?;
-    let relay_info = decode_signed_direct_node_info(&ri_reader, crypto, &mut relay_ids)?;
+    let relay_info = decode_signed_direct_node_info(&ri_reader, crypto.clone(), &mut relay_ids)?;
 
     // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
     if common_crypto_kinds(

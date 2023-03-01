@@ -11,6 +11,13 @@ pub struct RouteSpecStoreContent {
 }
 
 impl RouteSpecStoreContent {
+    pub fn new() -> Self {
+        Self {
+            id_by_key: HashMap::new(),
+            details: HashMap::new(),
+        }
+    }
+
     pub async fn load(routing_table: RoutingTable) -> EyreResult<RouteSpecStoreContent> {
         // Deserialize what we can
         let table_store = routing_table.network_manager().table_store();
@@ -99,11 +106,11 @@ impl RouteSpecStoreContent {
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         rsstdb.store_rkyv(0, b"content", self).await?;
 
-        // // Keep secrets in protected store as well
+        // Keep secrets in protected store as well
         let pstore = routing_table.network_manager().protected_store();
 
         let mut out: HashMap<PublicKey, SecretKey> = HashMap::new();
-        for (rsid, rssd) in self.details.iter() {
+        for (_rsid, rssd) in self.details.iter() {
             for (pk, rsd) in rssd.iter_route_set() {
                 out.insert(*pk, rsd.secret_key);
             }

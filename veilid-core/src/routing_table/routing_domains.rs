@@ -287,7 +287,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             // No common crypto kinds between these nodes, can't contact
             return ContactMethod::Unreachable;
         };
-        let node_a_id = peer_a.node_ids.get(best_ck).unwrap();
+
+        //let node_a_id = peer_a.node_ids.get(best_ck).unwrap();
         let node_b_id = peer_b.node_ids.get(best_ck).unwrap();
 
         // Get the best match dial info for node B if we have it

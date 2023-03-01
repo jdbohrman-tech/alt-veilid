@@ -22,7 +22,7 @@ pub fn encode_signed_direct_node_info(
     for (i, typed_signature) in signed_direct_node_info.signatures.iter().enumerate() {
         encode_typed_signature(
             typed_signature,
-            &mut sigs_builder.get(
+            &mut sigs_builder.reborrow().get(
                 i.try_into()
                     .map_err(RPCError::map_invalid_format("out of bound error"))?,
             ),

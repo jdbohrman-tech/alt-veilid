@@ -17,13 +17,17 @@ pub fn compare_crypto_kind(a: &CryptoKind, b: &CryptoKind) -> cmp::Ordering {
     let b_idx = VALID_CRYPTO_KINDS.iter().position(|k| k == b);
     if let Some(a_idx) = a_idx {
         if let Some(b_idx) = b_idx {
+            // Both are valid, prefer better crypto kind
             a_idx.cmp(&b_idx)
         } else {
+            // A is valid, B is not
             cmp::Ordering::Less
         }
-    } else if let Some(b_idx) = b_idx {
+    } else if b_idx.is_some() {
+        // B is valid, A is not
         cmp::Ordering::Greater
     } else {
+        // Both are invalid, so use lex comparison
         a.cmp(b)
     }
 }
@@ -66,19 +70,9 @@ impl KeyPair {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
+xxx make default template version here for secretkey
+and put Vec<TypedKey<SecretKey>> in settings
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 pub struct TypedKey {
     pub kind: CryptoKind,
@@ -123,6 +117,23 @@ impl FromStr for TypedKey {
         Ok(Self { kind, key })
     }
 }
+impl<'de> Deserialize<'de> for TypedKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as Deserialize>::deserialize(deserializer)?;
+        FromStr::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+impl Serialize for TypedKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.collect_str(self)
+    }
+}
 
 #[derive(
     Clone,
@@ -139,6 +150,7 @@ impl FromStr for TypedKey {
     RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
+#[serde(from = "Vec<TypedKey>", into = "Vec<TypedKey>")] 
 pub struct TypedKeySet {
     items: Vec<TypedKey>,
 }
@@ -192,12 +204,12 @@ impl TypedKeySet {
         }
         self.items.sort()
     }
-    pub fn remove(&self, kind: CryptoKind) {
+    pub fn remove(&mut self, kind: CryptoKind) {
         if let Some(idx) = self.items.iter().position(|x| x.kind == kind) {
             self.items.remove(idx);
         }
     }
-    pub fn remove_all(&self, kinds: &[CryptoKind]) {
+    pub fn remove_all(&mut self, kinds: &[CryptoKind]) {
         for k in kinds {
             self.remove(*k);
         }
@@ -288,6 +300,18 @@ impl From<TypedKey> for TypedKeySet {
         let mut tks = TypedKeySet::with_capacity(1);
         tks.add(x);
         tks
+    }
+}
+impl From<Vec<TypedKey>> for TypedKeySet {
+    fn from(x: Vec<TypedKey>) -> Self {
+        let mut tks = TypedKeySet::with_capacity(x.len());
+        tks.add_all(&x);
+        tks
+    }
+}
+impl Into<Vec<TypedKey>> for TypedKeySet {
+    fn into(self) -> Vec<TypedKey> {
+        self.items
     }
 }
 

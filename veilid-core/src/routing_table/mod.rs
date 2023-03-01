@@ -65,7 +65,9 @@ pub struct RoutingTableHealth {
     pub local_network_ready: bool,
 }
 
-pub(super) struct RoutingTableUnlockedInner {
+pub type BucketIndex = (CryptoKind, usize);
+
+pub struct RoutingTableUnlockedInner {
     // Accessors
     config: VeilidConfig,
     network_manager: NetworkManager,
@@ -73,7 +75,7 @@ pub(super) struct RoutingTableUnlockedInner {
     /// The current node's public DHT keys and secrets
     node_id_keypairs: BTreeMap<CryptoKind, KeyPair>,
     /// Buckets to kick on our next kick task
-    kick_queue: Mutex<BTreeSet<(CryptoKind, usize)>>,
+    kick_queue: Mutex<BTreeSet<BucketIndex>>,
     /// Background process for computing statistics
     rolling_transfers_task: TickTask<EyreReport>,
     /// Background process to purge dead routing table entries when necessary
@@ -146,7 +148,7 @@ impl RoutingTableUnlockedInner {
     }
 
     pub fn matches_own_node_id_key(&self, node_id_key: &PublicKey) -> bool {
-        for (ck, v) in &self.node_id_keypairs {
+        for (_ck, v) in &self.node_id_keypairs {
             if v.key == *node_id_key {
                 return true;
             }
@@ -154,7 +156,7 @@ impl RoutingTableUnlockedInner {
         false
     }
 
-    pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> (CryptoKind, usize) {
+    pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> BucketIndex {
         let crypto = self.crypto();
         let self_node_id = self.node_id_keypairs.get(&node_id.kind).unwrap().key;
         let vcrypto = crypto.get(node_id.kind).unwrap();
@@ -230,7 +232,7 @@ impl RoutingTable {
         // Set up routing buckets
         {
             let mut inner = self.inner.write();
-            inner.init_buckets(self.clone());
+            inner.init_buckets();
         }
 
         // Load bucket entries from table db if possible
@@ -238,7 +240,7 @@ impl RoutingTable {
         if let Err(e) = self.load_buckets().await {
             log_rtab!(debug "Error loading buckets from storage: {:#?}. Resetting.", e);
             let mut inner = self.inner.write();
-            inner.init_buckets(self.clone());
+            inner.init_buckets();
         }
 
         // Set up routespecstore
@@ -895,7 +897,7 @@ impl RoutingTable {
             let nrs =
                 self.find_bootstrap_nodes_filtered_per_crypto_kind(*crypto_kind, max_per_type);
             'nrloop: for nr in nrs {
-                for nro in out {
+                for nro in &out {
                     if nro.same_entry(&nr) {
                         continue 'nrloop;
                     }

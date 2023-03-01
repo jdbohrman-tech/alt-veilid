@@ -12,7 +12,7 @@ pub struct BootstrapRecord {
     dial_info_details: Vec<DialInfoDetail>,
 }
 impl BootstrapRecord {
-    pub fn merge(&mut self, other: &BootstrapRecord) {
+    pub fn merge(&mut self, other: BootstrapRecord) {
         self.node_ids.add_all(&other.node_ids);
         for x in other.envelope_support {
             if !self.envelope_support.contains(&x) {
@@ -20,9 +20,9 @@ impl BootstrapRecord {
                 self.envelope_support.sort();
             }
         }
-        for did in &other.dial_info_details {
-            if !self.dial_info_details.contains(did) {
-                self.dial_info_details.push(did.clone());
+        for did in other.dial_info_details {
+            if !self.dial_info_details.contains(&did) {
+                self.dial_info_details.push(did);
             }
         }
     }
@@ -48,7 +48,7 @@ impl RoutingTable {
         let mut envelope_support = Vec::new();
         for ess in records[1].split(",") {
             let ess = ess.trim();
-            let es = match records[1].parse::<u8>() {
+            let es = match ess.parse::<u8>() {
                 Ok(v) => v,
                 Err(e) => {
                     bail!(
@@ -63,7 +63,7 @@ impl RoutingTable {
         envelope_support.sort();
 
         // Node Id
-        let node_ids = TypedKeySet::new();
+        let mut node_ids = TypedKeySet::new();
         for node_id_str in records[2].split(",") {
             let node_id_str = node_id_str.trim();
             let node_id = match TypedKey::from_str(&node_id_str) {
@@ -76,6 +76,7 @@ impl RoutingTable {
                     );
                 }
             };
+            node_ids.add(node_id);
         }
 
         // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
@@ -220,7 +221,7 @@ impl RoutingTable {
                     if mbr.node_ids.contains_any(&bsrec.node_ids) {
                         // Merge record, pop this one out
                         let mbr = merged_bootstrap_records.remove(mbi);
-                        bsrec.merge(&mbr);
+                        bsrec.merge(mbr);
                     } else {
                         // No overlap, go to next record
                         mbi += 1;

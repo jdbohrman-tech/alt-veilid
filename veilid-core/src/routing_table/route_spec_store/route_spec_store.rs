@@ -46,10 +46,7 @@ impl RouteSpecStore {
                 routing_table,
             }),
             inner: Arc::new(Mutex::new(RouteSpecStoreInner {
-                content: RouteSpecStoreContent {
-                    id_by_key: HashMap::new(),
-                    details: HashMap::new(),
-                },
+                content: RouteSpecStoreContent::new(),
                 cache: Default::default(),
             })),
         }
@@ -199,7 +196,7 @@ impl RouteSpecStore {
         // Get list of all nodes, and sort them for selection
         let cur_ts = get_aligned_timestamp();
         let filter = Box::new(
-            |rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> bool {
+            |_rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> bool {
                 // Exclude our own node from routes
                 if entry.is_none() {
                     return false;
@@ -277,14 +274,14 @@ impl RouteSpecStore {
             },
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
-        let compare = |rti: &RoutingTableInner,
+        let compare = |_rti: &RoutingTableInner,
                        entry1: &Option<Arc<BucketEntry>>,
                        entry2: &Option<Arc<BucketEntry>>|
          -> Ordering {
             
             // Our own node is filtered out
-            let entry1 = entry1.unwrap();
-            let entry2 = entry2.unwrap();
+            let entry1 = entry1.as_ref().unwrap().clone();
+            let entry2 = entry2.as_ref().unwrap().clone();
             let entry1_node_ids = entry1.with_inner(|e| e.node_ids());
             let entry2_node_ids = entry2.with_inner(|e| e.node_ids());
 
@@ -336,7 +333,7 @@ impl RouteSpecStore {
         
         let routing_table = self.unlocked_inner.routing_table.clone();
         let transform =
-            |rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> NodeRef {
+            |_rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> NodeRef {
                 NodeRef::new(routing_table.clone(), entry.unwrap(), None)
             };
 
@@ -503,15 +500,14 @@ impl RouteSpecStore {
             });
         }
 
-        let rssd = RouteSetSpecDetail {
+        let rssd = RouteSetSpecDetail::new(
+            cur_ts,
             route_set,
             hop_node_refs,
-            published: false,
             directions,
             stability,
-            can_do_sequenced,
-            stats: RouteStats::new(cur_ts),
-        };
+            can_do_sequenced,   
+        );
 
         drop(perm_func);
 
@@ -1162,7 +1158,7 @@ impl RouteSpecStore {
         )?)
     }
 
-    fn assemble_private_route_inner(&self, inner: &RouteSpecStoreInner, key: &PublicKey, rsd: &RouteSpecDetail, optimized: bool) -> EyreResult<PrivateRoute> 
+    fn assemble_private_route_inner(&self, key: &PublicKey, rsd: &RouteSpecDetail, optimized: bool) -> EyreResult<PrivateRoute> 
     {
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &*routing_table.inner.read();
@@ -1271,7 +1267,7 @@ impl RouteSpecStore {
 
         let rsd = rssd.get_route_by_key(key).expect("route key index is broken");
         
-        self.assemble_private_route_inner(inner, key, rsd, optimized)
+        self.assemble_private_route_inner(key, rsd, optimized)
     }
 
 
@@ -1295,7 +1291,7 @@ impl RouteSpecStore {
 
         let mut out = Vec::new();
         for (key, rsd) in rssd.iter_route_set() {
-            out.push(self.assemble_private_route_inner(inner, key, rsd, optimized)?);
+            out.push(self.assemble_private_route_inner(key, rsd, optimized)?);
         }
         Ok(out)
     }
@@ -1315,7 +1311,7 @@ impl RouteSpecStore {
 
         // validate the private routes
         let inner = &mut *self.inner.lock();
-        for private_route in private_routes {
+        for private_route in &private_routes {
 
             // ensure private route has first hop
             if !matches!(private_route.hops, PrivateRouteHops::FirstHop(_)) {
@@ -1339,33 +1335,6 @@ impl RouteSpecStore {
         let inner = &mut *self.inner.lock();
         inner.cache.remove_remote_private_route(id)
     }
-
-    /// Check if a remote private route id is valid
-    // #[instrument(level = "trace", skip(self), ret)]
-    // pub fn is_valid_remote_private_route(&self, id: &RouteId) -> bool {
-    //     let inner = &mut *self.inner.lock();
-    //     let cur_ts = get_aligned_timestamp();
-    //     inner.cache.peek_remote_private_route_mut(cur_ts, id).is_some()
-    // }
-
-    // /// Retrieve an imported remote private route by its public key
-    // pub fn get_remote_private_route(&self, id: &String) -> Option<PrivateRoute> {
-    //     let inner = &mut *self.inner.lock();
-    //     let cur_ts = get_aligned_timestamp();
-    //     Self::with_get_remote_private_route(inner, cur_ts, key, |r| {
-    //         r.private_route.as_ref().unwrap().clone()
-    //     })
-    // }
-
-    // /// Retrieve an imported remote private route by its public key but don't 'touch' it
-    // fn peek_remote_private_route(&self, id: &String) -> Option<PrivateRoute> {
-    //     let inner = &mut *self.inner.lock();
-    //     let cur_ts = get_aligned_timestamp();
-    //     inner.cache.with_peek_remote_private_route(cur_ts, id, f)
-    //     Self::with_peek_remote_private_route(inner, cur_ts, key, |r| {
-    //         r.private_route.as_ref().unwrap().clone()
-    //     })
-    // }
 
     /// Get a route id for a route's public key 
     pub fn get_route_id_for_key(&self, key: &PublicKey) -> Option<RouteId> 
@@ -1524,8 +1493,6 @@ impl RouteSpecStore {
 
     /// Convert private route list to binary blob
     pub fn private_routes_to_blob(private_routes: &[PrivateRoute]) -> EyreResult<Vec<u8>> {
-        let mut pr_message = ::capnp::message::Builder::new_default();
-        let mut pr_builder = pr_message.init_root::<veilid_capnp::private_route::Builder>();
         
         let mut buffer = vec![];
 
@@ -1539,6 +1506,9 @@ impl RouteSpecStore {
         
         // Serialize stream of private routes
         for private_route in private_routes {
+            let mut pr_message = ::capnp::message::Builder::new_default();
+            let mut pr_builder = pr_message.init_root::<veilid_capnp::private_route::Builder>();
+    
             encode_private_route(private_route, &mut pr_builder)
                 .wrap_err("failed to encode private route")?;
 
@@ -1563,7 +1533,7 @@ impl RouteSpecStore {
         }
 
         // Deserialize stream of private routes
-        let pr_slice = &blob[1..];
+        let mut pr_slice = &blob[1..];
         let mut out = Vec::with_capacity(pr_count);
         for _ in 0..pr_count {
             let reader = capnp::serialize_packed::read_message(
@@ -1577,7 +1547,7 @@ impl RouteSpecStore {
                 .get_root::<veilid_capnp::private_route::Reader>()
                 .map_err(RPCError::internal)
                 .wrap_err("failed to make reader for private_route")?;
-            let private_route = decode_private_route(&pr_reader, crypto).wrap_err("failed to decode private route")?;
+            let private_route = decode_private_route(&pr_reader, crypto.clone()).wrap_err("failed to decode private route")?;
             out.push(private_route);
         }
         

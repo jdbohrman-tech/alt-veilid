@@ -64,10 +64,10 @@ core:
         client_whitelist_timeout_ms: 300000 
         reverse_connection_receipt_time_ms: 5000 
         hole_punch_receipt_time_ms: 5000 
-        node_id: null
-        node_id_secret: null
-        bootstrap: ['bootstrap.dev.veilid.net']
         routing_table:
+            node_id: null
+            node_id_secret: null
+            bootstrap: ['bootstrap.dev.veilid.net']
             limit_over_attached: 64
             limit_fully_attached: 32
             limit_attached_strong: 16
@@ -516,6 +516,9 @@ pub struct Dht {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RoutingTable {
+    pub node_id: Option<veilid_core::TypedKeySet>,
+    pub node_id_secret: Option<veilid_core::SecretKey>,
+    pub bootstrap: Vec<String>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
     pub limit_attached_strong: u32,
@@ -534,9 +537,6 @@ pub struct Network {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
-    pub node_id: Option<veilid_core::TypedKey>,
-    pub node_id_secret: Option<veilid_core::SecretKey>,
-    pub bootstrap: Vec<String>,
     pub routing_table: RoutingTable,
     pub rpc: Rpc,
     pub dht: Dht,
@@ -902,9 +902,9 @@ impl Settings {
         set_config_value!(inner.core.network.client_whitelist_timeout_ms, value);
         set_config_value!(inner.core.network.reverse_connection_receipt_time_ms, value);
         set_config_value!(inner.core.network.hole_punch_receipt_time_ms, value);
-        set_config_value!(inner.core.network.node_id, value);
-        set_config_value!(inner.core.network.node_id_secret, value);
-        set_config_value!(inner.core.network.bootstrap, value);
+        set_config_value!(inner.core.network.routing_table.node_id, value);
+        set_config_value!(inner.core.network.routing_table.node_id_secret, value);
+        set_config_value!(inner.core.network.routing_table.bootstrap, value);
         set_config_value!(inner.core.network.routing_table.limit_over_attached, value);
         set_config_value!(inner.core.network.routing_table.limit_fully_attached, value);
         set_config_value!(
@@ -1056,9 +1056,15 @@ impl Settings {
                 "network.hole_punch_receipt_time_ms" => {
                     Ok(Box::new(inner.core.network.hole_punch_receipt_time_ms))
                 }
-                "network.node_id" => Ok(Box::new(inner.core.network.node_id)),
-                "network.node_id_secret" => Ok(Box::new(inner.core.network.node_id_secret)),
-                "network.bootstrap" => Ok(Box::new(inner.core.network.bootstrap.clone())),
+                "network.routing_table.node_id" => {
+                    Ok(Box::new(inner.core.network.routing_table.node_id))
+                }
+                "network.routing_table.node_id_secret" => {
+                    Ok(Box::new(inner.core.network.routing_table.node_id_secret))
+                }
+                "network.routing_table.bootstrap" => {
+                    Ok(Box::new(inner.core.network.routing_table.bootstrap.clone()))
+                }
                 "network.routing_table.limit_over_attached" => Ok(Box::new(
                     inner.core.network.routing_table.limit_over_attached,
                 )),
@@ -1415,11 +1421,11 @@ mod tests {
         assert_eq!(s.core.network.client_whitelist_timeout_ms, 300_000u32);
         assert_eq!(s.core.network.reverse_connection_receipt_time_ms, 5_000u32);
         assert_eq!(s.core.network.hole_punch_receipt_time_ms, 5_000u32);
-        assert_eq!(s.core.network.node_id, None);
-        assert_eq!(s.core.network.node_id_secret, None);
+        assert_eq!(s.core.network.routing_table.node_id, None);
+        assert_eq!(s.core.network.routing_table.node_id_secret, None);
         //
         assert_eq!(
-            s.core.network.bootstrap,
+            s.core.network.routing_table.bootstrap,
             vec!["bootstrap.dev.veilid.net".to_owned()]
         );
         //

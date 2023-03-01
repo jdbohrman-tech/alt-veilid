@@ -36,6 +36,24 @@ pub struct RouteSetSpecDetail {
 }
 
 impl RouteSetSpecDetail {
+    pub fn new(
+        cur_ts: Timestamp,
+        route_set: BTreeMap<PublicKey, RouteSpecDetail>,
+        hop_node_refs: Vec<NodeRef>,
+        directions: DirectionSet,
+        stability: Stability,
+        can_do_sequenced: bool,
+    ) -> Self {
+        Self {
+            route_set,
+            hop_node_refs,
+            published: false,
+            directions,
+            stability,
+            can_do_sequenced,
+            stats: RouteStats::new(cur_ts),
+        }
+    }
     pub fn get_route_by_key(&self, key: &PublicKey) -> Option<&RouteSpecDetail> {
         self.route_set.get(key)
     }
@@ -61,7 +79,7 @@ impl RouteSetSpecDetail {
         self.route_set.iter()
     }
     pub fn iter_route_set_mut(
-        &self,
+        &mut self,
     ) -> alloc::collections::btree_map::IterMut<PublicKey, RouteSpecDetail> {
         self.route_set.iter_mut()
     }
@@ -75,7 +93,7 @@ impl RouteSetSpecDetail {
         self.published
     }
     pub fn set_published(&mut self, published: bool) {
-        self.published = self.published;
+        self.published = published;
     }
     pub fn hop_count(&self) -> usize {
         self.hop_node_refs.len()
@@ -97,7 +115,7 @@ impl RouteSetSpecDetail {
         }
     }
     pub fn contains_nodes(&self, nodes: &[TypedKey]) -> bool {
-        for h in self.hop_node_refs {
+        for h in &self.hop_node_refs {
             if h.node_ids().contains_any(nodes) {
                 return true;
             }
