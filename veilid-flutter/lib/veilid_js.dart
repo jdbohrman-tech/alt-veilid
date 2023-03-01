@@ -65,15 +65,15 @@ class VeilidRoutingContextJS implements VeilidRoutingContext {
     var encodedRequest = base64UrlNoPadEncode(request);
 
     return base64UrlNoPadDecode(await _wrapApiPromise(js_util.callMethod(
-        wasm, "routing_context_app_call", [_ctx.id, encodedRequest])));
+        wasm, "routing_context_app_call", [_ctx.id, target, encodedRequest])));
   }
 
   @override
   Future<void> appMessage(String target, Uint8List message) {
     var encodedMessage = base64UrlNoPadEncode(message);
 
-    return _wrapApiPromise(js_util.callMethod(
-        wasm, "routing_context_app_message", [_ctx.id, encodedMessage]));
+    return _wrapApiPromise(js_util.callMethod(wasm,
+        "routing_context_app_message", [_ctx.id, target, encodedMessage]));
   }
 }
 
@@ -267,14 +267,14 @@ class VeilidJS implements Veilid {
   }
 
   @override
-  Future<KeyBlob> newPrivateRoute() async {
+  Future<RouteBlob> newPrivateRoute() async {
     Map<String, dynamic> blobJson = jsonDecode(await _wrapApiPromise(
         js_util.callMethod(wasm, "new_private_route", [])));
-    return KeyBlob.fromJson(blobJson);
+    return RouteBlob.fromJson(blobJson);
   }
 
   @override
-  Future<KeyBlob> newCustomPrivateRoute(
+  Future<RouteBlob> newCustomPrivateRoute(
       Stability stability, Sequencing sequencing) async {
     var stabilityString =
         jsonEncode(stability, toEncodable: veilidApiToEncodable);
@@ -284,7 +284,7 @@ class VeilidJS implements Veilid {
     Map<String, dynamic> blobJson = jsonDecode(await _wrapApiPromise(js_util
         .callMethod(
             wasm, "new_private_route", [stabilityString, sequencingString])));
-    return KeyBlob.fromJson(blobJson);
+    return RouteBlob.fromJson(blobJson);
   }
 
   @override

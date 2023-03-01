@@ -229,7 +229,7 @@ impl Crypto {
             for nid in node_ids {
                 if nid.kind == sig.kind {
                     if let Some(vcrypto) = self.get(sig.kind) {
-                        vcrypto.verify(&nid.key, data, &sig.signature)?;
+                        vcrypto.verify(&nid.value, data, &sig.value)?;
                         out.push(nid.kind);
                     }
                 }
@@ -253,7 +253,7 @@ impl Crypto {
         let mut out = Vec::<R>::with_capacity(typed_key_pairs.len());
         for kp in typed_key_pairs {
             if let Some(vcrypto) = self.get(kp.kind) {
-                let sig = vcrypto.sign(&kp.key, &kp.secret, data)?;
+                let sig = vcrypto.sign(&kp.value.key, &kp.value.secret, data)?;
                 out.push(transform(kp, sig))
             }
         }

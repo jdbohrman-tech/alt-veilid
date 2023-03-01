@@ -358,7 +358,7 @@ impl RouteSpecStore {
             fn route_permutation_to_hop_cache(rti: &RoutingTableInner, nodes: &[NodeRef], perm: &[usize]) -> Vec<u8> {
                 let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * PUBLIC_KEY_LENGTH);
                 for n in perm {
-                    cache.extend_from_slice(&nodes[*n].locked(rti).best_node_id().key.bytes)
+                    cache.extend_from_slice(&nodes[*n].locked(rti).best_node_id().value.bytes)
                 }
                 cache
             }
@@ -491,7 +491,7 @@ impl RouteSpecStore {
         for crypto_kind in crypto_kinds.iter().copied() {
             let vcrypto = self.unlocked_inner.routing_table.crypto().get(crypto_kind).unwrap();
             let (public_key, secret_key) = vcrypto.generate_keypair();
-            let hops: Vec<PublicKey> = route_nodes.iter().map(|v| nodes[*v].node_ids().get(crypto_kind).unwrap().key).collect();
+            let hops: Vec<PublicKey> = route_nodes.iter().map(|v| nodes[*v].node_ids().get(crypto_kind).unwrap().value).collect();
 
             route_set.insert(public_key, RouteSpecDetail {
                 crypto_kind,
@@ -543,16 +543,16 @@ impl RouteSpecStore {
             return None;
         };
         
-        let Some(rsid) = inner.content.get_id_by_key(&public_key.key) else {
-            log_rpc!(debug "route id does not exist: {:?}", public_key.key);
+        let Some(rsid) = inner.content.get_id_by_key(&public_key.value) else {
+            log_rpc!(debug "route id does not exist: {:?}", public_key.value);
             return None;
         };
         let Some(rssd) = inner.content.get_detail(&rsid) else {
             log_rpc!(debug "route detail does not exist: {:?}", rsid);
             return None;
         };
-        let Some(rsd) = rssd.get_route_by_key(&public_key.key) else {
-            log_rpc!(debug "route set {:?} does not have key: {:?}", rsid, public_key.key);
+        let Some(rsd) = rssd.get_route_by_key(&public_key.value) else {
+            log_rpc!(debug "route set {:?} does not have key: {:?}", rsid, public_key.value);
             return None;
         };
 
@@ -694,7 +694,7 @@ impl RouteSpecStore {
     }
 
     /// Check if a route id is remote or not
-    fn is_route_id_remote(&self, id: &RouteId) -> bool {
+    pub fn is_route_id_remote(&self, id: &RouteId) -> bool {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
         inner.cache.peek_remote_private_route_mut(cur_ts, &id).is_some()
@@ -847,7 +847,7 @@ impl RouteSpecStore {
         let Some(vcrypto) = crypto.get(crypto_kind) else {
             bail!("crypto not supported for route");
         };
-        let pr_pubkey = private_route.public_key.key;
+        let pr_pubkey = private_route.public_key.value;
         let pr_hopcount = private_route.hop_count as usize;
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
         
@@ -1092,7 +1092,7 @@ impl RouteSpecStore {
                 if let Some(preferred_key) = preferred_rssd.get_route_set_keys().get(crypto_kind) {
                     // Only use the preferred route if it doesn't contain the avoid nodes
                     if !preferred_rssd.contains_nodes(avoid_nodes) {
-                        return Ok(Some(preferred_key.key));
+                        return Ok(Some(preferred_key.value));
                     }
                 }
             }
@@ -1131,7 +1131,7 @@ impl RouteSpecStore {
             sr_route_id
         };
 
-        let sr_pubkey = inner.content.get_detail(&sr_route_id).unwrap().get_route_set_keys().get(crypto_kind).unwrap().key;
+        let sr_pubkey = inner.content.get_detail(&sr_route_id).unwrap().get_route_set_keys().get(crypto_kind).unwrap().value;
 
         Ok(Some(sr_pubkey))
     }
@@ -1178,7 +1178,7 @@ impl RouteSpecStore {
                 let Some(node_id) = routing_table.node_ids().get(rsd.crypto_kind) else {
                     bail!("missing node id for crypto kind");
                 };
-                RouteNode::NodeId(node_id.key)
+                RouteNode::NodeId(node_id.value)
             } else {
                 let Some(pi) = rti.get_own_peer_info(RoutingDomain::PublicInternet) else {
                     bail!("can't make private routes until our node info is valid");
@@ -1319,7 +1319,7 @@ impl RouteSpecStore {
             }
 
             // ensure this isn't also an allocated route
-            if inner.content.get_id_by_key(&private_route.public_key.key).is_some() {
+            if inner.content.get_id_by_key(&private_route.public_key.value).is_some() {
                 bail!("should not import allocated route");
             }
         }
@@ -1570,7 +1570,7 @@ impl RouteSpecStore {
             if best_kind.is_none() || compare_crypto_kind(&tk.kind, best_kind.as_ref().unwrap()) == cmp::Ordering::Less {
                 best_kind = Some(tk.kind);
             } 
-            idbytes.extend_from_slice(&tk.key.bytes);
+            idbytes.extend_from_slice(&tk.value.bytes);
         }
         let Some(best_kind) = best_kind else {
             bail!("no compatible crypto kinds in route");
@@ -1591,7 +1591,7 @@ impl RouteSpecStore {
             if best_kind.is_none() || compare_crypto_kind(&private_route.public_key.kind, best_kind.as_ref().unwrap()) == cmp::Ordering::Less {
                 best_kind = Some(private_route.public_key.kind);
             } 
-            idbytes.extend_from_slice(&private_route.public_key.key.bytes);
+            idbytes.extend_from_slice(&private_route.public_key.value.bytes);
         }
         let Some(best_kind) = best_kind else {
             bail!("no compatible crypto kinds in route");

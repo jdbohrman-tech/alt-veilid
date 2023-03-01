@@ -50,7 +50,11 @@ fn format_bps(bps: ByteCount) -> String {
 impl TableViewItem<PeerTableColumn> for PeerTableData {
     fn to_column(&self, column: PeerTableColumn) -> String {
         match column {
-            PeerTableColumn::NodeId => self.node_id.encode(),
+            PeerTableColumn::NodeId => self
+                .node_ids
+                .best()
+                .map(|n| n.value.encode())
+                .unwrap_or_else(|| "???".to_owned()),
             PeerTableColumn::Address => format!(
                 "{:?}:{}",
                 self.peer_address.protocol_type(),
@@ -74,7 +78,21 @@ impl TableViewItem<PeerTableColumn> for PeerTableData {
         Self: Sized,
     {
         match column {
-            PeerTableColumn::NodeId => self.node_id.cmp(&other.node_id),
+            PeerTableColumn::NodeId => {
+                let n1 = self
+                    .node_ids
+                    .best()
+                    .map(|n| n.value.encode())
+                    .unwrap_or_else(|| "???".to_owned());
+
+                let n2 = other
+                    .node_ids
+                    .best()
+                    .map(|n| n.value.encode())
+                    .unwrap_or_else(|| "???".to_owned());
+
+                n1.cmp(&n2)
+            }
             PeerTableColumn::Address => self.to_column(column).cmp(&other.to_column(column)),
             PeerTableColumn::LatencyAvg => self
                 .peer_stats

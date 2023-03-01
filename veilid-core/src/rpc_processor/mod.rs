@@ -505,7 +505,7 @@ impl RPCProcessor {
         // Get useful private route properties
         let pr_is_stub = remote_private_route.is_stub();
         let pr_hop_count = remote_private_route.hop_count;
-        let pr_pubkey = remote_private_route.public_key.key;
+        let pr_pubkey = remote_private_route.public_key.value;
         let crypto_kind = remote_private_route.crypto_kind();
         let Some(vcrypto) = self.crypto.get(crypto_kind) else {
             return Err(RPCError::internal("crypto not available for selected private route"));
@@ -524,7 +524,7 @@ impl RPCProcessor {
             }
         };
         let sr_is_stub = compiled_route.safety_route.is_stub();
-        let sr_pubkey = compiled_route.safety_route.public_key.key;
+        let sr_pubkey = compiled_route.safety_route.public_key.value;
 
         // Encrypt routed operation
         // Xmsg + ENC(Xmsg, DH(PKapr, SKbsr))
@@ -599,7 +599,7 @@ impl RPCProcessor {
         let reply_private_route = match operation.kind() {
             RPCOperationKind::Question(q) => match q.respond_to() {
                 RespondTo::Sender => None,
-                RespondTo::PrivateRoute(pr) => Some(pr.public_key.key),
+                RespondTo::PrivateRoute(pr) => Some(pr.public_key.value),
             },
             RPCOperationKind::Statement(_) | RPCOperationKind::Answer(_) => None,
         };

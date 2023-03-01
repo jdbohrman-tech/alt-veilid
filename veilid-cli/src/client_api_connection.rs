@@ -96,6 +96,9 @@ impl veilid_client::Server for VeilidClientImpl {
                 self.comproc.update_route(route);
             }
             VeilidUpdate::Shutdown => self.comproc.update_shutdown(),
+            VeilidUpdate::ValueChange(value_change) => {
+                self.comproc.update_value_change(value_change);
+            }
         }
 
         Promise::ok(())

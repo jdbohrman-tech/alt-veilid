@@ -1902,11 +1902,10 @@ impl SignedDirectNodeInfo {
     ) -> Result<Self, VeilidAPIError> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
-        let typed_signatures = crypto.generate_signatures(
-            &node_info_bytes,
-            &typed_key_pairs,
-            TypedSignature::from_pair_sig,
-        )?;
+        let typed_signatures =
+            crypto.generate_signatures(&node_info_bytes, &typed_key_pairs, |kp, s| {
+                TypedSignature::new(kp.kind, s)
+            })?;
         Ok(Self {
             node_info,
             timestamp,
@@ -1997,11 +1996,10 @@ impl SignedRelayedNodeInfo {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
-        let typed_signatures = crypto.generate_signatures(
-            &node_info_bytes,
-            &typed_key_pairs,
-            TypedSignature::from_pair_sig,
-        )?;
+        let typed_signatures =
+            crypto.generate_signatures(&node_info_bytes, &typed_key_pairs, |kp, s| {
+                TypedSignature::new(kp.kind, s)
+            })?;
         Ok(Self {
             node_info,
             relay_ids,

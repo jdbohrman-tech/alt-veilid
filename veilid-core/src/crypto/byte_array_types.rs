@@ -44,17 +44,29 @@ pub const SHARED_SECRET_LENGTH_ENCODED: usize = 43;
 /// Length of a route id in bytes
 #[allow(dead_code)]
 pub const ROUTE_ID_LENGTH: usize = 32;
+/// Length of a route id in bytes afer encoding to base64url
+#[allow(dead_code)]
+pub const ROUTE_ID_LENGTH_ENCODED: usize = 43;
 
 //////////////////////////////////////////////////////////////////////
 
-pub trait Encodable {
+pub trait Encodable
+where
+    Self: Sized,
+{
     fn encode(&self) -> String;
+    fn encoded_len() -> usize;
+    fn try_decode<S: AsRef<str>>(input: S) -> Result<Self, VeilidAPIError> {
+        let b = input.as_ref().as_bytes();
+        Self::try_decode_bytes(b)
+    }
+    fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError>;
 }
 
 //////////////////////////////////////////////////////////////////////
 
 macro_rules! byte_array_type {
-    ($name:ident, $size:expr) => {
+    ($name:ident, $size:expr, $encoded_size:expr) => {
         #[derive(
             Clone,
             Copy,
@@ -161,12 +173,16 @@ macro_rules! byte_array_type {
                 }
                 None
             }
+        }
 
-            pub fn try_decode<S: AsRef<str>>(input: S) -> Result<Self, VeilidAPIError> {
-                let b = input.as_ref().as_bytes();
-                Self::try_decode_bytes(b)
+        impl Encodable for $name {
+            fn encode(&self) -> String {
+                BASE64URL_NOPAD.encode(&self.bytes)
             }
-            pub fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError> {
+            fn encoded_len() -> usize {
+                $encoded_size
+            }
+            fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError> {
                 let mut bytes = [0u8; $size];
                 let res = BASE64URL_NOPAD.decode_len(b.len());
                 match res {
@@ -187,15 +203,8 @@ macro_rules! byte_array_type {
                 }
             }
         }
-
-        impl Encodable for $name {
-            fn encode(&self) -> String {
-                BASE64URL_NOPAD.encode(&self.bytes)
-            }
-        }
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                //write!(f, "{}", String::from(self))
                 write!(f, "{}", self.encode())
             }
         }
@@ -210,12 +219,6 @@ macro_rules! byte_array_type {
 
         impl From<&$name> for String {
             fn from(value: &$name) -> Self {
-                // let mut s = String::new();
-                // for n in 0..($size / 8) {
-                //     let b: [u8; 8] = value.bytes[n * 8..(n + 1) * 8].try_into().unwrap();
-                //     s.push_str(hex::encode(b).as_str());
-                // }
-                // s
                 value.encode()
             }
         }
@@ -238,17 +241,6 @@ macro_rules! byte_array_type {
         impl TryFrom<&str> for $name {
             type Error = VeilidAPIError;
             fn try_from(value: &str) -> Result<Self, Self::Error> {
-                // let mut out = $name::default();
-                // if value == "" {
-                //     return Ok(out);
-                // }
-                // if value.len() != ($size * 2) {
-                //     apibail_generic!(concat!(stringify!($name), " is incorrect length"));
-                // }
-                // match hex::decode_to_slice(value, &mut out.bytes) {
-                //     Ok(_) => Ok(out),
-                //     Err(err) => Err(VeilidAPIError::generic(err)),
-                // }
                 Self::try_decode(value)
             }
         }
@@ -257,10 +249,18 @@ macro_rules! byte_array_type {
 
 /////////////////////////////////////////
 
-byte_array_type!(PublicKey, PUBLIC_KEY_LENGTH);
-byte_array_type!(SecretKey, SECRET_KEY_LENGTH);
-byte_array_type!(Signature, SIGNATURE_LENGTH);
-byte_array_type!(PublicKeyDistance, PUBLIC_KEY_LENGTH);
-byte_array_type!(Nonce, NONCE_LENGTH);
-byte_array_type!(SharedSecret, SHARED_SECRET_LENGTH);
-byte_array_type!(RouteId, ROUTE_ID_LENGTH);
+byte_array_type!(PublicKey, PUBLIC_KEY_LENGTH, PUBLIC_KEY_LENGTH_ENCODED);
+byte_array_type!(SecretKey, SECRET_KEY_LENGTH, SECRET_KEY_LENGTH_ENCODED);
+byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);
+byte_array_type!(
+    PublicKeyDistance,
+    PUBLIC_KEY_LENGTH,
+    PUBLIC_KEY_LENGTH_ENCODED
+);
+byte_array_type!(Nonce, NONCE_LENGTH, NONCE_LENGTH_ENCODED);
+byte_array_type!(
+    SharedSecret,
+    SHARED_SECRET_LENGTH,
+    SHARED_SECRET_LENGTH_ENCODED
+);
+byte_array_type!(RouteId, ROUTE_ID_LENGTH, ROUTE_ID_LENGTH_ENCODED);

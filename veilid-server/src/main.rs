@@ -20,6 +20,7 @@ use color_eyre::eyre::{bail, ensure, eyre, Result as EyreResult, WrapErr};
 use server::*;
 use tools::*;
 use tracing::*;
+use veilid_core::Encodable as _;
 use veilid_logs::*;
 
 #[allow(clippy::all)]
@@ -42,8 +43,8 @@ fn main() -> EyreResult<()> {
     }
 
     // --- Generate DHT Key ---
-    if matches.occurrences_of("generate-dht-key") != 0 {
-        let (key, secret) = veilid_core::generate_secret();
+    if matches.occurrences_of("generate-key-pair") != 0 {
+        let (key, secret) = veilid_core::vld0_generate_keypair();
         println!("Public: {}\nSecret: {}", key.encode(), secret.encode());
         return Ok(());
     }

@@ -71,7 +71,7 @@ pub async fn test_signed_node_info() {
 
         let sni = SignedDirectNodeInfo::make_signatures(
             crypto.clone(),
-            vec![TypedKeyPair::new(ck, pkey, skey)],
+            vec![TypedKeyPair::new(ck, KeyPair::new(pkey, skey))],
             node_info.clone(),
         )
         .unwrap();
@@ -107,7 +107,7 @@ pub async fn test_signed_node_info() {
 
         let sni2 = SignedRelayedNodeInfo::make_signatures(
             crypto.clone(),
-            vec![TypedKeyPair::new(ck, pkey2, skey2)],
+            vec![TypedKeyPair::new(ck, KeyPair::new(pkey2, skey2))],
             node_info2.clone(),
             tks.clone(),
             sni.clone(),

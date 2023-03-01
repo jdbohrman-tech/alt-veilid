@@ -223,12 +223,12 @@ impl RPCProcessor {
 
                         // Determine if we can use optimized nodeinfo
                         let route_node = if rss
-                            .has_remote_private_route_seen_our_node_info(&private_route.public_key.key)
+                            .has_remote_private_route_seen_our_node_info(&private_route.public_key.value)
                         {
                                 if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
                                     return Ok(NetworkResult::no_connection_other("Own node info must be valid to use private route"));
                                 }
-                                RouteNode::NodeId(routing_table.node_id(crypto_kind).key)
+                                RouteNode::NodeId(routing_table.node_id(crypto_kind).value)
                             } else {
                                 let Some(own_peer_info) = 
                                     routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
@@ -245,11 +245,11 @@ impl RPCProcessor {
                         // Sent to a private route via a safety route, respond to private route
                         
                         // Check for loopback test
-                        let opt_private_route_id = rss.get_route_id_for_key(&private_route.public_key.key);
+                        let opt_private_route_id = rss.get_route_id_for_key(&private_route.public_key.value);
                         let pr_key = if opt_private_route_id.is_some() && safety_spec.preferred_route == opt_private_route_id
                         {
                             // Private route is also safety route during loopback test
-                            private_route.public_key.key
+                            private_route.public_key.value
                         } else {
                             // Get the private route to respond to that matches the safety route spec we sent the request with
                             let Some(pr_key) = rss

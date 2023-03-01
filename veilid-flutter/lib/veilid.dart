@@ -1818,19 +1818,19 @@ Sequencing sequencingFromJson(String j) {
 }
 
 //////////////////////////////////////
-/// KeyBlob
-class KeyBlob {
-  final String key;
+/// RouteBlob
+class RouteBlob {
+  final String routeId;
   final Uint8List blob;
 
-  KeyBlob(this.key, this.blob);
+  RouteBlob(this.routeId, this.blob);
 
-  KeyBlob.fromJson(dynamic json)
-      : key = json['key'],
+  RouteBlob.fromJson(dynamic json)
+      : routeId = json['route_id'],
         blob = base64UrlNoPadDecode(json['blob']);
 
   Map<String, dynamic> get json {
-    return {'key': key, 'blob': base64UrlNoPadEncode(blob)};
+    return {'route_id': routeId, 'blob': base64UrlNoPadEncode(blob)};
   }
 }
 
@@ -1918,8 +1918,8 @@ abstract class Veilid {
   Future<VeilidRoutingContext> routingContext();
 
   // Private route allocation
-  Future<KeyBlob> newPrivateRoute();
-  Future<KeyBlob> newCustomPrivateRoute(
+  Future<RouteBlob> newPrivateRoute();
+  Future<RouteBlob> newCustomPrivateRoute(
       Stability stability, Sequencing sequencing);
   Future<String> importRemotePrivateRoute(Uint8List blob);
   Future<void> releasePrivateRoute(String key);

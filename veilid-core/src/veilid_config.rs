@@ -613,38 +613,70 @@ impl VeilidConfig {
         cb: ConfigCallback,
         update_cb: UpdateCallback,
     ) -> Result<(), VeilidAPIError> {
-        macro_rules! get_config {
-            ($key:expr) => {
-                let keyname = &stringify!($key)[6..];
-                let v = cb(keyname.to_owned())?;
-                $key = match v.downcast() {
-                    Ok(v) => *v,
-                    Err(_) => {
-                        apibail_generic!(format!("incorrect type for key {}", keyname))
-                    }
-                };
-            };
-        }
-        macro_rules! get_config_indexed {
-            ($key:expr, $index:expr, $subkey:tt) => {
-                let keyname = format!(
-                    "{}[{}].{}",
-                    &stringify!($key)[6..],
-                    $index,
-                    &stringify!($subkey)
-                );
-                let v = cb(keyname.to_owned())?;
-                $key.entry($index).or_default().$subkey = match v.downcast() {
-                    Ok(v) => *v,
-                    Err(_) => {
-                        apibail_generic!(format!("incorrect type for key {}", keyname))
-                    }
-                };
-            };
-        }
-
         self.update_cb = Some(update_cb);
         self.with_mut(|inner| {
+            // Simple config transformation
+            macro_rules! get_config {
+                ($key:expr) => {
+                    let keyname = &stringify!($key)[6..];
+                    let v = cb(keyname.to_owned())?;
+                    $key = match v.downcast() {
+                        Ok(v) => *v,
+                        Err(_) => {
+                            apibail_generic!(format!("incorrect type for key {}", keyname))
+                        }
+                    };
+                };
+            }
+            // More complicated optional fields for node ids
+            macro_rules! get_config_node_ids {
+                () => {
+                    let keys = cb("network.routing_table.node_id".to_owned())?;
+                    let keys: Option<TypedKeySet> = match keys.downcast() {
+                        Ok(v) => *v,
+                        Err(_) => {
+                            apibail_generic!(
+                                "incorrect type for key 'network.routing_table.node_id'".to_owned()
+                            )
+                        }
+                    };
+                    let keys = keys.unwrap_or_default();
+
+                    let secrets = cb("network.routing_table.node_id_secret".to_owned())?;
+                    let secrets: Option<TypedSecretSet> = match secrets.downcast() {
+                        Ok(v) => *v,
+                        Err(_) => {
+                            apibail_generic!(
+                                "incorrect type for key 'network.routing_table.node_id_secret'"
+                                    .to_owned()
+                            )
+                        }
+                    };
+                    let secrets = secrets.unwrap_or_default();
+
+                    for ck in VALID_CRYPTO_KINDS {
+                        if let Some(key) = keys.get(ck) {
+                            inner
+                                .network
+                                .routing_table
+                                .node_ids
+                                .entry(ck)
+                                .or_default()
+                                .node_id = Some(key.value);
+                        }
+                        if let Some(secret) = secrets.get(ck) {
+                            inner
+                                .network
+                                .routing_table
+                                .node_ids
+                                .entry(ck)
+                                .or_default()
+                                .node_id_secret = Some(secret.value);
+                        }
+                    }
+                };
+            }
+
             get_config!(inner.program_name);
             get_config!(inner.namespace);
             get_config!(inner.capabilities.protocol_udp);
@@ -670,11 +702,7 @@ impl VeilidConfig {
             get_config!(inner.network.max_connection_frequency_per_min);
             get_config!(inner.network.client_whitelist_timeout_ms);
             get_config!(inner.network.reverse_connection_receipt_time_ms);
-            get_config!(inner.network.hole_punch_receipt_time_ms);
-            for ck in VALID_CRYPTO_KINDS {
-                get_config_indexed!(inner.network.routing_table.node_ids, ck, node_id);
-                get_config_indexed!(inner.network.routing_table.node_ids, ck, node_id_secret);
-            }
+            get_config_node_ids!();
             get_config!(inner.network.routing_table.bootstrap);
             get_config!(inner.network.routing_table.limit_over_attached);
             get_config!(inner.network.routing_table.limit_fully_attached);

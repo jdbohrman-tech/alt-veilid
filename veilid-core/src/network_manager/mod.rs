@@ -529,7 +529,7 @@ impl NetworkManager {
         let node_id = routing_table.node_id(vcrypto.kind());
         let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
         
-        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.key, extra_data)?;
+        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
         let out = receipt
             .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
@@ -558,7 +558,7 @@ impl NetworkManager {
         let node_id = routing_table.node_id(vcrypto.kind());
         let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
         
-        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.key, extra_data)?;
+        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
         let out = receipt
             .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
@@ -761,7 +761,7 @@ impl NetworkManager {
         let nonce = vcrypto.random_nonce();
 
         // Encode envelope
-        let envelope = Envelope::new(version, node_id.kind, ts, nonce, node_id.key, dest_node_id.key);
+        let envelope = Envelope::new(version, node_id.kind, ts, nonce, node_id.value, dest_node_id.value);
         envelope
             .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret)
             .wrap_err("envelope failed to encode")
@@ -1389,7 +1389,7 @@ impl NetworkManager {
 
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
-                match rpc.resolve_node(recipient_id.key).await {
+                match rpc.resolve_node(recipient_id.value).await {
                     Ok(v) => v,
                     Err(e) => {
                         log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);

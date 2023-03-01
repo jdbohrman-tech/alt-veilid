@@ -68,7 +68,7 @@ impl RouteSetSpecDetail {
         tks
     }
     pub fn get_best_route_set_key(&self) -> Option<PublicKey> {
-        self.get_route_set_keys().best().map(|k| k.key)
+        self.get_route_set_keys().best().map(|k| k.value)
     }
     pub fn set_hop_node_refs(&mut self, node_refs: Vec<NodeRef>) {
         self.hop_node_refs = node_refs;
@@ -128,7 +128,7 @@ impl RouteSetSpecDetail {
         let hops = &self.hop_node_refs;
         let mut cache: Vec<u8> = Vec::with_capacity(hops.len() * PUBLIC_KEY_LENGTH);
         for hop in hops {
-            cache.extend_from_slice(&hop.best_node_id().key.bytes);
+            cache.extend_from_slice(&hop.best_node_id().value.bytes);
         }
         cache
     }

@@ -605,14 +605,14 @@ impl RoutingTableInner {
                         // Remove any old node id for this crypto kind
                         let bucket_index = self.unlocked_inner.calculate_bucket_index(&old_node_id);
                         let bucket = self.get_bucket_mut(bucket_index);
-                        bucket.remove_entry(&old_node_id.key);
+                        bucket.remove_entry(&old_node_id.value);
                         self.unlocked_inner.kick_queue.lock().insert(bucket_index);
                     }
 
                     // Bucket the entry appropriately
                     let bucket_index = self.unlocked_inner.calculate_bucket_index(node_id);
                     let bucket = self.get_bucket_mut(bucket_index);
-                    bucket.add_existing_entry(node_id.key, entry.clone());
+                    bucket.add_existing_entry(node_id.value, entry.clone());
 
                     // Kick bucket
                     self.unlocked_inner.kick_queue.lock().insert(bucket_index);
@@ -649,7 +649,7 @@ impl RoutingTableInner {
             }
             let bucket_index = self.unlocked_inner.calculate_bucket_index(node_id);
             let bucket = self.get_bucket(bucket_index);
-            if let Some(entry) = bucket.entry(&node_id.key) {
+            if let Some(entry) = bucket.entry(&node_id.value) {
                 // Best entry is the first one in sorted order that exists from the node id list
                 // Everything else that matches will be overwritten in the bucket and the
                 // existing noderefs will eventually unref and drop the old unindexed bucketentry
@@ -680,7 +680,7 @@ impl RoutingTableInner {
         let first_node_id = node_ids[0];
         let bucket_entry = self.unlocked_inner.calculate_bucket_index(&first_node_id);
         let bucket = self.get_bucket_mut(bucket_entry);
-        let new_entry = bucket.add_new_entry(first_node_id.key);
+        let new_entry = bucket.add_new_entry(first_node_id.value);
         self.unlocked_inner.kick_queue.lock().insert(bucket_entry);
 
         // Update the other bucket entries with the remaining node ids
@@ -723,7 +723,7 @@ impl RoutingTableInner {
         let bucket_index = self.unlocked_inner.calculate_bucket_index(&node_id);
         let bucket = self.get_bucket(bucket_index);
         bucket
-            .entry(&node_id.key)
+            .entry(&node_id.value)
             .map(|e| NodeRef::new(outer_self, e, None))
     }
 
@@ -760,7 +760,7 @@ impl RoutingTableInner {
         }
         let bucket_entry = self.unlocked_inner.calculate_bucket_index(&node_id);
         let bucket = self.get_bucket(bucket_entry);
-        bucket.entry(&node_id.key).map(f)
+        bucket.entry(&node_id.value).map(f)
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
@@ -1174,8 +1174,8 @@ impl RoutingTableInner {
             // since multiple cryptosystems are in use, the distance for a key is the shortest
             // distance to that key over all supported cryptosystems
 
-            let da = vcrypto.distance(&a_key.key, &node_id.key);
-            let db = vcrypto.distance(&b_key.key, &node_id.key);
+            let da = vcrypto.distance(&a_key.value, &node_id.value);
+            let db = vcrypto.distance(&b_key.value, &node_id.value);
             da.cmp(&db)
         };
 

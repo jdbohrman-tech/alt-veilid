@@ -127,7 +127,7 @@ impl RoutingTableUnlockedInner {
     pub fn node_id_typed_key_pairs(&self) -> Vec<TypedKeyPair> {
         let mut tkps = Vec::new();
         for (ck, v) in &self.node_id_keypairs {
-            tkps.push(TypedKeyPair::new(*ck, v.key, v.secret));
+            tkps.push(TypedKeyPair::new(*ck, *v));
         }
         tkps
     }
@@ -139,7 +139,7 @@ impl RoutingTableUnlockedInner {
     pub fn matches_own_node_id(&self, node_ids: &[TypedKey]) -> bool {
         for ni in node_ids {
             if let Some(v) = self.node_id_keypairs.get(&ni.kind) {
-                if v.key == ni.key {
+                if v.key == ni.value {
                     return true;
                 }
             }
@@ -163,7 +163,7 @@ impl RoutingTableUnlockedInner {
         (
             node_id.kind,
             vcrypto
-                .distance(&node_id.key, &self_node_id)
+                .distance(&node_id.value, &self_node_id)
                 .first_nonzero_bit()
                 .unwrap(),
         )

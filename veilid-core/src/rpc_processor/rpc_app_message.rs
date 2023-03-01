@@ -37,7 +37,7 @@ impl RPCProcessor {
         let sender = msg
             .opt_sender_nr
             .as_ref()
-            .map(|nr| nr.node_ids().get(crypto_kind).unwrap().key);
+            .map(|nr| nr.node_ids().get(crypto_kind).unwrap().value);
 
         // Pass the message up through the update callback
         let message = app_message.message;

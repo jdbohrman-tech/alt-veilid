@@ -111,7 +111,7 @@ impl RPCProcessor {
         // xxx: punish nodes that send messages that fail to decrypt eventually? How to do this for safety routes?
         let node_id_secret = self.routing_table.node_id_secret(remote_sr_pubkey.kind);
         let dh_secret = vcrypto
-            .cached_dh(&remote_sr_pubkey.key, &node_id_secret)
+            .cached_dh(&remote_sr_pubkey.value, &node_id_secret)
             .map_err(RPCError::protocol)?;
         let body = match vcrypto.decrypt_aead(
             &routed_operation.data,
@@ -131,7 +131,7 @@ impl RPCProcessor {
         // Pass message to RPC system
         self.enqueue_safety_routed_message(
             detail,
-            remote_sr_pubkey.key,
+            remote_sr_pubkey.value,
             routed_operation.sequencing,
             body,
         )
@@ -166,7 +166,7 @@ impl RPCProcessor {
                     (
                         rsd.secret_key,
                         SafetySpec {
-                            preferred_route: rss.get_route_id_for_key(&pr_pubkey.key),
+                            preferred_route: rss.get_route_id_for_key(&pr_pubkey.value),
                             hop_count: rssd.hop_count(),
                             stability: rssd.get_stability(),
                             sequencing: routed_operation.sequencing,
@@ -181,7 +181,7 @@ impl RPCProcessor {
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually. How to do this for private routes?
         let dh_secret = vcrypto
-            .cached_dh(&remote_sr_pubkey.key, &secret_key)
+            .cached_dh(&remote_sr_pubkey.value, &secret_key)
             .map_err(RPCError::protocol)?;
         let body = vcrypto
             .decrypt_aead(
@@ -197,8 +197,8 @@ impl RPCProcessor {
         // Pass message to RPC system
         self.enqueue_private_routed_message(
             detail,
-            remote_sr_pubkey.key,
-            pr_pubkey.key,
+            remote_sr_pubkey.value,
+            pr_pubkey.value,
             safety_spec,
             body,
         )
@@ -315,7 +315,7 @@ impl RPCProcessor {
         // Decrypt the blob with DEC(nonce, DH(the PR's public key, this hop's secret)
         let node_id_secret = self.routing_table.node_id_secret(crypto_kind);
         let dh_secret = vcrypto
-            .cached_dh(&pr_pubkey.key, &node_id_secret)
+            .cached_dh(&pr_pubkey.value, &node_id_secret)
             .map_err(RPCError::protocol)?;
         let dec_blob_data = match vcrypto.decrypt_aead(
             &route_hop_data.blob,
@@ -347,7 +347,7 @@ impl RPCProcessor {
             let node_id = self.routing_table.node_id(crypto_kind);
             let node_id_secret = self.routing_table.node_id_secret(crypto_kind);
             let sig = vcrypto
-                .sign(&node_id.key, &node_id_secret, &route_operation.data)
+                .sign(&node_id.value, &node_id_secret, &route_operation.data)
                 .map_err(RPCError::internal)?;
             route_operation.signatures.push(sig);
         }
@@ -394,7 +394,7 @@ impl RPCProcessor {
                 // Decrypt the blob with DEC(nonce, DH(the SR's public key, this hop's secret)
                 let node_id_secret = self.routing_table.node_id_secret(crypto_kind);
                 let dh_secret = vcrypto
-                    .cached_dh(&route.safety_route.public_key.key, &node_id_secret)
+                    .cached_dh(&route.safety_route.public_key.value, &node_id_secret)
                     .map_err(RPCError::protocol)?;
                 let mut dec_blob_data = vcrypto
                     .decrypt_aead(

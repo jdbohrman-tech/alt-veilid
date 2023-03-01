@@ -424,6 +424,10 @@ reply               - reply to an AppCall not handled directly by the server
             self.inner().ui.add_node_event(out);
         }
     }
+    pub fn update_value_change(&mut self, value_change: veilid_core::VeilidValueChange) {
+        let out = format!("Value change: {:?}", value_change);
+        self.inner().ui.add_node_event(out);
+    }
 
     pub fn update_log(&mut self, log: veilid_core::VeilidLog) {
         self.inner().ui.add_node_event(format!(

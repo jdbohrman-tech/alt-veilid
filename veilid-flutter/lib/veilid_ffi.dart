@@ -847,21 +847,21 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<KeyBlob> newPrivateRoute() {
+  Future<RouteBlob> newPrivateRoute() {
     final recvPort = ReceivePort("new_private_route");
     final sendPort = recvPort.sendPort;
     _newPrivateRoute(sendPort.nativePort);
-    return processFutureJson(KeyBlob.fromJson, recvPort.first);
+    return processFutureJson(RouteBlob.fromJson, recvPort.first);
   }
 
   @override
-  Future<KeyBlob> newCustomPrivateRoute(
+  Future<RouteBlob> newCustomPrivateRoute(
       Stability stability, Sequencing sequencing) async {
     final recvPort = ReceivePort("new_custom_private_route");
     final sendPort = recvPort.sendPort;
     _newCustomPrivateRoute(sendPort.nativePort, stability.json.toNativeUtf8(),
         sequencing.json.toNativeUtf8());
-    final keyblob = await processFutureJson(KeyBlob.fromJson, recvPort.first);
+    final keyblob = await processFutureJson(RouteBlob.fromJson, recvPort.first);
     return keyblob;
   }
 

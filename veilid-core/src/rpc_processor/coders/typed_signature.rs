@@ -20,5 +20,5 @@ pub fn encode_typed_signature(
 ) {
     builder.set_kind(u32::from_be_bytes(typed_signature.kind.0));
     let mut sig_builder = builder.reborrow().init_signature();
-    encode_signature512(&typed_signature.signature, &mut sig_builder);
+    encode_signature512(&typed_signature.value, &mut sig_builder);
 }

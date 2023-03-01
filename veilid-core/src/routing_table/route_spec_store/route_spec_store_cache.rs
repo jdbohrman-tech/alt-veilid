@@ -114,14 +114,18 @@ impl RouteSpecStoreCache {
     /// calculate how many times a node with a particular node id set has been used anywhere in the path of our allocated routes
     pub fn get_used_node_count(&self, node_ids: &TypedKeySet) -> usize {
         node_ids.iter().fold(0usize, |acc, k| {
-            acc + self.used_nodes.get(&k.key).cloned().unwrap_or_default()
+            acc + self.used_nodes.get(&k.value).cloned().unwrap_or_default()
         })
     }
 
     /// calculate how many times a node with a particular node id set has been used at the end of the path of our allocated routes
     pub fn get_used_end_node_count(&self, node_ids: &TypedKeySet) -> usize {
         node_ids.iter().fold(0usize, |acc, k| {
-            acc + self.used_end_nodes.get(&k.key).cloned().unwrap_or_default()
+            acc + self
+                .used_end_nodes
+                .get(&k.value)
+                .cloned()
+                .unwrap_or_default()
         })
     }
 
@@ -135,7 +139,7 @@ impl RouteSpecStoreCache {
         // also store in id by key table
         for private_route in rprinfo.get_private_routes() {
             self.remote_private_routes_by_key
-                .insert(private_route.public_key.key, id.clone());
+                .insert(private_route.public_key.value, id.clone());
         }
 
         let mut dead = None;
@@ -149,9 +153,9 @@ impl RouteSpecStoreCache {
             // Follow the same logic as 'remove_remote_private_route' here
             for dead_private_route in dead_rpri.get_private_routes() {
                 self.remote_private_routes_by_key
-                    .remove(&dead_private_route.public_key.key)
+                    .remove(&dead_private_route.public_key.value)
                     .unwrap();
-                self.invalidate_compiled_route_cache(&dead_private_route.public_key.key);
+                self.invalidate_compiled_route_cache(&dead_private_route.public_key.value);
             }
             self.dead_remote_routes.push(dead_id);
         }
@@ -261,9 +265,9 @@ impl RouteSpecStoreCache {
         };
         for private_route in rprinfo.get_private_routes() {
             self.remote_private_routes_by_key
-                .remove(&private_route.public_key.key)
+                .remove(&private_route.public_key.value)
                 .unwrap();
-            self.invalidate_compiled_route_cache(&private_route.public_key.key);
+            self.invalidate_compiled_route_cache(&private_route.public_key.value);
         }
         self.dead_remote_routes.push(id);
         true
@@ -272,7 +276,7 @@ impl RouteSpecStoreCache {
     /// Stores a compiled 'safety + private' route so we don't have to compile it again later
     pub fn add_to_compiled_route_cache(&mut self, pr_pubkey: PublicKey, safety_route: SafetyRoute) {
         let key = CompiledRouteCacheKey {
-            sr_pubkey: safety_route.public_key.key,
+            sr_pubkey: safety_route.public_key.value,
             pr_pubkey,
         };
 

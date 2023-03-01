@@ -517,7 +517,7 @@ pub struct Dht {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RoutingTable {
     pub node_id: Option<veilid_core::TypedKeySet>,
-    pub node_id_secret: Option<veilid_core::SecretKey>,
+    pub node_id_secret: Option<veilid_core::TypedSecretSet>,
     pub bootstrap: Vec<String>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
@@ -857,6 +857,7 @@ impl Settings {
                 }
             }};
         }
+
         set_config_value!(inner.daemon.enabled, value);
         set_config_value!(inner.client_api.enabled, value);
         set_config_value!(inner.client_api.listen_address, value);
@@ -1057,11 +1058,11 @@ impl Settings {
                     Ok(Box::new(inner.core.network.hole_punch_receipt_time_ms))
                 }
                 "network.routing_table.node_id" => {
-                    Ok(Box::new(inner.core.network.routing_table.node_id))
+                    Ok(Box::new(inner.core.network.routing_table.node_id.clone()))
                 }
-                "network.routing_table.node_id_secret" => {
-                    Ok(Box::new(inner.core.network.routing_table.node_id_secret))
-                }
+                "network.routing_table.node_id_secret" => Ok(Box::new(
+                    inner.core.network.routing_table.node_id_secret.clone(),
+                )),
                 "network.routing_table.bootstrap" => {
                     Ok(Box::new(inner.core.network.routing_table.bootstrap.clone()))
                 }

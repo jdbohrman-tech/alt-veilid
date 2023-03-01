@@ -10,12 +10,14 @@ use opentelemetry::*;
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use serde::*;
+use std::str::FromStr;
 use std::collections::BTreeMap;
 use std::os::raw::c_char;
 use std::sync::Arc;
 use tracing::*;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
+use veilid_core::Encodable as _;
 
 // Globals
 lazy_static! {
@@ -56,6 +58,29 @@ define_string_destructor!(free_string);
 type APIResult<T> = Result<T, veilid_core::VeilidAPIError>;
 const APIRESULT_VOID: APIResult<()> = APIResult::Ok(());
 
+// Parse target
+async fn parse_target(s: String) -> APIResult<veilid_core::Target> {
+
+    // Is this a route id?
+    if let Ok(rrid) = veilid_core::RouteId::from_str(&s) {
+        let veilid_api = get_veilid_api().await?;
+        let routing_table = veilid_api.routing_table()?;
+        let rss = routing_table.route_spec_store();
+    
+        // Is this a valid remote route id? (can't target allocated routes)
+        if rss.is_route_id_remote(&rrid) {
+            return Ok(veilid_core::Target::PrivateRoute(rrid));
+        }
+    }
+
+    // Is this a node id?
+    if let Ok(nid) = veilid_core::PublicKey::from_str(&s) {
+        return Ok(veilid_core::Target::NodeId(nid));
+    }
+
+    Err(veilid_core::VeilidAPIError::invalid_target())
+}
+
 /////////////////////////////////////////
 // FFI-specific
 
@@ -92,8 +117,8 @@ pub struct VeilidFFIConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct VeilidFFIKeyBlob {
-    pub key: veilid_core::TypedKey,
+pub struct VeilidFFIRouteBlob {
+    pub route_id: veilid_core::RouteId,
     #[serde(with = "veilid_core::json_as_base64")]
     pub blob: Vec<u8>,
 }
@@ -415,10 +440,10 @@ pub extern "C" fn routing_context_with_sequencing(id: u32, sequencing: FfiStr) -
     new_id
 }
 
+
 #[no_mangle]
 pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, request: FfiStr) {
-    let target: veilid_core::TypedKey =
-        veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
+    let target_string: String = target.into_opt_string().unwrap();
     let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
             request.into_opt_string()
@@ -427,10 +452,6 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
         )
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let veilid_api = get_veilid_api().await?;
-        let routing_table = veilid_api.routing_table()?;
-        let rss = routing_table.route_spec_store();
-        
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
@@ -439,12 +460,7 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
             routing_context.clone()
         };
         
-        let target = if rss.get_remote_private_route(&target).is_some() {
-            veilid_core::Target::PrivateRoute(target)
-        } else {
-            veilid_core::Target::NodeId(veilid_core::NodeId::new(target))
-        };
-
+        let target = parse_target(target_string).await?;
         let answer = routing_context.app_call(target, request).await?;
         let answer = data_encoding::BASE64URL_NOPAD.encode(&answer);
         APIResult::Ok(answer)
@@ -453,8 +469,7 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
 
 #[no_mangle]
 pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr, message: FfiStr) {
-    let target: veilid_core::TypedKey =
-        veilid_core::deserialize_opt_json(target.into_opt_string()).unwrap();
+    let target_string: String = target.into_opt_string().unwrap();
     let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(
             message.into_opt_string()
@@ -462,11 +477,7 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
                 .as_bytes(),
         )
         .unwrap();
-    DartIsolateWrapper::new(port).spawn_result(async move {
-        let veilid_api = get_veilid_api().await?;
-        let routing_table = veilid_api.routing_table()?;
-        let rss = routing_table.route_spec_store();
-        
+    DartIsolateWrapper::new(port).spawn_result(async move {        
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
@@ -475,12 +486,7 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
             routing_context.clone()
         };
         
-        let target = if rss.get_remote_private_route(&target).is_some() {
-            veilid_core::Target::PrivateRoute(target)
-        } else {
-            veilid_core::Target::NodeId(veilid_core::NodeId::new(target))
-        };
-
+        let target = parse_target(target_string).await?;
         routing_context.app_message(target, message).await?;
         APIRESULT_VOID
     });
@@ -491,9 +497,9 @@ pub extern "C" fn new_private_route(port: i64) {
     DartIsolateWrapper::new(port).spawn_result_json(async move {
         let veilid_api = get_veilid_api().await?;
 
-        let (key, blob) = veilid_api.new_private_route().await?;
+        let (route_id, blob) = veilid_api.new_private_route().await?;
 
-        let keyblob = VeilidFFIKeyBlob { key, blob };
+        let keyblob = VeilidFFIRouteBlob { route_id, blob };
 
         APIResult::Ok(keyblob)
     });
@@ -509,11 +515,11 @@ pub extern "C" fn new_custom_private_route(port: i64, stability: FfiStr, sequenc
     DartIsolateWrapper::new(port).spawn_result_json(async move {
         let veilid_api = get_veilid_api().await?;
 
-        let (key, blob) = veilid_api
-            .new_custom_private_route(stability, sequencing)
+        let (route_id, blob) = veilid_api
+            .new_custom_private_route(&veilid_core::VALID_CRYPTO_KINDS, stability, sequencing)
             .await?;
 
-        let keyblob = VeilidFFIKeyBlob { key, blob };
+        let keyblob = VeilidFFIRouteBlob { route_id, blob };
 
         APIResult::Ok(keyblob)
     });
@@ -531,19 +537,19 @@ pub extern "C" fn import_remote_private_route(port: i64, blob: FfiStr) {
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
 
-        let key = veilid_api.import_remote_private_route(blob)?;
+        let route_id = veilid_api.import_remote_private_route(blob)?;
 
-        APIResult::Ok(key.encode())
+        APIResult::Ok(route_id.encode())
     });
 }
 
 #[no_mangle]
 pub extern "C" fn release_private_route(port: i64, key: FfiStr) {
-    let key: veilid_core::TypedKey =
+    let route_id: veilid_core::RouteId =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
-        veilid_api.release_private_route(&key)?;
+        veilid_api.release_private_route(route_id)?;
         APIRESULT_VOID
     });
 }
