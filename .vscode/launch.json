@@ -75,6 +75,7 @@
         "args": [
           "test",
           "--no-run",
+          "--features=rt-tokio",
           "--manifest-path",
           "veilid-core/Cargo.toml"
         ],

@@ -336,3 +336,7 @@ pub fn is_debug_backtrace_enabled() -> bool {
         }
     }
 }
+
+pub fn type_name_of_val<T: ?Sized>(_val: &T) -> &'static str {
+    std::any::type_name::<T>()
+}

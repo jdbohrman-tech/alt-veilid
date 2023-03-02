@@ -1883,7 +1883,7 @@ impl SignedDirectNodeInfo {
         // Verify the signatures that we can
         let valid_crypto_kinds =
             crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
-        node_ids.remove_all(&valid_crypto_kinds);
+        xx wrong! should remove only the kinds that are not valid! also fix relayed node_ids.remove_all(&valid_crypto_kinds);
         if node_ids.len() == 0 {
             apibail_generic!("no valid node ids in direct node info");
         }

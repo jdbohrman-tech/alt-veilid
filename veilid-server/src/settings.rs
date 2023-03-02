@@ -1057,11 +1057,23 @@ impl Settings {
                 "network.hole_punch_receipt_time_ms" => {
                     Ok(Box::new(inner.core.network.hole_punch_receipt_time_ms))
                 }
-                "network.routing_table.node_id" => {
-                    Ok(Box::new(inner.core.network.routing_table.node_id.clone()))
-                }
+                "network.routing_table.node_id" => Ok(Box::new(
+                    inner
+                        .core
+                        .network
+                        .routing_table
+                        .node_id
+                        .clone()
+                        .unwrap_or_default(),
+                )),
                 "network.routing_table.node_id_secret" => Ok(Box::new(
-                    inner.core.network.routing_table.node_id_secret.clone(),
+                    inner
+                        .core
+                        .network
+                        .routing_table
+                        .node_id_secret
+                        .clone()
+                        .unwrap_or_default(),
                 )),
                 "network.routing_table.bootstrap" => {
                     Ok(Box::new(inner.core.network.routing_table.bootstrap.clone()))

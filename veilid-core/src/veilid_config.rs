@@ -622,8 +622,8 @@ impl VeilidConfig {
                     let v = cb(keyname.to_owned())?;
                     $key = match v.downcast() {
                         Ok(v) => *v,
-                        Err(_) => {
-                            apibail_generic!(format!("incorrect type for key {}", keyname))
+                        Err(e) => {
+                            apibail_generic!(format!("incorrect type for key {}: {:?}", keyname, type_name_of_val(&*e)))
                         }
                     };
                 };
@@ -632,27 +632,26 @@ impl VeilidConfig {
             macro_rules! get_config_node_ids {
                 () => {
                     let keys = cb("network.routing_table.node_id".to_owned())?;
-                    let keys: Option<TypedKeySet> = match keys.downcast() {
+                    let keys: TypedKeySet = match keys.downcast() {
                         Ok(v) => *v,
-                        Err(_) => {
-                            apibail_generic!(
-                                "incorrect type for key 'network.routing_table.node_id'".to_owned()
-                            )
+                        Err(e) => {
+                            apibail_generic!(format!(
+                                "incorrect type for key 'network.routing_table.node_id': {:?}",
+                                type_name_of_val(&*e)
+                            ))
                         }
                     };
-                    let keys = keys.unwrap_or_default();
 
                     let secrets = cb("network.routing_table.node_id_secret".to_owned())?;
-                    let secrets: Option<TypedSecretSet> = match secrets.downcast() {
+                    let secrets: TypedSecretSet = match secrets.downcast() {
                         Ok(v) => *v,
-                        Err(_) => {
-                            apibail_generic!(
-                                "incorrect type for key 'network.routing_table.node_id_secret'"
-                                    .to_owned()
-                            )
+                        Err(e) => {
+                            apibail_generic!(format!(
+                                "incorrect type for key 'network.routing_table.node_id_secret': {:?}",
+                                type_name_of_val(&*e)
+                            ))
                         }
                     };
-                    let secrets = secrets.unwrap_or_default();
 
                     for ck in VALID_CRYPTO_KINDS {
                         if let Some(key) = keys.get(ck) {
