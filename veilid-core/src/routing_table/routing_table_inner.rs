@@ -413,17 +413,25 @@ impl RoutingTableInner {
     }
 
     /// Build the counts of entries per routing domain and crypto kind and cache them
+    /// Only considers entries that have valid signed node info
     pub fn refresh_cached_entry_counts(&mut self) -> EntryCounts {
         self.live_entry_count.clear();
         let cur_ts = get_aligned_timestamp();
         self.with_entries_mut(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
             entry.with_inner(|e| {
-                if let Some(rd) = e.best_routing_domain(rti, RoutingDomainSet::all()) {
-                    for crypto_kind in e.crypto_kinds() {
-                        rti.live_entry_count
-                            .entry((rd, crypto_kind))
-                            .and_modify(|x| *x += 1)
-                            .or_insert(1);
+                // Tally per routing domain and crypto kind
+                for rd in RoutingDomain::all() {
+                    if let Some(sni) = e.signed_node_info(rd) {
+                        // Only consider entries that have valid signed node info in this domain
+                        if sni.has_any_signature() {
+                            // Tally
+                            for crypto_kind in e.crypto_kinds() {
+                                rti.live_entry_count
+                                    .entry((rd, crypto_kind))
+                                    .and_modify(|x| *x += 1)
+                                    .or_insert(1);
+                            }
+                        }
                     }
                 }
             });
@@ -433,6 +441,7 @@ impl RoutingTableInner {
     }
 
     /// Return the last cached entry counts
+    /// Only considers entries that have valid signed node info
     pub fn cached_entry_counts(&self) -> EntryCounts {
         self.live_entry_count.clone()
     }
@@ -681,6 +690,7 @@ impl RoutingTableInner {
         let bucket_entry = self.unlocked_inner.calculate_bucket_index(&first_node_id);
         let bucket = self.get_bucket_mut(bucket_entry);
         let new_entry = bucket.add_new_entry(first_node_id.value);
+        self.all_entries.insert(new_entry.clone());
         self.unlocked_inner.kick_queue.lock().insert(bucket_entry);
 
         // Update the other bucket entries with the remaining node ids

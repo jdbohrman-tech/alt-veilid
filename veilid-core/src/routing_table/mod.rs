@@ -344,11 +344,19 @@ impl RoutingTable {
         };
 
         // Reconstruct all entries
+        let inner = &mut *self.inner.write();
+
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::with_capacity(all_entry_bytes.len());
         for entry_bytes in all_entry_bytes {
             let entryinner =
                 from_rkyv(entry_bytes).wrap_err("failed to deserialize bucket entry")?;
-            all_entries.push(Arc::new(BucketEntry::new_with_inner(entryinner)));
+            let entry = Arc::new(BucketEntry::new_with_inner(entryinner));
+
+            // Keep strong reference in table
+            all_entries.push(entry.clone());
+
+            // Keep all entries in weak table too
+            inner.all_entries.insert(entry);
         }
 
         // Validate serialized bucket map
@@ -364,8 +372,6 @@ impl RoutingTable {
         }
 
         // Recreate buckets
-        let inner = &mut *self.inner.write();
-
         for (k, v) in serialized_bucket_map {
             let buckets = inner.buckets.get_mut(&k).unwrap();
 

@@ -27,7 +27,6 @@ pub type ValueSeqNum = u32;
 /// FOURCC code
 #[derive(
     Copy,
-    Debug,
     Default,
     Clone,
     Hash,
@@ -61,6 +60,12 @@ impl fmt::Display for FourCC {
         write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
+impl fmt::Debug for FourCC {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+
 impl FromStr for FourCC {
     type Err = VeilidAPIError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {

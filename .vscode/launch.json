@@ -9,21 +9,31 @@
       "request": "attach",
       "name": "Attach to veilid-server",
       "program": "${workspaceFolder}/target/debug/veilid-server",
-      "pid": "${command:pickMyProcess}"
+      "pid": "${command:pickMyProcess}",
+      "sourceLanguages": [
+        "rust"
+      ]
     },
     {
       "type": "lldb",
       "request": "attach",
       "name": "Attach to veilid-cli",
       "program": "${workspaceFolder}/target/debug/veilid-cli",
-      "pid": "${command:pickMyProcess}"
+      "pid": "${command:pickMyProcess}",
+      "sourceLanguages": [
+        "rust"
+      ]
     },
     {
       "type": "lldb",
       "request": "attach",
       "name": "Attach to veilid-flutter example",
       "program": "${workspaceFolder}/veilid-flutter/example/build/linux/x64/debug/bundle/veilid_example",
-      "pid": "${command:pickMyProcess}"
+      "pid": "${command:pickMyProcess}",
+      "sourceLanguages": [
+        "rust",
+        "dart"
+      ]
     },
     {
       "type": "lldb",
