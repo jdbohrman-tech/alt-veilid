@@ -1869,7 +1869,8 @@ pub struct SignedDirectNodeInfo {
     pub signatures: Vec<TypedSignature>,
 }
 impl SignedDirectNodeInfo {
-    /// Returns a new SignedDirectNodeInfo that has its signatures validated. Will modify the node_ids set to only include node_ids whose signatures validate
+    /// Returns a new SignedDirectNodeInfo that has its signatures validated.
+    /// On success, this will modify the node_ids set to only include node_ids whose signatures validate.
     /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
         crypto: Crypto,
@@ -1881,9 +1882,9 @@ impl SignedDirectNodeInfo {
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
 
         // Verify the signatures that we can
-        let valid_crypto_kinds =
+        let validated_node_ids =
             crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
-        xx wrong! should remove only the kinds that are not valid! also fix relayed node_ids.remove_all(&valid_crypto_kinds);
+        *node_ids = validated_node_ids;
         if node_ids.len() == 0 {
             apibail_generic!("no valid node ids in direct node info");
         }
@@ -1956,7 +1957,8 @@ pub struct SignedRelayedNodeInfo {
 }
 
 impl SignedRelayedNodeInfo {
-    /// Returns a new SignedRelayedNodeInfo that has its signatures validated. Will modify the node_ids set to only include node_ids whose signatures validate
+    /// Returns a new SignedRelayedNodeInfo that has its signatures validated.
+    /// On success, this will modify the node_ids set to only include node_ids whose signatures validate.
     /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
         crypto: Crypto,
@@ -1969,10 +1971,9 @@ impl SignedRelayedNodeInfo {
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
-        let valid_crypto_kinds =
+        let validated_node_ids =
             crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
-
-        node_ids.remove_all(&valid_crypto_kinds);
+        *node_ids = validated_node_ids;
         if node_ids.len() == 0 {
             apibail_generic!("no valid node ids in relayed node info");
         }

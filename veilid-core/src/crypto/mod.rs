@@ -117,16 +117,15 @@ impl Crypto {
         let mut cache_validity_key: Vec<u8> = Vec::new();
         {
             let c = self.unlocked_inner.config.get();
-            for ck in &VALID_CRYPTO_KINDS {
+            for ck in VALID_CRYPTO_KINDS {
                 cache_validity_key.append(
                     &mut c
                         .network
                         .routing_table
-                        .node_ids
+                        .node_id
                         .get(ck)
                         .unwrap()
-                        .node_id
-                        .unwrap()
+                        .value
                         .bytes
                         .to_vec(),
                 );
@@ -223,14 +222,14 @@ impl Crypto {
         node_ids: &[TypedKey],
         data: &[u8],
         typed_signatures: &[TypedSignature],
-    ) -> Result<Vec<CryptoKind>, VeilidAPIError> {
-        let mut out = Vec::with_capacity(node_ids.len());
+    ) -> Result<TypedKeySet, VeilidAPIError> {
+        let mut out = TypedKeySet::with_capacity(node_ids.len());
         for sig in typed_signatures {
             for nid in node_ids {
                 if nid.kind == sig.kind {
                     if let Some(vcrypto) = self.get(sig.kind) {
                         vcrypto.verify(&nid.value, data, &sig.value)?;
-                        out.push(nid.kind);
+                        out.add(*nid);
                     }
                 }
             }
@@ -258,6 +257,16 @@ impl Crypto {
             }
         }
         Ok(out)
+    }
+
+    /// Generate keypair
+    /// Does not require startup/init
+    pub fn generate_keypair(crypto_kind: CryptoKind) -> Result<TypedKeyPair, VeilidAPIError> {
+        if crypto_kind == CRYPTO_KIND_VLD0 {
+            let kp = vld0_generate_keypair();
+            return Ok(TypedKeyPair::new(crypto_kind, kp));
+        }
+        Err(VeilidAPIError::generic("invalid crypto kind"))
     }
 
     // Internal utilities

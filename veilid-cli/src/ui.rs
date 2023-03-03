@@ -882,16 +882,10 @@ impl UI {
     pub fn set_config(&mut self, config: VeilidConfigInner) {
         let mut inner = self.inner.borrow_mut();
 
-        let tkv: Vec<TypedKey> = config
-            .network
-            .routing_table
-            .node_ids
-            .iter()
-            .filter_map(|(k, v)| v.node_id.map(|nid| TypedKey::new(*k, nid)))
-            .collect();
-        let tks = TypedKeySet::from(tkv);
-
-        inner.ui_state.node_id.set(tks.to_string());
+        inner
+            .ui_state
+            .node_id
+            .set(config.network.routing_table.node_id.to_string());
     }
     pub fn set_connection_state(&mut self, state: ConnectionState) {
         let mut inner = self.inner.borrow_mut();

@@ -32,13 +32,13 @@ fn ed25519_to_x25519_sk(key: &ed::SecretKey) -> Result<xd::StaticSecret, VeilidA
     Ok(xd::StaticSecret::from(lowbytes))
 }
 
-pub fn vld0_generate_keypair() -> (PublicKey, SecretKey) {
+pub fn vld0_generate_keypair() -> KeyPair {
     let mut csprng = VeilidRng {};
     let keypair = ed::Keypair::generate(&mut csprng);
     let dht_key = PublicKey::new(keypair.public.to_bytes());
     let dht_key_secret = SecretKey::new(keypair.secret.to_bytes());
 
-    (dht_key, dht_key_secret)
+    KeyPair::new(dht_key, dht_key_secret)
 }
 
 /// V0 CryptoSystem
@@ -95,7 +95,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let sk_xd = ed25519_to_x25519_sk(&sk_ed)?;
         Ok(SharedSecret::new(sk_xd.diffie_hellman(&pk_xd).to_bytes()))
     }
-    fn generate_keypair(&self) -> (PublicKey, SecretKey) {
+    fn generate_keypair(&self) -> KeyPair {
         vld0_generate_keypair()
     }
     fn generate_hash(&self, data: &[u8]) -> PublicKey {

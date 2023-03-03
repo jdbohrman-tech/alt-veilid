@@ -316,25 +316,6 @@ pub struct VeilidConfigRPC {
     pub default_route_hop_count: u8,
 }
 
-/// Configure the per-crypto version configuration
-///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-pub struct VeilidConfigNodeId {
-    pub node_id: Option<PublicKey>,
-    pub node_id_secret: Option<SecretKey>,
-}
-
 /// Configure the network routing table
 ///
 #[derive(
@@ -350,7 +331,8 @@ pub struct VeilidConfigNodeId {
     RkyvDeserialize,
 )]
 pub struct VeilidConfigRoutingTable {
-    pub node_ids: BTreeMap<CryptoKind, VeilidConfigNodeId>,
+    pub node_id: TypedKeySet,
+    pub node_id_secret: TypedSecretSet,
     pub bootstrap: Vec<String>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
@@ -623,56 +605,13 @@ impl VeilidConfig {
                     $key = match v.downcast() {
                         Ok(v) => *v,
                         Err(e) => {
-                            apibail_generic!(format!("incorrect type for key {}: {:?}", keyname, type_name_of_val(&*e)))
-                        }
-                    };
-                };
-            }
-            // More complicated optional fields for node ids
-            macro_rules! get_config_node_ids {
-                () => {
-                    let keys = cb("network.routing_table.node_id".to_owned())?;
-                    let keys: TypedKeySet = match keys.downcast() {
-                        Ok(v) => *v,
-                        Err(e) => {
                             apibail_generic!(format!(
-                                "incorrect type for key 'network.routing_table.node_id': {:?}",
+                                "incorrect type for key {}: {:?}",
+                                keyname,
                                 type_name_of_val(&*e)
                             ))
                         }
                     };
-
-                    let secrets = cb("network.routing_table.node_id_secret".to_owned())?;
-                    let secrets: TypedSecretSet = match secrets.downcast() {
-                        Ok(v) => *v,
-                        Err(e) => {
-                            apibail_generic!(format!(
-                                "incorrect type for key 'network.routing_table.node_id_secret': {:?}",
-                                type_name_of_val(&*e)
-                            ))
-                        }
-                    };
-
-                    for ck in VALID_CRYPTO_KINDS {
-                        if let Some(key) = keys.get(ck) {
-                            inner
-                                .network
-                                .routing_table
-                                .node_ids
-                                .entry(ck)
-                                .or_default()
-                                .node_id = Some(key.value);
-                        }
-                        if let Some(secret) = secrets.get(ck) {
-                            inner
-                                .network
-                                .routing_table
-                                .node_ids
-                                .entry(ck)
-                                .or_default()
-                                .node_id_secret = Some(secret.value);
-                        }
-                    }
                 };
             }
 
@@ -701,7 +640,9 @@ impl VeilidConfig {
             get_config!(inner.network.max_connection_frequency_per_min);
             get_config!(inner.network.client_whitelist_timeout_ms);
             get_config!(inner.network.reverse_connection_receipt_time_ms);
-            get_config_node_ids!();
+            get_config!(inner.network.hole_punch_receipt_time_ms);
+            get_config!(inner.network.routing_table.node_id);
+            get_config!(inner.network.routing_table.node_id_secret);
             get_config!(inner.network.routing_table.bootstrap);
             get_config!(inner.network.routing_table.limit_over_attached);
             get_config!(inner.network.routing_table.limit_fully_attached);
@@ -778,11 +719,20 @@ impl VeilidConfig {
         self.inner.read()
     }
 
+    fn safe_config(&self) -> VeilidConfigInner {
+        let mut safe_cfg = self.inner.read().clone();
+
+        // Remove secrets
+        safe_cfg.network.routing_table.node_id_secret = TypedSecretSet::new();
+
+        safe_cfg
+    }
+
     pub fn with_mut<F, R>(&self, f: F) -> Result<R, VeilidAPIError>
     where
         F: FnOnce(&mut VeilidConfigInner) -> Result<R, VeilidAPIError>,
     {
-        let (out, config) = {
+        let out = {
             let inner = &mut *self.inner.write();
             // Edit a copy
             let mut editedinner = inner.clone();
@@ -792,12 +742,13 @@ impl VeilidConfig {
             Self::validate(&mut editedinner)?;
             // Commit changes
             *inner = editedinner.clone();
-            (out, editedinner)
+            out
         };
 
         // Send configuration update to clients
         if let Some(update_cb) = &self.update_cb {
-            update_cb(VeilidUpdate::Config(VeilidStateConfig { config }));
+            let safe_cfg = self.safe_config();
+            update_cb(VeilidUpdate::Config(VeilidStateConfig { config: safe_cfg }));
         }
 
         Ok(out)
@@ -975,29 +926,23 @@ impl VeilidConfig {
         crypto: Crypto,
         protected_store: intf::ProtectedStore,
     ) -> Result<(), VeilidAPIError> {
+        let mut out_node_id = TypedKeySet::new();
+        let mut out_node_id_secret = TypedSecretSet::new();
+
         for ck in VALID_CRYPTO_KINDS {
             let vcrypto = crypto
                 .get(ck)
                 .expect("Valid crypto kind is not actually valid.");
 
-            let mut node_id = self
-                .inner
-                .read()
-                .network
-                .routing_table
-                .node_ids
-                .get(&ck)
-                .map(|n| n.node_id)
-                .flatten();
+            let mut node_id = self.inner.read().network.routing_table.node_id.get(ck);
             let mut node_id_secret = self
                 .inner
                 .read()
                 .network
                 .routing_table
-                .node_ids
-                .get(&ck)
-                .map(|n| n.node_id_secret)
-                .flatten();
+                .node_id_secret
+                .get(ck);
+
             // See if node id was previously stored in the protected store
             if node_id.is_none() {
                 debug!("pulling node_id_{} from storage", ck);
@@ -1007,8 +952,13 @@ impl VeilidConfig {
                     .map_err(VeilidAPIError::internal)?
                 {
                     debug!("node_id_{} found in storage", ck);
-                    node_id =
-                        Some(PublicKey::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
+                    node_id = match TypedKey::from_str(s.as_str()) {
+                        Ok(v) => Some(v),
+                        Err(_) => {
+                            debug!("node id in protected store is not valid");
+                            None
+                        }
+                    }
                 } else {
                     debug!("node_id_{} not found in storage", ck);
                 }
@@ -1023,8 +973,13 @@ impl VeilidConfig {
                     .map_err(VeilidAPIError::internal)?
                 {
                     debug!("node_id_secret_{} found in storage", ck);
-                    node_id_secret =
-                        Some(SecretKey::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
+                    node_id_secret = match TypedSecret::from_str(s.as_str()) {
+                        Ok(v) => Some(v),
+                        Err(_) => {
+                            debug!("node id secret in protected store is not valid");
+                            None
+                        }
+                    }
                 } else {
                     debug!("node_id_secret_{} not found in storage", ck);
                 }
@@ -1034,7 +989,7 @@ impl VeilidConfig {
             let (node_id, node_id_secret) =
                 if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
                     // Validate node id
-                    if !vcrypto.validate_keypair(&node_id, &node_id_secret) {
+                    if !vcrypto.validate_keypair(&node_id.value, &node_id_secret.value) {
                         apibail_generic!(format!(
                             "node_id_secret_{} and node_id_key_{} don't match",
                             ck, ck
@@ -1044,30 +999,36 @@ impl VeilidConfig {
                 } else {
                     // If we still don't have a valid node id, generate one
                     debug!("generating new node_id_{}", ck);
-                    vcrypto.generate_keypair()
+                    let kp = vcrypto.generate_keypair();
+                    (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
                 };
-            info!("Node Id ({}) is {}", ck, node_id.encode());
+            info!("Node Id: {}", node_id);
 
             // Save the node id / secret in storage
             protected_store
-                .save_user_secret_string(format!("node_id_{}", ck), node_id.encode().as_str())
+                .save_user_secret_string(format!("node_id_{}", ck), node_id.to_string())
                 .await
                 .map_err(VeilidAPIError::internal)?;
             protected_store
                 .save_user_secret_string(
                     format!("node_id_secret_{}", ck),
-                    node_id_secret.encode().as_str(),
+                    node_id_secret.to_string(),
                 )
                 .await
                 .map_err(VeilidAPIError::internal)?;
 
-            self.with_mut(|c| {
-                let n = c.network.routing_table.node_ids.entry(ck).or_default();
-                n.node_id = Some(node_id);
-                n.node_id_secret = Some(node_id_secret);
-                Ok(())
-            })?;
+            // Save for config
+            out_node_id.add(node_id);
+            out_node_id_secret.add(node_id_secret);
         }
+
+        // Commit back to config
+        self.with_mut(|c| {
+            c.network.routing_table.node_id = out_node_id;
+            c.network.routing_table.node_id_secret = out_node_id_secret;
+            Ok(())
+        })?;
+
         trace!("init_node_ids complete");
 
         Ok(())

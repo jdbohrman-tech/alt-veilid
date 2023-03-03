@@ -72,8 +72,10 @@ pub struct RoutingTableUnlockedInner {
     config: VeilidConfig,
     network_manager: NetworkManager,
 
-    /// The current node's public DHT keys and secrets
-    node_id_keypairs: BTreeMap<CryptoKind, KeyPair>,
+    /// The current node's public DHT keys
+    node_id: TypedKeySet,
+    /// The current node's public DHT secrets
+    node_id_secret: TypedSecretSet,
     /// Buckets to kick on our next kick task
     kick_queue: Mutex<BTreeSet<BucketIndex>>,
     /// Background process for computing statistics
@@ -113,33 +115,32 @@ impl RoutingTableUnlockedInner {
     }
 
     pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
-        TypedKey::new(kind, self.node_id_keypairs.get(&kind).unwrap().key)
+        self.node_id.get(kind).unwrap()
+    }
+
+    pub fn node_id_secret_key(&self, kind: CryptoKind) -> SecretKey {
+        self.node_id_secret.get(kind).unwrap().value
     }
 
     pub fn node_ids(&self) -> TypedKeySet {
-        let mut tks = TypedKeySet::new();
-        for x in &self.node_id_keypairs {
-            tks.add(TypedKey::new(*x.0, x.1.key));
-        }
-        tks
+        self.node_id.clone()
     }
 
     pub fn node_id_typed_key_pairs(&self) -> Vec<TypedKeyPair> {
         let mut tkps = Vec::new();
-        for (ck, v) in &self.node_id_keypairs {
-            tkps.push(TypedKeyPair::new(*ck, *v));
+        for ck in VALID_CRYPTO_KINDS {
+            tkps.push(TypedKeyPair::new(
+                ck,
+                KeyPair::new(self.node_id(ck).value, self.node_id_secret_key(ck)),
+            ));
         }
         tkps
     }
 
-    pub fn node_id_secret(&self, kind: CryptoKind) -> SecretKey {
-        self.node_id_keypairs.get(&kind).unwrap().secret
-    }
-
     pub fn matches_own_node_id(&self, node_ids: &[TypedKey]) -> bool {
         for ni in node_ids {
-            if let Some(v) = self.node_id_keypairs.get(&ni.kind) {
-                if v.key == ni.value {
+            if let Some(v) = self.node_id.get(ni.kind) {
+                if v.value == ni.value {
                     return true;
                 }
             }
@@ -148,8 +149,8 @@ impl RoutingTableUnlockedInner {
     }
 
     pub fn matches_own_node_id_key(&self, node_id_key: &PublicKey) -> bool {
-        for (_ck, v) in &self.node_id_keypairs {
-            if v.key == *node_id_key {
+        for tk in self.node_id.iter() {
+            if tk.value == *node_id_key {
                 return true;
             }
         }
@@ -158,12 +159,12 @@ impl RoutingTableUnlockedInner {
 
     pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> BucketIndex {
         let crypto = self.crypto();
-        let self_node_id = self.node_id_keypairs.get(&node_id.kind).unwrap().key;
+        let self_node_id_key = self.node_id(node_id.kind).value;
         let vcrypto = crypto.get(node_id.kind).unwrap();
         (
             node_id.kind,
             vcrypto
-                .distance(&node_id.value, &self_node_id)
+                .distance(&node_id.value, &self_node_id_key)
                 .first_nonzero_bit()
                 .unwrap(),
         )
@@ -182,22 +183,12 @@ impl RoutingTable {
         network_manager: NetworkManager,
     ) -> RoutingTableUnlockedInner {
         let c = config.get();
+
         RoutingTableUnlockedInner {
             config: config.clone(),
             network_manager,
-            node_id_keypairs: c
-                .network
-                .routing_table
-                .node_ids
-                .iter()
-                .map(|(k, v)| {
-                    (
-                        *k,
-                        KeyPair::new(v.node_id.unwrap(), v.node_id_secret.unwrap()),
-                    )
-                })
-                .collect(),
-
+            node_id: c.network.routing_table.node_id.clone(),
+            node_id_secret: c.network.routing_table.node_id_secret.clone(),
             kick_queue: Mutex::new(BTreeSet::default()),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),

@@ -42,16 +42,6 @@
       ],
       "terminal": "console"
     },
-    // {
-    //   "type": "lldb",
-    //   "request": "launch",
-    //   "name": "Debug veilid-server",
-    //   "cargo": {
-    //     "args": ["run", "--manifest-path", "veilid-server/Cargo.toml"]
-    //   },
-    //   "args": ["--trace"],
-    //   "cwd": "${workspaceFolder}/veilid-server"
-    // }
     {
       "type": "lldb",
       "request": "launch",

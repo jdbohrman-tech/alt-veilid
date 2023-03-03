@@ -109,7 +109,7 @@ impl RPCProcessor {
     ) -> Result<NetworkResult<()>, RPCError> {
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually? How to do this for safety routes?
-        let node_id_secret = self.routing_table.node_id_secret(remote_sr_pubkey.kind);
+        let node_id_secret = self.routing_table.node_id_secret_key(remote_sr_pubkey.kind);
         let dh_secret = vcrypto
             .cached_dh(&remote_sr_pubkey.value, &node_id_secret)
             .map_err(RPCError::protocol)?;
@@ -313,7 +313,7 @@ impl RPCProcessor {
         };
 
         // Decrypt the blob with DEC(nonce, DH(the PR's public key, this hop's secret)
-        let node_id_secret = self.routing_table.node_id_secret(crypto_kind);
+        let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
         let dh_secret = vcrypto
             .cached_dh(&pr_pubkey.value, &node_id_secret)
             .map_err(RPCError::protocol)?;
@@ -345,7 +345,7 @@ impl RPCProcessor {
         // as the last hop is already signed by the envelope
         if route_hop.next_hop.is_some() {
             let node_id = self.routing_table.node_id(crypto_kind);
-            let node_id_secret = self.routing_table.node_id_secret(crypto_kind);
+            let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
             let sig = vcrypto
                 .sign(&node_id.value, &node_id_secret, &route_operation.data)
                 .map_err(RPCError::internal)?;
@@ -392,7 +392,7 @@ impl RPCProcessor {
             // There is a safety route hop
             SafetyRouteHops::Data(ref route_hop_data) => {
                 // Decrypt the blob with DEC(nonce, DH(the SR's public key, this hop's secret)
-                let node_id_secret = self.routing_table.node_id_secret(crypto_kind);
+                let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
                 let dh_secret = vcrypto
                     .cached_dh(&route.safety_route.public_key.value, &node_id_secret)
                     .map_err(RPCError::protocol)?;

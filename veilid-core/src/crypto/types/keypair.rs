@@ -24,6 +24,12 @@ impl KeyPair {
     pub fn new(key: PublicKey, secret: SecretKey) -> Self {
         Self { key, secret }
     }
+    pub fn split(&self) -> (PublicKey, SecretKey) {
+        (self.key, self.secret)
+    }
+    pub fn into_split(self) -> (PublicKey, SecretKey) {
+        (self.key, self.secret)
+    }
 }
 
 impl Encodable for KeyPair {

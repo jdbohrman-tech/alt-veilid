@@ -9,8 +9,8 @@ pub async fn test_envelope_round_trip(
     // Create envelope
     let ts = Timestamp::from(0x12345678ABCDEF69u64);
     let nonce = vcrypto.random_nonce();
-    let (sender_id, sender_secret) = vcrypto.generate_keypair();
-    let (recipient_id, recipient_secret) = vcrypto.generate_keypair();
+    let (sender_id, sender_secret) = vcrypto.generate_keypair().into_split();
+    let (recipient_id, recipient_secret) = vcrypto.generate_keypair().into_split();
     let envelope = Envelope::new(
         envelope_version,
         vcrypto.kind(),
@@ -66,7 +66,7 @@ pub async fn test_receipt_round_trip(
 
     // Create receipt
     let nonce = vcrypto.random_nonce();
-    let (sender_id, sender_secret) = vcrypto.generate_keypair();
+    let (sender_id, sender_secret) = vcrypto.generate_keypair().into_split();
     let receipt = Receipt::try_new(envelope_version, vcrypto.kind(), nonce, sender_id, body)
         .expect("should not fail");
 

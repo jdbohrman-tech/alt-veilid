@@ -10,8 +10,8 @@ static EMPTY_KEY_SECRET: [u8; SECRET_KEY_LENGTH] = [0u8; SECRET_KEY_LENGTH];
 
 pub async fn test_generate_secret(vcrypto: CryptoSystemVersion) {
     // Verify keys generate
-    let (dht_key, dht_key_secret) = vcrypto.generate_keypair();
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair();
+    let (dht_key, dht_key_secret) = vcrypto.generate_keypair().into_split();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
 
     // Verify byte patterns are different between public and secret
     assert_ne!(dht_key.bytes, dht_key_secret.bytes);
@@ -24,8 +24,8 @@ pub async fn test_generate_secret(vcrypto: CryptoSystemVersion) {
 
 pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
     // Make two keys
-    let (dht_key, dht_key_secret) = vcrypto.generate_keypair();
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair();
+    let (dht_key, dht_key_secret) = vcrypto.generate_keypair().into_split();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
     // Sign the same message twice
     let dht_sig = vcrypto
         .sign(&dht_key, &dht_key_secret, LOREM_IPSUM.as_bytes())
@@ -133,10 +133,10 @@ pub async fn test_key_conversions(vcrypto: CryptoSystemVersion) {
     assert_eq!(dht_key_secret_string, dht_key_string);
 
     // Make different keys
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
     trace!("dht_key2: {:?}", dht_key2);
     trace!("dht_key_secret2: {:?}", dht_key_secret2);
-    let (dht_key3, _dht_key_secret3) = vcrypto.generate_keypair();
+    let (dht_key3, _dht_key_secret3) = vcrypto.generate_keypair().into_split();
     trace!("dht_key3: {:?}", dht_key3);
     trace!("_dht_key_secret3: {:?}", _dht_key_secret3);
 
@@ -196,7 +196,7 @@ pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
     assert_eq!(dht_key, dht_key_b);
     assert_eq!(dht_key_secret, dht_key_secret_b);
 
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
 
     let e1 = dht_key.encode();
     trace!("e1:  {:?}", e1);

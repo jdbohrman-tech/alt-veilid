@@ -320,7 +320,8 @@ pub async fn test_config() {
     assert_eq!(inner.network.rpc.timeout_ms, 10_000u32);
     assert_eq!(inner.network.rpc.max_route_hop_count, 4u8);
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
-    assert_eq!(inner.network.routing_table.node_ids.len(), 0);
+    assert_eq!(inner.network.routing_table.node_id.len(), 0);
+    assert_eq!(inner.network.routing_table.node_id_secret.len(), 0);
     assert_eq!(inner.network.routing_table.bootstrap, Vec::<String>::new());
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);

@@ -490,12 +490,12 @@ impl RouteSpecStore {
         let mut route_set = BTreeMap::<PublicKey, RouteSpecDetail>::new();
         for crypto_kind in crypto_kinds.iter().copied() {
             let vcrypto = self.unlocked_inner.routing_table.crypto().get(crypto_kind).unwrap();
-            let (public_key, secret_key) = vcrypto.generate_keypair();
+            let keypair = vcrypto.generate_keypair();
             let hops: Vec<PublicKey> = route_nodes.iter().map(|v| nodes[*v].node_ids().get(crypto_kind).unwrap().value).collect();
 
-            route_set.insert(public_key, RouteSpecDetail {
+            route_set.insert(keypair.key, RouteSpecDetail {
                 crypto_kind,
-                secret_key,
+                secret_key: keypair.secret,
                 hops,
             });
         }
@@ -888,7 +888,7 @@ impl RouteSpecStore {
                 //println!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(Some(CompiledRoute {
                     safety_route: SafetyRoute::new_stub(routing_table.node_id(crypto_kind), private_route),
-                    secret: routing_table.node_id_secret(crypto_kind),
+                    secret: routing_table.node_id_secret_key(crypto_kind),
                     first_hop,
                 }));
             }

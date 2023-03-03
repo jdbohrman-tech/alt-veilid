@@ -20,7 +20,7 @@ pub trait CryptoSystem {
         key: &PublicKey,
         secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError>;
-    fn generate_keypair(&self) -> (PublicKey, SecretKey);
+    fn generate_keypair(&self) -> KeyPair;
     fn generate_hash(&self, data: &[u8]) -> PublicKey;
     fn generate_hash_reader(
         &self,

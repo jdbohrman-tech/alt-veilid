@@ -128,19 +128,19 @@ pub async fn test_frozen(vcrypto: CryptoSystemVersion, ts: TableStore) {
 
     let _ = ts.delete("test");
     let db = ts.open("test", 3).await.expect("should have opened");
-    let (dht_key, _) = vcrypto.generate_keypair();
+    let keypair = vcrypto.generate_keypair();
 
-    assert!(db.store_rkyv(0, b"asdf", &dht_key).await.is_ok());
+    assert!(db.store_rkyv(0, b"asdf", &keypair).await.is_ok());
 
-    assert_eq!(db.load_rkyv::<PublicKey>(0, b"qwer").unwrap(), None);
+    assert_eq!(db.load_rkyv::<KeyPair>(0, b"qwer").unwrap(), None);
 
-    let d = match db.load_rkyv::<PublicKey>(0, b"asdf") {
+    let d = match db.load_rkyv::<KeyPair>(0, b"asdf") {
         Ok(x) => x,
         Err(e) => {
             panic!("couldn't decode: {}", e);
         }
     };
-    assert_eq!(d, Some(dht_key), "keys should be equal");
+    assert_eq!(d, Some(keypair), "keys should be equal");
 
     assert!(
         db.store(1, b"foo", b"1234567890").await.is_ok(),

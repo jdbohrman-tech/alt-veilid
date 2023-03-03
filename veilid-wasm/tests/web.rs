@@ -37,9 +37,14 @@ fn init_callbacks() {
             case "capabilities.protocol_connect_wss": return true;
             case "capabilities.protocol_accept_wss": return false;
             case "tablestore.directory": return "";
-            case "network.node_id": return "ZLd4uMYdP4qYLtxF6GqrzBb32Z6T3rE2FWMkWup1pdY";
-            case "network.node_id_secret": return "s2Gvq6HJOxgQh-3xIgfWSL3I-DWZ2c1RjZLJl2Xmg2E";
-            case "network.bootstrap": return [];
+            case "network.routing_table.node_id": return [];
+            case "network.routing_table.node_id_secret": return [];
+            case "network.routing_table.bootstrap": return [];
+            case "network.routing_table.limit_over_attached": return 64;
+            case "network.routing_table.limit_fully_attached": return 32;
+            case "network.routing_table.limit_attached_strong": return 16;
+            case "network.routing_table.limit_attached_good": return 8;
+            case "network.routing_table.limit_attached_weak": return 4;
             case "network.rpc.concurrency": return 2;
             case "network.rpc.queue_size": return 128;
             case "network.rpc.max_timestamp_behind": return 10000000;

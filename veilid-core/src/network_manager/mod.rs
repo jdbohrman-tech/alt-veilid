@@ -527,7 +527,7 @@ impl NetworkManager {
         
         let nonce = vcrypto.random_nonce();
         let node_id = routing_table.node_id(vcrypto.kind());
-        let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
         
         let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
         let out = receipt
@@ -556,7 +556,7 @@ impl NetworkManager {
         
         let nonce = vcrypto.random_nonce();
         let node_id = routing_table.node_id(vcrypto.kind());
-        let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
         
         let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
         let out = receipt
@@ -754,7 +754,7 @@ impl NetworkManager {
         };
 
         let node_id = routing_table.node_id(vcrypto.kind());
-        let node_id_secret = routing_table.node_id_secret(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
 
         // Get timestamp, nonce
         let ts = get_aligned_timestamp();
@@ -1427,7 +1427,7 @@ impl NetworkManager {
         }
 
         // DH to get decryption key (cached)
-        let node_id_secret = routing_table.node_id_secret(envelope.get_crypto_kind());
+        let node_id_secret = routing_table.node_id_secret_key(envelope.get_crypto_kind());
 
         // Decrypt the envelope body
         let body = match envelope
