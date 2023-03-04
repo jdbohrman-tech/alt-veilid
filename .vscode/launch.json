@@ -23,20 +23,6 @@
     },
     {
       "type": "lldb",
-      "request": "launch",
-      "name": "Launch remote veilid-server",
-      "program": "${workspaceFolder}/target/debug/veilid-server",
-      "initCommands": [
-        "platform select remote-linux",
-        "platform connect connect://127.0.0.1:6969",
-        "settings set target.inherit-env false",
-      ],
-      "sourceLanguages": [
-        "rust"
-      ]
-    },
-    {
-      "type": "lldb",
       "request": "attach",
       "name": "Attach to veilid-cli",
       "program": "${workspaceFolder}/target/debug/veilid-cli",

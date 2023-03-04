@@ -3,7 +3,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 SSHHOST=$1
 if [[ "$SSHHOST" == "" ]]; then
-    SSHHOST="bootstrap-1.dev.veilid.net"
+    SSHHOST="root@bootstrap-1.dev.veilid.net"
 fi
 
 echo Copying debug script

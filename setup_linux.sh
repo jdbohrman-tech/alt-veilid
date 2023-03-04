@@ -22,7 +22,7 @@ else
 fi
 
 # ensure Android Command Line Tools exist
-if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
+if [ -d "$ANDROID_SDK_ROOT/cmdline-tools" ]; then
     echo '[X] Android command line tools are installed' 
 else
     echo 'Android command line tools are not installed'
