@@ -16,7 +16,7 @@ fn _get_route_permutation_count(hop_count: usize) -> usize {
     (3..hop_count).into_iter().fold(2usize, |acc, x| acc * x)
 }
 pub type PermReturnType = (Vec<usize>, bool);
-pub type PermFunc<'t> = Box<dyn Fn(&[usize]) -> Option<PermReturnType> + Send + 't>;
+pub type PermFunc<'t> = Box<dyn FnMut(&[usize]) -> Option<PermReturnType> + Send + 't>;
 
 /// get the route permutation at particular 'perm' index, starting at the 'start' index
 /// for a set of 'hop_count' nodes. the first node is always fixed, and the maximum
@@ -25,7 +25,7 @@ pub type PermFunc<'t> = Box<dyn Fn(&[usize]) -> Option<PermReturnType> + Send + 
 pub fn with_route_permutations(
     hop_count: usize,
     start: usize,
-    f: &PermFunc,
+    f: &mut PermFunc,
 ) -> Option<PermReturnType> {
     if hop_count == 0 {
         unreachable!();
@@ -44,7 +44,7 @@ pub fn with_route_permutations(
     fn heaps_permutation(
         permutation: &mut [usize],
         size: usize,
-        f: &PermFunc,
+        f: &mut PermFunc,
     ) -> Option<PermReturnType> {
         if size == 1 {
             return f(&permutation);

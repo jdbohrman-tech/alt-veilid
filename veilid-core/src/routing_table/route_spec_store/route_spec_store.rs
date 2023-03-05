@@ -168,7 +168,7 @@ impl RouteSpecStore {
     fn allocate_route_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
-        rti: &RoutingTableInner,
+        rti: &mut RoutingTableInner,
         crypto_kinds: &[CryptoKind],
         stability: Stability,
         sequencing: Sequencing,
@@ -351,7 +351,7 @@ impl RouteSpecStore {
         let nodes_pi: Vec<PeerInfo> = nodes.iter().map(|nr| nr.locked(rti).make_peer_info(RoutingDomain::PublicInternet).unwrap()).collect();
 
         // Now go through nodes and try to build a route we haven't seen yet
-        let perm_func = Box::new(|permutation: &[usize]| {
+        let mut perm_func = Box::new(|permutation: &[usize]| {
             
             /// Get the hop cache key for a particular route permutation
             /// uses the same algorithm as RouteSetSpecDetail::make_cache_key
@@ -372,7 +372,7 @@ impl RouteSpecStore {
             // Ensure the route doesn't contain both a node and its relay
             let mut seen_nodes: HashSet<TypedKey> = HashSet::new();
             for n in permutation {
-                let node = nodes.get(*n).unwrap().locked(rti);
+                let node = nodes.get(*n).unwrap().locked_mut(rti);
                 if !seen_nodes.insert(node.best_node_id()) {
                     // Already seen this node, should not be in the route twice
                     return None;
@@ -471,7 +471,7 @@ impl RouteSpecStore {
 
         for start in 0..(nodes.len() - hop_count) {
             // Try the permutations available starting with 'start'
-            if let Some((rn, cds)) = with_route_permutations(hop_count, start, &perm_func) {
+            if let Some((rn, cds)) = with_route_permutations(hop_count, start, &mut perm_func) {
                 route_nodes = rn;
                 can_do_sequenced = cds;
                 break;
@@ -1070,7 +1070,7 @@ impl RouteSpecStore {
     fn get_route_for_safety_spec_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
-        rti: &RoutingTableInner,
+        rti: &mut RoutingTableInner,
         crypto_kind: CryptoKind,
         safety_spec: &SafetySpec,
         direction: DirectionSet,
@@ -1146,7 +1146,7 @@ impl RouteSpecStore {
     ) -> EyreResult<Option<PublicKey>> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
-        let rti = &*routing_table.inner.read();
+        let rti = &mut *routing_table.inner.write();
 
         Ok(self.get_route_for_safety_spec_inner(
             inner,

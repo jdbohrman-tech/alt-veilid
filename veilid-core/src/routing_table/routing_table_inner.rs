@@ -993,11 +993,15 @@ impl RoutingTableInner {
         // add all nodes that match filter
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, v| {
             // Apply filter
+            let mut filtered = false;
             for filter in &mut filters {
-                if filter(rti, Some(v.clone())) {
-                    nodes.push(Some(v.clone()));
+                if !filter(rti, Some(v.clone())) {
+                    filtered = true;
                     break;
                 }
+            }
+            if !filtered {
+                nodes.push(Some(v.clone()));
             }
             Option::<()>::None
         });
