@@ -22,7 +22,7 @@ else
 fi
 
 # ensure Android Command Line Tools exist
-if [ -d "$ANDROID_SDK_ROOT/cmdline-tools" ]; then
+if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
     echo '[X] Android command line tools are installed' 
 else
     echo 'Android command line tools are not installed'
@@ -90,12 +90,6 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 
 # install cargo packages
 cargo install wasm-bindgen-cli wasm-pack
-
-# Ensure packages are installed
-sudo apt-get install libc6-dev-i386 libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 openjdk-11-jdk llvm wabt checkinstall
-
-# Ensure android sdk packages are installed
-$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
 
 # Install capnproto using the same mechanism as our earthly build
 $SCRIPTDIR/scripts/earthly/install_capnproto.sh

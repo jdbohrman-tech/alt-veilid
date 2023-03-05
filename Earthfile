@@ -54,7 +54,8 @@ deps-android:
     RUN mkdir /Android; mkdir /Android/Sdk
     RUN curl -o /Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
     RUN cd /Android; unzip /Android/cmdline-tools.zip
-    RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
+    RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33 cmdline-tools\;latest
+    RUN rm -rf /Android/cmdline-tools
     RUN apt-get clean
     
 # Just linux build not android
