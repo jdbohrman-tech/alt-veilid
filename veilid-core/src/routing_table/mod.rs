@@ -969,6 +969,11 @@ impl RoutingTable {
                 continue;
             }
 
+            // Don't register our own node
+            if self.matches_own_node_id(&p.node_ids) {
+                continue;
+            }
+
             // Register the node if it's new
             if let Some(nr) =
                 self.register_node_with_peer_info(RoutingDomain::PublicInternet, p, false)
