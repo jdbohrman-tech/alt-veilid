@@ -547,7 +547,7 @@ impl RPCProcessor {
             operation,
         };
         let ssni_route =
-            self.get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()))?;
+            self.get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()));
         let operation = RPCOperation::new_statement(
             RPCStatement::new(RPCStatementDetail::Route(route_operation)),
             ssni_route,
@@ -704,15 +704,17 @@ impl RPCProcessor {
 
     /// Get signed node info to package with RPC messages to improve
     /// routing table caching when it is okay to do so
-    #[instrument(level = "trace", skip(self), ret, err)]
-    fn get_sender_peer_info(&self, dest: &Destination) -> Result<SenderPeerInfo, RPCError> {
+    /// Also check target's timestamp of our own node info, to see if we should send that
+    /// And send our timestamp of the target's node info so they can determine if they should update us on their next rpc
+    #[instrument(level = "trace", skip(self), ret)]
+    fn get_sender_peer_info(&self, dest: &Destination) -> SenderPeerInfo {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
         match dest.get_safety_selection() {
             SafetySelection::Unsafe(_) => {}
             SafetySelection::Safe(_) => {
-                return Ok(SenderPeerInfo::default());
+                return SenderPeerInfo::default();
             }
         }
 
@@ -732,13 +734,14 @@ impl RPCProcessor {
                 private_route: _,
                 safety_selection: _,
             } => {
-                return Ok(SenderPeerInfo::default());
+                return SenderPeerInfo::default();
             }
         };
 
         let Some(routing_domain) = target.best_routing_domain() else {
-            // No routing domain for target?
-            return Err(RPCError::internal(format!("No routing domain for target: {}", target)));
+            // No routing domain for target, no node info
+            // Only a stale connection or no connection exists
+            return SenderPeerInfo::default();
         };
 
         // Get the target's node info timestamp
@@ -746,7 +749,7 @@ impl RPCProcessor {
 
         // Don't return our node info if it's not valid yet
         let Some(own_peer_info) = routing_table.get_own_peer_info(routing_domain) else {
-            return Ok(SenderPeerInfo::new_no_peer_info(target_node_info_ts));
+            return SenderPeerInfo::new_no_peer_info(target_node_info_ts);
         };
 
         // Get our node info timestamp
@@ -754,10 +757,10 @@ impl RPCProcessor {
 
         // If the target has seen our node info already don't send it again
         if target.has_seen_our_node_info_ts(routing_domain, our_node_info_ts) {
-            return Ok(SenderPeerInfo::new_no_peer_info(target_node_info_ts));
+            return SenderPeerInfo::new_no_peer_info(target_node_info_ts);
         }
 
-        Ok(SenderPeerInfo::new(own_peer_info, target_node_info_ts))
+        SenderPeerInfo::new(own_peer_info, target_node_info_ts)
     }
 
     /// Record failure to send to node or route
@@ -1002,7 +1005,7 @@ impl RPCProcessor {
         question: RPCQuestion,
     ) -> Result<NetworkResult<WaitableReply>, RPCError> {
         // Get sender peer info if we should send that
-        let spi = self.get_sender_peer_info(&dest)?;
+        let spi = self.get_sender_peer_info(&dest);
 
         // Wrap question in operation
         let operation = RPCOperation::new_question(question, spi);
@@ -1077,7 +1080,7 @@ impl RPCProcessor {
         statement: RPCStatement,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get sender peer info if we should send that
-        let spi = self.get_sender_peer_info(&dest)?;
+        let spi = self.get_sender_peer_info(&dest);
 
         // Wrap statement in operation
         let operation = RPCOperation::new_statement(statement, spi);
@@ -1138,7 +1141,7 @@ impl RPCProcessor {
         let dest = network_result_try!(self.get_respond_to_destination(&request));
 
         // Get sender signed node info if we should send that
-        let spi = self.get_sender_peer_info(&dest)?;
+        let spi = self.get_sender_peer_info(&dest);
 
         // Wrap answer in operation
         let operation = RPCOperation::new_answer(&request.operation, answer, spi);
