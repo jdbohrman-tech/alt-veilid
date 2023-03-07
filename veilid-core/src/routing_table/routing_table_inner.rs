@@ -972,7 +972,7 @@ impl RoutingTableInner {
             &'b Option<Arc<BucketEntry>>,
             &'b Option<Arc<BucketEntry>>,
         ) -> core::cmp::Ordering,
-        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r, 't> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
         // collect all the nodes for sorting
         let mut nodes =

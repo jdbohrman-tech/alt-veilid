@@ -493,6 +493,10 @@ impl<'a> NodeRefLocked<'a> {
             nr,
         }
     }
+
+    pub fn unlocked(&self) -> NodeRef {
+        self.nr.clone()
+    }
 }
 
 impl<'a> NodeRefBase for NodeRefLocked<'a> {
