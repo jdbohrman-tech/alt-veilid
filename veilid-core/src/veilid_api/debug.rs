@@ -30,7 +30,7 @@ fn get_string(text: &str) -> Option<String> {
     Some(text.to_owned())
 }
 
-fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<RouteId> {
+fn get_route_id(rss: RouteSpecStore, allow_remote: bool) -> impl Fn(&str) -> Option<RouteId> {
     return move |text: &str| {
         if text.is_empty() {
             return None;
@@ -41,6 +41,12 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<RouteId> {
                 if routes.contains(&key) {
                     return Some(key);
                 }
+                if allow_remote {
+                    let rroutes = rss.list_remote_routes(|k, _| Some(*k));
+                    if rroutes.contains(&key) {
+                        return Some(key);
+                    }
+                }
             }
             None => {
                 let routes = rss.list_allocated_routes(|k, _| Some(*k));
@@ -48,6 +54,15 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<RouteId> {
                     let rkey = r.encode();
                     if rkey.starts_with(text) {
                         return Some(r);
+                    }
+                }
+                if allow_remote {
+                    let routes = rss.list_remote_routes(|k, _| Some(*k));
+                    for r in routes {
+                        let rkey = r.encode();
+                        if rkey.starts_with(text) {
+                            return Some(r);
+                        }
                     }
                 }
             }
@@ -74,7 +89,7 @@ fn get_safety_selection(text: &str, routing_table: RoutingTable) -> Option<Safet
         let mut sequencing = Sequencing::default();
         for x in text.split(",") {
             let x = x.trim();
-            if let Some(pr) = get_route_id(rss.clone())(x) {
+            if let Some(pr) = get_route_id(rss.clone(), false)(x) {
                 preferred_route = Some(pr)
             }
             if let Some(n) = get_number(x) {
@@ -649,12 +664,22 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone()),
+            get_route_id(rss.clone(), true),
         )?;
 
         // Release route
         let out = match rss.release_route(route_id) {
-            true => "Released".to_owned(),
+            true => {
+                // release imported
+                let mut dc = DEBUG_CACHE.lock();
+                for (n, ir) in dc.imported_routes.iter().enumerate() {
+                    if *ir == route_id {
+                        dc.imported_routes.remove(n);
+                        break;
+                    }
+                }
+                "Released".to_owned()
+            }
             false => "Route does not exist".to_owned(),
         };
 
@@ -671,7 +696,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone()),
+            get_route_id(rss.clone(), false),
         )?;
         let full = {
             if args.len() > 2 {
@@ -723,7 +748,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone()),
+            get_route_id(rss.clone(), false),
         )?;
 
         // Unpublish route
@@ -745,7 +770,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone()),
+            get_route_id(rss.clone(), true),
         )?;
 
         match rss.debug_route(&route_id) {
@@ -807,7 +832,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone()),
+            get_route_id(rss.clone(), true),
         )?;
 
         let success = rss
