@@ -115,9 +115,11 @@ impl RouteSetSpecDetail {
         }
     }
     pub fn contains_nodes(&self, nodes: &[TypedKey]) -> bool {
-        for h in &self.hop_node_refs {
-            if h.node_ids().contains_any(nodes) {
-                return true;
+        for tk in nodes {
+            for (_pk, rsd) in &self.route_set {
+                if rsd.crypto_kind == tk.kind && rsd.hops.contains(&tk.value) {
+                    return true;
+                }
             }
         }
         false
