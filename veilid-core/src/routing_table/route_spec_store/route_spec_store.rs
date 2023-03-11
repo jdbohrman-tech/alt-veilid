@@ -72,8 +72,9 @@ impl RouteSpecStore {
         };
 
         // Rebuild the routespecstore cache
+        let rti = &*routing_table.inner.read();
         for (_, rssd) in inner.content.iter_details() {
-            inner.cache.add_to_cache(&rssd);
+            inner.cache.add_to_cache(rti, &rssd);
         }
 
         // Return the loaded RouteSpecStore
@@ -81,7 +82,7 @@ impl RouteSpecStore {
             unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
                 max_route_hop_count,
                 default_route_hop_count,
-                routing_table,
+                routing_table: routing_table.clone(),
             }),
             inner: Arc::new(Mutex::new(inner)),
         };
@@ -338,8 +339,8 @@ impl RouteSpecStore {
             };
 
         // Pull the whole routing table in sorted order
-        let nodes:Vec<NodeRefLocked> =
-            rti.find_peers_with_sort_and_filter(usize::MAX, cur_ts, filters, compare, transform).iter().map(|n| n.locked(rti)).collect();
+        let nodes:Vec<NodeRef> =
+            rti.find_peers_with_sort_and_filter(usize::MAX, cur_ts, filters, compare, transform);
 
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
         if nodes.len() < hop_count {
@@ -348,20 +349,20 @@ impl RouteSpecStore {
         }
 
         // Get peer info for everything
-        let nodes_pi: Vec<PeerInfo> = nodes.iter().map(|nr| nr.make_peer_info(RoutingDomain::PublicInternet).unwrap()).collect();
+        let nodes_pi: Vec<PeerInfo> = nodes.iter().map(|nr| nr.locked(rti).make_peer_info(RoutingDomain::PublicInternet).unwrap()).collect();
 
         // Now go through nodes and try to build a route we haven't seen yet
         let mut perm_func = Box::new(|permutation: &[usize]| {
             
-            /// Get the hop cache key for a particular route permutation
-            /// uses the same algorithm as RouteSetSpecDetail::make_cache_key
-            fn route_permutation_to_hop_cache(_rti: &RoutingTableInner, nodes: &[NodeRefLocked], perm: &[usize]) -> Vec<u8> {
+            // Get the hop cache key for a particular route permutation
+            // uses the same algorithm as RouteSetSpecDetail::make_cache_key
+            let route_permutation_to_hop_cache = |_rti: &RoutingTableInner, nodes: &[NodeRef], perm: &[usize]| -> Vec<u8> {
                 let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * PUBLIC_KEY_LENGTH);
                 for n in perm {
-                    cache.extend_from_slice(&nodes[*n].best_node_id().value.bytes)
+                    cache.extend_from_slice(&nodes[*n].locked(rti).best_node_id().value.bytes)
                 }
                 cache
-            }
+            };
             let cache_key = route_permutation_to_hop_cache(rti, &nodes, permutation);
 
             // Skip routes we have already seen
@@ -373,12 +374,12 @@ impl RouteSpecStore {
             let mut seen_nodes: HashSet<TypedKey> = HashSet::new();
             for n in permutation {
                 let node = nodes.get(*n).unwrap();
-                if !seen_nodes.insert(node.best_node_id()) {
+                if !seen_nodes.insert(node.locked(rti).best_node_id()) {
                     // Already seen this node, should not be in the route twice
                     return None;
                 }
-                if let Some(relay) = node.relay(RoutingDomain::PublicInternet).map(|n| n.locked(rti)) {
-                    let relay_id = relay.best_node_id();
+                if let Some(relay) = node.locked_mut(rti).relay(RoutingDomain::PublicInternet) {
+                    let relay_id = relay.locked(rti).best_node_id();
                     if !seen_nodes.insert(relay_id) {
                         // Already seen this node, should not be in the route twice
                         return None;
@@ -482,16 +483,18 @@ impl RouteSpecStore {
             return Ok(None);
         }
 
+        drop(perm_func);
+
         // Got a unique route, lets build the details, register it, and return it
         let hop_node_refs:Vec<NodeRef> = route_nodes
             .iter()
-            .map(|k| nodes[*k].unlocked())
+            .map(|k| nodes[*k].clone())
             .collect();
         let mut route_set = BTreeMap::<PublicKey, RouteSpecDetail>::new();
         for crypto_kind in crypto_kinds.iter().copied() {
             let vcrypto = self.unlocked_inner.routing_table.crypto().get(crypto_kind).unwrap();
             let keypair = vcrypto.generate_keypair();
-            let hops: Vec<PublicKey> = route_nodes.iter().map(|v| nodes[*v].node_ids().get(crypto_kind).unwrap().value).collect();
+            let hops: Vec<PublicKey> = route_nodes.iter().map(|v| nodes[*v].locked(rti).node_ids().get(crypto_kind).unwrap().value).collect();
 
             route_set.insert(keypair.key, RouteSpecDetail {
                 crypto_kind,
@@ -509,13 +512,12 @@ impl RouteSpecStore {
             can_do_sequenced,   
         );
 
-        drop(perm_func);
 
         // make id
         let id = self.generate_allocated_route_id(&rssd)?;
 
         // Add to cache
-        inner.cache.add_to_cache(&rssd);
+        inner.cache.add_to_cache(rti, &rssd);
 
         // Keep route in spec store
         inner.content.add_detail(id.clone(), rssd);
@@ -686,7 +688,8 @@ impl RouteSpecStore {
         };
 
         // Remove from hop cache
-        if !inner.cache.remove_from_cache(id, &rssd) {
+        let rti = &*self.unlocked_inner.routing_table.inner.read();
+        if !inner.cache.remove_from_cache(rti, id, &rssd) {
             panic!("hop cache should have contained cache key");
         }
 

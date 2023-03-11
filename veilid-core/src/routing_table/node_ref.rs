@@ -556,6 +556,10 @@ impl<'a> NodeRefLockedMut<'a> {
             nr,
         }
     }
+
+    pub fn unlocked(&self) -> NodeRef {
+        self.nr.clone()
+    }
 }
 
 impl<'a> NodeRefBase for NodeRefLockedMut<'a> {

@@ -124,11 +124,11 @@ impl RouteSetSpecDetail {
     }
 
     /// Generate a key for the cache that can be used to uniquely identify this route's contents
-    pub fn make_cache_key(&self) -> Vec<u8> {
+    pub fn make_cache_key(&self, rti: &RoutingTableInner) -> Vec<u8> {
         let hops = &self.hop_node_refs;
         let mut cache: Vec<u8> = Vec::with_capacity(hops.len() * PUBLIC_KEY_LENGTH);
         for hop in hops {
-            cache.extend_from_slice(&hop.best_node_id().value.bytes);
+            cache.extend_from_slice(&hop.locked(rti).best_node_id().value.bytes);
         }
         cache
     }

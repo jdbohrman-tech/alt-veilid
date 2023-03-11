@@ -41,8 +41,8 @@ pub struct RouteSpecStoreCache {
 
 impl RouteSpecStoreCache {
     /// add an allocated route set to our cache via its cache key
-    pub fn add_to_cache(&mut self, rssd: &RouteSetSpecDetail) {
-        let cache_key = rssd.make_cache_key();
+    pub fn add_to_cache(&mut self, rti: &RoutingTableInner, rssd: &RouteSetSpecDetail) {
+        let cache_key = rssd.make_cache_key(rti);
         if !self.hop_cache.insert(cache_key) {
             panic!("route should never be inserted twice");
         }
@@ -66,8 +66,13 @@ impl RouteSpecStoreCache {
     }
 
     /// removes an allocated route set from our cache
-    pub fn remove_from_cache(&mut self, id: RouteId, rssd: &RouteSetSpecDetail) -> bool {
-        let cache_key = rssd.make_cache_key();
+    pub fn remove_from_cache(
+        &mut self,
+        rti: &RoutingTableInner,
+        id: RouteId,
+        rssd: &RouteSetSpecDetail,
+    ) -> bool {
+        let cache_key = rssd.make_cache_key(rti);
 
         // Remove from hop cache
         if !self.hop_cache.remove(&cache_key) {
