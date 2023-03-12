@@ -10,7 +10,9 @@ license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
-default = []
+default = [ "enable-crypto-vld0" ]
+enable-crypto-vld0 = []
+enable-crypto-none = []
 rt-async-std = ["async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std"]
 rt-tokio = ["tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket", "veilid-tools/rt-tokio"]
 
