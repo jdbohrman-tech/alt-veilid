@@ -83,6 +83,7 @@ impl ConnectionTable {
                     unord.push(v);
                 }
             }
+            inner.protocol_index_by_id.clear();
             inner.id_by_descriptor.clear();
             inner.ids_by_remote.clear();
             unord

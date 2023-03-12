@@ -499,9 +499,9 @@ pub extern "C" fn new_private_route(port: i64) {
 
         let (route_id, blob) = veilid_api.new_private_route().await?;
 
-        let keyblob = VeilidFFIRouteBlob { route_id, blob };
+        let route_blob = VeilidFFIRouteBlob { route_id, blob };
 
-        APIResult::Ok(keyblob)
+        APIResult::Ok(route_blob)
     });
 }
 
@@ -519,9 +519,9 @@ pub extern "C" fn new_custom_private_route(port: i64, stability: FfiStr, sequenc
             .new_custom_private_route(&veilid_core::VALID_CRYPTO_KINDS, stability, sequencing)
             .await?;
 
-        let keyblob = VeilidFFIRouteBlob { route_id, blob };
+        let route_blob = VeilidFFIRouteBlob { route_id, blob };
 
-        APIResult::Ok(keyblob)
+        APIResult::Ok(route_blob)
     });
 }
 
@@ -544,9 +544,9 @@ pub extern "C" fn import_remote_private_route(port: i64, blob: FfiStr) {
 }
 
 #[no_mangle]
-pub extern "C" fn release_private_route(port: i64, key: FfiStr) {
+pub extern "C" fn release_private_route(port: i64, route_id: FfiStr) {
     let route_id: veilid_core::RouteId =
-        veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
+        veilid_core::deserialize_opt_json(route_id.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         veilid_api.release_private_route(route_id)?;

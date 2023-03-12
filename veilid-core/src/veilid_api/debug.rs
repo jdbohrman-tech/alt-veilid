@@ -471,12 +471,13 @@ impl VeilidAPI {
                 // Purge connection table
                 let connection_manager = self.network_manager()?.connection_manager();
                 connection_manager.shutdown().await;
-                connection_manager.startup().await;
 
                 // Eliminate last_connections from routing table entries
                 self.network_manager()?
                     .routing_table()
                     .purge_last_connections();
+
+                connection_manager.startup().await;
 
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {

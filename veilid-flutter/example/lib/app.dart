@@ -118,15 +118,18 @@ class _MyAppState extends State<MyApp> with UiLoggy {
       });
       await Veilid.instance.attach();
     } else if (!startup && _startedUp) {
-      await Veilid.instance.shutdownVeilidCore();
-      if (_updateProcessor != null) {
-        await _updateProcessor;
+      try {
+        await Veilid.instance.shutdownVeilidCore();
+        if (_updateProcessor != null) {
+          await _updateProcessor;
+        }
+      } finally {
+        setState(() {
+          _updateProcessor = null;
+          _updateStream = null;
+          _startedUp = false;
+        });
       }
-      setState(() {
-        _updateProcessor = null;
-        _updateStream = null;
-        _startedUp = false;
-      });
     }
   }
 

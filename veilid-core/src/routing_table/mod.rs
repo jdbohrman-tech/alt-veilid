@@ -542,7 +542,7 @@ impl RoutingTable {
     }
 
     /// Attempt to empty the routing table
-    /// should only be performed when there are no node_refs (detached)
+    /// May not empty buckets completely if there are existing node_refs
     pub fn purge_buckets(&self) {
         self.inner.write().purge_buckets();
     }

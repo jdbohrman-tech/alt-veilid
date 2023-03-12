@@ -861,8 +861,9 @@ class VeilidFFI implements Veilid {
     final sendPort = recvPort.sendPort;
     _newCustomPrivateRoute(sendPort.nativePort, stability.json.toNativeUtf8(),
         sequencing.json.toNativeUtf8());
-    final keyblob = await processFutureJson(RouteBlob.fromJson, recvPort.first);
-    return keyblob;
+    final routeBlob =
+        await processFutureJson(RouteBlob.fromJson, recvPort.first);
+    return routeBlob;
   }
 
   @override

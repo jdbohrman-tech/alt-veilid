@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C, align(8)), derive(CheckBytes))]
 pub struct RouteSpecDetail {
     /// Crypto kind
     pub crypto_kind: CryptoKind,
@@ -13,7 +13,7 @@ pub struct RouteSpecDetail {
 }
 
 #[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[archive_attr(repr(C, align(8)), derive(CheckBytes))]
 pub struct RouteSetSpecDetail {
     /// Route set per crypto kind
     route_set: BTreeMap<PublicKey, RouteSpecDetail>,

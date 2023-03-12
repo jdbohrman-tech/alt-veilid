@@ -697,6 +697,9 @@ class VeilidConfigRPC {
 ////////////
 
 class VeilidConfigRoutingTable {
+  List<String> nodeId;
+  List<String> nodeIdSecret;
+  List<String> bootstrap;
   int limitOverAttached;
   int limitFullyAttached;
   int limitAttachedStrong;
@@ -704,6 +707,9 @@ class VeilidConfigRoutingTable {
   int limitAttachedWeak;
 
   VeilidConfigRoutingTable({
+    required this.nodeId,
+    required this.nodeIdSecret,
+    required this.bootstrap,
     required this.limitOverAttached,
     required this.limitFullyAttached,
     required this.limitAttachedStrong,
@@ -713,6 +719,9 @@ class VeilidConfigRoutingTable {
 
   Map<String, dynamic> get json {
     return {
+      'node_id': nodeId.map((p) => p).toList(),
+      'node_id_secret': nodeIdSecret.map((p) => p).toList(),
+      'bootstrap': bootstrap.map((p) => p).toList(),
       'limit_over_attached': limitOverAttached,
       'limit_fully_attached': limitFullyAttached,
       'limit_attached_strong': limitAttachedStrong,
@@ -722,7 +731,10 @@ class VeilidConfigRoutingTable {
   }
 
   VeilidConfigRoutingTable.fromJson(dynamic json)
-      : limitOverAttached = json['limit_over_attached'],
+      : nodeId = List<String>.from(json['node_id'].map((j) => j)),
+        nodeIdSecret = List<String>.from(json['node_id_secret'].map((j) => j)),
+        bootstrap = List<String>.from(json['bootstrap'].map((j) => j)),
+        limitOverAttached = json['limit_over_attached'],
         limitFullyAttached = json['limit_fully_attached'],
         limitAttachedStrong = json['limit_attached_strong'],
         limitAttachedGood = json['limit_attached_good'],
@@ -741,9 +753,6 @@ class VeilidConfigNetwork {
   int clientWhitelistTimeoutMs;
   int reverseConnectionReceiptTimeMs;
   int holePunchReceiptTimeMs;
-  String? nodeId;
-  String? nodeIdSecret;
-  List<String> bootstrap;
   VeilidConfigRoutingTable routingTable;
   VeilidConfigRPC rpc;
   VeilidConfigDHT dht;
@@ -764,9 +773,6 @@ class VeilidConfigNetwork {
     required this.clientWhitelistTimeoutMs,
     required this.reverseConnectionReceiptTimeMs,
     required this.holePunchReceiptTimeMs,
-    required this.nodeId,
-    required this.nodeIdSecret,
-    required this.bootstrap,
     required this.routingTable,
     required this.rpc,
     required this.dht,
@@ -789,9 +795,6 @@ class VeilidConfigNetwork {
       'client_whitelist_timeout_ms': clientWhitelistTimeoutMs,
       'reverse_connection_receipt_time_ms': reverseConnectionReceiptTimeMs,
       'hole_punch_receipt_time_ms': holePunchReceiptTimeMs,
-      'node_id': nodeId,
-      'node_id_secret': nodeIdSecret,
-      'bootstrap': bootstrap,
       'routing_table': routingTable.json,
       'rpc': rpc.json,
       'dht': dht.json,
@@ -817,9 +820,6 @@ class VeilidConfigNetwork {
         reverseConnectionReceiptTimeMs =
             json['reverse_connection_receipt_time_ms'],
         holePunchReceiptTimeMs = json['hole_punch_receipt_time_ms'],
-        nodeId = json['node_id'],
-        nodeIdSecret = json['node_id_secret'],
-        bootstrap = json['bootstrap'],
         routingTable = VeilidConfigRoutingTable.fromJson(json['routing_table']),
         rpc = VeilidConfigRPC.fromJson(json['rpc']),
         dht = VeilidConfigDHT.fromJson(json['dht']),
@@ -1159,26 +1159,26 @@ class PeerStats {
 ////////////
 
 class PeerTableData {
-  String nodeId;
+  List<String> nodeIds;
   PeerAddress peerAddress;
   PeerStats peerStats;
 
   PeerTableData({
-    required this.nodeId,
+    required this.nodeIds,
     required this.peerAddress,
     required this.peerStats,
   });
 
   Map<String, dynamic> get json {
     return {
-      'node_id': nodeId,
+      'node_ids': nodeIds.map((p) => p).toList(),
       'peer_address': peerAddress.json,
       'peer_stats': peerStats.json,
     };
   }
 
   PeerTableData.fromJson(dynamic json)
-      : nodeId = json['node_id'],
+      : nodeIds = List<String>.from(json['node_ids'].map((j) => j)),
         peerAddress = PeerAddress.fromJson(json['peer_address']),
         peerStats = PeerStats.fromJson(json['peer_stats']);
 }
