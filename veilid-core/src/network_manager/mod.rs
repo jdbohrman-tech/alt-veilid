@@ -120,7 +120,7 @@ pub(crate) enum NodeContactMethod {
     Direct(DialInfo),
     /// Request via signal the node connect back directly (relay, target)
     SignalReverse(NodeRef, NodeRef),
-    /// Request via signal the node negotiate a hole punch (relay, target_node)
+    /// Request via signal the node negotiate a hole punch (relay, target)
     SignalHolePunch(NodeRef, NodeRef),
     /// Must use an inbound relay to reach the node
     InboundRelay(NodeRef),
@@ -134,7 +134,7 @@ struct PublicAddressCheckCacheKey(ProtocolType, AddressType);
 // The mutable state of the network manager
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
-    client_whitelist: LruCache<DHTKey, ClientWhitelistEntry>,
+    client_whitelist: LruCache<TypedKey, ClientWhitelistEntry>,
     public_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
     public_address_inconsistencies_table:
@@ -396,9 +396,11 @@ impl NetworkManager {
         debug!("finished network manager shutdown");
     }
 
-    pub fn update_client_whitelist(&self, client: DHTKey) {
+    pub fn update_client_whitelist(&self, client: TypedKey) {
         let mut inner = self.inner.lock();
-        match inner.client_whitelist.entry(client) {
+        match inner.client_whitelist.entry(client, |_k,_v| {
+            // do nothing on LRU evict
+        }) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp()
             }
@@ -411,10 +413,12 @@ impl NetworkManager {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn check_client_whitelist(&self, client: DHTKey) -> bool {
+    pub fn check_client_whitelist(&self, client: TypedKey) -> bool {
         let mut inner = self.inner.lock();
 
-        match inner.client_whitelist.entry(client) {
+        match inner.client_whitelist.entry(client, |_k,_v| {
+            // do nothing on LRU evict
+        }) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp();
                 true
@@ -519,10 +523,15 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // Generate receipt and serialized form to return
-        let nonce = Crypto::get_random_nonce();
-        let receipt = Receipt::try_new(0, nonce, routing_table.node_id(), extra_data)?;
+        let vcrypto = self.crypto().best();
+        
+        let nonce = vcrypto.random_nonce();
+        let node_id = routing_table.node_id(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
+        
+        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
         let out = receipt
-            .to_signed_data(&routing_table.node_id_secret())
+            .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
@@ -543,10 +552,15 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // Generate receipt and serialized form to return
-        let nonce = Crypto::get_random_nonce();
-        let receipt = Receipt::try_new(0, nonce, routing_table.node_id(), extra_data)?;
+        let vcrypto = self.crypto().best();
+        
+        let nonce = vcrypto.random_nonce();
+        let node_id = routing_table.node_id(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
+        
+        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
         let out = receipt
-            .to_signed_data(&routing_table.node_id_secret())
+            .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
@@ -566,7 +580,7 @@ impl NetworkManager {
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -587,7 +601,7 @@ impl NetworkManager {
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -607,7 +621,7 @@ impl NetworkManager {
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -624,11 +638,11 @@ impl NetworkManager {
     pub async fn handle_private_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
-        private_route: DHTKey,
+        private_route: PublicKey,
     ) -> NetworkResult<()> {
         let receipt_manager = self.receipt_manager();
 
-        let receipt = match Receipt::from_signed_data(receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -649,10 +663,9 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let peer_nr = match routing_table.register_node_with_signed_node_info(
+                let peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
-                    peer_info.node_id.key,
-                    peer_info.signed_node_info,
+                    peer_info,
                     false,
                 ) {
                     None => {
@@ -673,10 +686,9 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let mut peer_nr = match routing_table.register_node_with_signed_node_info(
+                let mut peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
-                    peer_info.node_id.key,
-                    peer_info.signed_node_info,
+                    peer_info,
                     false,
                 ) {
                     None => {
@@ -731,21 +743,25 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self, body), err)]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
-        dest_node_id: DHTKey,
+        dest_node_id: TypedKey,
         version: u8,
         body: B,
     ) -> EyreResult<Vec<u8>> {
         // DH to get encryption key
         let routing_table = self.routing_table();
-        let node_id = routing_table.node_id();
-        let node_id_secret = routing_table.node_id_secret();
+        let Some(vcrypto) = self.crypto().get(dest_node_id.kind) else {
+            bail!("should not have a destination with incompatible crypto here");
+        };
+
+        let node_id = routing_table.node_id(vcrypto.kind());
+        let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
 
         // Get timestamp, nonce
         let ts = get_aligned_timestamp();
-        let nonce = Crypto::get_random_nonce();
+        let nonce = vcrypto.random_nonce();
 
         // Encode envelope
-        let envelope = Envelope::new(version, ts, nonce, node_id, dest_node_id);
+        let envelope = Envelope::new(version, node_id.kind, ts, nonce, node_id.value, dest_node_id.value);
         envelope
             .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret)
             .wrap_err("envelope failed to encode")
@@ -753,50 +769,44 @@ impl NetworkManager {
 
     /// Called by the RPC handler when we want to issue an RPC request or response
     /// node_ref is the direct destination to which the envelope will be sent
-    /// If 'node_id' is specified, it can be different than node_ref.node_id()
+    /// If 'destination_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
     #[instrument(level = "trace", skip(self, body), ret, err)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
-        envelope_node_id: Option<DHTKey>,
+        destination_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataKind>> {
-        let via_node_id = node_ref.node_id();
-        let envelope_node_id = envelope_node_id.unwrap_or(via_node_id);
 
-        if envelope_node_id != via_node_id {
+        let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
+        
+        if !node_ref.same_entry(&destination_node_ref) {
             log_net!(
                 "sending envelope to {:?} via {:?}",
-                envelope_node_id,
+                destination_node_ref,
                 node_ref
             );
         } else {
             log_net!("sending envelope to {:?}", node_ref);
         }
-        // Get node's min/max version and see if we can send to it
+
+        let best_node_id = destination_node_ref.best_node_id();
+
+        // Get node's envelope versions and see if we can send to it
         // and if so, get the max version we can use
-        let version = if let Some(min_max_version) = node_ref.min_max_version() {
-            #[allow(clippy::absurd_extreme_comparisons)]
-            if min_max_version.min > MAX_CRYPTO_VERSION || min_max_version.max < MIN_CRYPTO_VERSION
-            {
-                bail!(
-                    "can't talk to this node {} because version is unsupported: ({},{})",
-                    via_node_id,
-                    min_max_version.min,
-                    min_max_version.max
-                );
-            }
-            cmp::min(min_max_version.max, MAX_CRYPTO_VERSION)
-        } else {
-            MAX_CRYPTO_VERSION
+        let Some(envelope_version) = destination_node_ref.best_envelope_version() else {
+            bail!(
+                "can't talk to this node {} because we dont support its envelope versions",
+                node_ref
+            );
         };
 
         // Build the envelope to send
-        let out = self.build_envelope(envelope_node_id, version, body)?;
+        let out = self.build_envelope(best_node_id, envelope_version, body)?;
 
         // Send the envelope via whatever means necessary
-        self.send_data(node_ref.clone(), out).await
+        self.send_data(node_ref, out).await
     }
 
     /// Called by the RPC handler when we want to issue an direct receipt
@@ -860,7 +870,7 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::relay(relay_nr, target_nr.node_id()),
+                Destination::relay(relay_nr, target_nr.clone()),
                 SignalInfo::ReverseConnect { receipt, peer_info },
             )
             .await
@@ -886,7 +896,7 @@ impl NetworkManager {
 
         // We expect the inbound noderef to be the same as the target noderef
         // if they aren't the same, we should error on this and figure out what then hell is up
-        if target_nr.node_id() != inbound_nr.node_id() {
+        if !target_nr.same_entry(&inbound_nr) {
             bail!("unexpected noderef mismatch on reverse connect");
         }
 
@@ -965,7 +975,7 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::relay(relay_nr, target_nr.node_id()),
+                Destination::relay(relay_nr, target_nr.clone()),
                 SignalInfo::HolePunch { receipt, peer_info },
             )
             .await
@@ -991,7 +1001,7 @@ impl NetworkManager {
 
         // We expect the inbound noderef to be the same as the target noderef
         // if they aren't the same, we should error on this and figure out what then hell is up
-        if target_nr.node_id() != inbound_nr.node_id() {
+        if !target_nr.same_entry(&inbound_nr) {
             bail!(
                 "unexpected noderef mismatch on hole punch {}, expected {}",
                 inbound_nr,
@@ -1069,7 +1079,7 @@ impl NetworkManager {
                 let relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
-                if target_node_ref.node_id() != target_key {
+                if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("target noderef didn't match target key");
                 }
                 NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
@@ -1078,7 +1088,7 @@ impl NetworkManager {
                 let relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
-                if target_node_ref.node_id() != target_key {
+                if target_node_ref.node_ids().contains(&target_key) {
                     bail!("target noderef didn't match target key");
                 }
                 NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref)
@@ -1320,13 +1330,13 @@ impl NetworkManager {
         }
 
         // Is this an out-of-band receipt instead of an envelope?
-        if data[0..4] == *RECEIPT_MAGIC {
+        if data[0..3] == *RECEIPT_MAGIC {
             network_result_value_or_log!(self.handle_out_of_band_receipt(data).await => {});
             return Ok(true);
         }
 
         // Decode envelope header (may fail signature validation)
-        let envelope = match Envelope::from_signed_data(data) {
+        let envelope = match Envelope::from_signed_data(self.crypto(), data) {
             Ok(v) => v,
             Err(e) => {
                 log_net!(debug "envelope failed to decode: {}", e);
@@ -1370,16 +1380,16 @@ impl NetworkManager {
 
         // Peek at header and see if we need to relay this
         // If the recipient id is not our node id, then it needs relaying
-        let sender_id = envelope.get_sender_id();
-        let recipient_id = envelope.get_recipient_id();
-        if recipient_id != routing_table.node_id() {
+        let sender_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id());
+        let recipient_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_recipient_id());
+        if !routing_table.matches_own_node_id(&[recipient_id]) {
             // See if the source node is allowed to resolve nodes
             // This is a costly operation, so only outbound-relay permitted
             // nodes are allowed to do this, for example PWA users
 
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
-                match rpc.resolve_node(recipient_id).await {
+                match rpc.resolve_node(recipient_id.value).await {
                     Ok(v) => v,
                     Err(e) => {
                         log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);
@@ -1417,7 +1427,7 @@ impl NetworkManager {
         }
 
         // DH to get decryption key (cached)
-        let node_id_secret = routing_table.node_id_secret();
+        let node_id_secret = routing_table.node_id_secret_key(envelope.get_crypto_kind());
 
         // Decrypt the envelope body
         let body = match envelope
@@ -1432,7 +1442,7 @@ impl NetworkManager {
 
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
-            envelope.get_sender_id(),
+            TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id()),
             connection_descriptor,
             ts,
         ) {
@@ -1443,7 +1453,7 @@ impl NetworkManager {
             }
             Some(v) => v,
         };
-        source_noderef.set_min_max_version(envelope.get_min_max_version());
+        source_noderef.add_envelope_version(envelope.get_version());
 
         // xxx: deal with spoofing and flooding here?
 
@@ -1471,7 +1481,9 @@ impl NetworkManager {
         inner
             .stats
             .per_address_stats
-            .entry(PerAddressStatsKey(addr))
+            .entry(PerAddressStatsKey(addr), |_k,_v| {
+                // do nothing on LRU evict
+            })
             .or_insert(PerAddressStats::default())
             .transfer_stats_accounting
             .add_up(bytes);
@@ -1487,7 +1499,9 @@ impl NetworkManager {
         inner
             .stats
             .per_address_stats
-            .entry(PerAddressStatsKey(addr))
+            .entry(PerAddressStatsKey(addr), |_k,_v| {
+                // do nothing on LRU evict
+            })
             .or_insert(PerAddressStats::default())
             .transfer_stats_accounting
             .add_down(bytes);
@@ -1537,7 +1551,7 @@ impl NetworkManager {
                     if let Some(nr) = routing_table.lookup_node_ref(k) {
                         let peer_stats = nr.peer_stats();
                         let peer = PeerTableData {
-                            node_id: k,
+                            node_ids: nr.node_ids(),
                             peer_address: v.last_connection.remote(),
                             peer_stats,
                         };
@@ -1622,7 +1636,9 @@ impl NetworkManager {
         if pait.contains_key(&ipblock) {
             return;
         }
-        pacc.insert(ipblock, socket_address);
+        pacc.insert(ipblock, socket_address, |_k,_v| {
+            // do nothing on LRU evict
+        });
 
         // Determine if our external address has likely changed
         let mut bad_public_address_detection_punishment: Option<

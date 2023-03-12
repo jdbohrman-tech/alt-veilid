@@ -7,7 +7,7 @@ use routing_table::*;
 
 #[derive(Default, Debug)]
 struct DebugCache {
-    imported_routes: Vec<DHTKey>,
+    imported_routes: Vec<RouteId>,
 }
 
 static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
@@ -30,16 +30,22 @@ fn get_string(text: &str) -> Option<String> {
     Some(text.to_owned())
 }
 
-fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
+fn get_route_id(rss: RouteSpecStore, allow_remote: bool) -> impl Fn(&str) -> Option<RouteId> {
     return move |text: &str| {
         if text.is_empty() {
             return None;
         }
-        match DHTKey::try_decode(text).ok() {
+        match RouteId::from_str(text).ok() {
             Some(key) => {
                 let routes = rss.list_allocated_routes(|k, _| Some(*k));
                 if routes.contains(&key) {
                     return Some(key);
+                }
+                if allow_remote {
+                    let rroutes = rss.list_remote_routes(|k, _| Some(*k));
+                    if rroutes.contains(&key) {
+                        return Some(key);
+                    }
                 }
             }
             None => {
@@ -48,6 +54,15 @@ fn get_route_id(rss: RouteSpecStore) -> impl Fn(&str) -> Option<DHTKey> {
                     let rkey = r.encode();
                     if rkey.starts_with(text) {
                         return Some(r);
+                    }
+                }
+                if allow_remote {
+                    let routes = rss.list_remote_routes(|k, _| Some(*k));
+                    for r in routes {
+                        let rkey = r.encode();
+                        if rkey.starts_with(text) {
+                            return Some(r);
+                        }
                     }
                 }
             }
@@ -74,7 +89,7 @@ fn get_safety_selection(text: &str, routing_table: RoutingTable) -> Option<Safet
         let mut sequencing = Sequencing::default();
         for x in text.split(",") {
             let x = x.trim();
-            if let Some(pr) = get_route_id(rss.clone())(x) {
+            if let Some(pr) = get_route_id(rss.clone(), false)(x) {
                 preferred_route = Some(pr)
             }
             if let Some(n) = get_number(x) {
@@ -131,9 +146,10 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
             let text = &text[1..];
             let n = get_number(text)?;
             let mut dc = DEBUG_CACHE.lock();
-            let pr_pubkey = dc.imported_routes.get(n)?;
+            let private_route_id = dc.imported_routes.get(n)?.clone();
+
             let rss = routing_table.route_spec_store();
-            let Some(private_route) = rss.get_remote_private_route(&pr_pubkey) else {
+            let Some(private_route) = rss.best_remote_private_route(&private_route_id) else {
                 // Remove imported route
                 dc.imported_routes.remove(n);
                 info!("removed dead imported route {}", n);
@@ -150,15 +166,14 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
                 .unwrap_or((text, None));
             if let Some((first, second)) = text.split_once('@') {
                 // Relay
-                let relay_id = get_dht_key(second)?;
-                let mut relay_nr = routing_table.lookup_node_ref(relay_id)?;
-                let target_id = get_dht_key(first)?;
+                let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
+                let target_nr = get_node_ref(routing_table)(first)?;
 
                 if let Some(mods) = mods {
                     relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
                 }
 
-                let mut d = Destination::relay(relay_nr, target_id);
+                let mut d = Destination::relay(relay_nr, target_nr);
                 if let Some(ss) = ss {
                     d = d.with_safety(ss)
                 }
@@ -166,8 +181,7 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
                 Some(d)
             } else {
                 // Direct
-                let target_id = get_dht_key(text)?;
-                let mut target_nr = routing_table.lookup_node_ref(target_id)?;
+                let mut target_nr = get_node_ref(routing_table)(text)?;
 
                 if let Some(mods) = mods {
                     target_nr = get_node_ref_modifiers(target_nr)(mods)?;
@@ -187,8 +201,11 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
 fn get_number(text: &str) -> Option<usize> {
     usize::from_str(text).ok()
 }
-fn get_dht_key(text: &str) -> Option<DHTKey> {
-    DHTKey::try_decode(text).ok()
+fn get_typed_key(text: &str) -> Option<TypedKey> {
+    TypedKey::from_str(text).ok()
+}
+fn get_public_key(text: &str) -> Option<PublicKey> {
+    PublicKey::from_str(text).ok()
 }
 
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
@@ -198,8 +215,13 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
             .map(|x| (x.0, Some(x.1)))
             .unwrap_or((text, None));
 
-        let node_id = get_dht_key(text)?;
-        let mut nr = routing_table.lookup_node_ref(node_id)?;
+        let mut nr = if let Some(key) = get_public_key(text) {
+            routing_table.lookup_any_node_ref(key)?
+        } else if let Some(key) = get_typed_key(text) {
+            routing_table.lookup_node_ref(key)?
+        } else {
+            return None;
+        };
         if let Some(mods) = mods {
             nr = get_node_ref_modifiers(nr)(mods)?;
         }
@@ -356,12 +378,19 @@ impl VeilidAPI {
 
     async fn debug_entry(&self, args: String) -> Result<String, VeilidAPIError> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+        let routing_table = self.network_manager()?.routing_table();
 
-        let node_id = get_debug_argument_at(&args, 0, "debug_entry", "node_id", get_dht_key)?;
+        let node_ref = get_debug_argument_at(
+            &args,
+            0,
+            "debug_entry",
+            "node_id",
+            get_node_ref(routing_table),
+        )?;
 
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
-        Ok(routing_table.debug_info_entry(node_id))
+        Ok(routing_table.debug_info_entry(node_ref))
     }
 
     async fn debug_nodeinfo(&self, _args: String) -> Result<String, VeilidAPIError> {
@@ -442,12 +471,13 @@ impl VeilidAPI {
                 // Purge connection table
                 let connection_manager = self.network_manager()?.connection_manager();
                 connection_manager.shutdown().await;
-                connection_manager.startup().await;
 
                 // Eliminate last_connections from routing table entries
                 self.network_manager()?
                     .routing_table()
                     .purge_last_connections();
+
+                connection_manager.startup().await;
 
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {
@@ -607,8 +637,15 @@ impl VeilidAPI {
         }
 
         // Allocate route
-        let out = match rss.allocate_route(stability, sequencing, hop_count, directions, &[]) {
-            Ok(Some(v)) => format!("{}", v.encode()),
+        let out = match rss.allocate_route(
+            &VALID_CRYPTO_KINDS,
+            stability,
+            sequencing,
+            hop_count,
+            directions,
+            &[],
+        ) {
+            Ok(Some(v)) => format!("{}", v),
             Ok(None) => format!("<unavailable>"),
             Err(e) => {
                 format!("Route allocation failed: {}", e)
@@ -623,11 +660,27 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+        let route_id = get_debug_argument_at(
+            &args,
+            1,
+            "debug_route",
+            "route_id",
+            get_route_id(rss.clone(), true),
+        )?;
 
         // Release route
-        let out = match rss.release_route(&route_id) {
-            true => "Released".to_owned(),
+        let out = match rss.release_route(route_id) {
+            true => {
+                // release imported
+                let mut dc = DEBUG_CACHE.lock();
+                for (n, ir) in dc.imported_routes.iter().enumerate() {
+                    if *ir == route_id {
+                        dc.imported_routes.remove(n);
+                        break;
+                    }
+                }
+                "Released".to_owned()
+            }
             false => "Route does not exist".to_owned(),
         };
 
@@ -639,7 +692,13 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+        let route_id = get_debug_argument_at(
+            &args,
+            1,
+            "debug_route",
+            "route_id",
+            get_route_id(rss.clone(), false),
+        )?;
         let full = {
             if args.len() > 2 {
                 let full_val = get_debug_argument_at(&args, 2, "debug_route", "full", get_string)?
@@ -655,13 +714,13 @@ impl VeilidAPI {
         };
 
         // Publish route
-        let out = match rss.assemble_private_route(&route_id, Some(!full)) {
-            Ok(private_route) => {
+        let out = match rss.assemble_private_routes(&route_id, Some(!full)) {
+            Ok(private_routes) => {
                 if let Err(e) = rss.mark_route_published(&route_id, true) {
                     return Ok(format!("Couldn't mark route published: {}", e));
                 }
                 // Convert to blob
-                let blob_data = RouteSpecStore::private_route_to_blob(&private_route)
+                let blob_data = RouteSpecStore::private_routes_to_blob(&private_routes)
                     .map_err(VeilidAPIError::internal)?;
                 let out = BASE64URL_NOPAD.encode(&blob_data);
                 info!(
@@ -685,7 +744,13 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+        let route_id = get_debug_argument_at(
+            &args,
+            1,
+            "debug_route",
+            "route_id",
+            get_route_id(rss.clone(), false),
+        )?;
 
         // Unpublish route
         let out = if let Err(e) = rss.mark_route_published(&route_id, false) {
@@ -701,7 +766,13 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+        let route_id = get_debug_argument_at(
+            &args,
+            1,
+            "debug_route",
+            "route_id",
+            get_route_id(rss.clone(), true),
+        )?;
 
         match rss.debug_route(&route_id) {
             Some(s) => Ok(s),
@@ -739,14 +810,14 @@ impl VeilidAPI {
             .decode(blob.as_bytes())
             .map_err(VeilidAPIError::generic)?;
         let rss = self.routing_table()?.route_spec_store();
-        let pr_pubkey = rss
+        let route_id = rss
             .import_remote_private_route(blob_dec)
             .map_err(VeilidAPIError::generic)?;
 
         let mut dc = DEBUG_CACHE.lock();
         let n = dc.imported_routes.len();
-        let out = format!("Private route #{} imported: {}", n, pr_pubkey);
-        dc.imported_routes.push(pr_pubkey);
+        let out = format!("Private route #{} imported: {}", n, route_id);
+        dc.imported_routes.push(route_id);
 
         return Ok(out);
     }
@@ -757,10 +828,16 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let rss = routing_table.route_spec_store();
 
-        let route_id = get_debug_argument_at(&args, 1, "debug_route", "route_id", get_dht_key)?;
+        let route_id = get_debug_argument_at(
+            &args,
+            1,
+            "debug_route",
+            "route_id",
+            get_route_id(rss.clone(), true),
+        )?;
 
         let success = rss
-            .test_route(&route_id)
+            .test_route(route_id)
             .await
             .map_err(VeilidAPIError::internal)?;
 

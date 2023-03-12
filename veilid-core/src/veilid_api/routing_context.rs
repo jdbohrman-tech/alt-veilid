@@ -4,8 +4,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(NodeId),
-    PrivateRoute(DHTKey),
+    NodeId(PublicKey),     // Node by any of its public keys
+    PrivateRoute(RouteId), // Remote private route by its id
 }
 
 pub struct RoutingContextInner {}
@@ -66,7 +66,7 @@ impl RoutingContext {
             }),
         })
     }
-    
+
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
         Self {
             api: self.api.clone(),
@@ -105,9 +105,9 @@ impl RoutingContext {
         match target {
             Target::NodeId(node_id) => {
                 // Resolve node
-                let mut nr = match rpc_processor.resolve_node(node_id.key).await {
+                let mut nr = match rpc_processor.resolve_node(node_id).await {
                     Ok(Some(nr)) => nr,
-                    Ok(None) => apibail_key_not_found!(node_id.key),
+                    Ok(None) => apibail_invalid_target!(),
                     Err(e) => return Err(e.into()),
                 };
                 // Apply sequencing to match safety selection
@@ -118,14 +118,13 @@ impl RoutingContext {
                     safety_selection: self.unlocked_inner.safety_selection,
                 })
             }
-            Target::PrivateRoute(pr) => {
+            Target::PrivateRoute(rsid) => {
                 // Get remote private route
                 let rss = self.api.routing_table()?.route_spec_store();
-                let Some(private_route) = rss
-                    .get_remote_private_route(&pr) 
-                    else {
-                        apibail_key_not_found!(pr);
-                    };
+
+                let Some(private_route) = rss.best_remote_private_route(&rsid) else {
+                    apibail_invalid_target!();
+                };
 
                 Ok(rpc_processor::Destination::PrivateRoute {
                     private_route,
@@ -198,38 +197,49 @@ impl RoutingContext {
     ///////////////////////////////////
     /// DHT Values
 
-    pub async fn get_value(&self, _value_key: ValueKey) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn get_value(
+        &self,
+        _key: TypedKey,
+        _subkey: ValueSubkey,
+    ) -> Result<ValueData, VeilidAPIError> {
         panic!("unimplemented");
     }
 
     pub async fn set_value(
         &self,
-        _value_key: ValueKey,
-        _value: Vec<u8>,
+        _key: TypedKey,
+        _subkey: ValueSubkey,
+        _value: ValueData,
     ) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 
     pub async fn watch_value(
         &self,
-        _value_key: ValueKey,
-        _callback: ValueChangeCallback,
+        _key: TypedKey,
+        _subkeys: &[ValueSubkeyRange],
+        _expiration: Timestamp,
+        _count: u32,
     ) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 
-    pub async fn cancel_watch_value(&self, _value_key: ValueKey) -> Result<bool, VeilidAPIError> {
+    pub async fn cancel_watch_value(
+        &self,
+        _key: TypedKey,
+        _subkeys: &[ValueSubkeyRange],
+    ) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 
     ///////////////////////////////////
     /// Block Store
 
-    pub async fn find_block(&self, _block_id: BlockId) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn find_block(&self, _block_id: PublicKey) -> Result<Vec<u8>, VeilidAPIError> {
         panic!("unimplemented");
     }
 
-    pub async fn supply_block(&self, _block_id: BlockId) -> Result<bool, VeilidAPIError> {
+    pub async fn supply_block(&self, _block_id: PublicKey) -> Result<bool, VeilidAPIError> {
         panic!("unimplemented");
     }
 }

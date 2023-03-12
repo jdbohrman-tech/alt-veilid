@@ -34,6 +34,7 @@ pub fn encode_signal_info(
 
 pub fn decode_signal_info(
     reader: &veilid_capnp::operation_signal::Reader,
+    crypto: Crypto,
 ) -> Result<SignalInfo, RPCError> {
     Ok(
         match reader
@@ -52,7 +53,7 @@ pub fn decode_signal_info(
                 let pi_reader = r.get_peer_info().map_err(RPCError::map_protocol(
                     "invalid peer info in hole punch signal info",
                 ))?;
-                let peer_info = decode_peer_info(&pi_reader)?;
+                let peer_info = decode_peer_info(&pi_reader, crypto)?;
 
                 SignalInfo::HolePunch { receipt, peer_info }
             }
@@ -68,7 +69,7 @@ pub fn decode_signal_info(
                 let pi_reader = r.get_peer_info().map_err(RPCError::map_protocol(
                     "invalid peer info in reverse connect signal info",
                 ))?;
-                let peer_info = decode_peer_info(&pi_reader)?;
+                let peer_info = decode_peer_info(&pi_reader, crypto)?;
 
                 SignalInfo::ReverseConnect { receipt, peer_info }
             }

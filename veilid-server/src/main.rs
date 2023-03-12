@@ -18,6 +18,7 @@ use cfg_if::*;
 #[allow(unused_imports)]
 use color_eyre::eyre::{bail, ensure, eyre, Result as EyreResult, WrapErr};
 use server::*;
+use std::str::FromStr;
 use tools::*;
 use tracing::*;
 use veilid_logs::*;
@@ -42,10 +43,16 @@ fn main() -> EyreResult<()> {
     }
 
     // --- Generate DHT Key ---
-    if matches.occurrences_of("generate-dht-key") != 0 {
-        let (key, secret) = veilid_core::generate_secret();
-        println!("Public: {}\nSecret: {}", key.encode(), secret.encode());
-        return Ok(());
+    if matches.occurrences_of("generate-key-pair") != 0 {
+        if let Some(ckstr) = matches.get_one::<String>("generate-key-pair") {
+            let ck: veilid_core::CryptoKind =
+                veilid_core::FourCC::from_str(ckstr).wrap_err("couldn't parse crypto kind")?;
+            let tkp = veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
+            println!("{}", tkp.to_string());
+            return Ok(());
+        } else {
+            bail!("missing crypto kind");
+        }
     }
 
     // See if we're just running a quick command

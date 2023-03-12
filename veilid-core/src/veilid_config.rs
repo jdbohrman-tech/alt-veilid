@@ -331,6 +331,9 @@ pub struct VeilidConfigRPC {
     RkyvDeserialize,
 )]
 pub struct VeilidConfigRoutingTable {
+    pub node_id: TypedKeySet,
+    pub node_id_secret: TypedSecretSet,
+    pub bootstrap: Vec<String>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
     pub limit_attached_strong: u32,
@@ -362,10 +365,6 @@ pub struct VeilidConfigNetwork {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
-    pub node_id: Option<DHTKey>,
-    pub node_id_secret: Option<DHTKeySecret>,
-    pub bootstrap: Vec<String>,
-    pub bootstrap_nodes: Vec<String>,
     pub routing_table: VeilidConfigRoutingTable,
     pub rpc: VeilidConfigRPC,
     pub dht: VeilidConfigDHT,
@@ -596,21 +595,26 @@ impl VeilidConfig {
         cb: ConfigCallback,
         update_cb: UpdateCallback,
     ) -> Result<(), VeilidAPIError> {
-        macro_rules! get_config {
-            ($key:expr) => {
-                let keyname = &stringify!($key)[6..];
-                let v = cb(keyname.to_owned())?;
-                $key = match v.downcast() {
-                    Ok(v) => *v,
-                    Err(_) => {
-                        apibail_generic!(format!("incorrect type for key {}", keyname))
-                    }
-                };
-            };
-        }
-
         self.update_cb = Some(update_cb);
         self.with_mut(|inner| {
+            // Simple config transformation
+            macro_rules! get_config {
+                ($key:expr) => {
+                    let keyname = &stringify!($key)[6..];
+                    let v = cb(keyname.to_owned())?;
+                    $key = match v.downcast() {
+                        Ok(v) => *v,
+                        Err(e) => {
+                            apibail_generic!(format!(
+                                "incorrect type for key {}: {:?}",
+                                keyname,
+                                type_name_of_val(&*e)
+                            ))
+                        }
+                    };
+                };
+            }
+
             get_config!(inner.program_name);
             get_config!(inner.namespace);
             get_config!(inner.capabilities.protocol_udp);
@@ -628,8 +632,6 @@ impl VeilidConfig {
             get_config!(inner.protected_store.always_use_insecure_storage);
             get_config!(inner.protected_store.insecure_fallback_directory);
             get_config!(inner.protected_store.delete);
-            get_config!(inner.network.node_id);
-            get_config!(inner.network.node_id_secret);
             get_config!(inner.network.connection_initial_timeout_ms);
             get_config!(inner.network.connection_inactivity_timeout_ms);
             get_config!(inner.network.max_connections_per_ip4);
@@ -639,8 +641,9 @@ impl VeilidConfig {
             get_config!(inner.network.client_whitelist_timeout_ms);
             get_config!(inner.network.reverse_connection_receipt_time_ms);
             get_config!(inner.network.hole_punch_receipt_time_ms);
-            get_config!(inner.network.bootstrap);
-            get_config!(inner.network.bootstrap_nodes);
+            get_config!(inner.network.routing_table.node_id);
+            get_config!(inner.network.routing_table.node_id_secret);
+            get_config!(inner.network.routing_table.bootstrap);
             get_config!(inner.network.routing_table.limit_over_attached);
             get_config!(inner.network.routing_table.limit_fully_attached);
             get_config!(inner.network.routing_table.limit_attached_strong);
@@ -716,11 +719,20 @@ impl VeilidConfig {
         self.inner.read()
     }
 
+    fn safe_config(&self) -> VeilidConfigInner {
+        let mut safe_cfg = self.inner.read().clone();
+
+        // Remove secrets
+        safe_cfg.network.routing_table.node_id_secret = TypedSecretSet::new();
+
+        safe_cfg
+    }
+
     pub fn with_mut<F, R>(&self, f: F) -> Result<R, VeilidAPIError>
     where
         F: FnOnce(&mut VeilidConfigInner) -> Result<R, VeilidAPIError>,
     {
-        let (out, config) = {
+        let out = {
             let inner = &mut *self.inner.write();
             // Edit a copy
             let mut editedinner = inner.clone();
@@ -730,12 +742,13 @@ impl VeilidConfig {
             Self::validate(&mut editedinner)?;
             // Commit changes
             *inner = editedinner.clone();
-            (out, editedinner)
+            out
         };
 
         // Send configuration update to clients
         if let Some(update_cb) = &self.update_cb {
-            update_cb(VeilidUpdate::Config(VeilidStateConfig { config }));
+            let safe_cfg = self.safe_config();
+            update_cb(VeilidUpdate::Config(VeilidStateConfig { config: safe_cfg }));
         }
 
         Ok(out)
@@ -908,76 +921,115 @@ impl VeilidConfig {
 
     // Get the node id from config if one is specified
     // Must be done -after- protected store startup
-    pub async fn init_node_id(
+    pub async fn init_node_ids(
         &self,
+        crypto: Crypto,
         protected_store: intf::ProtectedStore,
     ) -> Result<(), VeilidAPIError> {
-        let mut node_id = self.inner.read().network.node_id;
-        let mut node_id_secret = self.inner.read().network.node_id_secret;
-        // See if node id was previously stored in the protected store
-        if node_id.is_none() {
-            debug!("pulling node id from storage");
-            if let Some(s) = protected_store
-                .load_user_secret_string("node_id")
-                .await
-                .map_err(VeilidAPIError::internal)?
-            {
-                debug!("node id found in storage");
-                node_id = Some(DHTKey::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
-            } else {
-                debug!("node id not found in storage");
-            }
-        }
+        let mut out_node_id = TypedKeySet::new();
+        let mut out_node_id_secret = TypedSecretSet::new();
 
-        // See if node id secret was previously stored in the protected store
-        if node_id_secret.is_none() {
-            debug!("pulling node id secret from storage");
-            if let Some(s) = protected_store
-                .load_user_secret_string("node_id_secret")
-                .await
-                .map_err(VeilidAPIError::internal)?
-            {
-                debug!("node id secret found in storage");
-                node_id_secret =
-                    Some(DHTKeySecret::try_decode(s.as_str()).map_err(VeilidAPIError::internal)?);
-            } else {
-                debug!("node id secret not found in storage");
-            }
-        }
+        for ck in VALID_CRYPTO_KINDS {
+            let vcrypto = crypto
+                .get(ck)
+                .expect("Valid crypto kind is not actually valid.");
 
-        // If we have a node id from storage, check it
-        let (node_id, node_id_secret) =
-            if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
-                // Validate node id
-                if !crypto::validate_key(&node_id, &node_id_secret) {
-                    apibail_generic!("node id secret and node id key don't match");
+            let mut node_id = self.inner.read().network.routing_table.node_id.get(ck);
+            let mut node_id_secret = self
+                .inner
+                .read()
+                .network
+                .routing_table
+                .node_id_secret
+                .get(ck);
+
+            // See if node id was previously stored in the protected store
+            if node_id.is_none() {
+                debug!("pulling node_id_{} from storage", ck);
+                if let Some(s) = protected_store
+                    .load_user_secret_string(format!("node_id_{}", ck))
+                    .await
+                    .map_err(VeilidAPIError::internal)?
+                {
+                    debug!("node_id_{} found in storage", ck);
+                    node_id = match TypedKey::from_str(s.as_str()) {
+                        Ok(v) => Some(v),
+                        Err(_) => {
+                            debug!("node id in protected store is not valid");
+                            None
+                        }
+                    }
+                } else {
+                    debug!("node_id_{} not found in storage", ck);
                 }
-                (node_id, node_id_secret)
-            } else {
-                // If we still don't have a valid node id, generate one
-                debug!("generating new node id");
-                generate_secret()
-            };
-        info!("Node Id is {}", node_id.encode());
-        // info!("Node Id Secret is {}", node_id_secret.encode());
+            }
 
-        // Save the node id / secret in storage
-        protected_store
-            .save_user_secret_string("node_id", node_id.encode().as_str())
-            .await
-            .map_err(VeilidAPIError::internal)?;
-        protected_store
-            .save_user_secret_string("node_id_secret", node_id_secret.encode().as_str())
-            .await
-            .map_err(VeilidAPIError::internal)?;
+            // See if node id secret was previously stored in the protected store
+            if node_id_secret.is_none() {
+                debug!("pulling node id secret from storage");
+                if let Some(s) = protected_store
+                    .load_user_secret_string(format!("node_id_secret_{}", ck))
+                    .await
+                    .map_err(VeilidAPIError::internal)?
+                {
+                    debug!("node_id_secret_{} found in storage", ck);
+                    node_id_secret = match TypedSecret::from_str(s.as_str()) {
+                        Ok(v) => Some(v),
+                        Err(_) => {
+                            debug!("node id secret in protected store is not valid");
+                            None
+                        }
+                    }
+                } else {
+                    debug!("node_id_secret_{} not found in storage", ck);
+                }
+            }
 
+            // If we have a node id from storage, check it
+            let (node_id, node_id_secret) =
+                if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
+                    // Validate node id
+                    if !vcrypto.validate_keypair(&node_id.value, &node_id_secret.value) {
+                        apibail_generic!(format!(
+                            "node_id_secret_{} and node_id_key_{} don't match",
+                            ck, ck
+                        ));
+                    }
+                    (node_id, node_id_secret)
+                } else {
+                    // If we still don't have a valid node id, generate one
+                    debug!("generating new node_id_{}", ck);
+                    let kp = vcrypto.generate_keypair();
+                    (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
+                };
+            info!("Node Id: {}", node_id);
+
+            // Save the node id / secret in storage
+            protected_store
+                .save_user_secret_string(format!("node_id_{}", ck), node_id.to_string())
+                .await
+                .map_err(VeilidAPIError::internal)?;
+            protected_store
+                .save_user_secret_string(
+                    format!("node_id_secret_{}", ck),
+                    node_id_secret.to_string(),
+                )
+                .await
+                .map_err(VeilidAPIError::internal)?;
+
+            // Save for config
+            out_node_id.add(node_id);
+            out_node_id_secret.add(node_id_secret);
+        }
+
+        // Commit back to config
         self.with_mut(|c| {
-            c.network.node_id = Some(node_id);
-            c.network.node_id_secret = Some(node_id_secret);
+            c.network.routing_table.node_id = out_node_id;
+            c.network.routing_table.node_id_secret = out_node_id_secret;
             Ok(())
         })?;
 
-        trace!("init_node_id complete");
+        trace!("init_node_ids complete");
 
         Ok(())
     }

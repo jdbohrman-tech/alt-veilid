@@ -3,23 +3,123 @@ use super::*;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use stop_token::future::FutureExt as StopFutureExt;
 
-pub const BOOTSTRAP_TXT_VERSION: u8 = 0;
+pub const BOOTSTRAP_TXT_VERSION_0: u8 = 0;
 
 #[derive(Clone, Debug)]
 pub struct BootstrapRecord {
-    min_version: u8,
-    max_version: u8,
+    node_ids: TypedKeySet,
+    envelope_support: Vec<u8>,
     dial_info_details: Vec<DialInfoDetail>,
 }
-pub type BootstrapRecordMap = BTreeMap<DHTKey, BootstrapRecord>;
+impl BootstrapRecord {
+    pub fn merge(&mut self, other: BootstrapRecord) {
+        self.node_ids.add_all(&other.node_ids);
+        for x in other.envelope_support {
+            if !self.envelope_support.contains(&x) {
+                self.envelope_support.push(x);
+                self.envelope_support.sort();
+            }
+        }
+        for did in other.dial_info_details {
+            if !self.dial_info_details.contains(&did) {
+                self.dial_info_details.push(did);
+            }
+        }
+    }
+}
 
 impl RoutingTable {
+    /// Process bootstrap version 0
+    async fn process_bootstrap_records_v0(
+        &self,
+        records: Vec<String>,
+    ) -> EyreResult<Option<BootstrapRecord>> {
+        // Bootstrap TXT Record Format Version 0:
+        // txt_version|envelope_support|node_ids|hostname|dialinfoshort*
+        //
+        // Split bootstrap node record by '|' and then lists by ','. Example:
+        // 0|0|VLD0:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ|bootstrap-1.dev.veilid.net|T5150,U5150,W5150/ws
+
+        if records.len() != 5 {
+            bail!("invalid number of fields in bootstrap v0 txt record");
+        }
+
+        // Envelope support
+        let mut envelope_support = Vec::new();
+        for ess in records[1].split(",") {
+            let ess = ess.trim();
+            let es = match ess.parse::<u8>() {
+                Ok(v) => v,
+                Err(e) => {
+                    bail!(
+                        "invalid envelope version specified in bootstrap node txt record: {}",
+                        e
+                    );
+                }
+            };
+            envelope_support.push(es);
+        }
+        envelope_support.dedup();
+        envelope_support.sort();
+
+        // Node Id
+        let mut node_ids = TypedKeySet::new();
+        for node_id_str in records[2].split(",") {
+            let node_id_str = node_id_str.trim();
+            let node_id = match TypedKey::from_str(&node_id_str) {
+                Ok(v) => v,
+                Err(e) => {
+                    bail!(
+                        "Invalid node id in bootstrap node record {}: {}",
+                        node_id_str,
+                        e
+                    );
+                }
+            };
+            node_ids.add(node_id);
+        }
+
+        // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
+        if self.unlocked_inner.matches_own_node_id(&node_ids) {
+            return Ok(None);
+        }
+
+        // Hostname
+        let hostname_str = records[3].trim();
+
+        // Resolve each record and store in node dial infos list
+        let mut dial_info_details = Vec::new();
+        for rec in records[4].split(",") {
+            let rec = rec.trim();
+            let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
+                Ok(dis) => dis,
+                Err(e) => {
+                    warn!("Couldn't resolve bootstrap node dial info {}: {}", rec, e);
+                    continue;
+                }
+            };
+
+            for di in dial_infos {
+                dial_info_details.push(DialInfoDetail {
+                    dial_info: di,
+                    class: DialInfoClass::Direct,
+                });
+            }
+        }
+
+        Ok(Some(BootstrapRecord {
+            node_ids,
+            envelope_support,
+            dial_info_details,
+        }))
+    }
+
     // Bootstrap lookup process
     #[instrument(level = "trace", skip(self), ret, err)]
     pub(crate) async fn resolve_bootstrap(
         &self,
         bootstrap: Vec<String>,
-    ) -> EyreResult<BootstrapRecordMap> {
+    ) -> EyreResult<Vec<BootstrapRecord>> {
         // Resolve from bootstrap root to bootstrap hostnames
         let mut bsnames = Vec::<String>::new();
         for bh in bootstrap {
@@ -58,22 +158,14 @@ impl RoutingTable {
                         Ok(v) => v,
                     };
                     // for each record resolve into key/bootstraprecord pairs
-                    let mut bootstrap_records: Vec<(DHTKey, BootstrapRecord)> = Vec::new();
+                    let mut bootstrap_records: Vec<BootstrapRecord> = Vec::new();
                     for bsnirecord in bsnirecords {
-                        // Bootstrap TXT Record Format Version 0:
-                        // txt_version,min_version,max_version,nodeid,hostname,dialinfoshort*
-                        //
-                        // Split bootstrap node record by commas. Example:
-                        // 0,0,0,7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ,bootstrap-1.dev.veilid.net,T5150,U5150,W5150/ws
+                        // All formats split on '|' character
                         let records: Vec<String> = bsnirecord
                             .trim()
-                            .split(',')
+                            .split('|')
                             .map(|x| x.trim().to_owned())
                             .collect();
-                        if records.len() < 6 {
-                            warn!("invalid number of fields in bootstrap txt record");
-                            continue;
-                        }
 
                         // Bootstrap TXT record version
                         let txt_version: u8 = match records[0].parse::<u8>() {
@@ -86,81 +178,30 @@ impl RoutingTable {
                                 continue;
                             }
                         };
-                        if txt_version != BOOTSTRAP_TXT_VERSION {
-                            warn!("unsupported bootstrap txt record version");
-                            continue;
-                        }
-
-                        // Min/Max wire protocol version
-                        let min_version: u8 = match records[1].parse::<u8>() {
-                            Ok(v) => v,
-                            Err(e) => {
-                                warn!(
-                                "invalid min_version specified in bootstrap node txt record: {}",
-                                e
-                            );
-                                continue;
-                            }
-                        };
-                        let max_version: u8 = match records[2].parse::<u8>() {
-                            Ok(v) => v,
-                            Err(e) => {
-                                warn!(
-                                "invalid max_version specified in bootstrap node txt record: {}",
-                                e
-                            );
-                                continue;
-                            }
-                        };
-
-                        // Node Id
-                        let node_id_str = &records[3];
-                        let node_id_key = match DHTKey::try_decode(node_id_str) {
-                            Ok(v) => v,
-                            Err(e) => {
-                                warn!(
-                                    "Invalid node id in bootstrap node record {}: {}",
-                                    node_id_str, e
-                                );
-                                continue;
-                            }
-                        };
-
-                        // Hostname
-                        let hostname_str = &records[4];
-
-                        // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
-                        if self.node_id() == node_id_key {
-                            continue;
-                        }
-
-                        // Resolve each record and store in node dial infos list
-                        let mut bootstrap_record = BootstrapRecord {
-                            min_version,
-                            max_version,
-                            dial_info_details: Vec::new(),
-                        };
-                        for rec in &records[5..] {
-                            let rec = rec.trim();
-                            let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
-                                Ok(dis) => dis,
-                                Err(e) => {
-                                    warn!(
-                                        "Couldn't resolve bootstrap node dial info {}: {}",
-                                        rec, e
-                                    );
-                                    continue;
+                        let bootstrap_record = match txt_version {
+                            BOOTSTRAP_TXT_VERSION_0 => {
+                                match self.process_bootstrap_records_v0(records).await {
+                                    Err(e) => {
+                                        warn!(
+                                            "couldn't process v0 bootstrap records from {}: {}",
+                                            bsname, e
+                                        );
+                                        continue;
+                                    }
+                                    Ok(Some(v)) => v,
+                                    Ok(None) => {
+                                        // skipping
+                                        continue;
+                                    }
                                 }
-                            };
-
-                            for di in dial_infos {
-                                bootstrap_record.dial_info_details.push(DialInfoDetail {
-                                    dial_info: di,
-                                    class: DialInfoClass::Direct,
-                                });
                             }
-                        }
-                        bootstrap_records.push((node_id_key, bootstrap_record));
+                            _ => {
+                                warn!("unsupported bootstrap txt record version");
+                                continue;
+                            }
+                        };
+
+                        bootstrap_records.push(bootstrap_record);
                     }
                     Some(bootstrap_records)
                 }
@@ -168,21 +209,35 @@ impl RoutingTable {
             );
         }
 
-        let mut bsmap = BootstrapRecordMap::new();
+        let mut merged_bootstrap_records: Vec<BootstrapRecord> = Vec::new();
         while let Some(bootstrap_records) = unord.next().await {
-            if let Some(bootstrap_records) = bootstrap_records {
-                for (bskey, mut bsrec) in bootstrap_records {
-                    let rec = bsmap.entry(bskey).or_insert_with(|| BootstrapRecord {
-                        min_version: bsrec.min_version,
-                        max_version: bsrec.max_version,
-                        dial_info_details: Vec::new(),
-                    });
-                    rec.dial_info_details.append(&mut bsrec.dial_info_details);
+            let Some(bootstrap_records) = bootstrap_records else {
+                continue;
+            };
+            for mut bsrec in bootstrap_records {
+                let mut mbi = 0;
+                while mbi < merged_bootstrap_records.len() {
+                    let mbr = &mut merged_bootstrap_records[mbi];
+                    if mbr.node_ids.contains_any(&bsrec.node_ids) {
+                        // Merge record, pop this one out
+                        let mbr = merged_bootstrap_records.remove(mbi);
+                        bsrec.merge(mbr);
+                    } else {
+                        // No overlap, go to next record
+                        mbi += 1;
+                    }
                 }
+                // Append merged record
+                merged_bootstrap_records.push(bsrec);
             }
         }
 
-        Ok(bsmap)
+        // ensure dial infos are sorted
+        for mbr in &mut merged_bootstrap_records {
+            mbr.dial_info_details.sort();
+        }
+
+        Ok(merged_bootstrap_records)
     }
 
     // 'direct' bootstrap task routine for systems incapable of resolving TXT records, such as browser WASM
@@ -203,21 +258,20 @@ impl RoutingTable {
 
             // Got peer info, let's add it to the routing table
             for pi in peer_info {
-                let k = pi.node_id.key;
                 // Register the node
-                if let Some(nr) = self.register_node_with_signed_node_info(
-                    RoutingDomain::PublicInternet,
-                    k,
-                    pi.signed_node_info,
-                    false,
-                ) {
+                if let Some(nr) =
+                    self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, false)
+                {
                     // Add this our futures to process in parallel
-                    let routing_table = self.clone();
-                    unord.push(
-                        // lets ask bootstrap to find ourselves now
-                        async move { routing_table.reverse_find_node(nr, true).await }
-                            .instrument(Span::current()),
-                    );
+                    for crypto_kind in VALID_CRYPTO_KINDS {
+                        let routing_table = self.clone();
+                        let nr = nr.clone();
+                        unord.push(
+                            // lets ask bootstrap to find ourselves now
+                            async move { routing_table.reverse_find_node(crypto_kind, nr, true).await }
+                                .instrument(Span::current()),
+                        );
+                    }
                 }
             }
         }
@@ -230,112 +284,100 @@ impl RoutingTable {
 
     #[instrument(level = "trace", skip(self), err)]
     pub(crate) async fn bootstrap_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
-        let (bootstrap, bootstrap_nodes) = self.with_config(|c| {
-            (
-                c.network.bootstrap.clone(),
-                c.network.bootstrap_nodes.clone(),
-            )
-        });
+        let bootstrap = self
+            .unlocked_inner
+            .with_config(|c| c.network.routing_table.bootstrap.clone());
+
+        // Don't bother if bootstraps aren't configured
+        if bootstrap.is_empty() {
+            return Ok(());
+        }
 
         log_rtab!(debug "--- bootstrap_task");
 
+        // Get counts by crypto kind
+        let entry_count = self.inner.read().cached_entry_counts();
+
         // See if we are specifying a direct dialinfo for bootstrap, if so use the direct mechanism
-        if !bootstrap.is_empty() && bootstrap_nodes.is_empty() {
-            let mut bootstrap_dialinfos = Vec::<DialInfo>::new();
-            for b in &bootstrap {
-                if let Ok(bootstrap_di_vec) = DialInfo::try_vec_from_url(&b) {
-                    for bootstrap_di in bootstrap_di_vec {
-                        bootstrap_dialinfos.push(bootstrap_di);
-                    }
+        let mut bootstrap_dialinfos = Vec::<DialInfo>::new();
+        for b in &bootstrap {
+            if let Ok(bootstrap_di_vec) = DialInfo::try_vec_from_url(&b) {
+                for bootstrap_di in bootstrap_di_vec {
+                    bootstrap_dialinfos.push(bootstrap_di);
                 }
             }
-            if bootstrap_dialinfos.len() > 0 {
-                return self
-                    .direct_bootstrap_task_routine(stop_token, bootstrap_dialinfos)
-                    .await;
-            }
+        }
+        if bootstrap_dialinfos.len() > 0 {
+            return self
+                .direct_bootstrap_task_routine(stop_token, bootstrap_dialinfos)
+                .await;
         }
 
-        // If we aren't specifying a bootstrap node list explicitly, then pull from the bootstrap server(s)
-        let bsmap: BootstrapRecordMap = if !bootstrap_nodes.is_empty() {
-            let mut bsmap = BootstrapRecordMap::new();
-            let mut bootstrap_node_dial_infos = Vec::new();
-            for b in bootstrap_nodes {
-                let (id_str, di_str) = b
-                    .split_once('@')
-                    .ok_or_else(|| eyre!("Invalid node dial info in bootstrap entry"))?;
-                let node_id =
-                    NodeId::from_str(id_str).wrap_err("Invalid node id in bootstrap entry")?;
-                let dial_info =
-                    DialInfo::from_str(di_str).wrap_err("Invalid dial info in bootstrap entry")?;
-                bootstrap_node_dial_infos.push((node_id, dial_info));
-            }
-            for (node_id, dial_info) in bootstrap_node_dial_infos {
-                bsmap
-                    .entry(node_id.key)
-                    .or_insert_with(|| BootstrapRecord {
-                        min_version: MIN_CRYPTO_VERSION,
-                        max_version: MAX_CRYPTO_VERSION,
-                        dial_info_details: Vec::new(),
-                    })
-                    .dial_info_details
-                    .push(DialInfoDetail {
-                        dial_info,
-                        class: DialInfoClass::Direct, // Bootstraps are always directly reachable
-                    });
-            }
-            bsmap
-        } else {
-            // Resolve bootstrap servers and recurse their TXT entries
-            self.resolve_bootstrap(bootstrap).await?
-        };
-
-        // Map all bootstrap entries to a single key with multiple dialinfo
+        // If not direct, resolve bootstrap servers and recurse their TXT entries
+        let bsrecs = self.resolve_bootstrap(bootstrap).await?;
 
         // Run all bootstrap operations concurrently
         let mut unord = FuturesUnordered::new();
-        for (k, mut v) in bsmap {
-            // Sort dial info so we get the preferred order correct
-            v.dial_info_details.sort();
+        for bsrec in bsrecs {
+            log_rtab!(
+                "--- bootstrapping {} with {:?}",
+                &bsrec.node_ids,
+                &bsrec.dial_info_details
+            );
 
-            log_rtab!("--- bootstrapping {} with {:?}", k.encode(), &v);
+            // Get crypto support from list of node ids
+            let crypto_support = bsrec.node_ids.kinds();
 
-            // Make invalid signed node info (no signature)
-            if let Some(nr) = self.register_node_with_signed_node_info(
-                RoutingDomain::PublicInternet,
-                k,
-                SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo {
-                    network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
-                    outbound_protocols: ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
-                    address_types: AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
-                    min_version: v.min_version, // Minimum crypto version specified in txt record
-                    max_version: v.max_version, // Maximum crypto version specified in txt record
-                    dial_info_detail_list: v.dial_info_details, // Dial info is as specified in the bootstrap list
-                })),
-                true,
-            ) {
+            // Make unsigned SignedNodeInfo
+            let sni = SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo {
+                network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
+                outbound_protocols: ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
+                address_types: AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
+                envelope_support: bsrec.envelope_support, // Envelope support is as specified in the bootstrap list
+                crypto_support, // Crypto support is derived from list of node ids
+                dial_info_detail_list: bsrec.dial_info_details, // Dial info is as specified in the bootstrap list
+            }));
+
+            let pi = PeerInfo::new(bsrec.node_ids, sni);
+
+            if let Some(nr) =
+                self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, true)
+            {
                 // Add this our futures to process in parallel
-                let routing_table = self.clone();
-                unord.push(
-                    async move {
-                        // Need VALID signed peer info, so ask bootstrap to find_node of itself
-                        // which will ensure it has the bootstrap's signed peer info as part of the response
-                        let _ = routing_table.find_target(nr.clone()).await;
-
-                        // Ensure we got the signed peer info
-                        if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
-                            log_rtab!(warn
-                                "bootstrap at {:?} did not return valid signed node info",
-                                nr
-                            );
-                            // If this node info is invalid, it will time out after being unpingable
-                        } else {
-                            // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                            routing_table.reverse_find_node(nr, true).await
-                        }
+                for crypto_kind in VALID_CRYPTO_KINDS {
+                    // Do we need to bootstrap this crypto kind?
+                    let eckey = (RoutingDomain::PublicInternet, crypto_kind);
+                    let cnt = entry_count.get(&eckey).copied().unwrap_or_default();
+                    if cnt != 0 {
+                        continue;
                     }
-                    .instrument(Span::current()),
-                );
+
+                    // Bootstrap this crypto kind
+                    let nr = nr.clone();
+                    let routing_table = self.clone();
+                    unord.push(
+                        async move {
+                            // Need VALID signed peer info, so ask bootstrap to find_node of itself
+                            // which will ensure it has the bootstrap's signed peer info as part of the response
+                            let _ = routing_table.find_target(crypto_kind, nr.clone()).await;
+
+                            // Ensure we got the signed peer info
+                            if !nr
+                                .signed_node_info_has_valid_signature(RoutingDomain::PublicInternet)
+                            {
+                                log_rtab!(warn
+                                    "bootstrap at {:?} did not return valid signed node info",
+                                    nr
+                                );
+                                // If this node info is invalid, it will time out after being unpingable
+                            } else {
+                                // otherwise this bootstrap is valid, lets ask it to find ourselves now
+                                routing_table.reverse_find_node(crypto_kind, nr, true).await
+                            }
+                        }
+                        .instrument(Span::current()),
+                    );
+                }
             }
         }
 

@@ -3,27 +3,44 @@
   // Hover to view descriptions of existing attributes.
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "pickPid",
+      "type": "promptString",
+      "description": "Enter process id"
+    }
+  ],
   "configurations": [
     {
       "type": "lldb",
       "request": "attach",
       "name": "Attach to veilid-server",
       "program": "${workspaceFolder}/target/debug/veilid-server",
-      "pid": "${command:pickMyProcess}"
+      "pid": "${command:pickMyProcess}",
+      "sourceLanguages": [
+        "rust"
+      ]
     },
     {
       "type": "lldb",
       "request": "attach",
       "name": "Attach to veilid-cli",
       "program": "${workspaceFolder}/target/debug/veilid-cli",
-      "pid": "${command:pickMyProcess}"
+      "pid": "${command:pickMyProcess}",
+      "sourceLanguages": [
+        "rust"
+      ]
     },
     {
       "type": "lldb",
       "request": "attach",
       "name": "Attach to veilid-flutter example",
       "program": "${workspaceFolder}/veilid-flutter/example/build/linux/x64/debug/bundle/veilid_example",
-      "pid": "${command:pickMyProcess}"
+      "pid": "${command:pickMyProcess}",
+      "sourceLanguages": [
+        "rust",
+        "dart"
+      ]
     },
     {
       "type": "lldb",
@@ -42,16 +59,6 @@
       ],
       "terminal": "console"
     },
-    // {
-    //   "type": "lldb",
-    //   "request": "launch",
-    //   "name": "Debug veilid-server",
-    //   "cargo": {
-    //     "args": ["run", "--manifest-path", "veilid-server/Cargo.toml"]
-    //   },
-    //   "args": ["--trace"],
-    //   "cwd": "${workspaceFolder}/veilid-server"
-    // }
     {
       "type": "lldb",
       "request": "launch",
@@ -75,6 +82,7 @@
         "args": [
           "test",
           "--no-run",
+          "--features=rt-tokio",
           "--manifest-path",
           "veilid-core/Cargo.toml"
         ],

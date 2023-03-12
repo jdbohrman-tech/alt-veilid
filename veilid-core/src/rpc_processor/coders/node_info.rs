@@ -12,8 +12,24 @@ pub fn encode_node_info(
     let mut ats_builder = builder.reborrow().init_address_types();
     encode_address_type_set(&node_info.address_types, &mut ats_builder)?;
 
-    builder.set_min_version(node_info.min_version);
-    builder.set_max_version(node_info.max_version);
+    let mut es_builder = builder
+        .reborrow()
+        .init_envelope_support(node_info.envelope_support.len() as u32);
+    if let Some(s) = es_builder.as_slice() {
+        s.clone_from_slice(&node_info.envelope_support);
+    }
+
+    let mut cs_builder = builder
+        .reborrow()
+        .init_crypto_support(node_info.crypto_support.len() as u32);
+    if let Some(s) = cs_builder.as_slice() {
+        let csvec: Vec<u32> = node_info
+            .crypto_support
+            .iter()
+            .map(|x| u32::from_be_bytes(x.0))
+            .collect();
+        s.clone_from_slice(&csvec);
+    }
 
     let mut didl_builder = builder.reborrow().init_dial_info_detail_list(
         node_info
@@ -55,8 +71,51 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
             .map_err(RPCError::protocol)?,
     )?;
 
-    let min_version = reader.reborrow().get_min_version();
-    let max_version = reader.reborrow().get_max_version();
+    let envelope_support = reader
+        .reborrow()
+        .get_envelope_support()
+        .map_err(RPCError::protocol)?
+        .as_slice()
+        .map(|s| s.to_vec())
+        .unwrap_or_default();
+
+    // Ensure envelope versions are not duplicated
+    // Unsorted is okay, some nodes may have a different envelope order preference
+    // But nothing should show up more than once
+    let mut eversions = envelope_support.clone();
+    eversions.dedup();
+    if eversions.len() != envelope_support.len() {
+        return Err(RPCError::protocol("duplicate envelope versions"));
+    }
+    if envelope_support.len() > MAX_ENVELOPE_VERSIONS {
+        return Err(RPCError::protocol("too many envelope versions"));
+    }
+    if envelope_support.len() == 0 {
+        return Err(RPCError::protocol("no envelope versions"));
+    }
+
+    let crypto_support: Vec<CryptoKind> = reader
+        .reborrow()
+        .get_crypto_support()
+        .map_err(RPCError::protocol)?
+        .as_slice()
+        .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+        .unwrap_or_default();
+
+    // Ensure crypto kinds are not duplicated
+    // Unsorted is okay, some nodes may have a different crypto order preference
+    // But nothing should show up more than once
+    let mut ckinds = crypto_support.clone();
+    ckinds.dedup();
+    if ckinds.len() != crypto_support.len() {
+        return Err(RPCError::protocol("duplicate crypto kinds"));
+    }
+    if crypto_support.len() > MAX_CRYPTO_KINDS {
+        return Err(RPCError::protocol("too many crypto kinds"));
+    }
+    if crypto_support.len() == 0 {
+        return Err(RPCError::protocol("no crypto kinds"));
+    }
 
     let didl_reader = reader
         .reborrow()
@@ -76,8 +135,8 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
         network_class,
         outbound_protocols,
         address_types,
-        min_version,
-        max_version,
+        envelope_support,
+        crypto_support,
         dial_info_detail_list,
     })
 }

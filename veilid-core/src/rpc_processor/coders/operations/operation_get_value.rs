@@ -2,7 +2,8 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationGetValueQ {
-    pub key: ValueKey,
+    pub key: TypedKey,
+    pub subkey: ValueSubkey,
 }
 
 impl RPCOperationGetValueQ {
@@ -10,15 +11,17 @@ impl RPCOperationGetValueQ {
         reader: &veilid_capnp::operation_get_value_q::Reader,
     ) -> Result<RPCOperationGetValueQ, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;
-        let key = decode_value_key(&k_reader)?;
-        Ok(RPCOperationGetValueQ { key })
+        let key = decode_typed_key(&k_reader)?;
+        let subkey = reader.get_subkey();
+        Ok(RPCOperationGetValueQ { key, subkey })
     }
     pub fn encode(
         &self,
         builder: &mut veilid_capnp::operation_get_value_q::Builder,
     ) -> Result<(), RPCError> {
         let mut k_builder = builder.reborrow().init_key();
-        encode_value_key(&self.key, &mut k_builder)?;
+        encode_typed_key(&self.key, &mut k_builder);
+        builder.set_subkey(self.subkey);
         Ok(())
     }
 }
@@ -32,6 +35,7 @@ pub enum RPCOperationGetValueA {
 impl RPCOperationGetValueA {
     pub fn decode(
         reader: &veilid_capnp::operation_get_value_a::Reader,
+        crypto: Crypto,
     ) -> Result<RPCOperationGetValueA, RPCError> {
         match reader.which().map_err(RPCError::protocol)? {
             veilid_capnp::operation_get_value_a::Which::Data(r) => {
@@ -47,7 +51,7 @@ impl RPCOperationGetValueA {
                         .map_err(RPCError::map_internal("too many peers"))?,
                 );
                 for p in peers_reader.iter() {
-                    let peer_info = decode_peer_info(&p)?;
+                    let peer_info = decode_peer_info(&p, crypto.clone())?;
                     peers.push(peer_info);
                 }
 

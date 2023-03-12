@@ -49,7 +49,7 @@ pub struct LowLevelPortInfo {
     pub protocol_to_port: ProtocolToPortMapping,
 }
 pub type RoutingTableEntryFilter<'t> =
-    Box<dyn FnMut(&RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
+    Box<dyn FnMut(&RoutingTableInner, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RoutingTableHealth {
@@ -65,17 +65,19 @@ pub struct RoutingTableHealth {
     pub local_network_ready: bool,
 }
 
-pub(super) struct RoutingTableUnlockedInner {
+pub type BucketIndex = (CryptoKind, usize);
+
+pub struct RoutingTableUnlockedInner {
     // Accessors
     config: VeilidConfig,
     network_manager: NetworkManager,
 
-    /// The current node's public DHT key
-    node_id: DHTKey,
-    /// The current node's DHT key secret
-    node_id_secret: DHTKeySecret,
+    /// The current node's public DHT keys
+    node_id: TypedKeySet,
+    /// The current node's public DHT secrets
+    node_id_secret: TypedSecretSet,
     /// Buckets to kick on our next kick task
-    kick_queue: Mutex<BTreeSet<usize>>,
+    kick_queue: Mutex<BTreeSet<BucketIndex>>,
     /// Background process for computing statistics
     rolling_transfers_task: TickTask<EyreReport>,
     /// Background process to purge dead routing table entries when necessary
@@ -92,6 +94,83 @@ pub(super) struct RoutingTableUnlockedInner {
     private_route_management_task: TickTask<EyreReport>,
 }
 
+impl RoutingTableUnlockedInner {
+    pub fn network_manager(&self) -> NetworkManager {
+        self.network_manager.clone()
+    }
+    pub fn crypto(&self) -> Crypto {
+        self.network_manager().crypto()
+    }
+    pub fn rpc_processor(&self) -> RPCProcessor {
+        self.network_manager().rpc_processor()
+    }
+    pub fn update_callback(&self) -> UpdateCallback {
+        self.network_manager().update_callback()
+    }
+    pub fn with_config<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&VeilidConfigInner) -> R,
+    {
+        f(&*self.config.get())
+    }
+
+    pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
+        self.node_id.get(kind).unwrap()
+    }
+
+    pub fn node_id_secret_key(&self, kind: CryptoKind) -> SecretKey {
+        self.node_id_secret.get(kind).unwrap().value
+    }
+
+    pub fn node_ids(&self) -> TypedKeySet {
+        self.node_id.clone()
+    }
+
+    pub fn node_id_typed_key_pairs(&self) -> Vec<TypedKeyPair> {
+        let mut tkps = Vec::new();
+        for ck in VALID_CRYPTO_KINDS {
+            tkps.push(TypedKeyPair::new(
+                ck,
+                KeyPair::new(self.node_id(ck).value, self.node_id_secret_key(ck)),
+            ));
+        }
+        tkps
+    }
+
+    pub fn matches_own_node_id(&self, node_ids: &[TypedKey]) -> bool {
+        for ni in node_ids {
+            if let Some(v) = self.node_id.get(ni.kind) {
+                if v.value == ni.value {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn matches_own_node_id_key(&self, node_id_key: &PublicKey) -> bool {
+        for tk in self.node_id.iter() {
+            if tk.value == *node_id_key {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> BucketIndex {
+        let crypto = self.crypto();
+        let self_node_id_key = self.node_id(node_id.kind).value;
+        let vcrypto = crypto.get(node_id.kind).unwrap();
+        (
+            node_id.kind,
+            vcrypto
+                .distance(&node_id.value, &self_node_id_key)
+                .first_nonzero_bit()
+                .unwrap(),
+        )
+    }
+}
+
 #[derive(Clone)]
 pub struct RoutingTable {
     inner: Arc<RwLock<RoutingTableInner>>,
@@ -104,11 +183,12 @@ impl RoutingTable {
         network_manager: NetworkManager,
     ) -> RoutingTableUnlockedInner {
         let c = config.get();
+
         RoutingTableUnlockedInner {
             config: config.clone(),
             network_manager,
-            node_id: c.network.node_id.unwrap(),
-            node_id_secret: c.network.node_id_secret.unwrap(),
+            node_id: c.network.routing_table.node_id.clone(),
+            node_id_secret: c.network.routing_table.node_id_secret.clone(),
             kick_queue: Mutex::new(BTreeSet::default()),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),
@@ -133,30 +213,6 @@ impl RoutingTable {
         this
     }
 
-    pub fn network_manager(&self) -> NetworkManager {
-        self.unlocked_inner.network_manager.clone()
-    }
-    pub fn rpc_processor(&self) -> RPCProcessor {
-        self.network_manager().rpc_processor()
-    }
-    pub fn update_callback(&self) -> UpdateCallback {
-        self.network_manager().update_callback()
-    }
-    pub fn with_config<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&VeilidConfigInner) -> R,
-    {
-        f(&*self.unlocked_inner.config.get())
-    }
-
-    pub fn node_id(&self) -> DHTKey {
-        self.unlocked_inner.node_id
-    }
-
-    pub fn node_id_secret(&self) -> DHTKeySecret {
-        self.unlocked_inner.node_id_secret
-    }
-
     /////////////////////////////////////
     /// Initialization
 
@@ -167,7 +223,7 @@ impl RoutingTable {
         // Set up routing buckets
         {
             let mut inner = self.inner.write();
-            inner.init_buckets(self.clone());
+            inner.init_buckets();
         }
 
         // Load bucket entries from table db if possible
@@ -175,7 +231,7 @@ impl RoutingTable {
         if let Err(e) = self.load_buckets().await {
             log_rtab!(debug "Error loading buckets from storage: {:#?}. Resetting.", e);
             let mut inner = self.inner.write();
-            inner.init_buckets(self.clone());
+            inner.init_buckets();
         }
 
         // Set up routespecstore
@@ -229,56 +285,99 @@ impl RoutingTable {
         debug!("finished routing table terminate");
     }
 
+    /// Serialize routing table to table store
     async fn save_buckets(&self) -> EyreResult<()> {
-        // Serialize all entries
-        let mut bucketvec: Vec<Vec<u8>> = Vec::new();
+        // Since entries are shared by multiple buckets per cryptokind
+        // we need to get the list of all unique entries when serializing
+        let mut all_entries: Vec<Arc<BucketEntry>> = Vec::new();
+
+        // Serialize all buckets and get map of entries
+        let mut serialized_bucket_map: BTreeMap<CryptoKind, Vec<Vec<u8>>> = BTreeMap::new();
         {
+            let mut entry_map: HashMap<*const BucketEntry, u32> = HashMap::new();
             let inner = &*self.inner.read();
-            for bucket in &inner.buckets {
-                bucketvec.push(bucket.save_bucket()?)
+            for ck in VALID_CRYPTO_KINDS {
+                let buckets = inner.buckets.get(&ck).unwrap();
+                let mut serialized_buckets = Vec::new();
+                for bucket in buckets.iter() {
+                    serialized_buckets.push(bucket.save_bucket(&mut all_entries, &mut entry_map)?)
+                }
+                serialized_bucket_map.insert(ck, serialized_buckets);
             }
         }
-        let table_store = self.network_manager().table_store();
+
+        // Serialize all the entries
+        let mut all_entry_bytes = Vec::with_capacity(all_entries.len());
+        for entry in all_entries {
+            // Serialize entry
+            let entry_bytes = entry.with_inner(|e| to_rkyv(e))?;
+            all_entry_bytes.push(entry_bytes);
+        }
+
+        let table_store = self.unlocked_inner.network_manager().table_store();
         let tdb = table_store.open("routing_table", 1).await?;
-        let bucket_count = bucketvec.len();
         let dbx = tdb.transact();
-        if let Err(e) = dbx.store_rkyv(0, b"bucket_count", &bucket_count) {
+        if let Err(e) = dbx.store_rkyv(0, b"serialized_bucket_map", &serialized_bucket_map) {
             dbx.rollback();
             return Err(e);
         }
-
-        for (n, b) in bucketvec.iter().enumerate() {
-            dbx.store(0, format!("bucket_{}", n).as_bytes(), b)
+        if let Err(e) = dbx.store_rkyv(0, b"all_entry_bytes", &all_entry_bytes) {
+            dbx.rollback();
+            return Err(e);
         }
         dbx.commit().await?;
         Ok(())
     }
 
+    /// Deserialize routing table from table store
     async fn load_buckets(&self) -> EyreResult<()> {
-        // Deserialize all entries
-        let tstore = self.network_manager().table_store();
+        // Deserialize bucket map and all entries from the table store
+        let tstore = self.unlocked_inner.network_manager().table_store();
         let tdb = tstore.open("routing_table", 1).await?;
-        let Some(bucket_count): Option<usize> = tdb.load_rkyv(0, b"bucket_count")? else {
-            log_rtab!(debug "no bucket count in saved routing table");
+        let Some(serialized_bucket_map): Option<BTreeMap<CryptoKind, Vec<Vec<u8>>>> = tdb.load_rkyv(0, b"serialized_bucket_map")? else {
+            log_rtab!(debug "no bucket map in saved routing table");
             return Ok(());
         };
-        let inner = &mut *self.inner.write();
-        if bucket_count != inner.buckets.len() {
-            // Must have the same number of buckets
-            warn!("bucket count is different, not loading routing table");
+        let Some(all_entry_bytes): Option<Vec<Vec<u8>>> = tdb.load_rkyv(0, b"all_entry_bytes")? else {
+            log_rtab!(debug "no all_entry_bytes in saved routing table");
             return Ok(());
+        };
+
+        // Reconstruct all entries
+        let inner = &mut *self.inner.write();
+
+        let mut all_entries: Vec<Arc<BucketEntry>> = Vec::with_capacity(all_entry_bytes.len());
+        for entry_bytes in all_entry_bytes {
+            let entryinner =
+                from_rkyv(entry_bytes).wrap_err("failed to deserialize bucket entry")?;
+            let entry = Arc::new(BucketEntry::new_with_inner(entryinner));
+
+            // Keep strong reference in table
+            all_entries.push(entry.clone());
+
+            // Keep all entries in weak table too
+            inner.all_entries.insert(entry);
         }
-        let mut bucketdata_vec: Vec<Vec<u8>> = Vec::new();
-        for n in 0..bucket_count {
-            let Some(bucketdata): Option<Vec<u8>> =
-                tdb.load(0, format!("bucket_{}", n).as_bytes())? else {
-                    warn!("bucket data not loading, skipping loading routing table");
-                    return Ok(());
-                };
-            bucketdata_vec.push(bucketdata);
+
+        // Validate serialized bucket map
+        for (k, v) in &serialized_bucket_map {
+            if !VALID_CRYPTO_KINDS.contains(k) {
+                warn!("crypto kind is not valid, not loading routing table");
+                return Ok(());
+            }
+            if v.len() != PUBLIC_KEY_LENGTH * 8 {
+                warn!("bucket count is different, not loading routing table");
+                return Ok(());
+            }
         }
-        for (n, bucketdata) in bucketdata_vec.into_iter().enumerate() {
-            inner.buckets[n].load_bucket(bucketdata)?;
+
+        // Recreate buckets
+        for (k, v) in serialized_bucket_map {
+            let buckets = inner.buckets.get_mut(&k).unwrap();
+
+            for n in 0..v.len() {
+                buckets[n].load_bucket(v[n].clone(), &all_entries)?;
+            }
         }
 
         Ok(())
@@ -443,7 +542,7 @@ impl RoutingTable {
     }
 
     /// Attempt to empty the routing table
-    /// should only be performed when there are no node_refs (detached)
+    /// May not empty buckets completely if there are existing node_refs
     pub fn purge_buckets(&self) {
         self.inner.write().purge_buckets();
     }
@@ -453,20 +552,25 @@ impl RoutingTable {
         self.inner.write().purge_last_connections();
     }
 
-    fn find_bucket_index(&self, node_id: DHTKey) -> usize {
-        distance(&node_id, &self.unlocked_inner.node_id)
-            .first_nonzero_bit()
-            .unwrap()
-    }
-
     pub fn get_entry_count(
         &self,
         routing_domain_set: RoutingDomainSet,
         min_state: BucketEntryState,
+        crypto_kinds: &[CryptoKind],
     ) -> usize {
         self.inner
             .read()
-            .get_entry_count(routing_domain_set, min_state)
+            .get_entry_count(routing_domain_set, min_state, crypto_kinds)
+    }
+
+    pub fn get_entry_count_per_crypto_kind(
+        &self,
+        routing_domain_set: RoutingDomainSet,
+        min_state: BucketEntryState,
+    ) -> BTreeMap<CryptoKind, usize> {
+        self.inner
+            .read()
+            .get_entry_count_per_crypto_kind(routing_domain_set, min_state)
     }
 
     pub fn get_nodes_needing_ping(
@@ -484,32 +588,29 @@ impl RoutingTable {
         inner.get_all_nodes(self.clone(), cur_ts)
     }
 
-    fn queue_bucket_kick(&self, node_id: DHTKey) {
-        let idx = self.find_bucket_index(node_id);
-        self.unlocked_inner.kick_queue.lock().insert(idx);
+    fn queue_bucket_kicks(&self, node_ids: TypedKeySet) {
+        for node_id in node_ids.iter() {
+            let x = self.unlocked_inner.calculate_bucket_index(node_id);
+            self.unlocked_inner.kick_queue.lock().insert(x);
+        }
     }
 
-    /// Create a node reference, possibly creating a bucket entry
-    /// the 'update_func' closure is called on the node, and, if created,
-    /// in a locked fashion as to ensure the bucket entry state is always valid
-    pub fn create_node_ref<F>(&self, node_id: DHTKey, update_func: F) -> Option<NodeRef>
-    where
-        F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner),
-    {
+    /// Resolve an existing routing table entry using any crypto kind and return a reference to it
+    pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> Option<NodeRef> {
         self.inner
-            .write()
-            .create_node_ref(self.clone(), node_id, update_func)
+            .read()
+            .lookup_any_node_ref(self.clone(), node_id_key)
     }
 
     /// Resolve an existing routing table entry and return a reference to it
-    pub fn lookup_node_ref(&self, node_id: DHTKey) -> Option<NodeRef> {
+    pub fn lookup_node_ref(&self, node_id: TypedKey) -> Option<NodeRef> {
         self.inner.read().lookup_node_ref(self.clone(), node_id)
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
     pub fn lookup_and_filter_noderef(
         &self,
-        node_id: DHTKey,
+        node_id: TypedKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> Option<NodeRef> {
@@ -524,18 +625,16 @@ impl RoutingTable {
     /// Shortcut function to add a node to our routing table if it doesn't exist
     /// and add the dial info we have for it. Returns a noderef filtered to
     /// the routing domain in which this node was registered for convenience.
-    pub fn register_node_with_signed_node_info(
+    pub fn register_node_with_peer_info(
         &self,
         routing_domain: RoutingDomain,
-        node_id: DHTKey,
-        signed_node_info: SignedNodeInfo,
+        peer_info: PeerInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
-        self.inner.write().register_node_with_signed_node_info(
+        self.inner.write().register_node_with_peer_info(
             self.clone(),
             routing_domain,
-            node_id,
-            signed_node_info,
+            peer_info,
             allow_invalid,
         )
     }
@@ -544,7 +643,7 @@ impl RoutingTable {
     /// and add the last peer address we have for it, since that's pretty common
     pub fn register_node_with_existing_connection(
         &self,
-        node_id: DHTKey,
+        node_id: TypedKey,
         descriptor: ConnectionDescriptor,
         timestamp: Timestamp,
     ) -> Option<NodeRef> {
@@ -563,7 +662,7 @@ impl RoutingTable {
         self.inner.read().get_routing_table_health()
     }
 
-    pub fn get_recent_peers(&self) -> Vec<(DHTKey, RecentPeersEntry)> {
+    pub fn get_recent_peers(&self) -> Vec<(TypedKey, RecentPeersEntry)> {
         let mut recent_peers = Vec::new();
         let mut dead_peers = Vec::new();
         let mut out = Vec::new();
@@ -602,7 +701,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn touch_recent_peer(&self, node_id: DHTKey, last_connection: ConnectionDescriptor) {
+    pub fn touch_recent_peer(&self, node_id: TypedKey, last_connection: ConnectionDescriptor) {
         self.inner
             .write()
             .touch_recent_peer(node_id, last_connection)
@@ -651,7 +750,7 @@ impl RoutingTable {
         dial_info_filter: DialInfoFilter,
     ) -> RoutingTableEntryFilter<'a> {
         // does it have matching public dial info?
-        Box::new(move |rti, _k, e| {
+        Box::new(move |rti, e| {
             if let Some(e) = e {
                 e.with(rti, |_rti, e| {
                     if let Some(ni) = e.node_info(routing_domain) {
@@ -679,7 +778,7 @@ impl RoutingTable {
         dial_info: DialInfo,
     ) -> RoutingTableEntryFilter<'a> {
         // does the node's outbound capabilities match the dialinfo?
-        Box::new(move |rti, _k, e| {
+        Box::new(move |rti, e| {
             if let Some(e) = e {
                 e.with(rti, |_rti, e| {
                     if let Some(ni) = e.node_info(routing_domain) {
@@ -709,24 +808,34 @@ impl RoutingTable {
             .find_fast_public_nodes_filtered(self.clone(), node_count, filters)
     }
 
-    /// Retrieve up to N of each type of protocol capable nodes
-    pub fn find_bootstrap_nodes_filtered(&self, max_per_type: usize) -> Vec<NodeRef> {
+    /// Retrieve up to N of each type of protocol capable nodes for a single crypto kind
+    fn find_bootstrap_nodes_filtered_per_crypto_kind(
+        &self,
+        crypto_kind: CryptoKind,
+        max_per_type: usize,
+    ) -> Vec<NodeRef> {
         let protocol_types = vec![
             ProtocolType::UDP,
             ProtocolType::TCP,
             ProtocolType::WS,
             ProtocolType::WSS,
         ];
+
         let protocol_types_len = protocol_types.len();
         let mut nodes_proto_v4 = vec![0usize, 0usize, 0usize, 0usize];
         let mut nodes_proto_v6 = vec![0usize, 0usize, 0usize, 0usize];
 
         let filter = Box::new(
-            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
-                let entry = v.unwrap();
+            move |rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| {
+                let entry = entry.unwrap();
                 entry.with(rti, |_rti, e| {
                     // skip nodes on our local network here
                     if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
+                        return false;
+                    }
+
+                    // Ensure crypto kind is supported
+                    if !e.crypto_kinds().contains(&crypto_kind) {
                         return false;
                     }
 
@@ -769,10 +878,31 @@ impl RoutingTable {
         self.find_fastest_nodes(
             protocol_types_len * 2 * max_per_type,
             filters,
-            |_rti, k: DHTKey, v: Option<Arc<BucketEntry>>| {
-                NodeRef::new(self.clone(), k, v.unwrap().clone(), None)
+            |_rti, entry: Option<Arc<BucketEntry>>| {
+                NodeRef::new(self.clone(), entry.unwrap().clone(), None)
             },
         )
+    }
+
+    /// Retrieve up to N of each type of protocol capable nodes for all crypto kinds
+    pub fn find_bootstrap_nodes_filtered(&self, max_per_type: usize) -> Vec<NodeRef> {
+        let mut out =
+            self.find_bootstrap_nodes_filtered_per_crypto_kind(VALID_CRYPTO_KINDS[0], max_per_type);
+
+        // Merge list of nodes so we don't have duplicates
+        for crypto_kind in &VALID_CRYPTO_KINDS[1..] {
+            let nrs =
+                self.find_bootstrap_nodes_filtered_per_crypto_kind(*crypto_kind, max_per_type);
+            'nrloop: for nr in nrs {
+                for nro in &out {
+                    if nro.same_entry(&nr) {
+                        continue 'nrloop;
+                    }
+                }
+                out.push(nr);
+            }
+        }
+        out
     }
 
     pub fn find_peers_with_sort_and_filter<C, T, O>(
@@ -786,10 +916,10 @@ impl RoutingTable {
     where
         C: for<'a, 'b> FnMut(
             &'a RoutingTableInner,
-            &'b (DHTKey, Option<Arc<BucketEntry>>),
-            &'b (DHTKey, Option<Arc<BucketEntry>>),
+            &'b Option<Arc<BucketEntry>>,
+            &'b Option<Arc<BucketEntry>>,
         ) -> core::cmp::Ordering,
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
+        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
@@ -803,7 +933,7 @@ impl RoutingTable {
         transform: T,
     ) -> Vec<O>
     where
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
+        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
@@ -812,44 +942,42 @@ impl RoutingTable {
 
     pub fn find_closest_nodes<'a, T, O>(
         &self,
-        node_id: DHTKey,
+        node_count: usize,
+        node_id: TypedKey,
         filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> Vec<O>
     where
-        T: for<'r> FnMut(&'r RoutingTableInner, DHTKey, Option<Arc<BucketEntry>>) -> O + Send,
+        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O + Send,
     {
         self.inner
             .read()
-            .find_closest_nodes(node_id, filters, transform)
+            .find_closest_nodes(node_count, node_id, filters, transform)
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn register_find_node_answer(&self, peers: Vec<PeerInfo>) -> Vec<NodeRef> {
-        let node_id = self.node_id();
-
-        // register nodes we'd found
+    pub fn register_find_node_answer(
+        &self,
+        crypto_kind: CryptoKind,
+        peers: Vec<PeerInfo>,
+    ) -> Vec<NodeRef> {
+        // Register nodes we'd found
         let mut out = Vec::<NodeRef>::with_capacity(peers.len());
         for p in peers {
-            // if our own node if is in the list then ignore it, as we don't add ourselves to our own routing table
-            if p.node_id.key == node_id {
+            // Ensure we're getting back nodes we asked for
+            if !p.node_ids.kinds().contains(&crypto_kind) {
                 continue;
             }
 
-            // node can not be its own relay
-            if let Some(rid) = &p.signed_node_info.relay_id() {
-                if rid.key == p.node_id.key {
-                    continue;
-                }
+            // Don't register our own node
+            if self.matches_own_node_id(&p.node_ids) {
+                continue;
             }
 
-            // register the node if it's new
-            if let Some(nr) = self.register_node_with_signed_node_info(
-                RoutingDomain::PublicInternet,
-                p.node_id.key,
-                p.signed_node_info.clone(),
-                false,
-            ) {
+            // Register the node if it's new
+            if let Some(nr) =
+                self.register_node_with_peer_info(RoutingDomain::PublicInternet, p, false)
+            {
                 out.push(nr);
             }
         }
@@ -860,7 +988,7 @@ impl RoutingTable {
     pub async fn find_node(
         &self,
         node_ref: NodeRef,
-        node_id: DHTKey,
+        node_id: TypedKey,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let rpc_processor = self.rpc_processor();
 
@@ -873,29 +1001,41 @@ impl RoutingTable {
 
         // register nodes we'd found
         Ok(NetworkResult::value(
-            self.register_find_node_answer(res.answer),
+            self.register_find_node_answer(node_id.kind, res.answer),
         ))
     }
 
+    /// Ask a remote node to list the nodes it has around the current node
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn find_self(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
-        let node_id = self.node_id();
-        self.find_node(node_ref, node_id).await
+    pub async fn find_self(
+        &self,
+        crypto_kind: CryptoKind,
+        node_ref: NodeRef,
+    ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
+        let self_node_id = self.node_id(crypto_kind);
+        self.find_node(node_ref, self_node_id).await
     }
 
+    /// Ask a remote node to list the nodes it has around itself
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn find_target(&self, node_ref: NodeRef) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
-        let node_id = node_ref.node_id();
-        self.find_node(node_ref, node_id).await
+    pub async fn find_target(
+        &self,
+        crypto_kind: CryptoKind,
+        node_ref: NodeRef,
+    ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
+        let Some(target_node_id) = node_ref.node_ids().get(crypto_kind) else {
+            bail!("no target node ids for this crypto kind");
+        };
+        self.find_node(node_ref, target_node_id).await
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn reverse_find_node(&self, node_ref: NodeRef, wide: bool) {
-        // Ask bootstrap node to 'find' our own node so we can get some more nodes near ourselves
+    pub async fn reverse_find_node(&self, crypto_kind: CryptoKind, node_ref: NodeRef, wide: bool) {
+        // Ask node to 'find node' on own node so we can get some more nodes near ourselves
         // and then contact those nodes to inform -them- that we exist
 
-        // Ask bootstrap server for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(match self.find_self(node_ref.clone()).await {
+        // Ask node for nodes closest to our own node
+        let closest_nodes = network_result_value_or_log!(match self.find_self(crypto_kind, node_ref.clone()).await {
             Err(e) => {
                 log_rtab!(error
                     "find_self failed for {:?}: {:?}",
@@ -911,7 +1051,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(match self.find_self(closest_nr.clone()).await {
+                network_result_value_or_log!(match self.find_self(crypto_kind, closest_nr.clone()).await {
                     Err(e) => {
                         log_rtab!(error
                             "find_self failed for {:?}: {:?}",
@@ -986,12 +1126,12 @@ impl RoutingTable {
         // Go through all entries and find fastest entry that matches filter function
         let inner = self.inner.read();
         let inner = &*inner;
-        let mut best_inbound_relay: Option<(DHTKey, Arc<BucketEntry>)> = None;
+        let mut best_inbound_relay: Option<Arc<BucketEntry>> = None;
 
         // Iterate all known nodes for candidates
-        inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, k, v| {
-            let v2 = v.clone();
-            v.with(rti, |rti, e| {
+        inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
+            let entry2 = entry.clone();
+            entry.with(rti, |rti, e| {
                 // Ensure we have the node's status
                 if let Some(node_status) = e.node_status(routing_domain) {
                     // Ensure the node will relay
@@ -999,18 +1139,18 @@ impl RoutingTable {
                         // Compare against previous candidate
                         if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
                             // Less is faster
-                            let better = best_inbound_relay.1.with(rti, |_rti, best| {
+                            let better = best_inbound_relay.with(rti, |_rti, best| {
                                 // choose low latency stability for relays
                                 BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
                                     == std::cmp::Ordering::Less
                             });
                             // Now apply filter function and see if this node should be included
                             if better && relay_node_filter(e) {
-                                *best_inbound_relay = (k, v2);
+                                *best_inbound_relay = entry2;
                             }
                         } else if relay_node_filter(e) {
                             // Always store the first candidate
-                            best_inbound_relay = Some((k, v2));
+                            best_inbound_relay = Some(entry2);
                         }
                     }
                 }
@@ -1019,6 +1159,14 @@ impl RoutingTable {
             Option::<()>::None
         });
         // Return the best inbound relay noderef
-        best_inbound_relay.map(|(k, e)| NodeRef::new(self.clone(), k, e, None))
+        best_inbound_relay.map(|e| NodeRef::new(self.clone(), e, None))
+    }
+}
+
+impl core::ops::Deref for RoutingTable {
+    type Target = RoutingTableUnlockedInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.unlocked_inner
     }
 }

@@ -35,6 +35,7 @@ mod veilid_layer_filter;
 
 pub use self::api_tracing_layer::ApiTracingLayer;
 pub use self::core_context::{api_startup, api_startup_json, UpdateCallback};
+pub use self::crypto::vld0_generate_keypair;
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;

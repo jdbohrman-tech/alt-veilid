@@ -42,7 +42,6 @@ impl RPCProcessor {
                         target,
                         safety_selection: _,
                     } => {
-                        let opt_target_nr = self.routing_table.lookup_node_ref(*target);
                         let routing_domain = match relay.best_routing_domain() {
                             Some(rd) => rd,
                             None => {
@@ -51,7 +50,7 @@ impl RPCProcessor {
                                 ))
                             }
                         };
-                        (opt_target_nr, routing_domain)
+                        (Some(target.clone()), routing_domain)
                     }
                     Destination::PrivateRoute {
                         private_route: _,

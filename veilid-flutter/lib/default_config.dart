@@ -46,13 +46,12 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
       clientWhitelistTimeoutMs: 300000,
       reverseConnectionReceiptTimeMs: 5000,
       holePunchReceiptTimeMs: 5000,
-      nodeId: null,
-      nodeIdSecret: null,
-      bootstrap: kIsWeb
-          ? ["ws://bootstrap.dev.veilid.net:5150/ws"]
-          : ["bootstrap.dev.veilid.net"],
-      bootstrapNodes: [],
       routingTable: VeilidConfigRoutingTable(
+        nodeId: [],
+        nodeIdSecret: [],
+        bootstrap: kIsWeb
+            ? ["ws://bootstrap.dev.veilid.net:5150/ws"]
+            : ["bootstrap.dev.veilid.net"],
         limitOverAttached: 64,
         limitFullyAttached: 32,
         limitAttachedStrong: 16,

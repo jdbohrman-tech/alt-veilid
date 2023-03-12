@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationSupplyBlockQ {
-    pub block_id: DHTKey,
+    pub block_id: TypedKey,
 }
 
 impl RPCOperationSupplyBlockQ {
@@ -10,7 +10,7 @@ impl RPCOperationSupplyBlockQ {
         reader: &veilid_capnp::operation_supply_block_q::Reader,
     ) -> Result<RPCOperationSupplyBlockQ, RPCError> {
         let bi_reader = reader.get_block_id().map_err(RPCError::protocol)?;
-        let block_id = decode_dht_key(&bi_reader);
+        let block_id = decode_typed_key(&bi_reader)?;
 
         Ok(RPCOperationSupplyBlockQ { block_id })
     }
@@ -19,7 +19,7 @@ impl RPCOperationSupplyBlockQ {
         builder: &mut veilid_capnp::operation_supply_block_q::Builder,
     ) -> Result<(), RPCError> {
         let mut bi_builder = builder.reborrow().init_block_id();
-        encode_dht_key(&self.block_id, &mut bi_builder)?;
+        encode_typed_key(&self.block_id, &mut bi_builder);
 
         Ok(())
     }
@@ -34,6 +34,7 @@ pub enum RPCOperationSupplyBlockA {
 impl RPCOperationSupplyBlockA {
     pub fn decode(
         reader: &veilid_capnp::operation_supply_block_a::Reader,
+        crypto: Crypto,
     ) -> Result<RPCOperationSupplyBlockA, RPCError> {
         match reader.which().map_err(RPCError::protocol)? {
             veilid_capnp::operation_supply_block_a::Which::Expiration(r) => {
@@ -48,7 +49,7 @@ impl RPCOperationSupplyBlockA {
                         .map_err(RPCError::map_internal("too many peers"))?,
                 );
                 for p in peers_reader.iter() {
-                    let peer_info = decode_peer_info(&p)?;
+                    let peer_info = decode_peer_info(&p, crypto.clone())?;
                     peers.push(peer_info);
                 }
 

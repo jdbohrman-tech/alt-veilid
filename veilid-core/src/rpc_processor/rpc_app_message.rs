@@ -30,8 +30,16 @@ impl RPCProcessor {
             _ => panic!("not a statement"),
         };
 
+        // Get the crypto kind used to send this question
+        let crypto_kind = msg.header.crypto_kind();
+
+        // Get the sender node id this came from
+        let sender = msg
+            .opt_sender_nr
+            .as_ref()
+            .map(|nr| nr.node_ids().get(crypto_kind).unwrap().value);
+
         // Pass the message up through the update callback
-        let sender = msg.opt_sender_nr.map(|nr| NodeId::new(nr.node_id()));
         let message = app_message.message;
         (self.unlocked_inner.update_callback)(VeilidUpdate::AppMessage(VeilidAppMessage {
             sender,

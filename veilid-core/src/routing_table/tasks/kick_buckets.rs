@@ -10,12 +10,13 @@ impl RoutingTable {
         _last_ts: Timestamp,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        let kick_queue: Vec<usize> = core::mem::take(&mut *self.unlocked_inner.kick_queue.lock())
-            .into_iter()
-            .collect();
+        let kick_queue: Vec<BucketIndex> =
+            core::mem::take(&mut *self.unlocked_inner.kick_queue.lock())
+                .into_iter()
+                .collect();
         let mut inner = self.inner.write();
-        for idx in kick_queue {
-            inner.kick_bucket(idx)
+        for bucket_index in kick_queue {
+            inner.kick_bucket(bucket_index)
         }
         Ok(())
     }

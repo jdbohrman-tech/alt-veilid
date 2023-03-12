@@ -68,23 +68,14 @@ pub struct BucketEntryLocalNetwork {
     node_status: Option<LocalNetworkNodeStatus>,
 }
 
-/// A range of cryptography versions supported by this entry
-#[derive(Copy, Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
-pub struct VersionRange {
-    /// The minimum cryptography version supported by this entry
-    pub min: u8,
-    /// The maximum cryptography version supported by this entry
-    pub max: u8,
-}
-
 /// The data associated with each bucket entry
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryInner {
-    /// The minimum and maximum range of cryptography versions supported by the node,
-    /// inclusive of the requirements of any relay the node may be using
-    min_max_version: Option<VersionRange>,
+    /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
+    node_ids: TypedKeySet,
+    /// The set of envelope versions supported by the node inclusive of the requirements of any relay the node may be using
+    envelope_support: Vec<u8>,
     /// If this node has updated it's SignedNodeInfo since our network
     /// and dial info has last changed, for example when our IP address changes
     /// Used to determine if we should make this entry 'live' again when we receive a signednodeinfo update that
@@ -130,6 +121,38 @@ impl BucketEntryInner {
     pub fn untrack(&mut self, track_id: usize) {
         self.node_ref_tracks.remove(&track_id);
     }
+
+    /// Get node ids
+    pub fn node_ids(&self) -> TypedKeySet {
+        self.node_ids.clone()
+    }
+    /// Add a node id for a particular crypto kind.
+    /// Returns any previous existing node id associated with that crypto kind
+    pub fn add_node_id(&mut self, node_id: TypedKey) -> Option<TypedKey> {
+        if let Some(old_node_id) = self.node_ids.get(node_id.kind) {
+            // If this was already there we do nothing
+            if old_node_id == node_id {
+                return None;
+            }
+            self.node_ids.add(node_id);    
+            return Some(old_node_id);
+        }
+        self.node_ids.add(node_id);
+        None
+    }
+    pub fn best_node_id(&self) -> TypedKey {
+        self.node_ids.best().unwrap()
+    }
+
+    /// Get crypto kinds
+    pub fn crypto_kinds(&self) -> Vec<CryptoKind> {
+        self.node_ids.kinds()
+    }
+    /// Compare sets of crypto kinds
+    pub fn common_crypto_kinds(&self, other: &[CryptoKind]) -> Vec<CryptoKind> {
+        common_crypto_kinds(&self.node_ids.kinds(), other)
+    }
+
 
     // Less is faster
     pub fn cmp_fastest(e1: &Self, e2: &Self) -> std::cmp::Ordering {
@@ -219,7 +242,7 @@ impl BucketEntryInner {
         // See if we have an existing signed_node_info to update or not
         if let Some(current_sni) = opt_current_sni {
             // Always allow overwriting invalid/unsigned node
-            if current_sni.has_valid_signature() {
+            if current_sni.has_any_signature() {
                 // If the timestamp hasn't changed or is less, ignore this update
                 if signed_node_info.timestamp() <= current_sni.timestamp() {
                     // If we received a node update with the same timestamp
@@ -238,25 +261,12 @@ impl BucketEntryInner {
             }
         }
 
-        // Update the protocol min/max version we have to use, to include relay requirements if needed
-        let mut version_range = VersionRange {
-            min: signed_node_info.node_info().min_version,
-            max: signed_node_info.node_info().max_version,
-        };
-        if let Some(relay_info) = signed_node_info.relay_info() {
-            version_range.min.max_assign(relay_info.min_version);
-            version_range.max.min_assign(relay_info.max_version);
-        }
-        if version_range.min <= version_range.max {
-            // Can be reached with at least one crypto version
-            self.min_max_version = Some(version_range);
-        } else {
-            // No valid crypto version in range
-            self.min_max_version = None;
-        }
-
+        // Update the envelope version support we have to use
+        let envelope_support = signed_node_info.node_info().envelope_support.clone();
+        
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
+        self.set_envelope_support(envelope_support);
         self.updated_since_last_network_change = true;
         self.touch_last_seen(get_aligned_timestamp());
     }
@@ -310,13 +320,13 @@ impl BucketEntryInner {
         opt_current_sni.as_ref().map(|s| s.as_ref())
     }
 
-    pub fn make_peer_info(&self, key: DHTKey, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+    pub fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
         opt_current_sni.as_ref().map(|s| PeerInfo {
-            node_id: NodeId::new(key),
+            node_ids: self.node_ids.clone(),
             signed_node_info: *s.clone(),
         })
     }
@@ -447,12 +457,27 @@ impl BucketEntryInner {
         out
     }
 
-    pub fn set_min_max_version(&mut self, min_max_version: VersionRange) {
-        self.min_max_version = Some(min_max_version);
+    pub fn add_envelope_version(&mut self, envelope_version: u8) {
+        if self.envelope_support.contains(&envelope_version) {
+            return;
+        }
+        self.envelope_support.push(envelope_version);
+        self.envelope_support.dedup();
+        self.envelope_support.sort();
     }
 
-    pub fn min_max_version(&self) -> Option<VersionRange> {
-        self.min_max_version
+    pub fn set_envelope_support(&mut self, mut envelope_support: Vec<u8>) {
+        envelope_support.dedup();
+        envelope_support.sort();
+        self.envelope_support = envelope_support;
+    }
+
+    pub fn envelope_support(&self) -> Vec<u8> {
+        self.envelope_support.clone()
+    }
+
+    pub fn best_envelope_version(&self) -> Option<u8> {
+        self.envelope_support.iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)).copied()
     }
 
     pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
@@ -746,38 +771,41 @@ pub struct BucketEntry {
 }
 
 impl BucketEntry {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(first_node_id: TypedKey) -> Self {
         let now = get_aligned_timestamp();
-        Self {
-            ref_count: AtomicU32::new(0),
-            inner: RwLock::new(BucketEntryInner {
-                min_max_version: None,
-                updated_since_last_network_change: false,
-                last_connections: BTreeMap::new(),
-                local_network: BucketEntryLocalNetwork {
-                    last_seen_our_node_info_ts: Timestamp::new(0u64),
-                    signed_node_info: None,
-                    node_status: None,
-                },
-                public_internet: BucketEntryPublicInternet {
-                    last_seen_our_node_info_ts: Timestamp::new(0u64),
-                    signed_node_info: None,
-                    node_status: None,
-                },
-                peer_stats: PeerStats {
-                    time_added: now,
-                    rpc_stats: RPCStats::default(),
-                    latency: None,
-                    transfer: TransferStatsDownUp::default(),
-                },
-                latency_stats_accounting: LatencyStatsAccounting::new(),
-                transfer_stats_accounting: TransferStatsAccounting::new(),
-                #[cfg(feature = "tracking")]
-                next_track_id: 0,
-                #[cfg(feature = "tracking")]
-                node_ref_tracks: HashMap::new(),
-            }),
-        }
+        let mut node_ids = TypedKeySet::new();
+        node_ids.add(first_node_id);
+
+        let inner = BucketEntryInner {
+            node_ids,
+            envelope_support: Vec::new(),
+            updated_since_last_network_change: false,
+            last_connections: BTreeMap::new(),
+            local_network: BucketEntryLocalNetwork {
+                last_seen_our_node_info_ts: Timestamp::new(0u64),
+                signed_node_info: None,
+                node_status: None,
+            },
+            public_internet: BucketEntryPublicInternet {
+                last_seen_our_node_info_ts: Timestamp::new(0u64),
+                signed_node_info: None,
+                node_status: None,
+            },
+            peer_stats: PeerStats {
+                time_added: now,
+                rpc_stats: RPCStats::default(),
+                latency: None,
+                transfer: TransferStatsDownUp::default(),
+            },
+            latency_stats_accounting: LatencyStatsAccounting::new(),
+            transfer_stats_accounting: TransferStatsAccounting::new(),
+            #[cfg(feature = "tracking")]
+            next_track_id: 0,
+            #[cfg(feature = "tracking")]
+            node_ref_tracks: HashMap::new(),
+        };
+
+        Self::new_with_inner(inner)
     }
 
     pub(super) fn new_with_inner(inner: BucketEntryInner) -> Self {

@@ -2,25 +2,31 @@ use super::*;
 use core::sync::atomic::Ordering;
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
+/// Routing Table Bucket
+/// Stores map of public keys to entries, which may be in multiple routing tables per crypto kind
+/// Keeps entries at a particular 'dht distance' from this cryptokind's node id
+/// Helps to keep managed lists at particular distances so we can evict nodes by priority
+/// where the priority comes from liveness and age of the entry (older is better)
 pub struct Bucket {
-    routing_table: RoutingTable,
-    entries: BTreeMap<DHTKey, Arc<BucketEntry>>,
-    newest_entry: Option<DHTKey>,
+    /// Map of keys to entries for this bucket
+    entries: BTreeMap<PublicKey, Arc<BucketEntry>>,
+    /// The crypto kind in use for the public keys in this bucket
+    kind: CryptoKind,
 }
-pub(super) type EntriesIter<'a> = alloc::collections::btree_map::Iter<'a, DHTKey, Arc<BucketEntry>>;
+pub(super) type EntriesIter<'a> =
+    alloc::collections::btree_map::Iter<'a, PublicKey, Arc<BucketEntry>>;
 
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
-struct BucketEntryData {
-    key: DHTKey,
-    value: Vec<u8>,
+struct SerializedBucketEntryData {
+    key: PublicKey,
+    value: u32, // index into serialized entries list
 }
 
 #[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
-struct BucketData {
-    entries: Vec<BucketEntryData>,
-    newest_entry: Option<DHTKey>,
+struct SerializedBucketData {
+    entries: Vec<SerializedBucketEntryData>,
 }
 
 fn state_ordering(state: BucketEntryState) -> usize {
@@ -32,68 +38,79 @@ fn state_ordering(state: BucketEntryState) -> usize {
 }
 
 impl Bucket {
-    pub fn new(routing_table: RoutingTable) -> Self {
+    pub fn new(kind: CryptoKind) -> Self {
         Self {
-            routing_table,
             entries: BTreeMap::new(),
-            newest_entry: None,
+            kind,
         }
     }
 
-    pub(super) fn load_bucket(&mut self, data: Vec<u8>) -> EyreResult<()> {
-        let bucket_data: BucketData = from_rkyv(data)?;
+    pub(super) fn load_bucket(
+        &mut self,
+        data: Vec<u8>,
+        all_entries: &[Arc<BucketEntry>],
+    ) -> EyreResult<()> {
+        let bucket_data: SerializedBucketData = from_rkyv(data)?;
 
         for e in bucket_data.entries {
-            let entryinner = from_rkyv(e.value).wrap_err("failed to deserialize bucket entry")?;
             self.entries
-                .insert(e.key, Arc::new(BucketEntry::new_with_inner(entryinner)));
+                .insert(e.key, all_entries[e.value as usize].clone());
         }
-
-        self.newest_entry = bucket_data.newest_entry;
 
         Ok(())
     }
-    pub(super) fn save_bucket(&self) -> EyreResult<Vec<u8>> {
+
+    pub(super) fn save_bucket(
+        &self,
+        all_entries: &mut Vec<Arc<BucketEntry>>,
+        entry_map: &mut HashMap<*const BucketEntry, u32>,
+    ) -> EyreResult<Vec<u8>> {
         let mut entries = Vec::new();
         for (k, v) in &self.entries {
-            let entry_bytes = v.with_inner(|e| to_rkyv(e))?;
-            entries.push(BucketEntryData {
+            let entry_index = entry_map.entry(Arc::as_ptr(v)).or_insert_with(|| {
+                let entry_index = all_entries.len();
+                all_entries.push(v.clone());
+                entry_index as u32
+            });
+            entries.push(SerializedBucketEntryData {
                 key: *k,
-                value: entry_bytes,
+                value: *entry_index,
             });
         }
-        let bucket_data = BucketData {
-            entries,
-            newest_entry: self.newest_entry.clone(),
-        };
+        let bucket_data = SerializedBucketData { entries };
         let out = to_rkyv(&bucket_data)?;
         Ok(out)
     }
 
-    pub(super) fn add_entry(&mut self, node_id: DHTKey) -> NodeRef {
-        log_rtab!("Node added: {}", node_id.encode());
+    /// Create a new entry with a node_id of this crypto kind and return it
+    pub(super) fn add_new_entry(&mut self, node_id_key: PublicKey) -> Arc<BucketEntry> {
+        log_rtab!("Node added: {}:{}", self.kind, node_id_key);
 
         // Add new entry
-        self.entries.insert(node_id, Arc::new(BucketEntry::new()));
+        let entry = Arc::new(BucketEntry::new(TypedKey::new(self.kind, node_id_key)));
+        self.entries.insert(node_id_key, entry.clone());
 
-        // This is now the newest bucket entry
-        self.newest_entry = Some(node_id);
-
-        // Get a node ref to return
-        let entry = self.entries.get(&node_id).unwrap().clone();
-        NodeRef::new(self.routing_table.clone(), node_id, entry, None)
+        // Return the new entry
+        entry
     }
 
-    pub(super) fn remove_entry(&mut self, node_id: &DHTKey) {
-        log_rtab!("Node removed: {}", node_id);
+    /// Add an existing entry with a new node_id for this crypto kind
+    pub(super) fn add_existing_entry(&mut self, node_id_key: PublicKey, entry: Arc<BucketEntry>) {
+        log_rtab!("Existing node added: {}:{}", self.kind, node_id_key);
+
+        // Add existing entry
+        self.entries.insert(node_id_key, entry);
+    }
+
+    /// Remove an entry with a node_id for this crypto kind from the bucket
+    pub(super) fn remove_entry(&mut self, node_id_key: &PublicKey) {
+        log_rtab!("Node removed: {}:{}", self.kind, node_id_key);
 
         // Remove the entry
-        self.entries.remove(node_id);
-
-        // newest_entry is updated by kick_bucket()
+        self.entries.remove(node_id_key);
     }
 
-    pub(super) fn entry(&self, key: &DHTKey) -> Option<Arc<BucketEntry>> {
+    pub(super) fn entry(&self, key: &PublicKey) -> Option<Arc<BucketEntry>> {
         self.entries.get(key).cloned()
     }
 
@@ -101,7 +118,7 @@ impl Bucket {
         self.entries.iter()
     }
 
-    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<DHTKey>> {
+    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<PublicKey>> {
         // Get number of entries to attempt to purge from bucket
         let bucket_len = self.entries.len();
 
@@ -111,11 +128,11 @@ impl Bucket {
         }
 
         // Try to purge the newest entries that overflow the bucket
-        let mut dead_node_ids: BTreeSet<DHTKey> = BTreeSet::new();
+        let mut dead_node_ids: BTreeSet<PublicKey> = BTreeSet::new();
         let mut extra_entries = bucket_len - bucket_depth;
 
         // Get the sorted list of entries by their kick order
-        let mut sorted_entries: Vec<(DHTKey, Arc<BucketEntry>)> = self
+        let mut sorted_entries: Vec<(PublicKey, Arc<BucketEntry>)> = self
             .entries
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
@@ -144,24 +161,15 @@ impl Bucket {
             })
         });
 
-        self.newest_entry = None;
         for entry in sorted_entries {
             // If we're not evicting more entries, exit, noting this may be the newest entry
             if extra_entries == 0 {
-                // The first 'live' entry we find is our newest entry
-                if self.newest_entry.is_none() {
-                    self.newest_entry = Some(entry.0);
-                }
                 break;
             }
             extra_entries -= 1;
 
             // if this entry has references we can't drop it yet
             if entry.1.ref_count.load(Ordering::Acquire) > 0 {
-                // The first 'live' entry we fine is our newest entry
-                if self.newest_entry.is_none() {
-                    self.newest_entry = Some(entry.0);
-                }
                 continue;
             }
 

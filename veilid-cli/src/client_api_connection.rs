@@ -96,6 +96,9 @@ impl veilid_client::Server for VeilidClientImpl {
                 self.comproc.update_route(route);
             }
             VeilidUpdate::Shutdown => self.comproc.update_shutdown(),
+            VeilidUpdate::ValueChange(value_change) => {
+                self.comproc.update_value_change(value_change);
+            }
         }
 
         Promise::ok(())
@@ -192,45 +195,55 @@ impl ClientApiConnection {
 
         let rpc_jh = spawn_local(rpc_system);
 
-        // Send the request and get the state object and the registration object
-        let response = request
-            .send()
-            .promise
-            .await
-            .map_err(|e| format!("failed to send register request: {}", e))?;
-        let response = response
-            .get()
-            .map_err(|e| format!("failed to get register response: {}", e))?;
+        let reg_res: Result<registration::Client, String> = (async {
+            // Send the request and get the state object and the registration object
+            let response = request
+                .send()
+                .promise
+                .await
+                .map_err(|e| format!("failed to send register request: {}", e))?;
+            let response = response
+                .get()
+                .map_err(|e| format!("failed to get register response: {}", e))?;
 
-        // Get the registration object, which drops our connection when it is dropped
-        let _registration = response
-            .get_registration()
-            .map_err(|e| format!("failed to get registration object: {}", e))?;
+            // Get the registration object, which drops our connection when it is dropped
+            let registration = response
+                .get_registration()
+                .map_err(|e| format!("failed to get registration object: {}", e))?;
 
-        // Get the initial veilid state
-        let veilid_state = response
-            .get_state()
-            .map_err(|e| format!("failed to get initial veilid state: {}", e))?;
+            // Get the initial veilid state
+            let veilid_state = response
+                .get_state()
+                .map_err(|e| format!("failed to get initial veilid state: {}", e))?;
 
-        // Set up our state for the first time
-        let veilid_state: VeilidState = deserialize_json(veilid_state)
-            .map_err(|e| format!("failed to get deserialize veilid state: {}", e))?;
-        self.process_veilid_state(veilid_state).await?;
+            // Set up our state for the first time
+            let veilid_state: VeilidState = deserialize_json(veilid_state)
+                .map_err(|e| format!("failed to get deserialize veilid state: {}", e))?;
+            self.process_veilid_state(veilid_state).await?;
 
-        // Save server settings
-        let server_settings = response
-            .get_settings()
-            .map_err(|e| format!("failed to get initial veilid server settings: {}", e))?
-            .to_owned();
-        self.inner.borrow_mut().server_settings = Some(server_settings.clone());
+            // Save server settings
+            let server_settings = response
+                .get_settings()
+                .map_err(|e| format!("failed to get initial veilid server settings: {}", e))?
+                .to_owned();
+            self.inner.borrow_mut().server_settings = Some(server_settings.clone());
 
-        // Don't drop the registration, doing so will remove the client
-        // object mapping from the server which we need for the update backchannel
+            // Don't drop the registration, doing so will remove the client
+            // object mapping from the server which we need for the update backchannel
+            Ok(registration)
+        })
+        .await;
+
+        let _registration = match reg_res {
+            Ok(v) => v,
+            Err(e) => {
+                rpc_jh.abort().await;
+                return Err(e);
+            }
+        };
 
         // Wait until rpc system completion or disconnect was requested
         let res = rpc_jh.await;
-        // #[cfg(feature = "rt-tokio")]
-        // let res = res.map_err(|e| format!("join error: {}", e))?;
         res.map_err(|e| format!("client RPC system error: {}", e))
     }
 

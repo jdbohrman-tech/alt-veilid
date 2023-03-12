@@ -35,6 +35,13 @@ command line without it. If you do so, you may skip to
 
 #### Setup Dependencies using the CLI
 
+
+You can automatically install the prerequisites using this script:
+
+```shell
+./install_linux_prerequisites.sh
+```
+
 Otherwise, you may choose to use Android `sdkmanager`. Follow the installation
 instructions for `sdkmanager`
 [here](https://developer.android.com/studio/command-line/sdkmanager), then use

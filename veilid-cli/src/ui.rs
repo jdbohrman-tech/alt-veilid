@@ -881,13 +881,11 @@ impl UI {
     }
     pub fn set_config(&mut self, config: VeilidConfigInner) {
         let mut inner = self.inner.borrow_mut();
-        inner.ui_state.node_id.set(
-            config
-                .network
-                .node_id
-                .map(|x| x.encode())
-                .unwrap_or("<unknown>".to_owned()),
-        );
+
+        inner
+            .ui_state
+            .node_id
+            .set(config.network.routing_table.node_id.to_string());
     }
     pub fn set_connection_state(&mut self, state: ConnectionState) {
         let mut inner = self.inner.borrow_mut();

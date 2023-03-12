@@ -14,14 +14,14 @@ and the `veilid-server.conf` file.
 
 ## Global Directives
 
-| Directive                     | Description                             |
-|-------------------------------|-----------------------------------------|
-| [daemon](#daemon)             | Run `veilid-server` in the background   |
-| [client\_api](#client_api)    ||
-| [auto\_attach](#auto_attach)  ||
-| [logging](#logging)           ||
-| [testing](#testing)           ||
-| [core](#core)                 ||
+| Directive                    | Description                           |
+| ---------------------------- | ------------------------------------- |
+| [daemon](#daemon)            | Run `veilid-server` in the background |
+| [client\_api](#client_api)   |                                       |
+| [auto\_attach](#auto_attach) |                                       |
+| [logging](#logging)          |                                       |
+| [testing](#testing)          |                                       |
+| [core](#core)                |                                       |
 
 
 ### daemon
@@ -39,10 +39,10 @@ client_api:
     listen_address: 'localhost:5959'
 ```
 
-| Parameter                                     | Description |
-|-----------------------------------------------|-------------|
-| [enabled](#client_apienabled)                 ||
-| [listen\_address](#client_apilisten_address)  ||
+| Parameter                                    | Description |
+| -------------------------------------------- | ----------- |
+| [enabled](#client_apienabled)                |             |
+| [listen\_address](#client_apilisten_address) |             |
 
 #### client\_api:enabled
 
@@ -82,13 +82,13 @@ logging:
         grpc_endpoint: 'localhost:4317'
 ```
 
-| Parameter                     | Description |
-|-------------------------------|-------------|
-| [system](#loggingsystem)      ||
-| [terminal](#loggingterminal)  ||
-| [file](#loggingfile)          ||
-| [api](#loggingapi)            ||
-| [otlp](#loggingotlp)          ||
+| Parameter                    | Description |
+| ---------------------------- | ----------- |
+| [system](#loggingsystem)     |             |
+| [terminal](#loggingterminal) |             |
+| [file](#loggingfile)         |             |
+| [api](#loggingapi)           |             |
+| [otlp](#loggingotlp)         |             |
 
 #### logging:system
 
@@ -142,12 +142,12 @@ testing:
 
 ### core
 
-| Parameter                                 | Description |
-|-------------------------------------------|-------------|
-| [protected\_store](#coreprotected_store)  ||
-| [table\_store](#coretable_store)          ||
-| [block\_store](#block_store)              ||
-| [network](#corenetwork)                   ||
+| Parameter                                | Description |
+| ---------------------------------------- | ----------- |
+| [protected\_store](#coreprotected_store) |             |
+| [table\_store](#coretable_store)         |             |
+| [block\_store](#block_store)             |             |
+| [network](#corenetwork)                  |             |
 
 #### core:protected\_store
 
@@ -191,7 +191,6 @@ network:
     node_id: ''
     node_id_secret: ''
     bootstrap: ['bootstrap.dev.veilid.net']
-    bootstrap_nodes: []
     upnp: true
     detect_address_changes: true
     enable_local_peer_scope: false
@@ -199,13 +198,13 @@ network:
 ```
 
 | Parameter                                   | Description |
-|---------------------------------------------|-------------|
-| [routing\_table](#corenetworkrouting_table) ||
-| [rpc](#corenetworkrpc)                      ||
-| [dht](#corenetworkdht)                      ||
-| [tls](#corenetworktls)                      ||
-| [application](#corenetworkapplication)      ||
-| [protocol](#corenetworkprotocol)            ||
+| ------------------------------------------- | ----------- |
+| [routing\_table](#corenetworkrouting_table) |             |
+| [rpc](#corenetworkrpc)                      |             |
+| [dht](#corenetworkdht)                      |             |
+| [tls](#corenetworktls)                      |             |
+| [application](#corenetworkapplication)      |             |
+| [protocol](#corenetworkprotocol)            |             |
 
 #### core:network:routing\_table
 

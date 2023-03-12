@@ -6,7 +6,6 @@ use alloc::fmt;
 
 pub struct NodeRefBaseCommon {
     routing_table: RoutingTable,
-    node_id: DHTKey,
     entry: Arc<BucketEntry>,
     filter: Option<NodeRefFilter>,
     sequencing: Sequencing,
@@ -20,6 +19,14 @@ pub trait NodeRefBase: Sized {
     // Common field access
     fn common(&self) -> &NodeRefBaseCommon;
     fn common_mut(&mut self) -> &mut NodeRefBaseCommon;
+
+    // Comparators
+    fn same_entry<T: NodeRefBase>(&self, other: &T) -> bool {
+        Arc::ptr_eq(&self.common().entry, &other.common().entry)
+    }
+    fn same_bucket_entry(&self, entry: &Arc<BucketEntry>) -> bool {
+        Arc::ptr_eq(&self.common().entry, entry)
+    }
 
     // Implementation-specific operators
     fn operate<T, F>(&self, f: F) -> T
@@ -99,8 +106,11 @@ pub trait NodeRefBase: Sized {
     fn routing_table(&self) -> RoutingTable {
         self.common().routing_table.clone()
     }
-    fn node_id(&self) -> DHTKey {
-        self.common().node_id
+    fn node_ids(&self) -> TypedKeySet {
+        self.operate(|_rti, e| e.node_ids())
+    }
+    fn best_node_id(&self) -> TypedKey {
+        self.operate(|_rti, e| e.best_node_id())
     }
     fn has_updated_since_last_network_change(&self) -> bool {
         self.operate(|_rti, e| e.has_updated_since_last_network_change())
@@ -113,11 +123,17 @@ pub trait NodeRefBase: Sized {
             e.update_node_status(node_status);
         });
     }
-    fn min_max_version(&self) -> Option<VersionRange> {
-        self.operate(|_rti, e| e.min_max_version())
+    fn envelope_support(&self) -> Vec<u8> {
+        self.operate(|_rti, e| e.envelope_support())
     }
-    fn set_min_max_version(&self, min_max_version: VersionRange) {
-        self.operate_mut(|_rti, e| e.set_min_max_version(min_max_version))
+    fn add_envelope_version(&self, envelope_version: u8) {
+        self.operate_mut(|_rti, e| e.add_envelope_version(envelope_version))
+    }
+    fn set_envelope_support(&self, envelope_support: Vec<u8>) {
+        self.operate_mut(|_rti, e| e.set_envelope_support(envelope_support))
+    }
+    fn best_envelope_version(&self) -> Option<u8> {
+        self.operate(|_rti, e| e.best_envelope_version())
     }
     fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         self.operate(|_rti, e| e.state(cur_ts))
@@ -128,7 +144,7 @@ pub trait NodeRefBase: Sized {
 
     // Per-RoutingDomain accessors
     fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
-        self.operate(|_rti, e| e.make_peer_info(self.node_id(), routing_domain))
+        self.operate(|_rti, e| e.make_peer_info(routing_domain))
     }
     fn node_info(&self, routing_domain: RoutingDomain) -> Option<NodeInfo> {
         self.operate(|_rti, e| e.node_info(routing_domain).cloned())
@@ -136,7 +152,7 @@ pub trait NodeRefBase: Sized {
     fn signed_node_info_has_valid_signature(&self, routing_domain: RoutingDomain) -> bool {
         self.operate(|_rti, e| {
             e.signed_node_info(routing_domain)
-                .map(|sni| sni.has_valid_signature())
+                .map(|sni| sni.has_any_signature())
                 .unwrap_or(false)
         })
     }
@@ -180,19 +196,18 @@ pub trait NodeRefBase: Sized {
         self.operate_mut(|rti, e| {
             e.signed_node_info(routing_domain)
                 .and_then(|n| n.relay_peer_info())
-                .and_then(|t| {
+                .and_then(|rpi| {
                     // If relay is ourselves, then return None, because we can't relay through ourselves
                     // and to contact this node we should have had an existing inbound connection
-                    if t.node_id.key == rti.unlocked_inner.node_id {
+                    if rti.unlocked_inner.matches_own_node_id(&rpi.node_ids) {
                         return None;
                     }
 
                     // Register relay node and return noderef
-                    rti.register_node_with_signed_node_info(
+                    rti.register_node_with_peer_info(
                         self.routing_table(),
                         routing_domain,
-                        t.node_id.key,
-                        t.signed_node_info,
+                        rpi,
                         false,
                     )
                 })
@@ -280,7 +295,7 @@ pub trait NodeRefBase: Sized {
     fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: Timestamp) {
         self.operate_mut(|rti, e| {
             e.set_last_connection(connection_descriptor, ts);
-            rti.touch_recent_peer(self.common().node_id, connection_descriptor);
+            rti.touch_recent_peer(e.best_node_id(), connection_descriptor);
         })
     }
 
@@ -346,7 +361,6 @@ pub struct NodeRef {
 impl NodeRef {
     pub fn new(
         routing_table: RoutingTable,
-        node_id: DHTKey,
         entry: Arc<BucketEntry>,
         filter: Option<NodeRefFilter>,
     ) -> Self {
@@ -355,7 +369,6 @@ impl NodeRef {
         Self {
             common: NodeRefBaseCommon {
                 routing_table,
-                node_id,
                 entry,
                 filter,
                 sequencing: Sequencing::NoPreference,
@@ -415,7 +428,6 @@ impl Clone for NodeRef {
         Self {
             common: NodeRefBaseCommon {
                 routing_table: self.common.routing_table.clone(),
-                node_id: self.common.node_id,
                 entry: self.common.entry.clone(),
                 filter: self.common.filter.clone(),
                 sequencing: self.common.sequencing,
@@ -428,14 +440,14 @@ impl Clone for NodeRef {
 
 impl fmt::Display for NodeRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.common.node_id.encode())
+        write!(f, "{}", self.common.entry.with_inner(|e| e.best_node_id()))
     }
 }
 
 impl fmt::Debug for NodeRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeRef")
-            .field("node_id", &self.common.node_id)
+            .field("node_ids", &self.common.entry.with_inner(|e| e.node_ids()))
             .field("filter", &self.common.filter)
             .field("sequencing", &self.common.sequencing)
             .finish()
@@ -455,9 +467,10 @@ impl Drop for NodeRef {
             .fetch_sub(1u32, Ordering::Relaxed)
             - 1;
         if new_ref_count == 0 {
-            self.common
-                .routing_table
-                .queue_bucket_kick(self.common.node_id);
+            // get node ids with inner unlocked because nothing could be referencing this entry now
+            // and we don't know when it will get dropped, possibly inside a lock
+            let node_ids = self.common().entry.with_inner(|e| e.node_ids());
+            self.common.routing_table.queue_bucket_kicks(node_ids);
         }
     }
 }
@@ -479,6 +492,10 @@ impl<'a> NodeRefLocked<'a> {
             inner: Mutex::new(inner),
             nr,
         }
+    }
+
+    pub fn unlocked(&self) -> NodeRef {
+        self.nr.clone()
     }
 }
 
@@ -538,6 +555,10 @@ impl<'a> NodeRefLockedMut<'a> {
             inner: Mutex::new(inner),
             nr,
         }
+    }
+
+    pub fn unlocked(&self) -> NodeRef {
+        self.nr.clone()
     }
 }
 

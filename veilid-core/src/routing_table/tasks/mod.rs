@@ -134,21 +134,30 @@ impl RoutingTable {
             self.unlocked_inner.kick_buckets_task.tick().await?;
         }
 
-        // See how many live PublicInternet entries we have
-        let live_public_internet_entry_count = self.get_entry_count(
-            RoutingDomain::PublicInternet.into(),
-            BucketEntryState::Unreliable,
-        );
+        // Refresh entry counts
+        let entry_counts = {
+            let mut inner = self.inner.write();
+            inner.refresh_cached_entry_counts()
+        };
+
         let min_peer_count = self.with_config(|c| c.network.dht.min_peer_count as usize);
 
-        // If none, then add the bootstrap nodes to it
-        if live_public_internet_entry_count == 0 {
+        // Figure out which tables need bootstrap or peer minimum refresh
+        let mut needs_bootstrap = false;
+        let mut needs_peer_minimum_refresh = false;
+        for ck in VALID_CRYPTO_KINDS {
+            let eckey = (RoutingDomain::PublicInternet, ck);
+            let cnt = entry_counts.get(&eckey).copied().unwrap_or_default();
+            if cnt == 0 {
+                needs_bootstrap = true;
+            } else if cnt < min_peer_count {
+                needs_peer_minimum_refresh = true;
+            }
+        }
+        if needs_bootstrap {
             self.unlocked_inner.bootstrap_task.tick().await?;
         }
-        // If we still don't have enough peers, find nodes until we do
-        else if !self.unlocked_inner.bootstrap_task.is_running()
-            && live_public_internet_entry_count < min_peer_count
-        {
+        if needs_peer_minimum_refresh {
             self.unlocked_inner.peer_minimum_refresh_task.tick().await?;
         }
 

@@ -1,5 +1,5 @@
 use super::*;
-use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION;
+use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION_0;
 
 impl RoutingTable {
     pub(crate) fn debug_info_nodeinfo(&self) -> String {
@@ -7,7 +7,7 @@ impl RoutingTable {
         let inner = self.inner.read();
         out += "Routing Table Info:\n";
 
-        out += &format!("   Node Id: {}\n", self.unlocked_inner.node_id.encode());
+        out += &format!("   Node Ids: {}\n", self.unlocked_inner.node_ids());
         out += &format!(
             "   Self Latency Stats Accounting: {:#?}\n\n",
             inner.self_latency_stats_accounting
@@ -55,13 +55,20 @@ impl RoutingTable {
             short_urls.sort();
             short_urls.dedup();
 
+            let valid_envelope_versions = VALID_ENVELOPE_VERSIONS.map(|x| x.to_string()).join(",");
+            let node_ids = self
+                .unlocked_inner
+                .node_ids()
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(",");
             out += "TXT Record:\n";
             out += &format!(
-                "{},{},{},{},{}",
-                BOOTSTRAP_TXT_VERSION,
-                MIN_CRYPTO_VERSION,
-                MAX_CRYPTO_VERSION,
-                self.node_id().encode(),
+                "{}|{}|{}|{}|",
+                BOOTSTRAP_TXT_VERSION_0,
+                valid_envelope_versions,
+                node_ids,
                 some_hostname.unwrap()
             );
             for short_url in short_urls {
@@ -108,56 +115,53 @@ impl RoutingTable {
 
         let mut out = String::new();
 
-        let blen = inner.buckets.len();
         let mut b = 0;
         let mut cnt = 0;
-        out += &format!("Entries: {}\n", inner.bucket_entry_count);
-        while b < blen {
-            let filtered_entries: Vec<(&DHTKey, &Arc<BucketEntry>)> = inner.buckets[b]
-                .entries()
-                .filter(|e| {
-                    let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
-                    state >= min_state
-                })
-                .collect();
-            if !filtered_entries.is_empty() {
-                out += &format!("  Bucket #{}:\n", b);
-                for e in filtered_entries {
-                    let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
-                    out += &format!(
-                        "    {} [{}]\n",
-                        e.0.encode(),
-                        match state {
-                            BucketEntryState::Reliable => "R",
-                            BucketEntryState::Unreliable => "U",
-                            BucketEntryState::Dead => "D",
-                        }
-                    );
+        out += &format!("Entries: {}\n", inner.bucket_entry_count());
 
-                    cnt += 1;
+        for ck in &VALID_CRYPTO_KINDS {
+            let blen = inner.buckets[ck].len();
+            while b < blen {
+                let filtered_entries: Vec<(&PublicKey, &Arc<BucketEntry>)> = inner.buckets[ck][b]
+                    .entries()
+                    .filter(|e| {
+                        let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
+                        state >= min_state
+                    })
+                    .collect();
+                if !filtered_entries.is_empty() {
+                    out += &format!("{} Bucket #{}:\n", ck, b);
+                    for e in filtered_entries {
+                        let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
+                        out += &format!(
+                            "    {} [{}]\n",
+                            e.0.encode(),
+                            match state {
+                                BucketEntryState::Reliable => "R",
+                                BucketEntryState::Unreliable => "U",
+                                BucketEntryState::Dead => "D",
+                            }
+                        );
+
+                        cnt += 1;
+                        if cnt >= limit {
+                            break;
+                        }
+                    }
                     if cnt >= limit {
                         break;
                     }
                 }
-                if cnt >= limit {
-                    break;
-                }
+                b += 1;
             }
-            b += 1;
         }
 
         out
     }
 
-    pub(crate) fn debug_info_entry(&self, node_id: DHTKey) -> String {
+    pub(crate) fn debug_info_entry(&self, node_ref: NodeRef) -> String {
         let mut out = String::new();
-        out += &format!("Entry {:?}:\n", node_id);
-        if let Some(nr) = self.lookup_node_ref(node_id) {
-            out += &nr.operate(|_rt, e| format!("{:#?}\n", e));
-        } else {
-            out += "Entry not found\n";
-        }
-
+        out += &node_ref.operate(|_rt, e| format!("{:#?}\n", e));
         out
     }
 
@@ -168,26 +172,28 @@ impl RoutingTable {
 
         let mut out = String::new();
         const COLS: usize = 16;
-        let rows = inner.buckets.len() / COLS;
-        let mut r = 0;
-        let mut b = 0;
         out += "Buckets:\n";
-        while r < rows {
-            let mut c = 0;
-            out += format!("  {:>3}: ", b).as_str();
-            while c < COLS {
-                let mut cnt = 0;
-                for e in inner.buckets[b].entries() {
-                    if e.1.with(inner, |_rti, e| e.state(cur_ts) >= min_state) {
-                        cnt += 1;
+        for ck in &VALID_CRYPTO_KINDS {
+            let rows = inner.buckets[ck].len() / COLS;
+            let mut r = 0;
+            let mut b = 0;
+            while r < rows {
+                let mut c = 0;
+                out += format!("  {:>3}: ", b).as_str();
+                while c < COLS {
+                    let mut cnt = 0;
+                    for e in inner.buckets[ck][b].entries() {
+                        if e.1.with(inner, |_rti, e| e.state(cur_ts) >= min_state) {
+                            cnt += 1;
+                        }
                     }
+                    out += format!("{:>3} ", cnt).as_str();
+                    b += 1;
+                    c += 1;
                 }
-                out += format!("{:>3} ", cnt).as_str();
-                b += 1;
-                c += 1;
+                out += "\n";
+                r += 1;
             }
-            out += "\n";
-            r += 1;
         }
 
         out

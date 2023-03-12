@@ -4,7 +4,7 @@ use clap::{Arg, ArgMatches, Command};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str::FromStr;
-use veilid_core::{DHTKey, DHTKeySecret};
+use veilid_core::{TypedKeySet, TypedSecretSet};
 
 fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap::Error> {
     let matches = Command::new("veilid-server")
@@ -78,17 +78,21 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .help("Run as an extra daemon on the same machine for testing purposes, specify a number greater than zero to offset the listening ports"),
         )
         .arg(
-            Arg::new("generate-dht-key")
-                .long("generate-dht-key")
-                .help("Only generate a new dht key and print it"),
+            Arg::new("generate-key-pair")
+                .long("generate-key-pair")
+                .takes_value(true)
+                .value_name("crypto_kind")
+                .default_missing_value("VLD0")
+                .help("Only generate a new keypair and print it")
+                .long_help("Generate a new keypair for a specific crypto kind and print both the key and its secret to the terminal, then exit immediately."),                
         )
         .arg(
             Arg::new("set-node-id")
                 .long("set-node-id")
                 .takes_value(true)
-                .value_name("ID")
-                .help("Set the node id and secret key")
-                .long_help("To specify both node id and secret key on the command line, use a ID:SECRET syntax with a colon, like:\n  zsVXz5aTU98vZxwTcDmvpcnO5g1B2jRO3wpdNiDrRgw:gJzQLmzuBvA-dFvEmLcYvLoO5bh7hzCWFzfpJHapZKg\nIf no colon is used, the node id is specified, and a prompt appears to enter the secret key interactively.")
+                .value_name("key_set")
+                .help("Set the node ids and secret keys")
+                .long_help("Specify node ids in typed key set format ('[VLD0:xxxx,VLD1:xxxx]') on the command line, a prompt appears to enter the secret key set interactively.")
         )
         .arg(
             Arg::new("delete-protected-store")
@@ -121,14 +125,6 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .takes_value(true)
                 .value_name("BOOTSTRAP_LIST")
                 .help("Specify a list of bootstrap hostnames to use")
-        )
-        .arg(
-            Arg::new("bootstrap-nodes")
-                .conflicts_with("bootstrap")
-                .long("bootstrap-nodes")
-                .takes_value(true)
-                .value_name("BOOTSTRAP_NODE_LIST")
-                .help("Specify a list of bootstrap node dialinfos to use"),
         )
         .arg(
             Arg::new("panic")
@@ -244,20 +240,16 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
         settingsrw.logging.terminal.enabled = false;
 
         // Split or get secret
-        let (k, s) = if let Some((k, s)) = v.split_once(':') {
-            let k = DHTKey::try_decode(k).wrap_err("failed to decode node id from command line")?;
-            let s = DHTKeySecret::try_decode(s)?;
-            (k, s)
-        } else {
-            let k = DHTKey::try_decode(v)?;
-            let buffer = rpassword::prompt_password("Enter secret key (will not echo): ")
-                .wrap_err("invalid secret key")?;
-            let buffer = buffer.trim().to_string();
-            let s = DHTKeySecret::try_decode(&buffer)?;
-            (k, s)
-        };
-        settingsrw.core.network.node_id = Some(k);
-        settingsrw.core.network.node_id_secret = Some(s);
+        let tks =
+            TypedKeySet::from_str(v).wrap_err("failed to decode node id set from command line")?;
+
+        let buffer = rpassword::prompt_password("Enter secret key set (will not echo): ")
+            .wrap_err("invalid secret key")?;
+        let buffer = buffer.trim().to_string();
+        let tss = TypedSecretSet::from_str(&buffer).wrap_err("failed to decode secret set")?;
+
+        settingsrw.core.network.routing_table.node_id = Some(tks);
+        settingsrw.core.network.routing_table.node_id_secret = Some(tss);
     }
 
     if matches.occurrences_of("bootstrap") != 0 {
@@ -276,29 +268,7 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
                 bail!("value not specified for bootstrap");
             }
         };
-        settingsrw.core.network.bootstrap = bootstrap_list;
-    }
-
-    if matches.occurrences_of("bootstrap-nodes") != 0 {
-        let bootstrap_list = match matches.value_of("bootstrap-nodes") {
-            Some(x) => {
-                println!("Overriding bootstrap node list with: ");
-                let mut out: Vec<ParsedNodeDialInfo> = Vec::new();
-                for x in x.split(',') {
-                    let x = x.trim();
-                    println!("    {}", x);
-                    out.push(
-                        ParsedNodeDialInfo::from_str(x)
-                            .wrap_err("unable to parse dial info in bootstrap node list")?,
-                    );
-                }
-                out
-            }
-            None => {
-                bail!("value not specified for bootstrap node list");
-            }
-        };
-        settingsrw.core.network.bootstrap_nodes = bootstrap_list;
+        settingsrw.core.network.routing_table.bootstrap = bootstrap_list;
     }
 
     #[cfg(feature = "rt-tokio")]

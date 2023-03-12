@@ -21,13 +21,9 @@ impl RoutingTable {
             );
 
             // Roll all bucket entry transfers
-            let entries: Vec<Arc<BucketEntry>> = inner
-                .buckets
-                .iter()
-                .flat_map(|b| b.entries().map(|(_k, v)| v.clone()))
-                .collect();
-            for v in entries {
-                v.with_mut(inner, |_rti, e| e.roll_transfers(last_ts, cur_ts));
+            let all_entries: Vec<Arc<BucketEntry>> = inner.all_entries.iter().collect();
+            for entry in all_entries {
+                entry.with_mut(inner, |_rti, e| e.roll_transfers(last_ts, cur_ts));
             }
         }
 

@@ -11,7 +11,7 @@ impl RPCProcessor {
     pub async fn rpc_call_find_node(
         self,
         dest: Destination,
-        key: DHTKey,
+        node_id: TypedKey,
     ) -> Result<NetworkResult<Answer<Vec<PeerInfo>>>, RPCError> {
         // Ensure destination never has a private route
         if matches!(
@@ -26,8 +26,7 @@ impl RPCProcessor {
             ));
         }
 
-        let find_node_q_detail =
-            RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ { node_id: key });
+        let find_node_q_detail = RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ { node_id });
         let find_node_q = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             find_node_q_detail,
@@ -98,20 +97,30 @@ impl RPCProcessor {
         };
 
         // find N nodes closest to the target node in our routing table
-
         let filter = Box::new(
-            move |rti: &RoutingTableInner, _k: DHTKey, v: Option<Arc<BucketEntry>>| {
-                rti.filter_has_valid_signed_node_info(RoutingDomain::PublicInternet, true, v)
+            move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
+                // Ensure only things that are valid/signed in the PublicInternet domain are returned
+                rti.filter_has_valid_signed_node_info(
+                    RoutingDomain::PublicInternet,
+                    true,
+                    opt_entry,
+                )
             },
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
 
+        let node_count = {
+            let c = self.config.get();
+            c.network.dht.max_find_node_count as usize
+        };
+
         let closest_nodes = routing_table.find_closest_nodes(
+            node_count,
             find_node_q.node_id,
             filters,
             // transform
-            |rti, k, v| {
-                rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, k, v)
+            |rti, entry| {
+                rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, entry)
             },
         );
 

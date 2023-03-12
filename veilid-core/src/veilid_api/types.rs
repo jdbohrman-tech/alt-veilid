@@ -15,7 +15,67 @@ pub type OperationId = AlignedU64;
 pub type ByteCount = AlignedU64;
 /// Tunnel identifier
 pub type TunnelId = AlignedU64;
+/// Value schema
+pub type ValueSchema = FourCC;
+/// Value subkey
+pub type ValueSubkey = u32;
+/// Value subkey range
+pub type ValueSubkeyRange = (u32, u32);
+/// Value sequence number
+pub type ValueSeqNum = u32;
 
+/// FOURCC code
+#[derive(
+    Copy,
+    Default,
+    Clone,
+    Hash,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes, PartialOrd, Ord, PartialEq, Eq, Hash))]
+pub struct FourCC(pub [u8; 4]);
+
+impl From<[u8; 4]> for FourCC {
+    fn from(b: [u8; 4]) -> Self {
+        Self(b)
+    }
+}
+impl TryFrom<&[u8]> for FourCC {
+    type Error = VeilidAPIError;
+    fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(b.try_into().map_err(VeilidAPIError::generic)?))
+    }
+}
+
+impl fmt::Display for FourCC {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+impl fmt::Debug for FourCC {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+
+impl FromStr for FourCC {
+    type Err = VeilidAPIError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(
+            s.as_bytes().try_into().map_err(VeilidAPIError::generic)?,
+        ))
+    }
+}
+
+/// Log level for VeilidCore
 #[derive(
     Debug,
     Clone,
@@ -91,6 +151,7 @@ impl fmt::Display for VeilidLogLevel {
     }
 }
 
+/// A VeilidCore log message with optional backtrace
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
@@ -101,6 +162,7 @@ pub struct VeilidLog {
     pub backtrace: Option<String>,
 }
 
+/// Direct statement blob passed to hosting application for processing
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
@@ -108,12 +170,13 @@ pub struct VeilidLog {
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    pub sender: Option<NodeId>,
+    pub sender: Option<PublicKey>,
     /// The content of the message to deliver to the application
     #[serde(with = "json_as_base64")]
     pub message: Vec<u8>,
 }
 
+/// Direct question blob passed to hosting application for processing to send an eventual AppReply
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
@@ -121,7 +184,7 @@ pub struct VeilidAppMessage {
 pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    pub sender: Option<NodeId>,
+    pub sender: Option<PublicKey>,
     /// The content of the request to deliver to the application
     #[serde(with = "json_as_base64")]
     pub message: Vec<u8>,
@@ -130,6 +193,7 @@ pub struct VeilidAppCall {
     pub id: OperationId,
 }
 
+/// Attachment abstraction for network 'signal strength'
 #[derive(
     Debug,
     PartialEq,
@@ -203,7 +267,7 @@ pub struct VeilidStateAttachment {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerTableData {
-    pub node_id: DHTKey,
+    pub node_ids: TypedKeySet,
     pub peer_address: PeerAddress,
     pub peer_stats: PeerStats,
 }
@@ -226,8 +290,8 @@ pub struct VeilidStateNetwork {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidStateRoute {
-    pub dead_routes: Vec<DHTKey>,
-    pub dead_remote_routes: Vec<DHTKey>,
+    pub dead_routes: Vec<RouteId>,
+    pub dead_remote_routes: Vec<RouteId>,
 }
 
 #[derive(
@@ -236,6 +300,17 @@ pub struct VeilidStateRoute {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidStateConfig {
     pub config: VeilidConfigInner,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct VeilidValueChange {
+    key: TypedKey,
+    subkeys: Vec<ValueSubkey>,
+    count: u32,
+    value: ValueData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
@@ -249,6 +324,7 @@ pub enum VeilidUpdate {
     Network(VeilidStateNetwork),
     Config(VeilidStateConfig),
     Route(VeilidStateRoute),
+    ValueChange(VeilidValueChange),
     Shutdown,
 }
 
@@ -262,77 +338,6 @@ pub struct VeilidState {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
-pub struct NodeId {
-    pub key: DHTKey,
-}
-impl NodeId {
-    pub fn new(key: DHTKey) -> Self {
-        Self { key }
-    }
-}
-impl fmt::Display for NodeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}", self.key.encode())
-    }
-}
-impl FromStr for NodeId {
-    type Err = VeilidAPIError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            key: DHTKey::try_decode(s)?,
-        })
-    }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
-pub struct ValueKey {
-    pub key: DHTKey,
-    pub subkey: Option<String>,
-}
-impl ValueKey {
-    pub fn new(key: DHTKey) -> Self {
-        Self { key, subkey: None }
-    }
-    pub fn new_subkey(key: DHTKey, subkey: String) -> Self {
-        Self {
-            key,
-            subkey: if subkey.is_empty() {
-                None
-            } else {
-                Some(subkey)
-            },
-        }
-    }
-}
 
 #[derive(
     Clone,
@@ -350,43 +355,24 @@ impl ValueKey {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
+    pub seq: ValueSeqNum,
+    pub schema: ValueSchema,
     pub data: Vec<u8>,
-    pub seq: u32,
 }
 impl ValueData {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self { data, seq: 0 }
+    pub fn new(schema: ValueSchema, data: Vec<u8>) -> Self {
+        Self {
+            seq: 0,
+            schema,
+            data,
+        }
     }
-    pub fn new_with_seq(data: Vec<u8>, seq: u32) -> Self {
-        Self { data, seq }
+    pub fn new_with_seq(seq: ValueSeqNum, schema: ValueSchema, data: Vec<u8>) -> Self {
+        Self { seq, schema, data }
     }
     pub fn change(&mut self, data: Vec<u8>) {
         self.data = data;
         self.seq += 1;
-    }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
-pub struct BlockId {
-    pub key: DHTKey,
-}
-impl BlockId {
-    pub fn new(key: DHTKey) -> Self {
-        Self { key }
     }
 }
 
@@ -549,8 +535,8 @@ impl SafetySelection {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
-    /// preferred safety route if it still exists
-    pub preferred_route: Option<DHTKey>,
+    /// preferred safety route set id if it still exists
+    pub preferred_route: Option<RouteId>,
     /// must be greater than 0
     pub hop_count: usize,
     /// prefer reliability over speed
@@ -713,8 +699,8 @@ pub struct NodeInfo {
     pub outbound_protocols: ProtocolTypeSet,
     #[with(RkyvEnumSet)]
     pub address_types: AddressTypeSet,
-    pub min_version: u8,
-    pub max_version: u8,
+    pub envelope_support: Vec<u8>,
+    pub crypto_support: Vec<CryptoKind>,
     pub dial_info_detail_list: Vec<DialInfoDetail>,
 }
 
@@ -1879,43 +1865,57 @@ impl MatchesDialInfoFilter for DialInfo {
 
 //////////////////////////////////////////////////////////////////////////
 
-// Signed NodeInfo that can be passed around amongst peers and verifiable
+/// Signed NodeInfo that can be passed around amongst peers and verifiable
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedDirectNodeInfo {
     pub node_info: NodeInfo,
     pub timestamp: Timestamp,
-    pub signature: Option<DHTSignature>,
+    pub signatures: Vec<TypedSignature>,
 }
-
 impl SignedDirectNodeInfo {
+    /// Returns a new SignedDirectNodeInfo that has its signatures validated.
+    /// On success, this will modify the node_ids set to only include node_ids whose signatures validate.
+    /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
-        node_id: NodeId,
+        crypto: Crypto,
+        node_ids: &mut TypedKeySet,
         node_info: NodeInfo,
         timestamp: Timestamp,
-        signature: DHTSignature,
+        typed_signatures: Vec<TypedSignature>,
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
-        verify(&node_id.key, &node_info_bytes, &signature)?;
+
+        // Verify the signatures that we can
+        let validated_node_ids =
+            crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
+        *node_ids = validated_node_ids;
+        if node_ids.len() == 0 {
+            apibail_generic!("no valid node ids in direct node info");
+        }
+
         Ok(Self {
             node_info,
             timestamp,
-            signature: Some(signature),
+            signatures: typed_signatures,
         })
     }
 
-    pub fn with_secret(
-        node_id: NodeId,
+    pub fn make_signatures(
+        crypto: Crypto,
+        typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
-        secret: &DHTKeySecret,
     ) -> Result<Self, VeilidAPIError> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
-        let signature = sign(&node_id.key, secret, &node_info_bytes)?;
+        let typed_signatures =
+            crypto.generate_signatures(&node_info_bytes, &typed_key_pairs, |kp, s| {
+                TypedSignature::new(kp.kind, s)
+            })?;
         Ok(Self {
             node_info,
             timestamp,
-            signature: Some(signature),
+            signatures: typed_signatures,
         })
     }
 
@@ -1940,13 +1940,13 @@ impl SignedDirectNodeInfo {
     pub fn with_no_signature(node_info: NodeInfo) -> Self {
         Self {
             node_info,
-            signature: None,
             timestamp: get_aligned_timestamp(),
+            signatures: Vec::new(),
         }
     }
 
-    pub fn has_valid_signature(&self) -> bool {
-        self.signature.is_some()
+    pub fn has_any_signature(&self) -> bool {
+        !self.signatures.is_empty()
     }
 }
 
@@ -1955,56 +1955,69 @@ impl SignedDirectNodeInfo {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedRelayedNodeInfo {
     pub node_info: NodeInfo,
-    pub relay_id: NodeId,
+    pub relay_ids: TypedKeySet,
     pub relay_info: SignedDirectNodeInfo,
     pub timestamp: Timestamp,
-    pub signature: DHTSignature,
+    pub signatures: Vec<TypedSignature>,
 }
 
 impl SignedRelayedNodeInfo {
+    /// Returns a new SignedRelayedNodeInfo that has its signatures validated.
+    /// On success, this will modify the node_ids set to only include node_ids whose signatures validate.
+    /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
-        node_id: NodeId,
+        crypto: Crypto,
+        node_ids: &mut TypedKeySet,
         node_info: NodeInfo,
-        relay_id: NodeId,
+        relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
         timestamp: Timestamp,
-        signature: DHTSignature,
+        typed_signatures: Vec<TypedSignature>,
     ) -> Result<Self, VeilidAPIError> {
         let node_info_bytes =
-            Self::make_signature_bytes(&node_info, &relay_id, &relay_info, timestamp)?;
-        verify(&node_id.key, &node_info_bytes, &signature)?;
+            Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
+        let validated_node_ids =
+            crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
+        *node_ids = validated_node_ids;
+        if node_ids.len() == 0 {
+            apibail_generic!("no valid node ids in relayed node info");
+        }
+
         Ok(Self {
             node_info,
-            relay_id,
+            relay_ids,
             relay_info,
-            signature,
             timestamp,
+            signatures: typed_signatures,
         })
     }
 
-    pub fn with_secret(
-        node_id: NodeId,
+    pub fn make_signatures(
+        crypto: Crypto,
+        typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
-        relay_id: NodeId,
+        relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
-        secret: &DHTKeySecret,
     ) -> Result<Self, VeilidAPIError> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes =
-            Self::make_signature_bytes(&node_info, &relay_id, &relay_info, timestamp)?;
-        let signature = sign(&node_id.key, secret, &node_info_bytes)?;
+            Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
+        let typed_signatures =
+            crypto.generate_signatures(&node_info_bytes, &typed_key_pairs, |kp, s| {
+                TypedSignature::new(kp.kind, s)
+            })?;
         Ok(Self {
             node_info,
-            relay_id,
+            relay_ids,
             relay_info,
-            signature,
             timestamp,
+            signatures: typed_signatures,
         })
     }
 
     fn make_signature_bytes(
         node_info: &NodeInfo,
-        relay_id: &NodeId,
+        relay_ids: &[TypedKey],
         relay_info: &SignedDirectNodeInfo,
         timestamp: Timestamp,
     ) -> Result<Vec<u8>, VeilidAPIError> {
@@ -2016,11 +2029,13 @@ impl SignedRelayedNodeInfo {
         encode_node_info(node_info, &mut ni_builder).map_err(VeilidAPIError::internal)?;
         sig_bytes.append(&mut builder_to_vec(ni_msg).map_err(VeilidAPIError::internal)?);
 
-        // Add relay id to signature
-        let mut rid_msg = ::capnp::message::Builder::new_default();
-        let mut rid_builder = rid_msg.init_root::<veilid_capnp::key256::Builder>();
-        encode_dht_key(&relay_id.key, &mut rid_builder).map_err(VeilidAPIError::internal)?;
-        sig_bytes.append(&mut builder_to_vec(rid_msg).map_err(VeilidAPIError::internal)?);
+        // Add relay ids to signature
+        for relay_id in relay_ids {
+            let mut rid_msg = ::capnp::message::Builder::new_default();
+            let mut rid_builder = rid_msg.init_root::<veilid_capnp::typed_key::Builder>();
+            encode_typed_key(relay_id, &mut rid_builder);
+            sig_bytes.append(&mut builder_to_vec(rid_msg).map_err(VeilidAPIError::internal)?);
+        }
 
         // Add relay info to signature
         let mut ri_msg = ::capnp::message::Builder::new_default();
@@ -2034,6 +2049,10 @@ impl SignedRelayedNodeInfo {
 
         Ok(sig_bytes)
     }
+
+    pub fn has_any_signature(&self) -> bool {
+        !self.signatures.is_empty()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
@@ -2044,10 +2063,10 @@ pub enum SignedNodeInfo {
 }
 
 impl SignedNodeInfo {
-    pub fn has_valid_signature(&self) -> bool {
+    pub fn has_any_signature(&self) -> bool {
         match self {
-            SignedNodeInfo::Direct(d) => d.has_valid_signature(),
-            SignedNodeInfo::Relayed(_) => true,
+            SignedNodeInfo::Direct(d) => d.has_any_signature(),
+            SignedNodeInfo::Relayed(r) => r.has_any_signature(),
         }
     }
 
@@ -2063,10 +2082,10 @@ impl SignedNodeInfo {
             SignedNodeInfo::Relayed(r) => &r.node_info,
         }
     }
-    pub fn relay_id(&self) -> Option<NodeId> {
+    pub fn relay_ids(&self) -> TypedKeySet {
         match self {
-            SignedNodeInfo::Direct(_) => None,
-            SignedNodeInfo::Relayed(r) => Some(r.relay_id.clone()),
+            SignedNodeInfo::Direct(_) => TypedKeySet::new(),
+            SignedNodeInfo::Relayed(r) => r.relay_ids.clone(),
         }
     }
     pub fn relay_info(&self) -> Option<&NodeInfo> {
@@ -2079,7 +2098,7 @@ impl SignedNodeInfo {
         match self {
             SignedNodeInfo::Direct(_) => None,
             SignedNodeInfo::Relayed(r) => Some(PeerInfo::new(
-                r.relay_id.clone(),
+                r.relay_ids.clone(),
                 SignedNodeInfo::Direct(r.relay_info.clone()),
             )),
         }
@@ -2127,14 +2146,15 @@ impl SignedNodeInfo {
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerInfo {
-    pub node_id: NodeId,
+    pub node_ids: TypedKeySet,
     pub signed_node_info: SignedNodeInfo,
 }
 
 impl PeerInfo {
-    pub fn new(node_id: NodeId, signed_node_info: SignedNodeInfo) -> Self {
+    pub fn new(node_ids: TypedKeySet, signed_node_info: SignedNodeInfo) -> Self {
+        assert!(node_ids.len() > 0 && node_ids.len() <= MAX_CRYPTO_KINDS);
         Self {
-            node_id,
+            node_ids,
             signed_node_info,
         }
     }
@@ -2379,9 +2399,6 @@ pub struct PeerStats {
     pub latency: Option<LatencyStats>, // latencies for communications with the peer
     pub transfer: TransferStatsDownUp, // Stats for communications with the peer
 }
-
-pub type ValueChangeCallback =
-    Arc<dyn Fn(ValueKey, Vec<u8>) -> SendPinBoxFuture<()> + Send + Sync + 'static>;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 

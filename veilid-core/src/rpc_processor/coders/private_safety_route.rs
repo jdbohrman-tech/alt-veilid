@@ -53,7 +53,7 @@ pub fn encode_route_hop(
     match &route_hop.node {
         RouteNode::NodeId(ni) => {
             let mut ni_builder = node_builder.init_node_id();
-            encode_dht_key(&ni.key, &mut ni_builder)?;
+            encode_key256(&ni, &mut ni_builder);
         }
         RouteNode::PeerInfo(pi) => {
             let mut pi_builder = node_builder.init_peer_info();
@@ -67,17 +67,20 @@ pub fn encode_route_hop(
     Ok(())
 }
 
-pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<RouteHop, RPCError> {
+pub fn decode_route_hop(
+    reader: &veilid_capnp::route_hop::Reader,
+    crypto: Crypto,
+) -> Result<RouteHop, RPCError> {
     let n_reader = reader.reborrow().get_node();
     let node = match n_reader.which().map_err(RPCError::protocol)? {
         veilid_capnp::route_hop::node::Which::NodeId(ni) => {
             let ni_reader = ni.map_err(RPCError::protocol)?;
-            RouteNode::NodeId(NodeId::new(decode_dht_key(&ni_reader)))
+            RouteNode::NodeId(decode_key256(&ni_reader))
         }
         veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
             let pi_reader = pi.map_err(RPCError::protocol)?;
             RouteNode::PeerInfo(
-                decode_peer_info(&pi_reader)
+                decode_peer_info(&pi_reader, crypto)
                     .map_err(RPCError::map_protocol("invalid peer info in route hop"))?,
             )
         }
@@ -101,10 +104,10 @@ pub fn encode_private_route(
     private_route: &PrivateRoute,
     builder: &mut veilid_capnp::private_route::Builder,
 ) -> Result<(), RPCError> {
-    encode_dht_key(
+    encode_typed_key(
         &private_route.public_key,
         &mut builder.reborrow().init_public_key(),
-    )?;
+    );
     builder.set_hop_count(private_route.hop_count);
     let mut h_builder = builder.reborrow().init_hops();
     match &private_route.hops {
@@ -125,16 +128,17 @@ pub fn encode_private_route(
 
 pub fn decode_private_route(
     reader: &veilid_capnp::private_route::Reader,
+    crypto: Crypto,
 ) -> Result<PrivateRoute, RPCError> {
-    let public_key = decode_dht_key(&reader.get_public_key().map_err(RPCError::map_protocol(
-        "invalid public key in private route",
-    ))?);
+    let public_key = decode_typed_key(&reader.get_public_key().map_err(
+        RPCError::map_protocol("invalid public key in private route"),
+    )?)?;
     let hop_count = reader.get_hop_count();
 
     let hops = match reader.get_hops().which().map_err(RPCError::protocol)? {
         veilid_capnp::private_route::hops::Which::FirstHop(rh_reader) => {
             let rh_reader = rh_reader.map_err(RPCError::protocol)?;
-            PrivateRouteHops::FirstHop(decode_route_hop(&rh_reader)?)
+            PrivateRouteHops::FirstHop(decode_route_hop(&rh_reader, crypto)?)
         }
         veilid_capnp::private_route::hops::Which::Data(rhd_reader) => {
             let rhd_reader = rhd_reader.map_err(RPCError::protocol)?;
@@ -156,10 +160,10 @@ pub fn encode_safety_route(
     safety_route: &SafetyRoute,
     builder: &mut veilid_capnp::safety_route::Builder,
 ) -> Result<(), RPCError> {
-    encode_dht_key(
+    encode_typed_key(
         &safety_route.public_key,
         &mut builder.reborrow().init_public_key(),
-    )?;
+    );
     builder.set_hop_count(safety_route.hop_count);
     let h_builder = builder.reborrow().init_hops();
     match &safety_route.hops {
@@ -178,12 +182,13 @@ pub fn encode_safety_route(
 
 pub fn decode_safety_route(
     reader: &veilid_capnp::safety_route::Reader,
+    crypto: Crypto,
 ) -> Result<SafetyRoute, RPCError> {
-    let public_key = decode_dht_key(
+    let public_key = decode_typed_key(
         &reader
             .get_public_key()
             .map_err(RPCError::map_protocol("invalid public key in safety route"))?,
-    );
+    )?;
     let hop_count = reader.get_hop_count();
     let hops = match reader.get_hops().which().map_err(RPCError::protocol)? {
         veilid_capnp::safety_route::hops::Which::Data(rhd_reader) => {
@@ -192,7 +197,7 @@ pub fn decode_safety_route(
         }
         veilid_capnp::safety_route::hops::Which::Private(pr_reader) => {
             let pr_reader = pr_reader.map_err(RPCError::protocol)?;
-            SafetyRouteHops::Private(decode_private_route(&pr_reader)?)
+            SafetyRouteHops::Private(decode_private_route(&pr_reader, crypto)?)
         }
     };
 

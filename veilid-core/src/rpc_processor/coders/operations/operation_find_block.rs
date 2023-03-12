@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationFindBlockQ {
-    pub block_id: DHTKey,
+    pub block_id: TypedKey,
 }
 
 impl RPCOperationFindBlockQ {
@@ -10,7 +10,7 @@ impl RPCOperationFindBlockQ {
         reader: &veilid_capnp::operation_find_block_q::Reader,
     ) -> Result<RPCOperationFindBlockQ, RPCError> {
         let bi_reader = reader.get_block_id().map_err(RPCError::protocol)?;
-        let block_id = decode_dht_key(&bi_reader);
+        let block_id = decode_typed_key(&bi_reader)?;
 
         Ok(RPCOperationFindBlockQ { block_id })
     }
@@ -19,7 +19,7 @@ impl RPCOperationFindBlockQ {
         builder: &mut veilid_capnp::operation_find_block_q::Builder,
     ) -> Result<(), RPCError> {
         let mut bi_builder = builder.reborrow().init_block_id();
-        encode_dht_key(&self.block_id, &mut bi_builder)?;
+        encode_typed_key(&self.block_id, &mut bi_builder);
 
         Ok(())
     }
@@ -35,6 +35,7 @@ pub struct RPCOperationFindBlockA {
 impl RPCOperationFindBlockA {
     pub fn decode(
         reader: &veilid_capnp::operation_find_block_a::Reader,
+        crypto: Crypto,
     ) -> Result<RPCOperationFindBlockA, RPCError> {
         let data = reader.get_data().map_err(RPCError::protocol)?.to_vec();
 
@@ -46,7 +47,7 @@ impl RPCOperationFindBlockA {
                 .map_err(RPCError::map_internal("too many suppliers"))?,
         );
         for s in suppliers_reader.iter() {
-            let peer_info = decode_peer_info(&s)?;
+            let peer_info = decode_peer_info(&s, crypto.clone())?;
             suppliers.push(peer_info);
         }
 
@@ -58,7 +59,7 @@ impl RPCOperationFindBlockA {
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p)?;
+            let peer_info = decode_peer_info(&p, crypto.clone())?;
             peers.push(peer_info);
         }
 

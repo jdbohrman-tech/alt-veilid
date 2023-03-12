@@ -67,12 +67,6 @@ impl ServicesContext {
         }
         self.protected_store = Some(protected_store.clone());
 
-        // Init node id from config now that protected store is set up
-        if let Err(e) = self.config.init_node_id(protected_store.clone()).await {
-            self.shutdown().await;
-            return Err(e).wrap_err("init node id failed");
-        }
-
         // Set up tablestore
         trace!("init table store");
         let table_store = TableStore::new(self.config.clone());
@@ -84,7 +78,11 @@ impl ServicesContext {
 
         // Set up crypto
         trace!("init crypto");
-        let crypto = Crypto::new(self.config.clone(), table_store.clone());
+        let crypto = Crypto::new(
+            self.config.clone(),
+            table_store.clone(),
+            protected_store.clone(),
+        );
         if let Err(e) = crypto.init().await {
             self.shutdown().await;
             return Err(e);
