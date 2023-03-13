@@ -7,12 +7,13 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
-default = [ "rt-tokio" ]
+default = [ "rt-tokio", "veilid-core/default" ]
+crypto-test = [ "rt-tokio", "veilid-core/crypto-test"]
 rt-async-std = [ "veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys"]
 rt-tokio = [ "veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio"]
 
 [dependencies]
-veilid-core = { path="../../veilid-core" }
+veilid-core = { path="../../veilid-core", default-features = false }
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-subscriber = "^0"
 parking_lot = "^0"
