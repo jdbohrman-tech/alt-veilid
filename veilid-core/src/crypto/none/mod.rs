@@ -1,62 +1,68 @@
-pub mod blake3digest512;
-pub use blake3digest512::*;
-
 use super::*;
-
-use chacha20::cipher::{KeyIvInit, StreamCipher};
-use chacha20::XChaCha20;
-use chacha20poly1305 as ch;
-use chacha20poly1305::aead::{AeadInPlace, NewAead};
-use core::convert::TryInto;
-use curve25519_dalek as cd;
 use digest::Digest;
-use ed25519_dalek as ed;
-use x25519_dalek as xd;
+use rand::RngCore;
 
-const AEAD_OVERHEAD: usize = 16;
-pub const CRYPTO_KIND_VLD0: CryptoKind = FourCC([b'V', b'L', b'D', b'0']);
+const AEAD_OVERHEAD: usize = PUBLIC_KEY_LENGTH;
+pub const CRYPTO_KIND_NONE: CryptoKind = FourCC([b'N', b'O', b'N', b'E']);
 
-fn ed25519_to_x25519_pk(key: &ed::PublicKey) -> Result<xd::PublicKey, VeilidAPIError> {
-    let bytes = key.to_bytes();
-    let compressed = cd::edwards::CompressedEdwardsY(bytes);
-    let point = compressed
-        .decompress()
-        .ok_or_else(|| VeilidAPIError::internal("ed25519_to_x25519_pk failed"))?;
-    let mp = point.to_montgomery();
-    Ok(xd::PublicKey::from(mp.to_bytes()))
-}
-fn ed25519_to_x25519_sk(key: &ed::SecretKey) -> Result<xd::StaticSecret, VeilidAPIError> {
-    let exp = ed::ExpandedSecretKey::from(key);
-    let bytes: [u8; ed::EXPANDED_SECRET_KEY_LENGTH] = exp.to_bytes();
-    let lowbytes: [u8; 32] = bytes[0..32].try_into().map_err(VeilidAPIError::internal)?;
-    Ok(xd::StaticSecret::from(lowbytes))
-}
-
-pub fn vld0_generate_keypair() -> KeyPair {
+pub fn none_generate_keypair() -> KeyPair {
     let mut csprng = VeilidRng {};
-    let keypair = ed::Keypair::generate(&mut csprng);
-    let dht_key = PublicKey::new(keypair.public.to_bytes());
-    let dht_key_secret = SecretKey::new(keypair.secret.to_bytes());
-
+    let mut pub_bytes = [0u8; PUBLIC_KEY_LENGTH];
+    let mut sec_bytes = [0u8; SECRET_KEY_LENGTH];
+    csprng.fill_bytes(&mut pub_bytes);
+    for n in 0..PUBLIC_KEY_LENGTH {
+        sec_bytes[n] = !pub_bytes[n];
+    }
+    let dht_key = PublicKey::new(pub_bytes);
+    let dht_key_secret = SecretKey::new(sec_bytes);
     KeyPair::new(dht_key, dht_key_secret)
 }
 
-/// V0 CryptoSystem
+fn do_xor_32(a: &[u8], b: &[u8]) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    for n in 0..32 {
+        out[n] = a[n] ^ b[n];
+    }
+    out
+}
+
+fn do_xor_inplace(a: &mut [u8], key: &[u8]) {
+    for n in 0..a.len() {
+        a[n] ^= key[n % key.len()];
+    }
+}
+
+fn do_xor_b2b(a: &[u8], b: &mut [u8], key: &[u8]) {
+    for n in 0..a.len() {
+        b[n] = a[n] ^ key[n % key.len()];
+    }
+}
+
+fn is_bytes_eq_32(a: &[u8], v: u8) -> bool {
+    for n in 0..32 {
+        if a[n] != v {
+            return false;
+        }
+    }
+    true
+}
+
+/// None CryptoSystem
 #[derive(Clone)]
-pub struct CryptoSystemVLD0 {
+pub struct CryptoSystemNONE {
     crypto: Crypto,
 }
 
-impl CryptoSystemVLD0 {
+impl CryptoSystemNONE {
     pub fn new(crypto: Crypto) -> Self {
         Self { crypto }
     }
 }
 
-impl CryptoSystem for CryptoSystemVLD0 {
+impl CryptoSystem for CryptoSystemNONE {
     // Accessors
     fn kind(&self) -> CryptoKind {
-        CRYPTO_KIND_VLD0
+        CRYPTO_KIND_NONE
     }
 
     fn crypto(&self) -> Crypto {
@@ -70,17 +76,17 @@ impl CryptoSystem for CryptoSystemVLD0 {
         secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError> {
         self.crypto
-            .cached_dh_internal::<CryptoSystemVLD0>(self, key, secret)
+            .cached_dh_internal::<CryptoSystemNONE>(self, key, secret)
     }
 
     // Generation
     fn random_nonce(&self) -> Nonce {
-        let mut nonce = [0u8; 24];
+        let mut nonce = [0u8; NONCE_LENGTH];
         random_bytes(&mut nonce).unwrap();
         Nonce::new(nonce)
     }
     fn random_shared_secret(&self) -> SharedSecret {
-        let mut s = [0u8; 32];
+        let mut s = [0u8; SHARED_SECRET_LENGTH];
         random_bytes(&mut s).unwrap();
         SharedSecret::new(s)
     }
@@ -89,14 +95,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
         key: &PublicKey,
         secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError> {
-        let pk_ed = ed::PublicKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
-        let pk_xd = ed25519_to_x25519_pk(&pk_ed)?;
-        let sk_ed = ed::SecretKey::from_bytes(&secret.bytes).map_err(VeilidAPIError::internal)?;
-        let sk_xd = ed25519_to_x25519_sk(&sk_ed)?;
-        Ok(SharedSecret::new(sk_xd.diffie_hellman(&pk_xd).to_bytes()))
+        let s = do_xor_32(&key.bytes, &secret.bytes);
+        Ok(SharedSecret::new(s))
     }
     fn generate_keypair(&self) -> KeyPair {
-        vld0_generate_keypair()
+        none_generate_keypair()
     }
     fn generate_hash(&self, data: &[u8]) -> PublicKey {
         PublicKey::new(*blake3::hash(data).as_bytes())
@@ -123,7 +126,6 @@ impl CryptoSystem for CryptoSystemVLD0 {
     }
     fn validate_hash(&self, data: &[u8], dht_key: &PublicKey) -> bool {
         let bytes = *blake3::hash(data).as_bytes();
-
         bytes == dht_key.bytes
     }
     fn validate_hash_reader(
@@ -154,22 +156,21 @@ impl CryptoSystem for CryptoSystemVLD0 {
         dht_key_secret: &SecretKey,
         data: &[u8],
     ) -> Result<Signature, VeilidAPIError> {
-        let mut kpb: [u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH] =
-            [0u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH];
-
-        kpb[..SECRET_KEY_LENGTH].copy_from_slice(&dht_key_secret.bytes);
-        kpb[SECRET_KEY_LENGTH..].copy_from_slice(&dht_key.bytes);
-        let keypair = ed::Keypair::from_bytes(&kpb)
-            .map_err(|e| VeilidAPIError::parse_error("Keypair is invalid", e))?;
+        if !is_bytes_eq_32(&do_xor_32(&dht_key.bytes, &dht_key_secret.bytes), 0xFFu8) {
+            return Err(VeilidAPIError::parse_error(
+                "Keypair is invalid",
+                "invalid keys",
+            ));
+        }
 
         let mut dig = Blake3Digest512::new();
         dig.update(data);
-
-        let sig = keypair
-            .sign_prehashed(dig, None)
-            .map_err(VeilidAPIError::internal)?;
-
-        let dht_sig = Signature::new(sig.to_bytes());
+        let sig = dig.finalize();
+        let in_sig_bytes: [u8; SIGNATURE_LENGTH] = sig.into();
+        let mut sig_bytes = [0u8; SIGNATURE_LENGTH];
+        sig_bytes[0..32].copy_from_slice(&in_sig_bytes[0..32]);
+        sig_bytes[32..64].copy_from_slice(&do_xor_32(&in_sig_bytes[32..64], &dht_key_secret.bytes));
+        let dht_sig = Signature::new(sig_bytes.into());
         Ok(dht_sig)
     }
     fn verify(
@@ -178,16 +179,29 @@ impl CryptoSystem for CryptoSystemVLD0 {
         data: &[u8],
         signature: &Signature,
     ) -> Result<(), VeilidAPIError> {
-        let pk = ed::PublicKey::from_bytes(&dht_key.bytes)
-            .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
-        let sig = ed::Signature::from_bytes(&signature.bytes)
-            .map_err(|e| VeilidAPIError::parse_error("Signature is invalid", e))?;
-
         let mut dig = Blake3Digest512::new();
         dig.update(data);
+        let sig = dig.finalize();
+        let in_sig_bytes: [u8; SIGNATURE_LENGTH] = sig.into();
+        let mut verify_bytes = [0u8; SIGNATURE_LENGTH];
+        verify_bytes[0..32]
+            .copy_from_slice(&do_xor_32(&in_sig_bytes[0..32], &signature.bytes[0..32]));
+        verify_bytes[32..64]
+            .copy_from_slice(&do_xor_32(&in_sig_bytes[32..64], &signature.bytes[32..64]));
 
-        pk.verify_prehashed(dig, None, &sig)
-            .map_err(|e| VeilidAPIError::parse_error("Verification failed", e))?;
+        if !is_bytes_eq_32(&verify_bytes[0..32], 0u8) {
+            return Err(VeilidAPIError::parse_error(
+                "Verification failed",
+                "signature 0..32 is invalid",
+            ));
+        }
+        if !is_bytes_eq_32(&do_xor_32(&verify_bytes[32..64], &dht_key.bytes), 0xFFu8) {
+            return Err(VeilidAPIError::parse_error(
+                "Verification failed",
+                "signature 32..64 is invalid",
+            ));
+        }
+
         Ok(())
     }
 
@@ -200,14 +214,21 @@ impl CryptoSystem for CryptoSystemVLD0 {
         body: &mut Vec<u8>,
         nonce: &Nonce,
         shared_secret: &SharedSecret,
-        associated_data: Option<&[u8]>,
+        _associated_data: Option<&[u8]>,
     ) -> Result<(), VeilidAPIError> {
-        let key = ch::Key::from(shared_secret.bytes);
-        let xnonce = ch::XNonce::from(nonce.bytes);
-        let aead = ch::XChaCha20Poly1305::new(&key);
-        aead.decrypt_in_place(&xnonce, associated_data.unwrap_or(b""), body)
-            .map_err(map_to_string)
-            .map_err(VeilidAPIError::generic)
+        let mut blob = nonce.bytes.to_vec();
+        blob.extend_from_slice(&[0u8; 8]);
+        let blob = do_xor_32(&blob, &shared_secret.bytes);
+
+        if body.len() < AEAD_OVERHEAD {
+            return Err(VeilidAPIError::generic("invalid length"));
+        }
+        if &body[body.len() - AEAD_OVERHEAD..] != &blob {
+            return Err(VeilidAPIError::generic("invalid keyblob"));
+        }
+        body.truncate(body.len() - AEAD_OVERHEAD);
+        do_xor_inplace(body, &blob);
+        Ok(())
     }
 
     fn decrypt_aead(
@@ -229,15 +250,14 @@ impl CryptoSystem for CryptoSystemVLD0 {
         body: &mut Vec<u8>,
         nonce: &Nonce,
         shared_secret: &SharedSecret,
-        associated_data: Option<&[u8]>,
+        _associated_data: Option<&[u8]>,
     ) -> Result<(), VeilidAPIError> {
-        let key = ch::Key::from(shared_secret.bytes);
-        let xnonce = ch::XNonce::from(nonce.bytes);
-        let aead = ch::XChaCha20Poly1305::new(&key);
-
-        aead.encrypt_in_place(&xnonce, associated_data.unwrap_or(b""), body)
-            .map_err(map_to_string)
-            .map_err(VeilidAPIError::generic)
+        let mut blob = nonce.bytes.to_vec();
+        blob.extend_from_slice(&[0u8; 8]);
+        let blob = do_xor_32(&blob, &shared_secret.bytes);
+        do_xor_inplace(body, &blob);
+        body.append(&mut blob.to_vec());
+        Ok(())
     }
 
     fn encrypt_aead(
@@ -261,8 +281,10 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) {
-        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), &nonce.bytes.into());
-        cipher.apply_keystream(body);
+        let mut blob = nonce.bytes.to_vec();
+        blob.extend_from_slice(&[0u8; 8]);
+        let blob = do_xor_32(&blob, &shared_secret.bytes);
+        do_xor_inplace(body, &blob);
     }
 
     fn crypt_b2b_no_auth(
@@ -272,8 +294,10 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) {
-        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), &nonce.bytes.into());
-        cipher.apply_keystream_b2b(in_buf, out_buf).unwrap();
+        let mut blob = nonce.bytes.to_vec();
+        blob.extend_from_slice(&[0u8; 8]);
+        let blob = do_xor_32(&blob, &shared_secret.bytes);
+        do_xor_b2b(in_buf, out_buf, &blob);
     }
 
     fn crypt_no_auth_aligned_8(
