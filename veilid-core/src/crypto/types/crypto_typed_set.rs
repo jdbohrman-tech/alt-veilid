@@ -195,9 +195,10 @@ where
         write!(f, "[")?;
         let mut first = true;
         for x in &self.items {
-            if !first {
-                write!(f, ",")?;
+            if first {
                 first = false;
+            } else {
+                write!(f, ",")?;
             }
             write!(f, "{}", x)?;
         }
