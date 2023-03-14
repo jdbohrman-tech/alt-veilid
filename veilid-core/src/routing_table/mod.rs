@@ -590,6 +590,12 @@ impl RoutingTable {
 
     fn queue_bucket_kicks(&self, node_ids: TypedKeySet) {
         for node_id in node_ids.iter() {
+            // Skip node ids we didn't add to buckets
+            if !VALID_CRYPTO_KINDS.contains(&node_id.kind) {
+                continue;
+            }
+
+            // Put it in the kick queue
             let x = self.unlocked_inner.calculate_bucket_index(node_id);
             self.unlocked_inner.kick_queue.lock().insert(x);
         }

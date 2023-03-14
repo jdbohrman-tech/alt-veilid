@@ -13,6 +13,7 @@ path = "src/main.rs"
 [features]
 default = [ "rt-tokio", "veilid-core/default" ]
 crypto-test = [ "rt-tokio", "veilid-core/crypto-test"]
+crypto-test-none = [ "rt-tokio", "veilid-core/crypto-test-none"]
 
 rt-async-std = [ "veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys" ]
 rt-tokio = [ "veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio", "console-subscriber" ]

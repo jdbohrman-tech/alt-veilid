@@ -126,19 +126,27 @@ impl BucketEntryInner {
     pub fn node_ids(&self) -> TypedKeySet {
         self.node_ids.clone()
     }
+
     /// Add a node id for a particular crypto kind.
-    /// Returns any previous existing node id associated with that crypto kind
-    pub fn add_node_id(&mut self, node_id: TypedKey) -> Option<TypedKey> {
+    /// Returns Ok(Some(node)) any previous existing node id associated with that crypto kind
+    /// Returns Ok(None) if no previous existing node id was associated with that crypto kind
+    /// Results Err() if this operation would add more crypto kinds than we support
+    pub fn add_node_id(&mut self, node_id: TypedKey) -> EyreResult<Option<TypedKey>> {
         if let Some(old_node_id) = self.node_ids.get(node_id.kind) {
             // If this was already there we do nothing
             if old_node_id == node_id {
-                return None;
+                return Ok(None);
             }
+            // Won't change number of crypto kinds
             self.node_ids.add(node_id);    
-            return Some(old_node_id);
+            return Ok(Some(old_node_id));
+        }
+        // Check to ensure we aren't adding more crypto kinds than we support
+        if self.node_ids.len() == MAX_CRYPTO_KINDS {
+            bail!("too many crypto kinds for this node");
         }
         self.node_ids.add(node_id);
-        None
+        Ok(None)
     }
     pub fn best_node_id(&self) -> TypedKey {
         self.node_ids.best().unwrap()
