@@ -360,12 +360,9 @@ impl VeilidAPI {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let mut min_state = BucketEntryState::Unreliable;
-        let mut limit = 20;
         for arg in args {
             if let Some(ms) = get_bucket_entry_state(&arg) {
                 min_state = ms;
-            } else if let Some(lim) = get_number(&arg) {
-                limit = lim;
             } else {
                 apibail_invalid_argument!("debug_entries", "unknown", arg);
             }
@@ -373,7 +370,7 @@ impl VeilidAPI {
 
         // Dump routing table entries
         let routing_table = self.network_manager()?.routing_table();
-        Ok(routing_table.debug_info_entries(limit, min_state))
+        Ok(routing_table.debug_info_entries(min_state))
     }
 
     async fn debug_entry(&self, args: String) -> Result<String, VeilidAPIError> {
@@ -881,7 +878,7 @@ impl VeilidAPI {
         help
         buckets [dead|reliable]
         dialinfo
-        entries [dead|reliable] [limit]
+        entries [dead|reliable]
         entry <node>
         nodeinfo
         config [key [new value]]
