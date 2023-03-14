@@ -52,8 +52,8 @@ impl TableViewItem<PeerTableColumn> for PeerTableData {
         match column {
             PeerTableColumn::NodeId => self
                 .node_ids
-                .best()
-                .map(|n| n.value.encode())
+                .first()
+                .cloned()
                 .unwrap_or_else(|| "???".to_owned()),
             PeerTableColumn::Address => format!(
                 "{:?}:{}",
@@ -78,21 +78,7 @@ impl TableViewItem<PeerTableColumn> for PeerTableData {
         Self: Sized,
     {
         match column {
-            PeerTableColumn::NodeId => {
-                let n1 = self
-                    .node_ids
-                    .best()
-                    .map(|n| n.value.encode())
-                    .unwrap_or_else(|| "???".to_owned());
-
-                let n2 = other
-                    .node_ids
-                    .best()
-                    .map(|n| n.value.encode())
-                    .unwrap_or_else(|| "???".to_owned());
-
-                n1.cmp(&n2)
-            }
+            PeerTableColumn::NodeId => self.to_column(column).cmp(&other.to_column(column)),
             PeerTableColumn::Address => self.to_column(column).cmp(&other.to_column(column)),
             PeerTableColumn::LatencyAvg => self
                 .peer_stats

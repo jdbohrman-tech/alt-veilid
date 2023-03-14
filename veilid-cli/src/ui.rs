@@ -753,7 +753,7 @@ impl UI {
             .full_screen();
 
         let peers_table_view = PeersTableView::new()
-            .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(43))
+            .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(48))
             .column(PeerTableColumn::Address, "Address", |c| c)
             .column(PeerTableColumn::LatencyAvg, "Ping", |c| c.width(8))
             .column(PeerTableColumn::TransferDownAvg, "Down", |c| c.width(8))
