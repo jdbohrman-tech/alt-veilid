@@ -55,20 +55,14 @@ pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
     let a2 = vcrypto
         .sign(&dht_key2, &dht_key_secret2, LOREM_IPSUM.as_bytes())
         .unwrap();
-    let b1 = vcrypto
+    let _b1 = vcrypto
         .sign(&dht_key, &dht_key_secret2, LOREM_IPSUM.as_bytes())
-        .unwrap();
-    let b2 = vcrypto
+        .unwrap_err();
+    let _b2 = vcrypto
         .sign(&dht_key2, &dht_key_secret, LOREM_IPSUM.as_bytes())
-        .unwrap();
-    assert_ne!(a1, b1);
-    assert_ne!(a2, b2);
-    assert_ne!(a1, b2);
-    assert_ne!(a2, b1);
+        .unwrap_err();
+
     assert_ne!(a1, a2);
-    assert_ne!(b1, b2);
-    assert_ne!(a1, b2);
-    assert_ne!(b1, a2);
 
     assert_eq!(
         vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &a1),
@@ -79,10 +73,10 @@ pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
         Ok(())
     );
     assert!(vcrypto
-        .verify(&dht_key, LOREM_IPSUM.as_bytes(), &b1)
+        .verify(&dht_key, LOREM_IPSUM.as_bytes(), &a2)
         .is_err());
     assert!(vcrypto
-        .verify(&dht_key2, LOREM_IPSUM.as_bytes(), &b2)
+        .verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a1)
         .is_err());
 
     // Try verifications that should work

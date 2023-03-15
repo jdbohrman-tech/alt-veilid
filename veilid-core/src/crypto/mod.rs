@@ -1,3 +1,4 @@
+mod blake3digest512;
 mod byte_array_types;
 mod dh_cache;
 mod envelope;
@@ -6,9 +7,13 @@ mod types;
 mod value;
 
 pub mod crypto_system;
+#[cfg(feature = "enable-crypto-none")]
+pub mod none;
 pub mod tests;
+#[cfg(feature = "enable-crypto-vld0")]
 pub mod vld0;
 
+pub use blake3digest512::*;
 pub use byte_array_types::*;
 pub use crypto_system::*;
 pub use dh_cache::*;
@@ -16,6 +21,10 @@ pub use envelope::*;
 pub use receipt::*;
 pub use types::*;
 pub use value::*;
+
+#[cfg(feature = "enable-crypto-none")]
+pub use none::*;
+#[cfg(feature = "enable-crypto-vld0")]
 pub use vld0::*;
 
 use crate::*;
@@ -24,11 +33,26 @@ use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
 use serde::{Deserialize, Serialize};
 
-// Handle to a particular cryptosystem
+/// Handle to a particular cryptosystem
 pub type CryptoSystemVersion = Arc<dyn CryptoSystem + Send + Sync>;
 
-/// Crypto kinds in order of preference, best cryptosystem is the first one, worst is the last one
-pub const VALID_CRYPTO_KINDS: [CryptoKind; 1] = [CRYPTO_KIND_VLD0];
+cfg_if! {
+    if #[cfg(all(feature = "enable-crypto-none", feature = "enable-crypto-vld0"))] {
+        /// Crypto kinds in order of preference, best cryptosystem is the first one, worst is the last one
+        pub const VALID_CRYPTO_KINDS: [CryptoKind; 2] = [CRYPTO_KIND_VLD0, CRYPTO_KIND_NONE];
+    }
+    else if #[cfg(feature = "enable-crypto-none")] {
+        /// Crypto kinds in order of preference, best cryptosystem is the first one, worst is the last one
+        pub const VALID_CRYPTO_KINDS: [CryptoKind; 1] = [CRYPTO_KIND_NONE];
+    }
+    else if #[cfg(feature = "enable-crypto-vld0")] {
+        /// Crypto kinds in order of preference, best cryptosystem is the first one, worst is the last one
+        pub const VALID_CRYPTO_KINDS: [CryptoKind; 1] = [CRYPTO_KIND_VLD0];
+    }
+    else {
+        compile_error!("No crypto kinds enabled, specify an enable-crypto- feature");
+    }
+}
 /// Number of cryptosystem signatures to keep on structures if many are present beyond the ones we consider valid
 pub const MAX_CRYPTO_KINDS: usize = 3;
 /// Return the best cryptosystem kind we support
@@ -36,7 +60,7 @@ pub fn best_crypto_kind() -> CryptoKind {
     VALID_CRYPTO_KINDS[0]
 }
 
-// Version number of envelope format
+/// Version number of envelope format
 pub type EnvelopeVersion = u8;
 
 /// Envelope versions in order of preference, best envelope version is the first one, worst is the last one
@@ -51,7 +75,10 @@ pub fn best_envelope_version() -> EnvelopeVersion {
 struct CryptoInner {
     dh_cache: DHCache,
     flush_future: Option<SendPinBoxFuture<()>>,
+    #[cfg(feature = "enable-crypto-vld0")]
     crypto_vld0: Option<Arc<dyn CryptoSystem + Send + Sync>>,
+    #[cfg(feature = "enable-crypto-none")]
+    crypto_none: Option<Arc<dyn CryptoSystem + Send + Sync>>,
 }
 
 struct CryptoUnlockedInner {
@@ -72,7 +99,10 @@ impl Crypto {
         CryptoInner {
             dh_cache: DHCache::new(DH_CACHE_SIZE),
             flush_future: None,
+            #[cfg(feature = "enable-crypto-vld0")]
             crypto_vld0: None,
+            #[cfg(feature = "enable-crypto-none")]
+            crypto_none: None,
         }
     }
 
@@ -90,7 +120,15 @@ impl Crypto {
             inner: Arc::new(Mutex::new(Self::new_inner())),
         };
 
-        out.inner.lock().crypto_vld0 = Some(Arc::new(vld0::CryptoSystemVLD0::new(out.clone())));
+        #[cfg(feature = "enable-crypto-vld0")]
+        {
+            out.inner.lock().crypto_vld0 = Some(Arc::new(vld0::CryptoSystemVLD0::new(out.clone())));
+        }
+
+        #[cfg(feature = "enable-crypto-none")]
+        {
+            out.inner.lock().crypto_none = Some(Arc::new(none::CryptoSystemNONE::new(out.clone())));
+        }
 
         out
     }
@@ -203,7 +241,10 @@ impl Crypto {
     pub fn get(&self, kind: CryptoKind) -> Option<CryptoSystemVersion> {
         let inner = self.inner.lock();
         match kind {
+            #[cfg(feature = "enable-crypto-vld0")]
             CRYPTO_KIND_VLD0 => Some(inner.crypto_vld0.clone().unwrap()),
+            #[cfg(feature = "enable-crypto-none")]
+            CRYPTO_KIND_NONE => Some(inner.crypto_none.clone().unwrap()),
             _ => None,
         }
     }
@@ -262,8 +303,14 @@ impl Crypto {
     /// Generate keypair
     /// Does not require startup/init
     pub fn generate_keypair(crypto_kind: CryptoKind) -> Result<TypedKeyPair, VeilidAPIError> {
+        #[cfg(feature = "enable-crypto-vld0")]
         if crypto_kind == CRYPTO_KIND_VLD0 {
             let kp = vld0_generate_keypair();
+            return Ok(TypedKeyPair::new(crypto_kind, kp));
+        }
+        #[cfg(feature = "enable-crypto-none")]
+        if crypto_kind == CRYPTO_KIND_NONE {
+            let kp = none_generate_keypair();
             return Ok(TypedKeyPair::new(crypto_kind, kp));
         }
         Err(VeilidAPIError::generic("invalid crypto kind"))

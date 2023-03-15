@@ -11,6 +11,8 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
 default = [ "enable-crypto-vld0" ]
+crypto-test = [ "enable-crypto-vld0", "enable-crypto-none" ]
+crypto-test-none = [ "enable-crypto-none" ]
 enable-crypto-vld0 = []
 enable-crypto-none = []
 rt-async-std = ["async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std"]

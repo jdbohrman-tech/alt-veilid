@@ -1,6 +1,3 @@
-pub mod blake3digest512;
-pub use blake3digest512::*;
-
 use super::*;
 
 use chacha20::cipher::{KeyIvInit, StreamCipher};
@@ -75,12 +72,12 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
     // Generation
     fn random_nonce(&self) -> Nonce {
-        let mut nonce = [0u8; 24];
+        let mut nonce = [0u8; NONCE_LENGTH];
         random_bytes(&mut nonce).unwrap();
         Nonce::new(nonce)
     }
     fn random_shared_secret(&self) -> SharedSecret {
-        let mut s = [0u8; 32];
+        let mut s = [0u8; SHARED_SECRET_LENGTH];
         random_bytes(&mut s).unwrap();
         SharedSecret::new(s)
     }
@@ -165,12 +162,15 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let mut dig = Blake3Digest512::new();
         dig.update(data);
 
-        let sig = keypair
+        let sig_bytes = keypair
             .sign_prehashed(dig, None)
             .map_err(VeilidAPIError::internal)?;
 
-        let dht_sig = Signature::new(sig.to_bytes());
-        Ok(dht_sig)
+        let sig = Signature::new(sig_bytes.to_bytes());
+
+        self.verify(dht_key, &data, &sig)?;
+
+        Ok(sig)
     }
     fn verify(
         &self,

@@ -267,7 +267,7 @@ pub struct VeilidStateAttachment {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerTableData {
-    pub node_ids: TypedKeySet,
+    pub node_ids: Vec<String>,
     pub peer_address: PeerAddress,
     pub peer_stats: PeerStats,
 }

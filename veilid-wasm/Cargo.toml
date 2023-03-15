@@ -8,8 +8,13 @@ license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+
+[features]
+default = [ "veilid-core/rt-tokio", "veilid-core/default" ]
+crypto-test = [ "veilid-core/rt-tokio", "veilid-core/crypto-test"]
+
 [dependencies]
-veilid-core = { path = "../veilid-core" }
+veilid-core = { path = "../veilid-core", default-features = false  }
 
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-wasm = "^0"

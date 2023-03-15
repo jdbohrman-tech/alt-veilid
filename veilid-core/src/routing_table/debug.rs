@@ -108,18 +108,16 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_entries(&self, limit: usize, min_state: BucketEntryState) -> String {
+    pub(crate) fn debug_info_entries(&self, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
         let cur_ts = get_aligned_timestamp();
 
         let mut out = String::new();
 
-        let mut b = 0;
-        let mut cnt = 0;
         out += &format!("Entries: {}\n", inner.bucket_entry_count());
-
         for ck in &VALID_CRYPTO_KINDS {
+            let mut b = 0;
             let blen = inner.buckets[ck].len();
             while b < blen {
                 let filtered_entries: Vec<(&PublicKey, &Arc<BucketEntry>)> = inner.buckets[ck][b]
@@ -142,14 +140,6 @@ impl RoutingTable {
                                 BucketEntryState::Dead => "D",
                             }
                         );
-
-                        cnt += 1;
-                        if cnt >= limit {
-                            break;
-                        }
-                    }
-                    if cnt >= limit {
-                        break;
                     }
                 }
                 b += 1;
@@ -174,12 +164,13 @@ impl RoutingTable {
         const COLS: usize = 16;
         out += "Buckets:\n";
         for ck in &VALID_CRYPTO_KINDS {
+            out += &format!("  {}:\n", ck);
             let rows = inner.buckets[ck].len() / COLS;
             let mut r = 0;
             let mut b = 0;
             while r < rows {
                 let mut c = 0;
-                out += format!("  {:>3}: ", b).as_str();
+                out += format!("    {:>3}: ", b).as_str();
                 while c < COLS {
                     let mut cnt = 0;
                     for e in inner.buckets[ck][b].entries() {

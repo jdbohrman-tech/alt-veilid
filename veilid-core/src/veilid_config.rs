@@ -919,8 +919,99 @@ impl VeilidConfig {
         Ok(())
     }
 
-    // Get the node id from config if one is specified
-    // Must be done -after- protected store startup
+    #[cfg(not(test))]
+    async fn init_node_id(
+        &self,
+        vcrypto: CryptoSystemVersion,
+        protected_store: intf::ProtectedStore,
+    ) -> Result<(TypedKey, TypedSecret), VeilidAPIError> {
+        let ck = vcrypto.kind();
+        let mut node_id = self.inner.read().network.routing_table.node_id.get(ck);
+        let mut node_id_secret = self
+            .inner
+            .read()
+            .network
+            .routing_table
+            .node_id_secret
+            .get(ck);
+
+        // See if node id was previously stored in the protected store
+        if node_id.is_none() {
+            debug!("pulling node_id_{} from storage", ck);
+            if let Some(s) = protected_store
+                .load_user_secret_string(format!("node_id_{}", ck))
+                .await
+                .map_err(VeilidAPIError::internal)?
+            {
+                debug!("node_id_{} found in storage", ck);
+                node_id = match TypedKey::from_str(s.as_str()) {
+                    Ok(v) => Some(v),
+                    Err(_) => {
+                        debug!("node id in protected store is not valid");
+                        None
+                    }
+                }
+            } else {
+                debug!("node_id_{} not found in storage", ck);
+            }
+        }
+
+        // See if node id secret was previously stored in the protected store
+        if node_id_secret.is_none() {
+            debug!("pulling node id secret from storage");
+            if let Some(s) = protected_store
+                .load_user_secret_string(format!("node_id_secret_{}", ck))
+                .await
+                .map_err(VeilidAPIError::internal)?
+            {
+                debug!("node_id_secret_{} found in storage", ck);
+                node_id_secret = match TypedSecret::from_str(s.as_str()) {
+                    Ok(v) => Some(v),
+                    Err(_) => {
+                        debug!("node id secret in protected store is not valid");
+                        None
+                    }
+                }
+            } else {
+                debug!("node_id_secret_{} not found in storage", ck);
+            }
+        }
+
+        // If we have a node id from storage, check it
+        let (node_id, node_id_secret) =
+            if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
+                // Validate node id
+                if !vcrypto.validate_keypair(&node_id.value, &node_id_secret.value) {
+                    apibail_generic!(format!(
+                        "node_id_secret_{} and node_id_key_{} don't match",
+                        ck, ck
+                    ));
+                }
+                (node_id, node_id_secret)
+            } else {
+                // If we still don't have a valid node id, generate one
+                debug!("generating new node_id_{}", ck);
+                let kp = vcrypto.generate_keypair();
+                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
+            };
+        info!("Node Id: {}", node_id);
+
+        // Save the node id / secret in storage
+        protected_store
+            .save_user_secret_string(format!("node_id_{}", ck), node_id.to_string())
+            .await
+            .map_err(VeilidAPIError::internal)?;
+        protected_store
+            .save_user_secret_string(format!("node_id_secret_{}", ck), node_id_secret.to_string())
+            .await
+            .map_err(VeilidAPIError::internal)?;
+
+        Ok((node_id, node_id_secret))
+    }
+
+    /// Get the node id from config if one is specified
+    /// Must be done -after- protected store startup
+    #[cfg_attr(test, allow(unused_variables))]
     pub async fn init_node_ids(
         &self,
         crypto: Crypto,
@@ -934,88 +1025,14 @@ impl VeilidConfig {
                 .get(ck)
                 .expect("Valid crypto kind is not actually valid.");
 
-            let mut node_id = self.inner.read().network.routing_table.node_id.get(ck);
-            let mut node_id_secret = self
-                .inner
-                .read()
-                .network
-                .routing_table
-                .node_id_secret
-                .get(ck);
-
-            // See if node id was previously stored in the protected store
-            if node_id.is_none() {
-                debug!("pulling node_id_{} from storage", ck);
-                if let Some(s) = protected_store
-                    .load_user_secret_string(format!("node_id_{}", ck))
-                    .await
-                    .map_err(VeilidAPIError::internal)?
-                {
-                    debug!("node_id_{} found in storage", ck);
-                    node_id = match TypedKey::from_str(s.as_str()) {
-                        Ok(v) => Some(v),
-                        Err(_) => {
-                            debug!("node id in protected store is not valid");
-                            None
-                        }
-                    }
-                } else {
-                    debug!("node_id_{} not found in storage", ck);
-                }
-            }
-
-            // See if node id secret was previously stored in the protected store
-            if node_id_secret.is_none() {
-                debug!("pulling node id secret from storage");
-                if let Some(s) = protected_store
-                    .load_user_secret_string(format!("node_id_secret_{}", ck))
-                    .await
-                    .map_err(VeilidAPIError::internal)?
-                {
-                    debug!("node_id_secret_{} found in storage", ck);
-                    node_id_secret = match TypedSecret::from_str(s.as_str()) {
-                        Ok(v) => Some(v),
-                        Err(_) => {
-                            debug!("node id secret in protected store is not valid");
-                            None
-                        }
-                    }
-                } else {
-                    debug!("node_id_secret_{} not found in storage", ck);
-                }
-            }
-
-            // If we have a node id from storage, check it
+            #[cfg(test)]
+            let (node_id, node_id_secret) = {
+                let kp = vcrypto.generate_keypair();
+                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
+            };
+            #[cfg(not(test))]
             let (node_id, node_id_secret) =
-                if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
-                    // Validate node id
-                    if !vcrypto.validate_keypair(&node_id.value, &node_id_secret.value) {
-                        apibail_generic!(format!(
-                            "node_id_secret_{} and node_id_key_{} don't match",
-                            ck, ck
-                        ));
-                    }
-                    (node_id, node_id_secret)
-                } else {
-                    // If we still don't have a valid node id, generate one
-                    debug!("generating new node_id_{}", ck);
-                    let kp = vcrypto.generate_keypair();
-                    (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
-                };
-            info!("Node Id: {}", node_id);
-
-            // Save the node id / secret in storage
-            protected_store
-                .save_user_secret_string(format!("node_id_{}", ck), node_id.to_string())
-                .await
-                .map_err(VeilidAPIError::internal)?;
-            protected_store
-                .save_user_secret_string(
-                    format!("node_id_secret_{}", ck),
-                    node_id_secret.to_string(),
-                )
-                .await
-                .map_err(VeilidAPIError::internal)?;
+                self.init_node_id(vcrypto, protected_store.clone()).await?;
 
             // Save for config
             out_node_id.add(node_id);
