@@ -47,6 +47,12 @@ pub const ROUTE_ID_LENGTH: usize = 32;
 /// Length of a route id in bytes afer encoding to base64url
 #[allow(dead_code)]
 pub const ROUTE_ID_LENGTH_ENCODED: usize = 43;
+/// Length of a hash digest in bytes
+#[allow(dead_code)]
+pub const HASH_DIGEST_LENGTH: usize = 32;
+/// Length of a hash digest in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const HASH_DIGEST_LENGTH_ENCODED: usize = 43;
 
 //////////////////////////////////////////////////////////////////////
 

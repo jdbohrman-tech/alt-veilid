@@ -112,6 +112,13 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::NotInitialized)
     }
+    pub fn storage_manager(&self) -> Result<StorageManager, VeilidAPIError> {
+        let inner = self.inner.lock();
+        if let Some(context) = &inner.context {
+            return Ok(context.storage_manager.clone());
+        }
+        Err(VeilidAPIError::NotInitialized)
+    }
 
     ////////////////////////////////////////////////////////////////
     // Attach/Detach

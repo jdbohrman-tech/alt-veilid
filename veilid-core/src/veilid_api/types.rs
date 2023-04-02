@@ -15,8 +15,6 @@ pub type OperationId = AlignedU64;
 pub type ByteCount = AlignedU64;
 /// Tunnel identifier
 pub type TunnelId = AlignedU64;
-/// Value schema
-pub type ValueSchema = FourCC;
 /// Value subkey
 pub type ValueSubkey = u32;
 /// Value subkey range
@@ -356,19 +354,19 @@ pub struct VeilidState {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
     pub seq: ValueSeqNum,
-    pub schema: ValueSchema,
     pub data: Vec<u8>,
+    pub writer: PublicKey,
 }
 impl ValueData {
-    pub fn new(schema: ValueSchema, data: Vec<u8>) -> Self {
+    pub fn new(data: Vec<u8>, writer: PublicKey) -> Self {
         Self {
             seq: 0,
-            schema,
             data,
+            writer,
         }
     }
-    pub fn new_with_seq(seq: ValueSeqNum, schema: ValueSchema, data: Vec<u8>) -> Self {
-        Self { seq, schema, data }
+    pub fn new_with_seq(seq: ValueSeqNum, data: Vec<u8>, writer: PublicKey) -> Self {
+        Self { seq, data, writer }
     }
     pub fn change(&mut self, data: Vec<u8>) {
         self.data = data;
@@ -2402,20 +2400,127 @@ pub struct PeerStats {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Parameter for Signal operation
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum SignalInfo {
+    /// UDP Hole Punch Request
     HolePunch {
-        // UDP Hole Punch Request
-        receipt: Vec<u8>,    // Receipt to be returned after the hole punch
-        peer_info: PeerInfo, // Sender's peer info
+        /// /// Receipt to be returned after the hole punch
+        receipt: Vec<u8>,
+        /// Sender's peer info
+        peer_info: PeerInfo,
     },
+    /// Reverse Connection Request
     ReverseConnect {
-        // Reverse Connection Request
-        receipt: Vec<u8>,    // Receipt to be returned by the reverse connection
-        peer_info: PeerInfo, // Sender's peer info
+        /// Receipt to be returned by the reverse connection
+        receipt: Vec<u8>,
+        /// Sender's peer info
+        peer_info: PeerInfo,
     },
     // XXX: WebRTC
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Default DHT Schema (DFLT)
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct DHTSchemaDFLT {
+    /// Owner subkey count
+    pub o_cnt: u16,
+}
+
+impl DHTSchemaDFLT {
+    pub fn compile(&self) -> Vec<u8> {
+        let mut out = Vec::<u8>::with_capacity(6);
+        // kind
+        out.extend_from_slice(&FourCC::from_str("DFLT").unwrap().0);
+        // o_cnt
+        out.extend_from_slice(&self.o_cnt.to_le_bytes());
+        out
+    }
+}
+
+/// Simple DHT Schema (SMPL) Member
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct DHTSchemaSMPLMember {
+    /// Member key
+    pub m_key: PublicKey,
+    /// Member subkey countanyway,
+    pub m_cnt: u16,
+}
+
+/// Simple DHT Schema (SMPL)
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct DHTSchemaSMPL {
+    /// Owner subkey count
+    pub o_cnt: u16,
+    /// Members
+    pub members: Vec<DHTSchemaSMPLMember>,
+}
+
+impl DHTSchemaSMPL {
+    pub fn compile(&self) -> Vec<u8> {
+        let mut out = Vec::<u8>::with_capacity(6 + (self.members.len() * (PUBLIC_KEY_LENGTH + 2)));
+        // kind
+        out.extend_from_slice(&FourCC::from_str("SMPL").unwrap().0);
+        // o_cnt
+        out.extend_from_slice(&self.o_cnt.to_le_bytes());
+        // members
+        for m in self.members {
+            // m_key
+            out.extend_from_slice(&m.m_key.bytes);
+            // m_cnt
+            out.extend_from_slice(&m.m_cnt.to_le_bytes());
+        }
+        out
+    }
+}
+
+/// Enum over all the supported DHT Schemas
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(u8), derive(CheckBytes))]
+#[serde(tag = "kind")]
+pub enum DHTSchema {
+    DFLT(DHTSchemaDFLT),
+    SMPL(DHTSchemaSMPL),
+}
+
+impl DHTSchema {
+    pub fn dflt(o_cnt: u16) -> DHTSchema {
+        DHTSchema::DFLT(DHTSchemaDFLT { o_cnt })
+    }
+    pub fn smpl(o_cnt: u16, members: Vec<DHTSchemaSMPLMember>) -> DHTSchema {
+        DHTSchema::SMPL(DHTSchemaSMPL { o_cnt, members })
+    }
+
+    pub fn compile(&self) -> Vec<u8> {
+        match self {
+            DHTSchema::DFLT(d) => d.compile(),
+            DHTSchema::SMPL(s) => s.compile(),
+        }
+    }
+}
+
+/// DHT Key Descriptor
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
+#[archive_attr(repr(C), derive(CheckBytes))]
+pub struct DHTDescriptor {
+    pub owner: PublicKey,
+    pub schema: DHTSchema,
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -28,6 +28,7 @@ mod network_manager;
 mod receipt_manager;
 mod routing_table;
 mod rpc_processor;
+mod storage_manager;
 mod veilid_api;
 #[macro_use]
 mod veilid_config;

@@ -312,7 +312,7 @@ impl RPCProcessor {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<()> {
-        trace!("startup rpc processor");
+        debug!("startup rpc processor");
         let mut inner = self.inner.lock();
 
         let channel = flume::bounded(self.unlocked_inner.queue_size as usize);

@@ -1,12 +1,16 @@
 use crate::api_tracing_layer::*;
 use crate::attachment_manager::*;
 use crate::crypto::Crypto;
+use crate::storage_manager::*;
 use crate::veilid_api::*;
 use crate::veilid_config::*;
 use crate::*;
 
 pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;
 
+/// Internal services startup mechanism
+/// Ensures that everything is started up, and shut down in the right order
+/// and provides an atomic state for if the system is properly operational
 struct ServicesContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
@@ -16,6 +20,7 @@ struct ServicesContext {
     pub block_store: Option<BlockStore>,
     pub crypto: Option<Crypto>,
     pub attachment_manager: Option<AttachmentManager>,
+    pub storage_manager: Option<StorageManager>,
 }
 
 impl ServicesContext {
@@ -28,6 +33,7 @@ impl ServicesContext {
             block_store: None,
             crypto: None,
             attachment_manager: None,
+            storage_manager: None,
         }
     }
 
@@ -39,6 +45,7 @@ impl ServicesContext {
         block_store: BlockStore,
         crypto: Crypto,
         attachment_manager: AttachmentManager,
+        storage_manager: StorageManager,
     ) -> Self {
         Self {
             config,
@@ -48,6 +55,7 @@ impl ServicesContext {
             block_store: Some(block_store),
             crypto: Some(crypto),
             attachment_manager: Some(attachment_manager),
+            storage_manager: Some(storage_manager),
         }
     }
 
@@ -114,6 +122,26 @@ impl ServicesContext {
         }
         self.attachment_manager = Some(attachment_manager);
 
+        // Set up storage manager
+        trace!("init storage manager");
+        let storage_manager = StorageManager::new(
+            self.config.clone(),
+            self.crypto.clone().unwrap(),
+            self.protected_store.clone().unwrap(),
+            self.table_store.clone().unwrap(),
+            self.block_store.clone().unwrap(),
+            self.attachment_manager
+                .clone()
+                .unwrap()
+                .network_manager()
+                .rpc_processor(),
+        );
+        if let Err(e) = storage_manager.init().await {
+            self.shutdown().await;
+            return Err(e);
+        }
+        self.storage_manager = Some(storage_manager.clone());
+
         info!("Veilid API startup complete");
         Ok(())
     }
@@ -122,6 +150,10 @@ impl ServicesContext {
     pub async fn shutdown(&mut self) {
         info!("Veilid API shutting down");
 
+        if let Some(storage_manager) = &mut self.storage_manager {
+            trace!("terminate storage manager");
+            storage_manager.terminate().await;
+        }
         if let Some(attachment_manager) = &mut self.attachment_manager {
             trace!("terminate attachment manager");
             attachment_manager.terminate().await;
@@ -163,6 +195,7 @@ pub struct VeilidCoreContext {
     pub table_store: TableStore,
     pub block_store: BlockStore,
     pub crypto: Crypto,
+    pub storage_manager: StorageManager,
     pub attachment_manager: AttachmentManager,
 }
 
@@ -215,6 +248,7 @@ impl VeilidCoreContext {
             table_store: sc.table_store.unwrap(),
             block_store: sc.block_store.unwrap(),
             crypto: sc.crypto.unwrap(),
+            storage_manager: sc.storage_manager.unwrap(),
             attachment_manager: sc.attachment_manager.unwrap(),
         })
     }
@@ -228,6 +262,7 @@ impl VeilidCoreContext {
             self.table_store,
             self.block_store,
             self.crypto,
+            self.storage_manager,
             self.attachment_manager,
         );
         sc.shutdown().await;

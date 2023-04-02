@@ -27,13 +27,12 @@ struct Nonce24 @0xb6260db25d8d7dfc {
     u2                      @2  :UInt64;
 }
 
-using PublicKey = Key256;                               # Node id / DHT key / Route id, etc
+using PublicKey = Key256;                               # Node id / Hash / DHT key / Route id, etc
 using Nonce = Nonce24;                                  # One-time encryption nonce
 using Signature = Signature512;                         # Signature block
 using TunnelID = UInt64;                                # Id for tunnels
 using CryptoKind = UInt32;                              # FOURCC code for cryptography type
 using ValueSeqNum = UInt32;                             # sequence numbers for values
-using ValueSchema = UInt32;                             # FOURCC code for schema (0 = freeform, SUB0 = subkey control v0)
 using Subkey = UInt32;                                  # subkey index for dht
 
 struct TypedKey @0xe2d567a9f1e61b29 {
@@ -319,14 +318,30 @@ struct SubkeyRange {
 
 struct ValueData @0xb4b7416f169f2a3d {
     seq                     @0  :ValueSeqNum;           # sequence number of value
-    schema                  @1  :ValueSchema;           # fourcc code of schema for value
-    data                    @2  :Data;                  # value or subvalue contents
+    data                    @1  :Data;                  # value or subvalue contents
+    owner                   @2  :PublicKey;             # the public key of the owner
+    writer                  @3  :PublicKey;             # the public key of the writer
+    signature               @5  :Signature;             # signature of data at this subkey, using the writer key (which may be the same as the owner key)
+                                                        # signature covers:
+                                                        #  * ownerKey
+                                                        #  * subkey
+                                                        #  * sequence number
+                                                        #  * data
+                                                        # signature does not need to cover schema because schema is validated upon every set
+                                                        # so the data either fits, or it doesn't.
+    schema                  @6  :Data;                  # (optional) the schema in use
+                                                        # If not set and seqnum == 0, uses the default schema. 
+                                                        # If not set and If seqnum != 0, the schema must have been set prior and no other schema may be used, but this field may be eliminated to save space
+                                                        # Changing this after key creation is not supported as it would change the dht key
+                                                        # Schema data is signed by ownerKey and is verified both by set and get operations
 }
 
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
     key                     @0  :TypedKey;              # the location of the value
     subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
+    wantSchema              @2  :bool;                  # whether or not to include the schema for the key
 }
+
 
 struct OperationGetValueA @0xd896bb46f2e0249f {
     union {
@@ -335,16 +350,17 @@ struct OperationGetValueA @0xd896bb46f2e0249f {
     }
 }
 
-struct OperationSetValueQ @0xbac06191ff8bdbc5 {
-    key                     @0  :TypedKey;              # the location of the value
-    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
-    value                   @2  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
+struct OperationSetValueQ @0xbac06191ff8bdbc5 {         
+    key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
+    subkey                  @3  :Subkey;                # the index of the subkey
+    value                   @4  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
     union {
-        data                @0  :ValueData;             # the new value if successful, may be a different value than what was set if the seq number was lower or equal
-        peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
+        schemaError         @0  :Void;                  # Either the schema is not available at the node, or the data does not match the schema that is there
+        data                @1  :ValueData;             # the new value if successful, may be a different value than what was set if the seq number was lower or equal
+        peers               @2  :List(PeerInfo);        # returned 'closer peer' information if this node is refusing to store the key
     }
 }
 
@@ -353,6 +369,7 @@ struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     subkeys                 @1  :List(SubkeyRange);     # subkey range to watch, if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
+    signature               @4  :Signature;             # signature of the watcher, must be one of the schema members or the key owner. signature covers: key, subkeys, expiration, count
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {

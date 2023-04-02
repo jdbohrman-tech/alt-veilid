@@ -34,5 +34,6 @@ use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as 
 use routing_table::{RouteSpecStore, RoutingTable};
 use rpc_processor::*;
 use serde::*;
+use storage_manager::StorageManager;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

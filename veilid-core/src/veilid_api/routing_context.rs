@@ -197,39 +197,91 @@ impl RoutingContext {
     ///////////////////////////////////
     /// DHT Values
 
+    /// Creates a new DHT value with a specified crypto kind and schema
+    /// Returns the newly allocated DHT Key if successful.
+    pub async fn create_value(
+        &self,
+        kind: CryptoKind,
+        schema: &DHTSchema,
+    ) -> Result<TypedKey, VeilidAPIError> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager
+            .create_value(kind, schema, self.unlocked_inner.safety_selection)
+            .await
+    }
+
+    /// Opens a DHT value at a specific key. Associates a secret if one is provided to provide writer capability.
+    /// Returns the DHT key descriptor for the opened key if successful
+    /// Value may only be opened or created once. To re-open with a different routing context, first close the value.
+    pub async fn open_value(
+        key: TypedKey,
+        secret: Option<SecretKey>,
+    ) -> Result<DHTDescriptor, VeilidAPIError> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager
+            .open_value(key, secret, self.unlocked_inner.safety_selection)
+            .await
+    }
+
+    /// Closes a DHT value at a specific key that was opened with create_value or open_value.
+    /// Closing a value allows you to re-open it with a different routing context
+    pub async fn close_value(key: TypedKey) -> Result<(), VeilidAPIError> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.close_value(key).await
+    }
+
+    /// Gets the latest value of a subkey from the network
+    /// Returns the possibly-updated value data of the subkey
     pub async fn get_value(
         &self,
-        _key: TypedKey,
-        _subkey: ValueSubkey,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        force_refresh: bool,
     ) -> Result<ValueData, VeilidAPIError> {
-        panic!("unimplemented");
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.get_value(key, subkey, force_refresh).await
     }
 
+    /// Pushes a changed subkey value to the network
+    /// Returns None if the value was successfully put
+    /// Returns Some(newer_value) if the value put was older than the one available on the network
     pub async fn set_value(
         &self,
-        _key: TypedKey,
-        _subkey: ValueSubkey,
-        _value: ValueData,
-    ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
+        key: TypedKey,
+        subkey: ValueSubkey,
+        value_data: ValueData,
+    ) -> Result<Option<ValueData>, VeilidAPIError> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.set_value(key, subkey, value_data).await
     }
 
+    /// Watches changes to an opened or created value
+    /// Changes to subkeys within the subkey range are returned via a ValueChanged callback
+    /// If the subkey range is empty, all subkey changes are considered
+    /// Expiration can be infinite to keep the watch for the maximum amount of time
+    /// Return value upon success is the amount of time allowed for the watch
     pub async fn watch_value(
         &self,
-        _key: TypedKey,
-        _subkeys: &[ValueSubkeyRange],
-        _expiration: Timestamp,
-        _count: u32,
-    ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
+        key: TypedKey,
+        subkeys: &[ValueSubkeyRange],
+        expiration: Timestamp,
+        count: u32,
+    ) -> Result<Timestamp, VeilidAPIError> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager
+            .watch_values(key, subkeys, expiration, count)
+            .await
     }
 
+    /// Cancels a watch early
+    /// This is a convenience function that cancels watching all subkeys in a range
     pub async fn cancel_watch_value(
         &self,
-        _key: TypedKey,
-        _subkeys: &[ValueSubkeyRange],
+        key: TypedKey,
+        subkeys: &[ValueSubkeyRange],
     ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.cancel_watch_value(key, subkey).await
     }
 
     ///////////////////////////////////
