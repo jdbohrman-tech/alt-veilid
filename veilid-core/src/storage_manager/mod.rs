@@ -1,7 +1,16 @@
+mod record_store;
+mod value_record;
+mod record_store_limits;
+use record_store::*;
+use record_store_limits::*;
+use value_record::*;
+
 use super::*;
 use crate::rpc_processor::*;
 
-struct StorageManagerInner {}
+struct StorageManagerInner {
+    record_store: RecordStore,
+}
 
 struct StorageManagerUnlockedInner {
     config: VeilidConfig,
@@ -36,7 +45,11 @@ impl StorageManager {
             rpc_processor,
         }
     }
-    fn new_inner() -> StorageManagerInner {}
+    fn new_inner() -> StorageManagerInner {
+        StorageManagerInner {
+            record_store: RecordStore::new(table_store),
+        }
+    }
 
     pub fn new(
         config: VeilidConfig,
@@ -76,6 +89,12 @@ impl StorageManager {
         debug!("finished storage manager shutdown");
     }
 
+    async fn add_value_record(&self, key: TypedKey, record: ValueRecord) -> EyreResult<()> {
+        // add value record to record store
+        let mut inner = self.inner.lock();
+        inner.record_store.
+    }
+
     /// Creates a new DHT value with a specified crypto kind and schema
     /// Returns the newly allocated DHT Key if successful.
     pub async fn create_value(
@@ -84,10 +103,26 @@ impl StorageManager {
         schema: &DHTSchema,
         safety_selection: SafetySelection,
     ) -> Result<TypedKey, VeilidAPIError> {
-        unimplemented!();
+        // Get cryptosystem
+        let Some(vcrypto) = self.unlocked_inner.crypto.get(kind) else {
+            apibail_generic!("unsupported cryptosystem");
+        };
+
+        // New values require a new owner key
+        let keypair = vcrypto.generate_keypair();
+        let key = TypedKey::new(kind, keypair.key);
+        let secret = keypair.secret;
+
+        // Add value record
+        let record = ValueRecord::new(Some(secret), schema, safety_selection);
+        self.add_value_record(key, record)
+            .await
+            .map_err(VeilidAPIError::internal)?;
+
+        Ok(key)
     }
 
-    /// Opens a DHT value at a specific key. Associates a secret if one is provided to provide writer capability.
+    /// Opens a DHT value at a specific key. Associates an owner secret if one is provided.
     /// Returns the DHT key descriptor for the opened key if successful
     /// Value may only be opened or created once. To re-open with a different routing context, first close the value.
     pub async fn open_value(

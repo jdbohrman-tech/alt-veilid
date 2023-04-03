@@ -2434,6 +2434,7 @@ pub struct DHTSchemaDFLT {
 }
 
 impl DHTSchemaDFLT {
+    /// Build the data representation of the schema
     pub fn compile(&self) -> Vec<u8> {
         let mut out = Vec::<u8>::with_capacity(6);
         // kind
@@ -2441,6 +2442,11 @@ impl DHTSchemaDFLT {
         // o_cnt
         out.extend_from_slice(&self.o_cnt.to_le_bytes());
         out
+    }
+
+    /// Get the number of subkeys this schema allocates 
+    pub fn subkey_count(&self) -> usize {
+        self.o_cnt as usize
     }
 }
 
@@ -2469,6 +2475,7 @@ pub struct DHTSchemaSMPL {
 }
 
 impl DHTSchemaSMPL {
+    /// Build the data representation of the schema
     pub fn compile(&self) -> Vec<u8> {
         let mut out = Vec::<u8>::with_capacity(6 + (self.members.len() * (PUBLIC_KEY_LENGTH + 2)));
         // kind
@@ -2483,6 +2490,13 @@ impl DHTSchemaSMPL {
             out.extend_from_slice(&m.m_cnt.to_le_bytes());
         }
         out
+    }
+
+    /// Get the number of subkeys this schema allocates 
+    pub fn subkey_count(&self) -> usize {
+        self.members
+            .iter()
+            .fold(o_cnt as usize, |acc, x| acc + (x.m_cnt as usize))
     }
 }
 
@@ -2505,10 +2519,19 @@ impl DHTSchema {
         DHTSchema::SMPL(DHTSchemaSMPL { o_cnt, members })
     }
 
+    /// Build the data representation of the schema
     pub fn compile(&self) -> Vec<u8> {
         match self {
             DHTSchema::DFLT(d) => d.compile(),
             DHTSchema::SMPL(s) => s.compile(),
+        }
+    }
+
+    /// Get the number of subkeys this schema allocates 
+    pub fn subkey_count(&self) -> usize {
+        match self {
+            DHTSchema::DFLT(d) => d.subkey_count(),
+            DHTSchema::SMPL(s) => s.subkey_count(),
         }
     }
 }
