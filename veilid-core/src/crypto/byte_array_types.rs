@@ -126,18 +126,6 @@ macro_rules! byte_array_type {
                 Self { bytes }
             }
 
-            pub fn try_from_vec(v: Vec<u8>) -> Result<Self, VeilidAPIError> {
-                let vl = v.len();
-                Ok(Self {
-                    bytes: v.try_into().map_err(|_| {
-                        VeilidAPIError::generic(format!(
-                            "Expected a Vec of length {} but it was {}",
-                            $size, vl
-                        ))
-                    })?,
-                })
-            }
-
             pub fn bit(&self, index: usize) -> bool {
                 assert!(index < ($size * 8));
                 let bi = index / 8;
@@ -248,6 +236,20 @@ macro_rules! byte_array_type {
             type Error = VeilidAPIError;
             fn try_from(value: &str) -> Result<Self, Self::Error> {
                 Self::try_decode(value)
+            }
+        }
+        impl TryFrom(&[u8]) for $name {
+            type Error = VeilidAPIError;
+            pub fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+                let vl = v.len();
+                Ok(Self {
+                    bytes: v.try_into().map_err(|_| {
+                        VeilidAPIError::generic(format!(
+                            "Expected a slice of length {} but it was {}",
+                            $size, vl
+                        ))
+                    })?,
+                })
             }
         }
     };

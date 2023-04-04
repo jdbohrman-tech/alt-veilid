@@ -32,27 +32,38 @@ pub struct ValueRecordData {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueRecord {
+    last_touched_ts: Timestamp,
     secret: Option<SecretKey>,
     schema: DHTSchema,
     safety_selection: SafetySelection,
-    total_size: usize,
-    subkeys: Vec<ValueRecordData>,
+    data_size: usize,
 }
 
 impl ValueRecord {
     pub fn new(
+        cur_ts: Timestamp,
         secret: Option<SecretKey>,
         schema: DHTSchema,
         safety_selection: SafetySelection,
     ) -> Self {
-        // Get number of subkeys
-        let subkey_count = schema.subkey_count();
-
         Self {
+            last_touched_ts: cur_ts,
             secret,
             schema,
             safety_selection,
-            subkeys: vec![Vec::new(); subkey_count],
+            data_size: 0,
         }
+    }
+
+    pub fn subkey_count(&self) -> usize {
+        self.schema.subkey_count()
+    }
+
+    pub fn touch(&mut self, cur_ts: Timestamp) {
+        self.last_touched_ts = cur_ts
+    }
+
+    pub fn last_touched(&self) -> Timestamp {
+        self.last_touched_ts
     }
 }

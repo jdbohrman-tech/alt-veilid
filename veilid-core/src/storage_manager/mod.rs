@@ -8,8 +8,12 @@ use value_record::*;
 use super::*;
 use crate::rpc_processor::*;
 
+/// Locked structure for storage manager
 struct StorageManagerInner {
-    record_store: RecordStore,
+    /// Records that have been 'created' or 'opened' by this node
+    local_record_store: Option<RecordStore>,
+    /// Records that have been pushed to this node for distribution by other nodes
+    remote_record_store: Option<RecordStore>,
 }
 
 struct StorageManagerUnlockedInner {
@@ -47,7 +51,28 @@ impl StorageManager {
     }
     fn new_inner() -> StorageManagerInner {
         StorageManagerInner {
-            record_store: RecordStore::new(table_store),
+            local_record_store: None,
+            remote_record_store: None,
+        }
+    }
+
+    fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+        RecordStoreLimits {
+            record_cache_size: todo!(),
+            subkey_cache_size: todo!(),
+            max_records: None,
+            max_subkey_cache_memory_mb: Some(xxx),
+            max_disk_space_mb: None,
+        }
+    }
+
+    fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+        RecordStoreLimits {
+            record_cache_size: todo!(),
+            subkey_cache_size: todo!(),
+            max_records: Some(xxx),
+            max_subkey_cache_memory_mb: Some(xxx),
+            max_disk_space_mb: Some(xxx)
         }
     }
 
@@ -59,6 +84,7 @@ impl StorageManager {
         block_store: BlockStore,
         rpc_processor: RPCProcessor,
     ) -> StorageManager {
+
         StorageManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
@@ -68,7 +94,7 @@ impl StorageManager {
                 block_store,
                 rpc_processor,
             )),
-            inner: Arc::new(Mutex::new(Self::new_inner())),
+            inner: Arc::new(Mutex::new(Self::new_inner()))
         }
     }
 
@@ -76,7 +102,12 @@ impl StorageManager {
     pub async fn init(&self) -> EyreResult<()> {
         debug!("startup storage manager");
         let mut inner = self.inner.lock();
-        // xxx
+
+        let local_limits = Self::local_limits_from_config(config.clone());
+        let remote_limits = Self::remote_limits_from_config(config.clone());
+        inner.local_record_store = Some(RecordStore::new(self.unlocked_inner.table_store.clone(), "local", local_limits));
+        inner.remote_record_store = Some(RecordStore::new(self.unlocked_inner.table_store.clone(), "remote", remote_limits));
+
         Ok(())
     }
 

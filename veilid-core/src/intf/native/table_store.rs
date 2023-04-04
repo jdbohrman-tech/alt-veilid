@@ -40,6 +40,21 @@ impl TableStore {
         if let Err(e) = self.delete("routing_table").await {
             error!("failed to delete 'routing_table': {}", e);
         }
+        if let Err(e) = self.delete("routing_table").await {
+            error!("failed to delete 'routing_table': {}", e);
+        }
+        if let Err(e) = self.delete("local_records").await {
+            error!("failed to delete 'local_records': {}", e);
+        }
+        if let Err(e) = self.delete("local_subkeys").await {
+            error!("failed to delete 'local_subkeys': {}", e);
+        }
+        if let Err(e) = self.delete("remote_records").await {
+            error!("failed to delete 'remote_records': {}", e);
+        }
+        if let Err(e) = self.delete("remote_subkeys").await {
+            error!("failed to delete 'remote_subkeys': {}", e);
+        }
     }
 
     pub(crate) async fn init(&self) -> EyreResult<()> {
