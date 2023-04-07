@@ -202,7 +202,7 @@ impl RoutingContext {
     pub async fn create_dht_record(
         &self,
         kind: CryptoKind,
-        schema: &DHTSchema,
+        schema: DHTSchema,
     ) -> Result<TypedKey, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
@@ -214,6 +214,7 @@ impl RoutingContext {
     /// Returns the DHT record descriptor for the opened record if successful
     /// Records may only be opened or created . To re-open with a different routing context, first close the value.
     pub async fn open_dht_record(
+        &self,
         key: TypedKey,
         secret: Option<SecretKey>,
     ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
@@ -225,7 +226,7 @@ impl RoutingContext {
 
     /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
     /// Closing a record allows you to re-open it with a different routing context
-    pub async fn close_dht_record(key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn close_dht_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.close_record(key).await
     }
@@ -233,7 +234,7 @@ impl RoutingContext {
     /// Deletes a DHT record at a specific key. If the record is opened, it must be closed before it is deleted.
     /// Deleting a record does not delete it from the network immediately, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
-    pub async fn delete_dht_record(key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn delete_dht_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.delete_record(key).await
     }
@@ -291,7 +292,7 @@ impl RoutingContext {
         subkeys: &[ValueSubkeyRange],
     ) -> Result<bool, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
-        storage_manager.cancel_watch_value(key, subkey).await
+        storage_manager.cancel_watch_values(key, subkeys).await
     }
 
     ///////////////////////////////////

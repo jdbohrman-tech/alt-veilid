@@ -195,8 +195,8 @@ pub struct VeilidCoreContext {
     pub table_store: TableStore,
     pub block_store: BlockStore,
     pub crypto: Crypto,
-    pub storage_manager: StorageManager,
     pub attachment_manager: AttachmentManager,
+    pub storage_manager: StorageManager,
 }
 
 impl VeilidCoreContext {
@@ -248,8 +248,8 @@ impl VeilidCoreContext {
             table_store: sc.table_store.unwrap(),
             block_store: sc.block_store.unwrap(),
             crypto: sc.crypto.unwrap(),
-            storage_manager: sc.storage_manager.unwrap(),
             attachment_manager: sc.attachment_manager.unwrap(),
+            storage_manager: sc.storage_manager.unwrap(),
         })
     }
 
@@ -262,8 +262,8 @@ impl VeilidCoreContext {
             self.table_store,
             self.block_store,
             self.crypto,
-            self.storage_manager,
             self.attachment_manager,
+            self.storage_manager,
         );
         sc.shutdown().await;
     }

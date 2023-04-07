@@ -1,4 +1,6 @@
 use super::*;
+use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use serde::*;
 
 #[derive(
     Clone,
@@ -65,5 +67,13 @@ impl ValueRecord {
 
     pub fn last_touched(&self) -> Timestamp {
         self.last_touched_ts
+    }
+
+    pub fn set_data_size(&mut self, size: usize) {
+        self.data_size = size;
+    }
+
+    pub fn data_size(&self) -> usize {
+        self.data_size
     }
 }

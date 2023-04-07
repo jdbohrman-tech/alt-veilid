@@ -321,7 +321,7 @@ struct ValueData @0xb4b7416f169f2a3d {
     data                    @1  :Data;                  # value or subvalue contents
     owner                   @2  :PublicKey;             # the public key of the owner
     writer                  @3  :PublicKey;             # the public key of the writer
-    signature               @5  :Signature;             # signature of data at this subkey, using the writer key (which may be the same as the owner key)
+    signature               @4  :Signature;             # signature of data at this subkey, using the writer key (which may be the same as the owner key)
                                                         # signature covers:
                                                         #  * ownerKey
                                                         #  * subkey
@@ -329,7 +329,7 @@ struct ValueData @0xb4b7416f169f2a3d {
                                                         #  * data
                                                         # signature does not need to cover schema because schema is validated upon every set
                                                         # so the data either fits, or it doesn't.
-    schema                  @6  :Data;                  # (optional) the schema in use
+    schema                  @5  :Data;                  # (optional) the schema in use
                                                         # If not set and seqnum == 0, uses the default schema. 
                                                         # If not set and If seqnum != 0, the schema must have been set prior and no other schema may be used, but this field may be eliminated to save space
                                                         # Changing this after key creation is not supported as it would change the dht key
@@ -339,7 +339,7 @@ struct ValueData @0xb4b7416f169f2a3d {
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
     key                     @0  :TypedKey;              # the location of the value
     subkey                  @1  :Subkey;                # the index of the subkey
-    wantSchema              @2  :bool;                  # whether or not to include the schema for the key
+    wantSchema              @2  :Bool;                  # whether or not to include the schema for the key
 }
 
 
@@ -352,8 +352,8 @@ struct OperationGetValueA @0xd896bb46f2e0249f {
 
 struct OperationSetValueQ @0xbac06191ff8bdbc5 {         
     key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
-    subkey                  @3  :Subkey;                # the index of the subkey
-    value                   @4  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
+    subkey                  @1  :Subkey;                # the index of the subkey
+    value                   @2  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {

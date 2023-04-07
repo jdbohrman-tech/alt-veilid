@@ -238,9 +238,9 @@ macro_rules! byte_array_type {
                 Self::try_decode(value)
             }
         }
-        impl TryFrom(&[u8]) for $name {
+        impl TryFrom<&[u8]> for $name {
             type Error = VeilidAPIError;
-            pub fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+            fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
                 let vl = v.len();
                 Ok(Self {
                     bytes: v.try_into().map_err(|_| {

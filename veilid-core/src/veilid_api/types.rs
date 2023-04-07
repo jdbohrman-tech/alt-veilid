@@ -385,12 +385,12 @@ impl ValueData {
         &self.data
     }
 
-    pub fn with_data_mut<F, R>(&mut self, f: F)
+    pub fn with_data_mut<F, R>(&mut self, f: F) -> R
     where
         F: FnOnce(&mut Vec<u8>) -> R,
     {
         let out = f(&mut self.data);
-        assert(self.data.len() <= Self::MAX_LEN);
+        assert!(self.data.len() <= Self::MAX_LEN);
         self.seq += 1;
         out
     }
@@ -534,6 +534,12 @@ impl SafetySelection {
             SafetySelection::Unsafe(seq) => *seq,
             SafetySelection::Safe(ss) => ss.sequencing,
         }
+    }
+}
+
+impl Default for SafetySelection {
+    fn default() -> Self {
+        Self::Unsafe(Sequencing::NoPreference)
     }
 }
 
@@ -2456,11 +2462,14 @@ pub struct DHTSchemaDFLT {
 }
 
 impl DHTSchemaDFLT {
+    const FCC: [u8; 4] = *b"DFLT";
+    const FIXED_SIZE: usize = 6;
+
     /// Build the data representation of the schema
     pub fn compile(&self) -> Vec<u8> {
-        let mut out = Vec::<u8>::with_capacity(6);
+        let mut out = Vec::<u8>::with_capacity(Self::FIXED_SIZE);
         // kind
-        out.extend_from_slice(&FourCC::from_str("DFLT").unwrap().0);
+        out.extend_from_slice(&Self::FCC);
         // o_cnt
         out.extend_from_slice(&self.o_cnt.to_le_bytes());
         out
@@ -2469,6 +2478,22 @@ impl DHTSchemaDFLT {
     /// Get the number of subkeys this schema allocates
     pub fn subkey_count(&self) -> usize {
         self.o_cnt as usize
+    }
+}
+
+impl TryFrom<&[u8]> for DHTSchemaDFLT {
+    type Error = VeilidAPIError;
+    fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
+        if b.len() != Self::FIXED_SIZE {
+            apibail_generic!("invalid size");
+        }
+        if &b[0..4] != &Self::FCC {
+            apibail_generic!("wrong fourcc");
+        }
+
+        let o_cnt = u16::from_le_bytes(b[4..6].try_into().map_err(VeilidAPIError::internal)?);
+
+        Ok(Self { o_cnt })
     }
 }
 
@@ -2497,11 +2522,16 @@ pub struct DHTSchemaSMPL {
 }
 
 impl DHTSchemaSMPL {
+    const FCC: [u8; 4] = *b"SMPL";
+    const FIXED_SIZE: usize = 6;
+
     /// Build the data representation of the schema
     pub fn compile(&self) -> Vec<u8> {
-        let mut out = Vec::<u8>::with_capacity(6 + (self.members.len() * (PUBLIC_KEY_LENGTH + 2)));
+        let mut out = Vec::<u8>::with_capacity(
+            Self::FIXED_SIZE + (self.members.len() * (PUBLIC_KEY_LENGTH + 2)),
+        );
         // kind
-        out.extend_from_slice(&FourCC::from_str("SMPL").unwrap().0);
+        out.extend_from_slice(&Self::FCC);
         // o_cnt
         out.extend_from_slice(&self.o_cnt.to_le_bytes());
         // members
@@ -2518,7 +2548,40 @@ impl DHTSchemaSMPL {
     pub fn subkey_count(&self) -> usize {
         self.members
             .iter()
-            .fold(o_cnt as usize, |acc, x| acc + (x.m_cnt as usize))
+            .fold(self.o_cnt as usize, |acc, x| acc + (x.m_cnt as usize))
+    }
+}
+
+impl TryFrom<&[u8]> for DHTSchemaSMPL {
+    type Error = VeilidAPIError;
+    fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
+        if b.len() != Self::FIXED_SIZE {
+            apibail_generic!("invalid size");
+        }
+        if &b[0..4] != &Self::FCC {
+            apibail_generic!("wrong fourcc");
+        }
+        if (b.len() - Self::FIXED_SIZE) % (PUBLIC_KEY_LENGTH + 2) != 0 {
+            apibail_generic!("invalid member length");
+        }
+
+        let o_cnt = u16::from_le_bytes(b[4..6].try_into().map_err(VeilidAPIError::internal)?);
+
+        let members_len = (b.len() - Self::FIXED_SIZE) / (PUBLIC_KEY_LENGTH + 2);
+        let mut members: Vec<DHTSchemaSMPLMember> = Vec::with_capacity(members_len);
+        for n in 0..members_len {
+            let mstart = Self::FIXED_SIZE + n * (PUBLIC_KEY_LENGTH + 2);
+            let m_key = PublicKey::try_from(&b[mstart..mstart + PUBLIC_KEY_LENGTH])
+                .map_err(VeilidAPIError::internal)?;
+            let m_cnt = u16::from_le_bytes(
+                b[mstart + PUBLIC_KEY_LENGTH..mstart + PUBLIC_KEY_LENGTH + 2]
+                    .try_into()
+                    .map_err(VeilidAPIError::internal)?,
+            );
+            members.push(DHTSchemaSMPLMember { m_key, m_cnt });
+        }
+
+        Ok(Self { o_cnt, members })
     }
 }
 
@@ -2554,6 +2617,29 @@ impl DHTSchema {
         match self {
             DHTSchema::DFLT(d) => d.subkey_count(),
             DHTSchema::SMPL(s) => s.subkey_count(),
+        }
+    }
+}
+
+impl Default for DHTSchema {
+    fn default() -> Self {
+        Self::dflt(1)
+    }
+}
+
+impl TryFrom<&[u8]> for DHTSchema {
+    type Error = VeilidAPIError;
+    fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
+        if b.len() < 4 {
+            apibail_generic!("invalid size");
+        }
+        let fcc: [u8; 4] = b[0..4].try_into().unwrap();
+        match fcc {
+            DHTSchemaDFLT::FCC => Ok(DHTSchema::DFLT(DHTSchemaDFLT::try_from(b)?)),
+            DHTSchemaSMPL::FCC => Ok(DHTSchema::SMPL(DHTSchemaSMPL::try_from(b)?)),
+            _ => {
+                apibail_generic!("unknown fourcc");
+            }
         }
     }
 }

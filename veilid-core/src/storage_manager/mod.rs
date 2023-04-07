@@ -1,12 +1,20 @@
+mod keys;
 mod record_store;
 mod record_store_limits;
 mod value_record;
+
+use keys::*;
 use record_store::*;
 use record_store_limits::*;
 use value_record::*;
 
 use super::*;
 use crate::rpc_processor::*;
+
+/// The maximum size of a single subkey
+const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
+/// The maximum total size of all subkeys of a record
+const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
 
 /// Locked structure for storage manager
 struct StorageManagerInner {
@@ -62,6 +70,8 @@ impl StorageManager {
             max_records: None,
             max_subkey_cache_memory_mb: Some(xxx),
             max_disk_space_mb: None,
+            max_subkey_size: MAX_SUBKEY_SIZE,
+            max_record_data_size: MAX_RECORD_DATA_SIZE,
         }
     }
 
@@ -71,6 +81,8 @@ impl StorageManager {
             max_records: Some(xxx),
             max_subkey_cache_memory_mb: Some(xxx),
             max_disk_space_mb: Some(xxx),
+            max_subkey_size: MAX_SUBKEY_SIZE,
+            max_record_data_size: MAX_RECORD_DATA_SIZE,
         }
     }
 
@@ -116,7 +128,7 @@ impl StorageManager {
         Ok(())
     }
 
-    pub fn terminate(&self) {
+    pub async fn terminate(&self) {
         debug!("starting storage manager shutdown");
 
         // Release the storage manager
@@ -125,10 +137,14 @@ impl StorageManager {
         debug!("finished storage manager shutdown");
     }
 
-    async fn new_local_record(&self, key: TypedKey, record: ValueRecord) -> EyreResult<()> {
+    async fn new_local_record(
+        &self,
+        key: TypedKey,
+        record: ValueRecord,
+    ) -> Result<(), VeilidAPIError> {
         // add value record to record store
         let mut inner = self.inner.lock();
-        let Some(local_record_store) = inner.local_record_store else {
+        let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_generic!("not initialized");
 
         };
@@ -138,7 +154,7 @@ impl StorageManager {
     pub async fn create_record(
         &self,
         kind: CryptoKind,
-        schema: &DHTSchema,
+        schema: DHTSchema,
         safety_selection: SafetySelection,
     ) -> Result<TypedKey, VeilidAPIError> {
         // Get cryptosystem
@@ -162,6 +178,7 @@ impl StorageManager {
     }
 
     pub async fn open_record(
+        &self,
         key: TypedKey,
         secret: Option<SecretKey>,
         safety_selection: SafetySelection,
@@ -169,11 +186,11 @@ impl StorageManager {
         unimplemented!();
     }
 
-    pub async fn close_record(key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn close_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
         unimplemented!();
     }
 
-    pub async fn delete_value(key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn delete_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
         unimplemented!();
     }
 
@@ -195,7 +212,7 @@ impl StorageManager {
         unimplemented!();
     }
 
-    pub async fn watch_value(
+    pub async fn watch_values(
         &self,
         key: TypedKey,
         subkeys: &[ValueSubkeyRange],
@@ -205,7 +222,7 @@ impl StorageManager {
         unimplemented!();
     }
 
-    pub async fn cancel_watch_value(
+    pub async fn cancel_watch_values(
         &self,
         key: TypedKey,
         subkeys: &[ValueSubkeyRange],
