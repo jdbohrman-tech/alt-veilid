@@ -1,9 +1,15 @@
+/// RecordStore
+/// Keeps an LRU cache of dht keys and their associated subkey valuedata.
+/// Instances of this store are used for 'local' (persistent) and 'remote' (ephemeral) dht key storage.
+/// This store does not perform any validation on the schema, and all ValueRecordData passed in must have been previously validated.
+/// Uses an in-memory store for the records, backed by the TableStore. Subkey data is LRU cached and rotated out by a limits policy,
+/// and backed to the TableStore for persistence.
 use super::*;
 use hashlink::LruCache;
 
 pub type RecordIndex = u32;
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct RecordIndexKey {
     pub key: TypedKey,
 }
@@ -30,7 +36,7 @@ impl TryFrom<&[u8]> for RecordIndexKey {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct SubkeyCacheKey {
     pub key: TypedKey,
     pub subkey: ValueSubkey,
@@ -71,6 +77,9 @@ pub struct RecordStore {
     subkey_table: Option<TableDB>,
     record_index: LruCache<RecordIndexKey, ValueRecord>,
     subkey_cache: LruCache<SubkeyCacheKey, ValueRecordData>,
+
+    dead_records: Vec<(RecordIndexKey, ValueRecord)>,
+    changed_records: HashSet<(RecordIndexKey, Timestamp)>,
 }
 
 impl RecordStore {
@@ -84,6 +93,8 @@ impl RecordStore {
             subkey_table: None,
             record_index: LruCache::new(limits.max_records.unwrap_or(usize::MAX)),
             subkey_cache: LruCache::new(subkey_cache_size),
+            dead_records: Vec::new(),
+            changed_records: HashSet::new(),
         }
     }
 
@@ -118,145 +129,163 @@ impl RecordStore {
             })
         }
 
-        // Delete dead keys
-        if !dead_records.empty() {
-            let rt_xact = record_table.transact();
-            let st_xact = subkey_table.transact();
-            for (k, v) in dead_records {
-                // Delete record
-                rt_xact.delete(0, &k.bytes());
-
-                // Delete subkeys
-                let subkey_count = v.subkey_count();
-                for sk in 0..subkey_count {
-                    let sck = SubkeyCacheKey {
-                        key: k.key,
-                        subkey: sk,
-                    };
-                    st_xact.delete(0, &sck.bytes())?;
-                }
-            }
-            rt_xact.commit().await?;
-            st_xact.commit().await?;
-        }
-
         self.record_table = Some(record_table);
         self.subkey_table = Some(record_table);
         Ok(())
     }
 
-    fix up new record
+    fn add_dead_record(&mut self, key: RecordIndexKey, record: ValueRecord) {
+        self.dead_records.push((key, record));
+    }
 
-    pub fn new_record(&mut self, key: TypedKey, record: ValueRecord) -> EyreResult<()> {
+    fn mark_record_changed(&mut self, key: RecordIndexKey) {
+        let cur_ts = get_aligned_timestamp();
+        self.changed_records.insert((key, cur_ts));
+    }
+
+    async fn purge_dead_records(&mut self) {
+        // Delete dead keys
+        if self.dead_records.empty() {
+            return;
+        }
+
+        let rt_xact = record_table.transact();
+        let st_xact = subkey_table.transact();
+        let mut dead_records = mem::take(&mut self.dead_records);
+        for (k, v) in dead_records {
+            // Delete record
+            rt_xact.delete(0, &k.bytes());
+
+            // Delete subkeys
+            let subkey_count = v.subkey_count();
+            for sk in 0..subkey_count {
+                // From table
+                let sck = SubkeyCacheKey {
+                    key: k.key,
+                    subkey: sk,
+                };
+                st_xact.delete(0, &sck.bytes())?;
+
+                // From cache
+                self.subkey_cache.remove(&sck);
+            }
+        }
+        if let Err(e) = rt_xact.commit().await {
+            log_stor!(error "failed to commit record table transaction: {}", e);
+        }
+        if let Err(e) = st_xact.commit().await {
+            log_stor!(error "failed to commit subkey table transaction: {}", e);
+        }
+    }
+
+    async fn flush_records(&mut self) {
+        // touch records
+        if self.changed_records.empty() {
+            return;
+        }
+
+        let rt_xact = record_table.transact();
+        let st_xact = subkey_table.transact();
+        let mut changed_records = mem::take(&mut self.changed_records);
+        for (rik, ts) in changed_records {
+            // Flush record and changed subkeys
+        }
+        if let Err(e) = rt_xact.commit().await {
+            log_stor!(error "failed to commit record table transaction: {}", e);
+        }
+        if let Err(e) = st_xact.commit().await {
+            log_stor!(error "failed to commit subkey table transaction: {}", e);
+        }
+    }
+
+    pub async fn tick(&mut self, last_ts: Timestamp, cur_ts: Timestamp) {
+        self.flush_records().await;
+        self.purge_dead_records().await;
+    }
+
+    pub fn new_record(&mut self, key: TypedKey, record: ValueRecord) -> Result<(), VeilidAPIError> {
         if self.with_record(key, |_| {})?.is_some() {
-            bail!("record already exists");
+            apibail_generic!("record already exists");
         }
 
         // Get record table
         let Some(record_table) = self.record_table.clone() else {
-            bail!("record store not initialized");
+            apibail_internal!("record store not initialized");
         };
 
         // Save to record table
-        record_table.store_rkyv(0, &key, &r).await?;
+        record_table
+            .store_rkyv(0, &key, &r)
+            .await
+            .map_err(VeilidAPIError::internal)?;
 
         // Cache it
-        self.record_cache.insert(key, value, |_| {});
+        self.record_cache.insert(key, value, |k, v| {
+            self.add_dead_record(k, v);
+        });
 
         Ok(())
     }
 
-    pub fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> EyreResult<Option<R>>
+    pub fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
-        F: FnOnce(&mut RecordStore, TypedKey, &ValueRecord) -> R,
+        F: FnOnce(&ValueRecord) -> R,
     {
-        // Get record table
-        let Some(record_table) = self.record_table.clone() else {
-            bail!("record store not initialized");
-        };
-
-        // If record exists in cache, use that
+        // Get record from index
         let rck = RecordIndexKey { key };
-        if let Some(r) = self.record_cache.get(&rck) {
+        if let Some(r) = self.record_index.get_mut(&rck) {
+            // Touch
+            r.touch(get_aligned_timestamp());
+            self.mark_record_changed(&rck);
+
             // Callback
-            return Ok(Some(f(self, key, r)));
+            return Some(f(key, r));
         }
-        // If not in cache, try to pull from table store
-        let k = rck.bytes();
-        if let Some(r) = record_table.load_rkyv(0, &k)? {
-            // Callback
-            let out = f(self, key, &r);
-
-            // Add to cache, do nothing with lru out
-            self.record_cache.insert(rck, r, |_| {});
-
-            return Ok(Some(out));
-        };
-
-        return Ok(None);
+        None
     }
 
-    pub fn with_record_mut<R, F>(&mut self, key: TypedKey, f: F) -> EyreResult<Option<R>>
-    where
-        F: FnOnce(&mut RecordStore, TypedKey, &mut ValueRecord) -> R,
-    {
-        // Get record table
-        let Some(record_table) = self.record_table.clone() else {
-            bail!("record store not initialized");
-        };
-
-        // If record exists in cache, use that
-        let rck = RecordIndexKey { key };
-        if let Some(r) = self.record_cache.get_mut(&rck) {
-            // Callback
-            return Ok(Some(f(self, key, r)));
-        }
-        // If not in cache, try to pull from table store
-        let k = rck.bytes();
-        if let Some(r) = record_table.load_rkyv(0, &k)? {
-            // Callback
-            let out = f(self, key, &mut r);
-
-            // Save changes back to record table
-            record_table.store_rkyv(0, &k, &r).await?;
-
-            // Add to cache, do nothing with lru out
-            self.record_cache.insert(rck, r, |_| {});
-
-            return Ok(Some(out));
-        };
-
-        Ok(None)
-    }
-
-    pub fn with_subkey<R, F>(
+    pub fn get_subkey<R, F>(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        f: F,
-    ) -> EyreResult<Option<R>>
-    where
-        F: FnOnce(&mut RecordStore, TypedKey, ValueSubkey, &ValueRecordData) -> R,
-    {
+    ) -> Result<Option<ValueRecordData>, VeilidAPIError> {
+        // record from index
+        let rck = RecordIndexKey { key };
+        let Some(r) = self.record_index.get_mut(&rck) else {
+            apibail_invalid_argument!("no record at this key", "key", key);
+        };
+
+        // Touch
+        r.touch(get_aligned_timestamp());
+        self.mark_record_changed(&rck);
+
+        // Check if the subkey is in range
+        if subkey >= r.subkey_count() {
+            apibail_invalid_argument!("subkey out of range", "subkey", subkey);
+        }
+
         // Get subkey table
         let Some(subkey_table) = self.subkey_table.clone() else {
-            bail!("record store not initialized");
+            apibail_internal!("record store not initialized");
         };
 
         // If subkey exists in subkey cache, use that
         let skck = SubkeyCacheKey { key, subkey };
-        if let Some(rd) = self.subkey_cache.get(&skck) {
-            // Callback
-            return Ok(Some(f(self, key, subkey, rd)));
+        if let Some(rd) = self.subkey_cache.get_mut(&skck) {
+            let out = rd.clone();
+
+            return Ok(Some(out));
         }
         // If not in cache, try to pull from table store
         let k = skck.bytes();
-        if let Some(rd) = subkey_table.load_rkyv(0, &k)? {
-            // Callback
-            let out = f(self, key, subkey, &rd);
+        if let Some(rd) = subkey_table
+            .load_rkyv::<ValueRecordData>(0, &k)
+            .map_err(VeilidAPIError::internal)?
+        {
+            let out = rd.clone();
 
             // Add to cache, do nothing with lru out
-            self.subkey_cache.insert(skck, r, |_| {});
+            self.subkey_cache.insert(skck, rd, |_| {});
 
             return Ok(Some(out));
         };
@@ -264,41 +293,52 @@ impl RecordStore {
         return Ok(None);
     }
 
-    pub fn with_subkey_mut<R, F>(
+    pub fn set_subkey<R, F>(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        f: F,
-    ) -> EyreResult<Option<R>>
-    where
-        F: FnOnce(&mut RecordStore, TypedKey, ValueSubkey, &mut ValueRecord) -> R,
-    {
-        // Get record table
-        let Some(subkey_table) = self.subkey_table.clone() else {
-            bail!("record store not initialized");
+        data: ValueRecordData,
+    ) -> Result<(), VeilidAPIError> {
+        // Get record from index
+        let rck = RecordIndexKey { key };
+        let Some(r) = self.record_index.get_mut(&rck) else {
+            apibail_invalid_argument!("no record at this key", "key", key);
         };
 
-        // If subkey exists in cache, use that
-        let skck = SubkeyCacheKey { key, subkey };
-        if let Some(rd) = self.subkey_cache.get_mut(&skck) {
-            // Callback
-            return Ok(Some(f(self, key, subkey, rd)));
+        // Touch
+        r.touch(get_aligned_timestamp());
+        self.mark_record_changed(&rck);
+
+        // Check if the subkey is in range
+        if subkey >= r.subkey_count() {
+            apibail_invalid_argument!("subkey out of range", "subkey", subkey);
         }
-        // If not in cache, try to pull from table store
-        let k = skck.bytes();
-        if let Some(rd) = subkey_table.load_rkyv(0, &k)? {
-            // Callback
-            let out = f(self, key, subkey, &mut rd);
 
-            // Save changes back to record table
-            subkey_table.store_rkyv(0, &k, &rd).await?;
-
-            // Add to cache, do nothing with lru out
-            self.subkey_cache.insert(key, r, |_| {});
-
-            return Ok(Some(out));
+        // Get subkey table
+        let Some(subkey_table) = self.subkey_table.clone() else {
+            apibail_internal!("record store not initialized");
         };
 
-        Ok(None)
+        // Write to subkey cache
+        let skck = SubkeyCacheKey { key, subkey };
+        if let Some(rd) = self.subkey_cache.insert(skck, data, |_, _| {}) {
+            return Ok(Some(out));
+        }
+
+
+xxx do we flush this now or queue it?
+
+        // Write subkey
+        // let k = skck.bytes();
+        // if let Some(rd) = subkey_table.load_rkyv::<ValueRecordData>(0, &k)? {
+        //     let out = rd.data.clone();
+
+        //     // Add to cache, do nothing with lru out
+        //     self.subkey_cache.insert(skck, rd, |_| {});
+
+        //     return Ok(Some(out));
+        // };
+
+        return Ok(None);
     }
 }

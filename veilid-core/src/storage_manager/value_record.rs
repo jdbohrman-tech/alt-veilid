@@ -14,8 +14,8 @@ use super::*;
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueRecordData {
-    data: ValueData,
-    signature: Signature,
+    pub data: ValueData,
+    pub signature: Signature,
 }
 
 #[derive(

@@ -1,6 +1,6 @@
 // LogThru
 // Pass errors through and log them simultaneously via map_err()
-// Also contains common log facilities (net, rpc, rtab, pstore, crypto, etc )
+// Also contains common log facilities (net, rpc, rtab, stor, pstore, crypto, etc )
 
 use super::*;
 
@@ -124,6 +124,42 @@ macro_rules! log_rtab {
 }
 
 #[macro_export]
+macro_rules! log_stor {
+    (error $text:expr) => { error!(
+        target: "stor",
+        "{}",
+        $text,
+    )};
+    (error $fmt:literal, $($arg:expr),+) => {
+        error!(target:"stor", $fmt, $($arg),+);
+    };
+    (warn $text:expr) => { warn!(
+        target: "stor",
+        "{}",
+        $text,
+    )};
+    (warn $fmt:literal, $($arg:expr),+) => {
+        warn!(target:"stor", $fmt, $($arg),+);
+    };
+    (debug $text:expr) => { debug!(
+        target: "stor",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"stor", $fmt, $($arg),+);
+    };
+    ($text:expr) => {trace!(
+        target: "stor",
+        "{}",
+        $text,
+    )};
+    ($fmt:literal, $($arg:expr),+) => {
+        trace!(target:"stor", $fmt, $($arg),+);
+    }
+}
+
+#[macro_export]
 macro_rules! log_pstore {
     (error $text:expr) => { error!(
         target: "pstore",
@@ -213,6 +249,18 @@ macro_rules! logthru_rtab {
     };
     ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
         logthru!($($level)? "rtab", $fmt, $($arg),+)
+    }
+}
+#[macro_export]
+macro_rules! logthru_stor {
+    ($($level:ident)?) => {
+        logthru!($($level)? "stor")
+    };
+    ($($level:ident)? $text:literal) => {
+        logthru!($($level)? "stor", $text)
+    };
+    ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
+        logthru!($($level)? "stor", $fmt, $($arg),+)
     }
 }
 #[macro_export]

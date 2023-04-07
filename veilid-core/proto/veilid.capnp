@@ -338,7 +338,7 @@ struct ValueData @0xb4b7416f169f2a3d {
 
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
     key                     @0  :TypedKey;              # the location of the value
-    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
+    subkey                  @1  :Subkey;                # the index of the subkey
     wantSchema              @2  :bool;                  # whether or not to include the schema for the key
 }
 

@@ -353,12 +353,15 @@ pub struct VeilidState {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
-    pub seq: ValueSeqNum,
-    pub data: Vec<u8>,
-    pub writer: PublicKey,
+    seq: ValueSeqNum,
+    data: Vec<u8>,
+    writer: PublicKey,
 }
 impl ValueData {
+    pub const MAX_LEN: usize = 32768;
+
     pub fn new(data: Vec<u8>, writer: PublicKey) -> Self {
+        assert!(data.len() <= Self::MAX_LEN);
         Self {
             seq: 0,
             data,
@@ -366,11 +369,30 @@ impl ValueData {
         }
     }
     pub fn new_with_seq(seq: ValueSeqNum, data: Vec<u8>, writer: PublicKey) -> Self {
+        assert!(data.len() <= Self::MAX_LEN);
         Self { seq, data, writer }
     }
-    pub fn change(&mut self, data: Vec<u8>) {
-        self.data = data;
+
+    pub fn seq(&self) -> ValueSeqNum {
+        self.seq
+    }
+
+    pub fn writer(&self) -> PublicKey {
+        self.writer
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn with_data_mut<F, R>(&mut self, f: F)
+    where
+        F: FnOnce(&mut Vec<u8>) -> R,
+    {
+        let out = f(&mut self.data);
+        assert(self.data.len() <= Self::MAX_LEN);
         self.seq += 1;
+        out
     }
 }
 
@@ -2444,7 +2466,7 @@ impl DHTSchemaDFLT {
         out
     }
 
-    /// Get the number of subkeys this schema allocates 
+    /// Get the number of subkeys this schema allocates
     pub fn subkey_count(&self) -> usize {
         self.o_cnt as usize
     }
@@ -2492,7 +2514,7 @@ impl DHTSchemaSMPL {
         out
     }
 
-    /// Get the number of subkeys this schema allocates 
+    /// Get the number of subkeys this schema allocates
     pub fn subkey_count(&self) -> usize {
         self.members
             .iter()
@@ -2527,7 +2549,7 @@ impl DHTSchema {
         }
     }
 
-    /// Get the number of subkeys this schema allocates 
+    /// Get the number of subkeys this schema allocates
     pub fn subkey_count(&self) -> usize {
         match self {
             DHTSchema::DFLT(d) => d.subkey_count(),
@@ -2536,12 +2558,12 @@ impl DHTSchema {
     }
 }
 
-/// DHT Key Descriptor
+/// DHT Record Descriptor
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct DHTDescriptor {
+pub struct DHTRecordDescriptor {
     pub owner: PublicKey,
     pub schema: DHTSchema,
 }

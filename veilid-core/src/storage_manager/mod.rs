@@ -1,6 +1,6 @@
 mod record_store;
-mod value_record;
 mod record_store_limits;
+mod value_record;
 use record_store::*;
 use record_store_limits::*;
 use value_record::*;
@@ -58,7 +58,6 @@ impl StorageManager {
 
     fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         RecordStoreLimits {
-            record_cache_size: todo!(),
             subkey_cache_size: todo!(),
             max_records: None,
             max_subkey_cache_memory_mb: Some(xxx),
@@ -68,11 +67,10 @@ impl StorageManager {
 
     fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         RecordStoreLimits {
-            record_cache_size: todo!(),
             subkey_cache_size: todo!(),
             max_records: Some(xxx),
             max_subkey_cache_memory_mb: Some(xxx),
-            max_disk_space_mb: Some(xxx)
+            max_disk_space_mb: Some(xxx),
         }
     }
 
@@ -84,7 +82,6 @@ impl StorageManager {
         block_store: BlockStore,
         rpc_processor: RPCProcessor,
     ) -> StorageManager {
-
         StorageManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
@@ -94,7 +91,7 @@ impl StorageManager {
                 block_store,
                 rpc_processor,
             )),
-            inner: Arc::new(Mutex::new(Self::new_inner()))
+            inner: Arc::new(Mutex::new(Self::new_inner())),
         }
     }
 
@@ -105,8 +102,16 @@ impl StorageManager {
 
         let local_limits = Self::local_limits_from_config(config.clone());
         let remote_limits = Self::remote_limits_from_config(config.clone());
-        inner.local_record_store = Some(RecordStore::new(self.unlocked_inner.table_store.clone(), "local", local_limits));
-        inner.remote_record_store = Some(RecordStore::new(self.unlocked_inner.table_store.clone(), "remote", remote_limits));
+        inner.local_record_store = Some(RecordStore::new(
+            self.unlocked_inner.table_store.clone(),
+            "local",
+            local_limits,
+        ));
+        inner.remote_record_store = Some(RecordStore::new(
+            self.unlocked_inner.table_store.clone(),
+            "remote",
+            remote_limits,
+        ));
 
         Ok(())
     }
@@ -120,15 +125,17 @@ impl StorageManager {
         debug!("finished storage manager shutdown");
     }
 
-    async fn add_value_record(&self, key: TypedKey, record: ValueRecord) -> EyreResult<()> {
+    async fn new_local_record(&self, key: TypedKey, record: ValueRecord) -> EyreResult<()> {
         // add value record to record store
         let mut inner = self.inner.lock();
-        inner.record_store.
+        let Some(local_record_store) = inner.local_record_store else {
+            apibail_generic!("not initialized");
+
+        };
+        local_record_store.new_record(key, record)
     }
 
-    /// Creates a new DHT value with a specified crypto kind and schema
-    /// Returns the newly allocated DHT Key if successful.
-    pub async fn create_value(
+    pub async fn create_record(
         &self,
         kind: CryptoKind,
         schema: &DHTSchema,
@@ -144,60 +151,50 @@ impl StorageManager {
         let key = TypedKey::new(kind, keypair.key);
         let secret = keypair.secret;
 
-        // Add value record
-        let record = ValueRecord::new(Some(secret), schema, safety_selection);
-        self.add_value_record(key, record)
+        // Add new local value record
+        let cur_ts = get_aligned_timestamp();
+        let record = ValueRecord::new(cur_ts, Some(secret), schema, safety_selection);
+        self.new_local_record(key, record)
             .await
             .map_err(VeilidAPIError::internal)?;
 
         Ok(key)
     }
 
-    /// Opens a DHT value at a specific key. Associates an owner secret if one is provided.
-    /// Returns the DHT key descriptor for the opened key if successful
-    /// Value may only be opened or created once. To re-open with a different routing context, first close the value.
-    pub async fn open_value(
+    pub async fn open_record(
         key: TypedKey,
         secret: Option<SecretKey>,
         safety_selection: SafetySelection,
-    ) -> Result<DHTDescriptor, VeilidAPIError> {
+    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
         unimplemented!();
     }
 
-    /// Closes a DHT value at a specific key that was opened with create_value or open_value.
-    /// Closing a value allows you to re-open it with a different routing context
-    pub async fn close_value(key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn close_record(key: TypedKey) -> Result<(), VeilidAPIError> {
         unimplemented!();
     }
 
-    /// Gets the latest value of a subkey from the network
-    /// Returns the possibly-updated value data of the subkey
+    pub async fn delete_value(key: TypedKey) -> Result<(), VeilidAPIError> {
+        unimplemented!();
+    }
+
     pub async fn get_value(
         &self,
         key: TypedKey,
         subkey: ValueSubkey,
         force_refresh: bool,
-    ) -> Result<ValueData, VeilidAPIError> {
-        unimplemented!();
-    }
-
-    /// Pushes a changed subkey value to the network
-    /// Returns None if the value was successfully put
-    /// Returns Some(newer_value) if the value put was older than the one available on the network
-    pub async fn set_value(
-        &self,
-        key: TypedKey,
-        subkey: ValueSubkey,
-        value_data: ValueData,
     ) -> Result<Option<ValueData>, VeilidAPIError> {
         unimplemented!();
     }
 
-    /// Watches changes to an opened or created value
-    /// Changes to subkeys within the subkey range are returned via a ValueChanged callback
-    /// If the subkey range is empty, all subkey changes are considered
-    /// Expiration can be infinite to keep the watch for the maximum amount of time
-    /// Return value upon success is the amount of time allowed for the watch
+    pub async fn set_value(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        data: Vec<u8>,
+    ) -> Result<Option<ValueData>, VeilidAPIError> {
+        unimplemented!();
+    }
+
     pub async fn watch_value(
         &self,
         key: TypedKey,
@@ -208,8 +205,6 @@ impl StorageManager {
         unimplemented!();
     }
 
-    /// Cancels a watch early
-    /// This is a convenience function that cancels watching all subkeys in a range
     pub async fn cancel_watch_value(
         &self,
         key: TypedKey,

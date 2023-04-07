@@ -195,64 +195,74 @@ impl RoutingContext {
     }
 
     ///////////////////////////////////
-    /// DHT Values
+    /// DHT Records
 
-    /// Creates a new DHT value with a specified crypto kind and schema
-    /// Returns the newly allocated DHT Key if successful.
-    pub async fn create_value(
+    /// Creates a new DHT record a specified crypto kind and schema
+    /// Returns the newly allocated DHT record's key if successful. The records is considered 'open' after the create operation succeeds.
+    pub async fn create_dht_record(
         &self,
         kind: CryptoKind,
         schema: &DHTSchema,
     ) -> Result<TypedKey, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
-            .create_value(kind, schema, self.unlocked_inner.safety_selection)
+            .create_record(kind, schema, self.unlocked_inner.safety_selection)
             .await
     }
 
-    /// Opens a DHT value at a specific key. Associates a secret if one is provided to provide writer capability.
-    /// Returns the DHT key descriptor for the opened key if successful
-    /// Value may only be opened or created once. To re-open with a different routing context, first close the value.
-    pub async fn open_value(
+    /// Opens a DHT record at a specific key. Associates a secret if one is provided to provide writer capability.
+    /// Returns the DHT record descriptor for the opened record if successful
+    /// Records may only be opened or created . To re-open with a different routing context, first close the value.
+    pub async fn open_dht_record(
         key: TypedKey,
         secret: Option<SecretKey>,
-    ) -> Result<DHTDescriptor, VeilidAPIError> {
+    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
-            .open_value(key, secret, self.unlocked_inner.safety_selection)
+            .open_record(key, secret, self.unlocked_inner.safety_selection)
             .await
     }
 
-    /// Closes a DHT value at a specific key that was opened with create_value or open_value.
-    /// Closing a value allows you to re-open it with a different routing context
-    pub async fn close_value(key: TypedKey) -> Result<(), VeilidAPIError> {
+    /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
+    /// Closing a record allows you to re-open it with a different routing context
+    pub async fn close_dht_record(key: TypedKey) -> Result<(), VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
-        storage_manager.close_value(key).await
+        storage_manager.close_record(key).await
     }
 
-    /// Gets the latest value of a subkey from the network
-    /// Returns the possibly-updated value data of the subkey
-    pub async fn get_value(
+    /// Deletes a DHT record at a specific key. If the record is opened, it must be closed before it is deleted.
+    /// Deleting a record does not delete it from the network immediately, but will remove the storage of the record
+    /// locally, and will prevent its value from being refreshed on the network by this node.
+    pub async fn delete_dht_record(key: TypedKey) -> Result<(), VeilidAPIError> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.delete_record(key).await
+    }
+
+    /// Gets the latest value of a subkey
+    /// May pull the latest value from the network, but by settings 'force_refresh' you can force a network data refresh
+    /// Returns None if the value subkey has not yet been set
+    /// Returns Some(data) if the value subkey has valid data
+    pub async fn get_dht_value(
         &self,
         key: TypedKey,
         subkey: ValueSubkey,
         force_refresh: bool,
-    ) -> Result<ValueData, VeilidAPIError> {
+    ) -> Result<Option<ValueData>, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.get_value(key, subkey, force_refresh).await
     }
 
     /// Pushes a changed subkey value to the network
     /// Returns None if the value was successfully put
-    /// Returns Some(newer_value) if the value put was older than the one available on the network
-    pub async fn set_value(
+    /// Returns Some(data) if the value put was older than the one available on the network
+    pub async fn set_dht_value(
         &self,
         key: TypedKey,
         subkey: ValueSubkey,
-        value_data: ValueData,
+        data: Vec<u8>,
     ) -> Result<Option<ValueData>, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
-        storage_manager.set_value(key, subkey, value_data).await
+        storage_manager.set_value(key, subkey, data).await
     }
 
     /// Watches changes to an opened or created value
@@ -260,7 +270,7 @@ impl RoutingContext {
     /// If the subkey range is empty, all subkey changes are considered
     /// Expiration can be infinite to keep the watch for the maximum amount of time
     /// Return value upon success is the amount of time allowed for the watch
-    pub async fn watch_value(
+    pub async fn watch_dht_values(
         &self,
         key: TypedKey,
         subkeys: &[ValueSubkeyRange],
@@ -275,7 +285,7 @@ impl RoutingContext {
 
     /// Cancels a watch early
     /// This is a convenience function that cancels watching all subkeys in a range
-    pub async fn cancel_watch_value(
+    pub async fn cancel_dht_watch(
         &self,
         key: TypedKey,
         subkeys: &[ValueSubkeyRange],
