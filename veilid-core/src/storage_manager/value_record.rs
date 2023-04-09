@@ -15,9 +15,15 @@ use serde::*;
     RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct ValueRecordData {
-    pub data: ValueData,
+pub struct RecordData {
+    pub value_data: ValueData,
     pub signature: Signature,
+}
+
+impl RecordData {
+    pub fn total_size(&self) -> usize {
+        mem::size_of::<ValueData>() + self.value_data.data().len()
+    }
 }
 
 #[derive(
@@ -33,15 +39,15 @@ pub struct ValueRecordData {
     RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct ValueRecord {
+pub struct Record {
     last_touched_ts: Timestamp,
     secret: Option<SecretKey>,
     schema: DHTSchema,
     safety_selection: SafetySelection,
-    data_size: usize,
+    record_data_size: usize,
 }
 
-impl ValueRecord {
+impl Record {
     pub fn new(
         cur_ts: Timestamp,
         secret: Option<SecretKey>,
@@ -53,7 +59,7 @@ impl ValueRecord {
             secret,
             schema,
             safety_selection,
-            data_size: 0,
+            record_data_size: 0,
         }
     }
 
@@ -69,11 +75,15 @@ impl ValueRecord {
         self.last_touched_ts
     }
 
-    pub fn set_data_size(&mut self, size: usize) {
-        self.data_size = size;
+    pub fn set_record_data_size(&mut self, size: usize) {
+        self.record_data_size = size;
     }
 
-    pub fn data_size(&self) -> usize {
-        self.data_size
+    pub fn record_data_size(&self) -> usize {
+        self.record_data_size
+    }
+
+    pub fn total_size(&self) -> usize {
+        mem::size_of::<Record>() + self.schema.data_size() + self.record_data_size
     }
 }

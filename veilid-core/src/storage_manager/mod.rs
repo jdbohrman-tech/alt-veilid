@@ -67,22 +67,22 @@ impl StorageManager {
     fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         RecordStoreLimits {
             subkey_cache_size: todo!(),
+            max_subkey_size: MAX_SUBKEY_SIZE,
+            max_record_total_size: MAX_RECORD_DATA_SIZE,
             max_records: None,
             max_subkey_cache_memory_mb: Some(xxx),
-            max_disk_space_mb: None,
-            max_subkey_size: MAX_SUBKEY_SIZE,
-            max_record_data_size: MAX_RECORD_DATA_SIZE,
+            max_storage_space_mb: None,
         }
     }
 
     fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         RecordStoreLimits {
             subkey_cache_size: todo!(),
+            max_subkey_size: MAX_SUBKEY_SIZE,
+            max_record_total_size: MAX_RECORD_DATA_SIZE,
             max_records: Some(xxx),
             max_subkey_cache_memory_mb: Some(xxx),
-            max_disk_space_mb: Some(xxx),
-            max_subkey_size: MAX_SUBKEY_SIZE,
-            max_record_data_size: MAX_RECORD_DATA_SIZE,
+            max_storage_space_mb: Some(xxx),
         }
     }
 
@@ -112,18 +112,25 @@ impl StorageManager {
         debug!("startup storage manager");
         let mut inner = self.inner.lock();
 
-        let local_limits = Self::local_limits_from_config(config.clone());
-        let remote_limits = Self::remote_limits_from_config(config.clone());
-        inner.local_record_store = Some(RecordStore::new(
+        let local_limits = Self::local_limits_from_config(self.unlocked_inner.config.clone());
+        let remote_limits = Self::remote_limits_from_config(self.unlocked_inner.config.clone());
+
+        let mut local_record_store = RecordStore::new(
             self.unlocked_inner.table_store.clone(),
             "local",
             local_limits,
-        ));
-        inner.remote_record_store = Some(RecordStore::new(
+        );
+        local_record_store.init().await?;
+
+        let mut remote_record_store = RecordStore::new(
             self.unlocked_inner.table_store.clone(),
             "remote",
             remote_limits,
-        ));
+        );
+        remote_record_store.init().await?;
+
+        inner.local_record_store = Some(local_record_store);
+        inner.remote_record_store = Some(remote_record_store);
 
         Ok(())
     }
@@ -137,18 +144,13 @@ impl StorageManager {
         debug!("finished storage manager shutdown");
     }
 
-    async fn new_local_record(
-        &self,
-        key: TypedKey,
-        record: ValueRecord,
-    ) -> Result<(), VeilidAPIError> {
+    async fn new_local_record(&self, key: TypedKey, record: Record) -> Result<(), VeilidAPIError> {
         // add value record to record store
         let mut inner = self.inner.lock();
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_generic!("not initialized");
-
         };
-        local_record_store.new_record(key, record)
+        local_record_store.new_record(key, record).await
     }
 
     pub async fn create_record(
@@ -169,7 +171,7 @@ impl StorageManager {
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
-        let record = ValueRecord::new(cur_ts, Some(secret), schema, safety_selection);
+        let record = Record::new(cur_ts, Some(secret), schema, safety_selection);
         self.new_local_record(key, record)
             .await
             .map_err(VeilidAPIError::internal)?;

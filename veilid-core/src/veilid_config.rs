@@ -290,6 +290,29 @@ pub struct VeilidConfigDHT {
     pub min_peer_count: u32,
     pub min_peer_refresh_time_ms: u32,
     pub validate_dial_info_receipt_time_ms: u32,
+
+    pub local_subkey_cache_size: fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+        RecordStoreLimits {
+            subkey_cache_size: todo!(),
+            max_records: None,
+            max_subkey_cache_memory_mb: Some(xxx),
+            max_storage_space_mb: None,
+            max_subkey_size: MAX_SUBKEY_SIZE,
+            max_record_total_size: MAX_RECORD_DATA_SIZE,
+        }
+    }
+
+    fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+        RecordStoreLimits {
+            subkey_cache_size: todo!(),
+            max_records: Some(xxx),
+            max_subkey_cache_memory_mb: Some(xxx),
+            max_storage_space_mb: Some(xxx),
+            max_subkey_size: MAX_SUBKEY_SIZE,
+            max_record_total_size: MAX_RECORD_DATA_SIZE,
+        }
+    }
+
 }
 
 /// Configure RPC

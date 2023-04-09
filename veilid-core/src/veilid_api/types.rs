@@ -2479,6 +2479,10 @@ impl DHTSchemaDFLT {
     pub fn subkey_count(&self) -> usize {
         self.o_cnt as usize
     }
+    /// Get the data size of this schema beyond the size of the structure itself
+    pub fn data_size(&self) -> usize {
+        0
+    }
 }
 
 impl TryFrom<&[u8]> for DHTSchemaDFLT {
@@ -2550,6 +2554,11 @@ impl DHTSchemaSMPL {
             .iter()
             .fold(self.o_cnt as usize, |acc, x| acc + (x.m_cnt as usize))
     }
+
+    /// Get the data size of this schema beyond the size of the structure itself
+    pub fn data_size(&self) -> usize {
+        self.members.len() * mem::size_of::<DHTSchemaSMPLMember>
+    }
 }
 
 impl TryFrom<&[u8]> for DHTSchemaSMPL {
@@ -2617,6 +2626,14 @@ impl DHTSchema {
         match self {
             DHTSchema::DFLT(d) => d.subkey_count(),
             DHTSchema::SMPL(s) => s.subkey_count(),
+        }
+    }
+
+    /// Get the data size of this schema beyond the size of the structure itself
+    pub fn data_size(&self) -> usize {
+        match self {
+            DHTSchema::DFLT(d) => d.data_size(),
+            DHTSchema::SMPL(s) => s.data_size(),
         }
     }
 }
