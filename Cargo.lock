@@ -2827,7 +2827,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "rand 0.8.5",
  "rusqlite",
- "sysinfo",
+ "sysinfo 0.27.7",
  "tempfile",
  "tokio 1.24.2",
 ]
@@ -5108,6 +5108,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sysinfo"
+version = "0.28.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4c2f3ca6693feb29a89724516f016488e9aafc7f37264f898593ee4b942f31b"
+dependencies = [
+ "cfg-if 1.0.0",
+ "core-foundation-sys 0.8.3",
+ "libc",
+ "ntapi 0.4.0",
+ "once_cell",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6082,6 +6096,7 @@ dependencies = [
  "signal-hook",
  "signal-hook-async-std",
  "stop-token",
+ "sysinfo 0.28.4",
  "tokio 1.24.2",
  "tokio-stream",
  "tokio-util",

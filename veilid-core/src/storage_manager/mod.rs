@@ -65,24 +65,30 @@ impl StorageManager {
     }
 
     fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+        let c = config.get();
         RecordStoreLimits {
-            subkey_cache_size: todo!(),
+            subkey_cache_size: c.network.dht.local_subkey_cache_size as usize,
             max_subkey_size: MAX_SUBKEY_SIZE,
             max_record_total_size: MAX_RECORD_DATA_SIZE,
             max_records: None,
-            max_subkey_cache_memory_mb: Some(xxx),
+            max_subkey_cache_memory_mb: Some(
+                c.network.dht.local_max_subkey_cache_memory_mb as usize,
+            ),
             max_storage_space_mb: None,
         }
     }
 
     fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+        let c = config.get();
         RecordStoreLimits {
-            subkey_cache_size: todo!(),
+            subkey_cache_size: c.network.dht.remote_subkey_cache_size as usize,
             max_subkey_size: MAX_SUBKEY_SIZE,
             max_record_total_size: MAX_RECORD_DATA_SIZE,
-            max_records: Some(xxx),
-            max_subkey_cache_memory_mb: Some(xxx),
-            max_storage_space_mb: Some(xxx),
+            max_records: Some(c.network.dht.remote_max_records as usize),
+            max_subkey_cache_memory_mb: Some(
+                c.network.dht.remote_max_subkey_cache_memory_mb as usize,
+            ),
+            max_storage_space_mb: Some(c.network.dht.remote_max_storage_space_mb as usize),
         }
     }
 

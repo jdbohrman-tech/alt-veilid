@@ -277,42 +277,25 @@ pub struct VeilidConfigTLS {
     RkyvDeserialize,
 )]
 pub struct VeilidConfigDHT {
-    pub resolve_node_timeout_ms: Option<u32>,
+    pub resolve_node_timeout_ms: u32,
     pub resolve_node_count: u32,
     pub resolve_node_fanout: u32,
     pub max_find_node_count: u32,
-    pub get_value_timeout_ms: Option<u32>,
+    pub get_value_timeout_ms: u32,
     pub get_value_count: u32,
     pub get_value_fanout: u32,
-    pub set_value_timeout_ms: Option<u32>,
+    pub set_value_timeout_ms: u32,
     pub set_value_count: u32,
     pub set_value_fanout: u32,
     pub min_peer_count: u32,
     pub min_peer_refresh_time_ms: u32,
     pub validate_dial_info_receipt_time_ms: u32,
-
-    pub local_subkey_cache_size: fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
-        RecordStoreLimits {
-            subkey_cache_size: todo!(),
-            max_records: None,
-            max_subkey_cache_memory_mb: Some(xxx),
-            max_storage_space_mb: None,
-            max_subkey_size: MAX_SUBKEY_SIZE,
-            max_record_total_size: MAX_RECORD_DATA_SIZE,
-        }
-    }
-
-    fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
-        RecordStoreLimits {
-            subkey_cache_size: todo!(),
-            max_records: Some(xxx),
-            max_subkey_cache_memory_mb: Some(xxx),
-            max_storage_space_mb: Some(xxx),
-            max_subkey_size: MAX_SUBKEY_SIZE,
-            max_record_total_size: MAX_RECORD_DATA_SIZE,
-        }
-    }
-
+    pub local_subkey_cache_size: u32,
+    pub local_max_subkey_cache_memory_mb: u32,
+    pub remote_subkey_cache_size: u32,
+    pub remote_max_records: u32,
+    pub remote_max_subkey_cache_memory_mb: u32,
+    pub remote_max_storage_space_mb: u32,
 }
 
 /// Configure RPC
@@ -685,6 +668,12 @@ impl VeilidConfig {
             get_config!(inner.network.dht.min_peer_count);
             get_config!(inner.network.dht.min_peer_refresh_time_ms);
             get_config!(inner.network.dht.validate_dial_info_receipt_time_ms);
+            get_config!(inner.network.dht.local_subkey_cache_size);
+            get_config!(inner.network.dht.local_max_subkey_cache_memory_mb);
+            get_config!(inner.network.dht.remote_subkey_cache_size);
+            get_config!(inner.network.dht.remote_max_records);
+            get_config!(inner.network.dht.remote_max_subkey_cache_memory_mb);
+            get_config!(inner.network.dht.remote_max_storage_space_mb);
             get_config!(inner.network.rpc.concurrency);
             get_config!(inner.network.rpc.queue_size);
             get_config!(inner.network.rpc.max_timestamp_behind_ms);

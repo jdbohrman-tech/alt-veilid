@@ -57,6 +57,7 @@ flume = { version = "^0", features = ["async"] }
 rpassword = "^6"
 hostname = "^0"
 stop-token = { version = "^0", default-features = false }
+sysinfo = { version = "^0.28.4", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "^0"

@@ -6,6 +6,7 @@ use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use sysinfo::{DiskExt, System, SystemExt};
 use url::Url;
 use veilid_core::tools::*;
 use veilid_core::*;
@@ -95,6 +96,12 @@ core:
             min_peer_count: 20
             min_peer_refresh_time_ms: 2000
             validate_dial_info_receipt_time_ms: 2000
+            local_subkey_cache_size: 128
+            local_max_subkey_cache_memory_mb: 256
+            remote_subkey_cache_size: 1024
+            remote_max_records: 65536
+            remote_max_subkey_cache_memory_mb: %REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%
+            remote_max_storage_space_mb: 0
         upnp: true
         detect_address_changes: true
         restricted_nat_retries: 0
@@ -164,7 +171,11 @@ core:
         &Settings::get_default_private_key_directory()
             .join("server.key")
             .to_string_lossy(),
-    );
+    )
+    .replace(
+        "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
+        &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string_lossy(),
+    )
     config::Config::builder()
         .add_source(config::File::from_str(
             &default_config,
@@ -512,6 +523,12 @@ pub struct Dht {
     pub min_peer_count: u32,
     pub min_peer_refresh_time_ms: u32,
     pub validate_dial_info_receipt_time_ms: u32,
+    pub local_subkey_cache_size: u32,
+    pub local_max_subkey_cache_memory_mb: u32,
+    pub remote_subkey_cache_size: u32,
+    pub remote_max_records: u32,
+    pub remote_max_subkey_cache_memory_mb: u32,
+    pub remote_max_storage_space_mb: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -622,6 +639,11 @@ impl Settings {
 
         // Generate config
         let inner: SettingsInner = cfg.try_deserialize()?;
+
+        // Fill in missing defaults
+        if inner.core.network.dht.remote_max_storage_space_mb == 0 {
+            inner.core.network.dht.remote_max_storage_space_mb = Self::get_default_remote_max_storage_space_mb(&inner);
+        }
 
         //
         Ok(Self {
@@ -833,6 +855,34 @@ impl Settings {
         pk_path
     }
 
+    pub fn get_default_remote_max_subkey_cache_memory_mb() -> usize {
+        let mut sys = System::new_with_specifics(sysinfo::RefreshKind::new().with_memory());
+        sys.free_memory() as usize / 8
+    }
+
+    pub fn get_default_remote_max_storage_space_mb(inner: &SettingsInner) -> usize {
+        let mut sys = System::new_with_specifics(sysinfo::RefreshKind::new().with_disks());
+        let dht_storage_path = inner.core.table_store.directory.clone();
+        let mut available_mb = 0usize;
+        // Sort longer mount point paths first since we want the mount point closest to our table store directory
+        sys.sort_disks_by(|a,b| {
+            b.mount_point().to_string_lossy().len().cmp(&a.mount_point().to_string_lossy().len())
+        });
+        for disk in sys.disks() {
+            if dht_storage_path.starts_with(disk.mount_point()) {
+                let available_mb = disk.available_space() / 1_000_000usize;
+                if available_mb > 40_000 {
+                    // Default to 10GB if more than 40GB is available
+                    return 10_000;
+                }
+                // Default to 1/4 of the available space, if less than 40GB is available
+                return available_mb;
+            }
+        }
+        // If we can't figure out our storage path go with 1GB of space and pray
+        1_000
+    }
+
     pub fn set(&self, key: &str, value: &str) -> EyreResult<()> {
         let mut inner = self.inner.write();
 
@@ -937,6 +987,12 @@ impl Settings {
             inner.core.network.dht.validate_dial_info_receipt_time_ms,
             value
         );
+        set_config_value!(inner.core.network.dht.local_subkey_cache_size, value);
+        set_config_value!(inner.core.network.dht.local_max_subkey_cache_memory_mb, value);
+        set_config_value!(inner.core.network.dht.remote_subkey_cache_size, value);
+        set_config_value!(inner.core.network.dht.remote_max_records, value);
+        set_config_value!(inner.core.network.dht.remote_max_subkey_cache_memory_mb, value);
+        set_config_value!(inner.core.network.dht.remote_max_storage_space_mb, value);
         set_config_value!(inner.core.network.upnp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
         set_config_value!(inner.core.network.restricted_nat_retries, value);
@@ -1145,6 +1201,25 @@ impl Settings {
                 "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(
                     inner.core.network.dht.validate_dial_info_receipt_time_ms,
                 )),
+                "network.dht.local_subkey_cache_size" => Ok(Box::new(
+                    inner.core.network.dht.local_subkey_cache_size,
+                )),
+                "network.dht.local_max_subkey_cache_memory_mb" => Ok(Box::new(
+                    inner.core.network.dht.local_max_subkey_cache_memory_mb,
+                )),
+                "network.dht.remote_subkey_cache_size" => Ok(Box::new(
+                    inner.core.network.dht.remote_subkey_cache_size
+                )),
+                "network.dht.remote_max_records" => Ok(Box::new(
+                    inner.core.network.dht.remote_max_records,
+                )),
+                "network.dht.remote_max_subkey_cache_memory_mb" => Ok(Box::new(
+                    inner.core.network.dht.remote_max_subkey_cache_memory_mb,
+                )),
+                "network.dht.remote_max_storage_space_mb" => Ok(Box::new(
+                    inner.core.network.dht.remote_max_storage_space_mb,
+                )),
+        
                 "network.upnp" => Ok(Box::new(inner.core.network.upnp)),
                 "network.detect_address_changes" => {
                     Ok(Box::new(inner.core.network.detect_address_changes))
