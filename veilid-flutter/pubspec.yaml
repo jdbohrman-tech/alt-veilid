@@ -17,6 +17,7 @@ dependencies:
   change_case: ^1.0.1
   path_provider: ^2.0.9
   path: ^1.8.0
+  system_info2: ^3.0.2
 
 dev_dependencies:
   flutter_test:

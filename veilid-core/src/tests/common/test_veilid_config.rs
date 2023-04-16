@@ -211,10 +211,10 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.dht.resolve_node_count" => Ok(Box::new(20u32)),
         "network.dht.resolve_node_fanout" => Ok(Box::new(3u32)),
         "network.dht.max_find_node_count" => Ok(Box::new(20u32)),
-        "network.dht.get_value_timeout_ms" => Ok(Box::new(Option::<u32>::None)),
+        "network.dht.get_value_timeout_ms" => Ok(Box::new(10u32)),
         "network.dht.get_value_count" => Ok(Box::new(20u32)),
         "network.dht.get_value_fanout" => Ok(Box::new(3u32)),
-        "network.dht.set_value_timeout_ms" => Ok(Box::new(Option::<u32>::None)),
+        "network.dht.set_value_timeout_ms" => Ok(Box::new(10u32)),
         "network.dht.set_value_count" => Ok(Box::new(20u32)),
         "network.dht.set_value_fanout" => Ok(Box::new(5u32)),
         "network.dht.min_peer_count" => Ok(Box::new(20u32)),
@@ -317,7 +317,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.rpc.concurrency, 2u32);
     assert_eq!(inner.network.rpc.queue_size, 1024u32);
-    assert_eq!(inner.network.rpc.timeout_ms, 10_000u32);
+    assert_eq!(inner.network.rpc.timeout_ms, 5_000u32);
     assert_eq!(inner.network.rpc.max_route_hop_count, 4u8);
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
     assert_eq!(inner.network.routing_table.node_id.len(), 0);
@@ -329,16 +329,13 @@ pub async fn test_config() {
     assert_eq!(inner.network.routing_table.limit_attached_good, 8u32);
     assert_eq!(inner.network.routing_table.limit_attached_weak, 4u32);
 
-    assert_eq!(
-        inner.network.dht.resolve_node_timeout_ms,
-        Option::<u32>::None
-    );
+    assert_eq!(inner.network.dht.resolve_node_timeout_ms, 10_000u32);
     assert_eq!(inner.network.dht.resolve_node_count, 20u32);
     assert_eq!(inner.network.dht.resolve_node_fanout, 3u32);
-    assert_eq!(inner.network.dht.get_value_timeout_ms, Option::<u32>::None);
+    assert_eq!(inner.network.dht.get_value_timeout_ms, 10_000u32);
     assert_eq!(inner.network.dht.get_value_count, 20u32);
     assert_eq!(inner.network.dht.get_value_fanout, 3u32);
-    assert_eq!(inner.network.dht.set_value_timeout_ms, Option::<u32>::None);
+    assert_eq!(inner.network.dht.set_value_timeout_ms, 10_000u32);
     assert_eq!(inner.network.dht.set_value_count, 20u32);
     assert_eq!(inner.network.dht.set_value_fanout, 5u32);
     assert_eq!(inner.network.dht.min_peer_count, 20u32);

@@ -79,18 +79,18 @@ core:
             queue_size: 1024
             max_timestamp_behind_ms: 10000
             max_timestamp_ahead_ms: 10000
-            timeout_ms: 10000
+            timeout_ms: 5000
             max_route_hop_count: 4
             default_route_hop_count: 1
         dht:
-            resolve_node_timeout:
+            resolve_node_timeout: 10000
             resolve_node_count: 20
             resolve_node_fanout: 3
             max_find_node_count: 20
-            get_value_timeout:
+            get_value_timeout: 10000
             get_value_count: 20
             get_value_fanout: 3
-            set_value_timeout:
+            set_value_timeout: 10000
             set_value_count: 20
             set_value_fanout: 5
             min_peer_count: 20
@@ -175,7 +175,7 @@ core:
     .replace(
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
         &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string_lossy(),
-    )
+    );
     config::Config::builder()
         .add_source(config::File::from_str(
             &default_config,
@@ -514,10 +514,10 @@ pub struct Dht {
     pub resolve_node_count: u32,
     pub resolve_node_fanout: u32,
     pub max_find_node_count: u32,
-    pub get_value_timeout_ms: Option<u32>,
+    pub get_value_timeout_ms: u32,
     pub get_value_count: u32,
     pub get_value_fanout: u32,
-    pub set_value_timeout_ms: Option<u32>,
+    pub set_value_timeout_ms: u32,
     pub set_value_count: u32,
     pub set_value_fanout: u32,
     pub min_peer_count: u32,
@@ -642,7 +642,8 @@ impl Settings {
 
         // Fill in missing defaults
         if inner.core.network.dht.remote_max_storage_space_mb == 0 {
-            inner.core.network.dht.remote_max_storage_space_mb = Self::get_default_remote_max_storage_space_mb(&inner);
+            inner.core.network.dht.remote_max_storage_space_mb =
+                Self::get_default_remote_max_storage_space_mb(&inner);
         }
 
         //
@@ -865,8 +866,11 @@ impl Settings {
         let dht_storage_path = inner.core.table_store.directory.clone();
         let mut available_mb = 0usize;
         // Sort longer mount point paths first since we want the mount point closest to our table store directory
-        sys.sort_disks_by(|a,b| {
-            b.mount_point().to_string_lossy().len().cmp(&a.mount_point().to_string_lossy().len())
+        sys.sort_disks_by(|a, b| {
+            b.mount_point()
+                .to_string_lossy()
+                .len()
+                .cmp(&a.mount_point().to_string_lossy().len())
         });
         for disk in sys.disks() {
             if dht_storage_path.starts_with(disk.mount_point()) {
@@ -988,10 +992,16 @@ impl Settings {
             value
         );
         set_config_value!(inner.core.network.dht.local_subkey_cache_size, value);
-        set_config_value!(inner.core.network.dht.local_max_subkey_cache_memory_mb, value);
+        set_config_value!(
+            inner.core.network.dht.local_max_subkey_cache_memory_mb,
+            value
+        );
         set_config_value!(inner.core.network.dht.remote_subkey_cache_size, value);
         set_config_value!(inner.core.network.dht.remote_max_records, value);
-        set_config_value!(inner.core.network.dht.remote_max_subkey_cache_memory_mb, value);
+        set_config_value!(
+            inner.core.network.dht.remote_max_subkey_cache_memory_mb,
+            value
+        );
         set_config_value!(inner.core.network.dht.remote_max_storage_space_mb, value);
         set_config_value!(inner.core.network.upnp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
@@ -1201,25 +1211,25 @@ impl Settings {
                 "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(
                     inner.core.network.dht.validate_dial_info_receipt_time_ms,
                 )),
-                "network.dht.local_subkey_cache_size" => Ok(Box::new(
-                    inner.core.network.dht.local_subkey_cache_size,
-                )),
+                "network.dht.local_subkey_cache_size" => {
+                    Ok(Box::new(inner.core.network.dht.local_subkey_cache_size))
+                }
                 "network.dht.local_max_subkey_cache_memory_mb" => Ok(Box::new(
                     inner.core.network.dht.local_max_subkey_cache_memory_mb,
                 )),
-                "network.dht.remote_subkey_cache_size" => Ok(Box::new(
-                    inner.core.network.dht.remote_subkey_cache_size
-                )),
-                "network.dht.remote_max_records" => Ok(Box::new(
-                    inner.core.network.dht.remote_max_records,
-                )),
+                "network.dht.remote_subkey_cache_size" => {
+                    Ok(Box::new(inner.core.network.dht.remote_subkey_cache_size))
+                }
+                "network.dht.remote_max_records" => {
+                    Ok(Box::new(inner.core.network.dht.remote_max_records))
+                }
                 "network.dht.remote_max_subkey_cache_memory_mb" => Ok(Box::new(
                     inner.core.network.dht.remote_max_subkey_cache_memory_mb,
                 )),
-                "network.dht.remote_max_storage_space_mb" => Ok(Box::new(
-                    inner.core.network.dht.remote_max_storage_space_mb,
-                )),
-        
+                "network.dht.remote_max_storage_space_mb" => {
+                    Ok(Box::new(inner.core.network.dht.remote_max_storage_space_mb))
+                }
+
                 "network.upnp" => Ok(Box::new(inner.core.network.upnp)),
                 "network.detect_address_changes" => {
                     Ok(Box::new(inner.core.network.detect_address_changes))
@@ -1521,7 +1531,7 @@ mod tests {
         assert_eq!(s.core.network.rpc.queue_size, 1024);
         assert_eq!(s.core.network.rpc.max_timestamp_behind_ms, Some(10_000u32));
         assert_eq!(s.core.network.rpc.max_timestamp_ahead_ms, Some(10_000u32));
-        assert_eq!(s.core.network.rpc.timeout_ms, 10_000u32);
+        assert_eq!(s.core.network.rpc.timeout_ms, 5_000u32);
         assert_eq!(s.core.network.rpc.max_route_hop_count, 4);
         assert_eq!(s.core.network.rpc.default_route_hop_count, 1);
         //
@@ -1529,10 +1539,10 @@ mod tests {
         assert_eq!(s.core.network.dht.resolve_node_count, 20u32);
         assert_eq!(s.core.network.dht.resolve_node_fanout, 3u32);
         assert_eq!(s.core.network.dht.max_find_node_count, 20u32);
-        assert_eq!(s.core.network.dht.get_value_timeout_ms, None);
+        assert_eq!(s.core.network.dht.get_value_timeout_ms, 10_000u32);
         assert_eq!(s.core.network.dht.get_value_count, 20u32);
         assert_eq!(s.core.network.dht.get_value_fanout, 3u32);
-        assert_eq!(s.core.network.dht.set_value_timeout_ms, None);
+        assert_eq!(s.core.network.dht.set_value_timeout_ms, 10_000u32);
         assert_eq!(s.core.network.dht.set_value_count, 20u32);
         assert_eq!(s.core.network.dht.set_value_fanout, 5u32);
         assert_eq!(s.core.network.dht.min_peer_count, 20u32);

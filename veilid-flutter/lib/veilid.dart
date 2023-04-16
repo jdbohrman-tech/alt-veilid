@@ -588,34 +588,46 @@ class VeilidConfigTLS {
 ////////////
 
 class VeilidConfigDHT {
-  int? resolveNodeTimeoutMs;
+  int resolveNodeTimeoutMs;
   int resolveNodeCount;
   int resolveNodeFanout;
   int maxFindNodeCount;
-  int? getValueTimeoutMs;
+  int getValueTimeoutMs;
   int getValueCount;
   int getValueFanout;
-  int? setValueTimeoutMs;
+  int setValueTimeoutMs;
   int setValueCount;
   int setValueFanout;
   int minPeerCount;
   int minPeerRefreshTimeMs;
   int validateDialInfoReceiptTimeMs;
+  int localSubkeyCacheSize;
+  int localMaxSubkeyCacheMemoryMb;
+  int remoteSubkeyCacheSize;
+  int remoteMaxRecords;
+  int remoteMaxSubkeyCacheMemoryMb;
+  int remoteMaxStorageSpaceMb;
 
   VeilidConfigDHT(
-      {this.resolveNodeTimeoutMs,
+      {required this.resolveNodeTimeoutMs,
       required this.resolveNodeCount,
       required this.resolveNodeFanout,
       required this.maxFindNodeCount,
-      this.getValueTimeoutMs,
+      required this.getValueTimeoutMs,
       required this.getValueCount,
       required this.getValueFanout,
-      this.setValueTimeoutMs,
+      required this.setValueTimeoutMs,
       required this.setValueCount,
       required this.setValueFanout,
       required this.minPeerCount,
       required this.minPeerRefreshTimeMs,
-      required this.validateDialInfoReceiptTimeMs});
+      required this.validateDialInfoReceiptTimeMs,
+      required this.localSubkeyCacheSize,
+      required this.localMaxSubkeyCacheMemoryMb,
+      required this.remoteSubkeyCacheSize,
+      required this.remoteMaxRecords,
+      required this.remoteMaxSubkeyCacheMemoryMb,
+      required this.remoteMaxStorageSpaceMb});
 
   Map<String, dynamic> get json {
     return {
@@ -631,7 +643,13 @@ class VeilidConfigDHT {
       'set_value_fanout': setValueFanout,
       'min_peer_count': minPeerCount,
       'min_peer_refresh_time_ms': minPeerRefreshTimeMs,
-      'validate_dial_info_receipt_time_ms': validateDialInfoReceiptTimeMs
+      'validate_dial_info_receipt_time_ms': validateDialInfoReceiptTimeMs,
+      'local_subkey_cache_size: 128': localSubkeyCacheSize,
+      'local_max_subkey_cache_memory_mb': localMaxSubkeyCacheMemoryMb,
+      'remote_subkey_cache_size': remoteSubkeyCacheSize,
+      'remote_max_records': remoteMaxRecords,
+      'remote_max_subkey_cache_memory_mb': remoteMaxSubkeyCacheMemoryMb,
+      'remote_max_storage_space_mb': remoteMaxStorageSpaceMb,
     };
   }
 
@@ -649,7 +667,14 @@ class VeilidConfigDHT {
         minPeerCount = json['min_peer_count'],
         minPeerRefreshTimeMs = json['min_peer_refresh_time_ms'],
         validateDialInfoReceiptTimeMs =
-            json['validate_dial_info_receipt_time_ms'];
+            json['validate_dial_info_receipt_time_ms'],
+        localSubkeyCacheSize = json['local_subkey_cache_size'],
+        localMaxSubkeyCacheMemoryMb = json['local_max_subkey_cache_memory_mb'],
+        remoteSubkeyCacheSize = json['remote_subkey_cache_size'],
+        remoteMaxRecords = json['remote_max_records'],
+        remoteMaxSubkeyCacheMemoryMb =
+            json['remote_max_subkey_cache_memory_mb'],
+        remoteMaxStorageSpaceMb = json['remote_max_storage_space_mb'];
 }
 
 ////////////

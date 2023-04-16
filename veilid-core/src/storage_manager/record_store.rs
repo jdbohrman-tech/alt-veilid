@@ -22,7 +22,7 @@ pub struct RecordStore {
     dead_records: Vec<(RecordTableKey, Record)>,
     changed_records: HashSet<RecordTableKey>,
 
-    purge_dead_records_mutex: AsyncMutex<()>,
+    purge_dead_records_mutex: Arc<AsyncMutex<()>>,
 }
 
 impl RecordStore {
@@ -40,7 +40,7 @@ impl RecordStore {
             total_storage_space: 0,
             dead_records: Vec::new(),
             changed_records: HashSet::new(),
-            purge_dead_records_mutex: AsyncMutex::new(()),
+            purge_dead_records_mutex: Arc::new(AsyncMutex::new(())),
         }
     }
 
@@ -79,7 +79,7 @@ impl RecordStore {
                 dead_records.push((k, v));
             }) {
                 // This shouldn't happen, but deduplicate anyway
-                log_stor!(warn "duplicate record in table: {}", ri.0);
+                log_stor!(warn "duplicate record in table: {:?}", ri.0);
                 dead_records.push((ri.0, v));
             }
         }
@@ -132,8 +132,9 @@ impl RecordStore {
     }
 
     async fn purge_dead_records(&mut self, lazy: bool) {
+        let purge_dead_records_mutex = self.purge_dead_records_mutex.clone();
         let lock = if lazy {
-            match self.purge_dead_records_mutex.try_lock().await {
+            match purge_dead_records_mutex.try_lock() {
                 Ok(v) => v,
                 Err(_) => {
                     // If not ready now, just skip it if we're lazy
@@ -142,7 +143,7 @@ impl RecordStore {
             }
         } else {
             // Not lazy, must wait
-            self.purge_dead_records_mutex.lock().await;
+            purge_dead_records_mutex.lock().await
         };
 
         // Delete dead keys
@@ -251,7 +252,7 @@ impl RecordStore {
             dead_records.push((k, v));
         }) {
             // Shouldn't happen but log it
-            log_stor!(warn "new duplicate record in table: {}", rtk);
+            log_stor!(warn "new duplicate record in table: {:?}", rtk);
             self.add_dead_record(rtk, v);
         }
         for dr in dead_records {

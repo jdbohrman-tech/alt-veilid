@@ -2557,7 +2557,7 @@ impl DHTSchemaSMPL {
 
     /// Get the data size of this schema beyond the size of the structure itself
     pub fn data_size(&self) -> usize {
-        self.members.len() * mem::size_of::<DHTSchemaSMPLMember>
+        self.members.len() * mem::size_of::<DHTSchemaSMPLMember>()
     }
 }
 

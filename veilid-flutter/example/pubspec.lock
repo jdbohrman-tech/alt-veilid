@@ -92,6 +92,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "6.1.4"
+  file_utils:
+    dependency: transitive
+    description:
+      name: file_utils
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.0.1"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -121,6 +128,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  globbing:
+    dependency: transitive
+    description:
+      name: globbing
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.0.0"
   js:
     dependency: transitive
     description:
@@ -287,6 +301,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.1.1"
+  system_info2:
+    dependency: transitive
+    description:
+      name: system_info2
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "3.0.2"
   term_glyph:
     dependency: transitive
     description:
