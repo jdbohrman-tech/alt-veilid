@@ -4,7 +4,6 @@ mod dh_cache;
 mod envelope;
 mod receipt;
 mod types;
-mod value;
 
 pub mod crypto_system;
 #[cfg(feature = "enable-crypto-none")]
@@ -20,7 +19,6 @@ pub use dh_cache::*;
 pub use envelope::*;
 pub use receipt::*;
 pub use types::*;
-pub use value::*;
 
 #[cfg(feature = "enable-crypto-none")]
 pub use none::*;

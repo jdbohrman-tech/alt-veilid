@@ -11,6 +11,7 @@ mod connection_manager;
 mod connection_table;
 mod network_connection;
 mod tasks;
+mod types;
 
 pub mod tests;
 
@@ -18,6 +19,7 @@ pub mod tests;
 
 pub use connection_manager::*;
 pub use network_connection::*;
+pub use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 use connection_handle::*;
@@ -1552,7 +1554,7 @@ impl NetworkManager {
                         let peer_stats = nr.peer_stats();
                         let peer = PeerTableData {
                             node_ids: nr.node_ids().iter().map(|x| x.to_string()).collect(),
-                            peer_address: v.last_connection.remote(),
+                            peer_address: v.last_connection.remote().to_string(),
                             peer_stats,
                         };
                         out.push(peer);

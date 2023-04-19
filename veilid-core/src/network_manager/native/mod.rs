@@ -645,7 +645,7 @@ impl Network {
                     log_net!(debug "enable address {:?} as ipv4", addr);
                     inner.enable_ipv4 = true;
                 } else if addr.is_ipv6() {
-                    let address = crate::Address::from_ip_addr(addr);
+                    let address = Address::from_ip_addr(addr);
                     if address.is_global() {
                         log_net!(debug "enable address {:?} as ipv6 global", address);
                         inner.enable_ipv6_global = true;

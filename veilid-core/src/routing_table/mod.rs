@@ -10,6 +10,7 @@ mod routing_domains;
 mod routing_table_inner;
 mod stats_accounting;
 mod tasks;
+mod types;
 
 use crate::*;
 
@@ -17,9 +18,10 @@ use crate::crypto::*;
 use crate::network_manager::*;
 use crate::rpc_processor::*;
 use bucket::*;
+use hashlink::LruCache;
+
 pub use bucket_entry::*;
 pub use debug::*;
-use hashlink::LruCache;
 pub use node_ref::*;
 pub use node_ref_filter::*;
 pub use privacy::*;
@@ -28,6 +30,7 @@ pub use routing_domain_editor::*;
 pub use routing_domains::*;
 pub use routing_table_inner::*;
 pub use stats_accounting::*;
+pub use types::*;
 
 //////////////////////////////////////////////////////////////////////////
 

@@ -61,6 +61,12 @@ async fn run_test_connection_table() {
 }
 
 #[wasm_bindgen_test]
+async fn run_test_signed_node_info() {
+    setup();
+    test_signed_node_info::test_all().await;
+}
+
+#[wasm_bindgen_test]
 async fn exec_test_table_store() {
     setup();
     test_table_store::test_all().await;

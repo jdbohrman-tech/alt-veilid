@@ -286,7 +286,7 @@ impl RecordStore {
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-    ) -> Result<Option<RecordData>, VeilidAPIError> {
+    ) -> Result<Option<SignedValueData>, VeilidAPIError> {
         // record from index
         let rtk = RecordTableKey { key };
         let subkey_count = {
@@ -314,7 +314,7 @@ impl RecordStore {
         // If subkey exists in subkey cache, use that
         let stk = SubkeyTableKey { key, subkey };
         if let Some(record_data) = self.subkey_cache.get_mut(&stk) {
-            let out = record_data.clone();
+            let out = record_data.signed_value_data().clone();
 
             return Ok(Some(out));
         }
@@ -323,7 +323,7 @@ impl RecordStore {
             .load_rkyv::<RecordData>(0, &stk.bytes())
             .map_err(VeilidAPIError::internal)?
         {
-            let out = record_data.clone();
+            let out = record_data.signed_value_data().clone();
 
             // Add to cache, do nothing with lru out
             self.add_to_subkey_cache(stk, record_data);
@@ -338,10 +338,10 @@ impl RecordStore {
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        record_data: RecordData,
+        signed_value_data: SignedValueData,
     ) -> Result<(), VeilidAPIError> {
         // Check size limit for data
-        if record_data.value_data.data().len() > self.limits.max_subkey_size {
+        if signed_value_data.value_data().data().len() > self.limits.max_subkey_size {
             return Err(VeilidAPIError::generic("record subkey too large"));
         }
 
@@ -387,6 +387,9 @@ impl RecordStore {
                 prior_record_data_size = record_data.total_size();
             }
         }
+
+        // Make new record data
+        let record_data = RecordData::new(signed_value_data);
 
         // Check new total record size
         let new_record_data_size = record_data.total_size();

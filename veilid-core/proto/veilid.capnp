@@ -311,17 +311,16 @@ struct OperationAppMessage @0x9baf542d81b411f5 {
     message                 @0  :Data;                  # opaque message to application
 }
 
-struct SubkeyRange {
+struct SubkeyRange @0xf592dac0a4d0171c {
     start                   @0  :Subkey;                # the start of a subkey range
     end                     @1  :Subkey;                # the end of a subkey range
 }
-
-struct ValueData @0xb4b7416f169f2a3d {
+    
+struct SignedValueData @0xb4b7416f169f2a3d {
     seq                     @0  :ValueSeqNum;           # sequence number of value
     data                    @1  :Data;                  # value or subvalue contents
-    owner                   @2  :PublicKey;             # the public key of the owner
-    writer                  @3  :PublicKey;             # the public key of the writer
-    signature               @4  :Signature;             # signature of data at this subkey, using the writer key (which may be the same as the owner key)
+    writer                  @2  :PublicKey;             # the public key of the writer
+    signature               @3  :Signature;             # signature of data at this subkey, using the writer key (which may be the same as the owner key)
                                                         # signature covers:
                                                         #  * ownerKey
                                                         #  * subkey
@@ -329,23 +328,32 @@ struct ValueData @0xb4b7416f169f2a3d {
                                                         #  * data
                                                         # signature does not need to cover schema because schema is validated upon every set
                                                         # so the data either fits, or it doesn't.
-    schema                  @5  :Data;                  # (optional) the schema in use
-                                                        # If not set and seqnum == 0, uses the default schema. 
-                                                        # If not set and If seqnum != 0, the schema must have been set prior and no other schema may be used, but this field may be eliminated to save space
-                                                        # Changing this after key creation is not supported as it would change the dht key
-                                                        # Schema data is signed by ownerKey and is verified both by set and get operations
 }
 
+struct ValueDetail @0xe88607fa8982d67f {
+    signedValueData         @0  :SignedValueData;       # One value data with signature
+    descriptor              @1  :SignedValueDescriptor; # (optional) must provide if seq is 0, and may be present from valueget if wantSchema is specified
+                                                        # If not set and If seqnum != 0, the schema must have been set prior and no other schema may be used, but this field may be eliminated to save space
+}
+
+struct SignedValueDescriptor @0xe7911cd3f9e1b0e7 {
+    owner                   @0  :PublicKey;             # the public key of the owner
+    schemaData              @1  :Data;                  # the schema data
+                                                        # Changing this after key creation is not supported as it would change the dht key
+    signature               @2  :Signature;             # Schema data is signed by ownerKey and is verified both by set and get operations
+}
+
+
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
-    key                     @0  :TypedKey;              # the location of the value
+    key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     subkey                  @1  :Subkey;                # the index of the subkey
-    wantSchema              @2  :Bool;                  # whether or not to include the schema for the key
+    wantDescriptor          @2  :Bool;                  # whether or not to include the descriptor for the key
 }
 
 
 struct OperationGetValueA @0xd896bb46f2e0249f {
     union {
-        data                @0  :ValueData;             # the value if successful
+        value               @0  :ValueDetail;           # the value if successful
         peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
     }
 }
@@ -353,13 +361,13 @@ struct OperationGetValueA @0xd896bb46f2e0249f {
 struct OperationSetValueQ @0xbac06191ff8bdbc5 {         
     key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     subkey                  @1  :Subkey;                # the index of the subkey
-    value                   @2  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
+    value                   @2  :ValueDetail;           # value or subvalue contents (older or equal seq number gets dropped)
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
     union {
         schemaError         @0  :Void;                  # Either the schema is not available at the node, or the data does not match the schema that is there
-        data                @1  :ValueData;             # the new value if successful, may be a different value than what was set if the seq number was lower or equal
+        value               @1  :ValueDetail;                 # the new value if successful, may be a different value than what was set if the seq number was lower or equal
         peers               @2  :List(PeerInfo);        # returned 'closer peer' information if this node is refusing to store the key
     }
 }
@@ -381,7 +389,7 @@ struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     key                     @0  :TypedKey;              # key for value that changed
     subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
-    value                   @3  :ValueData;             # first value that changed (the rest can be gotten with getvalue)
+    value                   @3  :ValueDetail;           # first value that changed (the rest can be gotten with getvalue)
 }
 
 struct OperationSupplyBlockQ @0xadbf4c542d749971 {

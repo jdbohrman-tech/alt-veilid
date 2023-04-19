@@ -1,12 +1,21 @@
 mod keys;
+mod record;
+mod record_data;
 mod record_store;
 mod record_store_limits;
-mod value_record;
+mod signed_value_data;
+mod signed_value_descriptor;
+mod value_detail;
 
 use keys::*;
+use record::*;
+use record_data::*;
 use record_store::*;
 use record_store_limits::*;
-use value_record::*;
+
+pub use signed_value_data::*;
+pub use signed_value_descriptor::*;
+pub use value_detail::*;
 
 use super::*;
 use crate::rpc_processor::*;
@@ -150,12 +159,28 @@ impl StorageManager {
         debug!("finished storage manager shutdown");
     }
 
-    async fn new_local_record(&self, key: TypedKey, record: Record) -> Result<(), VeilidAPIError> {
+    /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
+    fn get_key(&self, vcrypto: CryptoSystemVersion, record: &Record) -> TypedKey {
+        let compiled = record.descriptor().schema_data();
+        let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());
+        hash_data.extend_from_slice(&vcrypto.kind().0);
+        hash_data.extend_from_slice(&record.owner().bytes);
+        hash_data.extend_from_slice(compiled);
+        let hash = vcrypto.generate_hash(&hash_data);
+        TypedKey::new(vcrypto.kind(), hash)
+    }
+
+    async fn new_local_record(
+        &self,
+        vcrypto: CryptoSystemVersion,
+        record: Record,
+    ) -> Result<(), VeilidAPIError> {
         // add value record to record store
         let mut inner = self.inner.lock();
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_generic!("not initialized");
         };
+        let key = self.get_key(vcrypto.clone(), &record);
         local_record_store.new_record(key, record).await
     }
 
@@ -170,15 +195,25 @@ impl StorageManager {
             apibail_generic!("unsupported cryptosystem");
         };
 
+        // Compile the dht schema
+        let schema_data = schema.compile();
+
         // New values require a new owner key
-        let keypair = vcrypto.generate_keypair();
-        let key = TypedKey::new(kind, keypair.key);
-        let secret = keypair.secret;
+        let owner = vcrypto.generate_keypair();
+
+        // Make a signed value descriptor for this dht value
+        let signed_value_descriptor = SignedValueDescriptor::new(owner.key, )
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
-        let record = Record::new(cur_ts, Some(secret), schema, safety_selection);
-        self.new_local_record(key, record)
+        let record = Record::new(
+            cur_ts,
+            owner.key,
+            Some(owner.secret),
+            schema,
+            safety_selection,
+        );
+        self.new_local_record(vcrypto.clone(), record)
             .await
             .map_err(VeilidAPIError::internal)?;
 

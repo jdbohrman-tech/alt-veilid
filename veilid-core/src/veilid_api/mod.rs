@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-mod aligned_u64;
 mod api;
 mod debug;
 mod error;
@@ -8,7 +7,6 @@ mod routing_context;
 mod serialize_helpers;
 mod types;
 
-pub use aligned_u64::*;
 pub use api::*;
 pub use debug::*;
 pub use error::*;
@@ -31,7 +29,7 @@ use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
 use enumset::*;
 use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use routing_table::{RouteSpecStore, RoutingTable};
+use routing_table::{Direction, RouteSpecStore, RoutingTable};
 use rpc_processor::*;
 use serde::*;
 use storage_manager::StorageManager;

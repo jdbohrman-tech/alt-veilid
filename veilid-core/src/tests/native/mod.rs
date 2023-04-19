@@ -19,6 +19,8 @@ pub async fn run_all_tests() {
     test_veilid_config::test_all().await;
     info!("TEST: test_connection_table");
     test_connection_table::test_all().await;
+    info!("TEST: test_signed_node_info");
+    test_signed_node_info::test_all().await;
     info!("TEST: test_table_store");
     test_table_store::test_all().await;
     info!("TEST: test_protected_store");
@@ -113,6 +115,15 @@ cfg_if! {
             setup();
             block_on(async {
                 test_connection_table::test_all().await;
+            })
+        }
+
+        #[test]
+        #[serial]
+        fn run_test_signed_node_info() {
+            setup();
+            block_on(async {
+                test_signed_node_info::test_all().await;
             })
         }
 

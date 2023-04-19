@@ -387,7 +387,7 @@ impl RPCProcessor {
         _node_id: PublicKey,
         _count: u32,
         _fanout: u32,
-        _timeout: Option<u64>,
+        _timeout: TimestampDuration,
     ) -> Result<Option<NodeRef>, RPCError> {
         //let routing_table = self.routing_table();
 
@@ -402,7 +402,7 @@ impl RPCProcessor {
         _node_id: PublicKey,
         _count: u32,
         _fanout: u32,
-        _timeout: Option<u64>,
+        _timeout: TimestampDuration,
     ) -> Result<Vec<NodeRef>, RPCError> {
         // xxx return closest nodes after the timeout
         Err(RPCError::unimplemented("search_dht_multi_key")).map_err(logthru_rpc!(error))
@@ -433,7 +433,7 @@ impl RPCProcessor {
                 (
                     c.network.dht.resolve_node_count,
                     c.network.dht.resolve_node_fanout,
-                    c.network.dht.resolve_node_timeout_ms.map(ms_to_us),
+                    TimestampDuration::from(ms_to_us(c.network.dht.resolve_node_timeout_ms)),
                 )
             };
 

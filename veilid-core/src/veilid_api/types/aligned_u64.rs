@@ -120,3 +120,17 @@ impl AlignedU64 {
         Self(self.0.saturating_sub(rhs.0))
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Microseconds since epoch
+pub type Timestamp = AlignedU64;
+pub fn get_aligned_timestamp() -> Timestamp {
+    get_timestamp().into()
+}
+/// Microseconds duration
+pub type TimestampDuration = AlignedU64;
+/// Request/Response matching id
+pub type OperationId = AlignedU64;
+/// Number of bytes
+pub type ByteCount = AlignedU64;

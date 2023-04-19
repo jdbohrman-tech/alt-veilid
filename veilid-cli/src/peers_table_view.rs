@@ -55,11 +55,7 @@ impl TableViewItem<PeerTableColumn> for PeerTableData {
                 .first()
                 .cloned()
                 .unwrap_or_else(|| "???".to_owned()),
-            PeerTableColumn::Address => format!(
-                "{:?}:{}",
-                self.peer_address.protocol_type(),
-                self.peer_address.to_socket_addr()
-            ),
+            PeerTableColumn::Address => self.peer_address.clone(),
             PeerTableColumn::LatencyAvg => format!(
                 "{}",
                 self.peer_stats
