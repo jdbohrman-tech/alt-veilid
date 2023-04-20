@@ -73,7 +73,9 @@ pub struct BucketEntryLocalNetwork {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryInner {
     /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
-    node_ids: TypedKeySet,
+    validated_node_ids: TypedKeySet,
+    /// The node ids claimed by the remote node that use cryptography versions we do not support
+    unsupported_node_ids: TypedKeySet,
     /// The set of envelope versions supported by the node inclusive of the requirements of any relay the node may be using
     envelope_support: Vec<u8>,
     /// If this node has updated it's SignedNodeInfo since our network
@@ -122,9 +124,11 @@ impl BucketEntryInner {
         self.node_ref_tracks.remove(&track_id);
     }
 
-    /// Get node ids
+    /// Get all node ids
     pub fn node_ids(&self) -> TypedKeySet {
-        self.node_ids.clone()
+        let mut node_ids = self.validated_node_ids.clone();
+        node_ids.add_all(&self.unsupported_node_ids);
+        node_ids
     }
 
     /// Add a node id for a particular crypto kind.
@@ -132,33 +136,39 @@ impl BucketEntryInner {
     /// Returns Ok(None) if no previous existing node id was associated with that crypto kind
     /// Results Err() if this operation would add more crypto kinds than we support
     pub fn add_node_id(&mut self, node_id: TypedKey) -> EyreResult<Option<TypedKey>> {
-        if let Some(old_node_id) = self.node_ids.get(node_id.kind) {
+        let node_ids = if VALID_CRYPTO_KINDS.contains(&node_id.kind) {
+            &mut self.validated_node_ids
+        } else {
+            &mut self.unsupported_node_ids
+        };
+
+        if let Some(old_node_id) = node_ids.get(node_id.kind) {
             // If this was already there we do nothing
             if old_node_id == node_id {
                 return Ok(None);
             }
             // Won't change number of crypto kinds
-            self.node_ids.add(node_id);    
+            node_ids.add(node_id);    
             return Ok(Some(old_node_id));
         }
         // Check to ensure we aren't adding more crypto kinds than we support
-        if self.node_ids.len() == MAX_CRYPTO_KINDS {
+        if self.validated_node_ids.len() + self.unsupported_node_ids.len() == MAX_CRYPTO_KINDS {
             bail!("too many crypto kinds for this node");
         }
-        self.node_ids.add(node_id);
+        node_ids.add(node_id);
         Ok(None)
     }
     pub fn best_node_id(&self) -> TypedKey {
-        self.node_ids.best().unwrap()
+        self.validated_node_ids.best().unwrap()
     }
 
     /// Get crypto kinds
     pub fn crypto_kinds(&self) -> Vec<CryptoKind> {
-        self.node_ids.kinds()
+        self.validated_node_ids.kinds()
     }
     /// Compare sets of crypto kinds
     pub fn common_crypto_kinds(&self, other: &[CryptoKind]) -> Vec<CryptoKind> {
-        common_crypto_kinds(&self.node_ids.kinds(), other)
+        common_crypto_kinds(&self.validated_node_ids.kinds(), other)
     }
 
 
@@ -270,7 +280,7 @@ impl BucketEntryInner {
         }
 
         // Update the envelope version support we have to use
-        let envelope_support = signed_node_info.node_info().envelope_support.clone();
+        let envelope_support = signed_node_info.node_info().envelope_support().to_vec();
         
         // Update the signed node info
         *opt_current_sni = Some(Box::new(signed_node_info));
@@ -333,8 +343,10 @@ impl BucketEntryInner {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
+        // Peer info includes all node ids, even unvalidated ones
+        let node_ids = self.node_ids();
         opt_current_sni.as_ref().map(|s| PeerInfo {
-            node_ids: self.node_ids.clone(),
+            node_ids,
             signed_node_info: *s.clone(),
         })
     }
@@ -781,11 +793,13 @@ pub struct BucketEntry {
 impl BucketEntry {
     pub(super) fn new(first_node_id: TypedKey) -> Self {
         let now = get_aligned_timestamp();
-        let mut node_ids = TypedKeySet::new();
-        node_ids.add(first_node_id);
+        let mut validated_node_ids = TypedKeySet::new();
+        let mut unsupported_node_ids = TypedKeySet::new();
+        validated_node_ids.add(first_node_id);
 
         let inner = BucketEntryInner {
-            node_ids,
+            validated_node_ids,
+            unsupported_node_ids,
             envelope_support: Vec::new(),
             updated_since_last_network_change: false,
             last_connections: BTreeMap::new(),

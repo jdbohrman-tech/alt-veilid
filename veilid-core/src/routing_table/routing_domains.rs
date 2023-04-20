@@ -102,14 +102,14 @@ impl RoutingDomainDetailCommon {
     }
 
     fn make_peer_info(&self, rti: &RoutingTableInner) -> PeerInfo {
-        let node_info = NodeInfo {
-            network_class: self.network_class.unwrap_or(NetworkClass::Invalid),
-            outbound_protocols: self.outbound_protocols,
-            address_types: self.address_types,
-            envelope_support: VALID_ENVELOPE_VERSIONS.to_vec(),
-            crypto_support: VALID_CRYPTO_KINDS.to_vec(),
-            dial_info_detail_list: self.dial_info_details.clone(),
-        };
+        let node_info = NodeInfo::new(
+            self.network_class.unwrap_or(NetworkClass::Invalid),
+            self.outbound_protocols,
+            self.address_types,
+            VALID_ENVELOPE_VERSIONS.to_vec(),
+            VALID_CRYPTO_KINDS.to_vec(),
+            self.dial_info_details.clone()
+        );
 
         let relay_info = self
             .relay_node
@@ -117,8 +117,9 @@ impl RoutingDomainDetailCommon {
             .and_then(|rn| {
                 let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
                 if let Some(relay_pi) = opt_relay_pi {
-                    match relay_pi.signed_node_info {
-                        SignedNodeInfo::Direct(d) => Some((relay_pi.node_ids, d)), 
+                    let (relay_ids, relay_sni) = relay_pi.into_fields();
+                    match relay_sni {
+                        SignedNodeInfo::Direct(d) => Some((relay_ids, d)), 
                         SignedNodeInfo::Relayed(_) => {
                             warn!("relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
                             None
@@ -230,8 +231,8 @@ fn first_filtered_dial_info_detail(
 ) -> Option<DialInfoDetail> {
     let dial_info_filter = dial_info_filter.clone().filtered(
         &DialInfoFilter::all()
-            .with_address_type_set(from_node.address_types)
-            .with_protocol_type_set(from_node.outbound_protocols),
+            .with_address_type_set(from_node.address_types())
+            .with_protocol_type_set(from_node.outbound_protocols()),
     );
 
     // Get first filtered dialinfo
@@ -278,18 +279,18 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         sequencing: Sequencing,
     ) -> ContactMethod {
         // Get the nodeinfos for convenience
-        let node_a = peer_a.signed_node_info.node_info();
-        let node_b = peer_b.signed_node_info.node_info();
+        let node_a = peer_a.signed_node_info().node_info();
+        let node_b = peer_b.signed_node_info().node_info();
 
         // Get the node ids that would be used between these peers
-        let cck = common_crypto_kinds(&peer_a.node_ids.kinds(), &peer_b.node_ids.kinds());
+        let cck = common_crypto_kinds(&peer_a.node_ids().kinds(), &peer_b.node_ids().kinds());
         let Some(best_ck) = cck.first().copied() else {
             // No common crypto kinds between these nodes, can't contact
             return ContactMethod::Unreachable;
         };
 
-        //let node_a_id = peer_a.node_ids.get(best_ck).unwrap();
-        let node_b_id = peer_b.node_ids.get(best_ck).unwrap();
+        //let node_a_id = peer_a.node_ids().get(best_ck).unwrap();
+        let node_b_id = peer_b.node_ids().get(best_ck).unwrap();
 
         // Get the best match dial info for node B if we have it
         if let Some(target_did) =
@@ -302,17 +303,17 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             }
 
             // Get the target's inbound relay, it must have one or it is not reachable
-            if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
+            if let Some(node_b_relay) = peer_b.signed_node_info().relay_info() {
 
                 // Note that relay_peer_info could be node_a, in which case a connection already exists
                 // and we only get here if the connection had dropped, in which case node_a is unreachable until
                 // it gets a new relay connection up
-                if peer_b.signed_node_info.relay_ids().contains_any(&peer_a.node_ids) {
+                if peer_b.signed_node_info().relay_ids().contains_any(peer_a.node_ids()) {
                     return ContactMethod::Existing;
                 }
 
                 // Get best node id to contact relay with
-                let Some(node_b_relay_id) = peer_b.signed_node_info.relay_ids().get(best_ck) else {
+                let Some(node_b_relay_id) = peer_b.signed_node_info().relay_ids().get(best_ck) else {
                     // No best relay id
                     return ContactMethod::Unreachable;
                 };
@@ -327,7 +328,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 .is_some()
                 {
                     // Can node A receive anything inbound ever?
-                    if matches!(node_a.network_class, NetworkClass::InboundCapable) {
+                    if matches!(node_a.network_class(), NetworkClass::InboundCapable) {
                         ///////// Reverse connection
 
                         // Get the best match dial info for an reverse inbound connection from node B to node A
@@ -390,17 +391,17 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             }
         }
         // If the node B has no direct dial info, it needs to have an inbound relay
-        else if let Some(node_b_relay) = peer_b.signed_node_info.relay_info() {
+        else if let Some(node_b_relay) = peer_b.signed_node_info().relay_info() {
 
             // Note that relay_peer_info could be node_a, in which case a connection already exists
             // and we only get here if the connection had dropped, in which case node_a is unreachable until
             // it gets a new relay connection up
-            if peer_b.signed_node_info.relay_ids().contains_any(&peer_a.node_ids) {
+            if peer_b.signed_node_info().relay_ids().contains_any(peer_a.node_ids()) {
                 return ContactMethod::Existing;
             }
 
             // Get best node id to contact relay with
-            let Some(node_b_relay_id) = peer_b.signed_node_info.relay_ids().get(best_ck) else {
+            let Some(node_b_relay_id) = peer_b.signed_node_info().relay_ids().get(best_ck) else {
                 // No best relay id
                 return ContactMethod::Unreachable;
             };
@@ -419,7 +420,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         }
 
         // If node A can't reach the node by other means, it may need to use its own relay
-        if let Some(node_a_relay_id) = peer_a.signed_node_info.relay_ids().get(best_ck) {
+        if let Some(node_a_relay_id) = peer_a.signed_node_info().relay_ids().get(best_ck) {
             return ContactMethod::OutboundRelay(node_a_relay_id);
         }
 
@@ -484,8 +485,8 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         // Scope the filter down to protocols node A can do outbound
         let dial_info_filter = dial_info_filter.filtered(
             &DialInfoFilter::all()
-                .with_address_type_set(peer_a.signed_node_info.node_info().address_types)
-                .with_protocol_type_set(peer_a.signed_node_info.node_info().outbound_protocols),
+                .with_address_type_set(peer_a.signed_node_info().node_info().address_types())
+                .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()),
         );
         
         // Get first filtered dialinfo
@@ -509,7 +510,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
 
         let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
 
-        let opt_target_did = peer_b.signed_node_info.node_info().first_filtered_dial_info_detail(sort, filter);
+        let opt_target_did = peer_b.signed_node_info().node_info().first_filtered_dial_info_detail(sort, filter);
         if let Some(target_did) = opt_target_did {
             return ContactMethod::Direct(target_did.dial_info);
         }

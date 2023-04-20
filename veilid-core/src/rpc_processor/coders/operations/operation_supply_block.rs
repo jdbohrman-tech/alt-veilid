@@ -34,8 +34,7 @@ pub enum RPCOperationSupplyBlockA {
 impl RPCOperationSupplyBlockA {
     pub fn decode(
         reader: &veilid_capnp::operation_supply_block_a::Reader,
-        crypto: Crypto,
-    ) -> Result<RPCOperationSupplyBlockA, RPCError> {
+=    ) -> Result<RPCOperationSupplyBlockA, RPCError> {
         match reader.which().map_err(RPCError::protocol)? {
             veilid_capnp::operation_supply_block_a::Which::Expiration(r) => {
                 Ok(RPCOperationSupplyBlockA::Expiration(r))
@@ -49,7 +48,7 @@ impl RPCOperationSupplyBlockA {
                         .map_err(RPCError::map_internal("too many peers"))?,
                 );
                 for p in peers_reader.iter() {
-                    let peer_info = decode_peer_info(&p, crypto.clone())?;
+                    let peer_info = decode_peer_info(&p)?;
                     peers.push(peer_info);
                 }
 

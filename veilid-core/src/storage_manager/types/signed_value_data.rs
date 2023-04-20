@@ -24,31 +24,32 @@ pub struct SignedValueData {
     signature: Signature,
 }
 impl SignedValueData {
-    pub fn new(
-        value_data: ValueData,
-        owner: PublicKey,
-        subkey: ValueSubkey,
-        signature: Signature,
-        vcrypto: CryptoSystemVersion,
-    ) -> Result<Self, VeilidAPIError> {
-        let node_info_bytes = Self::make_signature_bytes(&value_data, &owner, subkey)?;
-
-        // validate signature
-        vcrypto.verify(&value_data.writer(), &node_info_bytes, &signature)?;
-        Ok(Self {
+    pub fn new(value_data: ValueData, signature: Signature) -> Self {
+        Self {
             value_data,
             signature,
-        })
+        }
+    }
+
+    pub fn validate(
+        &self,
+        owner: &PublicKey,
+        subkey: ValueSubkey,
+        vcrypto: CryptoSystemVersion,
+    ) -> Result<(), VeilidAPIError> {
+        let node_info_bytes = Self::make_signature_bytes(&self.value_data, owner, subkey)?;
+        // validate signature
+        vcrypto.verify(&self.value_data.writer(), &node_info_bytes, &self.signature)
     }
 
     pub fn make_signature(
         value_data: ValueData,
-        owner: PublicKey,
+        owner: &PublicKey,
         subkey: ValueSubkey,
         vcrypto: CryptoSystemVersion,
         writer_secret: SecretKey,
     ) -> Result<Self, VeilidAPIError> {
-        let node_info_bytes = Self::make_signature_bytes(&value_data, &owner, subkey)?;
+        let node_info_bytes = Self::make_signature_bytes(&value_data, owner, subkey)?;
 
         // create signature
         let signature = vcrypto.sign(&value_data.writer(), &writer_secret, &node_info_bytes)?;

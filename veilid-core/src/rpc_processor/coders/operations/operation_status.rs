@@ -6,6 +6,10 @@ pub struct RPCOperationStatusQ {
 }
 
 impl RPCOperationStatusQ {
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+        Ok(())
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_status_q::Reader,
     ) -> Result<RPCOperationStatusQ, RPCError> {
@@ -37,6 +41,9 @@ pub struct RPCOperationStatusA {
 }
 
 impl RPCOperationStatusA {
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+        Ok(())
+    }
     pub fn decode(
         reader: &veilid_capnp::operation_status_a::Reader,
     ) -> Result<RPCOperationStatusA, RPCError> {

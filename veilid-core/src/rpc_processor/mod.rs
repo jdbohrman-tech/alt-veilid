@@ -753,7 +753,7 @@ impl RPCProcessor {
         };
 
         // Get our node info timestamp
-        let our_node_info_ts = own_peer_info.signed_node_info.timestamp();
+        let our_node_info_ts = own_peer_info.signed_node_info().timestamp();
 
         // If the target has seen our node info already don't send it again
         if target.has_seen_our_node_info_ts(routing_domain, our_node_info_ts) {
@@ -1214,8 +1214,11 @@ impl RPCProcessor {
                         .get_root::<veilid_capnp::operation::Reader>()
                         .map_err(RPCError::protocol)
                         .map_err(logthru_rpc!())?;
-                    RPCOperation::decode(&op_reader, self.crypto.clone())?
+                    RPCOperation::decode(&op_reader)?
                 };
+
+                // Validate the RPC operation
+                operation.validate(self.crypto.clone())?;
 
                 // Get the sender noderef, incorporating sender's peer info
                 let mut opt_sender_nr: Option<NodeRef> = None;
@@ -1223,7 +1226,7 @@ impl RPCProcessor {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
 
                     // Sender PeerInfo was specified, update our routing table with it
-                    if !self.filter_node_info(routing_domain, &sender_peer_info.signed_node_info) {
+                    if !self.filter_node_info(routing_domain, sender_peer_info.signed_node_info()) {
                         return Err(RPCError::invalid_format(
                             "sender peerinfo has invalid peer scope",
                         ));
@@ -1261,8 +1264,11 @@ impl RPCProcessor {
                         .get_root::<veilid_capnp::operation::Reader>()
                         .map_err(RPCError::protocol)
                         .map_err(logthru_rpc!())?;
-                    RPCOperation::decode(&op_reader, self.crypto.clone())?
+                    RPCOperation::decode(&op_reader)?
                 };
+
+                // Validate the RPC operation
+                operation.validate(self.crypto.clone())?;
 
                 // Make the RPC message
                 RPCMessage {

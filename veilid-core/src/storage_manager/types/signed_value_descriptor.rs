@@ -25,20 +25,17 @@ pub struct SignedValueDescriptor {
     signature: Signature,
 }
 impl SignedValueDescriptor {
-    pub fn new(
-        owner: PublicKey,
-        schema_data: Vec<u8>,
-        signature: Signature,
-        vcrypto: CryptoSystemVersion,
-    ) -> Result<Self, VeilidAPIError> {
-        // validate signature
-        vcrypto.verify(&owner, &schema_data, &signature)?;
-
-        Ok(Self {
+    pub fn new(owner: PublicKey, schema_data: Vec<u8>, signature: Signature) -> Self {
+        Self {
             owner,
             schema_data,
             signature,
-        })
+        }
+    }
+
+    pub fn validate(&self, vcrypto: CryptoSystemVersion) -> Result<(), VeilidAPIError> {
+        // validate signature
+        vcrypto.verify(&self.owner, &self.schema_data, &self.signature)
     }
 
     pub fn owner(&self) -> &PublicKey {
@@ -74,5 +71,13 @@ impl SignedValueDescriptor {
 
     pub fn total_size(&self) -> usize {
         mem::size_of::<Self>() + self.schema_data.len()
+    }
+
+    pub fn cmp_no_sig(&self, other: &Self) -> cmp::Ordering {
+        let o = self.owner.cmp(&other.owner);
+        if o != cmp::Ordering::Equal {
+            return o;
+        }
+        self.schema_data.cmp(&other.schema_data)
     }
 }

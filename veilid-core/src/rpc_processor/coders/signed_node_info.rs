@@ -20,8 +20,6 @@ pub fn encode_signed_node_info(
 
 pub fn decode_signed_node_info(
     reader: &veilid_capnp::signed_node_info::Reader,
-    crypto: Crypto,
-    node_ids: &mut TypedKeySet,
 ) -> Result<SignedNodeInfo, RPCError> {
     match reader
         .which()
@@ -29,12 +27,12 @@ pub fn decode_signed_node_info(
     {
         veilid_capnp::signed_node_info::Direct(d) => {
             let d_reader = d.map_err(RPCError::protocol)?;
-            let sdni = decode_signed_direct_node_info(&d_reader, crypto, node_ids)?;
+            let sdni = decode_signed_direct_node_info(&d_reader)?;
             Ok(SignedNodeInfo::Direct(sdni))
         }
         veilid_capnp::signed_node_info::Relayed(r) => {
             let r_reader = r.map_err(RPCError::protocol)?;
-            let srni = decode_signed_relayed_node_info(&r_reader, crypto, node_ids)?;
+            let srni = decode_signed_relayed_node_info(&r_reader)?;
             Ok(SignedNodeInfo::Relayed(srni))
         }
     }

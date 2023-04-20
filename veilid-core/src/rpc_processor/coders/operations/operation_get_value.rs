@@ -4,16 +4,22 @@ use super::*;
 pub struct RPCOperationGetValueQ {
     pub key: TypedKey,
     pub subkey: ValueSubkey,
+    pub want_descriptor: bool,
 }
 
 impl RPCOperationGetValueQ {
     pub fn decode(
         reader: &veilid_capnp::operation_get_value_q::Reader,
     ) -> Result<RPCOperationGetValueQ, RPCError> {
-        let k_reader = reader.get_key().map_err(RPCError::protocol)?;
+        let k_reader = reader.reborrow().get_key().map_err(RPCError::protocol)?;
         let key = decode_typed_key(&k_reader)?;
-        let subkey = reader.get_subkey();
-        Ok(RPCOperationGetValueQ { key, subkey })
+        let subkey = reader.reborrow().get_subkey();
+        let want_descriptor = reader.reborrow().get_want_descriptor();
+        Ok(RPCOperationGetValueQ {
+            key,
+            subkey,
+            want_descriptor,
+        })
     }
     pub fn encode(
         &self,
@@ -22,24 +28,24 @@ impl RPCOperationGetValueQ {
         let mut k_builder = builder.reborrow().init_key();
         encode_typed_key(&self.key, &mut k_builder);
         builder.set_subkey(self.subkey);
+        builder.set_want_descriptor(self.want_descriptor);
         Ok(())
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum RPCOperationGetValueA {
-    Data(ValueData),
+    Value(ValueDetail),
     Peers(Vec<PeerInfo>),
 }
 
 impl RPCOperationGetValueA {
     pub fn decode(
         reader: &veilid_capnp::operation_get_value_a::Reader,
-        crypto: Crypto,
     ) -> Result<RPCOperationGetValueA, RPCError> {
         match reader.which().map_err(RPCError::protocol)? {
-            veilid_capnp::operation_get_value_a::Which::Data(r) => {
-                let data = decode_value_data(&r.map_err(RPCError::protocol)?)?;
+            veilid_capnp::operation_get_value_a::Which::Value(r) => {
+                let value_detail = decode_value_detail(&r.map_err(RPCError::protocol)?)?;
                 Ok(RPCOperationGetValueA::Data(data))
             }
             veilid_capnp::operation_get_value_a::Which::Peers(r) => {
@@ -51,7 +57,7 @@ impl RPCOperationGetValueA {
                         .map_err(RPCError::map_internal("too many peers"))?,
                 );
                 for p in peers_reader.iter() {
-                    let peer_info = decode_peer_info(&p, crypto.clone())?;
+                    let peer_info = decode_peer_info(&p)?;
                     peers.push(peer_info);
                 }
 

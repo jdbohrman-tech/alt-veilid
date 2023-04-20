@@ -3,9 +3,7 @@ mod record;
 mod record_data;
 mod record_store;
 mod record_store_limits;
-mod signed_value_data;
-mod signed_value_descriptor;
-mod value_detail;
+mod types;
 
 use keys::*;
 use record::*;
@@ -13,9 +11,7 @@ use record_data::*;
 use record_store::*;
 use record_store_limits::*;
 
-pub use signed_value_data::*;
-pub use signed_value_descriptor::*;
-pub use value_detail::*;
+pub use types::*;
 
 use super::*;
 use crate::rpc_processor::*;
@@ -174,14 +170,15 @@ impl StorageManager {
         &self,
         vcrypto: CryptoSystemVersion,
         record: Record,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> Result<TypedKey, VeilidAPIError> {
         // add value record to record store
         let mut inner = self.inner.lock();
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_generic!("not initialized");
         };
         let key = self.get_key(vcrypto.clone(), &record);
-        local_record_store.new_record(key, record).await
+        local_record_store.new_record(key, record).await?;
+        Ok(key)
     }
 
     pub async fn create_record(
@@ -202,22 +199,27 @@ impl StorageManager {
         let owner = vcrypto.generate_keypair();
 
         // Make a signed value descriptor for this dht value
-        let signed_value_descriptor = SignedValueDescriptor::new(owner.key, )
+        let signed_value_descriptor = SignedValueDescriptor::make_signature(
+            owner.key,
+            schema_data,
+            vcrypto.clone(),
+            owner.secret,
+        )?;
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
         let record = Record::new(
             cur_ts,
-            owner.key,
+            signed_value_descriptor,
             Some(owner.secret),
-            schema,
             safety_selection,
-        );
-        self.new_local_record(vcrypto.clone(), record)
+        )?;
+        let dht_key = self
+            .new_local_record(vcrypto, record)
             .await
             .map_err(VeilidAPIError::internal)?;
 
-        Ok(key)
+        Ok(dht_key)
     }
 
     pub async fn open_record(

@@ -40,7 +40,6 @@ pub enum RPCOperationSetValueA {
 impl RPCOperationSetValueA {
     pub fn decode(
         reader: &veilid_capnp::operation_set_value_a::Reader,
-        crypto: Crypto,
     ) -> Result<RPCOperationSetValueA, RPCError> {
         match reader.which().map_err(RPCError::protocol)? {
             veilid_capnp::operation_set_value_a::Which::Data(r) => {
@@ -56,7 +55,7 @@ impl RPCOperationSetValueA {
                         .map_err(RPCError::map_internal("too many peers"))?,
                 );
                 for p in peers_reader.iter() {
-                    let peer_info = decode_peer_info(&p, crypto.clone())?;
+                    let peer_info = decode_peer_info(&p)?;
                     peers.push(peer_info);
                 }
 

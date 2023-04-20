@@ -58,3 +58,5 @@ pub type TypedSignature = CryptoTyped<Signature>;
 
 pub type TypedKeySet = CryptoTypedSet<PublicKey>;
 pub type TypedSecretSet = CryptoTypedSet<SecretKey>;
+pub type TypedKeyPairSet = CryptoTypedSet<KeyPair>;
+pub type TypedSignatureSet = CryptoTypedSet<Signature>;

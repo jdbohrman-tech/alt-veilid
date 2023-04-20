@@ -341,8 +341,11 @@ impl RPCProcessor {
             let rh_reader = dec_blob_reader
                 .get_root::<veilid_capnp::route_hop::Reader>()
                 .map_err(RPCError::protocol)?;
-            decode_route_hop(&rh_reader, self.crypto.clone())?
+            decode_route_hop(&rh_reader)?
         };
+        
+        // Validate the RouteHop
+        route_hop.validate(self.crypto.clone()).map_err(RPCError::protocol)?;
 
         // Sign the operation if this is not our last hop
         // as the last hop is already signed by the envelope
@@ -422,8 +425,11 @@ impl RPCProcessor {
                         let pr_reader = dec_blob_reader
                             .get_root::<veilid_capnp::private_route::Reader>()
                             .map_err(RPCError::protocol)?;
-                        decode_private_route(&pr_reader, self.crypto.clone())?
+                        decode_private_route(&pr_reader)?
                     };
+                    
+                    // Validate the private route
+                    private_route.validate(self.crypto.clone()).map_err(RPCError::protocol)?;
 
                     // Switching from full safety route to private route first hop
                     network_result_try!(
@@ -440,8 +446,11 @@ impl RPCProcessor {
                         let rh_reader = dec_blob_reader
                             .get_root::<veilid_capnp::route_hop::Reader>()
                             .map_err(RPCError::protocol)?;
-                        decode_route_hop(&rh_reader, self.crypto.clone())?
+                        decode_route_hop(&rh_reader)?
                     };
+
+                    // Validate the route hop
+                    route_hop.validate(self.crypto.clone()).map_err(RPCError::protocol)?;
 
                     // Continue the full safety route with another hop
                     network_result_try!(

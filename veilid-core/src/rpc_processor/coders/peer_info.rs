@@ -7,12 +7,12 @@ pub fn encode_peer_info(
     //
     let mut nids_builder = builder.reborrow().init_node_ids(
         peer_info
-            .node_ids
+            .node_ids()
             .len()
             .try_into()
             .map_err(RPCError::map_invalid_format("out of bound error"))?,
     );
-    for (i, nid) in peer_info.node_ids.iter().enumerate() {
+    for (i, nid) in peer_info.node_ids().iter().enumerate() {
         encode_typed_key(
             nid,
             &mut nids_builder.reborrow().get(
@@ -22,15 +22,12 @@ pub fn encode_peer_info(
         );
     }
     let mut sni_builder = builder.reborrow().init_signed_node_info();
-    encode_signed_node_info(&peer_info.signed_node_info, &mut sni_builder)?;
+    encode_signed_node_info(peer_info.signed_node_info(), &mut sni_builder)?;
 
     Ok(())
 }
 
-pub fn decode_peer_info(
-    reader: &veilid_capnp::peer_info::Reader,
-    crypto: Crypto,
-) -> Result<PeerInfo, RPCError> {
+pub fn decode_peer_info(reader: &veilid_capnp::peer_info::Reader) -> Result<PeerInfo, RPCError> {
     let nids_reader = reader
         .reborrow()
         .get_node_ids()
@@ -43,7 +40,7 @@ pub fn decode_peer_info(
     for nid_reader in nids_reader.iter() {
         node_ids.add(decode_typed_key(&nid_reader)?);
     }
-    let signed_node_info = decode_signed_node_info(&sni_reader, crypto, &mut node_ids)?;
+    let signed_node_info = decode_signed_node_info(&sni_reader)?;
     if node_ids.len() == 0 {
         return Err(RPCError::protocol("no verified node ids"));
     }

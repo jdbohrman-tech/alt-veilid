@@ -171,11 +171,11 @@ impl RoutingTableInner {
         node_info: &NodeInfo,
     ) -> bool {
         // Should not be passing around nodeinfo with an invalid network class
-        if matches!(node_info.network_class, NetworkClass::Invalid) {
+        if matches!(node_info.network_class(), NetworkClass::Invalid) {
             return false;
         }
         // Ensure all of the dial info works in this routing domain
-        for did in &node_info.dial_info_detail_list {
+        for did in node_info.dial_info_detail_list() {
             if !self.ensure_dial_info_is_valid(routing_domain, &did.dial_info) {
                 return false;
             }
@@ -258,7 +258,7 @@ impl RoutingTableInner {
             } else {
                 Some(
                     rdd.common()
-                        .with_peer_info(self, |pi| pi.signed_node_info.timestamp()),
+                        .with_peer_info(self, |pi| pi.signed_node_info().timestamp()),
                 )
             }
         })
@@ -804,13 +804,16 @@ impl RoutingTableInner {
         allow_invalid: bool,
     ) -> Option<NodeRef> {
         // if our own node if is in the list then ignore it, as we don't add ourselves to our own routing table
-        if self.unlocked_inner.matches_own_node_id(&peer_info.node_ids) {
+        if self
+            .unlocked_inner
+            .matches_own_node_id(peer_info.node_ids())
+        {
             log_rtab!(debug "can't register own node id in routing table");
             return None;
         }
 
         // node can not be its own relay
-        let rids = peer_info.signed_node_info.relay_ids();
+        let rids = peer_info.signed_node_info().relay_ids();
         if self.unlocked_inner.matches_own_node_id(&rids) {
             log_rtab!(debug "node can not be its own relay");
             return None;
@@ -818,22 +821,22 @@ impl RoutingTableInner {
 
         if !allow_invalid {
             // verify signature
-            if !peer_info.signed_node_info.has_any_signature() {
-                log_rtab!(debug "signed node info for {:?} has invalid signature", &peer_info.node_ids);
+            if !peer_info.signed_node_info().has_any_signature() {
+                log_rtab!(debug "signed node info for {:?} has no valid signature", peer_info.node_ids());
                 return None;
             }
             // verify signed node info is valid in this routing domain
             if !self.signed_node_info_is_valid_in_routing_domain(
                 routing_domain,
-                &peer_info.signed_node_info,
+                peer_info.signed_node_info(),
             ) {
-                log_rtab!(debug "signed node info for {:?} not valid in the {:?} routing domain", peer_info.node_ids, routing_domain);
+                log_rtab!(debug "signed node info for {:?} not valid in the {:?} routing domain", peer_info.node_ids(), routing_domain);
                 return None;
             }
         }
 
-        self.create_node_ref(outer_self, &peer_info.node_ids, |_rti, e| {
-            e.update_signed_node_info(routing_domain, peer_info.signed_node_info);
+        self.create_node_ref(outer_self, peer_info.node_ids(), |_rti, e| {
+            e.update_signed_node_info(routing_domain, peer_info.into_signed_node_info());
         })
         .map(|mut nr| {
             nr.set_filter(Some(

@@ -4,11 +4,11 @@ use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedRelayedNodeInfo {
-    pub node_info: NodeInfo,
-    pub relay_ids: TypedKeySet,
-    pub relay_info: SignedDirectNodeInfo,
-    pub timestamp: Timestamp,
-    pub signatures: Vec<TypedSignature>,
+    node_info: NodeInfo,
+    relay_ids: TypedKeySet,
+    relay_info: SignedDirectNodeInfo,
+    timestamp: Timestamp,
+    signatures: Vec<TypedSignature>,
 }
 
 impl SignedRelayedNodeInfo {
@@ -16,30 +16,50 @@ impl SignedRelayedNodeInfo {
     /// On success, this will modify the node_ids set to only include node_ids whose signatures validate.
     /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
-        crypto: Crypto,
-        node_ids: &mut TypedKeySet,
         node_info: NodeInfo,
         relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
         timestamp: Timestamp,
-        typed_signatures: Vec<TypedSignature>,
-    ) -> Result<Self, VeilidAPIError> {
-        let node_info_bytes =
-            Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
-        let validated_node_ids =
-            crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
-        *node_ids = validated_node_ids;
-        if node_ids.len() == 0 {
-            apibail_generic!("no valid node ids in relayed node info");
-        }
-
-        Ok(Self {
+        signatures: Vec<TypedSignature>,
+    ) -> Self {
+        Self {
             node_info,
             relay_ids,
             relay_info,
             timestamp,
-            signatures: typed_signatures,
-        })
+            signatures,
+        }
+    }
+
+    pub fn validate(
+        &self,
+        node_ids: &TypedKeySet,
+        crypto: Crypto,
+    ) -> Result<TypedKeySet, VeilidAPIError> {
+        // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
+        if common_crypto_kinds(
+            self.node_info.crypto_support(),
+            self.relay_info.node_info().crypto_support(),
+        )
+        .len()
+            != self.node_info.crypto_support().len()
+        {
+            apibail_generic!("relay should have superset of node crypto kinds");
+        }
+
+        // Verify signatures
+        let node_info_bytes = Self::make_signature_bytes(
+            &self.node_info,
+            &self.relay_ids,
+            &self.relay_info,
+            self.timestamp,
+        )?;
+        let validated_node_ids =
+            crypto.verify_signatures(node_ids, &node_info_bytes, &self.signatures)?;
+        if validated_node_ids.len() == 0 {
+            apibail_generic!("no valid node ids in relayed node info");
+        }
+        Ok(validated_node_ids)
     }
 
     pub fn make_signatures(
@@ -102,5 +122,21 @@ impl SignedRelayedNodeInfo {
 
     pub fn has_any_signature(&self) -> bool {
         !self.signatures.is_empty()
+    }
+
+    pub fn node_info(&self) -> &NodeInfo {
+        &self.node_info
+    }
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
+    }
+    pub fn relay_ids(&self) -> &TypedKeySet {
+        &self.relay_ids
+    }
+    pub fn relay_info(&self) -> &SignedDirectNodeInfo {
+        &self.relay_info
+    }
+    pub fn signatures(&self) -> &[TypedSignature] {
+        &self.signatures
     }
 }

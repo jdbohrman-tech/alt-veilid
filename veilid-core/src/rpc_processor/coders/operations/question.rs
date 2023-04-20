@@ -10,6 +10,10 @@ impl RPCQuestion {
     pub fn new(respond_to: RespondTo, detail: RPCQuestionDetail) -> Self {
         Self { respond_to, detail }
     }
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+        self.respond_to.validate(crypto.clone())?;
+        self.detail.validate(crypto)
+    }
     pub fn respond_to(&self) -> &RespondTo {
         &self.respond_to
     }
@@ -19,12 +23,9 @@ impl RPCQuestion {
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
-    pub fn decode(
-        reader: &veilid_capnp::question::Reader,
-        crypto: Crypto,
-    ) -> Result<RPCQuestion, RPCError> {
+    pub fn decode(reader: &veilid_capnp::question::Reader) -> Result<RPCQuestion, RPCError> {
         let rt_reader = reader.get_respond_to();
-        let respond_to = RespondTo::decode(&rt_reader, crypto)?;
+        let respond_to = RespondTo::decode(&rt_reader)?;
         let d_reader = reader.get_detail();
         let detail = RPCQuestionDetail::decode(&d_reader)?;
         Ok(RPCQuestion { respond_to, detail })
@@ -66,6 +67,21 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::StartTunnelQ(_) => "StartTunnelQ",
             RPCQuestionDetail::CompleteTunnelQ(_) => "CompleteTunnelQ",
             RPCQuestionDetail::CancelTunnelQ(_) => "CancelTunnelQ",
+        }
+    }
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+        match self {
+            RPCQuestionDetail::StatusQ(r) => r.validate(crypto),
+            RPCQuestionDetail::FindNodeQ(r) => r.validate(crypto),
+            RPCQuestionDetail::AppCallQ(r) => r.validate(crypto),
+            RPCQuestionDetail::GetValueQ(r) => r.validate(crypto),
+            RPCQuestionDetail::SetValueQ(r) => r.validate(crypto),
+            RPCQuestionDetail::WatchValueQ(r) => r.validate(crypto),
+            RPCQuestionDetail::SupplyBlockQ(r) => r.validate(crypto),
+            RPCQuestionDetail::FindBlockQ(r) => r.validate(crypto),
+            RPCQuestionDetail::StartTunnelQ(r) => r.validate(crypto),
+            RPCQuestionDetail::CompleteTunnelQ(r) => r.validate(crypto),
+            RPCQuestionDetail::CancelTunnelQ(r) => r.validate(crypto),
         }
     }
 

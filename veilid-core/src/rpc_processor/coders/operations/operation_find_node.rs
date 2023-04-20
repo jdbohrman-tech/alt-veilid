@@ -6,6 +6,9 @@ pub struct RPCOperationFindNodeQ {
 }
 
 impl RPCOperationFindNodeQ {
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+        Ok(())
+    }
     pub fn decode(
         reader: &veilid_capnp::operation_find_node_q::Reader,
     ) -> Result<RPCOperationFindNodeQ, RPCError> {
@@ -29,9 +32,14 @@ pub struct RPCOperationFindNodeA {
 }
 
 impl RPCOperationFindNodeA {
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+        for pi in &self.peers {
+            pi.validate(crypto.clone()).map_err(RPCError::protocol)?;
+        }
+        Ok(())
+    }
     pub fn decode(
         reader: &veilid_capnp::operation_find_node_a::Reader,
-        crypto: Crypto,
     ) -> Result<RPCOperationFindNodeA, RPCError> {
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
         let mut peers = Vec::<PeerInfo>::with_capacity(
@@ -41,7 +49,7 @@ impl RPCOperationFindNodeA {
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p, crypto.clone())?;
+            let peer_info = decode_peer_info(&p)?;
             peers.push(peer_info);
         }
 

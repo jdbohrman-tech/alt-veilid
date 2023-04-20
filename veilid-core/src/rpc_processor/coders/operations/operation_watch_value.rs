@@ -80,7 +80,6 @@ pub struct RPCOperationWatchValueA {
 impl RPCOperationWatchValueA {
     pub fn decode(
         reader: &veilid_capnp::operation_watch_value_a::Reader,
-        crypto: Crypto,
     ) -> Result<RPCOperationWatchValueA, RPCError> {
         let expiration = reader.get_expiration();
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
@@ -91,7 +90,7 @@ impl RPCOperationWatchValueA {
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p, crypto.clone())?;
+            let peer_info = decode_peer_info(&p)?;
             peers.push(peer_info);
         }
 

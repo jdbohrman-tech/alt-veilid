@@ -16,7 +16,7 @@ pub fn encode_signed_value_data(
 
 pub fn decode_signed_value_data(
     reader: &veilid_capnp::signed_value_data::Reader,
-) -> Result<ValueData, RPCError> {
+) -> Result<SignedValueData, RPCError> {
     let seq = reader.get_seq();
     let data = reader.get_data().map_err(RPCError::protocol)?.to_vec();
     let wr = reader.get_writer().map_err(RPCError::protocol)?;
@@ -24,8 +24,8 @@ pub fn decode_signed_value_data(
     let sr = reader.get_signature().map_err(RPCError::protocol)?;
     let signature = decode_signature512(&sr);
 
-    Ok(SignedValueData {
-        value_data: ValueData { seq, data, writer },
+    Ok(SignedValueData::new(
+        ValueData::new_with_seq(seq, data, writer),
         signature,
-    })
+    ))
 }

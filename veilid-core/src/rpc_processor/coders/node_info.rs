@@ -4,27 +4,27 @@ pub fn encode_node_info(
     node_info: &NodeInfo,
     builder: &mut veilid_capnp::node_info::Builder,
 ) -> Result<(), RPCError> {
-    builder.set_network_class(encode_network_class(node_info.network_class));
+    builder.set_network_class(encode_network_class(node_info.network_class()));
 
     let mut ps_builder = builder.reborrow().init_outbound_protocols();
-    encode_protocol_type_set(&node_info.outbound_protocols, &mut ps_builder)?;
+    encode_protocol_type_set(&node_info.outbound_protocols(), &mut ps_builder)?;
 
     let mut ats_builder = builder.reborrow().init_address_types();
-    encode_address_type_set(&node_info.address_types, &mut ats_builder)?;
+    encode_address_type_set(&node_info.address_types(), &mut ats_builder)?;
 
     let mut es_builder = builder
         .reborrow()
-        .init_envelope_support(node_info.envelope_support.len() as u32);
+        .init_envelope_support(node_info.envelope_support().len() as u32);
     if let Some(s) = es_builder.as_slice() {
-        s.clone_from_slice(&node_info.envelope_support);
+        s.clone_from_slice(&node_info.envelope_support());
     }
 
     let mut cs_builder = builder
         .reborrow()
-        .init_crypto_support(node_info.crypto_support.len() as u32);
+        .init_crypto_support(node_info.crypto_support().len() as u32);
     if let Some(s) = cs_builder.as_slice() {
         let csvec: Vec<u32> = node_info
-            .crypto_support
+            .crypto_support()
             .iter()
             .map(|x| u32::from_be_bytes(x.0))
             .collect();
@@ -33,7 +33,7 @@ pub fn encode_node_info(
 
     let mut didl_builder = builder.reborrow().init_dial_info_detail_list(
         node_info
-            .dial_info_detail_list
+            .dial_info_detail_list()
             .len()
             .try_into()
             .map_err(RPCError::map_protocol(
@@ -41,9 +41,9 @@ pub fn encode_node_info(
             ))?,
     );
 
-    for idx in 0..node_info.dial_info_detail_list.len() {
+    for idx in 0..node_info.dial_info_detail_list().len() {
         let mut did_builder = didl_builder.reborrow().get(idx as u32);
-        encode_dial_info_detail(&node_info.dial_info_detail_list[idx], &mut did_builder)?;
+        encode_dial_info_detail(&node_info.dial_info_detail_list()[idx], &mut did_builder)?;
     }
 
     Ok(())
@@ -131,12 +131,12 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
         dial_info_detail_list.push(decode_dial_info_detail(&did)?)
     }
 
-    Ok(NodeInfo {
+    Ok(NodeInfo::new(
         network_class,
         outbound_protocols,
         address_types,
         envelope_support,
         crypto_support,
         dial_info_detail_list,
-    })
+    ))
 }

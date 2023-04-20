@@ -792,8 +792,8 @@ impl RoutingTable {
                 e.with(rti, |_rti, e| {
                     if let Some(ni) = e.node_info(routing_domain) {
                         let dif = DialInfoFilter::all()
-                            .with_protocol_type_set(ni.outbound_protocols)
-                            .with_address_type_set(ni.address_types);
+                            .with_protocol_type_set(ni.outbound_protocols())
+                            .with_address_type_set(ni.address_types());
                         if dial_info.matches_filter(&dif) {
                             return true;
                         }
@@ -851,7 +851,7 @@ impl RoutingTable {
                     // does it have some dial info we need?
                     let filter = |n: &NodeInfo| {
                         let mut keep = false;
-                        for did in &n.dial_info_detail_list {
+                        for did in n.dial_info_detail_list() {
                             if matches!(did.dial_info.address_type(), AddressType::IPV4) {
                                 for (n, protocol_type) in protocol_types.iter().enumerate() {
                                     if nodes_proto_v4[n] < max_per_type
@@ -974,12 +974,12 @@ impl RoutingTable {
         let mut out = Vec::<NodeRef>::with_capacity(peers.len());
         for p in peers {
             // Ensure we're getting back nodes we asked for
-            if !p.node_ids.kinds().contains(&crypto_kind) {
+            if !p.node_ids().kinds().contains(&crypto_kind) {
                 continue;
             }
 
             // Don't register our own node
-            if self.matches_own_node_id(&p.node_ids) {
+            if self.matches_own_node_id(p.node_ids()) {
                 continue;
             }
 

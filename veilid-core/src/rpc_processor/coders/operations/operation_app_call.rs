@@ -6,6 +6,10 @@ pub struct RPCOperationAppCallQ {
 }
 
 impl RPCOperationAppCallQ {
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+     xxx length should be checked in decode verify this
+        Ok(())
+    }
     pub fn decode(
         reader: &veilid_capnp::operation_app_call_q::Reader,
     ) -> Result<RPCOperationAppCallQ, RPCError> {

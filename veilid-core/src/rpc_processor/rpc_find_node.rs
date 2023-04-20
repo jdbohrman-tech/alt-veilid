@@ -52,7 +52,7 @@ impl RPCProcessor {
 
         // Verify peers are in the correct peer scope
         for peer_info in &find_node_a.peers {
-            if !self.filter_node_info(RoutingDomain::PublicInternet, &peer_info.signed_node_info) {
+            if !self.filter_node_info(RoutingDomain::PublicInternet, peer_info.signed_node_info()) {
                 return Err(RPCError::invalid_format(
                     "find_node response has invalid peer scope",
                 ));

@@ -463,7 +463,7 @@ impl NetworkManager {
                     will_validate_dial_info: false,
                 };  
             };
-        let own_node_info = own_peer_info.signed_node_info.node_info();
+        let own_node_info = own_peer_info.signed_node_info().node_info();
 
         let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
         let will_tunnel = own_node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
@@ -490,7 +490,7 @@ impl NetworkManager {
                 };  
             };
 
-        let own_node_info = own_peer_info.signed_node_info.node_info();
+        let own_node_info = own_peer_info.signed_node_info().node_info();
 
         let will_relay = own_node_info.can_inbound_relay();
         let will_validate_dial_info = own_node_info.can_validate_dial_info();

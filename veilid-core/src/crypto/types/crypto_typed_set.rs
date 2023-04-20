@@ -282,6 +282,28 @@ where
         tks
     }
 }
+impl<K> From<&[CryptoTyped<K>]> for CryptoTypedSet<K>
+where
+    K: Clone
+        + Copy
+        + fmt::Debug
+        + fmt::Display
+        + FromStr
+        + PartialEq
+        + Eq
+        + PartialOrd
+        + Ord
+        + Hash
+        + RkyvArchive
+        + Encodable,
+    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
+{
+    fn from(x: &[CryptoTyped<K>]) -> Self {
+        let mut tks = CryptoTypedSet::<K>::with_capacity(x.len());
+        tks.add_all(x);
+        tks
+    }
+}
 impl<K> Into<Vec<CryptoTyped<K>>> for CryptoTypedSet<K>
 where
     K: Clone

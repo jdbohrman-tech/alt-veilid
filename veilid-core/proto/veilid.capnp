@@ -367,7 +367,7 @@ struct OperationSetValueQ @0xbac06191ff8bdbc5 {
 struct OperationSetValueA @0x9378d0732dc95be2 {
     union {
         schemaError         @0  :Void;                  # Either the schema is not available at the node, or the data does not match the schema that is there
-        value               @1  :ValueDetail;                 # the new value if successful, may be a different value than what was set if the seq number was lower or equal
+        value               @1  :ValueDetail;           # the new value if successful, may be a different value than what was set if the seq number was lower or equal
         peers               @2  :List(PeerInfo);        # returned 'closer peer' information if this node is refusing to store the key
     }
 }

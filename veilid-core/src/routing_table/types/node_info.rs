@@ -1,19 +1,58 @@
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Clone, Default, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct NodeInfo {
-    pub network_class: NetworkClass,
+    network_class: NetworkClass,
     #[with(RkyvEnumSet)]
-    pub outbound_protocols: ProtocolTypeSet,
+    outbound_protocols: ProtocolTypeSet,
     #[with(RkyvEnumSet)]
-    pub address_types: AddressTypeSet,
-    pub envelope_support: Vec<u8>,
-    pub crypto_support: Vec<CryptoKind>,
-    pub dial_info_detail_list: Vec<DialInfoDetail>,
+    address_types: AddressTypeSet,
+    envelope_support: Vec<u8>,
+    crypto_support: Vec<CryptoKind>,
+    dial_info_detail_list: Vec<DialInfoDetail>,
 }
 
 impl NodeInfo {
+    pub fn new(
+        network_class: NetworkClass,
+        outbound_protocols: ProtocolTypeSet,
+        address_types: AddressTypeSet,
+        envelope_support: Vec<u8>,
+        crypto_support: Vec<CryptoKind>,
+        dial_info_detail_list: Vec<DialInfoDetail>,
+    ) -> Self {
+        Self {
+            network_class,
+            outbound_protocols,
+            address_types,
+            envelope_support,
+            crypto_support,
+            dial_info_detail_list,
+        }
+    }
+
+    pub fn network_class(&self) -> NetworkClass {
+        self.network_class
+    }
+    pub fn outbound_protocols(&self) -> ProtocolTypeSet {
+        self.outbound_protocols
+    }
+    pub fn address_types(&self) -> AddressTypeSet {
+        self.address_types
+    }
+    pub fn envelope_support(&self) -> &[u8] {
+        &self.envelope_support
+    }
+    pub fn crypto_support(&self) -> &[CryptoKind] {
+        &self.crypto_support
+    }
+    pub fn dial_info_detail_list(&self) -> &[DialInfoDetail] {
+        &self.dial_info_detail_list
+    }
+
     pub fn first_filtered_dial_info_detail<S, F>(
         &self,
         sort: Option<S>,

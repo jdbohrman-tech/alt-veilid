@@ -7,7 +7,7 @@ pub fn encode_signed_value_descriptor(
 ) -> Result<(), RPCError> {
     let mut ob = builder.reborrow().init_owner();
     encode_key256(signed_value_descriptor.owner(), &mut ob);
-    builder.set_data(signed_value_descriptor.data());
+    builder.set_schema_data(signed_value_descriptor.schema_data());
     let mut sb = builder.reborrow().init_signature();
     encode_signature512(signed_value_descriptor.signature(), &mut sb);
     Ok(())
@@ -15,12 +15,14 @@ pub fn encode_signed_value_descriptor(
 
 pub fn decode_signed_value_descriptor(
     reader: &veilid_capnp::signed_value_descriptor::Reader,
-    vcrypto: CryptoSystemVersion,
 ) -> Result<SignedValueDescriptor, RPCError> {
     let or = reader.get_owner().map_err(RPCError::protocol)?;
     let owner = decode_key256(&or);
-    let data = reader.get_data().map_err(RPCError::protocol)?.to_vec();
+    let schema_data = reader
+        .get_schema_data()
+        .map_err(RPCError::protocol)?
+        .to_vec();
     let sr = reader.get_signature().map_err(RPCError::protocol)?;
     let signature = decode_signature512(&sr);
-    Ok(SignedValueDescriptor::new(owner, data, signature, vcrypto).map_err(RPCError::protocol)?)
+    Ok(SignedValueDescriptor::new(owner, schema_data, signature))
 }

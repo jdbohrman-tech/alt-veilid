@@ -4,36 +4,37 @@ use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedDirectNodeInfo {
-    pub node_info: NodeInfo,
-    pub timestamp: Timestamp,
-    pub signatures: Vec<TypedSignature>,
+    node_info: NodeInfo,
+    timestamp: Timestamp,
+    signatures: Vec<TypedSignature>,
 }
 impl SignedDirectNodeInfo {
     /// Returns a new SignedDirectNodeInfo that has its signatures validated.
     /// On success, this will modify the node_ids set to only include node_ids whose signatures validate.
     /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
-    pub fn new(
+    pub fn new(node_info: NodeInfo, timestamp: Timestamp, signatures: Vec<TypedSignature>) -> Self {
+        Self {
+            node_info,
+            timestamp,
+            signatures,
+        }
+    }
+
+    pub fn validate(
+        &self,
+        node_ids: &TypedKeySet,
         crypto: Crypto,
-        node_ids: &mut TypedKeySet,
-        node_info: NodeInfo,
-        timestamp: Timestamp,
-        typed_signatures: Vec<TypedSignature>,
-    ) -> Result<Self, VeilidAPIError> {
-        let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
+    ) -> Result<TypedKeySet, VeilidAPIError> {
+        let node_info_bytes = Self::make_signature_bytes(&self.node_info, self.timestamp)?;
 
         // Verify the signatures that we can
         let validated_node_ids =
-            crypto.verify_signatures(node_ids, &node_info_bytes, &typed_signatures)?;
-        *node_ids = validated_node_ids;
-        if node_ids.len() == 0 {
+            crypto.verify_signatures(node_ids, &node_info_bytes, &self.signatures)?;
+        if validated_node_ids.len() == 0 {
             apibail_generic!("no valid node ids in direct node info");
         }
 
-        Ok(Self {
-            node_info,
-            timestamp,
-            signatures: typed_signatures,
-        })
+        Ok(validated_node_ids)
     }
 
     pub fn make_signatures(
@@ -82,5 +83,15 @@ impl SignedDirectNodeInfo {
 
     pub fn has_any_signature(&self) -> bool {
         !self.signatures.is_empty()
+    }
+
+    pub fn node_info(&self) -> &NodeInfo {
+        &self.node_info
+    }
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
+    }
+    pub fn signatures(&self) -> &[TypedSignature] {
+        &self.signatures
     }
 }
