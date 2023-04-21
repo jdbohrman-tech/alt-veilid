@@ -26,14 +26,14 @@ impl RPCProcessor {
             ));
         }
 
-        let find_node_q_detail = RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ { node_id });
+        let find_node_q_detail = RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ::new(node_id));
         let find_node_q = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             find_node_q_detail,
         );
 
         // Send the find_node request
-        let waitable_reply = network_result_try!(self.question(dest, find_node_q).await?);
+        let waitable_reply = network_result_try!(self.question(dest, find_node_q, None).await?);
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
@@ -42,8 +42,9 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let find_node_a = match msg.operation.into_kind() {
-            RPCOperationKind::Answer(a) => match a.into_detail() {
+        let (_, _, _, kind) = msg.operation.destructure();
+        let find_node_a = match kind {
+            RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::FindNodeA(a) => a,
                 _ => return Err(RPCError::invalid_format("not a find_node answer")),
             },
@@ -51,7 +52,7 @@ impl RPCProcessor {
         };
 
         // Verify peers are in the correct peer scope
-        for peer_info in &find_node_a.peers {
+        for peer_info in find_node_a.peers() {
             if !self.filter_node_info(RoutingDomain::PublicInternet, peer_info.signed_node_info()) {
                 return Err(RPCError::invalid_format(
                     "find_node response has invalid peer scope",
@@ -59,10 +60,8 @@ impl RPCProcessor {
             }
         }
 
-        Ok(NetworkResult::value(Answer::new(
-            latency,
-            find_node_a.peers,
-        )))
+        let peers = find_node_a.destructure();
+        Ok(NetworkResult::value(Answer::new(latency, peers)))
     }
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
@@ -81,9 +80,10 @@ impl RPCProcessor {
         }
 
         // Get the question
-        let find_node_q = match msg.operation.kind() {
-            RPCOperationKind::Question(q) => match q.detail() {
-                RPCQuestionDetail::FindNodeQ(q) => q,
+        let kind = msg.operation.kind().clone();
+        let find_node_q = match kind {
+            RPCOperationKind::Question(q) => match q.destructure() {
+                (_, RPCQuestionDetail::FindNodeQ(q)) => q,
                 _ => panic!("not a status question"),
             },
             _ => panic!("not a question"),
@@ -114,9 +114,10 @@ impl RPCProcessor {
             c.network.dht.max_find_node_count as usize
         };
 
+        let node_id = find_node_q.destructure();
         let closest_nodes = routing_table.find_closest_nodes(
             node_count,
-            find_node_q.node_id,
+            node_id,
             filters,
             // transform
             |rti, entry| {
@@ -125,9 +126,7 @@ impl RPCProcessor {
         );
 
         // Make status answer
-        let find_node_a = RPCOperationFindNodeA {
-            peers: closest_nodes,
-        };
+        let find_node_a = RPCOperationFindNodeA::new(closest_nodes)?;
 
         // Send status answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))

@@ -14,6 +14,19 @@ pub struct VeilidAppMessage {
     pub message: Vec<u8>,
 }
 
+impl VeilidAppMessage {
+    pub fn new(sender: Option<PublicKey>, message: Vec<u8>) -> Self {
+        Self { sender, message }
+    }
+
+    pub fn sender(&self) -> Option<&PublicKey> {
+        self.sender.as_ref()
+    }
+    pub fn message(&self) -> &[u8] {
+        &self.message
+    }
+}
+
 /// Direct question blob passed to hosting application for processing to send an eventual AppReply
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
@@ -22,11 +35,31 @@ pub struct VeilidAppMessage {
 pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    pub sender: Option<PublicKey>,
+    sender: Option<PublicKey>,
     /// The content of the request to deliver to the application
     #[serde(with = "json_as_base64")]
-    pub message: Vec<u8>,
+    message: Vec<u8>,
     /// The id to reply to
     #[serde(with = "json_as_string")]
-    pub id: OperationId,
+    id: OperationId,
+}
+
+impl VeilidAppCall {
+    pub fn new(sender: Option<PublicKey>, message: Vec<u8>, id: OperationId) -> Self {
+        Self {
+            sender,
+            message,
+            id,
+        }
+    }
+
+    pub fn sender(&self) -> Option<&PublicKey> {
+        self.sender.as_ref()
+    }
+    pub fn message(&self) -> &[u8] {
+        &self.message
+    }
+    pub fn id(&self) -> OperationId {
+        self.id
+    }
 }

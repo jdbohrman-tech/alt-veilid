@@ -26,8 +26,9 @@ impl RPCProcessor {
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get the statement
-        let RPCOperationReturnReceipt { receipt } = match msg.operation.into_kind() {
-            RPCOperationKind::Statement(s) => match s.into_detail() {
+        let (_, _, _, kind) = msg.operation.destructure();
+        let RPCOperationReturnReceipt { receipt } = match kind {
+            RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::ReturnReceipt(s) => s,
                 _ => panic!("not a return receipt"),
             },

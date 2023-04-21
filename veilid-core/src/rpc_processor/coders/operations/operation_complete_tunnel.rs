@@ -2,13 +2,24 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationCompleteTunnelQ {
-    pub id: TunnelId,
-    pub local_mode: TunnelMode,
-    pub depth: u8,
-    pub endpoint: TunnelEndpoint,
+    id: TunnelId,
+    local_mode: TunnelMode,
+    depth: u8,
+    endpoint: TunnelEndpoint,
 }
 
 impl RPCOperationCompleteTunnelQ {
+    pub fn new(id: TunnelId, local_mode: TunnelMode, depth: u8, endpoint: TunnelEndpoint) -> Self {
+        Self {
+            id,
+            local_mode,
+            depth,
+            endpoint,
+        }
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        Ok(())
+    }
     pub fn decode(
         reader: &veilid_capnp::operation_complete_tunnel_q::Reader,
     ) -> Result<RPCOperationCompleteTunnelQ, RPCError> {
@@ -43,6 +54,23 @@ impl RPCOperationCompleteTunnelQ {
 
         Ok(())
     }
+    pub fn id(&self) -> TunnelId {
+        self.id
+    }
+
+    pub fn local_mode(&self) -> TunnelMode {
+        self.local_mode
+    }
+    pub fn depth(&self) -> u8 {
+        self.depth
+    }
+    pub fn endpoint(&self) -> &TunnelEndpoint {
+        &self.endpoint
+    }
+
+    pub fn destructure(self) -> (TunnelId, TunnelMode, u8, TunnelEndpoint) {
+        (self.id, self.local_mode, self.depth, self.endpoint)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +80,16 @@ pub enum RPCOperationCompleteTunnelA {
 }
 
 impl RPCOperationCompleteTunnelA {
+    pub fn new_tunnel(tunnel: FullTunnel) -> Self {
+        Self::Tunnel(tunnel)
+    }
+    pub fn new_error(error: TunnelError) -> Self {
+        Self::Error(error)
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        Ok(())
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_complete_tunnel_a::Reader,
     ) -> Result<RPCOperationCompleteTunnelA, RPCError> {

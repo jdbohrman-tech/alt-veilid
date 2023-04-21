@@ -835,8 +835,9 @@ impl RoutingTableInner {
             }
         }
 
-        self.create_node_ref(outer_self, peer_info.node_ids(), |_rti, e| {
-            e.update_signed_node_info(routing_domain, peer_info.into_signed_node_info());
+        let (node_ids, signed_node_info) = peer_info.destructure();
+        self.create_node_ref(outer_self, &node_ids, |_rti, e| {
+            e.update_signed_node_info(routing_domain, signed_node_info);
         })
         .map(|mut nr| {
             nr.set_filter(Some(

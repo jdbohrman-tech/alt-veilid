@@ -377,8 +377,9 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let mut route = match msg.operation.into_kind() {
-            RPCOperationKind::Statement(s) => match s.into_detail() {
+        let (_,_,_,kind) = msg.operation.destructure();
+        let mut route = match kind {
+            RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::Route(s) => s,
                 _ => panic!("not a route statement"),
             },

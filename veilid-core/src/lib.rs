@@ -30,7 +30,6 @@ mod routing_table;
 mod rpc_processor;
 mod storage_manager;
 mod veilid_api;
-#[macro_use]
 mod veilid_config;
 mod veilid_layer_filter;
 
@@ -40,6 +39,13 @@ pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;
 pub use veilid_tools as tools;
+
+use enumset::*;
+use rkyv::{
+    bytecheck, bytecheck::CheckBytes, Archive as RkyvArchive, Deserialize as RkyvDeserialize,
+    Serialize as RkyvSerialize,
+};
+use serde::*;
 
 pub mod veilid_capnp {
     include!(concat!(env!("OUT_DIR"), "/proto/veilid_capnp.rs"));

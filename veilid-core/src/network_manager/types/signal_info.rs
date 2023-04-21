@@ -20,3 +20,32 @@ pub enum SignalInfo {
     },
     // XXX: WebRTC
 }
+
+impl SignalInfo {
+    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+        match self {
+            SignalInfo::HolePunch { receipt, peer_info } => {
+                if receipt.len() < MIN_RECEIPT_SIZE {
+                    return Err(RPCError::protocol("SignalInfo HolePunch receipt too short"));
+                }
+                if receipt.len() > MAX_RECEIPT_SIZE {
+                    return Err(RPCError::protocol("SignalInfo HolePunch receipt too long"));
+                }
+                peer_info.validate(crypto).map_err(RPCError::protocol)
+            }
+            SignalInfo::ReverseConnect { receipt, peer_info } => {
+                if receipt.len() < MIN_RECEIPT_SIZE {
+                    return Err(RPCError::protocol(
+                        "SignalInfo ReverseConnect receipt too short",
+                    ));
+                }
+                if receipt.len() > MAX_RECEIPT_SIZE {
+                    return Err(RPCError::protocol(
+                        "SignalInfo ReverseConnect receipt too long",
+                    ));
+                }
+                peer_info.validate(crypto).map_err(RPCError::protocol)
+            }
+        }
+    }
+}

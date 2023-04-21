@@ -57,3 +57,19 @@ pub use typed_signature::*;
 pub use value_detail::*;
 
 use super::*;
+
+#[derive(Debug, Clone)]
+pub struct DecodeContext {
+    config: VeilidConfig,
+}
+
+#[derive(Debug, Clone)]
+pub enum QuestionContext {
+    GetValue(ValidateGetValueContext),
+}
+
+#[derive(Clone)]
+pub struct RPCValidateContext {
+    crypto: Crypto,
+    question_context: Option<QuestionContext>,
+}

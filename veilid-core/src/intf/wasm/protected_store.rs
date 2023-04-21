@@ -1,6 +1,9 @@
 use crate::*;
 use data_encoding::BASE64URL_NOPAD;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use rkyv::{
+    bytecheck::CheckBytes, Archive as RkyvArchive, Deserialize as RkyvDeserialize,
+    Serialize as RkyvSerialize,
+};
 
 use web_sys::*;
 
@@ -155,7 +158,7 @@ impl ProtectedStore {
         K: AsRef<str> + fmt::Debug,
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
-            for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+            for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived:
             RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {

@@ -75,7 +75,8 @@ impl RPCProcessor {
         );
 
         // Send the info request
-        let waitable_reply = network_result_try!(self.question(dest.clone(), question).await?);
+        let waitable_reply =
+            network_result_try!(self.question(dest.clone(), question, None).await?);
 
         // Note what kind of ping this was and to what peer scope
         let send_data_kind = waitable_reply.send_data_kind;

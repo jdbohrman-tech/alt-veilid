@@ -25,13 +25,7 @@ impl RouteNode {
     pub fn validate(&self, crypto: Crypto) -> Result<(), VeilidAPIError> {
         match self {
             RouteNode::NodeId(_) => Ok(()),
-            RouteNode::PeerInfo(pi) => {
-                let validated_node_ids = pi.validate(crypto)?;
-                if validated_node_ids.is_empty() {
-                    apibail_generic!("no validated node ids for route node");
-                }
-                Ok(())
-            }
+            RouteNode::PeerInfo(pi) => pi.validate(crypto),
         }
     }
 

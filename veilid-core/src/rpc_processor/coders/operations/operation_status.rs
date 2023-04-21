@@ -6,7 +6,7 @@ pub struct RPCOperationStatusQ {
 }
 
 impl RPCOperationStatusQ {
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
 
@@ -41,7 +41,7 @@ pub struct RPCOperationStatusA {
 }
 
 impl RPCOperationStatusA {
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
     pub fn decode(

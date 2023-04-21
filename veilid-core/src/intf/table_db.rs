@@ -1,5 +1,8 @@
 use crate::*;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use rkyv::{
+    bytecheck::CheckBytes, Archive as RkyvArchive, Deserialize as RkyvDeserialize,
+    Serialize as RkyvSerialize,
+};
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -127,7 +130,7 @@ impl TableDB {
     where
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
-            for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+            for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived:
             RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
     {

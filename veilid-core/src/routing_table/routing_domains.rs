@@ -117,7 +117,7 @@ impl RoutingDomainDetailCommon {
             .and_then(|rn| {
                 let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
                 if let Some(relay_pi) = opt_relay_pi {
-                    let (relay_ids, relay_sni) = relay_pi.into_fields();
+                    let (relay_ids, relay_sni) = relay_pi.destructure();
                     match relay_sni {
                         SignedNodeInfo::Direct(d) => Some((relay_ids, d)), 
                         SignedNodeInfo::Relayed(_) => {

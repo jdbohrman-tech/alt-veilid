@@ -149,7 +149,7 @@ where
 
 #[derive(Debug)]
 struct WaitableReply {
-    handle: OperationWaitHandle<RPCMessage>,
+    handle: OperationWaitHandle<RPCMessage, Option<QuestionContext>>,
     timeout_us: TimestampDuration,
     node_ref: NodeRef,
     send_ts: Timestamp,
@@ -235,8 +235,8 @@ pub struct RPCProcessorUnlockedInner {
     max_route_hop_count: usize,
     validate_dial_info_receipt_time_ms: u32,
     update_callback: UpdateCallback,
-    waiting_rpc_table: OperationWaiter<RPCMessage>,
-    waiting_app_call_table: OperationWaiter<Vec<u8>>,
+    waiting_rpc_table: OperationWaiter<RPCMessage, Option<QuestionContext>>,
+    waiting_app_call_table: OperationWaiter<Vec<u8>, ()>,
 }
 
 #[derive(Clone)]
@@ -998,11 +998,13 @@ impl RPCProcessor {
     }
 
     /// Issue a question over the network, possibly using an anonymized route
+    /// Optionally keeps a context to be passed to the answer processor when an answer is received
     #[instrument(level = "debug", skip(self, question), err)]
     async fn question(
         &self,
         dest: Destination,
         question: RPCQuestion,
+        context: Option<QuestionContext>,
     ) -> Result<NetworkResult<WaitableReply>, RPCError> {
         // Get sender peer info if we should send that
         let spi = self.get_sender_peer_info(&dest);
@@ -1030,7 +1032,10 @@ impl RPCProcessor {
         let timeout_us = self.unlocked_inner.timeout_us * (hop_count as u64);
 
         // Set up op id eventual
-        let handle = self.unlocked_inner.waiting_rpc_table.add_op_waiter(op_id);
+        let handle = self
+            .unlocked_inner
+            .waiting_rpc_table
+            .add_op_waiter(op_id, context);
 
         // Send question
         let bytes: ByteCount = (message.len() as u64).into();
@@ -1189,6 +1194,48 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
+    fn decode_rpc_operation(
+        &self,
+        encoded_msg: &RPCMessageEncoded,
+    ) -> Result<RPCOperation, RPCError> {
+        let reader = encoded_msg.data.get_reader()?;
+        let op_reader = reader
+            .get_root::<veilid_capnp::operation::Reader>()
+            .map_err(RPCError::protocol)
+            .map_err(logthru_rpc!())?;
+        let decode_context = DecodeContext {
+            config: self.config.clone(),
+        };
+        let operation = RPCOperation::decode(&decode_context, &op_reader)?;
+
+        // Validate the RPC message
+        self.validate_rpc_operation(&operation)?;
+
+        Ok(operation)
+    }
+
+    fn validate_rpc_operation(&self, operation: &RPCOperation) -> Result<(), RPCError> {
+        // If this is an answer, get the question context for this answer
+        // If we received an answer for a question we did not ask, this will return an error
+        let question_context = if let RPCOperationKind::Answer(_) = operation.kind() {
+            let op_id = operation.op_id();
+            self.unlocked_inner
+                .waiting_rpc_table
+                .get_op_context(op_id)?
+        } else {
+            None
+        };
+
+        // Validate the RPC operation
+        let validate_context = RPCValidateContext {
+            crypto: self.crypto.clone(),
+            question_context,
+        };
+        operation.validate(&validate_context)?;
+
+        Ok(())
+    }
+
     //////////////////////////////////////////////////////////////////////
     #[instrument(level = "trace", skip(self, encoded_msg), err)]
     async fn process_rpc_message(
@@ -1198,29 +1245,17 @@ impl RPCProcessor {
         // Decode operation appropriately based on header detail
         let msg = match &encoded_msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
+                // Decode and validate the RPC operation
+                let operation = self.decode_rpc_operation(&encoded_msg)?;
+
                 // Get the routing domain this message came over
                 let routing_domain = detail.routing_domain;
 
-                // Decode the operation
+                // Get the sender noderef, incorporating sender's peer info
                 let sender_node_id = TypedKey::new(
                     detail.envelope.get_crypto_kind(),
                     detail.envelope.get_sender_id(),
                 );
-
-                // Decode the RPC message
-                let operation = {
-                    let reader = encoded_msg.data.get_reader()?;
-                    let op_reader = reader
-                        .get_root::<veilid_capnp::operation::Reader>()
-                        .map_err(RPCError::protocol)
-                        .map_err(logthru_rpc!())?;
-                    RPCOperation::decode(&op_reader)?
-                };
-
-                // Validate the RPC operation
-                operation.validate(self.crypto.clone())?;
-
-                // Get the sender noderef, incorporating sender's peer info
                 let mut opt_sender_nr: Option<NodeRef> = None;
                 if let Some(sender_peer_info) = operation.sender_peer_info() {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
@@ -1257,18 +1292,8 @@ impl RPCProcessor {
                 }
             }
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
-                // Decode the RPC message
-                let operation = {
-                    let reader = encoded_msg.data.get_reader()?;
-                    let op_reader = reader
-                        .get_root::<veilid_capnp::operation::Reader>()
-                        .map_err(RPCError::protocol)
-                        .map_err(logthru_rpc!())?;
-                    RPCOperation::decode(&op_reader)?
-                };
-
-                // Validate the RPC operation
-                operation.validate(self.crypto.clone())?;
+                // Decode and validate the RPC operation
+                let operation = self.decode_rpc_operation(&encoded_msg)?;
 
                 // Make the RPC message
                 RPCMessage {

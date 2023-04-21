@@ -9,14 +9,14 @@ impl RPCProcessor {
         dest: Destination,
         message: Vec<u8>,
     ) -> Result<NetworkResult<Answer<Vec<u8>>>, RPCError> {
-        let app_call_q = RPCOperationAppCallQ { message };
+        let app_call_q = RPCOperationAppCallQ::new(&message)?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             RPCQuestionDetail::AppCallQ(app_call_q),
         );
 
         // Send the app call question
-        let waitable_reply = network_result_try!(self.question(dest, question).await?);
+        let waitable_reply = network_result_try!(self.question(dest, question, None).await?);
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
@@ -25,18 +25,18 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let app_call_a = match msg.operation.into_kind() {
-            RPCOperationKind::Answer(a) => match a.into_detail() {
+        let (_, _, _, kind) = msg.operation.destructure();
+        let app_call_a = match kind {
+            RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::AppCallA(a) => a,
                 _ => return Err(RPCError::invalid_format("not an appcall answer")),
             },
             _ => return Err(RPCError::invalid_format("not an answer")),
         };
 
-        Ok(NetworkResult::value(Answer::new(
-            latency,
-            app_call_a.message,
-        )))
+        let a_message = app_call_a.destructure();
+
+        Ok(NetworkResult::value(Answer::new(latency, a_message)))
     }
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
@@ -45,9 +45,10 @@ impl RPCProcessor {
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get the question
-        let app_call_q = match msg.operation.kind() {
-            RPCOperationKind::Question(q) => match q.detail() {
-                RPCQuestionDetail::AppCallQ(q) => q,
+        let (op_id, _, _, kind) = msg.operation.clone().destructure();
+        let app_call_q = match kind {
+            RPCOperationKind::Question(q) => match q.destructure() {
+                (_, RPCQuestionDetail::AppCallQ(q)) => q,
                 _ => panic!("not an appcall question"),
             },
             _ => panic!("not a question"),
@@ -63,16 +64,16 @@ impl RPCProcessor {
             .map(|nr| nr.node_ids().get(crypto_kind).unwrap().value);
 
         // Register a waiter for this app call
-        let id = msg.operation.op_id();
-        let handle = self.unlocked_inner.waiting_app_call_table.add_op_waiter(id);
+        let handle = self
+            .unlocked_inner
+            .waiting_app_call_table
+            .add_op_waiter(op_id, ());
 
         // Pass the call up through the update callback
-        let message = app_call_q.message.clone();
-        (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(VeilidAppCall {
-            sender,
-            message,
-            id,
-        }));
+        let message_q = app_call_q.destructure();
+        (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(VeilidAppCall::new(
+            sender, message_q, op_id,
+        )));
 
         // Wait for an app call answer to come back from the app
         let res = self
@@ -80,17 +81,17 @@ impl RPCProcessor {
             .waiting_app_call_table
             .wait_for_op(handle, self.unlocked_inner.timeout_us)
             .await?;
-        let (message, _latency) = match res {
+        let (message_a, _latency) = match res {
             TimeoutOr::Timeout => {
                 // No message sent on timeout, but this isn't an error
-                log_rpc!(debug "App call timed out for id {}", id);
+                log_rpc!(debug "App call timed out for id {}", op_id);
                 return Ok(NetworkResult::timeout());
             }
             TimeoutOr::Value(v) => v,
         };
 
         // Return the appcall answer
-        let app_call_a = RPCOperationAppCallA { message };
+        let app_call_a = RPCOperationAppCallA::new(&message_a)?;
 
         // Send status answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::AppCallA(app_call_a)))

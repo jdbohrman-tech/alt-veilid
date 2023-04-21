@@ -1,18 +1,20 @@
 use super::*;
 
 #[derive(Debug)]
-pub struct OperationWaitHandle<T>
+pub struct OperationWaitHandle<T, C>
 where
     T: Unpin,
+    C: Unpin + Clone,
 {
-    waiter: OperationWaiter<T>,
+    waiter: OperationWaiter<T, C>,
     op_id: OperationId,
     eventual_instance: Option<EventualValueFuture<(Option<Id>, T)>>,
 }
 
-impl<T> Drop for OperationWaitHandle<T>
+impl<T, C> Drop for OperationWaitHandle<T, C>
 where
     T: Unpin,
+    C: Unpin + Clone,
 {
     fn drop(&mut self) {
         if self.eventual_instance.is_some() {
@@ -22,24 +24,37 @@ where
 }
 
 #[derive(Debug)]
-pub struct OperationWaiterInner<T>
+pub struct OperationWaitingOp<T, C>
 where
     T: Unpin,
+    C: Unpin + Clone,
 {
-    waiting_op_table: HashMap<OperationId, EventualValue<(Option<Id>, T)>>,
+    context: C,
+    eventual: EventualValue<(Option<Id>, T)>,
 }
 
 #[derive(Debug)]
-pub struct OperationWaiter<T>
+pub struct OperationWaiterInner<T, C>
 where
     T: Unpin,
+    C: Unpin + Clone,
 {
-    inner: Arc<Mutex<OperationWaiterInner<T>>>,
+    waiting_op_table: HashMap<OperationId, OperationWaitingOp<T, C>>,
 }
 
-impl<T> Clone for OperationWaiter<T>
+#[derive(Debug)]
+pub struct OperationWaiter<T, C>
 where
     T: Unpin,
+    C: Unpin + Clone,
+{
+    inner: Arc<Mutex<OperationWaiterInner<T, C>>>,
+}
+
+impl<T, C> Clone for OperationWaiter<T, C>
+where
+    T: Unpin,
+    C: Unpin + Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -48,9 +63,10 @@ where
     }
 }
 
-impl<T> OperationWaiter<T>
+impl<T, C> OperationWaiter<T, C>
 where
     T: Unpin,
+    C: Unpin + Clone,
 {
     pub fn new() -> Self {
         Self {
@@ -60,11 +76,15 @@ where
         }
     }
 
-    // set up wait for op
-    pub fn add_op_waiter(&self, op_id: OperationId) -> OperationWaitHandle<T> {
+    /// Set up wait for operation to complete
+    pub fn add_op_waiter(&self, op_id: OperationId, context: C) -> OperationWaitHandle<T, C> {
         let mut inner = self.inner.lock();
         let e = EventualValue::new();
-        if inner.waiting_op_table.insert(op_id, e.clone()).is_some() {
+        let waiting_op = OperationWaitingOp {
+            context,
+            eventual: e.clone(),
+        };
+        if inner.waiting_op_table.insert(op_id, waiting_op).is_some() {
             error!(
                 "add_op_waiter collision should not happen for op_id {}",
                 op_id
@@ -78,16 +98,25 @@ where
         }
     }
 
-    // remove wait for op
+    /// Get operation context
+    pub fn get_op_context(&self, op_id: OperationId) -> Result<C, RPCError> {
+        let mut inner = self.inner.lock();
+        let Some(waiting_op) = inner.waiting_op_table.get(&op_id) else {
+            return Err(RPCError::internal("Missing operation id getting op context"));
+        };
+        Ok(waiting_op.context.clone())
+    }
+
+    /// Remove wait for op
     fn cancel_op_waiter(&self, op_id: OperationId) {
         let mut inner = self.inner.lock();
         inner.waiting_op_table.remove(&op_id);
     }
 
-    // complete the app call
+    /// Complete the app call
     #[instrument(level = "trace", skip(self, message), err)]
     pub async fn complete_op_waiter(&self, op_id: OperationId, message: T) -> Result<(), RPCError> {
-        let eventual = {
+        let waiting_op = {
             let mut inner = self.inner.lock();
             inner
                 .waiting_op_table
@@ -97,13 +126,17 @@ where
                     op_id
                 )))?
         };
-        eventual.resolve((Span::current().id(), message)).await;
+        waiting_op
+            .eventual
+            .resolve((Span::current().id(), message))
+            .await;
         Ok(())
     }
 
+    /// Wait for opeation to complete
     pub async fn wait_for_op(
         &self,
-        mut handle: OperationWaitHandle<T>,
+        mut handle: OperationWaitHandle<T, C>,
         timeout_us: TimestampDuration,
     ) -> Result<TimeoutOr<(T, TimestampDuration)>, RPCError> {
         let timeout_ms = u32::try_from(timeout_us.as_u64() / 1000u64)

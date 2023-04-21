@@ -1,12 +1,17 @@
 use super::*;
 
+const MAX_FIND_NODE_A_PEERS_LEN: usize = 20;
+
 #[derive(Debug, Clone)]
 pub struct RPCOperationFindNodeQ {
-    pub node_id: TypedKey,
+    node_id: TypedKey,
 }
 
 impl RPCOperationFindNodeQ {
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn new(node_id: TypedKey) -> Self {
+        Self { node_id }
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
     pub fn decode(
@@ -24,24 +29,43 @@ impl RPCOperationFindNodeQ {
         encode_typed_key(&self.node_id, &mut ni_builder);
         Ok(())
     }
+
+    pub fn node_id(&self) -> &TypedKey {
+        &self.node_id
+    }
+
+    pub fn destructure(self) -> TypedKey {
+        self.node_id
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationFindNodeA {
-    pub peers: Vec<PeerInfo>,
+    peers: Vec<PeerInfo>,
 }
 
 impl RPCOperationFindNodeA {
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
-        for pi in &self.peers {
-            pi.validate(crypto.clone()).map_err(RPCError::protocol)?;
+    pub fn new(peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
+        if peers.len() > MAX_FIND_NODE_A_PEERS_LEN {
+            return Err(RPCError::protocol("find node peers length too long"));
         }
+
+        Ok(Self { peers })
+    }
+
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
         Ok(())
     }
     pub fn decode(
         reader: &veilid_capnp::operation_find_node_a::Reader,
     ) -> Result<RPCOperationFindNodeA, RPCError> {
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
+
+        if peers_reader.len() as usize > MAX_FIND_NODE_A_PEERS_LEN {
+            return Err(RPCError::protocol("find node peers length too long"));
+        }
+
         let mut peers = Vec::<PeerInfo>::with_capacity(
             peers_reader
                 .len()
@@ -53,7 +77,7 @@ impl RPCOperationFindNodeA {
             peers.push(peer_info);
         }
 
-        Ok(RPCOperationFindNodeA { peers })
+        RPCOperationFindNodeA::new(peers)
     }
     pub fn encode(
         &self,
@@ -70,5 +94,13 @@ impl RPCOperationFindNodeA {
             encode_peer_info(peer, &mut pi_builder)?;
         }
         Ok(())
+    }
+
+    pub fn peers(&self) -> &[PeerInfo] {
+        &self.peers
+    }
+
+    pub fn destructure(self) -> Vec<PeerInfo> {
+        self.peers
     }
 }

@@ -2,10 +2,16 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationCancelTunnelQ {
-    pub id: TunnelId,
+    id: TunnelId,
 }
 
 impl RPCOperationCancelTunnelQ {
+    pub fn new(id: TunnelId) -> Self {
+        Self { id }
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        Ok(())
+    }
     pub fn decode(
         reader: &veilid_capnp::operation_cancel_tunnel_q::Reader,
     ) -> Result<RPCOperationCancelTunnelQ, RPCError> {
@@ -21,6 +27,13 @@ impl RPCOperationCancelTunnelQ {
 
         Ok(())
     }
+    pub fn id(&self) -> TunnelId {
+        self.id
+    }
+
+    pub fn destructure(self) -> TunnelId {
+        self.id
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -30,6 +43,15 @@ pub enum RPCOperationCancelTunnelA {
 }
 
 impl RPCOperationCancelTunnelA {
+    pub fn new_tunnel(id: TunnelId) -> Self {
+        Self::Tunnel(id)
+    }
+    pub fn new_error(error: TunnelError) -> Self {
+        Self::Error(error)
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        Ok(())
+    }
     pub fn decode(
         reader: &veilid_capnp::operation_cancel_tunnel_a::Reader,
     ) -> Result<RPCOperationCancelTunnelA, RPCError> {

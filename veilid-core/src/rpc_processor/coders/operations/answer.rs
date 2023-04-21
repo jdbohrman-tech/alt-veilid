@@ -9,14 +9,14 @@ impl RPCAnswer {
     pub fn new(detail: RPCAnswerDetail) -> Self {
         Self { detail }
     }
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
-        self.detail.validate(crypto)
-    }
-    pub fn into_detail(self) -> RPCAnswerDetail {
-        self.detail
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        self.detail.validate(validate_context)
     }
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
+    }
+    pub fn destructure(self) -> RPCAnswerDetail {
+        self.detail
     }
     pub fn decode(reader: &veilid_capnp::answer::Reader) -> Result<RPCAnswer, RPCError> {
         let d_reader = reader.get_detail();
@@ -60,19 +60,19 @@ impl RPCAnswerDetail {
             RPCAnswerDetail::CancelTunnelA(_) => "CancelTunnelA",
         }
     }
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         match self {
-            RPCAnswerDetail::StatusA(r) => r.validate(crypto),
-            RPCAnswerDetail::FindNodeA(r) => r.validate(crypto),
-            RPCAnswerDetail::AppCallA(r) => r.validate(crypto),
-            RPCAnswerDetail::GetValueA(r) => r.validate(crypto),
-            RPCAnswerDetail::SetValueA(r) => r.validate(crypto),
-            RPCAnswerDetail::WatchValueA(r) => r.validate(crypto),
-            RPCAnswerDetail::SupplyBlockA(r) => r.validate(crypto),
-            RPCAnswerDetail::FindBlockA(r) => r.validate(crypto),
-            RPCAnswerDetail::StartTunnelA(r) => r.validate(crypto),
-            RPCAnswerDetail::CompleteTunnelA(r) => r.validate(crypto),
-            RPCAnswerDetail::CancelTunnelA(r) => r.validate(crypto),
+            RPCAnswerDetail::StatusA(r) => r.validate(validate_context),
+            RPCAnswerDetail::FindNodeA(r) => r.validate(validate_context),
+            RPCAnswerDetail::AppCallA(r) => r.validate(validate_context),
+            RPCAnswerDetail::GetValueA(r) => r.validate(validate_context),
+            RPCAnswerDetail::SetValueA(r) => r.validate(validate_context),
+            RPCAnswerDetail::WatchValueA(r) => r.validate(validate_context),
+            RPCAnswerDetail::SupplyBlockA(r) => r.validate(validate_context),
+            RPCAnswerDetail::FindBlockA(r) => r.validate(validate_context),
+            RPCAnswerDetail::StartTunnelA(r) => r.validate(validate_context),
+            RPCAnswerDetail::CompleteTunnelA(r) => r.validate(validate_context),
+            RPCAnswerDetail::CancelTunnelA(r) => r.validate(validate_context),
         }
     }
     pub fn decode(

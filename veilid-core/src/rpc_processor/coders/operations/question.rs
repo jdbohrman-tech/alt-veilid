@@ -10,9 +10,9 @@ impl RPCQuestion {
     pub fn new(respond_to: RespondTo, detail: RPCQuestionDetail) -> Self {
         Self { respond_to, detail }
     }
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
-        self.respond_to.validate(crypto.clone())?;
-        self.detail.validate(crypto)
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        self.respond_to.validate(validate_context)?;
+        self.detail.validate(validate_context)
     }
     pub fn respond_to(&self) -> &RespondTo {
         &self.respond_to
@@ -22,6 +22,9 @@ impl RPCQuestion {
     }
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
+    }
+    pub fn destructure(self) -> (RespondTo, RPCQuestionDetail) {
+        (self.respond_to, self.detail)
     }
     pub fn decode(reader: &veilid_capnp::question::Reader) -> Result<RPCQuestion, RPCError> {
         let rt_reader = reader.get_respond_to();
@@ -69,19 +72,19 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::CancelTunnelQ(_) => "CancelTunnelQ",
         }
     }
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         match self {
-            RPCQuestionDetail::StatusQ(r) => r.validate(crypto),
-            RPCQuestionDetail::FindNodeQ(r) => r.validate(crypto),
-            RPCQuestionDetail::AppCallQ(r) => r.validate(crypto),
-            RPCQuestionDetail::GetValueQ(r) => r.validate(crypto),
-            RPCQuestionDetail::SetValueQ(r) => r.validate(crypto),
-            RPCQuestionDetail::WatchValueQ(r) => r.validate(crypto),
-            RPCQuestionDetail::SupplyBlockQ(r) => r.validate(crypto),
-            RPCQuestionDetail::FindBlockQ(r) => r.validate(crypto),
-            RPCQuestionDetail::StartTunnelQ(r) => r.validate(crypto),
-            RPCQuestionDetail::CompleteTunnelQ(r) => r.validate(crypto),
-            RPCQuestionDetail::CancelTunnelQ(r) => r.validate(crypto),
+            RPCQuestionDetail::StatusQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::FindNodeQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::AppCallQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::GetValueQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::SetValueQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::WatchValueQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::SupplyBlockQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::FindBlockQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::StartTunnelQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::CompleteTunnelQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::CancelTunnelQ(r) => r.validate(validate_context),
         }
     }
 

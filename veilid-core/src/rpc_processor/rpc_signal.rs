@@ -44,8 +44,9 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let signal = match msg.operation.into_kind() {
-            RPCOperationKind::Statement(s) => match s.into_detail() {
+        let (_, _, _, kind) = msg.operation.destructure();
+        let signal = match kind {
+            RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::Signal(s) => s,
                 _ => panic!("not a signal"),
             },

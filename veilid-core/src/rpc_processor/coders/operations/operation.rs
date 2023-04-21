@@ -16,11 +16,11 @@ impl RPCOperationKind {
         }
     }
 
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         match self {
-            RPCOperationKind::Question(r) => r.validate(crypto),
-            RPCOperationKind::Statement(r) => r.validate(crypto),
-            RPCOperationKind::Answer(r) => r.validate(crypto),
+            RPCOperationKind::Question(r) => r.validate(validate_context),
+            RPCOperationKind::Statement(r) => r.validate(validate_context),
+            RPCOperationKind::Answer(r) => r.validate(validate_context),
         }
     }
 
@@ -98,13 +98,15 @@ impl RPCOperation {
         }
     }
 
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         // Validate sender peer info
         if let Some(sender_peer_info) = &self.opt_sender_peer_info {
-            sender_peer_info.validate(crypto.clone())?;
+            sender_peer_info
+                .validate(validate_context.crypto.clone())
+                .map_err(RPCError::protocol)?;
         }
         // Validate operation kind
-        self.kind.validate(crypto)
+        self.kind.validate(validate_context)
     }
 
     pub fn op_id(&self) -> OperationId {
@@ -122,11 +124,19 @@ impl RPCOperation {
         &self.kind
     }
 
-    pub fn into_kind(self) -> RPCOperationKind {
-        self.kind
+    pub fn destructure(self) -> (OperationId, Option<PeerInfo>, Timestamp, RPCOperationKind) {
+        (
+            self.op_id,
+            self.opt_sender_peer_info,
+            self.target_node_info_ts,
+            self.kind,
+        )
     }
 
-    pub fn decode(operation_reader: &veilid_capnp::operation::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        context: &DecodeContext,
+        operation_reader: &veilid_capnp::operation::Reader,
+    ) -> Result<Self, RPCError> {
         let op_id = OperationId::new(operation_reader.get_op_id());
 
         let sender_peer_info = if operation_reader.has_sender_peer_info() {

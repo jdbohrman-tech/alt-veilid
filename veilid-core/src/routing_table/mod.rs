@@ -12,7 +12,7 @@ mod stats_accounting;
 mod tasks;
 mod types;
 
-use crate::*;
+use super::*;
 
 use crate::crypto::*;
 use crate::network_manager::*;
