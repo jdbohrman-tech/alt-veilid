@@ -23,6 +23,8 @@ const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
 
 /// Locked structure for storage manager
 struct StorageManagerInner {
+    /// If we are started up
+    initialized: bool,
     /// Records that have been 'created' or 'opened' by this node
     local_record_store: Option<RecordStore>,
     /// Records that have been pushed to this node for distribution by other nodes
@@ -41,7 +43,7 @@ struct StorageManagerUnlockedInner {
 #[derive(Clone)]
 pub struct StorageManager {
     unlocked_inner: Arc<StorageManagerUnlockedInner>,
-    inner: Arc<Mutex<StorageManagerInner>>,
+    inner: Arc<AsyncMutex<StorageManagerInner>>,
 }
 
 impl StorageManager {
@@ -64,6 +66,7 @@ impl StorageManager {
     }
     fn new_inner() -> StorageManagerInner {
         StorageManagerInner {
+            initialized: false,
             local_record_store: None,
             remote_record_store: None,
         }
@@ -114,14 +117,14 @@ impl StorageManager {
                 block_store,
                 rpc_processor,
             )),
-            inner: Arc::new(Mutex::new(Self::new_inner())),
+            inner: Arc::new(AsyncMutex::new(Self::new_inner())),
         }
     }
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn init(&self) -> EyreResult<()> {
         debug!("startup storage manager");
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.lock().await;
 
         let local_limits = Self::local_limits_from_config(self.unlocked_inner.config.clone());
         let remote_limits = Self::remote_limits_from_config(self.unlocked_inner.config.clone());
@@ -143,14 +146,25 @@ impl StorageManager {
         inner.local_record_store = Some(local_record_store);
         inner.remote_record_store = Some(remote_record_store);
 
+        inner.initialized = true;
+
+        // Let rpc processor access storage manager
+        self.unlocked_inner
+            .rpc_processor
+            .set_storage_manager(Some(self.clone()));
+
         Ok(())
     }
 
     pub async fn terminate(&self) {
         debug!("starting storage manager shutdown");
+        let mut inner = self.inner.lock().await;
 
         // Release the storage manager
-        *self.inner.lock() = Self::new_inner();
+        *inner = Self::new_inner();
+
+        // Remove storage manager from rpc processor
+        self.unlocked_inner.rpc_processor.set_storage_manager(None);
 
         debug!("finished storage manager shutdown");
     }
@@ -172,10 +186,11 @@ impl StorageManager {
         record: Record,
     ) -> Result<TypedKey, VeilidAPIError> {
         // add value record to record store
-        let mut inner = self.inner.lock();
-        let Some(local_record_store) = inner.local_record_store.as_mut() else {
+        let mut inner = self.inner.lock().await;
+        if !inner.initialized {
             apibail_generic!("not initialized");
-        };
+        }
+        let local_record_store = inner.local_record_store.as_mut().unwrap();
         let key = self.get_key(vcrypto.clone(), &record);
         local_record_store.new_record(key, record).await?;
         Ok(key)

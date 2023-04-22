@@ -22,11 +22,28 @@ impl RPCOperationReturnReceipt {
         Ok(())
     }
 
+    pub fn receipt(&self) -> &[u8] {
+        &self.receipt
+    }
+
+    pub fn destructure(self) -> Vec<u8> {
+        self.receipt
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_return_receipt::Reader,
-    ) -> Result<RPCOperationReturnReceipt, RPCError> {
+    ) -> Result<Self, RPCError> {
         let rr = reader.get_receipt().map_err(RPCError::protocol)?;
-        RPCOperationReturnReceipt::new(rr)
+        if rr.len() < MIN_RECEIPT_SIZE {
+            return Err(RPCError::protocol("ReturnReceipt receipt too short to set"));
+        }
+        if rr.len() > MAX_RECEIPT_SIZE {
+            return Err(RPCError::protocol("ReturnReceipt receipt too long to set"));
+        }
+
+        Ok(Self {
+            receipt: rr.to_vec(),
+        })
     }
     pub fn encode(
         &self,
@@ -34,13 +51,5 @@ impl RPCOperationReturnReceipt {
     ) -> Result<(), RPCError> {
         builder.set_receipt(&self.receipt);
         Ok(())
-    }
-
-    pub fn receipt(&self) -> &[u8] {
-        &self.receipt
-    }
-
-    pub fn destructure(self) -> Vec<u8> {
-        self.receipt
     }
 }

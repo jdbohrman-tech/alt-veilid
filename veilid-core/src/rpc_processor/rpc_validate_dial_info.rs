@@ -69,13 +69,10 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let RPCOperationValidateDialInfo {
-            dial_info,
-            receipt,
-            redirect,
-        } = match msg.operation.into_kind() {
-            RPCOperationKind::Statement(s) => match s.into_detail() {
-                RPCStatementDetail::ValidateDialInfo(s) => s,
+        let (_, _, _, kind) = msg.operation.destructure();
+        let (dial_info, receipt, redirect) = match kind {
+            RPCOperationKind::Statement(s) => match s.destructure() {
+                RPCStatementDetail::ValidateDialInfo(s) => s.destructure(),
                 _ => panic!("not a validate dial info"),
             },
             _ => panic!("not a statement"),

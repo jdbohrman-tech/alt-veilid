@@ -1,17 +1,53 @@
 use super::*;
+use crate::storage_manager::SignedValueData;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationValueChanged {
-    pub key: TypedKey,
-    pub subkeys: Vec<ValueSubkeyRange>,
-    pub count: u32,
-    pub value: ValueData,
+    key: TypedKey,
+    subkeys: Vec<ValueSubkeyRange>,
+    count: u32,
+    value: SignedValueData,
 }
 
 impl RPCOperationValueChanged {
+    pub fn new(
+        key: TypedKey,
+        subkeys: Vec<ValueSubkeyRange>,
+        count: u32,
+        value: SignedValueData,
+    ) -> Self {
+        Self {
+            key,
+            subkeys,
+            count,
+            value,
+        }
+    }
+
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        // validation must be done by storage manager as this is more complicated
+        Ok(())
+    }
+
+    pub fn key(&self) -> &TypedKey {
+        &self.key
+    }
+    pub fn subkeys(&self) -> &[ValueSubkeyRange] {
+        &self.subkeys
+    }
+    pub fn count(&self) -> u32 {
+        self.count
+    }
+    pub fn value(&self) -> &SignedValueData {
+        &self.value
+    }
+    pub fn destructure(self) -> (TypedKey, Vec<ValueSubkeyRange>, u32, SignedValueData) {
+        (self.key, self.subkeys, self.count, self.value)
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_value_changed::Reader,
-    ) -> Result<RPCOperationValueChanged, RPCError> {
+    ) -> Result<Self, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;
         let key = decode_typed_key(&k_reader)?;
 
@@ -38,8 +74,8 @@ impl RPCOperationValueChanged {
         }
         let count = reader.get_count();
         let v_reader = reader.get_value().map_err(RPCError::protocol)?;
-        let value = decode_value_data(&v_reader)?;
-        Ok(RPCOperationValueChanged {
+        let value = decode_signed_value_data(&v_reader)?;
+        Ok(Self {
             key,
             subkeys,
             count,
@@ -68,7 +104,7 @@ impl RPCOperationValueChanged {
         builder.set_count(self.count);
 
         let mut v_builder = builder.reborrow().init_value();
-        encode_value_data(&self.value, &mut v_builder)?;
+        encode_signed_value_data(&self.value, &mut v_builder)?;
         Ok(())
     }
 }

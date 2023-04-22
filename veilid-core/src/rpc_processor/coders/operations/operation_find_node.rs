@@ -14,12 +14,19 @@ impl RPCOperationFindNodeQ {
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
-    pub fn decode(
-        reader: &veilid_capnp::operation_find_node_q::Reader,
-    ) -> Result<RPCOperationFindNodeQ, RPCError> {
+
+    pub fn node_id(&self) -> &TypedKey {
+        &self.node_id
+    }
+
+    pub fn destructure(self) -> TypedKey {
+        self.node_id
+    }
+
+    pub fn decode(reader: &veilid_capnp::operation_find_node_q::Reader) -> Result<Self, RPCError> {
         let ni_reader = reader.get_node_id().map_err(RPCError::protocol)?;
         let node_id = decode_typed_key(&ni_reader)?;
-        Ok(RPCOperationFindNodeQ { node_id })
+        Ok(Self { node_id })
     }
     pub fn encode(
         &self,
@@ -28,14 +35,6 @@ impl RPCOperationFindNodeQ {
         let mut ni_builder = builder.reborrow().init_node_id();
         encode_typed_key(&self.node_id, &mut ni_builder);
         Ok(())
-    }
-
-    pub fn node_id(&self) -> &TypedKey {
-        &self.node_id
-    }
-
-    pub fn destructure(self) -> TypedKey {
-        self.node_id
     }
 }
 
@@ -57,6 +56,15 @@ impl RPCOperationFindNodeA {
         PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
         Ok(())
     }
+
+    pub fn peers(&self) -> &[PeerInfo] {
+        &self.peers
+    }
+
+    pub fn destructure(self) -> Vec<PeerInfo> {
+        self.peers
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_find_node_a::Reader,
     ) -> Result<RPCOperationFindNodeA, RPCError> {
@@ -77,7 +85,7 @@ impl RPCOperationFindNodeA {
             peers.push(peer_info);
         }
 
-        RPCOperationFindNodeA::new(peers)
+        Ok(Self { peers })
     }
     pub fn encode(
         &self,
@@ -94,13 +102,5 @@ impl RPCOperationFindNodeA {
             encode_peer_info(peer, &mut pi_builder)?;
         }
         Ok(())
-    }
-
-    pub fn peers(&self) -> &[PeerInfo] {
-        &self.peers
-    }
-
-    pub fn destructure(self) -> Vec<PeerInfo> {
-        self.peers
     }
 }

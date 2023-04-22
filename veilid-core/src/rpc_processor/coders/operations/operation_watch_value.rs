@@ -1,21 +1,117 @@
 use super::*;
 
+const MAX_WATCH_VALUE_Q_SUBKEYS_LEN: usize = 512;
+const MAX_WATCH_VALUE_A_PEERS_LEN: usize = 20;
+
 #[derive(Debug, Clone)]
 pub struct RPCOperationWatchValueQ {
-    pub key: TypedKey,
-    pub subkeys: Vec<ValueSubkeyRange>,
-    pub expiration: u64,
-    pub count: u32,
+    key: TypedKey,
+    subkeys: Vec<ValueSubkeyRange>,
+    expiration: u64,
+    count: u32,
+    watcher: PublicKey,
+    signature: Signature,
 }
 
 impl RPCOperationWatchValueQ {
+    pub fn new(
+        key: TypedKey,
+        subkeys: Vec<ValueSubkeyRange>,
+        expiration: u64,
+        count: u32,
+        watcher: PublicKey,
+        signature: Signature,
+    ) -> Result<Self, RPCError> {
+        if subkeys.len() > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
+            return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
+        }
+        Ok(Self {
+            key,
+            subkeys,
+            expiration,
+            count,
+            watcher,
+            signature,
+        })
+    }
+
+    // signature covers: key, subkeys, expiration, count, using watcher key
+    fn make_signature_data(&self) -> Vec<u8> {
+        let mut sig_data =
+            Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (self.subkeys.len() * 8) + 8 + 4);
+        sig_data.extend_from_slice(&self.key.kind.0);
+        sig_data.extend_from_slice(&self.key.value.bytes);
+        for sk in &self.subkeys {
+            sig_data.extend_from_slice(&sk.0.to_le_bytes());
+            sig_data.extend_from_slice(&sk.1.to_le_bytes());
+        }
+        sig_data.extend_from_slice(&self.expiration.to_le_bytes());
+        sig_data.extend_from_slice(&self.count.to_le_bytes());
+        sig_data
+    }
+
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        let Some(vcrypto) = validate_context.crypto.get(self.key.kind) else {
+            return Err(RPCError::protocol("unsupported cryptosystem"));
+        };
+
+        let sig_data = self.make_signature_data();
+        vcrypto
+            .verify(&self.watcher, &sig_data, &self.signature)
+            .map_err(RPCError::protocol)?;
+
+        Ok(())
+    }
+
+    pub fn key(&self) -> &TypedKey {
+        &self.key
+    }
+    pub fn subkeys(&self) -> &[ValueSubkeyRange] {
+        &self.subkeys
+    }
+    pub fn expiration(&self) -> u64 {
+        self.expiration
+    }
+    pub fn count(&self) -> u32 {
+        self.count
+    }
+    pub fn watcher(&self) -> &PublicKey {
+        &self.watcher
+    }
+    pub fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    pub fn destructure(
+        self,
+    ) -> (
+        TypedKey,
+        Vec<ValueSubkeyRange>,
+        u64,
+        u32,
+        PublicKey,
+        Signature,
+    ) {
+        (
+            self.key,
+            self.subkeys,
+            self.expiration,
+            self.count,
+            self.watcher,
+            self.signature,
+        )
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_watch_value_q::Reader,
-    ) -> Result<RPCOperationWatchValueQ, RPCError> {
+    ) -> Result<Self, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;
         let key = decode_typed_key(&k_reader)?;
 
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
+        if sk_reader.len() as usize > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
+            return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
+        }
         let mut subkeys = Vec::<ValueSubkeyRange>::with_capacity(
             sk_reader
                 .len()
@@ -40,13 +136,22 @@ impl RPCOperationWatchValueQ {
         let expiration = reader.get_expiration();
         let count = reader.get_count();
 
-        Ok(RPCOperationWatchValueQ {
+        let w_reader = reader.get_watcher().map_err(RPCError::protocol)?;
+        let watcher = decode_key256(&w_reader);
+
+        let s_reader = reader.get_signature().map_err(RPCError::protocol)?;
+        let signature = decode_signature512(&s_reader);
+
+        Ok(Self {
             key,
             subkeys,
             expiration,
             count,
+            watcher,
+            signature,
         })
     }
+
     pub fn encode(
         &self,
         builder: &mut veilid_capnp::operation_watch_value_q::Builder,
@@ -67,22 +172,54 @@ impl RPCOperationWatchValueQ {
         }
         builder.set_expiration(self.expiration);
         builder.set_count(self.count);
+
+        let mut w_builder = builder.reborrow().init_watcher();
+        encode_key256(&self.watcher, &mut w_builder);
+
+        let mut s_builder = builder.reborrow().init_signature();
+        encode_signature512(&self.signature, &mut s_builder);
+
         Ok(())
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationWatchValueA {
-    pub expiration: u64,
-    pub peers: Vec<PeerInfo>,
+    expiration: u64,
+    peers: Vec<PeerInfo>,
 }
 
 impl RPCOperationWatchValueA {
+    pub fn new(expiration: u64, peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
+        if peers.len() > MAX_WATCH_VALUE_A_PEERS_LEN {
+            return Err(RPCError::protocol("WatchValueA peers length too long"));
+        }
+        Ok(Self { expiration, peers })
+    }
+
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
+        Ok(())
+    }
+
+    pub fn expiration(&self) -> u64 {
+        self.expiration
+    }
+    pub fn peers(&self) -> &[PeerInfo] {
+        &self.peers
+    }
+    pub fn destructure(self) -> (u64, Vec<PeerInfo>) {
+        (self.expiration, self.peers)
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_watch_value_a::Reader,
-    ) -> Result<RPCOperationWatchValueA, RPCError> {
+    ) -> Result<Self, RPCError> {
         let expiration = reader.get_expiration();
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
+        if peers_reader.len() as usize > MAX_WATCH_VALUE_A_PEERS_LEN {
+            return Err(RPCError::protocol("WatchValueA peers length too long"));
+        }
         let mut peers = Vec::<PeerInfo>::with_capacity(
             peers_reader
                 .len()
@@ -94,7 +231,7 @@ impl RPCOperationWatchValueA {
             peers.push(peer_info);
         }
 
-        Ok(RPCOperationWatchValueA { expiration, peers })
+        Ok(Self { expiration, peers })
     }
     pub fn encode(
         &self,

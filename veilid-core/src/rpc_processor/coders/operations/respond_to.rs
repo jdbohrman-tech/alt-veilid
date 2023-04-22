@@ -7,12 +7,10 @@ pub enum RespondTo {
 }
 
 impl RespondTo {
-    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+    pub fn validate(&mut self, crypto: Crypto) -> Result<(), RPCError> {
         match self {
             RespondTo::Sender => Ok(()),
-            RespondTo::PrivateRoute(pr) => pr
-                .validate(validate_context.crypto.clone())
-                .map_err(RPCError::protocol),
+            RespondTo::PrivateRoute(pr) => pr.validate(crypto).map_err(RPCError::protocol),
         }
     }
 

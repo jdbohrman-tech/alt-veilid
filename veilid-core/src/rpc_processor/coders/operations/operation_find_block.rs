@@ -16,13 +16,22 @@ impl RPCOperationFindBlockQ {
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
+
+    pub fn block_id(&self) -> TypedKey {
+        self.block_id
+    }
+
+    pub fn destructure(self) -> TypedKey {
+        self.block_id
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_find_block_q::Reader,
     ) -> Result<RPCOperationFindBlockQ, RPCError> {
         let bi_reader = reader.get_block_id().map_err(RPCError::protocol)?;
         let block_id = decode_typed_key(&bi_reader)?;
 
-        Ok(RPCOperationFindBlockQ::new(block_id))
+        Ok(Self { block_id })
     }
     pub fn encode(
         &self,
@@ -32,14 +41,6 @@ impl RPCOperationFindBlockQ {
         encode_typed_key(&self.block_id, &mut bi_builder);
 
         Ok(())
-    }
-
-    pub fn block_id(&self) -> TypedKey {
-        self.block_id
-    }
-
-    pub fn destructure(self) -> TypedKey {
-        self.block_id
     }
 }
 
@@ -52,7 +53,7 @@ pub struct RPCOperationFindBlockA {
 
 impl RPCOperationFindBlockA {
     pub fn new(
-        data: &[u8],
+        data: Vec<u8>,
         suppliers: Vec<PeerInfo>,
         peers: Vec<PeerInfo>,
     ) -> Result<Self, RPCError> {
@@ -67,7 +68,7 @@ impl RPCOperationFindBlockA {
         }
 
         Ok(Self {
-            data: data.to_vec(),
+            data,
             suppliers,
             peers,
         })
@@ -78,19 +79,31 @@ impl RPCOperationFindBlockA {
         Ok(())
     }
 
-    pub fn decode(
-        reader: &veilid_capnp::operation_find_block_a::Reader,
-    ) -> Result<RPCOperationFindBlockA, RPCError> {
-        let data = reader.get_data().map_err(RPCError::protocol)?;
-        let suppliers_reader = reader.get_suppliers().map_err(RPCError::protocol)?;
-        let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+    pub fn suppliers(&self) -> &[PeerInfo] {
+        &self.suppliers
+    }
+    pub fn peers(&self) -> &[PeerInfo] {
+        &self.peers
+    }
 
+    pub fn destructure(self) -> (Vec<u8>, Vec<PeerInfo>, Vec<PeerInfo>) {
+        (self.data, self.suppliers, self.peers)
+    }
+    pub fn decode(reader: &veilid_capnp::operation_find_block_a::Reader) -> Result<Self, RPCError> {
+        let data = reader.get_data().map_err(RPCError::protocol)?;
         if data.len() > MAX_FIND_BLOCK_A_DATA_LEN {
             return Err(RPCError::protocol("find block data length too long"));
         }
+
+        let suppliers_reader = reader.get_suppliers().map_err(RPCError::protocol)?;
         if suppliers_reader.len() as usize > MAX_FIND_BLOCK_A_SUPPLIERS_LEN {
             return Err(RPCError::protocol("find block suppliers length too long"));
         }
+
+        let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
         if peers_reader.len() as usize > MAX_FIND_BLOCK_A_PEERS_LEN {
             return Err(RPCError::protocol("find block peers length too long"));
         }
@@ -117,7 +130,11 @@ impl RPCOperationFindBlockA {
             peers.push(peer_info);
         }
 
-        RPCOperationFindBlockA::new(data, suppliers, peers)
+        Ok(Self {
+            data: data.to_vec(),
+            suppliers,
+            peers,
+        })
     }
 
     pub fn encode(
@@ -149,19 +166,5 @@ impl RPCOperationFindBlockA {
         }
 
         Ok(())
-    }
-
-    pub fn data(&self) -> &[u8] {
-        &self.data
-    }
-    pub fn suppliers(&self) -> &[PeerInfo] {
-        &self.suppliers
-    }
-    pub fn peers(&self) -> &[PeerInfo] {
-        &self.peers
-    }
-
-    pub fn destructure(self) -> (Vec<u8>, Vec<PeerInfo>, Vec<PeerInfo>) {
-        (self.data, self.suppliers, self.peers)
     }
 }

@@ -14,7 +14,7 @@ impl RPCProcessor {
         key: TypedKey,
         subkey: ValueSubkey,
         last_descriptor: Option<SignedValueDescriptor>,
-    ) -> Result<NetworkResult<Answer<Vec<u8>>>, RPCError> {
+    ) -> Result<NetworkResult<Answer<GetValueAnswer>>, RPCError> {
         let get_value_q = RPCOperationGetValueQ::new(key, subkey, last_descriptor.is_none());
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),

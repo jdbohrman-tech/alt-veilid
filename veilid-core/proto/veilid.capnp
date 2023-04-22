@@ -348,14 +348,14 @@ struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
 struct OperationGetValueA @0xd896bb46f2e0249f {
     value                   @0  :SignedValueData;       # optional: the value if successful, or if unset, no value returned
     peers                   @1  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
-    descriptor              @2  :SignedValueDescriptor  # optional: the descriptor if requested
+    descriptor              @2  :SignedValueDescriptor; # optional: the descriptor if requested if the value is also returned
 }
 
 struct OperationSetValueQ @0xbac06191ff8bdbc5 {         
     key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     subkey                  @1  :Subkey;                # the index of the subkey
     value                   @2  :SignedValueData;       # value or subvalue contents (older or equal seq number gets dropped)
-    descriptor              @3  :SignedValueDescriptor  # optional: the descriptor if needed
+    descriptor              @3  :SignedValueDescriptor; # optional: the descriptor if needed
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
@@ -366,10 +366,11 @@ struct OperationSetValueA @0x9378d0732dc95be2 {
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     key                     @0  :TypedKey;              # key for value to watch
-    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch, if empty, watch everything
+    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
-    signature               @4  :Signature;             # signature of the watcher, must be one of the schema members or the key owner. signature covers: key, subkeys, expiration, count
+    watcher                 @4  :PublicKey;             # the watcher performing the watch, can be the owner or a schema member
+    signature               @5  :Signature;             # signature of the watcher, must be one of the schema members or the key owner. signature covers: key, subkeys, expiration, count
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
@@ -389,10 +390,8 @@ struct OperationSupplyBlockQ @0xadbf4c542d749971 {
 }
 
 struct OperationSupplyBlockA @0xf003822e83b5c0d7 {
-    union {
-        expiration          @0  :UInt64;                # when the block supplier entry will need to be refreshed
-        peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
-    }
+    expiration              @0  :UInt64;                # when the block supplier entry will need to be refreshed, or 0 if not successful
+    peers                   @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
 }
 
 struct OperationFindBlockQ @0xaf4353ff004c7156 {

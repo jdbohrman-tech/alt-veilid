@@ -2,17 +2,25 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationStatusQ {
-    pub node_status: Option<NodeStatus>,
+    node_status: Option<NodeStatus>,
 }
 
 impl RPCOperationStatusQ {
-    pub fn validate(mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+    pub fn new(node_status: Option<NodeStatus>) -> Self {
+        Self { node_status }
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
 
-    pub fn decode(
-        reader: &veilid_capnp::operation_status_q::Reader,
-    ) -> Result<RPCOperationStatusQ, RPCError> {
+    pub fn node_status(&self) -> Option<&NodeStatus> {
+        self.node_status.as_ref()
+    }
+    pub fn destructure(self) -> Option<NodeStatus> {
+        self.node_status
+    }
+
+    pub fn decode(reader: &veilid_capnp::operation_status_q::Reader) -> Result<Self, RPCError> {
         let node_status = if reader.has_node_status() {
             let ns_reader = reader.get_node_status().map_err(RPCError::protocol)?;
             let node_status = decode_node_status(&ns_reader)?;
@@ -20,7 +28,7 @@ impl RPCOperationStatusQ {
         } else {
             None
         };
-        Ok(RPCOperationStatusQ { node_status })
+        Ok(Self { node_status })
     }
     pub fn encode(
         &self,
@@ -36,17 +44,33 @@ impl RPCOperationStatusQ {
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationStatusA {
-    pub node_status: Option<NodeStatus>,
-    pub sender_info: Option<SenderInfo>,
+    node_status: Option<NodeStatus>,
+    sender_info: Option<SenderInfo>,
 }
 
 impl RPCOperationStatusA {
+    pub fn new(node_status: Option<NodeStatus>, sender_info: Option<SenderInfo>) -> Self {
+        Self {
+            node_status,
+            sender_info,
+        }
+    }
+
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
-    pub fn decode(
-        reader: &veilid_capnp::operation_status_a::Reader,
-    ) -> Result<RPCOperationStatusA, RPCError> {
+
+    pub fn node_status(&self) -> Option<&NodeStatus> {
+        self.node_status.as_ref()
+    }
+    pub fn sender_info(&self) -> Option<&SenderInfo> {
+        self.sender_info.as_ref()
+    }
+    pub fn destructure(self) -> (Option<NodeStatus>, Option<SenderInfo>) {
+        (self.node_status, self.sender_info)
+    }
+
+    pub fn decode(reader: &veilid_capnp::operation_status_a::Reader) -> Result<Self, RPCError> {
         let node_status = if reader.has_node_status() {
             let ns_reader = reader.get_node_status().map_err(RPCError::protocol)?;
             let node_status = decode_node_status(&ns_reader)?;
@@ -63,7 +87,7 @@ impl RPCOperationStatusA {
             None
         };
 
-        Ok(RPCOperationStatusA {
+        Ok(Self {
             node_status,
             sender_info,
         })

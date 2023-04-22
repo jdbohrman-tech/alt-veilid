@@ -28,12 +28,13 @@ pub use rpc_status::*;
 
 use super::*;
 
-use crate::crypto::*;
+use crypto::*;
 use futures_util::StreamExt;
 use network_manager::*;
 use receipt_manager::*;
 use routing_table::*;
 use stop_token::future::FutureExt;
+use storage_manager::StorageManager;
 
 /////////////////////////////////////////////////////////////////////
 
@@ -226,6 +227,7 @@ pub struct RPCProcessorInner {
     send_channel: Option<flume::Sender<(Option<Id>, RPCMessageEncoded)>>,
     stop_source: Option<StopSource>,
     worker_join_handles: Vec<MustJoinHandle<()>>,
+    opt_storage_manager: Option<StorageManager>,
 }
 
 pub struct RPCProcessorUnlockedInner {
@@ -255,6 +257,7 @@ impl RPCProcessor {
             send_channel: None,
             stop_source: None,
             worker_join_handles: Vec::new(),
+            opt_storage_manager: None,
         }
     }
     fn new_unlocked_inner(
@@ -306,6 +309,16 @@ impl RPCProcessor {
 
     pub fn routing_table(&self) -> RoutingTable {
         self.routing_table.clone()
+    }
+
+    pub fn set_storage_manager(&self, opt_storage_manager: Option<StorageManager>) {
+        let inner = self.inner.lock();
+        inner.opt_storage_manager = opt_storage_manager
+    }
+
+    pub fn storage_manager(&self) -> Option<StorageManager> {
+        let inner = self.inner.lock();
+        inner.opt_storage_manager.clone()
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1229,6 +1242,7 @@ impl RPCProcessor {
         // Validate the RPC operation
         let validate_context = RPCValidateContext {
             crypto: self.crypto.clone(),
+            rpc_processor: self.clone(),
             question_context,
         };
         operation.validate(&validate_context)?;

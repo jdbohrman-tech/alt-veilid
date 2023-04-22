@@ -25,7 +25,6 @@ mod socket_address;
 mod tunnel;
 mod typed_key;
 mod typed_signature;
-mod value_detail; xxx eliminate value_detail
 
 pub use address::*;
 pub use address_type_set::*;
@@ -54,7 +53,6 @@ pub use socket_address::*;
 pub use tunnel::*;
 pub use typed_key::*;
 pub use typed_signature::*;
-pub use value_detail::*;
 
 use super::*;
 
@@ -66,10 +64,12 @@ pub struct DecodeContext {
 #[derive(Debug, Clone)]
 pub enum QuestionContext {
     GetValue(ValidateGetValueContext),
+    SetValue(ValidateSetValueContext),
 }
 
 #[derive(Clone)]
 pub struct RPCValidateContext {
     crypto: Crypto,
+    rpc_processor: RPCProcessor,
     question_context: Option<QuestionContext>,
 }

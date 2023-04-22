@@ -55,8 +55,9 @@ impl RPCProcessor {
 
         // Handle it
         let network_manager = self.network_manager();
+        let signal_info = signal.destructure();
         network_manager
-            .handle_signal(signal.signal_info)
+            .handle_signal(signal_info)
             .await
             .map_err(RPCError::network)
     }
