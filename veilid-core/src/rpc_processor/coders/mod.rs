@@ -25,7 +25,7 @@ mod socket_address;
 mod tunnel;
 mod typed_key;
 mod typed_signature;
-mod value_detail;
+mod value_detail; xxx eliminate value_detail
 
 pub use address::*;
 pub use address_type_set::*;

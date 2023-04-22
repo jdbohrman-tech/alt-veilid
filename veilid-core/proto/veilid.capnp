@@ -330,12 +330,6 @@ struct SignedValueData @0xb4b7416f169f2a3d {
                                                         # so the data either fits, or it doesn't.
 }
 
-struct ValueDetail @0xe88607fa8982d67f {
-    signedValueData         @0  :SignedValueData;       # One value data with signature
-    descriptor              @1  :SignedValueDescriptor; # (optional) must provide if seq is 0, and may be present from valueget if wantSchema is specified
-                                                        # If not set and If seqnum != 0, the schema must have been set prior and no other schema may be used, but this field may be eliminated to save space
-}
-
 struct SignedValueDescriptor @0xe7911cd3f9e1b0e7 {
     owner                   @0  :PublicKey;             # the public key of the owner
     schemaData              @1  :Data;                  # the schema data
@@ -352,24 +346,22 @@ struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
 
 
 struct OperationGetValueA @0xd896bb46f2e0249f {
-    union {
-        value               @0  :ValueDetail;           # the value if successful
-        peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
-    }
+    value                   @0  :SignedValueData;       # optional: the value if successful, or if unset, no value returned
+    peers                   @1  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
+    descriptor              @2  :SignedValueDescriptor  # optional: the descriptor if requested
 }
 
 struct OperationSetValueQ @0xbac06191ff8bdbc5 {         
     key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     subkey                  @1  :Subkey;                # the index of the subkey
-    value                   @2  :ValueDetail;           # value or subvalue contents (older or equal seq number gets dropped)
+    value                   @2  :SignedValueData;       # value or subvalue contents (older or equal seq number gets dropped)
+    descriptor              @3  :SignedValueDescriptor  # optional: the descriptor if needed
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
-    union {
-        schemaError         @0  :Void;                  # Either the schema is not available at the node, or the data does not match the schema that is there
-        value               @1  :ValueDetail;           # the new value if successful, may be a different value than what was set if the seq number was lower or equal
-        peers               @2  :List(PeerInfo);        # returned 'closer peer' information if this node is refusing to store the key
-    }
+    set                     @0  :Bool;                  # true if the value was accepted
+    value                   @1  :SignedValueData;       # optional: the current value at the key if the set seq number was lower or equal to what was there before
+    peers                   @2  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
 }
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
@@ -389,7 +381,7 @@ struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     key                     @0  :TypedKey;              # key for value that changed
     subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
-    value                   @3  :ValueDetail;           # first value that changed (the rest can be gotten with getvalue)
+    value                   @3  :SignedValueData;       # first value that changed (the rest can be gotten with getvalue)
 }
 
 struct OperationSupplyBlockQ @0xadbf4c542d749971 {
