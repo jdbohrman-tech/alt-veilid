@@ -22,7 +22,7 @@ impl RPCProcessor {
             ));
         }
 
-        let signal = RPCOperationSignal { signal_info };
+        let signal = RPCOperationSignal::new(signal_info);
         let statement = RPCStatement::new(RPCStatementDetail::Signal(signal));
 
         // Send the signal request

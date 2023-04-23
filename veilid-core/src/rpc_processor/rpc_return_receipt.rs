@@ -11,7 +11,7 @@ impl RPCProcessor {
     ) -> Result<NetworkResult<()>, RPCError> {
         let receipt = receipt.as_ref().to_vec();
 
-        let return_receipt = RPCOperationReturnReceipt { receipt };
+        let return_receipt = RPCOperationReturnReceipt::new(receipt)?;
         let statement = RPCStatement::new(RPCStatementDetail::ReturnReceipt(return_receipt));
 
         // Send the return_receipt request
@@ -27,9 +27,9 @@ impl RPCProcessor {
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
-        let RPCOperationReturnReceipt { receipt } = match kind {
+        let receipt = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
-                RPCStatementDetail::ReturnReceipt(s) => s,
+                RPCStatementDetail::ReturnReceipt(s) => s.destructure(),
                 _ => panic!("not a return receipt"),
             },
             _ => panic!("not a statement"),

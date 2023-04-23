@@ -5,9 +5,9 @@ const MAX_GET_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Clone)]
 pub struct ValidateGetValueContext {
-    last_descriptor: Option<SignedValueDescriptor>,
-    subkey: ValueSubkey,
-    vcrypto: CryptoSystemVersion,
+    pub last_descriptor: Option<SignedValueDescriptor>,
+    pub subkey: ValueSubkey,
+    pub vcrypto: CryptoSystemVersion,
 }
 
 impl fmt::Debug for ValidateGetValueContext {

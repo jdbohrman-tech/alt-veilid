@@ -6,7 +6,7 @@ pub struct RPCOperationReturnReceipt {
 }
 
 impl RPCOperationReturnReceipt {
-    pub fn new(receipt: &[u8]) -> Result<Self, RPCError> {
+    pub fn new(receipt: Vec<u8>) -> Result<Self, RPCError> {
         if receipt.len() < MIN_RECEIPT_SIZE {
             return Err(RPCError::protocol("ReturnReceipt receipt too short to set"));
         }
@@ -14,9 +14,7 @@ impl RPCOperationReturnReceipt {
             return Err(RPCError::protocol("ReturnReceipt receipt too long to set"));
         }
 
-        Ok(Self {
-            receipt: receipt.to_vec(),
-        })
+        Ok(Self { receipt })
     }
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())

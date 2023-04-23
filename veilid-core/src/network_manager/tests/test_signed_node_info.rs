@@ -14,17 +14,17 @@ pub async fn test_signed_node_info() {
         let vcrypto = crypto.get(ck).unwrap();
 
         // Test direct
-        let node_info = NodeInfo {
-            network_class: NetworkClass::InboundCapable,
-            outbound_protocols: ProtocolTypeSet::all(),
-            address_types: AddressTypeSet::all(),
-            envelope_support: VALID_ENVELOPE_VERSIONS.to_vec(),
-            crypto_support: VALID_CRYPTO_KINDS.to_vec(),
-            dial_info_detail_list: vec![DialInfoDetail {
+        let node_info = NodeInfo::new(
+            NetworkClass::InboundCapable,
+            ProtocolTypeSet::all(),
+            AddressTypeSet::all(),
+            VALID_ENVELOPE_VERSIONS.to_vec(),
+            VALID_CRYPTO_KINDS.to_vec(),
+            vec![DialInfoDetail {
                 class: DialInfoClass::Mapped,
                 dial_info: DialInfo::udp(SocketAddress::default()),
             }],
-        };
+        );
 
         // Test correct validation
         let keypair = vcrypto.generate_keypair();
@@ -48,7 +48,6 @@ pub async fn test_signed_node_info() {
         // Test incorrect validation
         let keypair1 = vcrypto.generate_keypair();
         let tks1: TypedKeySet = TypedKey::new(ck, keypair1.key).into();
-        let oldtks1len = tks1.len();
         let sdni = SignedDirectNodeInfo::new(
             node_info.clone(),
             sni.timestamp(),
@@ -69,17 +68,17 @@ pub async fn test_signed_node_info() {
         assert_eq!(sdnifake.signatures().len(), sigsfake.len());
 
         // Test relayed
-        let node_info2 = NodeInfo {
-            network_class: NetworkClass::OutboundOnly,
-            outbound_protocols: ProtocolTypeSet::all(),
-            address_types: AddressTypeSet::all(),
-            envelope_support: VALID_ENVELOPE_VERSIONS.to_vec(),
-            crypto_support: VALID_CRYPTO_KINDS.to_vec(),
-            dial_info_detail_list: vec![DialInfoDetail {
+        let node_info2 = NodeInfo::new(
+            NetworkClass::OutboundOnly,
+            ProtocolTypeSet::all(),
+            AddressTypeSet::all(),
+            VALID_ENVELOPE_VERSIONS.to_vec(),
+            VALID_CRYPTO_KINDS.to_vec(),
+            vec![DialInfoDetail {
                 class: DialInfoClass::Blocked,
                 dial_info: DialInfo::udp(SocketAddress::default()),
             }],
-        };
+        );
 
         // Test correct validation
         let keypair2 = vcrypto.generate_keypair();
@@ -109,7 +108,6 @@ pub async fn test_signed_node_info() {
         // Test incorrect validation
         let keypair3 = vcrypto.generate_keypair();
         let tks3: TypedKeySet = TypedKey::new(ck, keypair3.key).into();
-        let oldtks3len = tks3.len();
 
         let srni = SignedRelayedNodeInfo::new(
             node_info2.clone(),

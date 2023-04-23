@@ -101,6 +101,7 @@ impl RecordStore {
     }
 
     fn add_to_subkey_cache(&mut self, key: SubkeyTableKey, record_data: RecordData) {
+        let record_data_total_size = record_data.total_size();
         // Write to subkey cache
         let mut dead_size = 0usize;
         if let Some(old_record_data) = self.subkey_cache.insert(key, record_data, |_, v| {
@@ -111,7 +112,7 @@ impl RecordStore {
             dead_size += old_record_data.total_size();
         }
         self.subkey_cache_total_size -= dead_size;
-        self.subkey_cache_total_size += record_data.total_size();
+        self.subkey_cache_total_size += record_data_total_size;
 
         // Purge over size limit
         if let Some(max_subkey_cache_memory_mb) = self.limits.max_subkey_cache_memory_mb {
@@ -270,16 +271,20 @@ impl RecordStore {
         F: FnOnce(&Record) -> R,
     {
         // Get record from index
+        let mut out = None;
         let rtk = RecordTableKey { key };
         if let Some(record) = self.record_index.get_mut(&rtk) {
+            // Callback
+            out = Some(f(record));
+
             // Touch
             record.touch(get_aligned_timestamp());
-            self.mark_record_changed(rtk);
-
-            // Callback
-            return Some(f(record));
         }
-        None
+        if out.is_some() {
+            self.mark_record_changed(rtk);
+        }
+
+        out
     }
 
     pub async fn get_subkey<R, F>(

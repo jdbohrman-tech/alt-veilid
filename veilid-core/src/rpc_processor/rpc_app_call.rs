@@ -9,7 +9,7 @@ impl RPCProcessor {
         dest: Destination,
         message: Vec<u8>,
     ) -> Result<NetworkResult<Answer<Vec<u8>>>, RPCError> {
-        let app_call_q = RPCOperationAppCallQ::new(&message)?;
+        let app_call_q = RPCOperationAppCallQ::new(message)?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             RPCQuestionDetail::AppCallQ(app_call_q),
@@ -91,7 +91,7 @@ impl RPCProcessor {
         };
 
         // Return the appcall answer
-        let app_call_a = RPCOperationAppCallA::new(&message_a)?;
+        let app_call_a = RPCOperationAppCallA::new(message_a)?;
 
         // Send status answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::AppCallA(app_call_a)))

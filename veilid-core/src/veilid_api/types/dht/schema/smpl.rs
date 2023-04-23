@@ -58,7 +58,7 @@ impl DHTSchemaSMPL {
         // o_cnt
         out.extend_from_slice(&self.o_cnt.to_le_bytes());
         // members
-        for m in self.members {
+        for m in &self.members {
             // m_key
             out.extend_from_slice(&m.m_key.bytes);
             // m_cnt

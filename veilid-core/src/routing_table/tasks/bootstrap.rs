@@ -329,14 +329,15 @@ impl RoutingTable {
             let crypto_support = bsrec.node_ids.kinds();
 
             // Make unsigned SignedNodeInfo
-            let sni = SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo {
-                network_class: NetworkClass::InboundCapable, // Bootstraps are always inbound capable
-                outbound_protocols: ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
-                address_types: AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
-                envelope_support: bsrec.envelope_support, // Envelope support is as specified in the bootstrap list
-                crypto_support, // Crypto support is derived from list of node ids
-                dial_info_detail_list: bsrec.dial_info_details, // Dial info is as specified in the bootstrap list
-            }));
+            let sni =
+                SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo::new(
+                    NetworkClass::InboundCapable, // Bootstraps are always inbound capable
+                    ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
+                    AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
+                    bsrec.envelope_support, // Envelope support is as specified in the bootstrap list
+                    crypto_support,         // Crypto support is derived from list of node ids
+                    bsrec.dial_info_details, // Dial info is as specified in the bootstrap list
+                )));
 
             let pi = PeerInfo::new(bsrec.node_ids, sni);
 

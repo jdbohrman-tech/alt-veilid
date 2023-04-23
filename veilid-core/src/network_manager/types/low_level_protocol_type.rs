@@ -27,5 +27,5 @@ impl LowLevelProtocolType {
         matches!(self, LowLevelProtocolType::TCP)
     }
 }
-pub type LowLevelProtocolTypeSet = EnumSet<LowLevelProtocolType>;
 
+// pub type LowLevelProtocolTypeSet = EnumSet<LowLevelProtocolType>;

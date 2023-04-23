@@ -445,46 +445,46 @@ reply               - reply to an AppCall not handled directly by the server
     pub fn update_app_message(&mut self, msg: veilid_core::VeilidAppMessage) {
         // check is message body is ascii printable
         let mut printable = true;
-        for c in &msg.message {
+        for c in msg.message() {
             if *c < 32 || *c > 126 {
                 printable = false;
             }
         }
 
         let strmsg = if printable {
-            String::from_utf8_lossy(&msg.message).to_string()
+            String::from_utf8_lossy(msg.message()).to_string()
         } else {
-            hex::encode(&msg.message)
+            hex::encode(msg.message())
         };
 
         self.inner()
             .ui
-            .add_node_event(format!("AppMessage ({:?}): {}", msg.sender, strmsg));
+            .add_node_event(format!("AppMessage ({:?}): {}", msg.sender(), strmsg));
     }
 
     pub fn update_app_call(&mut self, call: veilid_core::VeilidAppCall) {
         // check is message body is ascii printable
         let mut printable = true;
-        for c in &call.message {
+        for c in call.message() {
             if *c < 32 || *c > 126 {
                 printable = false;
             }
         }
 
         let strmsg = if printable {
-            String::from_utf8_lossy(&call.message).to_string()
+            String::from_utf8_lossy(call.message()).to_string()
         } else {
-            format!("#{}", hex::encode(&call.message))
+            format!("#{}", hex::encode(call.message()))
         };
 
         self.inner().ui.add_node_event(format!(
             "AppCall ({:?}) id = {:016x} : {}",
-            call.sender,
-            call.id.as_u64(),
+            call.sender(),
+            call.id().as_u64(),
             strmsg
         ));
 
-        self.inner_mut().last_call_id = Some(call.id);
+        self.inner_mut().last_call_id = Some(call.id());
     }
 
     pub fn update_shutdown(&mut self) {

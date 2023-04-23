@@ -1,8 +1,12 @@
 use super::*;
-use crate::storage_manager::SignedValueDescriptor;
+use crate::storage_manager::{SignedValueData, SignedValueDescriptor};
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub enum GetValueAnswer {}
+#[derive(Clone, Debug)]
+pub struct GetValueAnswer {
+    pub value: Option<SignedValueData>,
+    pub peers: Vec<PeerInfo>,
+    pub descriptor: Option<SignedValueDescriptor>,
+}
 
 impl RPCProcessor {
     // Sends a get value request and wait for response
@@ -44,17 +48,24 @@ impl RPCProcessor {
 
         // Get the right answer type
         let (_, _, _, kind) = msg.operation.destructure();
-        let app_call_a = match kind {
+        let get_value_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
-                RPCAnswerDetail::AppCallA(a) => a,
-                _ => return Err(RPCError::invalid_format("not an appcall answer")),
+                RPCAnswerDetail::GetValueA(a) => a,
+                _ => return Err(RPCError::invalid_format("not a getvalue answer")),
             },
             _ => return Err(RPCError::invalid_format("not an answer")),
         };
 
-        let a_message = app_call_a.destructure();
+        let (value, peers, descriptor) = get_value_a.destructure();
 
-        Ok(NetworkResult::value(Answer::new(latency, a_message)))
+        Ok(NetworkResult::value(Answer::new(
+            latency,
+            GetValueAnswer {
+                value,
+                peers,
+                descriptor,
+            },
+        )))
     }
 
     #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]

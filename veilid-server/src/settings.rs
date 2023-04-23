@@ -6,7 +6,7 @@ use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use sysinfo::{DiskExt, System, SystemExt};
+use sysinfo::{DiskExt, SystemExt};
 use url::Url;
 use veilid_core::tools::*;
 use veilid_core::*;
@@ -174,7 +174,7 @@ core:
     )
     .replace(
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
-        &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string_lossy(),
+        &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string(),
     );
     config::Config::builder()
         .add_source(config::File::from_str(
@@ -638,7 +638,7 @@ impl Settings {
         }
 
         // Generate config
-        let inner: SettingsInner = cfg.try_deserialize()?;
+        let mut inner: SettingsInner = cfg.try_deserialize()?;
 
         // Fill in missing defaults
         if inner.core.network.dht.remote_max_storage_space_mb == 0 {
@@ -857,14 +857,13 @@ impl Settings {
     }
 
     pub fn get_default_remote_max_subkey_cache_memory_mb() -> usize {
-        let mut sys = System::new_with_specifics(sysinfo::RefreshKind::new().with_memory());
+        let sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_memory());
         sys.free_memory() as usize / 8
     }
 
-    pub fn get_default_remote_max_storage_space_mb(inner: &SettingsInner) -> usize {
-        let mut sys = System::new_with_specifics(sysinfo::RefreshKind::new().with_disks());
+    pub fn get_default_remote_max_storage_space_mb(inner: &SettingsInner) -> u32 {
+        let mut sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_disks());
         let dht_storage_path = inner.core.table_store.directory.clone();
-        let mut available_mb = 0usize;
         // Sort longer mount point paths first since we want the mount point closest to our table store directory
         sys.sort_disks_by(|a, b| {
             b.mount_point()
@@ -874,13 +873,13 @@ impl Settings {
         });
         for disk in sys.disks() {
             if dht_storage_path.starts_with(disk.mount_point()) {
-                let available_mb = disk.available_space() / 1_000_000usize;
+                let available_mb = disk.available_space() / 1_000_000u64;
                 if available_mb > 40_000 {
                     // Default to 10GB if more than 40GB is available
                     return 10_000;
                 }
                 // Default to 1/4 of the available space, if less than 40GB is available
-                return available_mb;
+                return available_mb as u32;
             }
         }
         // If we can't figure out our storage path go with 1GB of space and pray

@@ -8,10 +8,10 @@ use super::*;
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    pub sender: Option<PublicKey>,
+    sender: Option<PublicKey>,
     /// The content of the message to deliver to the application
     #[serde(with = "json_as_base64")]
-    pub message: Vec<u8>,
+    message: Vec<u8>,
 }
 
 impl VeilidAppMessage {

@@ -136,6 +136,7 @@ impl BucketEntryInner {
     /// Returns Ok(None) if no previous existing node id was associated with that crypto kind
     /// Results Err() if this operation would add more crypto kinds than we support
     pub fn add_node_id(&mut self, node_id: TypedKey) -> EyreResult<Option<TypedKey>> {
+        let total_node_id_count = self.validated_node_ids.len() + self.unsupported_node_ids.len();
         let node_ids = if VALID_CRYPTO_KINDS.contains(&node_id.kind) {
             &mut self.validated_node_ids
         } else {
@@ -152,7 +153,7 @@ impl BucketEntryInner {
             return Ok(Some(old_node_id));
         }
         // Check to ensure we aren't adding more crypto kinds than we support
-        if self.validated_node_ids.len() + self.unsupported_node_ids.len() == MAX_CRYPTO_KINDS {
+        if total_node_id_count == MAX_CRYPTO_KINDS {
             bail!("too many crypto kinds for this node");
         }
         node_ids.add(node_id);
@@ -345,10 +346,10 @@ impl BucketEntryInner {
         };
         // Peer info includes all node ids, even unvalidated ones
         let node_ids = self.node_ids();
-        opt_current_sni.as_ref().map(|s| PeerInfo {
+        opt_current_sni.as_ref().map(|s| PeerInfo::new(
             node_ids,
-            signed_node_info: *s.clone(),
-        })
+            *s.clone(),
+        ))
     }
 
     pub fn best_routing_domain(
@@ -792,14 +793,14 @@ pub struct BucketEntry {
 
 impl BucketEntry {
     pub(super) fn new(first_node_id: TypedKey) -> Self {
-        let now = get_aligned_timestamp();
-        let mut validated_node_ids = TypedKeySet::new();
-        let mut unsupported_node_ids = TypedKeySet::new();
-        validated_node_ids.add(first_node_id);
 
+        // First node id should always be one we support since TypedKeySets are sorted and we must have at least one supported key
+        assert!(VALID_CRYPTO_KINDS.contains(&first_node_id.kind));
+
+        let now = get_aligned_timestamp();
         let inner = BucketEntryInner {
-            validated_node_ids,
-            unsupported_node_ids,
+            validated_node_ids: TypedKeySet::from(first_node_id),
+            unsupported_node_ids: TypedKeySet::new(),
             envelope_support: Vec::new(),
             updated_since_last_network_change: false,
             last_connections: BTreeMap::new(),

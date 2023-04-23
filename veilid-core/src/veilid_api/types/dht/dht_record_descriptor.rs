@@ -25,11 +25,11 @@ impl DHTRecordDescriptor {
         Self { owner, schema }
     }
 
-    pub fn owner(&self) -> PublicKey {
-        self.owner
+    pub fn owner(&self) -> &PublicKey {
+        &self.owner
     }
 
-    pub fn schema(&self) -> DHTSchema {
-        self.schema
+    pub fn schema(&self) -> &DHTSchema {
+        &self.schema
     }
 }

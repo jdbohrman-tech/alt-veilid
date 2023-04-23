@@ -17,11 +17,7 @@ impl RPCProcessor {
             .generate_single_shot_receipt(receipt_time, [])
             .map_err(RPCError::internal)?;
 
-        let validate_dial_info = RPCOperationValidateDialInfo {
-            dial_info,
-            receipt,
-            redirect,
-        };
+        let validate_dial_info = RPCOperationValidateDialInfo::new(dial_info, receipt, redirect)?;
         let statement = RPCStatement::new(RPCStatementDetail::ValidateDialInfo(validate_dial_info));
 
         // Send the validate_dial_info request
@@ -134,11 +130,8 @@ impl RPCProcessor {
                 }
 
                 // Make a copy of the request, without the redirect flag
-                let validate_dial_info = RPCOperationValidateDialInfo {
-                    dial_info: dial_info.clone(),
-                    receipt: receipt.clone(),
-                    redirect: false,
-                };
+                let validate_dial_info =
+                    RPCOperationValidateDialInfo::new(dial_info.clone(), receipt.clone(), false)?;
                 let statement =
                     RPCStatement::new(RPCStatementDetail::ValidateDialInfo(validate_dial_info));
 

@@ -133,10 +133,7 @@ impl RPCOperation {
         )
     }
 
-    pub fn decode(
-        context: &DecodeContext,
-        operation_reader: &veilid_capnp::operation::Reader,
-    ) -> Result<Self, RPCError> {
+    pub fn decode(operation_reader: &veilid_capnp::operation::Reader) -> Result<Self, RPCError> {
         let op_id = OperationId::new(operation_reader.get_op_id());
 
         let sender_peer_info = if operation_reader.has_sender_peer_info() {

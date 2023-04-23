@@ -312,7 +312,7 @@ impl RPCProcessor {
     }
 
     pub fn set_storage_manager(&self, opt_storage_manager: Option<StorageManager>) {
-        let inner = self.inner.lock();
+        let mut inner = self.inner.lock();
         inner.opt_storage_manager = opt_storage_manager
     }
 
@@ -555,10 +555,7 @@ impl RPCProcessor {
 
         // Prepare route operation
         let sr_hop_count = compiled_route.safety_route.hop_count;
-        let route_operation = RPCOperationRoute {
-            safety_route: compiled_route.safety_route,
-            operation,
-        };
+        let route_operation = RPCOperationRoute::new(compiled_route.safety_route, operation);
         let ssni_route =
             self.get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()));
         let operation = RPCOperation::new_statement(
@@ -1216,18 +1213,15 @@ impl RPCProcessor {
             .get_root::<veilid_capnp::operation::Reader>()
             .map_err(RPCError::protocol)
             .map_err(logthru_rpc!())?;
-        let decode_context = DecodeContext {
-            config: self.config.clone(),
-        };
-        let operation = RPCOperation::decode(&decode_context, &op_reader)?;
+        let mut operation = RPCOperation::decode(&op_reader)?;
 
         // Validate the RPC message
-        self.validate_rpc_operation(&operation)?;
+        self.validate_rpc_operation(&mut operation)?;
 
         Ok(operation)
     }
 
-    fn validate_rpc_operation(&self, operation: &RPCOperation) -> Result<(), RPCError> {
+    fn validate_rpc_operation(&self, operation: &mut RPCOperation) -> Result<(), RPCError> {
         // If this is an answer, get the question context for this answer
         // If we received an answer for a question we did not ask, this will return an error
         let question_context = if let RPCOperationKind::Answer(_) = operation.kind() {
@@ -1260,7 +1254,10 @@ impl RPCProcessor {
         let msg = match &encoded_msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
                 // Decode and validate the RPC operation
-                let operation = self.decode_rpc_operation(&encoded_msg)?;
+                let operation = match self.decode_rpc_operation(&encoded_msg) {
+                    Ok(v) => v,
+                    Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                };
 
                 // Get the routing domain this message came over
                 let routing_domain = detail.routing_domain;

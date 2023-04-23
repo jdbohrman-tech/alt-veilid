@@ -68,7 +68,7 @@ impl RPCProcessor {
             }
         };
 
-        let status_q = RPCOperationStatusQ { node_status };
+        let status_q = RPCOperationStatusQ::new(node_status);
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             RPCQuestionDetail::StatusQ(status_q),
@@ -88,8 +88,9 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let status_a = match msg.operation.into_kind() {
-            RPCOperationKind::Answer(a) => match a.into_detail() {
+        let (_, _, _, kind) = msg.operation.destructure();
+        let status_a = match kind {
+            RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::StatusA(a) => a,
                 _ => return Err(RPCError::invalid_format("not a status answer")),
             },
@@ -98,7 +99,7 @@ impl RPCProcessor {
 
         // Ensure the returned node status is the kind for the routing domain we asked for
         if let Some(target_nr) = opt_target_nr {
-            if let Some(node_status) = status_a.node_status {
+            if let Some(node_status) = status_a.node_status() {
                 match routing_domain {
                     RoutingDomain::PublicInternet => {
                         if !matches!(node_status, NodeStatus::PublicInternet(_)) {
@@ -117,7 +118,7 @@ impl RPCProcessor {
                 }
 
                 // Update latest node status in routing table
-                target_nr.update_node_status(node_status);
+                target_nr.update_node_status(node_status.clone());
             }
         }
 
@@ -131,7 +132,7 @@ impl RPCProcessor {
                 safety_selection,
             } => {
                 if matches!(safety_selection, SafetySelection::Unsafe(_)) {
-                    if let Some(sender_info) = status_a.sender_info {
+                    if let Some(sender_info) = status_a.sender_info() {
                         match send_data_kind {
                             SendDataKind::Direct(connection_descriptor) => {
                                 // Directly requested status that actually gets sent directly and not over a relay will tell us what our IP address appears as
@@ -199,7 +200,7 @@ impl RPCProcessor {
                 let routing_domain = detail.routing_domain;
 
                 // Ensure the node status from the question is the kind for the routing domain we received the request in
-                if let Some(node_status) = &status_q.node_status {
+                if let Some(node_status) = status_q.node_status() {
                     match routing_domain {
                         RoutingDomain::PublicInternet => {
                             if !matches!(node_status, NodeStatus::PublicInternet(_)) {
@@ -244,10 +245,7 @@ impl RPCProcessor {
         };
 
         // Make status answer
-        let status_a = RPCOperationStatusA {
-            node_status,
-            sender_info,
-        };
+        let status_a = RPCOperationStatusA::new(node_status, sender_info);
 
         // Send status answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::StatusA(status_a)))
