@@ -11,7 +11,7 @@ use crate::*;
 pub async fn run_all_tests() {
     info!("TEST: test_host_interface");
     test_host_interface::test_all().await;
-    info!("TEST: test_dht_key");
+    info!("TEST: test_types");
     test_types::test_all().await;
     info!("TEST: test_veilid_core");
     test_veilid_core::test_all().await;

@@ -37,9 +37,9 @@ async fn run_test_host_interface() {
 }
 
 #[wasm_bindgen_test]
-async fn run_test_dht_key() {
+async fn run_test_types() {
     setup();
-    test_dht_key::test_all().await;
+    test_types::test_all().await;
 }
 
 #[wasm_bindgen_test]
