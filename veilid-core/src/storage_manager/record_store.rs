@@ -135,9 +135,9 @@ impl RecordStore {
     async fn purge_dead_records(&mut self, lazy: bool) {
         let purge_dead_records_mutex = self.purge_dead_records_mutex.clone();
         let lock = if lazy {
-            match purge_dead_records_mutex.try_lock() {
-                Ok(v) => v,
-                Err(_) => {
+            match mutex_try_lock!(purge_dead_records_mutex) {
+                Some(v) => v,
+                None => {
                     // If not ready now, just skip it if we're lazy
                     return;
                 }

@@ -83,14 +83,14 @@ core:
             max_route_hop_count: 4
             default_route_hop_count: 1
         dht:
-            resolve_node_timeout: 10000
+            resolve_node_timeout_ms: 10000
             resolve_node_count: 20
             resolve_node_fanout: 3
             max_find_node_count: 20
-            get_value_timeout: 10000
+            get_value_timeout_ms: 10000
             get_value_count: 20
             get_value_fanout: 3
-            set_value_timeout: 10000
+            set_value_timeout_ms: 10000
             set_value_count: 20
             set_value_fanout: 5
             min_peer_count: 20
@@ -510,7 +510,7 @@ pub struct Rpc {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Dht {
-    pub resolve_node_timeout_ms: Option<u32>,
+    pub resolve_node_timeout_ms: u32,
     pub resolve_node_count: u32,
     pub resolve_node_fanout: u32,
     pub max_find_node_count: u32,
@@ -856,9 +856,9 @@ impl Settings {
         pk_path
     }
 
-    pub fn get_default_remote_max_subkey_cache_memory_mb() -> usize {
+    pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {
         let sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_memory());
-        sys.free_memory() as usize / 8
+        ((sys.free_memory() / (1024u64 * 1024u64)) / 16) as u32
     }
 
     pub fn get_default_remote_max_storage_space_mb(inner: &SettingsInner) -> u32 {
@@ -1534,7 +1534,7 @@ mod tests {
         assert_eq!(s.core.network.rpc.max_route_hop_count, 4);
         assert_eq!(s.core.network.rpc.default_route_hop_count, 1);
         //
-        assert_eq!(s.core.network.dht.resolve_node_timeout_ms, None);
+        assert_eq!(s.core.network.dht.resolve_node_timeout_ms, 10_000u32);
         assert_eq!(s.core.network.dht.resolve_node_count, 20u32);
         assert_eq!(s.core.network.dht.resolve_node_fanout, 3u32);
         assert_eq!(s.core.network.dht.max_find_node_count, 20u32);

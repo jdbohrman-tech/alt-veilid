@@ -225,7 +225,7 @@ rpc:
     queue_size: 1024
     max_timestamp_behind_ms: 10000
     max_timestamp_ahead_ms: 10000
-    timeout_ms: 10000
+    timeout_ms: 5000
     max_route_hop_count: 4
     default_route_hop_count: 1
 ```
@@ -234,19 +234,25 @@ rpc:
 
 ```yaml
 dht:
-    resolve_node_timeout:
+    resolve_node_timeout_ms: 10000
     resolve_node_count: 20
     resolve_node_fanout: 3
     max_find_node_count: 20
-    get_value_timeout:
+    get_value_timeout_ms: 10000
     get_value_count: 20
     get_value_fanout: 3
-    set_value_timeout:
+    set_value_timeout_ms: 10000
     set_value_count: 20
     set_value_fanout: 5
     min_peer_count: 20
     min_peer_refresh_time_ms: 2000
     validate_dial_info_receipt_time_ms: 2000
+    local_subkey_cache_size: 128
+    local_max_subkey_cache_memory_mb: 256
+    remote_subkey_cache_size: 1024
+    remote_max_records: 65536
+    remote_max_subkey_cache_memory_mb: %REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%
+    remote_max_storage_space_mb: 0
 ```
 
 #### core:network:tls

@@ -29,6 +29,8 @@ struct StorageManagerInner {
     local_record_store: Option<RecordStore>,
     /// Records that have been pushed to this node for distribution by other nodes
     remote_record_store: Option<RecordStore>,
+    /// RPC processor if it is available
+    rpc_processor: Option<RPCProcessor>,
 }
 
 struct StorageManagerUnlockedInner {
@@ -37,7 +39,6 @@ struct StorageManagerUnlockedInner {
     protected_store: ProtectedStore,
     table_store: TableStore,
     block_store: BlockStore,
-    rpc_processor: RPCProcessor,
 }
 
 #[derive(Clone)]
@@ -53,7 +54,6 @@ impl StorageManager {
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
-        rpc_processor: RPCProcessor,
     ) -> StorageManagerUnlockedInner {
         StorageManagerUnlockedInner {
             config,
@@ -61,7 +61,6 @@ impl StorageManager {
             protected_store,
             table_store,
             block_store,
-            rpc_processor,
         }
     }
     fn new_inner() -> StorageManagerInner {
@@ -69,6 +68,7 @@ impl StorageManager {
             initialized: false,
             local_record_store: None,
             remote_record_store: None,
+            rpc_processor: None,
         }
     }
 
@@ -106,7 +106,6 @@ impl StorageManager {
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
-        rpc_processor: RPCProcessor,
     ) -> StorageManager {
         StorageManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
@@ -115,7 +114,6 @@ impl StorageManager {
                 protected_store,
                 table_store,
                 block_store,
-                rpc_processor,
             )),
             inner: Arc::new(AsyncMutex::new(Self::new_inner())),
         }
@@ -148,11 +146,6 @@ impl StorageManager {
 
         inner.initialized = true;
 
-        // Let rpc processor access storage manager
-        self.unlocked_inner
-            .rpc_processor
-            .set_storage_manager(Some(self.clone()));
-
         Ok(())
     }
 
@@ -163,10 +156,12 @@ impl StorageManager {
         // Release the storage manager
         *inner = Self::new_inner();
 
-        // Remove storage manager from rpc processor
-        self.unlocked_inner.rpc_processor.set_storage_manager(None);
-
         debug!("finished storage manager shutdown");
+    }
+
+    pub async fn set_rpc_processor(&self, opt_rpc_processor: Option<RPCProcessor>) {
+        let mut inner = self.inner.lock().await;
+        inner.rpc_processor = opt_rpc_processor
     }
 
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]

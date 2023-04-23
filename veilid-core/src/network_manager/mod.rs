@@ -33,6 +33,7 @@ use native::*;
 use receipt_manager::*;
 use routing_table::*;
 use rpc_processor::*;
+use storage_manager::*;
 #[cfg(target_arch = "wasm32")]
 use wasm::*;
 
@@ -146,6 +147,7 @@ struct NetworkManagerInner {
 struct NetworkManagerUnlockedInner {
     // Handles
     config: VeilidConfig,
+    storage_manager: StorageManager,
     protected_store: ProtectedStore,
     table_store: TableStore,
     block_store: BlockStore,
@@ -176,6 +178,7 @@ impl NetworkManager {
     }
     fn new_unlocked_inner(
         config: VeilidConfig,
+        storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
@@ -183,6 +186,7 @@ impl NetworkManager {
     ) -> NetworkManagerUnlockedInner {
         NetworkManagerUnlockedInner {
             config,
+            storage_manager,
             protected_store,
             table_store,
             block_store,
@@ -197,6 +201,7 @@ impl NetworkManager {
 
     pub fn new(
         config: VeilidConfig,
+        storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
@@ -206,6 +211,7 @@ impl NetworkManager {
             inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
+                storage_manager,
                 protected_store,
                 table_store,
                 block_store,
@@ -225,6 +231,9 @@ impl NetworkManager {
         F: FnOnce(&VeilidConfigInner) -> R,
     {
         f(&*self.unlocked_inner.config.get())
+    }
+    pub fn storage_manager(&self) -> StorageManager {
+        self.unlocked_inner.storage_manager.clone()
     }
     pub fn protected_store(&self) -> ProtectedStore {
         self.unlocked_inner.protected_store.clone()

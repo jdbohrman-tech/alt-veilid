@@ -17,6 +17,7 @@ enable-crypto-vld0 = []
 enable-crypto-none = []
 rt-async-std = ["async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std"]
 rt-tokio = ["tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket", "veilid-tools/rt-tokio"]
+rt-wasm-bindgen = ["veilid-tools/rt-wasm-bindgen", "async_executors/bindgen"]
 
 veilid_core_android_tests = ["dep:paranoid-android"]
 veilid_core_ios_tests = ["dep:tracing-oslog"]

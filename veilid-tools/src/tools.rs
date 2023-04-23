@@ -32,6 +32,24 @@ macro_rules! bail_io_error_other {
     };
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(feature="rt-tokio")] {
+        #[macro_export]
+        macro_rules! mutex_try_lock {
+            ($x:expr) => {
+                $x.try_lock().ok()
+            };
+        }
+    } else {
+        #[macro_export]
+        macro_rules! mutex_try_lock {
+            ($x:expr) => {
+                $x.try_lock()
+            };
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn system_boxed<'a, Out>(

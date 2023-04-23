@@ -106,11 +106,27 @@ impl ServicesContext {
         }
         self.block_store = Some(block_store.clone());
 
+        // Set up storage manager
+        trace!("init storage manager");
+        let storage_manager = StorageManager::new(
+            self.config.clone(),
+            self.crypto.clone().unwrap(),
+            self.protected_store.clone().unwrap(),
+            self.table_store.clone().unwrap(),
+            self.block_store.clone().unwrap(),
+        );
+        if let Err(e) = storage_manager.init().await {
+            self.shutdown().await;
+            return Err(e);
+        }
+        self.storage_manager = Some(storage_manager.clone());
+
         // Set up attachment manager
         trace!("init attachment manager");
         let update_callback = self.update_callback.clone();
         let attachment_manager = AttachmentManager::new(
             self.config.clone(),
+            storage_manager,
             protected_store,
             table_store,
             block_store,
@@ -122,26 +138,6 @@ impl ServicesContext {
         }
         self.attachment_manager = Some(attachment_manager);
 
-        // Set up storage manager
-        trace!("init storage manager");
-        let storage_manager = StorageManager::new(
-            self.config.clone(),
-            self.crypto.clone().unwrap(),
-            self.protected_store.clone().unwrap(),
-            self.table_store.clone().unwrap(),
-            self.block_store.clone().unwrap(),
-            self.attachment_manager
-                .clone()
-                .unwrap()
-                .network_manager()
-                .rpc_processor(),
-        );
-        if let Err(e) = storage_manager.init().await {
-            self.shutdown().await;
-            return Err(e);
-        }
-        self.storage_manager = Some(storage_manager.clone());
-
         info!("Veilid API startup complete");
         Ok(())
     }
@@ -150,13 +146,13 @@ impl ServicesContext {
     pub async fn shutdown(&mut self) {
         info!("Veilid API shutting down");
 
-        if let Some(storage_manager) = &mut self.storage_manager {
-            trace!("terminate storage manager");
-            storage_manager.terminate().await;
-        }
         if let Some(attachment_manager) = &mut self.attachment_manager {
             trace!("terminate attachment manager");
             attachment_manager.terminate().await;
+        }
+        if let Some(storage_manager) = &mut self.storage_manager {
+            trace!("terminate storage manager");
+            storage_manager.terminate().await;
         }
         if let Some(block_store) = &mut self.block_store {
             trace!("terminate block store");
@@ -191,12 +187,12 @@ pub struct VeilidCoreContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
     // Services
+    pub storage_manager: StorageManager,
     pub protected_store: ProtectedStore,
     pub table_store: TableStore,
     pub block_store: BlockStore,
     pub crypto: Crypto,
     pub attachment_manager: AttachmentManager,
-    pub storage_manager: StorageManager,
 }
 
 impl VeilidCoreContext {
@@ -242,14 +238,14 @@ impl VeilidCoreContext {
         sc.startup().await.map_err(VeilidAPIError::generic)?;
 
         Ok(VeilidCoreContext {
-            update_callback: sc.update_callback,
             config: sc.config,
+            update_callback: sc.update_callback,
+            storage_manager: sc.storage_manager.unwrap(),
             protected_store: sc.protected_store.unwrap(),
             table_store: sc.table_store.unwrap(),
             block_store: sc.block_store.unwrap(),
             crypto: sc.crypto.unwrap(),
             attachment_manager: sc.attachment_manager.unwrap(),
-            storage_manager: sc.storage_manager.unwrap(),
         })
     }
 
