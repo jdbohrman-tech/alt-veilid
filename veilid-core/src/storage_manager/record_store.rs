@@ -134,7 +134,7 @@ impl RecordStore {
 
     async fn purge_dead_records(&mut self, lazy: bool) {
         let purge_dead_records_mutex = self.purge_dead_records_mutex.clone();
-        let lock = if lazy {
+        let _lock = if lazy {
             match mutex_try_lock!(purge_dead_records_mutex) {
                 Some(v) => v,
                 None => {
@@ -212,9 +212,10 @@ impl RecordStore {
         }
     }
 
-    pub async fn tick(&mut self, last_ts: Timestamp, cur_ts: Timestamp) {
+    pub async fn tick(&mut self) -> EyreResult<()> {
         self.flush_changed_records().await;
         self.purge_dead_records(true).await;
+        Ok(())
     }
 
     pub async fn new_record(

@@ -3,6 +3,7 @@ mod record;
 mod record_data;
 mod record_store;
 mod record_store_limits;
+mod tasks;
 mod types;
 
 use keys::*;
@@ -20,6 +21,8 @@ use crate::rpc_processor::*;
 const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
 /// The maximum total size of all subkeys of a record
 const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
+/// Frequency to flush record stores to disk
+const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
 
 /// Locked structure for storage manager
 struct StorageManagerInner {
@@ -31,6 +34,8 @@ struct StorageManagerInner {
     remote_record_store: Option<RecordStore>,
     /// RPC processor if it is available
     rpc_processor: Option<RPCProcessor>,
+    /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
+    tick_future: Option<SendPinBoxFuture<()>>,
 }
 
 struct StorageManagerUnlockedInner {
@@ -39,6 +44,9 @@ struct StorageManagerUnlockedInner {
     protected_store: ProtectedStore,
     table_store: TableStore,
     block_store: BlockStore,
+
+    // Background processes
+    flush_record_stores_task: TickTask<EyreReport>,
 }
 
 #[derive(Clone)]
@@ -61,6 +69,7 @@ impl StorageManager {
             protected_store,
             table_store,
             block_store,
+            flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
         }
     }
     fn new_inner() -> StorageManagerInner {
@@ -69,6 +78,7 @@ impl StorageManager {
             local_record_store: None,
             remote_record_store: None,
             rpc_processor: None,
+            tick_future: None,
         }
     }
 
@@ -107,7 +117,7 @@ impl StorageManager {
         table_store: TableStore,
         block_store: BlockStore,
     ) -> StorageManager {
-        StorageManager {
+        let this = StorageManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
                 crypto,
@@ -116,7 +126,11 @@ impl StorageManager {
                 block_store,
             )),
             inner: Arc::new(AsyncMutex::new(Self::new_inner())),
-        }
+        };
+
+        this.setup_tasks();
+
+        this
     }
 
     #[instrument(level = "debug", skip_all, err)]
@@ -144,6 +158,18 @@ impl StorageManager {
         inner.local_record_store = Some(local_record_store);
         inner.remote_record_store = Some(remote_record_store);
 
+        // Schedule tick
+        let this = self.clone();
+        let tick_future = interval(1000, move || {
+            let this = this.clone();
+            async move {
+                if let Err(e) = this.tick().await {
+                    warn!("storage manager tick failed: {}", e);
+                }
+            }
+        });
+        inner.tick_future = Some(tick_future);
+
         inner.initialized = true;
 
         Ok(())
@@ -151,7 +177,17 @@ impl StorageManager {
 
     pub async fn terminate(&self) {
         debug!("starting storage manager shutdown");
+
         let mut inner = self.inner.lock().await;
+
+        // Stop ticker
+        let tick_future = inner.tick_future.take();
+        if let Some(f) = tick_future {
+            f.await;
+        }
+
+        // Cancel all tasks
+        self.cancel_tasks().await;
 
         // Release the storage manager
         *inner = Self::new_inner();

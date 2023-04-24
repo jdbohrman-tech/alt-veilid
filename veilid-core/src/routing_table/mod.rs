@@ -211,7 +211,7 @@ impl RoutingTable {
             unlocked_inner,
         };
 
-        this.start_tasks();
+        this.setup_tasks();
 
         this
     }
@@ -262,7 +262,7 @@ impl RoutingTable {
         debug!("starting routing table terminate");
 
         // Stop tasks
-        self.stop_tasks().await;
+        self.cancel_tasks().await;
 
         // Load bucket entries from table db if possible
         debug!("saving routing table entries");

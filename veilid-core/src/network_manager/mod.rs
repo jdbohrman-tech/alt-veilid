@@ -219,7 +219,7 @@ impl NetworkManager {
             )),
         };
 
-        this.start_tasks();
+        this.setup_tasks();
 
         this
     }
@@ -379,7 +379,7 @@ impl NetworkManager {
         debug!("starting network manager shutdown");
 
         // Cancel all tasks
-        self.stop_tasks().await;
+        self.cancel_tasks().await;
 
         // Shutdown network components if they started up
         debug!("shutting down network components");
