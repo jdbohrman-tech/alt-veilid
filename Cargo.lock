@@ -2151,6 +2151,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "gen_ops"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f41347f4fa32183c2549b86daf6b6b12a26029a77463e25358f7287580b088b"
+
+[[package]]
 name = "generic-array"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4246,6 +4252,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "range-set-blaze"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e139f0c5edf89edb65753e67eaf8e6031de21ea59f84cb63e0cfb36aaf80e6d0"
+dependencies = [
+ "gen_ops",
+ "itertools",
+ "num-integer",
+ "num-traits",
+ "rand 0.8.5",
+ "thiserror",
+]
+
+[[package]]
 name = "raw-window-handle"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6064,6 +6084,7 @@ dependencies = [
  "paranoid-android",
  "parking_lot 0.12.1",
  "rand 0.7.3",
+ "range-set-blaze",
  "rkyv",
  "rtnetlink",
  "rusqlite",

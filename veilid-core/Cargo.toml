@@ -69,6 +69,7 @@ keyvaluedb = { path = "../external/keyvaluedb/keyvaluedb" }
 rkyv = { version = "^0", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
 data-encoding = { version = "^2" }
 weak-table = "0.3.2"
+range-set-blaze = "0.1.4"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
