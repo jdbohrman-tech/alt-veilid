@@ -35,16 +35,29 @@ macro_rules! bail_io_error_other {
 cfg_if::cfg_if! {
     if #[cfg(feature="rt-tokio")] {
         #[macro_export]
-        macro_rules! mutex_try_lock {
+        macro_rules! asyncmutex_try_lock {
             ($x:expr) => {
                 $x.try_lock().ok()
             };
         }
+
+        #[macro_export]
+        macro_rules! asyncmutex_lock_arc {
+            ($x:expr) => {
+                $x.clone().lock_owned().await
+            };
+        }
     } else {
         #[macro_export]
-        macro_rules! mutex_try_lock {
+        macro_rules! asyncmutex_try_lock {
             ($x:expr) => {
                 $x.try_lock()
+            };
+        }
+        #[macro_export]
+        macro_rules! asyncmutex_lock_arc {
+            ($x:expr) => {
+                $x.lock_arc().await
             };
         }
     }

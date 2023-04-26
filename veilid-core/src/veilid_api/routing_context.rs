@@ -203,7 +203,7 @@ impl RoutingContext {
         &self,
         kind: CryptoKind,
         schema: DHTSchema,
-    ) -> Result<TypedKey, VeilidAPIError> {
+    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .create_record(kind, schema, self.unlocked_inner.safety_selection)
@@ -216,7 +216,7 @@ impl RoutingContext {
     pub async fn open_dht_record(
         &self,
         key: TypedKey,
-        secret: Option<SecretKey>,
+        writer: Option<KeyPair>,
     ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
@@ -232,7 +232,7 @@ impl RoutingContext {
     }
 
     /// Deletes a DHT record at a specific key. If the record is opened, it must be closed before it is deleted.
-    /// Deleting a record does not delete it from the network immediately, but will remove the storage of the record
+    /// Deleting a record does not delete it from the network, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
     pub async fn delete_dht_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;

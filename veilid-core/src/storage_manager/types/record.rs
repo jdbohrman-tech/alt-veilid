@@ -6,32 +6,28 @@ use serde::*;
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct Record {
-    last_touched_ts: Timestamp,
+pub struct Record<D> {
     descriptor: SignedValueDescriptor,
     subkey_count: usize,
-
-    owner_secret: Option<SecretKey>,
-    safety_selection: SafetySelection,
+    last_touched_ts: Timestamp,
     record_data_size: usize,
+    detail: D,
 }
 
-impl Record {
+impl<D> Record<D> {
     pub fn new(
         cur_ts: Timestamp,
         descriptor: SignedValueDescriptor,
-        owner_secret: Option<SecretKey>,
-        safety_selection: SafetySelection,
+        detail: D,
     ) -> Result<Self, VeilidAPIError> {
         let schema = descriptor.schema()?;
         let subkey_count = schema.subkey_count();
         Ok(Self {
-            last_touched_ts: cur_ts,
             descriptor,
             subkey_count,
-            owner_secret,
-            safety_selection,
+            last_touched_ts: cur_ts,
             record_data_size: 0,
+            detail,
         })
     }
 
@@ -68,6 +64,13 @@ impl Record {
     }
 
     pub fn total_size(&self) -> usize {
-        mem::size_of::<Record>() + self.descriptor.total_size() + self.record_data_size
+        mem::size_of::<Record<D>>() + self.descriptor.total_size() + self.record_data_size
+    }
+
+    pub fn detail(&self) -> &D {
+        &self.detail
+    }
+    pub fn detail_mut(&mut self) -> &mut D {
+        &mut self.detail
     }
 }

@@ -7,25 +7,25 @@
 use super::*;
 use hashlink::LruCache;
 
-pub struct RecordStore {
+pub struct RecordStore<D> {
     table_store: TableStore,
     name: String,
     limits: RecordStoreLimits,
 
     record_table: Option<TableDB>,
     subkey_table: Option<TableDB>,
-    record_index: LruCache<RecordTableKey, Record>,
+    record_index: LruCache<RecordTableKey, Record<D>>,
     subkey_cache: LruCache<SubkeyTableKey, RecordData>,
     subkey_cache_total_size: usize,
     total_storage_space: usize,
 
-    dead_records: Vec<(RecordTableKey, Record)>,
+    dead_records: Vec<(RecordTableKey, Record<D>)>,
     changed_records: HashSet<RecordTableKey>,
 
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
 }
 
-impl RecordStore {
+impl<D> RecordStore<D> {
     pub fn new(table_store: TableStore, name: &str, limits: RecordStoreLimits) -> Self {
         let subkey_cache_size = limits.subkey_cache_size as usize;
         Self {
@@ -92,7 +92,7 @@ impl RecordStore {
         Ok(())
     }
 
-    fn add_dead_record(&mut self, key: RecordTableKey, record: Record) {
+    fn add_dead_record(&mut self, key: RecordTableKey, record: Record<D>) {
         self.dead_records.push((key, record));
     }
 
@@ -135,7 +135,7 @@ impl RecordStore {
     async fn purge_dead_records(&mut self, lazy: bool) {
         let purge_dead_records_mutex = self.purge_dead_records_mutex.clone();
         let _lock = if lazy {
-            match mutex_try_lock!(purge_dead_records_mutex) {
+            match asyncmutex_try_lock!(purge_dead_records_mutex) {
                 Some(v) => v,
                 None => {
                     // If not ready now, just skip it if we're lazy
@@ -221,7 +221,7 @@ impl RecordStore {
     pub async fn new_record(
         &mut self,
         key: TypedKey,
-        record: Record,
+        record: Record<D>,
     ) -> Result<(), VeilidAPIError> {
         let rtk = RecordTableKey { key };
         if self.record_index.contains_key(&rtk) {
@@ -269,7 +269,7 @@ impl RecordStore {
 
     pub fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
-        F: FnOnce(&Record) -> R,
+        F: FnOnce(&Record<D>) -> R,
     {
         // Get record from index
         let mut out = None;
