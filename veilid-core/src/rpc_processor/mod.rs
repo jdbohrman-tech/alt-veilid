@@ -405,12 +405,16 @@ impl RPCProcessor {
         _count: u32,
         _fanout: u32,
         _timeout: TimestampDuration,
+         
     ) -> Result<Option<NodeRef>, RPCError> {
-        //let routing_table = self.routing_table();
+        let routing_table = self.routing_table();
 
-        // xxx find node but stop if we find the exact node we want
-        // xxx return whatever node is closest after the timeout
-        Err(RPCError::unimplemented("search_dht_single_key")).map_err(logthru_rpc!(error))
+        // Get the 'count' closest nodes to the key out of our routing table
+        let mut closest_nodes = Vec::new();
+        routing_table.find_closest_nodes(count, node_id, filters, transform)
+
+
+        
     }
 
     /// Search the DHT for the 'count' closest nodes to a key, adding them all to the routing table if they are not there and returning their node references
@@ -425,14 +429,11 @@ impl RPCProcessor {
         Err(RPCError::unimplemented("search_dht_multi_key")).map_err(logthru_rpc!(error))
     }
 
-get rid of multi key, finish resolve node with find_node_rpc, then do putvalue/getvalue, probably in storagemanager.
-
-
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
     /// Note: This routine can possible be recursive, hence the SendPinBoxFuture async form
     pub fn resolve_node(
         &self,
-        node_id: PublicKey,
+        node_id: PublicKey, xxx switch to typedkey for the api. everything else is going to need it.
     ) -> SendPinBoxFuture<Result<Option<NodeRef>, RPCError>> {
         let this = self.clone();
         Box::pin(async move {
@@ -457,6 +458,7 @@ get rid of multi key, finish resolve node with find_node_rpc, then do putvalue/g
                 )
             };
 
+            // Search in preferred cryptosystem order
             let nr = this
                 .search_dht_single_key(node_id, count, fanout, timeout)
                 .await?;
