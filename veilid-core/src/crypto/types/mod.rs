@@ -5,8 +5,6 @@ use core::convert::TryInto;
 use core::fmt;
 use core::hash::Hash;
 
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-
 /// Cryptography version fourcc code
 pub type CryptoKind = FourCC;
 

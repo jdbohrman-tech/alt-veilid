@@ -7,7 +7,12 @@
 use super::*;
 use hashlink::LruCache;
 
-pub struct RecordStore<D> {
+pub struct RecordStore<D>
+where
+    D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
+    <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+{
     table_store: TableStore,
     name: String,
     limits: RecordStoreLimits,
@@ -25,7 +30,12 @@ pub struct RecordStore<D> {
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
 }
 
-impl<D> RecordStore<D> {
+impl<D> RecordStore<D>
+where
+    D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
+    <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+{
     pub fn new(table_store: TableStore, name: &str, limits: RecordStoreLimits) -> Self {
         let subkey_cache_size = limits.subkey_cache_size as usize;
         Self {
@@ -56,10 +66,10 @@ impl<D> RecordStore<D> {
 
         // Pull record index from table into a vector to ensure we sort them
         let record_table_keys = record_table.get_keys(0)?;
-        let mut record_index_saved: Vec<(RecordTableKey, Record)> =
+        let mut record_index_saved: Vec<(RecordTableKey, Record<D>)> =
             Vec::with_capacity(record_table_keys.len());
         for rtk in record_table_keys {
-            if let Some(vr) = record_table.load_rkyv::<Record>(0, &rtk)? {
+            if let Some(vr) = record_table.load_rkyv::<Record<D>>(0, &rtk)? {
                 let rik = RecordTableKey::try_from(rtk.as_ref())?;
                 record_index_saved.push((rik, vr));
             }
@@ -270,6 +280,27 @@ impl<D> RecordStore<D> {
     pub fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
+    {
+        // Get record from index
+        let mut out = None;
+        let rtk = RecordTableKey { key };
+        if let Some(record) = self.record_index.get_mut(&rtk) {
+            // Callback
+            out = Some(f(record));
+
+            // Touch
+            record.touch(get_aligned_timestamp());
+        }
+        if out.is_some() {
+            self.mark_record_changed(rtk);
+        }
+
+        out
+    }
+
+    pub fn with_record_mut<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Record<D>) -> R,
     {
         // Get record from index
         let mut out = None;

@@ -1,6 +1,4 @@
 use crate::*;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use serde::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 pub type ConfigCallbackReturn = Result<Box<dyn core::any::Any + Send>, VeilidAPIError>;

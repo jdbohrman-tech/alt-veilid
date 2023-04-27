@@ -1,6 +1,4 @@
 use super::*;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use serde::*;
 
 #[derive(
     Clone,

@@ -220,7 +220,7 @@ impl RoutingContext {
     ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
-            .open_record(key, secret, self.unlocked_inner.safety_selection)
+            .open_record(key, writer, self.unlocked_inner.safety_selection)
             .await
     }
 

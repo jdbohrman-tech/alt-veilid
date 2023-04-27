@@ -42,9 +42,18 @@ pub use veilid_tools as tools;
 
 use enumset::*;
 use rkyv::{
-    bytecheck, bytecheck::CheckBytes, Archive as RkyvArchive, Deserialize as RkyvDeserialize,
-    Serialize as RkyvSerialize,
+    bytecheck, bytecheck::CheckBytes, de::deserializers::SharedDeserializeMap, with::Skip,
+    Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
 };
+type RkyvSerializer = rkyv::ser::serializers::CompositeSerializer<
+    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+    rkyv::ser::serializers::FallbackScratch<
+        rkyv::ser::serializers::HeapScratch<1024>,
+        rkyv::ser::serializers::AllocScratch,
+    >,
+    rkyv::ser::serializers::SharedSerializeMap,
+>;
+type RkyvDefaultValidator<'t> = rkyv::validation::validators::DefaultValidator<'t>;
 use serde::*;
 
 pub mod veilid_capnp {

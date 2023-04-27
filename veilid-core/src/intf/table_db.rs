@@ -1,8 +1,4 @@
 use crate::*;
-use rkyv::{
-    bytecheck::CheckBytes, Archive as RkyvArchive, Deserialize as RkyvDeserialize,
-    Serialize as RkyvSerialize,
-};
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {

@@ -200,7 +200,12 @@ impl StorageManager {
     }
 
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
-    fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey {
+    fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
+    where
+        D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+        for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
+        <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+    {
         let compiled = record.descriptor().schema_data();
         let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());
         hash_data.extend_from_slice(&vcrypto.kind().0);
@@ -213,7 +218,7 @@ impl StorageManager {
     async fn lock(&self) -> Result<AsyncMutexGuardArc<StorageManagerInner>, VeilidAPIError> {
         let inner = asyncmutex_lock_arc!(&self.inner);
         if !inner.initialized {
-            apibail_generic!("not initialized");
+            apibail_not_initialized!();
         }
         Ok(inner)
     }
@@ -260,6 +265,18 @@ impl StorageManager {
             .await
     }
 
+    async fn do_get_value(
+        &self,
+        mut inner: AsyncMutexGuardArc<StorageManagerInner>,
+        key: TypedKey,
+        subkey: ValueSubkey,
+    ) -> Result<Option<GetValueAnswer>, VeilidAPIError> {
+        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+            apibail_not_initialized!();
+        };
+
+        //
+    }
     async fn open_record_inner(
         &self,
         mut inner: AsyncMutexGuardArc<StorageManagerInner>,
@@ -267,17 +284,34 @@ impl StorageManager {
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+        // Ensure the record is closed
+        if inner.opened_records.contains_key(&key) {
+            return Err(VeilidAPIError::generic(
+                "record is already open and should be closed first",
+            ));
+        }
+
         // Get cryptosystem
         let Some(vcrypto) = self.unlocked_inner.crypto.get(key.kind) else {
             apibail_generic!("unsupported cryptosystem");
         };
 
         // See if we have a local record already or not
-        let cb = |r: &Record<LocalRecordDetail>| {
+        let cb = |r: &mut Record<LocalRecordDetail>| {
             // Process local record
+
+            // Keep the safety selection we opened the record with
+            r.detail_mut().safety_selection = safety_selection;
+
+            // Return record details
             (r.owner().clone(), r.schema())
         };
-        if let Some((owner, schema)) = inner.local_record_store.unwrap().with_record(key, cb) {
+        if let Some((owner, schema)) = inner
+            .local_record_store
+            .as_mut()
+            .unwrap()
+            .with_record_mut(key, cb)
+        {
             // Had local record
 
             // If the writer we chose is also the owner, we have the owner secret
@@ -293,27 +327,23 @@ impl StorageManager {
             };
 
             // Write open record
-            inner.opened_records.insert(key, OpenedRecord { writer });
+            inner.opened_records.insert(key, OpenedRecord::new(writer));
 
             // Make DHT Record Descriptor to return
-            let descriptor = DHTRecordDescriptor {
-                key,
-                owner,
-                owner_secret,
-                schema,
-            };
+            let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
             Ok(descriptor)
         } else {
-            // No record yet
+            // No record yet, try to get it from the network
+            self.do_get_value(inner, key, 0).await
 
             // Make DHT Record Descriptor to return
-            let descriptor = DHTRecordDescriptor {
-                key,
-                owner,
-                owner_secret,
-                schema,
-            };
-            Ok(descriptor)
+            // let descriptor = DHTRecordDescriptor {
+            //     key,
+            //     owner,
+            //     owner_secret,
+            //     schema,
+            // };
+            // Ok(descriptor)
         }
     }
 
@@ -352,7 +382,8 @@ impl StorageManager {
             self.close_record_inner(inner, key).await?;
         }
 
-        // Remove
+        // Remove the record from the local store
+        //inner.local_record_store.unwrap().de
 
         unimplemented!();
     }

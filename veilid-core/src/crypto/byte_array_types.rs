@@ -7,8 +7,6 @@ use core::hash::Hash;
 
 use data_encoding::BASE64URL_NOPAD;
 
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-
 //////////////////////////////////////////////////////////////////////
 
 /// Length of a public key in bytes

@@ -2,6 +2,14 @@ use super::*;
 
 #[allow(unused_macros)]
 #[macro_export]
+macro_rules! apibail_not_initialized {
+    () => {
+        return Err(VeilidAPIError::not_initialized())
+    };
+}
+
+#[allow(unused_macros)]
+#[macro_export]
 macro_rules! apibail_timeout {
     () => {
         return Err(VeilidAPIError::timeout())

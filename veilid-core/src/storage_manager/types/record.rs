@@ -1,12 +1,15 @@
 use super::*;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use serde::*;
 
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct Record<D> {
+pub struct Record<D>
+where
+    D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
+    <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+{
     descriptor: SignedValueDescriptor,
     subkey_count: usize,
     last_touched_ts: Timestamp,
@@ -14,7 +17,12 @@ pub struct Record<D> {
     detail: D,
 }
 
-impl<D> Record<D> {
+impl<D> Record<D>
+where
+    D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
+    <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+{
     pub fn new(
         cur_ts: Timestamp,
         descriptor: SignedValueDescriptor,

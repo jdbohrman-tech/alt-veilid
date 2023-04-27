@@ -425,6 +425,9 @@ impl RPCProcessor {
         Err(RPCError::unimplemented("search_dht_multi_key")).map_err(logthru_rpc!(error))
     }
 
+get rid of multi key, finish resolve node with find_node_rpc, then do putvalue/getvalue, probably in storagemanager.
+
+
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
     /// Note: This routine can possible be recursive, hence the SendPinBoxFuture async form
     pub fn resolve_node(
