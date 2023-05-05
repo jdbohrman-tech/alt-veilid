@@ -141,9 +141,9 @@ where
         }
         false
     }
-    pub fn contains_key(&self, key: &K) -> bool {
+    pub fn contains_value(&self, value: &K) -> bool {
         for tk in &self.items {
-            if tk.value == *key {
+            if tk.value == *value {
                 return true;
             }
         }

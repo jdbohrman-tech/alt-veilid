@@ -1209,9 +1209,6 @@ impl RoutingTableInner {
             };
 
             // distance is the next metric, closer nodes first
-            // since multiple cryptosystems are in use, the distance for a key is the shortest
-            // distance to that key over all supported cryptosystems
-
             let da = vcrypto.distance(&a_key.value, &node_id.value);
             let db = vcrypto.distance(&b_key.value, &node_id.value);
             da.cmp(&db)
