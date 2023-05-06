@@ -4,7 +4,7 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(PublicKey),     // Node by any of its public keys
+    NodeId(TypedKey),      // Node by its public key
     PrivateRoute(RouteId), // Remote private route by its id
 }
 
@@ -105,7 +105,10 @@ impl RoutingContext {
         match target {
             Target::NodeId(node_id) => {
                 // Resolve node
-                let mut nr = match rpc_processor.resolve_node(node_id).await {
+                let mut nr = match rpc_processor
+                    .resolve_node(node_id, self.unlocked_inner.safety_selection)
+                    .await
+                {
                     Ok(Some(nr)) => nr,
                     Ok(None) => apibail_invalid_target!(),
                     Err(e) => return Err(e.into()),

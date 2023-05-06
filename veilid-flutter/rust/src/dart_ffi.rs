@@ -74,7 +74,7 @@ async fn parse_target(s: String) -> APIResult<veilid_core::Target> {
     }
 
     // Is this a node id?
-    if let Ok(nid) = veilid_core::PublicKey::from_str(&s) {
+    if let Ok(nid) = veilid_core::TypedKey::from_str(&s) {
         return Ok(veilid_core::Target::NodeId(nid));
     }
 

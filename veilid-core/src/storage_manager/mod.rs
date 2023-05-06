@@ -1,3 +1,4 @@
+mod do_get_value;
 mod keys;
 mod record_store;
 mod record_store_limits;
@@ -265,18 +266,6 @@ impl StorageManager {
             .await
     }
 
-    async fn do_get_value(
-        &self,
-        mut inner: AsyncMutexGuardArc<StorageManagerInner>,
-        key: TypedKey,
-        subkey: ValueSubkey,
-    ) -> Result<Option<GetValueAnswer>, VeilidAPIError> {
-        let Some(rpc_processor) = inner.rpc_processor.clone() else {
-            apibail_not_initialized!();
-        };
-
-        //
-    }
     async fn open_record_inner(
         &self,
         mut inner: AsyncMutexGuardArc<StorageManagerInner>,
@@ -334,7 +323,7 @@ impl StorageManager {
             Ok(descriptor)
         } else {
             // No record yet, try to get it from the network
-            self.do_get_value(inner, key, 0).await
+            self.do_get_value(inner, key, 0, safety_selection).await
 
             // Make DHT Record Descriptor to return
             // let descriptor = DHTRecordDescriptor {

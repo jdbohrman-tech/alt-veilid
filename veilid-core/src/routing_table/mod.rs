@@ -964,6 +964,16 @@ impl RoutingTable {
             .find_closest_nodes(node_count, node_id, filters, transform)
     }
 
+    pub fn sort_and_clean_closest_noderefs(
+        &self,
+        node_id: TypedKey,
+        closest_nodes: &mut Vec<NodeRef>,
+    ) {
+        self.inner
+            .read()
+            .sort_and_clean_closest_noderefs(node_id, closest_nodes)
+    }
+
     #[instrument(level = "trace", skip(self), ret)]
     pub fn register_find_node_answer(
         &self,

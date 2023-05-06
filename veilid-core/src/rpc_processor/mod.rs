@@ -1,5 +1,6 @@
 mod coders;
 mod destination;
+mod fanout_call;
 mod operation_waiter;
 mod rpc_app_call;
 mod rpc_app_message;
@@ -22,6 +23,7 @@ mod rpc_watch_value;
 
 pub use coders::*;
 pub use destination::*;
+pub use fanout_call::*;
 pub use operation_waiter::*;
 pub use rpc_error::*;
 pub use rpc_status::*;
@@ -399,90 +401,64 @@ impl RPCProcessor {
 
     /// Search the DHT for a single node closest to a key and add it to the routing table and return the node reference
     /// If no node was found in the timeout, this returns None
-    pub async fn search_dht_single_key(
+    async fn search_dht_single_key(
         &self,
         node_id: TypedKey,
         count: usize,
         fanout: usize,
         timeout_us: TimestampDuration,
-    ) -> Result<Option<NodeRef>, RPCError> {
+        safety_selection: SafetySelection,
+    ) -> TimeoutOr<Result<Option<NodeRef>, RPCError>> {
         let routing_table = self.routing_table();
 
-        let filter = Box::new(
-            move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
-                // Exclude our own node
-                if opt_entry.is_none() {
-                    return false;
+        // Routine to call to generate fanout
+        let call_routine = |next_node: NodeRef| {
+            let this = self.clone();
+            async move {
+                match this
+                    .clone()
+                    .rpc_call_find_node(
+                        Destination::direct(next_node).with_safety(safety_selection),
+                        node_id,
+                    )
+                    .await
+                {
+                    Ok(v) => {
+                        let v = network_result_value_or_log!(v => {
+                            // Any other failures, just try the next node
+                            return Ok(None);
+                        });
+                        Ok(Some(v.answer))
+                    }
+                    Err(e) => Err(e),
                 }
-
-                // Ensure only things that are valid/signed in the PublicInternet domain are returned
-                rti.filter_has_valid_signed_node_info(
-                    RoutingDomain::PublicInternet,
-                    true,
-                    opt_entry,
-                )
-            },
-        ) as RoutingTableEntryFilter;
-        let filters = VecDeque::from([filter]);
-
-        let transform = |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
-            NodeRef::new(routing_table.clone(), v.unwrap().clone(), None)
+            }
         };
 
-        // Get the 'count' closest nodes to the key out of our routing table
-        let closest_nodes = routing_table.find_closest_nodes(count, node_id, filters, transform);
-
-        // If the node we want to locate is one of the closest nodes, return it immediately
-        if let Some(out) = closest_nodes
-            .iter()
-            .find(|x| x.node_ids().contains(&node_id))
-        {
-            return Ok(Some(out.clone()));
-        }
-
-        // Make accessible to fanout tasks
-        struct FanoutContext {
-            closest_nodes: Vec<NodeRef>,
-            called_nodes: TypedKeySet,
-        }
-        let closest_nodes = Arc::new(Mutex::new(closest_nodes));
-
-        // Otherwise contact the 'fanout' closest nodes to see if there's closer nodes
-        let mut unord = FuturesUnordered::new();
-        {
-            // Spin up 'fanout' tasks to process the fanout
-            for n in 0..4 {
-                // Fanout processor
-                let closest_nodes = closest_nodes.clone();
-                let h = async move {
-                    // Find the nth node to iterate on
-                    let cn = closest_nodes.lock();
-                    let n = n.clamp(0, cn.len()); xxx dont do this, use called nodes set, shouldnt need stop token canceller, but maybe at the top level? nothing is spawning. so maybe not.
-                    let mut node = 
-
-                };
-                unord.push(h);
+        // Routine to call to check if we're done at each step
+        let check_done = |closest_nodes: &[NodeRef]| {
+            // If the node we want to locate is one of the closest nodes, return it immediately
+            if let Some(out) = closest_nodes
+                .iter()
+                .find(|x| x.node_ids().contains(&node_id))
+            {
+                return Some(out.clone());
             }
-        }
-        // Wait for them to complete
-        timeout((timeout_us.as_u64() / 1000u64) as u32, async {
-            while let Some(_) = unord.next().await {}
-        })
-        .await;
+            None
+        };
 
-        Ok(None)
-    }
+        // Call the fanout
+        let fanout_call = FanoutCall::new(
+            routing_table.clone(),
+            node_id,
+            count,
+            fanout,
+            timeout_us,
+            call_routine,
+            check_done,
+        );
 
-    /// Search the DHT for the 'count' closest nodes to a key, adding them all to the routing table if they are not there and returning their node references
-    pub async fn search_dht_multi_key(
-        &self,
-        _node_id: TypedKey,
-        _count: usize,
-        _fanout: usize,
-        _timeout: TimestampDuration,
-    ) -> Result<Vec<NodeRef>, RPCError> {
-        // xxx return closest nodes after the timeout
-        Err(RPCError::unimplemented("search_dht_multi_key")).map_err(logthru_rpc!(error))
+        fanout_call.run().await
     }
 
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
@@ -490,6 +466,7 @@ impl RPCProcessor {
     pub fn resolve_node(
         &self,
         node_id: TypedKey,
+        safety_selection: SafetySelection,
     ) -> SendPinBoxFuture<Result<Option<NodeRef>, RPCError>> {
         let this = self.clone();
         Box::pin(async move {
@@ -515,9 +492,16 @@ impl RPCProcessor {
             };
 
             // Search in preferred cryptosystem order
-            let nr = this
-                .search_dht_single_key(node_id, count, fanout, timeout)
-                .await?;
+            let nr = match this
+                .search_dht_single_key(node_id, count, fanout, timeout, safety_selection)
+                .await
+            {
+                TimeoutOr::Timeout => None,
+                TimeoutOr::Value(Ok(v)) => v,
+                TimeoutOr::Value(Err(e)) => {
+                    return Err(e);
+                }
+            };
 
             if let Some(nr) = &nr {
                 if nr.node_ids().contains(&node_id) {
