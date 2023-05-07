@@ -631,10 +631,10 @@ class VeilidConfigDHT {
 
   Map<String, dynamic> get json {
     return {
+      'max_find_node_count': maxFindNodeCount,
       'resolve_node_timeout_ms': resolveNodeTimeoutMs,
       'resolve_node_count': resolveNodeCount,
       'resolve_node_fanout': resolveNodeFanout,
-      'max_find_node_count': maxFindNodeCount,
       'get_value_timeout_ms': getValueTimeoutMs,
       'get_value_count': getValueCount,
       'get_value_fanout': getValueFanout,
@@ -1557,17 +1557,25 @@ abstract class VeilidAPIException implements Exception {
         {
           return VeilidAPIExceptionTimeout();
         }
+      case "TryAgain":
+        {
+          return VeilidAPIExceptionTryAgain();
+        }
       case "Shutdown":
         {
           return VeilidAPIExceptionShutdown();
         }
-      case "NodeNotFound":
+      case "InvalidTarget":
         {
-          return VeilidAPIExceptionNodeNotFound(json["node_id"]);
+          return VeilidAPIExceptionInvalidTarget();
         }
-      case "NoDialInfo":
+      case "NoConnection":
         {
-          return VeilidAPIExceptionNoDialInfo(json["node_id"]);
+          return VeilidAPIExceptionNoConnection(json["message"]);
+        }
+      case "KeyNotFound":
+        {
+          return VeilidAPIExceptionKeyNotFound(json["key"]);
         }
       case "Internal":
         {
@@ -1642,6 +1650,18 @@ class VeilidAPIExceptionTimeout implements VeilidAPIException {
   }
 }
 
+class VeilidAPIExceptionTryAgain implements VeilidAPIException {
+  @override
+  String toString() {
+    return "VeilidAPIException: TryAgain";
+  }
+
+  @override
+  String toDisplayError() {
+    return "Try again";
+  }
+}
+
 class VeilidAPIExceptionShutdown implements VeilidAPIException {
   @override
   String toString() {
@@ -1654,38 +1674,50 @@ class VeilidAPIExceptionShutdown implements VeilidAPIException {
   }
 }
 
-class VeilidAPIExceptionNodeNotFound implements VeilidAPIException {
-  final String nodeId;
-
+class VeilidAPIExceptionInvalidTarget implements VeilidAPIException {
   @override
   String toString() {
-    return "VeilidAPIException: NodeNotFound (nodeId: $nodeId)";
+    return "VeilidAPIException: InvalidTarget";
   }
 
   @override
   String toDisplayError() {
-    return "Node node found: $nodeId";
+    return "Invalid target";
   }
-
-  //
-  VeilidAPIExceptionNodeNotFound(this.nodeId);
 }
 
-class VeilidAPIExceptionNoDialInfo implements VeilidAPIException {
-  final String nodeId;
+class VeilidAPIExceptionNoConnection implements VeilidAPIException {
+  final String message;
 
   @override
   String toString() {
-    return "VeilidAPIException: NoDialInfo (nodeId: $nodeId)";
+    return "VeilidAPIException: NoConnection (message: $message)";
   }
 
   @override
   String toDisplayError() {
-    return "No dial info: $nodeId";
+    return "No connection: $message";
   }
 
   //
-  VeilidAPIExceptionNoDialInfo(this.nodeId);
+  VeilidAPIExceptionNoConnection(this.message);
+}
+
+class VeilidAPIExceptionKeyNotFound implements VeilidAPIException {
+  final String key;
+
+  @override
+  String toString() {
+    return "VeilidAPIException: KeyNotFound (key: $key)";
+  }
+
+  @override
+  String toDisplayError() {
+    return "Key not found: $key";
+  }
+
+  //
+  VeilidAPIExceptionKeyNotFound(this.key);
 }
 
 class VeilidAPIExceptionInternal implements VeilidAPIException {

@@ -207,16 +207,16 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.rpc.timeout_ms" => Ok(Box::new(5_000u32)),
         "network.rpc.max_route_hop_count" => Ok(Box::new(4u8)),
         "network.rpc.default_route_hop_count" => Ok(Box::new(1u8)),
-        "network.dht.resolve_node_timeout_ms" => Ok(Box::new(10_000u32)),
-        "network.dht.resolve_node_count" => Ok(Box::new(20u32)),
-        "network.dht.resolve_node_fanout" => Ok(Box::new(3u32)),
         "network.dht.max_find_node_count" => Ok(Box::new(20u32)),
+        "network.dht.resolve_node_timeout_ms" => Ok(Box::new(10_000u32)),
+        "network.dht.resolve_node_count" => Ok(Box::new(1u32)),
+        "network.dht.resolve_node_fanout" => Ok(Box::new(4u32)),
         "network.dht.get_value_timeout_ms" => Ok(Box::new(10_000u32)),
-        "network.dht.get_value_count" => Ok(Box::new(20u32)),
-        "network.dht.get_value_fanout" => Ok(Box::new(3u32)),
+        "network.dht.get_value_count" => Ok(Box::new(3u32)),
+        "network.dht.get_value_fanout" => Ok(Box::new(4u32)),
         "network.dht.set_value_timeout_ms" => Ok(Box::new(10_000u32)),
-        "network.dht.set_value_count" => Ok(Box::new(20u32)),
-        "network.dht.set_value_fanout" => Ok(Box::new(5u32)),
+        "network.dht.set_value_count" => Ok(Box::new(5u32)),
+        "network.dht.set_value_fanout" => Ok(Box::new(4u32)),
         "network.dht.min_peer_count" => Ok(Box::new(20u32)),
         "network.dht.min_peer_refresh_time_ms" => Ok(Box::new(2_000u32)),
         "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(5_000u32)),
@@ -335,15 +335,16 @@ pub async fn test_config() {
     assert_eq!(inner.network.routing_table.limit_attached_good, 8u32);
     assert_eq!(inner.network.routing_table.limit_attached_weak, 4u32);
 
+    assert_eq!(inner.network.dht.max_find_node_count, 20u32);
     assert_eq!(inner.network.dht.resolve_node_timeout_ms, 10_000u32);
-    assert_eq!(inner.network.dht.resolve_node_count, 20u32);
-    assert_eq!(inner.network.dht.resolve_node_fanout, 3u32);
+    assert_eq!(inner.network.dht.resolve_node_count, 1u32);
+    assert_eq!(inner.network.dht.resolve_node_fanout, 4u32);
     assert_eq!(inner.network.dht.get_value_timeout_ms, 10_000u32);
-    assert_eq!(inner.network.dht.get_value_count, 20u32);
-    assert_eq!(inner.network.dht.get_value_fanout, 3u32);
+    assert_eq!(inner.network.dht.get_value_count, 3u32);
+    assert_eq!(inner.network.dht.get_value_fanout, 4u32);
     assert_eq!(inner.network.dht.set_value_timeout_ms, 10_000u32);
-    assert_eq!(inner.network.dht.set_value_count, 20u32);
-    assert_eq!(inner.network.dht.set_value_fanout, 5u32);
+    assert_eq!(inner.network.dht.set_value_count, 5u32);
+    assert_eq!(inner.network.dht.set_value_fanout, 4u32);
     assert_eq!(inner.network.dht.min_peer_count, 20u32);
     assert_eq!(inner.network.dht.min_peer_refresh_time_ms, 2_000u32);
     assert_eq!(

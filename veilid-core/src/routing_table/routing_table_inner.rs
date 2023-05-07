@@ -1253,7 +1253,7 @@ fn make_closest_noderef_sort(
     let cur_ts = get_aligned_timestamp();
     let kind = node_id.kind;
     // Get cryptoversion to check distance with
-    let vcrypto = crypto.get(node_id.kind).unwrap();
+    let vcrypto = crypto.get(kind).unwrap();
 
     move |a: &NodeRefLocked, b: &NodeRefLocked| -> core::cmp::Ordering {
         // same nodes are always the same
@@ -1275,8 +1275,8 @@ fn make_closest_noderef_sort(
                 }
 
                 // get keys
-                let a_key = a_entry.node_ids().get(node_id.kind).unwrap();
-                let b_key = b_entry.node_ids().get(node_id.kind).unwrap();
+                let a_key = a_entry.node_ids().get(kind).unwrap();
+                let b_key = b_entry.node_ids().get(kind).unwrap();
 
                 // distance is the next metric, closer nodes first
                 let da = vcrypto.distance(&a_key.value, &node_id.value);

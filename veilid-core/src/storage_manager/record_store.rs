@@ -9,7 +9,7 @@ use hashlink::LruCache;
 
 pub struct RecordStore<D>
 where
-    D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
     <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
 {
@@ -32,7 +32,7 @@ where
 
 impl<D> RecordStore<D>
 where
-    D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
     <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
 {
@@ -169,6 +169,11 @@ where
         let st_xact = subkey_table.transact();
         let dead_records = mem::take(&mut self.dead_records);
         for (k, v) in dead_records {
+            // Record should already be gone from index
+            if self.record_index.contains_key(&k) {
+                log_stor!(error "dead record found in index: {:?}", k);
+            }
+
             // Delete record
             rt_xact.delete(0, &k.bytes());
 
@@ -205,7 +210,6 @@ where
         }
 
         let record_table = self.record_table.clone().unwrap();
-        let subkey_table = self.subkey_table.clone().unwrap();
 
         let rt_xact = record_table.transact();
         let changed_records = mem::take(&mut self.changed_records);
@@ -277,6 +281,22 @@ where
         Ok(())
     }
 
+    pub async fn delete_record(&mut self, key: TypedKey) -> Result<(), VeilidAPIError> {
+        // Get the record table key
+        let rtk = RecordTableKey { key };
+
+        // Remove record from the index
+        let Some(record) = self.record_index.remove(&rtk) else {
+            apibail_key_not_found!(key);
+        };
+
+        self.add_dead_record(rtk, record);
+
+        self.purge_dead_records(false).await;
+
+        Ok(())
+    }
+
     pub fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
@@ -319,7 +339,7 @@ where
         out
     }
 
-    pub async fn get_subkey<R, F>(
+    pub async fn get_subkey(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -371,7 +391,7 @@ where
         return Ok(None);
     }
 
-    pub async fn set_subkey<R, F>(
+    pub async fn set_subkey(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,

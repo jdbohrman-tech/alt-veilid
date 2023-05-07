@@ -84,13 +84,17 @@ impl RPCProcessor {
         let find_node_q = match kind {
             RPCOperationKind::Question(q) => match q.destructure() {
                 (_, RPCQuestionDetail::FindNodeQ(q)) => q,
-                _ => panic!("not a status question"),
+                _ => panic!("not a findnode question"),
             },
             _ => panic!("not a question"),
         };
+        let node_id = find_node_q.destructure();
 
         // add node information for the requesting node to our routing table
         let routing_table = self.routing_table();
+
+xxx move this into routing table code, also do getvalue code
+
         let Some(own_peer_info) = routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
             // Our own node info is not yet available, drop this request.
             return Ok(NetworkResult::service_unavailable());
@@ -114,7 +118,6 @@ impl RPCProcessor {
             c.network.dht.max_find_node_count as usize
         };
 
-        let node_id = find_node_q.destructure();
         let closest_nodes = routing_table.find_closest_nodes(
             node_count,
             node_id,

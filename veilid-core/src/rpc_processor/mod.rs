@@ -482,9 +482,10 @@ impl RPCProcessor {
             }
 
             // If nobody knows where this node is, ask the DHT for it
-            let (count, fanout, timeout) = {
+            let (node_count, _consensus_count, fanout, timeout) = {
                 let c = this.config.get();
                 (
+                    c.network.dht.max_find_node_count as usize,
                     c.network.dht.resolve_node_count as usize,
                     c.network.dht.resolve_node_fanout as usize,
                     TimestampDuration::from(ms_to_us(c.network.dht.resolve_node_timeout_ms)),
@@ -493,7 +494,7 @@ impl RPCProcessor {
 
             // Search in preferred cryptosystem order
             let nr = match this
-                .search_dht_single_key(node_id, count, fanout, timeout, safety_selection)
+                .search_dht_single_key(node_id, node_count, fanout, timeout, safety_selection)
                 .await
             {
                 TimeoutOr::Timeout => None,
@@ -1136,7 +1137,7 @@ impl RPCProcessor {
         }))
     }
 
-    // Issue a statement over the network, possibly using an anonymized route
+    /// Issue a statement over the network, possibly using an anonymized route
     #[instrument(level = "debug", skip(self, statement), err)]
     async fn statement(
         &self,
@@ -1192,9 +1193,8 @@ impl RPCProcessor {
 
         Ok(NetworkResult::value(()))
     }
-
-    // Issue a reply over the network, possibly using an anonymized route
-    // The request must want a response, or this routine fails
+    /// Issue a reply over the network, possibly using an anonymized route
+    /// The request must want a response, or this routine fails
     #[instrument(level = "debug", skip(self, request, answer), err)]
     async fn answer(
         &self,
@@ -1253,6 +1253,9 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
+    /// Decoding RPC from the wire
+    /// This performs a capnp decode on the data, and if it passes the capnp schema
+    /// it performs the cryptographic validation required to pass the operation up for processing
     fn decode_rpc_operation(
         &self,
         encoded_msg: &RPCMessageEncoded,
@@ -1270,6 +1273,12 @@ impl RPCProcessor {
         Ok(operation)
     }
 
+    /// Cryptographic RPC validation
+    /// We do this as part of the RPC network layer to ensure that any RPC operations that are
+    /// processed have already been validated cryptographically and it is not the job of the
+    /// caller or receiver. This does not mean the operation is 'semantically correct'. For
+    /// complex operations that require stateful validation and a more robust context than
+    /// 'signatures', the caller must still perform whatever validation is necessary
     fn validate_rpc_operation(&self, operation: &mut RPCOperation) -> Result<(), RPCError> {
         // If this is an answer, get the question context for this answer
         // If we received an answer for a question we did not ask, this will return an error

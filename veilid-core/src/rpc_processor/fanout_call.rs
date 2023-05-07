@@ -22,7 +22,7 @@ where
     crypto_kind: CryptoKind,
     node_id: TypedKey,
     context: Mutex<FanoutContext<R>>,
-    count: usize,
+    node_count: usize,
     fanout: usize,
     timeout_us: TimestampDuration,
     call_routine: C,
@@ -39,14 +39,14 @@ where
     pub fn new(
         routing_table: RoutingTable,
         node_id: TypedKey,
-        count: usize,
+        node_count: usize,
         fanout: usize,
         timeout_us: TimestampDuration,
         call_routine: C,
         check_done: D,
     ) -> Arc<Self> {
         let context = Mutex::new(FanoutContext {
-            closest_nodes: Vec::with_capacity(count),
+            closest_nodes: Vec::with_capacity(node_count),
             called_nodes: TypedKeySet::new(),
             result: None,
         });
@@ -56,7 +56,7 @@ where
             node_id,
             crypto_kind: node_id.kind,
             context,
-            count,
+            node_count,
             fanout,
             timeout_us,
             call_routine,
@@ -81,7 +81,7 @@ where
 
         self.routing_table
             .sort_and_clean_closest_noderefs(self.node_id, &mut ctx.closest_nodes);
-        ctx.closest_nodes.truncate(self.count);
+        ctx.closest_nodes.truncate(self.node_count);
     }
 
     fn remove_node(self: Arc<Self>, dead_node: NodeRef) {
@@ -98,7 +98,7 @@ where
     fn get_next_node(self: Arc<Self>) -> Option<NodeRef> {
         let mut next_node = None;
         let mut ctx = self.context.lock();
-        for cn in &ctx.closest_nodes {
+        for cn in ctx.closest_nodes.clone() {
             if let Some(key) = cn.node_ids().get(self.crypto_kind) {
                 if !ctx.called_nodes.contains(&key) {
                     // New fanout call candidate found
@@ -150,13 +150,16 @@ where
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error
+                    let mut ctx = self.context.lock();
+                    ctx.result = Some(Err(e));
+                    return;
                 }
             };
         }
     }
 
     fn init_closest_nodes(self: Arc<Self>) {
-        // Get the 'count' closest nodes to the key out of our routing table
+        // Get the 'node_count' closest nodes to the key out of our routing table
         let closest_nodes = {
             let routing_table = self.routing_table.clone();
 
@@ -181,7 +184,7 @@ where
                 NodeRef::new(routing_table.clone(), v.unwrap().clone(), None)
             };
 
-            routing_table.find_closest_nodes(self.count, self.node_id, filters, transform)
+            routing_table.find_closest_nodes(self.node_count, self.node_id, filters, transform)
         };
 
         let mut ctx = self.context.lock();
@@ -189,6 +192,14 @@ where
     }
 
     pub async fn run(self: Arc<Self>) -> TimeoutOr<Result<Option<R>, RPCError>> {
+        // Get timeout in milliseconds
+        let timeout_ms = match us_to_ms(self.timeout_us.as_u64()).map_err(RPCError::internal) {
+            Ok(v) => v,
+            Err(e) => {
+                return TimeoutOr::value(Err(e));
+            }
+        };
+
         // Initialize closest nodes list
         self.clone().init_closest_nodes();
 
@@ -208,7 +219,7 @@ where
             }
         }
         // Wait for them to complete
-        timeout((self.timeout_us.as_u64() / 1000u64) as u32, async {
+        timeout(timeout_ms, async {
             while let Some(_) = unord.next().await {}
         })
         .await

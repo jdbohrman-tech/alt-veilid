@@ -58,6 +58,19 @@ impl DHTSchema {
             DHTSchema::SMPL(s) => s.data_size(),
         }
     }
+
+    /// Check a subkey value data against the schema
+    pub fn check_subkey_value_data(
+        &self,
+        owner: &PublicKey,
+        subkey: ValueSubkey,
+        value_data: &ValueData,
+    ) -> bool {
+        match self {
+            DHTSchema::DFLT(d) => d.check_subkey_value_data(owner, subkey, value_data),
+            DHTSchema::SMPL(s) => s.check_subkey_value_data(owner, subkey, value_data),
+        }
+    }
 }
 
 impl Default for DHTSchema {

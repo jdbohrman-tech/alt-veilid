@@ -275,10 +275,10 @@ pub struct VeilidConfigTLS {
     RkyvDeserialize,
 )]
 pub struct VeilidConfigDHT {
+    pub max_find_node_count: u32,
     pub resolve_node_timeout_ms: u32,
     pub resolve_node_count: u32,
     pub resolve_node_fanout: u32,
-    pub max_find_node_count: u32,
     pub get_value_timeout_ms: u32,
     pub get_value_count: u32,
     pub get_value_fanout: u32,
@@ -653,10 +653,10 @@ impl VeilidConfig {
             get_config!(inner.network.routing_table.limit_attached_strong);
             get_config!(inner.network.routing_table.limit_attached_good);
             get_config!(inner.network.routing_table.limit_attached_weak);
+            get_config!(inner.network.dht.max_find_node_count);
             get_config!(inner.network.dht.resolve_node_timeout_ms);
             get_config!(inner.network.dht.resolve_node_count);
             get_config!(inner.network.dht.resolve_node_fanout);
-            get_config!(inner.network.dht.max_find_node_count);
             get_config!(inner.network.dht.get_value_timeout_ms);
             get_config!(inner.network.dht.get_value_count);
             get_config!(inner.network.dht.get_value_fanout);

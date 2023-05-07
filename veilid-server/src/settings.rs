@@ -83,16 +83,16 @@ core:
             max_route_hop_count: 4
             default_route_hop_count: 1
         dht:
-            resolve_node_timeout_ms: 10000
-            resolve_node_count: 20
-            resolve_node_fanout: 3
             max_find_node_count: 20
+            resolve_node_timeout_ms: 10000
+            resolve_node_count: 1
+            resolve_node_fanout: 4
             get_value_timeout_ms: 10000
-            get_value_count: 20
-            get_value_fanout: 3
+            get_value_count: 3
+            get_value_fanout: 4
             set_value_timeout_ms: 10000
-            set_value_count: 20
-            set_value_fanout: 5
+            set_value_count: 5
+            set_value_fanout: 4
             min_peer_count: 20
             min_peer_refresh_time_ms: 2000
             validate_dial_info_receipt_time_ms: 2000
@@ -510,10 +510,10 @@ pub struct Rpc {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Dht {
+    pub max_find_node_count: u32,
     pub resolve_node_timeout_ms: u32,
     pub resolve_node_count: u32,
     pub resolve_node_fanout: u32,
-    pub max_find_node_count: u32,
     pub get_value_timeout_ms: u32,
     pub get_value_count: u32,
     pub get_value_fanout: u32,
@@ -974,10 +974,10 @@ impl Settings {
         set_config_value!(inner.core.network.rpc.timeout_ms, value);
         set_config_value!(inner.core.network.rpc.max_route_hop_count, value);
         set_config_value!(inner.core.network.rpc.default_route_hop_count, value);
+        set_config_value!(inner.core.network.dht.max_find_node_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_timeout_ms, value);
         set_config_value!(inner.core.network.dht.resolve_node_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_fanout, value);
-        set_config_value!(inner.core.network.dht.max_find_node_count, value);
         set_config_value!(inner.core.network.dht.get_value_timeout_ms, value);
         set_config_value!(inner.core.network.dht.get_value_count, value);
         set_config_value!(inner.core.network.dht.get_value_fanout, value);
@@ -1173,6 +1173,9 @@ impl Settings {
                 "network.rpc.default_route_hop_count" => {
                     Ok(Box::new(inner.core.network.rpc.default_route_hop_count))
                 }
+                "network.dht.max_find_node_count" => {
+                    Ok(Box::new(inner.core.network.dht.max_find_node_count))
+                }
                 "network.dht.resolve_node_timeout_ms" => {
                     Ok(Box::new(inner.core.network.dht.resolve_node_timeout_ms))
                 }
@@ -1181,9 +1184,6 @@ impl Settings {
                 }
                 "network.dht.resolve_node_fanout" => {
                     Ok(Box::new(inner.core.network.dht.resolve_node_fanout))
-                }
-                "network.dht.max_find_node_count" => {
-                    Ok(Box::new(inner.core.network.dht.max_find_node_count))
                 }
                 "network.dht.get_value_timeout_ms" => {
                     Ok(Box::new(inner.core.network.dht.get_value_timeout_ms))
@@ -1534,16 +1534,16 @@ mod tests {
         assert_eq!(s.core.network.rpc.max_route_hop_count, 4);
         assert_eq!(s.core.network.rpc.default_route_hop_count, 1);
         //
-        assert_eq!(s.core.network.dht.resolve_node_timeout_ms, 10_000u32);
-        assert_eq!(s.core.network.dht.resolve_node_count, 20u32);
-        assert_eq!(s.core.network.dht.resolve_node_fanout, 3u32);
         assert_eq!(s.core.network.dht.max_find_node_count, 20u32);
+        assert_eq!(s.core.network.dht.resolve_node_timeout_ms, 10_000u32);
+        assert_eq!(s.core.network.dht.resolve_node_count, 1u32);
+        assert_eq!(s.core.network.dht.resolve_node_fanout, 4u32);
         assert_eq!(s.core.network.dht.get_value_timeout_ms, 10_000u32);
-        assert_eq!(s.core.network.dht.get_value_count, 20u32);
-        assert_eq!(s.core.network.dht.get_value_fanout, 3u32);
+        assert_eq!(s.core.network.dht.get_value_count, 3u32);
+        assert_eq!(s.core.network.dht.get_value_fanout, 4u32);
         assert_eq!(s.core.network.dht.set_value_timeout_ms, 10_000u32);
-        assert_eq!(s.core.network.dht.set_value_count, 20u32);
-        assert_eq!(s.core.network.dht.set_value_fanout, 5u32);
+        assert_eq!(s.core.network.dht.set_value_count, 5u32);
+        assert_eq!(s.core.network.dht.set_value_fanout, 4u32);
         assert_eq!(s.core.network.dht.min_peer_count, 20u32);
         assert_eq!(s.core.network.dht.min_peer_refresh_time_ms, 2_000u32);
         assert_eq!(

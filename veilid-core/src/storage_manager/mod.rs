@@ -203,7 +203,7 @@ impl StorageManager {
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
     where
-        D: RkyvArchive + RkyvSerialize<RkyvSerializer>,
+        D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
         for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
         <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
     {
@@ -237,6 +237,11 @@ impl StorageManager {
             apibail_generic!("unsupported cryptosystem");
         };
 
+        // Get local record store
+        let Some(local_record_store) = inner.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+
         // Compile the dht schema
         let schema_data = schema.compile();
 
@@ -257,7 +262,6 @@ impl StorageManager {
         let record =
             Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
 
-        let local_record_store = inner.local_record_store.as_mut().unwrap();
         let dht_key = Self::get_key(vcrypto.clone(), &record);
         local_record_store.new_record(dht_key, record).await?;
 
@@ -266,23 +270,16 @@ impl StorageManager {
             .await
     }
 
-    async fn open_record_inner(
+    fn open_record_inner_check_existing(
         &self,
         mut inner: AsyncMutexGuardArc<StorageManagerInner>,
         key: TypedKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
-    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
-        // Ensure the record is closed
-        if inner.opened_records.contains_key(&key) {
-            return Err(VeilidAPIError::generic(
-                "record is already open and should be closed first",
-            ));
-        }
-
-        // Get cryptosystem
-        let Some(vcrypto) = self.unlocked_inner.crypto.get(key.kind) else {
-            apibail_generic!("unsupported cryptosystem");
+    ) -> Option<Result<DHTRecordDescriptor, VeilidAPIError>> {
+        // Get local record store
+        let Some(local_record_store) = inner.local_record_store.as_mut() else {
+            return Some(Err(VeilidAPIError::not_initialized()));
         };
 
         // See if we have a local record already or not
@@ -295,45 +292,124 @@ impl StorageManager {
             // Return record details
             (r.owner().clone(), r.schema())
         };
-        if let Some((owner, schema)) = inner
-            .local_record_store
-            .as_mut()
-            .unwrap()
-            .with_record_mut(key, cb)
-        {
-            // Had local record
+        let Some((owner, schema)) = local_record_store.with_record_mut(key, cb) else {
+            return None;
+        };
+        // Had local record
 
-            // If the writer we chose is also the owner, we have the owner secret
-            // Otherwise this is just another subkey writer
-            let owner_secret = if let Some(writer) = writer {
-                if writer.key == owner {
-                    Some(writer.secret)
-                } else {
-                    None
-                }
+        // If the writer we chose is also the owner, we have the owner secret
+        // Otherwise this is just another subkey writer
+        let owner_secret = if let Some(writer) = writer {
+            if writer.key == owner {
+                Some(writer.secret)
             } else {
                 None
-            };
-
-            // Write open record
-            inner.opened_records.insert(key, OpenedRecord::new(writer));
-
-            // Make DHT Record Descriptor to return
-            let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
-            Ok(descriptor)
+            }
         } else {
-            // No record yet, try to get it from the network
-            self.do_get_value(inner, key, 0, safety_selection).await
+            None
+        };
 
-            // Make DHT Record Descriptor to return
-            // let descriptor = DHTRecordDescriptor {
-            //     key,
-            //     owner,
-            //     owner_secret,
-            //     schema,
-            // };
-            // Ok(descriptor)
+        // Write open record
+        inner.opened_records.insert(key, OpenedRecord::new(writer));
+
+        // Make DHT Record Descriptor to return
+        let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
+        Some(Ok(descriptor))
+    }
+
+    async fn open_record_inner(
+        &self,
+        inner: AsyncMutexGuardArc<StorageManagerInner>,
+        key: TypedKey,
+        writer: Option<KeyPair>,
+        safety_selection: SafetySelection,
+    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+        // Ensure the record is closed
+        if inner.opened_records.contains_key(&key) {
+            apibail_generic!("record is already open and should be closed first");
         }
+
+        // See if we have a local record already or not
+        if let Some(res) =
+            self.open_record_inner_check_existing(inner, key, writer, safety_selection)
+        {
+            return res;
+        }
+
+        // No record yet, try to get it from the network
+
+        // Get rpc processor and drop mutex so we don't block while getting the value from the network
+        let rpc_processor = {
+            let inner = self.lock().await?;
+            let Some(rpc_processor) = inner.rpc_processor.clone() else {
+                // Offline, try again later
+                apibail_try_again!();
+            };
+            rpc_processor
+        };
+
+        // No last descriptor, no last value
+        let subkey: ValueSubkey = 0;
+        let result = self
+            .do_get_value(rpc_processor, key, subkey, None, None, safety_selection)
+            .await?;
+
+        // If we got nothing back, the key wasn't found
+        if result.value.is_none() && result.descriptor.is_none() {
+            // No result
+            apibail_key_not_found!(key);
+        };
+
+        // Must have descriptor
+        let Some(signed_value_descriptor) = result.descriptor else {
+            // No descriptor for new record, can't store this
+            apibail_generic!("no descriptor");
+        };
+
+        let owner = signed_value_descriptor.owner().clone();
+        // If the writer we chose is also the owner, we have the owner secret
+        // Otherwise this is just another subkey writer
+        let owner_secret = if let Some(writer) = writer {
+            if writer.key == owner {
+                Some(writer.secret)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let schema = signed_value_descriptor.schema()?;
+
+        // Reopen inner to store value we just got
+        let mut inner = self.lock().await?;
+
+        // Get local record store
+        let Some(local_record_store) = inner.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+
+        // Make and store a new record for this descriptor
+        let record = Record::<LocalRecordDetail>::new(
+            get_aligned_timestamp(),
+            signed_value_descriptor,
+            LocalRecordDetail { safety_selection },
+        )?;
+        local_record_store.new_record(key, record).await?;
+
+        // If we got a subkey with the getvalue, it has already been validated against the schema, so store it
+        if let Some(signed_value_data) = result.value {
+            // Write subkey to local store
+            local_record_store
+                .set_subkey(key, subkey, signed_value_data)
+                .await?;
+        }
+
+        // Write open record
+        inner.opened_records.insert(key, OpenedRecord::new(writer));
+
+        // Make DHT Record Descriptor to return
+        let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
+        Ok(descriptor)
     }
 
     pub async fn open_record(
@@ -349,32 +425,34 @@ impl StorageManager {
 
     async fn close_record_inner(
         &self,
-        mut inner: AsyncMutexGuardArc<StorageManagerInner>,
+        inner: &mut AsyncMutexGuardArc<StorageManagerInner>,
         key: TypedKey,
     ) -> Result<(), VeilidAPIError> {
-        let Some(opened_record) = inner.opened_records.remove(&key) else {
+        let Some(_opened_record) = inner.opened_records.remove(&key) else {
             apibail_generic!("record not open");
         };
         Ok(())
     }
 
     pub async fn close_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
-        let inner = self.lock().await?;
-        self.close_record_inner(inner, key).await
+        let mut inner = self.lock().await?;
+        self.close_record_inner(&mut inner, key).await
     }
 
     pub async fn delete_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
-        let inner = self.lock().await?;
+        let mut inner = self.lock().await?;
 
         // Ensure the record is closed
         if inner.opened_records.contains_key(&key) {
-            self.close_record_inner(inner, key).await?;
+            self.close_record_inner(&mut inner, key).await?;
         }
 
-        // Remove the record from the local store
-        //inner.local_record_store.unwrap().de
+        let Some(local_record_store) = inner.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
 
-        unimplemented!();
+        // Remove the record from the local store
+        local_record_store.delete_record(key).await
     }
 
     pub async fn get_value(

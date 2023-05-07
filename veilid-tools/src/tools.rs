@@ -130,6 +130,10 @@ pub fn ms_to_us(ms: u32) -> u64 {
     (ms as u64) * 1000u64
 }
 
+pub fn us_to_ms(us: u64) -> EyreResult<u32> {
+    u32::try_from(us / 1000u64).wrap_err("could not convert microseconds")
+}
+
 // Calculate retry attempt with logarhythmic falloff
 pub fn retry_falloff_log(
     last_us: u64,

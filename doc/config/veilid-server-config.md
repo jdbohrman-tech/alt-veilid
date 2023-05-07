@@ -234,16 +234,16 @@ rpc:
 
 ```yaml
 dht:
-    resolve_node_timeout_ms: 10000
-    resolve_node_count: 20
-    resolve_node_fanout: 3
     max_find_node_count: 20
+    resolve_node_timeout_ms: 10000
+    resolve_node_count: 1
+    resolve_node_fanout: 4
     get_value_timeout_ms: 10000
-    get_value_count: 20
-    get_value_fanout: 3
+    get_value_count: 3
+    get_value_fanout: 4
     set_value_timeout_ms: 10000
-    set_value_count: 20
-    set_value_fanout: 5
+    set_value_count: 5
+    set_value_fanout: 4
     min_peer_count: 20
     min_peer_refresh_time_ms: 2000
     validate_dial_info_receipt_time_ms: 2000

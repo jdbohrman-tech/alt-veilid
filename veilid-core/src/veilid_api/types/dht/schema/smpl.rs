@@ -18,7 +18,7 @@ use super::*;
 pub struct DHTSchemaSMPLMember {
     /// Member key
     pub m_key: PublicKey,
-    /// Member subkey countanyway,
+    /// Member subkey count
     pub m_cnt: u16,
 }
 
@@ -77,6 +77,44 @@ impl DHTSchemaSMPL {
     /// Get the data size of this schema beyond the size of the structure itself
     pub fn data_size(&self) -> usize {
         self.members.len() * mem::size_of::<DHTSchemaSMPLMember>()
+    }
+
+    /// Check a subkey value data against the schema
+    pub fn check_subkey_value_data(
+        &self,
+        owner: &PublicKey,
+        subkey: ValueSubkey,
+        value_data: &ValueData,
+    ) -> bool {
+        let mut cur_subkey = subkey as usize;
+
+        // Check is subkey is in owner range
+        if cur_subkey < (self.o_cnt as usize) {
+            // Check value data has valid writer
+            if value_data.writer() == owner {
+                return true;
+            }
+            // Wrong writer
+            return false;
+        }
+        cur_subkey -= self.o_cnt as usize;
+
+        // Check all member ranges
+        for m in &self.members {
+            // Check if subkey is in member range
+            if cur_subkey < (m.m_cnt as usize) {
+                // Check value data has valid writer
+                if value_data.writer() == &m.m_key {
+                    return true;
+                }
+                // Wrong writer
+                return false;
+            }
+            cur_subkey -= m.m_cnt as usize;
+        }
+
+        // Subkey out of range
+        false
     }
 }
 

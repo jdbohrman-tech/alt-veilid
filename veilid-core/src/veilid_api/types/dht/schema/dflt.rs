@@ -42,6 +42,29 @@ impl DHTSchemaDFLT {
     pub fn data_size(&self) -> usize {
         0
     }
+
+    /// Check a subkey value data against the schema
+    pub fn check_subkey_value_data(
+        &self,
+        owner: &PublicKey,
+        subkey: ValueSubkey,
+        value_data: &ValueData,
+    ) -> bool {
+        let subkey = subkey as usize;
+
+        // Check is subkey is in owner range
+        if subkey < (self.o_cnt as usize) {
+            // Check value data has valid writer
+            if value_data.writer() == owner {
+                return true;
+            }
+            // Wrong writer
+            return false;
+        }
+
+        // Subkey out of range
+        false
+    }
 }
 
 impl TryFrom<&[u8]> for DHTSchemaDFLT {

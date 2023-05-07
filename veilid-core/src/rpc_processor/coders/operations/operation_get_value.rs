@@ -102,6 +102,7 @@ impl RPCOperationGetValueA {
             descriptor,
         })
     }
+
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         let question_context = validate_context
             .question_context

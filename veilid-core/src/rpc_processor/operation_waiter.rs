@@ -139,8 +139,7 @@ where
         mut handle: OperationWaitHandle<T, C>,
         timeout_us: TimestampDuration,
     ) -> Result<TimeoutOr<(T, TimestampDuration)>, RPCError> {
-        let timeout_ms = u32::try_from(timeout_us.as_u64() / 1000u64)
-            .map_err(|e| RPCError::map_internal("invalid timeout")(e))?;
+        let timeout_ms = us_to_ms(timeout_us.as_u64()).map_err(RPCError::internal)?;
 
         // Take the instance
         // After this, we must manually cancel since the cancel on handle drop is disabled
