@@ -30,6 +30,14 @@ where
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
 }
 
+/// The result of the do_get_value_operation
+pub struct SubkeyResult {
+    /// The subkey value if we got one
+    pub value: Option<SignedValueData>,
+    /// The descriptor if we got a fresh one or empty if no descriptor was needed
+    pub descriptor: Option<SignedValueDescriptor>,
+}
+
 impl<D> RecordStore<D>
 where
     D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
@@ -297,7 +305,7 @@ where
         Ok(())
     }
 
-    pub fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
+    pub(super) fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
     {
@@ -318,7 +326,7 @@ where
         out
     }
 
-    pub fn with_record_mut<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
+    pub(super) fn with_record_mut<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&mut Record<D>) -> R,
     {
@@ -339,24 +347,27 @@ where
         out
     }
 
-    pub async fn get_subkey(
+    // pub fn get_descriptor(&mut self, key: TypedKey) -> Option<SignedValueDescriptor> {
+    //     self.with_record(key, |record| record.descriptor().clone())
+    // }
+
+    pub fn get_subkey(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-    ) -> Result<Option<SignedValueData>, VeilidAPIError> {
+        want_descriptor: bool,
+    ) -> Result<Option<SubkeyResult>, VeilidAPIError> {
         // record from index
-        let rtk = RecordTableKey { key };
-        let subkey_count = {
-            let Some(record) = self.record_index.get_mut(&rtk) else {
-                apibail_invalid_argument!("no record at this key", "key", key);
-            };
-
-            // Touch
-            record.touch(get_aligned_timestamp());
-
-            record.subkey_count()
+        let Some((subkey_count, opt_descriptor)) = self.with_record(key, |record| {
+            (record.subkey_count(), if want_descriptor {
+                Some(record.descriptor().clone())
+            } else {
+                None
+            })
+        }) else {
+            // Record not available
+            return Ok(None);
         };
-        self.mark_record_changed(rtk);
 
         // Check if the subkey is in range
         if subkey as usize >= subkey_count {
@@ -373,7 +384,10 @@ where
         if let Some(record_data) = self.subkey_cache.get_mut(&stk) {
             let out = record_data.signed_value_data().clone();
 
-            return Ok(Some(out));
+            return Ok(Some(SubkeyResult {
+                value: Some(out),
+                descriptor: opt_descriptor,
+            }));
         }
         // If not in cache, try to pull from table store
         if let Some(record_data) = subkey_table
@@ -385,10 +399,17 @@ where
             // Add to cache, do nothing with lru out
             self.add_to_subkey_cache(stk, record_data);
 
-            return Ok(Some(out));
+            return Ok(Some(SubkeyResult {
+                value: Some(out),
+                descriptor: opt_descriptor,
+            }));
         };
 
-        return Ok(None);
+        // Record was available, but subkey was not found, maybe descriptor gets returned
+        Ok(Some(SubkeyResult {
+            value: None,
+            descriptor: opt_descriptor,
+        }))
     }
 
     pub async fn set_subkey(
@@ -403,18 +424,11 @@ where
         }
 
         // Get record from index
-        let rtk = RecordTableKey { key };
-        let (subkey_count, total_size) = {
-            let Some(record) = self.record_index.get_mut(&rtk) else {
-                apibail_invalid_argument!("no record at this key", "key", key);
-            };
-
-            // Touch
-            record.touch(get_aligned_timestamp());
-
+        let Some((subkey_count, total_size)) = self.with_record(key, |record| {
             (record.subkey_count(), record.total_size())
+        }) else {
+            apibail_invalid_argument!("no record at this key", "key", key);
         };
-        self.mark_record_changed(rtk);
 
         // Check if the subkey is in range
         if subkey as usize >= subkey_count {
@@ -474,10 +488,10 @@ where
         self.add_to_subkey_cache(stk, record_data);
 
         // Update record
-        let Some(record) = self.record_index.get_mut(&rtk) else {
-            apibail_invalid_argument!("no record at this key", "key", key);
-        };
-        record.set_record_data_size(new_record_data_size);
+        self.with_record_mut(key, |record| {
+            record.set_record_data_size(new_record_data_size);
+        })
+        .expect("record should still be here");
 
         Ok(())
     }

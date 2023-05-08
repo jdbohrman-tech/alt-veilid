@@ -8,14 +8,24 @@ pub struct OpenedRecord {
     /// Without this, set_value() will fail regardless of which key or subkey is being written to
     /// as all writes are signed
     writer: Option<KeyPair>,
+
+    /// The safety selection in current use
+    safety_selection: SafetySelection,
 }
 
 impl OpenedRecord {
-    pub fn new(writer: Option<KeyPair>) -> Self {
-        Self { writer }
+    pub fn new(writer: Option<KeyPair>, safety_selection: SafetySelection) -> Self {
+        Self {
+            writer,
+            safety_selection,
+        }
     }
 
     pub fn writer(&self) -> Option<&KeyPair> {
         self.writer.as_ref()
+    }
+
+    pub fn safety_selection(&self) -> SafetySelection {
+        self.safety_selection
     }
 }

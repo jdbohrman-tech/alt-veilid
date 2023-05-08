@@ -90,48 +90,14 @@ impl RPCProcessor {
         };
         let node_id = find_node_q.destructure();
 
-        // add node information for the requesting node to our routing table
+        // Get a chunk of the routing table near the requested node id
         let routing_table = self.routing_table();
+        let closest_nodes = network_result_try!(routing_table.find_all_closest_peers(node_id));
 
-xxx move this into routing table code, also do getvalue code
-
-        let Some(own_peer_info) = routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
-            // Our own node info is not yet available, drop this request.
-            return Ok(NetworkResult::service_unavailable());
-        };
-
-        // find N nodes closest to the target node in our routing table
-        let filter = Box::new(
-            move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
-                // Ensure only things that are valid/signed in the PublicInternet domain are returned
-                rti.filter_has_valid_signed_node_info(
-                    RoutingDomain::PublicInternet,
-                    true,
-                    opt_entry,
-                )
-            },
-        ) as RoutingTableEntryFilter;
-        let filters = VecDeque::from([filter]);
-
-        let node_count = {
-            let c = self.config.get();
-            c.network.dht.max_find_node_count as usize
-        };
-
-        let closest_nodes = routing_table.find_closest_nodes(
-            node_count,
-            node_id,
-            filters,
-            // transform
-            |rti, entry| {
-                rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, entry)
-            },
-        );
-
-        // Make status answer
+        // Make FindNode answer
         let find_node_a = RPCOperationFindNodeA::new(closest_nodes)?;
 
-        // Send status answer
+        // Send FindNode answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))
             .await
     }

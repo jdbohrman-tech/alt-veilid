@@ -113,69 +113,26 @@ impl RPCProcessor {
         // Destructure
         let (key, subkey, want_descriptor) = get_value_q.destructure();
 
-        // add node information for the requesting node to our routing table
-        let crypto_kind = key.kind;
+        // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let own_node_id = routing_table.node_id(crypto_kind);
+        let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key));
 
-        // find N nodes closest to the target node in our routing table
-        // ensure the nodes returned are only the ones closer to the target node than ourself
-        let Some(vcrypto) = self.crypto.get(crypto_kind) else {
-            return Ok(NetworkResult::invalid_message("unsupported cryptosystem"));
-        };
-        let own_distance = vcrypto.distance(&own_node_id.value, &key.value);
+        // See if we have this record ourselves
+        let storage_manager = self.storage_manager();
+        let subkey_result = storage_manager
+            .handle_get_value(key, subkey, want_descriptor)
+            .await
+            .map_err(RPCError::internal)?;
 
-        let filter = Box::new(
-            move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
-                // Exclude our own node
-                let Some(entry) = opt_entry else {
-                    return false;
-                };
-                // Ensure only things that are valid/signed in the PublicInternet domain are returned
-                if !rti.filter_has_valid_signed_node_info(
-                    RoutingDomain::PublicInternet,
-                    true,
-                    Some(entry.clone()),
-                ) {
-                    return false;
-                }
-                // Ensure things further from the key than our own node are not included
-                let Some(entry_node_id) = entry.with(rti, |_rti, e| e.node_ids().get(crypto_kind)) else {
-                    return false;
-                };
-                let entry_distance = vcrypto.distance(&entry_node_id.value, &key.value);
-                if entry_distance >= own_distance {
-                    return false;
-                }
+        // Make GetValue answer
+        let get_value_a = RPCOperationGetValueA::new(
+            subkey_result.value,
+            closer_to_key_peers,
+            subkey_result.descriptor,
+        )?;
 
-                true
-            },
-        ) as RoutingTableEntryFilter;
-        let filters = VecDeque::from([filter]);
-
-        let node_count = {
-            let c = self.config.get();
-            c.network.dht.max_find_node_count as usize
-        };
-
-        //
-        let closest_nodes = routing_table.find_closest_nodes(
-            node_count,
-            key,
-            filters,
-            // transform
-            |rti, entry| {
-                entry.unwrap().with(rti, |_rti, e| {
-                    e.make_peer_info(RoutingDomain::PublicInternet).unwrap()
-                })
-            },
-        );
-
-        // Make status answer
-        let find_node_a = RPCOperationFindNodeA::new(closest_nodes)?;
-
-        // Send status answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))
+        // Send GetValue answer
+        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::GetValueA(get_value_a)))
             .await
     }
 }

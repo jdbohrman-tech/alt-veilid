@@ -1,13 +1,5 @@
 use super::*;
 
-/// The result of the do_get_value_operation
-pub struct DoGetValueResult {
-    /// The subkey value if we got one
-    pub value: Option<SignedValueData>,
-    /// The descriptor if we got a fresh one or empty if no descriptor was needed
-    pub descriptor: Option<SignedValueDescriptor>,
-}
-
 /// The context of the do_get_value operation
 struct DoGetValueContext {
     /// The latest value of the subkey, may be the value passed in
@@ -22,6 +14,7 @@ struct DoGetValueContext {
 
 impl StorageManager {
 
+    /// Perform a 'get value' query on the network
     pub async fn do_get_value(
         &self,
         rpc_processor: RPCProcessor,
@@ -30,7 +23,7 @@ impl StorageManager {
         last_value: Option<SignedValueData>,
         last_descriptor: Option<SignedValueDescriptor>,
         safety_selection: SafetySelection,
-    ) -> Result<DoGetValueResult, VeilidAPIError> {
+    ) -> Result<SubkeyResult, VeilidAPIError> {
         let routing_table = rpc_processor.routing_table();
 
         // Get the DHT parameters for 'GetValue'
@@ -63,7 +56,7 @@ impl StorageManager {
             let context = context.clone();
             let last_descriptor = last_descriptor.clone();
             async move {
-                match rpc_processor
+                let vres = rpc_processor
                     .clone()
                     .rpc_call_get_value(
                         Destination::direct(next_node).with_safety(safety_selection),
@@ -71,75 +64,70 @@ impl StorageManager {
                         subkey,
                         last_descriptor,
                     )
-                    .await
-                {
-                    Ok(v) => {
-                        let v = network_result_value_or_log!(v => {
-                            // Any other failures, just try the next node
-                            return Ok(None);
-                        });
+                    .await?;
+                let gva = network_result_value_or_log!(vres => {
+                    // Any other failures, just try the next node
+                    return Ok(None);
+                });
 
-                        // Keep the descriptor if we got one. If we had a last_descriptor it will
-                        // already be validated by rpc_call_get_value
-                        if let Some(descriptor) = v.answer.descriptor {
-                            let mut ctx = context.lock();
-                            if ctx.descriptor.is_none() && ctx.schema.is_none() {
-                                ctx.schema =
-                                    Some(descriptor.schema().map_err(RPCError::invalid_format)?);
-                                ctx.descriptor = Some(descriptor);
-                            }
-                        }
-
-                        // Keep the value if we got one and it is newer and it passes schema validation
-                        if let Some(value) = v.answer.value {
-                            let mut ctx = context.lock();
-
-                            // Ensure we have a schema and descriptor
-                            let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema) else {
-                                // Got a value but no descriptor for it
-                                // Move to the next node
-                                return Ok(None);
-                            };
-
-                            // Validate with schema
-                            if !schema.check_subkey_value_data(
-                                descriptor.owner(),
-                                subkey,
-                                value.value_data(),
-                            ) {
-                                // Validation failed, ignore this value
-                                // Move to the next node
-                                return Ok(None);
-                            }
-
-                            // If we have a prior value, see if this is a newer sequence number
-                            if let Some(prior_value) = &ctx.value {
-                                let prior_seq = prior_value.value_data().seq();
-                                let new_seq = value.value_data().seq();
-
-                                if new_seq == prior_seq {
-                                    // If sequence number is the same, the data should be the same
-                                    if prior_value.value_data() != value.value_data() {
-                                        // Move to the next node
-                                        return Ok(None);
-                                    }
-                                    // Increase the consensus count for the existing value
-                                    ctx.value_count += 1;
-                                } else if new_seq > prior_seq {
-                                    // If the sequence number is greater, go with it
-                                    ctx.value = Some(value);
-                                    ctx.value_count = 1;
-                                } else {
-                                    // If the sequence number is older, ignore it
-                                }
-                            }
-                        }
-
-                        // Return peers if we have some
-                        Ok(Some(v.answer.peers))
+                // Keep the descriptor if we got one. If we had a last_descriptor it will
+                // already be validated by rpc_call_get_value
+                if let Some(descriptor) = gva.answer.descriptor {
+                    let mut ctx = context.lock();
+                    if ctx.descriptor.is_none() && ctx.schema.is_none() {
+                        ctx.schema =
+                            Some(descriptor.schema().map_err(RPCError::invalid_format)?);
+                        ctx.descriptor = Some(descriptor);
                     }
-                    Err(e) => Err(e),
                 }
+
+                // Keep the value if we got one and it is newer and it passes schema validation
+                if let Some(value) = gva.answer.value {
+                    let mut ctx = context.lock();
+
+                    // Ensure we have a schema and descriptor
+                    let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema) else {
+                        // Got a value but no descriptor for it
+                        // Move to the next node
+                        return Ok(None);
+                    };
+
+                    // Validate with schema
+                    if !schema.check_subkey_value_data(
+                        descriptor.owner(),
+                        subkey,
+                        value.value_data(),
+                    ) {
+                        // Validation failed, ignore this value
+                        // Move to the next node
+                        return Ok(None);
+                    }
+
+                    // If we have a prior value, see if this is a newer sequence number
+                    if let Some(prior_value) = &ctx.value {
+                        let prior_seq = prior_value.value_data().seq();
+                        let new_seq = value.value_data().seq();
+
+                        if new_seq == prior_seq {
+                            // If sequence number is the same, the data should be the same
+                            if prior_value.value_data() != value.value_data() {
+                                // Move to the next node
+                                return Ok(None);
+                            }
+                            // Increase the consensus count for the existing value
+                            ctx.value_count += 1;
+                        } else if new_seq > prior_seq {
+                            // If the sequence number is greater, go with it
+                            ctx.value = Some(value);
+                            ctx.value_count = 1;
+                        } else {
+                            // If the sequence number is older, ignore it
+                        }
+                    }
+                }
+
+                // Return peers if we have some
+                Ok(Some(gva.answer.peers))
             }
         };
 
@@ -173,7 +161,7 @@ impl StorageManager {
             TimeoutOr::Value(Ok(None)) => {
                 // Return the best answer we've got
                 let ctx = context.lock();
-                Ok(DoGetValueResult{
+                Ok(SubkeyResult{
                     value: ctx.value.clone(),
                     descriptor: ctx.descriptor.clone(),
                 })
@@ -184,5 +172,11 @@ impl StorageManager {
                 Err(e.into())
             }
         }
+    }
+
+    /// Handle a recieved 'Get Value' query
+    pub async fn handle_get_value(&self, key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> Result<SubkeyResult, VeilidAPIError> {
+        let mut inner = self.lock().await?;
+        inner.handle_get_remote_value(key, subkey, want_descriptor)
     }
 }

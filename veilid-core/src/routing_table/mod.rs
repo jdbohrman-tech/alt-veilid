@@ -1,6 +1,7 @@
 mod bucket;
 mod bucket_entry;
 mod debug;
+mod find_peers;
 mod node_ref;
 mod node_ref_filter;
 mod privacy;
@@ -22,6 +23,7 @@ use hashlink::LruCache;
 
 pub use bucket_entry::*;
 pub use debug::*;
+pub use find_peers::*;
 pub use node_ref::*;
 pub use node_ref_filter::*;
 pub use privacy::*;
