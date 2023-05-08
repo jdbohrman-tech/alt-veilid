@@ -31,6 +31,7 @@ where
 }
 
 /// The result of the do_get_value_operation
+#[derive(Default, Debug)]
 pub struct SubkeyResult {
     /// The subkey value if we got one
     pub value: Option<SignedValueData>,

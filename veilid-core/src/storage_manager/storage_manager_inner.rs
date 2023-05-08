@@ -1,8 +1,8 @@
 use super::*;
 
 /// Locked structure for storage manager
-#[derive(Default)]
 pub(super) struct StorageManagerInner {
+    unlocked_inner: Arc<StorageManagerUnlockedInner>,
     /// If we are started up
     pub initialized: bool,
     /// Records that have been 'opened' and are not yet closed
@@ -18,15 +18,74 @@ pub(super) struct StorageManagerInner {
 }
 
 impl StorageManagerInner {
-    pub fn open_record_check_existing(
+    pub fn new(unlocked_inner: Arc<StorageManagerUnlockedInner>) -> Self {
+        Self {
+            unlocked_inner,
+            initialized: false,
+            opened_records: Default::default(),
+            local_record_store: Default::default(),
+            remote_record_store: Default::default(),
+            rpc_processor: Default::default(),
+            tick_future: Default::default(),
+        }
+    }
+
+    pub async fn create_new_owned_local_record(
+        &mut self,
+        kind: CryptoKind,
+        schema: DHTSchema,
+        safety_selection: SafetySelection,
+    ) -> Result<(TypedKey, KeyPair), VeilidAPIError> {
+        // Get cryptosystem
+        let Some(vcrypto) = self.unlocked_inner.crypto.get(kind) else {
+            apibail_generic!("unsupported cryptosystem");
+        };
+
+        // Get local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+
+        // Compile the dht schema
+        let schema_data = schema.compile();
+
+        // New values require a new owner key
+        let owner = vcrypto.generate_keypair();
+
+        // Make a signed value descriptor for this dht value
+        let signed_value_descriptor = SignedValueDescriptor::make_signature(
+            owner.key,
+            schema_data,
+            vcrypto.clone(),
+            owner.secret,
+        )?;
+
+        // Add new local value record
+        let cur_ts = get_aligned_timestamp();
+        let local_record_detail = LocalRecordDetail { safety_selection };
+        let record =
+            Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
+
+        let dht_key = Self::get_key(vcrypto.clone(), &record);
+        local_record_store.new_record(dht_key, record).await?;
+
+        Ok((dht_key, owner))
+    }
+
+    pub fn open_existing_record(
         &mut self,
         key: TypedKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
-    ) -> Option<Result<DHTRecordDescriptor, VeilidAPIError>> {
+    ) -> Result<Option<DHTRecordDescriptor>, VeilidAPIError> {
+        // Ensure the record is closed
+        if self.opened_records.contains_key(&key) {
+            apibail_generic!("record is already open and should be closed first");
+        }
+
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
-            return Some(Err(VeilidAPIError::not_initialized()));
+            apibail_not_initialized!();
         };
 
         // See if we have a local record already or not
@@ -40,7 +99,7 @@ impl StorageManagerInner {
             (r.owner().clone(), r.schema())
         };
         let Some((owner, schema)) = local_record_store.with_record_mut(key, cb) else {
-            return None;
+            return Ok(None);
         };
         // Had local record
 
@@ -62,17 +121,43 @@ impl StorageManagerInner {
 
         // Make DHT Record Descriptor to return
         let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
-        Some(Ok(descriptor))
+        Ok(Some(descriptor))
     }
 
-    pub async fn new_local_record(
+    pub async fn open_new_record(
         &mut self,
         key: TypedKey,
+        writer: Option<KeyPair>,
         subkey: ValueSubkey,
-        signed_value_descriptor: SignedValueDescriptor,
-        signed_value_data: Option<SignedValueData>,
+        subkey_result: SubkeyResult,
         safety_selection: SafetySelection,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+        // Ensure the record is closed
+        if self.opened_records.contains_key(&key) {
+            panic!("new record should never be opened at this point");
+        }
+
+        // Must have descriptor
+        let Some(signed_value_descriptor) = subkey_result.descriptor else {
+            // No descriptor for new record, can't store this
+            apibail_generic!("no descriptor");
+        };
+        // Get owner
+        let owner = signed_value_descriptor.owner().clone();
+
+        // If the writer we chose is also the owner, we have the owner secret
+        // Otherwise this is just another subkey writer
+        let owner_secret = if let Some(writer) = writer {
+            if writer.key == owner {
+                Some(writer.secret)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let schema = signed_value_descriptor.schema()?;
+
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
@@ -87,17 +172,20 @@ impl StorageManagerInner {
         local_record_store.new_record(key, record).await?;
 
         // If we got a subkey with the getvalue, it has already been validated against the schema, so store it
-        if let Some(signed_value_data) = signed_value_data {
+        if let Some(signed_value_data) = subkey_result.value {
             // Write subkey to local store
             local_record_store
                 .set_subkey(key, subkey, signed_value_data)
                 .await?;
         }
+
         // Write open record
         self.opened_records
             .insert(key, OpenedRecord::new(writer, safety_selection));
 
-        Ok(())
+        // Make DHT Record Descriptor to return
+        let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
+        Ok(descriptor)
     }
 
     pub fn close_record(&mut self, key: TypedKey) -> Result<(), VeilidAPIError> {
@@ -183,5 +271,21 @@ impl StorageManagerInner {
             .await?;
 
         Ok(())
+    }
+
+    /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
+    fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
+    where
+        D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
+        for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
+        <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+    {
+        let compiled = record.descriptor().schema_data();
+        let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());
+        hash_data.extend_from_slice(&vcrypto.kind().0);
+        hash_data.extend_from_slice(&record.owner().bytes);
+        hash_data.extend_from_slice(compiled);
+        let hash = vcrypto.generate_hash(&hash_data);
+        TypedKey::new(vcrypto.kind(), hash)
     }
 }

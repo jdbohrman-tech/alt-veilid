@@ -57,8 +57,8 @@ impl StorageManager {
             flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
         }
     }
-    fn new_inner() -> StorageManagerInner {
-        StorageManagerInner::default()
+    fn new_inner(unlocked_inner: Arc<StorageManagerUnlockedInner>) -> StorageManagerInner {
+        StorageManagerInner::new(unlocked_inner)
     }
 
     fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
@@ -96,15 +96,16 @@ impl StorageManager {
         table_store: TableStore,
         block_store: BlockStore,
     ) -> StorageManager {
+        let unlocked_inner = Arc::new(Self::new_unlocked_inner(
+            config,
+            crypto,
+            protected_store,
+            table_store,
+            block_store,
+        ));
         let this = StorageManager {
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(
-                config,
-                crypto,
-                protected_store,
-                table_store,
-                block_store,
-            )),
-            inner: Arc::new(AsyncMutex::new(Self::new_inner())),
+            unlocked_inner: unlocked_inner.clone(),
+            inner: Arc::new(AsyncMutex::new(Self::new_inner(unlocked_inner))),
         };
 
         this.setup_tasks();
@@ -169,7 +170,7 @@ impl StorageManager {
         self.cancel_tasks().await;
 
         // Release the storage manager
-        *inner = Self::new_inner();
+        *inner = Self::new_inner(self.unlocked_inner.clone());
 
         debug!("finished storage manager shutdown");
     }
@@ -177,22 +178,6 @@ impl StorageManager {
     pub async fn set_rpc_processor(&self, opt_rpc_processor: Option<RPCProcessor>) {
         let mut inner = self.inner.lock().await;
         inner.rpc_processor = opt_rpc_processor
-    }
-
-    /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
-    fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
-    where
-        D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
-        for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-        <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
-    {
-        let compiled = record.descriptor().schema_data();
-        let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());
-        hash_data.extend_from_slice(&vcrypto.kind().0);
-        hash_data.extend_from_slice(&record.owner().bytes);
-        hash_data.extend_from_slice(compiled);
-        let hash = vcrypto.generate_hash(&hash_data);
-        TypedKey::new(vcrypto.kind(), hash)
     }
 
     async fn lock(&self) -> Result<AsyncMutexGuardArc<StorageManagerInner>, VeilidAPIError> {
@@ -203,6 +188,7 @@ impl StorageManager {
         Ok(inner)
     }
 
+    /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
     pub async fn create_record(
         &self,
         kind: CryptoKind,
@@ -211,59 +197,32 @@ impl StorageManager {
     ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
         let mut inner = self.lock().await?;
 
-        // Get cryptosystem
-        let Some(vcrypto) = self.unlocked_inner.crypto.get(kind) else {
-            apibail_generic!("unsupported cryptosystem");
-        };
+        // Create a new owned local record from scratch
+        let (key, owner) = inner
+            .create_new_owned_local_record(kind, schema, safety_selection)
+            .await?;
 
-        // Get local record store
-        let Some(local_record_store) = inner.local_record_store.as_mut() else {
-            apibail_not_initialized!();
-        };
-
-        // Compile the dht schema
-        let schema_data = schema.compile();
-
-        // New values require a new owner key
-        let owner = vcrypto.generate_keypair();
-
-        // Make a signed value descriptor for this dht value
-        let signed_value_descriptor = SignedValueDescriptor::make_signature(
-            owner.key,
-            schema_data,
-            vcrypto.clone(),
-            owner.secret,
-        )?;
-
-        // Add new local value record
-        let cur_ts = get_aligned_timestamp();
-        let local_record_detail = LocalRecordDetail { safety_selection };
-        let record =
-            Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
-
-        let dht_key = Self::get_key(vcrypto.clone(), &record);
-        local_record_store.new_record(dht_key, record).await?;
-
-        // Open the record
-        self.open_record_common(inner, dht_key, Some(owner), safety_selection)
-            .await
+        // Now that the record is made we should always succeed to open the existing record
+        // The initial writer is the owner of the record
+        inner
+            .open_existing_record(key, Some(owner), safety_selection)
+            .map(|r| r.unwrap())
     }
 
-    async fn open_record_common(
+    /// Open an existing local record if it exists,
+    /// and if it doesnt exist locally, try to pull it from the network and
+    /// open it and return the opened descriptor
+    pub async fn open_record(
         &self,
-        mut inner: AsyncMutexGuardArc<StorageManagerInner>,
         key: TypedKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
-        // Ensure the record is closed
-        if inner.opened_records.contains_key(&key) {
-            apibail_generic!("record is already open and should be closed first");
-        }
+        let mut inner = self.lock().await?;
 
         // See if we have a local record already or not
-        if let Some(res) = inner.open_record_check_existing(key, writer, safety_selection) {
-            return res;
+        if let Some(res) = inner.open_existing_record(key, writer, safety_selection)? {
+            return Ok(res);
         }
 
         // No record yet, try to get it from the network
@@ -280,86 +239,38 @@ impl StorageManager {
         // No last descriptor, no last value
         // Use the safety selection we opened the record with
         let subkey: ValueSubkey = 0;
-        let result = self
-            .do_get_value(rpc_processor, key, subkey, None, None, safety_selection)
+        let subkey_result = self
+            .do_get_value(
+                rpc_processor,
+                key,
+                subkey,
+                safety_selection,
+                SubkeyResult::default(),
+            )
             .await?;
 
         // If we got nothing back, the key wasn't found
-        if result.value.is_none() && result.descriptor.is_none() {
+        if subkey_result.value.is_none() && subkey_result.descriptor.is_none() {
             // No result
             apibail_key_not_found!(key);
         };
 
-        // Must have descriptor
-        let Some(signed_value_descriptor) = result.descriptor else {
-            // No descriptor for new record, can't store this
-            apibail_generic!("no descriptor");
-        };
-
-        let owner = signed_value_descriptor.owner().clone();
-        // If the writer we chose is also the owner, we have the owner secret
-        // Otherwise this is just another subkey writer
-        let owner_secret = if let Some(writer) = writer {
-            if writer.key == owner {
-                Some(writer.secret)
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        let schema = signed_value_descriptor.schema()?;
-
         // Reopen inner to store value we just got
         let mut inner = self.lock().await?;
 
-        // Get local record store
-        let Some(local_record_store) = inner.local_record_store.as_mut() else {
-            apibail_not_initialized!();
-        };
-
-        // Make and store a new record for this descriptor
-        let record = Record::<LocalRecordDetail>::new(
-            get_aligned_timestamp(),
-            signed_value_descriptor,
-            LocalRecordDetail { safety_selection },
-        )?;
-        local_record_store.new_record(key, record).await?;
-
-        // If we got a subkey with the getvalue, it has already been validated against the schema, so store it
-        if let Some(signed_value_data) = result.value {
-            // Write subkey to local store
-            local_record_store
-                .set_subkey(key, subkey, signed_value_data)
-                .await?;
-        }
-
-        // Write open record
+        // Open the new record
         inner
-            .opened_records
-            .insert(key, OpenedRecord::new(writer, safety_selection));
-
-        // Make DHT Record Descriptor to return
-        let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
-        Ok(descriptor)
-    }
-
-    pub async fn open_record(
-        &self,
-        key: TypedKey,
-        writer: Option<KeyPair>,
-        safety_selection: SafetySelection,
-    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
-        let inner = self.lock().await?;
-        self.open_record_common(inner, key, writer, safety_selection)
+            .open_new_record(key, writer, subkey, subkey_result, safety_selection)
             .await
     }
 
+    /// Close an opened local record
     pub async fn close_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
         let mut inner = self.lock().await?;
         inner.close_record(key)
     }
 
+    /// Delete a local record
     pub async fn delete_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
         let mut inner = self.lock().await?;
 
@@ -376,6 +287,8 @@ impl StorageManager {
         local_record_store.delete_record(key).await
     }
 
+    /// Get the value of a subkey from an opened local record
+    /// may refresh the record, and will if it is forced to or the subkey is not available locally yet
     pub async fn get_value(
         &self,
         key: TypedKey,
@@ -383,23 +296,23 @@ impl StorageManager {
         force_refresh: bool,
     ) -> Result<Option<ValueData>, VeilidAPIError> {
         let mut inner = self.lock().await?;
-
-        // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(opened_record) = inner.opened_records.remove(&key) else {
             apibail_generic!("record not open");
         };
 
         // See if the requested subkey is our local record store
-        let SubkeyResult { value, descriptor } = inner.handle_get_local_value(key, subkey, true)?;
+        let last_subkey_result = inner.handle_get_local_value(key, subkey, true)?;
 
         // Return the existing value if we have one unless we are forcing a refresh
         if !force_refresh {
-            if let Some(value) = value {
-                return Ok(Some(value.into_value_data()));
+            if let Some(last_subkey_result_value) = last_subkey_result.value {
+                return Ok(Some(last_subkey_result_value.into_value_data()));
             }
         }
 
         // Refresh if we can
+
+        // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(rpc_processor) = inner.rpc_processor.clone() else {
             // Offline, try again later
             apibail_try_again!();
@@ -410,32 +323,34 @@ impl StorageManager {
 
         // May have last descriptor / value
         // Use the safety selection we opened the record with
-        let opt_last_seq = value.as_ref().map(|v| v.value_data().seq());
-        let result = self
+        let opt_last_seq = last_subkey_result
+            .value
+            .as_ref()
+            .map(|v| v.value_data().seq());
+        let subkey_result = self
             .do_get_value(
                 rpc_processor,
                 key,
                 subkey,
-                value,
-                descriptor,
                 opened_record.safety_selection(),
+                last_subkey_result,
             )
             .await?;
 
         // See if we got a value back
-        let Some(result_value) = result.value else {
+        let Some(subkey_result_value) = subkey_result.value else {
             // If we got nothing back then we also had nothing beforehand, return nothing
             return Ok(None);
         };
 
         // If we got a new value back then write it to the opened record
-        if Some(result_value.value_data().seq()) != opt_last_seq {
+        if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
             let mut inner = self.lock().await?;
             inner
-                .handle_set_local_value(key, subkey, result_value.clone())
+                .handle_set_local_value(key, subkey, subkey_result_value.clone())
                 .await?;
         }
-        Ok(Some(result_value.into_value_data()))
+        Ok(Some(subkey_result_value.into_value_data()))
     }
 
     pub async fn set_value(

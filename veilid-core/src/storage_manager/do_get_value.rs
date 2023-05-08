@@ -20,9 +20,8 @@ impl StorageManager {
         rpc_processor: RPCProcessor,
         key: TypedKey,
         subkey: ValueSubkey,
-        last_value: Option<SignedValueData>,
-        last_descriptor: Option<SignedValueDescriptor>,
         safety_selection: SafetySelection,
+        last_subkey_result: SubkeyResult,
     ) -> Result<SubkeyResult, VeilidAPIError> {
         let routing_table = rpc_processor.routing_table();
 
@@ -38,15 +37,15 @@ impl StorageManager {
         };
 
         // Make do-get-value answer context
-        let schema = if let Some(d) = &last_descriptor {
+        let schema = if let Some(d) = &last_subkey_result.descriptor {
             Some(d.schema()?)
         } else {
             None
         };
         let context = Arc::new(Mutex::new(DoGetValueContext {
-            value: last_value,
+            value: last_subkey_result.value,
             value_count: 0,
-            descriptor: last_descriptor.clone(),
+            descriptor: last_subkey_result.descriptor.clone(),
             schema,
         }));
 
@@ -54,7 +53,7 @@ impl StorageManager {
         let call_routine = |next_node: NodeRef| {
             let rpc_processor = rpc_processor.clone();
             let context = context.clone();
-            let last_descriptor = last_descriptor.clone();
+            let last_descriptor = last_subkey_result.descriptor.clone();
             async move {
                 let vres = rpc_processor
                     .clone()
