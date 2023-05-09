@@ -11,10 +11,42 @@ pub(super) struct StorageManagerInner {
     pub local_record_store: Option<RecordStore<LocalRecordDetail>>,
     /// Records that have been pushed to this node for distribution by other nodes, that we make an effort to republish
     pub remote_record_store: Option<RecordStore<RemoteRecordDetail>>,
+    /// Record subkeys that have not been pushed to the network because they were written to offline
+    pub offline_subkey_writes: HashMap<TypedKey, ValueSubkeyRangeSet>,
+    /// Storage manager metadata that is persistent, including copy of offline subkey writes
+    pub metadata_db: Option<TableDB>,
     /// RPC processor if it is available
     pub rpc_processor: Option<RPCProcessor>,
     /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
     pub tick_future: Option<SendPinBoxFuture<()>>,
+}
+
+fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+    let c = config.get();
+    RecordStoreLimits {
+        subkey_cache_size: c.network.dht.local_subkey_cache_size as usize,
+        max_subkey_size: MAX_SUBKEY_SIZE,
+        max_record_total_size: MAX_RECORD_DATA_SIZE,
+        max_records: None,
+        max_subkey_cache_memory_mb: Some(
+            c.network.dht.local_max_subkey_cache_memory_mb as usize,
+        ),
+        max_storage_space_mb: None,
+    }
+}
+
+fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+    let c = config.get();
+    RecordStoreLimits {
+        subkey_cache_size: c.network.dht.remote_subkey_cache_size as usize,
+        max_subkey_size: MAX_SUBKEY_SIZE,
+        max_record_total_size: MAX_RECORD_DATA_SIZE,
+        max_records: Some(c.network.dht.remote_max_records as usize),
+        max_subkey_cache_memory_mb: Some(
+            c.network.dht.remote_max_subkey_cache_memory_mb as usize,
+        ),
+        max_storage_space_mb: Some(c.network.dht.remote_max_storage_space_mb as usize),
+    }
 }
 
 impl StorageManagerInner {
@@ -25,10 +57,105 @@ impl StorageManagerInner {
             opened_records: Default::default(),
             local_record_store: Default::default(),
             remote_record_store: Default::default(),
+            offline_subkey_writes: Default::default(),
+            metadata_db: Default::default(),
             rpc_processor: Default::default(),
             tick_future: Default::default(),
         }
     }
+
+    pub async fn init(&mut self, outer_self: StorageManager) -> EyreResult<()> {
+
+        let metadata_db = self.unlocked_inner
+            .table_store
+            .open(&format!("storage_manager_metadata"), 1)
+            .await?;
+
+        let local_limits = local_limits_from_config(self.unlocked_inner.config.clone());
+        let remote_limits = remote_limits_from_config(self.unlocked_inner.config.clone());
+
+        let mut local_record_store = RecordStore::new(
+            self.unlocked_inner.table_store.clone(),
+            "local",
+            local_limits,
+        );
+        local_record_store.init().await?;
+
+        let mut remote_record_store = RecordStore::new(
+            self.unlocked_inner.table_store.clone(),
+            "remote",
+            remote_limits,
+        );
+        remote_record_store.init().await?;
+
+        self.metadata_db = Some(metadata_db);
+        self.local_record_store = Some(local_record_store);
+        self.remote_record_store = Some(remote_record_store);
+
+        self.load_metadata().await?;
+
+        // Schedule tick
+        let tick_future = interval(1000, move || {
+            let this = outer_self.clone();
+            async move {
+                if let Err(e) = this.tick().await {
+                    log_stor!(warn "storage manager tick failed: {}", e);
+                }
+            }
+        });
+        self.tick_future = Some(tick_future);
+
+        self.initialized = true;
+
+        Ok(())
+    }
+
+    pub async fn terminate(&mut self) {
+
+        // Stop ticker
+        let tick_future = self.tick_future.take();
+        if let Some(f) = tick_future {
+            f.await;
+        }
+
+        // Final flush on record stores
+        if let Some(mut local_record_store) = self.local_record_store.take() {
+            local_record_store.tick().await;
+        }
+        if let Some(mut remote_record_store) = self.remote_record_store.take() {
+            remote_record_store.tick().await;
+        }
+
+        // Save metadata
+        if self.metadata_db.is_some() {
+            if let Err(e) = self.save_metadata().await {
+                log_stor!(error "termination metadata save failed: {}", e); 
+            }
+            self.metadata_db = None;
+        }
+        self.offline_subkey_writes.clear();
+
+        // Mark not initialized
+        self.initialized = false;
+    }
+
+    async fn save_metadata(&mut self) -> EyreResult<()>{
+        if let Some(metadata_db) = &self.metadata_db {
+            let tx = metadata_db.transact();
+            tx.store_rkyv(0, b"offline_subkey_writes", &self.offline_subkey_writes);
+            tx.commit().await.wrap_err("failed to commit")?
+        }
+        Ok(())
+    }
+
+    async fn load_metadata(&mut self) -> EyreResult<()> {
+        if let Some(metadata_db) = &self.metadata_db {
+            self.offline_subkey_writes = metadata_db.load_rkyv(0, b"offline_subkey_writes")?.unwrap_or_default();
+        }
+        Ok(())
+    }
+
+    write offline subkey write flush background task or make a ticket for it and get back to it after the rest of set value
 
     pub async fn create_new_owned_local_record(
         &mut self,
@@ -223,7 +350,7 @@ impl StorageManagerInner {
     ) -> Result<(), VeilidAPIError> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
-            apibail_not_initialized!();
+            apibail_not_initialized!();                 
         };
 
         // Write subkey to local store

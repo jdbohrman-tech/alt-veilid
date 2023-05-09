@@ -52,20 +52,20 @@ where
     D: rkyv::Fallible + ?Sized,
     T: rkyv::Archive + Integer,
     rkyv::Archived<T>: rkyv::Deserialize<T, D>,
-    D::Error: From<String>,
+    // D::Error: From<String>, // xxx this doesn't work
 {
     fn deserialize_with(
         field: &rkyv::Archived<Vec<T>>,
         deserializer: &mut D,
     ) -> Result<RangeSetBlaze<T>, D::Error> {
         let mut out = RangeSetBlaze::<T>::new();
-        if field.len() % 2 == 1 {
-            return Err("invalid range set length".to_owned().into());
-        }
+        // if field.len() % 2 == 1 {
+        //     return Err("invalid range set length".to_owned().into());
+        // }
         let f = field.as_slice();
         for i in 0..field.len() / 2 {
-            let l: T = f[i].deserialize(deserializer)?;
-            let u: T = f[i + 1].deserialize(deserializer)?;
+            let l: T = f[i * 2].deserialize(deserializer)?;
+            let u: T = f[i * 2 + 1].deserialize(deserializer)?;
             out.ranges_insert(l..=u);
         }
         Ok(out)

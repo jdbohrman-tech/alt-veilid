@@ -61,34 +61,6 @@ impl StorageManager {
         StorageManagerInner::new(unlocked_inner)
     }
 
-    fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
-        let c = config.get();
-        RecordStoreLimits {
-            subkey_cache_size: c.network.dht.local_subkey_cache_size as usize,
-            max_subkey_size: MAX_SUBKEY_SIZE,
-            max_record_total_size: MAX_RECORD_DATA_SIZE,
-            max_records: None,
-            max_subkey_cache_memory_mb: Some(
-                c.network.dht.local_max_subkey_cache_memory_mb as usize,
-            ),
-            max_storage_space_mb: None,
-        }
-    }
-
-    fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
-        let c = config.get();
-        RecordStoreLimits {
-            subkey_cache_size: c.network.dht.remote_subkey_cache_size as usize,
-            max_subkey_size: MAX_SUBKEY_SIZE,
-            max_record_total_size: MAX_RECORD_DATA_SIZE,
-            max_records: Some(c.network.dht.remote_max_records as usize),
-            max_subkey_cache_memory_mb: Some(
-                c.network.dht.remote_max_subkey_cache_memory_mb as usize,
-            ),
-            max_storage_space_mb: Some(c.network.dht.remote_max_storage_space_mb as usize),
-        }
-    }
-
     pub fn new(
         config: VeilidConfig,
         crypto: Crypto,
@@ -118,39 +90,7 @@ impl StorageManager {
         debug!("startup storage manager");
         let mut inner = self.inner.lock().await;
 
-        let local_limits = Self::local_limits_from_config(self.unlocked_inner.config.clone());
-        let remote_limits = Self::remote_limits_from_config(self.unlocked_inner.config.clone());
-
-        let mut local_record_store = RecordStore::new(
-            self.unlocked_inner.table_store.clone(),
-            "local",
-            local_limits,
-        );
-        local_record_store.init().await?;
-
-        let mut remote_record_store = RecordStore::new(
-            self.unlocked_inner.table_store.clone(),
-            "remote",
-            remote_limits,
-        );
-        remote_record_store.init().await?;
-
-        inner.local_record_store = Some(local_record_store);
-        inner.remote_record_store = Some(remote_record_store);
-
-        // Schedule tick
-        let this = self.clone();
-        let tick_future = interval(1000, move || {
-            let this = this.clone();
-            async move {
-                if let Err(e) = this.tick().await {
-                    warn!("storage manager tick failed: {}", e);
-                }
-            }
-        });
-        inner.tick_future = Some(tick_future);
-
-        inner.initialized = true;
+        inner.init(self.clone()).await?;
 
         Ok(())
     }
@@ -159,12 +99,7 @@ impl StorageManager {
         debug!("starting storage manager shutdown");
 
         let mut inner = self.inner.lock().await;
-
-        // Stop ticker
-        let tick_future = inner.tick_future.take();
-        if let Some(f) = tick_future {
-            f.await;
-        }
+        inner.terminate().await;
 
         // Cancel all tasks
         self.cancel_tasks().await;
@@ -353,14 +288,165 @@ impl StorageManager {
         Ok(Some(subkey_result_value.into_value_data()))
     }
 
+    /// Set the value of a subkey on an opened local record
+    /// Puts changes to the network immediately and may refresh the record if the there is a newer subkey available online
     pub async fn set_value(
         &self,
         key: TypedKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
     ) -> Result<Option<ValueData>, VeilidAPIError> {
-        let inner = self.lock().await?;
-        unimplemented!();
+        let mut inner = self.lock().await?;
+
+        // Get cryptosystem
+        let Some(vcrypto) = self.unlocked_inner.crypto.get(key.kind) else {
+            apibail_generic!("unsupported cryptosystem");
+        };
+
+        let Some(opened_record) = inner.opened_records.remove(&key) else {
+            apibail_generic!("record not open");
+        };
+
+        // If we don't have a writer then we can't write
+        let Some(writer) = opened_record.writer().cloned() else {
+            apibail_generic!("value is not writable");
+        };
+
+        // See if the subkey we are modifying has a last known local value
+        let last_subkey_result = inner.handle_get_local_value(key, subkey, true)?;
+
+        // Get the descriptor and schema for the key
+        let Some(descriptor) = last_subkey_result.descriptor else {
+            apibail_generic!("must have a descriptor");
+        };
+        let schema = descriptor.schema()?;
+
+        // Make new subkey data
+        let value_data = if let Some(signed_value_data) = last_subkey_result.value {
+            let seq = signed_value_data.value_data().seq();
+            ValueData::new_with_seq(seq + 1, data, writer.key)
+        } else {
+            ValueData::new(data, writer.key)
+        };
+
+        // Validate with schema
+        if !schema.check_subkey_value_data(descriptor.owner(), subkey, &value_data) {
+            // Validation failed, ignore this value
+            apibail_generic!("failed schema validation");
+        }
+
+        // Sign the new value data with the writer
+        let signed_value_data = SignedValueData::make_signature(
+            value_data,
+            descriptor.owner(),
+            subkey,
+            vcrypto,
+            writer.secret,
+        )?;
+        let subkey_result = SubkeyResult {
+            value: Some(signed_value_data),
+            descriptor: Some(descriptor)
+        };
+
+        // Get rpc processor and drop mutex so we don't block while getting the value from the network
+        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+            // Offline, just write it locally and return immediately
+            inner
+                .handle_set_local_value(key, subkey, signed_value_data)
+                .await?;
+        };
+
+        // Drop the lock for network access
+        drop(inner);
+        
+        // Use the safety selection we opened the record with
+        let final_subkey_result = self
+            .do_set_value(
+                rpc_processor,
+                key,
+                subkey,
+                opened_record.safety_selection(),
+                subkey_result,
+            )
+            .await?;
+
+        // See if we got a value back
+        let Some(subkey_result_value) = subkey_result.value else {
+            // If we got nothing back then we also had nothing beforehand, return nothing
+            return Ok(None);
+        };
+
+        // If we got a new value back then write it to the opened record
+        if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
+            let mut inner = self.lock().await?;
+            inner
+                .handle_set_local_value(key, subkey, subkey_result_value.clone())
+                .await?;
+        }
+        Ok(Some(subkey_result_value.into_value_data()))
+
+
+
+
+
+
+
+
+
+
+        // Store subkey locally
+        inner
+            .handle_set_local_value(key, subkey, signed_value_data)
+            .await?;
+
+        // Return the existing value if we have one unless we are forcing a refresh
+        if !force_refresh {
+            if let Some(last_subkey_result_value) = last_subkey_result.value {
+                return Ok(Some(last_subkey_result_value.into_value_data()));
+            }
+        }
+
+        // Refresh if we can
+
+        // Get rpc processor and drop mutex so we don't block while getting the value from the network
+        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+            // Offline, try again later
+            apibail_try_again!();
+        };
+
+        // Drop the lock for network access
+        drop(inner);
+
+        // May have last descriptor / value
+        // Use the safety selection we opened the record with
+        let opt_last_seq = last_subkey_result
+            .value
+            .as_ref()
+            .map(|v| v.value_data().seq());
+        let subkey_result = self
+            .do_get_value(
+                rpc_processor,
+                key,
+                subkey,
+                opened_record.safety_selection(),
+                last_subkey_result,
+            )
+            .await?;
+
+        // See if we got a value back
+        let Some(subkey_result_value) = subkey_result.value else {
+            // If we got nothing back then we also had nothing beforehand, return nothing
+            return Ok(None);
+        };
+
+        // If we got a new value back then write it to the opened record
+        if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
+            let mut inner = self.lock().await?;
+            inner
+                .handle_set_local_value(key, subkey, subkey_result_value.clone())
+                .await?;
+        }
+        Ok(Some(subkey_result_value.into_value_data()))
     }
 
     pub async fn watch_values(

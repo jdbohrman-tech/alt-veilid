@@ -48,16 +48,6 @@ impl ValueData {
         &self.data
     }
 
-    pub fn with_data_mut<F, R>(&mut self, f: F) -> R
-    where
-        F: FnOnce(&mut Vec<u8>) -> R,
-    {
-        let out = f(&mut self.data);
-        assert!(self.data.len() <= Self::MAX_LEN);
-        self.seq += 1;
-        out
-    }
-
     pub fn total_size(&self) -> usize {
         mem::size_of::<Self>() + self.data.len()
     }
