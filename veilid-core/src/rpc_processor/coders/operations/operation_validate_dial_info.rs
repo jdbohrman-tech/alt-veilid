@@ -30,15 +30,15 @@ impl RPCOperationValidateDialInfo {
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
-    pub fn dial_info(&self) -> &DialInfo {
-        &self.dial_info
-    }
-    pub fn receipt(&self) -> &[u8] {
-        &self.receipt
-    }
-    pub fn redirect(&self) -> bool {
-        self.redirect
-    }
+    // pub fn dial_info(&self) -> &DialInfo {
+    //     &self.dial_info
+    // }
+    // pub fn receipt(&self) -> &[u8] {
+    //     &self.receipt
+    // }
+    // pub fn redirect(&self) -> bool {
+    //     self.redirect
+    // }
     pub fn destructure(self) -> (DialInfo, Vec<u8>, bool) {
         (self.dial_info, self.receipt, self.redirect)
     }

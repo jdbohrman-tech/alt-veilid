@@ -9,9 +9,9 @@ use hashlink::LruCache;
 
 pub struct RecordStore<D>
 where
-    D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-    <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+    <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
 {
     table_store: TableStore,
     name: String,
@@ -41,9 +41,9 @@ pub struct SubkeyResult {
 
 impl<D> RecordStore<D>
 where
-    D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
+    D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-    <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+    <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
 {
     pub fn new(table_store: TableStore, name: &str, limits: RecordStoreLimits) -> Self {
         let subkey_cache_size = limits.subkey_cache_size as usize;
@@ -421,7 +421,11 @@ where
     ) -> Result<(), VeilidAPIError> {
         // Check size limit for data
         if signed_value_data.value_data().data().len() > self.limits.max_subkey_size {
-            return Err(VeilidAPIError::generic("record subkey too large"));
+            apibail_invalid_argument!(
+                "record subkey too large",
+                "signed_value_data.value_data.data.len",
+                signed_value_data.value_data().data().len()
+            );
         }
 
         // Get record from index

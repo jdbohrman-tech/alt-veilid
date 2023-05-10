@@ -7,6 +7,6 @@ use super::*;
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct LocalRecordDetail {
     /// The last 'safety selection' used when creating/opening this record.
-    /// Even when closed, this safety selection applies to republication attempts by the system.
+    /// Even when closed, this safety selection applies to re-publication attempts by the system.
     pub safety_selection: SafetySelection,
 }

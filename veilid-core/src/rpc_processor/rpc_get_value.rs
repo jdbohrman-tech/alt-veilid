@@ -45,7 +45,7 @@ impl RPCProcessor {
             return Err(RPCError::internal("unsupported cryptosystem"));
         };
 
-        // Send the app call question
+        // Send the getvalue question
         let question_context = QuestionContext::GetValue(ValidateGetValueContext {
             last_descriptor,
             subkey,
@@ -119,10 +119,10 @@ impl RPCProcessor {
 
         // See if we have this record ourselves
         let storage_manager = self.storage_manager();
-        let subkey_result = storage_manager
-            .handle_get_value(key, subkey, want_descriptor)
+        let subkey_result = network_result_try!(storage_manager
+            .inbound_get_value(key, subkey, want_descriptor)
             .await
-            .map_err(RPCError::internal)?;
+            .map_err(RPCError::internal)?);
 
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(

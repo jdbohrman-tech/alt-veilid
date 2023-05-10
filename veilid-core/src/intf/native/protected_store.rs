@@ -152,7 +152,7 @@ impl ProtectedStore {
     pub async fn save_user_secret_rkyv<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
     where
         K: AsRef<str> + fmt::Debug,
-        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
+        T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
         let v = to_rkyv(value)?;
         self.save_user_secret(key, &v).await
@@ -175,8 +175,7 @@ impl ProtectedStore {
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
             for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
-        <T as RkyvArchive>::Archived:
-            RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+        <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
         let out = self.load_user_secret(key).await?;
         let b = match out {

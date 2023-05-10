@@ -92,7 +92,7 @@ impl TableDB {
     /// Store a key in rkyv format with a value in a column in the TableDB. Performs a single transaction immediately.
     pub async fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
-        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
+        T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
         let v = to_rkyv(value)?;
 
@@ -127,8 +127,7 @@ impl TableDB {
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
             for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
-        <T as RkyvArchive>::Archived:
-            RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+        <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
         let db = self.inner.lock().database.clone();
         let out = db.get(col, key).wrap_err("failed to get key")?;
@@ -240,7 +239,7 @@ impl TableDBTransaction {
     /// Store a key in rkyv format with a value in a column in the TableDB
     pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
     where
-        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
+        T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
         let v = to_rkyv(value)?;
         let mut inner = self.inner.lock();

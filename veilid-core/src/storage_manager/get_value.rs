@@ -15,7 +15,7 @@ struct DoGetValueContext {
 impl StorageManager {
 
     /// Perform a 'get value' query on the network
-    pub async fn do_get_value(
+    pub async fn outbound_get_value(
         &self,
         rpc_processor: RPCProcessor,
         key: TypedKey,
@@ -116,8 +116,9 @@ impl StorageManager {
                             // Increase the consensus count for the existing value
                             ctx.value_count += 1;
                         } else if new_seq > prior_seq {
-                            // If the sequence number is greater, go with it
+                            // If the sequence number is greater, start over with the new value
                             ctx.value = Some(value);
+                            // One node has show us this value so far
                             ctx.value_count = 1;
                         } else {
                             // If the sequence number is older, ignore it
@@ -174,8 +175,17 @@ impl StorageManager {
     }
 
     /// Handle a recieved 'Get Value' query
-    pub async fn handle_get_value(&self, key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> Result<SubkeyResult, VeilidAPIError> {
+    pub async fn inbound_get_value(&self, key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> Result<NetworkResult<SubkeyResult>, VeilidAPIError> {
         let mut inner = self.lock().await?;
-        inner.handle_get_remote_value(key, subkey, want_descriptor)
+        let res = match inner.handle_get_remote_value(key, subkey, want_descriptor) {            
+            Ok(res) => res,
+            Err(VeilidAPIError::Internal { message }) => {
+                apibail_internal!(message);
+            },
+            Err(e) => {
+                return Ok(NetworkResult::invalid_message(e));
+            },
+        };
+        Ok(NetworkResult::value(res))
     }
 }

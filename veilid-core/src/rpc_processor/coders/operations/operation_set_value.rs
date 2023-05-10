@@ -5,14 +5,15 @@ const MAX_SET_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Clone)]
 pub struct ValidateSetValueContext {
-    last_descriptor: Option<SignedValueDescriptor>,
-    subkey: ValueSubkey,
-    vcrypto: CryptoSystemVersion,
+    pub descriptor: SignedValueDescriptor,
+    pub subkey: ValueSubkey,
+    pub vcrypto: CryptoSystemVersion,
 }
+
 impl fmt::Debug for ValidateSetValueContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ValidateSetValueContext")
-            .field("last_descriptor", &self.last_descriptor)
+            .field("descriptor", &self.descriptor)
             .field("subkey", &self.subkey)
             .field("vcrypto", &self.vcrypto.kind().to_string())
             .finish()
@@ -45,21 +46,21 @@ impl RPCOperationSetValueQ {
         Ok(())
     }
 
-    pub fn key(&self) -> &TypedKey {
-        &self.key
-    }
+    // pub fn key(&self) -> &TypedKey {
+    //     &self.key
+    // }
 
-    pub fn subkey(&self) -> ValueSubkey {
-        self.subkey
-    }
+    // pub fn subkey(&self) -> ValueSubkey {
+    //     self.subkey
+    // }
 
-    pub fn value(&self) -> &SignedValueData {
-        &self.value
-    }
+    // pub fn value(&self) -> &SignedValueData {
+    //     &self.value
+    // }
 
-    pub fn descriptor(&self) -> Option<&SignedValueDescriptor> {
-        self.descriptor.as_ref()
-    }
+    // pub fn descriptor(&self) -> Option<&SignedValueDescriptor> {
+    //     self.descriptor.as_ref()
+    // }
     pub fn destructure(
         self,
     ) -> (
@@ -137,22 +138,16 @@ impl RPCOperationSetValueA {
         };
 
         if let Some(value) = &self.value {
-            // Get descriptor to validate with
-            let Some(descriptor) = &set_value_context.last_descriptor else {
-                return Err(RPCError::protocol(
-                    "no last descriptor, requires a descriptor",
-                ));
-            };
-
             // Ensure the descriptor itself validates
-            descriptor
+            set_value_context
+                .descriptor
                 .validate(set_value_context.vcrypto.clone())
                 .map_err(RPCError::protocol)?;
 
             // And the signed value data
             value
                 .validate(
-                    descriptor.owner(),
+                    set_value_context.descriptor.owner(),
                     set_value_context.subkey,
                     set_value_context.vcrypto.clone(),
                 )
@@ -163,15 +158,15 @@ impl RPCOperationSetValueA {
         Ok(())
     }
 
-    pub fn set(&self) -> bool {
-        self.set
-    }
-    pub fn value(&self) -> Option<&SignedValueData> {
-        self.value.as_ref()
-    }
-    pub fn peers(&self) -> &[PeerInfo] {
-        &self.peers
-    }
+    // pub fn set(&self) -> bool {
+    //     self.set
+    // }
+    // pub fn value(&self) -> Option<&SignedValueData> {
+    //     self.value.as_ref()
+    // }
+    // pub fn peers(&self) -> &[PeerInfo] {
+    //     &self.peers
+    // }
     pub fn destructure(self) -> (bool, Option<SignedValueData>, Vec<PeerInfo>) {
         (self.set, self.value, self.peers)
     }

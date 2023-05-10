@@ -39,15 +39,15 @@ impl RPCOperationGetValueQ {
         Ok(())
     }
 
-    pub fn key(&self) -> &TypedKey {
-        &self.key
-    }
-    pub fn subkey(&self) -> ValueSubkey {
-        self.subkey
-    }
-    pub fn want_descriptor(&self) -> bool {
-        self.want_descriptor
-    }
+    // pub fn key(&self) -> &TypedKey {
+    //     &self.key
+    // }
+    // pub fn subkey(&self) -> ValueSubkey {
+    //     self.subkey
+    // }
+    // pub fn want_descriptor(&self) -> bool {
+    //     self.want_descriptor
+    // }
     pub fn destructure(self) -> (TypedKey, ValueSubkey, bool) {
         (self.key, self.subkey, self.want_descriptor)
     }
@@ -155,15 +155,15 @@ impl RPCOperationGetValueA {
         Ok(())
     }
 
-    pub fn value(&self) -> Option<&SignedValueData> {
-        self.value.as_ref()
-    }
-    pub fn peers(&self) -> &[PeerInfo] {
-        &self.peers
-    }
-    pub fn descriptor(&self) -> Option<&SignedValueDescriptor> {
-        self.descriptor.as_ref()
-    }
+    // pub fn value(&self) -> Option<&SignedValueData> {
+    //     self.value.as_ref()
+    // }
+    // pub fn peers(&self) -> &[PeerInfo] {
+    //     &self.peers
+    // }
+    // pub fn descriptor(&self) -> Option<&SignedValueDescriptor> {
+    //     self.descriptor.as_ref()
+    // }
     pub fn destructure(
         self,
     ) -> (

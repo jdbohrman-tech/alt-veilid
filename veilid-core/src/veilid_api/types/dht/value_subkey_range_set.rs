@@ -29,6 +29,11 @@ impl ValueSubkeyRangeSet {
             data: Default::default(),
         }
     }
+    pub fn single(value: ValueSubkey) -> Self {
+        let mut data = RangeSetBlaze::new();
+        data.insert(value);
+        Self { data }
+    }
 }
 
 impl Deref for ValueSubkeyRangeSet {

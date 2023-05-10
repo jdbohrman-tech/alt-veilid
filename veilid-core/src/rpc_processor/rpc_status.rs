@@ -96,20 +96,21 @@ impl RPCProcessor {
             },
             _ => return Err(RPCError::invalid_format("not an answer")),
         };
+        let (a_node_status, sender_info) = status_a.destructure();
 
         // Ensure the returned node status is the kind for the routing domain we asked for
         if let Some(target_nr) = opt_target_nr {
-            if let Some(node_status) = status_a.node_status() {
+            if let Some(a_node_status) = a_node_status {
                 match routing_domain {
                     RoutingDomain::PublicInternet => {
-                        if !matches!(node_status, NodeStatus::PublicInternet(_)) {
+                        if !matches!(a_node_status, NodeStatus::PublicInternet(_)) {
                             return Ok(NetworkResult::invalid_message(
                                 "node status doesn't match PublicInternet routing domain",
                             ));
                         }
                     }
                     RoutingDomain::LocalNetwork => {
-                        if !matches!(node_status, NodeStatus::LocalNetwork(_)) {
+                        if !matches!(a_node_status, NodeStatus::LocalNetwork(_)) {
                             return Ok(NetworkResult::invalid_message(
                                 "node status doesn't match LocalNetwork routing domain",
                             ));
@@ -118,7 +119,7 @@ impl RPCProcessor {
                 }
 
                 // Update latest node status in routing table
-                target_nr.update_node_status(node_status.clone());
+                target_nr.update_node_status(a_node_status.clone());
             }
         }
 
@@ -132,7 +133,7 @@ impl RPCProcessor {
                 safety_selection,
             } => {
                 if matches!(safety_selection, SafetySelection::Unsafe(_)) {
-                    if let Some(sender_info) = status_a.sender_info() {
+                    if let Some(sender_info) = sender_info {
                         match send_data_kind {
                             SendDataKind::Direct(connection_descriptor) => {
                                 // Directly requested status that actually gets sent directly and not over a relay will tell us what our IP address appears as
@@ -186,13 +187,15 @@ impl RPCProcessor {
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Get the question
-        let status_q = match msg.operation.kind() {
-            RPCOperationKind::Question(q) => match q.detail() {
-                RPCQuestionDetail::StatusQ(q) => q,
+        let kind = msg.operation.kind().clone();
+        let status_q = match kind {
+            RPCOperationKind::Question(q) => match q.destructure() {
+                (_, RPCQuestionDetail::StatusQ(q)) => q,
                 _ => panic!("not a status question"),
             },
             _ => panic!("not a question"),
         };
+        let q_node_status = status_q.destructure();
 
         let (node_status, sender_info) = match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
@@ -200,17 +203,17 @@ impl RPCProcessor {
                 let routing_domain = detail.routing_domain;
 
                 // Ensure the node status from the question is the kind for the routing domain we received the request in
-                if let Some(node_status) = status_q.node_status() {
+                if let Some(q_node_status) = q_node_status {
                     match routing_domain {
                         RoutingDomain::PublicInternet => {
-                            if !matches!(node_status, NodeStatus::PublicInternet(_)) {
+                            if !matches!(q_node_status, NodeStatus::PublicInternet(_)) {
                                 return Ok(NetworkResult::invalid_message(
                                     "node status doesn't match PublicInternet routing domain",
                                 ));
                             }
                         }
                         RoutingDomain::LocalNetwork => {
-                            if !matches!(node_status, NodeStatus::LocalNetwork(_)) {
+                            if !matches!(q_node_status, NodeStatus::LocalNetwork(_)) {
                                 return Ok(NetworkResult::invalid_message(
                                     "node status doesn't match LocalNetwork routing domain",
                                 ));
@@ -221,7 +224,7 @@ impl RPCProcessor {
                     // update node status for the requesting node to our routing table
                     if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                         // Update latest node status in routing table for the statusq sender
-                        sender_nr.update_node_status(node_status.clone());
+                        sender_nr.update_node_status(q_node_status.clone());
                     }
                 }
 

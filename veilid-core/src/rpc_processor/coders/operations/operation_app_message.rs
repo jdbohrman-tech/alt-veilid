@@ -19,9 +19,9 @@ impl RPCOperationAppMessage {
         Ok(())
     }
 
-    pub fn message(&self) -> &[u8] {
-        &self.message
-    }
+    // pub fn message(&self) -> &[u8] {
+    //     &self.message
+    // }
     pub fn destructure(self) -> Vec<u8> {
         self.message
     }

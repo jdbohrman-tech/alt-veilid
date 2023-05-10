@@ -52,7 +52,9 @@ impl RPCProcessor {
         };
 
         // Verify peers are in the correct peer scope
-        for peer_info in find_node_a.peers() {
+        let peers = find_node_a.destructure();
+
+        for peer_info in &peers {
             if !self.filter_node_info(RoutingDomain::PublicInternet, peer_info.signed_node_info()) {
                 return Err(RPCError::invalid_format(
                     "find_node response has invalid peer scope",
@@ -60,7 +62,6 @@ impl RPCProcessor {
             }
         }
 
-        let peers = find_node_a.destructure();
         Ok(NetworkResult::value(Answer::new(latency, peers)))
     }
 

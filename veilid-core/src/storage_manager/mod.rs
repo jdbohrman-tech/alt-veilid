@@ -1,7 +1,8 @@
-mod do_get_value;
+mod get_value;
 mod keys;
 mod record_store;
 mod record_store_limits;
+mod set_value;
 mod storage_manager_inner;
 mod tasks;
 mod types;
@@ -88,8 +89,8 @@ impl StorageManager {
     #[instrument(level = "debug", skip_all, err)]
     pub async fn init(&self) -> EyreResult<()> {
         debug!("startup storage manager");
-        let mut inner = self.inner.lock().await;
 
+        let mut inner = self.inner.lock().await;
         inner.init(self.clone()).await?;
 
         Ok(())
@@ -175,7 +176,7 @@ impl StorageManager {
         // Use the safety selection we opened the record with
         let subkey: ValueSubkey = 0;
         let subkey_result = self
-            .do_get_value(
+            .outbound_get_value(
                 rpc_processor,
                 key,
                 subkey,
@@ -224,6 +225,8 @@ impl StorageManager {
 
     /// Get the value of a subkey from an opened local record
     /// may refresh the record, and will if it is forced to or the subkey is not available locally yet
+    /// Returns Ok(None) if no value was found
+    /// Returns Ok(Some(value)) is a value was found online or locally
     pub async fn get_value(
         &self,
         key: TypedKey,
@@ -263,7 +266,7 @@ impl StorageManager {
             .as_ref()
             .map(|v| v.value_data().seq());
         let subkey_result = self
-            .do_get_value(
+            .outbound_get_value(
                 rpc_processor,
                 key,
                 subkey,
@@ -290,6 +293,8 @@ impl StorageManager {
 
     /// Set the value of a subkey on an opened local record
     /// Puts changes to the network immediately and may refresh the record if the there is a newer subkey available online
+    /// Returns Ok(None) if the value was set
+    /// Returns Ok(Some(newer value)) if a newer value was found online
     pub async fn set_value(
         &self,
         key: TypedKey,
@@ -328,6 +333,7 @@ impl StorageManager {
         } else {
             ValueData::new(data, writer.key)
         };
+        let seq = value_data.seq();
 
         // Validate with schema
         if !schema.check_subkey_value_data(descriptor.owner(), subkey, &value_data) {
@@ -343,110 +349,43 @@ impl StorageManager {
             vcrypto,
             writer.secret,
         )?;
-        let subkey_result = SubkeyResult {
-            value: Some(signed_value_data),
-            descriptor: Some(descriptor)
-        };
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(rpc_processor) = inner.rpc_processor.clone() else {
             // Offline, just write it locally and return immediately
             inner
-                .handle_set_local_value(key, subkey, signed_value_data)
+                .handle_set_local_value(key, subkey, signed_value_data.clone())
                 .await?;
-        };
 
-        // Drop the lock for network access
-        drop(inner);
-        
-        // Use the safety selection we opened the record with
-        let final_subkey_result = self
-            .do_set_value(
-                rpc_processor,
-                key,
-                subkey,
-                opened_record.safety_selection(),
-                subkey_result,
-            )
-            .await?;
-
-        // See if we got a value back
-        let Some(subkey_result_value) = subkey_result.value else {
-            // If we got nothing back then we also had nothing beforehand, return nothing
-            return Ok(None);
-        };
-
-        // If we got a new value back then write it to the opened record
-        if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
-            let mut inner = self.lock().await?;
-            inner
-                .handle_set_local_value(key, subkey, subkey_result_value.clone())
-                .await?;
-        }
-        Ok(Some(subkey_result_value.into_value_data()))
-
-
-
-
-
-
-
-
-
-
-        // Store subkey locally
-        inner
-            .handle_set_local_value(key, subkey, signed_value_data)
-            .await?;
-
-        // Return the existing value if we have one unless we are forcing a refresh
-        if !force_refresh {
-            if let Some(last_subkey_result_value) = last_subkey_result.value {
-                return Ok(Some(last_subkey_result_value.into_value_data()));
-            }
-        }
-
-        // Refresh if we can
-
-        // Get rpc processor and drop mutex so we don't block while getting the value from the network
-        let Some(rpc_processor) = inner.rpc_processor.clone() else {
-            // Offline, try again later
-            apibail_try_again!();
+            // Add to offline writes to flush
+            inner.offline_subkey_writes.entry(key).and_modify(|x| { x.insert(subkey); } ).or_insert(ValueSubkeyRangeSet::single(subkey));
+            return Ok(Some(signed_value_data.into_value_data()))
         };
 
         // Drop the lock for network access
         drop(inner);
 
-        // May have last descriptor / value
         // Use the safety selection we opened the record with
-        let opt_last_seq = last_subkey_result
-            .value
-            .as_ref()
-            .map(|v| v.value_data().seq());
-        let subkey_result = self
-            .do_get_value(
+
+        let final_signed_value_data = self
+            .outbound_set_value(
                 rpc_processor,
                 key,
                 subkey,
                 opened_record.safety_selection(),
-                last_subkey_result,
+                signed_value_data,
+                descriptor,
             )
             .await?;
 
-        // See if we got a value back
-        let Some(subkey_result_value) = subkey_result.value else {
-            // If we got nothing back then we also had nothing beforehand, return nothing
-            return Ok(None);
-        };
-
         // If we got a new value back then write it to the opened record
-        if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
+        if final_signed_value_data.value_data().seq() != seq {
             let mut inner = self.lock().await?;
             inner
-                .handle_set_local_value(key, subkey, subkey_result_value.clone())
+                .handle_set_local_value(key, subkey, final_signed_value_data.clone())
                 .await?;
         }
-        Ok(Some(subkey_result_value.into_value_data()))
+        Ok(Some(final_signed_value_data.into_value_data()))
     }
 
     pub async fn watch_values(

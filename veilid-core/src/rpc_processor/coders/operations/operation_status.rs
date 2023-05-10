@@ -13,9 +13,9 @@ impl RPCOperationStatusQ {
         Ok(())
     }
 
-    pub fn node_status(&self) -> Option<&NodeStatus> {
-        self.node_status.as_ref()
-    }
+    // pub fn node_status(&self) -> Option<&NodeStatus> {
+    //     self.node_status.as_ref()
+    // }
     pub fn destructure(self) -> Option<NodeStatus> {
         self.node_status
     }
@@ -60,12 +60,12 @@ impl RPCOperationStatusA {
         Ok(())
     }
 
-    pub fn node_status(&self) -> Option<&NodeStatus> {
-        self.node_status.as_ref()
-    }
-    pub fn sender_info(&self) -> Option<&SenderInfo> {
-        self.sender_info.as_ref()
-    }
+    // pub fn node_status(&self) -> Option<&NodeStatus> {
+    //     self.node_status.as_ref()
+    // }
+    // pub fn sender_info(&self) -> Option<&SenderInfo> {
+    //     self.sender_info.as_ref()
+    // }
     pub fn destructure(self) -> (Option<NodeStatus>, Option<SenderInfo>) {
         (self.node_status, self.sender_info)
     }

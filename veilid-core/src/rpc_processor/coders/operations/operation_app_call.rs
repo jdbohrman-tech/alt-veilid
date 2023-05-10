@@ -19,9 +19,9 @@ impl RPCOperationAppCallQ {
         Ok(())
     }
 
-    pub fn message(&self) -> &[u8] {
-        &self.message
-    }
+    // pub fn message(&self) -> &[u8] {
+    //     &self.message
+    // }
 
     pub fn destructure(self) -> Vec<u8> {
         self.message
@@ -62,9 +62,9 @@ impl RPCOperationAppCallA {
         Ok(())
     }
 
-    pub fn message(&self) -> &[u8] {
-        &self.message
-    }
+    // pub fn message(&self) -> &[u8] {
+    //     &self.message
+    // }
 
     pub fn destructure(self) -> Vec<u8> {
         self.message
@@ -86,5 +86,4 @@ impl RPCOperationAppCallA {
         builder.set_message(&self.message);
         Ok(())
     }
-
 }

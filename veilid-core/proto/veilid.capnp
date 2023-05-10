@@ -359,7 +359,7 @@ struct OperationSetValueQ @0xbac06191ff8bdbc5 {
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
-    set                     @0  :Bool;                  # true if the value was accepted
+    set                     @0  :Bool;                  # true if the set was close enough to be set
     value                   @1  :SignedValueData;       # optional: the current value at the key if the set seq number was lower or equal to what was there before
     peers                   @2  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
 }

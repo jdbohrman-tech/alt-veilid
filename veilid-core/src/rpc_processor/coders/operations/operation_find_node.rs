@@ -15,9 +15,9 @@ impl RPCOperationFindNodeQ {
         Ok(())
     }
 
-    pub fn node_id(&self) -> &TypedKey {
-        &self.node_id
-    }
+    // pub fn node_id(&self) -> &TypedKey {
+    //     &self.node_id
+    // }
 
     pub fn destructure(self) -> TypedKey {
         self.node_id
@@ -57,9 +57,9 @@ impl RPCOperationFindNodeA {
         Ok(())
     }
 
-    pub fn peers(&self) -> &[PeerInfo] {
-        &self.peers
-    }
+    // pub fn peers(&self) -> &[PeerInfo] {
+    //     &self.peers
+    // }
 
     pub fn destructure(self) -> Vec<PeerInfo> {
         self.peers

@@ -120,10 +120,14 @@ impl StorageManagerInner {
 
         // Final flush on record stores
         if let Some(mut local_record_store) = self.local_record_store.take() {
-            local_record_store.tick().await;
+            if let Err(e) = local_record_store.tick().await {
+                log_stor!(error "termination local record store tick failed: {}", e); 
+            }
         }
         if let Some(mut remote_record_store) = self.remote_record_store.take() {
-            remote_record_store.tick().await;
+            if let Err(e) = remote_record_store.tick().await {
+                log_stor!(error "termination remote record store tick failed: {}", e); 
+            }
         }
 
         // Save metadata
@@ -142,7 +146,7 @@ impl StorageManagerInner {
     async fn save_metadata(&mut self) -> EyreResult<()>{
         if let Some(metadata_db) = &self.metadata_db {
             let tx = metadata_db.transact();
-            tx.store_rkyv(0, b"offline_subkey_writes", &self.offline_subkey_writes);
+            tx.store_rkyv(0, b"offline_subkey_writes", &self.offline_subkey_writes)?;
             tx.commit().await.wrap_err("failed to commit")?
         }
         Ok(())
@@ -154,8 +158,6 @@ impl StorageManagerInner {
         }
         Ok(())
     }
-
-    write offline subkey write flush background task or make a ticket for it and get back to it after the rest of set value
 
     pub async fn create_new_owned_local_record(
         &mut self,
@@ -386,10 +388,21 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: SignedValueData,
+        signed_value_descriptor: SignedValueDescriptor,
     ) -> Result<(), VeilidAPIError> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
+        };
+
+        // See if we have a remote record already or not
+        if remote_record_store.with_record(key, |_|{}).is_none() {
+            // record didn't exist, make it
+            let cur_ts = get_aligned_timestamp();
+            let remote_record_detail = RemoteRecordDetail { };
+            let record =
+                Record::<RemoteRecordDetail>::new(cur_ts, signed_value_descriptor, remote_record_detail)?;
+            remote_record_store.new_record(key, record).await?
         };
 
         // Write subkey to remote store
@@ -403,9 +416,9 @@ impl StorageManagerInner {
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
     where
-        D: Clone + RkyvArchive + RkyvSerialize<RkyvSerializer>,
+        D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
         for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-        <D as RkyvArchive>::Archived: RkyvDeserialize<D, SharedDeserializeMap>,
+        <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
     {
         let compiled = record.descriptor().schema_data();
         let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());

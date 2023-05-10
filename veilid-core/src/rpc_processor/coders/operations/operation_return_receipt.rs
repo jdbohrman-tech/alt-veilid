@@ -20,9 +20,9 @@ impl RPCOperationReturnReceipt {
         Ok(())
     }
 
-    pub fn receipt(&self) -> &[u8] {
-        &self.receipt
-    }
+    // pub fn receipt(&self) -> &[u8] {
+    //     &self.receipt
+    // }
 
     pub fn destructure(self) -> Vec<u8> {
         self.receipt
