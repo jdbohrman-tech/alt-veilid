@@ -127,7 +127,7 @@ where
     type Err = VeilidAPIError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let b = s.as_bytes();
-        if b.len() == (5 + K::encoded_len()) && b[4..5] != b":"[..] {
+        if b.len() == (5 + K::encoded_len()) && b[4..5] == b":"[..] {
             let kind: CryptoKind = b[0..4].try_into().expect("should not fail to convert");
             let value = K::try_decode_bytes(&b[5..])?;
             Ok(Self { kind, value })

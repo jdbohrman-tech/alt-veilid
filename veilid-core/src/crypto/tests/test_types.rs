@@ -225,6 +225,38 @@ pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
     assert!(f2.is_err());
 }
 
+pub async fn test_typed_convert(vcrypto: CryptoSystemVersion) {
+    let tks1 = format!(
+        "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",
+        vcrypto.kind().to_string()
+    );
+    let tk1 = TypedKey::from_str(&tks1).expect("failed");
+    let tks1x = tk1.to_string();
+    assert_eq!(tks1, tks1x);
+
+    let tks2 = format!(
+        "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd",
+        vcrypto.kind().to_string()
+    );
+    let _tk2 = TypedKey::from_str(&tks2).expect_err("succeeded when it shouldnt have");
+
+    let tks3 = format!("XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tk3 = TypedKey::from_str(&tks3).expect("failed");
+    let tks3x = tk3.to_string();
+    assert_eq!(tks3, tks3x);
+
+    let tks4 = format!("XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd",);
+    let _tk4 = TypedKey::from_str(&tks4).expect_err("succeeded when it shouldnt have");
+
+    let tks5 = format!("XXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let _tk5 = TypedKey::from_str(&tks5).expect_err("succeeded when it shouldnt have");
+
+    let tks6 = format!("7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tk6 = TypedKey::from_str(&tks6).expect("failed");
+    let tks6x = tk6.to_string();
+    assert!(tks6x.ends_with(&tks6));
+}
+
 async fn test_hash(vcrypto: CryptoSystemVersion) {
     let mut s = BTreeSet::<PublicKey>::new();
 
@@ -333,6 +365,7 @@ pub async fn test_all() {
         test_sign_and_verify(vcrypto.clone()).await;
         test_key_conversions(vcrypto.clone()).await;
         test_encode_decode(vcrypto.clone()).await;
+        test_typed_convert(vcrypto.clone()).await;
         test_hash(vcrypto.clone()).await;
         test_operations(vcrypto).await;
     }
