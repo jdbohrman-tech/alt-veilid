@@ -1,3 +1,4 @@
+mod debug;
 mod get_value;
 mod keys;
 mod record_store;

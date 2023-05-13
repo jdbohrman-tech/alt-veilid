@@ -874,6 +874,39 @@ impl VeilidAPI {
         }
     }
 
+    async fn debug_record_list(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+        // <local|remote>
+        let storage_manager = self.storage_manager()?;
+
+        let scope = get_debug_argument_at(&args, 1, "debug_record_list", "scope", get_string)?;
+        let out = match scope.as_str() {
+            "local" => {
+                let mut out = format!("Local Records:\n");
+                out += &storage_manager.debug_local_records().await;
+                out
+            }
+            "remote" => {
+                let mut out = format!("Remote Records:\n");
+                out += &storage_manager.debug_remote_records().await;
+                out
+            }
+            _ => "Invalid scope\n".to_owned(),
+        };
+        return Ok(out);
+    }
+
+    async fn debug_record(&self, args: String) -> Result<String, VeilidAPIError> {
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+
+        let command = get_debug_argument_at(&args, 0, "debug_record", "command", get_string)?;
+
+        if command == "list" {
+            self.debug_record_list(args).await
+        } else {
+            Ok(">>> Unknown command\n".to_owned())
+        }
+    }
+
     pub async fn debug_help(&self, _args: String) -> Result<String, VeilidAPIError> {
         Ok(r#">>> Debug commands:
         help
@@ -897,6 +930,7 @@ impl VeilidAPI {
               list
               import <blob>
               test <route>
+        record list <local|remote> 
 
         <destination> is:
          * direct:  <node>[+<safety>][<modifiers>]
@@ -953,6 +987,8 @@ impl VeilidAPI {
                 self.debug_restart(rest).await
             } else if arg == "route" {
                 self.debug_route(rest).await
+            } else if arg == "record" {
+                self.debug_record(rest).await
             } else {
                 Err(VeilidAPIError::generic("Unknown debug command"))
             }

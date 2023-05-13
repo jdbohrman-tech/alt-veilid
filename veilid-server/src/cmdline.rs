@@ -82,7 +82,7 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .long("generate-key-pair")
                 .takes_value(true)
                 .value_name("crypto_kind")
-                .default_missing_value("VLD0")
+                .default_missing_value("")
                 .help("Only generate a new keypair and print it")
                 .long_help("Generate a new keypair for a specific crypto kind and print both the key and its secret to the terminal, then exit immediately."),                
         )

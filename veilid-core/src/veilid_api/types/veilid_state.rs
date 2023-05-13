@@ -96,7 +96,7 @@ pub struct VeilidStateNetwork {
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
-pub struct VeilidStateRoute {
+pub struct VeilidRouteChange {
     pub dead_routes: Vec<RouteId>,
     pub dead_remote_routes: Vec<RouteId>,
 }
@@ -130,7 +130,7 @@ pub enum VeilidUpdate {
     Attachment(VeilidStateAttachment),
     Network(VeilidStateNetwork),
     Config(VeilidStateConfig),
-    Route(VeilidStateRoute),
+    RouteChange(VeilidRouteChange),
     ValueChange(VeilidValueChange),
     Shutdown,
 }

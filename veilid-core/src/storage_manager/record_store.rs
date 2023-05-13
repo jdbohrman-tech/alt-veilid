@@ -516,4 +516,35 @@ where
         }
         self.purge_dead_records(false).await;
     }
+
+    pub(super) fn debug_records(&self) -> String {
+        // Dump fields in an abbreviated way
+        let mut out = String::new();
+
+        out += "Record Index:\n";
+        for (rik, rec) in &self.record_index {
+            out += &format!(
+                "  {} @ {} len={}\n",
+                rik.key.to_string(),
+                rec.last_touched().as_u64(),
+                rec.record_data_size()
+            );
+        }
+        out += &format!("Subkey Cache Count: {}\n", self.subkey_cache.len());
+        out += &format!(
+            "Subkey Cache Total Size: {}\n",
+            self.subkey_cache_total_size
+        );
+        out += &format!("Total Storage Space: {}\n", self.total_storage_space);
+        out += &format!("Dead Records: {}\n", self.dead_records.len());
+        for dr in &self.dead_records {
+            out += &format!("  {}\n", dr.0.key.to_string());
+        }
+        out += &format!("Changed Records: {}\n", self.changed_records.len());
+        for cr in &self.changed_records {
+            out += &format!("  {}\n", cr.key.to_string());
+        }
+
+        out
+    }
 }

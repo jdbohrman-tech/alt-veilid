@@ -115,7 +115,7 @@ impl RouteSpecStore {
             dr
         };
 
-        let update = VeilidUpdate::Route(VeilidStateRoute {
+        let update = VeilidUpdate::RouteChange(VeilidRouteChange {
             dead_routes,
             dead_remote_routes,
         });

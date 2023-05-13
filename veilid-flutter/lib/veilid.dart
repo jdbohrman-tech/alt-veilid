@@ -235,6 +235,201 @@ Object? veilidApiToEncodable(Object? value) {
 }
 
 //////////////////////////////////////
+/// Crypto
+
+typedef CryptoKind = String;
+const cryptoKindVLD0 = "VLD0";
+const cryptoKindNONE = "NONE";
+
+//////////////////////////////////////
+/// DHT Schema
+
+abstract class DHTSchema {
+  factory DHTSchema.fromJson(dynamic json) {
+    switch (json["kind"]) {
+      case "DFLT":
+        {
+          return DHTSchemaDFLT(oCnt: json["o_cnt"]);
+        }
+      case "SMPL":
+        {
+          return DHTSchemaSMPL(
+              oCnt: json["o_cnt"],
+              members: List<DHTSchemaMember>.from(
+                  json['members'].map((j) => DHTSchemaMember.fromJson(j))));
+        }
+      default:
+        {
+          throw VeilidAPIExceptionInternal(
+              "Invalid VeilidAPIException type: ${json['kind']}");
+        }
+    }
+  }
+  Map<String, dynamic> get json;
+}
+
+class DHTSchemaDFLT implements DHTSchema {
+  final int oCnt;
+  //
+  DHTSchemaDFLT({
+    required this.oCnt,
+  }) {
+    if (oCnt < 0 || oCnt > 65535) {
+      throw VeilidAPIExceptionInvalidArgument(
+          "value out of range", "oCnt", oCnt.toString());
+    }
+  }
+
+  @override
+  Map<String, dynamic> get json {
+    return {
+      'kind': "DFLT",
+      'o_cnt': oCnt,
+    };
+  }
+}
+
+class DHTSchemaMember {
+  String mKey;
+  int mCnt;
+
+  DHTSchemaMember({
+    required this.mKey,
+    required this.mCnt,
+  }) {
+    if (mCnt < 0 || mCnt > 65535) {
+      throw VeilidAPIExceptionInvalidArgument(
+          "value out of range", "mCnt", mCnt.toString());
+    }
+  }
+
+  Map<String, dynamic> get json {
+    return {
+      'm_key': mKey,
+      'm_cnt': mCnt,
+    };
+  }
+
+  DHTSchemaMember.fromJson(dynamic json)
+      : mKey = json['m_key'],
+        mCnt = json['m_cnt'];
+}
+
+class DHTSchemaSMPL implements DHTSchema {
+  final int oCnt;
+  final List<DHTSchemaMember> members;
+  //
+  DHTSchemaSMPL({
+    required this.oCnt,
+    required this.members,
+  }) {
+    if (oCnt < 0 || oCnt > 65535) {
+      throw VeilidAPIExceptionInvalidArgument(
+          "value out of range", "oCnt", oCnt.toString());
+    }
+  }
+  @override
+  Map<String, dynamic> get json {
+    return {
+      'kind': "SMPL",
+      'o_cnt': oCnt,
+      'members': members.map((p) => p.json).toList(),
+    };
+  }
+}
+
+//////////////////////////////////////
+/// DHTRecordDescriptor
+
+class DHTRecordDescriptor {
+  String key;
+  String owner;
+  String? ownerSecret;
+  DHTSchema schema;
+
+  DHTRecordDescriptor({
+    required this.key,
+    required this.owner,
+    this.ownerSecret,
+    required this.schema,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'key': key,
+      'owner': owner,
+      'owner_secret': ownerSecret,
+      'schema': schema.json,
+    };
+  }
+
+  DHTRecordDescriptor.fromJson(dynamic json)
+      : key = json['key'],
+        owner = json['owner'],
+        ownerSecret = json['owner_secret'],
+        schema = DHTSchema.fromJson(json['schema']);
+}
+
+//////////////////////////////////////
+/// ValueSubkeyRange
+
+class ValueSubkeyRange {
+  final int low;
+  final int high;
+
+  ValueSubkeyRange({
+    required this.low,
+    required this.high,
+  }) {
+    if (low < 0 || low > high) {
+      throw VeilidAPIExceptionInvalidArgument(
+          "invalid range", "low", low.toString());
+    }
+    if (high < 0) {
+      throw VeilidAPIExceptionInvalidArgument(
+          "invalid range", "high", high.toString());
+    }
+  }
+
+  ValueSubkeyRange.fromJson(dynamic json)
+      : low = json[0],
+        high = json[1] {
+    if ((json as List<int>).length != 2) {
+      throw VeilidAPIExceptionInvalidArgument(
+          "not a pair of integers", "json", json.toString());
+    }
+  }
+
+  List<dynamic> get json {
+    return [low, high];
+  }
+}
+
+//////////////////////////////////////
+/// ValueData
+
+class ValueData {
+  final int seq;
+  final Uint8List data;
+  final String writer;
+
+  ValueData({
+    required this.seq,
+    required this.data,
+    required this.writer,
+  });
+
+  ValueData.fromJson(dynamic json)
+      : seq = json['seq'],
+        data = base64UrlNoPadDecode(json['data']),
+        writer = json['writer'];
+
+  Map<String, dynamic> get json {
+    return {'seq': seq, 'data': base64UrlNoPadEncode(data), 'writer': writer};
+  }
+}
+
+//////////////////////////////////////
 /// AttachmentState
 
 enum AttachmentState {
@@ -1287,9 +1482,21 @@ abstract class VeilidUpdate {
         {
           return VeilidUpdateConfig(state: VeilidStateConfig.fromJson(json));
         }
-      case "Route":
+      case "RouteChange":
         {
-          return VeilidUpdateRoute(state: VeilidStateRoute.fromJson(json));
+          return VeilidUpdateRouteChange(
+              deadRoutes: List<String>.from(json['dead_routes'].map((j) => j)),
+              deadRemoteRoutes:
+                  List<String>.from(json['dead_remote_routes'].map((j) => j)));
+        }
+      case "ValueChange":
+        {
+          return VeilidUpdateValueChange(
+              key: json['key'],
+              subkeys: List<ValueSubkeyRange>.from(
+                  json['subkeys'].map((j) => ValueSubkeyRange.fromJson(j))),
+              count: json['count'],
+              valueData: ValueData.fromJson(json['value_data']));
         }
       default:
         {
@@ -1405,16 +1612,46 @@ class VeilidUpdateConfig implements VeilidUpdate {
   }
 }
 
-class VeilidUpdateRoute implements VeilidUpdate {
-  final VeilidStateRoute state;
+class VeilidUpdateRouteChange implements VeilidUpdate {
+  final List<String> deadRoutes;
+  final List<String> deadRemoteRoutes;
   //
-  VeilidUpdateRoute({required this.state});
+  VeilidUpdateRouteChange({
+    required this.deadRoutes,
+    required this.deadRemoteRoutes,
+  });
 
   @override
   Map<String, dynamic> get json {
-    var jsonRep = state.json;
-    jsonRep['kind'] = "Route";
-    return jsonRep;
+    return {
+      'dead_routes': deadRoutes.map((p) => p).toList(),
+      'dead_remote_routes': deadRemoteRoutes.map((p) => p).toList()
+    };
+  }
+}
+
+class VeilidUpdateValueChange implements VeilidUpdate {
+  final String key;
+  final List<ValueSubkeyRange> subkeys;
+  final int count;
+  final ValueData valueData;
+
+  //
+  VeilidUpdateValueChange({
+    required this.key,
+    required this.subkeys,
+    required this.count,
+    required this.valueData,
+  });
+
+  @override
+  Map<String, dynamic> get json {
+    return {
+      'key': key,
+      'subkeys': subkeys.map((p) => p.json).toList(),
+      'count': count,
+      'value_data': valueData.json,
+    };
   }
 }
 
@@ -1489,31 +1726,6 @@ class VeilidStateConfig {
 
   Map<String, dynamic> get json {
     return {'config': config};
-  }
-}
-
-//////////////////////////////////////
-/// VeilidStateRoute
-
-class VeilidStateRoute {
-  final List<String> deadRoutes;
-  final List<String> deadRemoteRoutes;
-
-  VeilidStateRoute({
-    required this.deadRoutes,
-    required this.deadRemoteRoutes,
-  });
-
-  VeilidStateRoute.fromJson(dynamic json)
-      : deadRoutes = List<String>.from(json['dead_routes'].map((j) => j)),
-        deadRemoteRoutes =
-            List<String>.from(json['dead_remote_routes'].map((j) => j));
-
-  Map<String, dynamic> get json {
-    return {
-      'dead_routes': deadRoutes.map((p) => p).toList(),
-      'dead_remote_routes': deadRemoteRoutes.map((p) => p).toList()
-    };
   }
 }
 
@@ -1893,12 +2105,79 @@ class RouteBlob {
 
 //////////////////////////////////////
 /// VeilidRoutingContext
+
 abstract class VeilidRoutingContext {
   VeilidRoutingContext withPrivacy();
   VeilidRoutingContext withCustomPrivacy(Stability stability);
   VeilidRoutingContext withSequencing(Sequencing sequencing);
   Future<Uint8List> appCall(String target, Uint8List request);
   Future<void> appMessage(String target, Uint8List message);
+
+  Future<DHTRecordDescriptor> createDHTRecord(
+      CryptoKind kind, DHTSchema schema);
+xxx continue here
+  // pub async fn open_dht_record(
+  //     &self,
+  //     key: TypedKey,
+  //     writer: Option<KeyPair>,
+  // ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+  //     let storage_manager = self.api.storage_manager()?;
+  //     storage_manager
+  //         .open_record(key, writer, self.unlocked_inner.safety_selection)
+  //         .await
+  // }
+
+  // pub async fn close_dht_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
+  //     let storage_manager = self.api.storage_manager()?;
+  //     storage_manager.close_record(key).await
+  // }
+
+  // pub async fn delete_dht_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
+  //     let storage_manager = self.api.storage_manager()?;
+  //     storage_manager.delete_record(key).await
+  // }
+
+  // pub async fn get_dht_value(
+  //     &self,
+  //     key: TypedKey,
+  //     subkey: ValueSubkey,
+  //     force_refresh: bool,
+  // ) -> Result<Option<ValueData>, VeilidAPIError> {
+  //     let storage_manager = self.api.storage_manager()?;
+  //     storage_manager.get_value(key, subkey, force_refresh).await
+  // }
+
+  // pub async fn set_dht_value(
+  //     &self,
+  //     key: TypedKey,
+  //     subkey: ValueSubkey,
+  //     data: Vec<u8>,
+  // ) -> Result<Option<ValueData>, VeilidAPIError> {
+  //     let storage_manager = self.api.storage_manager()?;
+  //     storage_manager.set_value(key, subkey, data).await
+  // }
+
+  // pub async fn watch_dht_values(
+  //     &self,
+  //     key: TypedKey,
+  //     subkeys: &[ValueSubkeyRange],
+  //     expiration: Timestamp,
+  //     count: u32,
+  // ) -> Result<Timestamp, VeilidAPIError> {
+  //     let storage_manager = self.api.storage_manager()?;
+  //     storage_manager
+  //         .watch_values(key, subkeys, expiration, count)
+  //         .await
+  // }
+
+  // pub async fn cancel_dht_watch(
+  //     &self,
+  //     key: TypedKey,
+  //     subkeys: &[ValueSubkeyRange],
+  // ) -> Result<bool, VeilidAPIError> {
+  //     let storage_manager = self.api.storage_manager()?;
+  //     storage_manager.cancel_watch_values(key, subkeys).await
+  // }
 }
 
 /////////////////////////////////////

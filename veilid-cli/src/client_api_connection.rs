@@ -92,7 +92,7 @@ impl veilid_client::Server for VeilidClientImpl {
             VeilidUpdate::Config(config) => {
                 self.comproc.update_config(config);
             }
-            VeilidUpdate::Route(route) => {
+            VeilidUpdate::RouteChange(route) => {
                 self.comproc.update_route(route);
             }
             VeilidUpdate::Shutdown => self.comproc.update_shutdown(),

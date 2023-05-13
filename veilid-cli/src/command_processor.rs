@@ -406,7 +406,7 @@ reply               - reply to an AppCall not handled directly by the server
     pub fn update_config(&mut self, config: veilid_core::VeilidStateConfig) {
         self.inner_mut().ui.set_config(config.config)
     }
-    pub fn update_route(&mut self, route: veilid_core::VeilidStateRoute) {
+    pub fn update_route(&mut self, route: veilid_core::VeilidRouteChange) {
         let mut out = String::new();
         if !route.dead_routes.is_empty() {
             out.push_str(&format!("Dead routes: {:?}", route.dead_routes));
