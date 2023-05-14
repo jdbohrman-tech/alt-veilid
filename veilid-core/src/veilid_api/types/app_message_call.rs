@@ -8,18 +8,18 @@ use super::*;
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    sender: Option<PublicKey>,
+    sender: Option<TypedKey>, xxx continue propagating this publickey->typedkey and get all the FFI done
     /// The content of the message to deliver to the application
     #[serde(with = "json_as_base64")]
     message: Vec<u8>,
 }
 
 impl VeilidAppMessage {
-    pub fn new(sender: Option<PublicKey>, message: Vec<u8>) -> Self {
+    pub fn new(sender: Option<TypedKey>, message: Vec<u8>) -> Self {
         Self { sender, message }
     }
 
-    pub fn sender(&self) -> Option<&PublicKey> {
+    pub fn sender(&self) -> Option<&TypedKey> {
         self.sender.as_ref()
     }
     pub fn message(&self) -> &[u8] {
@@ -35,7 +35,7 @@ impl VeilidAppMessage {
 pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    sender: Option<PublicKey>,
+    sender: Option<TypedKey>,
     /// The content of the request to deliver to the application
     #[serde(with = "json_as_base64")]
     message: Vec<u8>,
@@ -45,7 +45,7 @@ pub struct VeilidAppCall {
 }
 
 impl VeilidAppCall {
-    pub fn new(sender: Option<PublicKey>, message: Vec<u8>, id: OperationId) -> Self {
+    pub fn new(sender: Option<TypedKey>, message: Vec<u8>, id: OperationId) -> Self {
         Self {
             sender,
             message,
@@ -53,7 +53,7 @@ impl VeilidAppCall {
         }
     }
 
-    pub fn sender(&self) -> Option<&PublicKey> {
+    pub fn sender(&self) -> Option<&TypedKey> {
         self.sender.as_ref()
     }
     pub fn message(&self) -> &[u8] {

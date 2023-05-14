@@ -1562,7 +1562,7 @@ impl NetworkManager {
                     if let Some(nr) = routing_table.lookup_node_ref(k) {
                         let peer_stats = nr.peer_stats();
                         let peer = PeerTableData {
-                            node_ids: nr.node_ids().iter().map(|x| x.to_string()).collect(),
+                            node_ids: nr.node_ids().iter().copied().collect(),
                             peer_address: v.last_connection.remote().to_string(),
                             peer_stats,
                         };

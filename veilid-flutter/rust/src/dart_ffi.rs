@@ -481,7 +481,7 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_call", "id", id));
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_message", "id", id));
             };
             routing_context.clone()
         };
@@ -491,6 +491,65 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
         APIRESULT_VOID
     });
 }
+
+#[no_mangle]
+pub extern "C" fn routing_context_create_dht_record(port: i64, id: u32, kind: u32, schema: FfiStr) {
+    let crypto_kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind.to_be_bytes());
+    let schema: veilid_core::DHTSchema = veilid_core::deserialize_opt_json(schema.into_opt_string()).unwrap();
+
+    DartIsolateWrapper::new(port).spawn_result(async move {        
+        let routing_context = {
+            let rc = ROUTING_CONTEXTS.lock();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_create_dht_record", "id", id));
+            };
+            routing_context.clone()
+        };
+        
+        let dht_record_descriptor = routing_context.create_dht_record(crypto_kind, schema).await?;
+        let out = veilid_core::serialize_json(dht_record_descriptor);
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn routing_context_open_dht_record(port: i64, id: u32, key: FfiStr, writer: FfiStr) {
+    let key: veilid_core::TypedKey = veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
+    let writer: Option<KeyPair> = writer.into_opt_string().map(|s| veilid_core::deserialize_json(&s).unwrap());
+    DartIsolateWrapper::new(port).spawn_result(async move {        
+        let routing_context = {
+            let rc = ROUTING_CONTEXTS.lock();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_open_dht_record", "id", id));
+            };
+            routing_context.clone()
+        };
+        let writer = match writer {
+            Some(w) => w.to_key_pair(key.kind)?,
+            None => None
+        };
+        let dht_record_descriptor = routing_context.open_dht_record(key, writer).await?;
+        let out = veilid_core::serialize_json(dht_record_descriptor);
+        APIResult::Ok(out)
+    });
+}
+
+
+
+// final _RoutingContextCloseDHTRecordDart _RoutingContextCloseDHTRecord;
+// final _RoutingContextDeleteDHTRecordDart _RoutingContextDeleteDHTRecord;
+// final _RoutingContextGetDHTValueDart _RoutingContextGetDHTValue;
+// final _RoutingContextSetDHTValueDart _RoutingContextSetDHTValue;
+// final _RoutingContextWatchDHTValuesDart _RoutingContextWatchDHTValues;
+// final _RoutingContextCancelDHTWatchDart _RoutingContextCancelDHTWatch;
+
+
+
+
+
+
+
+
 
 #[no_mangle]
 pub extern "C" fn new_private_route(port: i64) {
@@ -833,6 +892,36 @@ pub extern "C" fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr) {
         APIResult::Ok(out)
     });
 }
+
+
+
+final _ValidCryptoKindsDart _validCryptoKinds;
+final _GetCryptoSystemDart _getCryptoSystem;
+final _BestCryptoSystemDart _bestCryptoSystem;
+final _VerifySignaturesDart _verifySignatures;
+final _GenerateSignaturesDart _generateSignatures;
+final _GenerateKeyPairDart _generateKeyPair;
+
+final _CryptoCachedDHDart _cryptoCachedDH;
+final _CryptoComputeDHDart _cryptoComputeDH;
+final _CryptoRandomNonceDart _cryptoRandomNonce;
+final _CryptoRandomSharedSecretDart _cryptoRandomSharedSecret;
+final _CryptoGenerateKeyPairDart _cryptoGenerateKeyPair;
+final _CryptoGenerateHashDart _cryptoGenerateHash;
+final _CryptoGenerateHashReaderDart _cryptoGenerateHashReader;
+final _CryptoValidateKeyPairDart _cryptoValidateKeyPair;
+final _CryptoValidateHashDart _cryptoValidateHash;
+final _CryptoValidateHashReaderDart _cryptoValidateHashReader;
+final _CryptoDistanceDart _cryptoDistance;
+final _CryptoSignDart _cryptoSign;
+final _CryptoVerifyDart _cryptoVerify;
+final _CryptoAaedOverheadDart _cryptoAeadOverhead;
+final _CryptoDecryptAeadDart _cryptoDecryptAead;
+final _CryptoEncryptAeadDart _cryptoEncryptAead;
+final _CryptoCryptNoAuthDart _cryptoCryptNoAuth;
+
+final _NowDart _now;
+
 
 #[no_mangle]
 pub extern "C" fn debug(port: i64, command: FfiStr) {

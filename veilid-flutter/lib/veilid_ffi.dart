@@ -11,6 +11,119 @@ import 'veilid.dart';
 import 'base64url_no_pad.dart';
 
 //////////////////////////////////////////////////////////
+// FFI Platform-specific config
+
+class VeilidFFIConfigLoggingTerminal {
+  bool enabled;
+  VeilidConfigLogLevel level;
+
+  VeilidFFIConfigLoggingTerminal({
+    required this.enabled,
+    required this.level,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'enabled': enabled,
+      'level': level.json,
+    };
+  }
+
+  VeilidFFIConfigLoggingTerminal.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']);
+}
+
+class VeilidFFIConfigLoggingOtlp {
+  bool enabled;
+  VeilidConfigLogLevel level;
+  String grpcEndpoint;
+  String serviceName;
+
+  VeilidFFIConfigLoggingOtlp({
+    required this.enabled,
+    required this.level,
+    required this.grpcEndpoint,
+    required this.serviceName,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'enabled': enabled,
+      'level': level.json,
+      'grpc_endpoint': grpcEndpoint,
+      'service_name': serviceName,
+    };
+  }
+
+  VeilidFFIConfigLoggingOtlp.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']),
+        grpcEndpoint = json['grpc_endpoint'],
+        serviceName = json['service_name'];
+}
+
+class VeilidFFIConfigLoggingApi {
+  bool enabled;
+  VeilidConfigLogLevel level;
+
+  VeilidFFIConfigLoggingApi({
+    required this.enabled,
+    required this.level,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'enabled': enabled,
+      'level': level.json,
+    };
+  }
+
+  VeilidFFIConfigLoggingApi.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']);
+}
+
+class VeilidFFIConfigLogging {
+  VeilidFFIConfigLoggingTerminal terminal;
+  VeilidFFIConfigLoggingOtlp otlp;
+  VeilidFFIConfigLoggingApi api;
+
+  VeilidFFIConfigLogging(
+      {required this.terminal, required this.otlp, required this.api});
+
+  Map<String, dynamic> get json {
+    return {
+      'terminal': terminal.json,
+      'otlp': otlp.json,
+      'api': api.json,
+    };
+  }
+
+  VeilidFFIConfigLogging.fromJson(dynamic json)
+      : terminal = VeilidFFIConfigLoggingTerminal.fromJson(json['terminal']),
+        otlp = VeilidFFIConfigLoggingOtlp.fromJson(json['otlp']),
+        api = VeilidFFIConfigLoggingApi.fromJson(json['api']);
+}
+
+class VeilidFFIConfig {
+  VeilidFFIConfigLogging logging;
+
+  VeilidFFIConfig({
+    required this.logging,
+  });
+
+  Map<String, dynamic> get json {
+    return {
+      'logging': logging.json,
+    };
+  }
+
+  VeilidFFIConfig.fromJson(Map<String, dynamic> json)
+      : logging = VeilidFFIConfigLogging.fromJson(json['logging']);
+}
+
+//////////////////////////////////////////////////////////
 
 // Load the veilid_flutter library once
 const _base = 'veilid_flutter';
@@ -603,7 +716,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
     final recvPort = ReceivePort("veilid_table_db_delete");
     final sendPort = recvPort.sendPort;
-    _tdb.ffi._tableDbLoad(
+    _tdb.ffi._tableDbDelete(
       sendPort.nativePort,
       _tdb.id,
       col,
@@ -635,6 +748,14 @@ class VeilidFFI implements Veilid {
   final _RoutingContextWithSequencingDart _routingContextWithSequencing;
   final _RoutingContextAppCallDart _routingContextAppCall;
   final _RoutingContextAppMessageDart _routingContextAppMessage;
+  final _RoutingContextCreateDHTRecordDart _RoutingContextCreateDHTRecord;
+  final _RoutingContextOpenDHTRecordDart _RoutingContextOpenDHTRecord;
+  final _RoutingContextCloseDHTRecordDart _RoutingContextCloseDHTRecord;
+  final _RoutingContextDeleteDHTRecordDart _RoutingContextDeleteDHTRecord;
+  final _RoutingContextGetDHTValueDart _RoutingContextGetDHTValue;
+  final _RoutingContextSetDHTValueDart _RoutingContextSetDHTValue;
+  final _RoutingContextWatchDHTValuesDart _RoutingContextWatchDHTValues;
+  final _RoutingContextCancelDHTWatchDart _RoutingContextCancelDHTWatch;
 
   final _NewPrivateRouteDart _newPrivateRoute;
   final _NewCustomPrivateRouteDart _newCustomPrivateRoute;
@@ -658,6 +779,32 @@ class VeilidFFI implements Veilid {
   final _TableDbTransactionStoreDart _tableDbTransactionStore;
   final _TableDbTransactionDeleteDart _tableDbTransactionDelete;
 
+  final _ValidCryptoKindsDart _validCryptoKinds;
+  final _GetCryptoSystemDart _getCryptoSystem;
+  final _BestCryptoSystemDart _bestCryptoSystem;
+  final _VerifySignaturesDart _verifySignatures;
+  final _GenerateSignaturesDart _generateSignatures;
+  final _GenerateKeyPairDart _generateKeyPair;
+
+  final _CryptoCachedDHDart _cryptoCachedDH;
+  final _CryptoComputeDHDart _cryptoComputeDH;
+  final _CryptoRandomNonceDart _cryptoRandomNonce;
+  final _CryptoRandomSharedSecretDart _cryptoRandomSharedSecret;
+  final _CryptoGenerateKeyPairDart _cryptoGenerateKeyPair;
+  final _CryptoGenerateHashDart _cryptoGenerateHash;
+  final _CryptoGenerateHashReaderDart _cryptoGenerateHashReader;
+  final _CryptoValidateKeyPairDart _cryptoValidateKeyPair;
+  final _CryptoValidateHashDart _cryptoValidateHash;
+  final _CryptoValidateHashReaderDart _cryptoValidateHashReader;
+  final _CryptoDistanceDart _cryptoDistance;
+  final _CryptoSignDart _cryptoSign;
+  final _CryptoVerifyDart _cryptoVerify;
+  final _CryptoAaedOverheadDart _cryptoAeadOverhead;
+  final _CryptoDecryptAeadDart _cryptoDecryptAead;
+  final _CryptoEncryptAeadDart _cryptoEncryptAead;
+  final _CryptoCryptNoAuthDart _cryptoCryptNoAuth;
+
+  final _NowDart _now;
   final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
   final _VeilidVersionDart _veilidVersion;
