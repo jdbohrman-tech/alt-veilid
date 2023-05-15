@@ -392,7 +392,7 @@ impl StorageManager {
     pub async fn watch_values(
         &self,
         key: TypedKey,
-        subkeys: &[ValueSubkeyRange],
+        subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
     ) -> Result<Timestamp, VeilidAPIError> {
@@ -403,7 +403,7 @@ impl StorageManager {
     pub async fn cancel_watch_values(
         &self,
         key: TypedKey,
-        subkeys: &[ValueSubkeyRange],
+        subkeys: ValueSubkeyRangeSet,
     ) -> Result<bool, VeilidAPIError> {
         let inner = self.lock().await?;
         unimplemented!();

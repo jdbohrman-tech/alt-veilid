@@ -9,18 +9,24 @@ use data_encoding::BASE64URL_NOPAD;
 
 //////////////////////////////////////////////////////////////////////
 
-/// Length of a public key in bytes
+/// Length of a crypto key in bytes
 #[allow(dead_code)]
-pub const PUBLIC_KEY_LENGTH: usize = 32;
-/// Length of a public key in bytes after encoding to base64url
+pub const CRYPTO_KEY_LENGTH: usize = 32;
+/// Length of a crypto key in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const PUBLIC_KEY_LENGTH_ENCODED: usize = 43;
+pub const CRYPTO_KEY_LENGTH_ENCODED: usize = 43;
+/// Length of a crypto key in bytes
+#[allow(dead_code)]
+pub const PUBLIC_KEY_LENGTH: usize = CRYPTO_KEY_LENGTH;
+/// Length of a crypto key in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const PUBLIC_KEY_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a secret key in bytes
 #[allow(dead_code)]
-pub const SECRET_KEY_LENGTH: usize = 32;
+pub const SECRET_KEY_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a secret key in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const SECRET_KEY_LENGTH_ENCODED: usize = 43;
+pub const SECRET_KEY_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a signature in bytes
 #[allow(dead_code)]
 pub const SIGNATURE_LENGTH: usize = 64;
@@ -35,22 +41,22 @@ pub const NONCE_LENGTH: usize = 24;
 pub const NONCE_LENGTH_ENCODED: usize = 32;
 /// Length of a shared secret in bytes
 #[allow(dead_code)]
-pub const SHARED_SECRET_LENGTH: usize = 32;
+pub const SHARED_SECRET_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a shared secret in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const SHARED_SECRET_LENGTH_ENCODED: usize = 43;
+pub const SHARED_SECRET_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a route id in bytes
 #[allow(dead_code)]
-pub const ROUTE_ID_LENGTH: usize = 32;
+pub const ROUTE_ID_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a route id in bytes afer encoding to base64url
 #[allow(dead_code)]
-pub const ROUTE_ID_LENGTH_ENCODED: usize = 43;
+pub const ROUTE_ID_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a hash digest in bytes
 #[allow(dead_code)]
-pub const HASH_DIGEST_LENGTH: usize = 32;
+pub const HASH_DIGEST_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a hash digest in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const HASH_DIGEST_LENGTH_ENCODED: usize = 43;
+pub const HASH_DIGEST_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -255,18 +261,14 @@ macro_rules! byte_array_type {
 
 /////////////////////////////////////////
 
-byte_array_type!(PublicKey, PUBLIC_KEY_LENGTH, PUBLIC_KEY_LENGTH_ENCODED);
-byte_array_type!(SecretKey, SECRET_KEY_LENGTH, SECRET_KEY_LENGTH_ENCODED);
+byte_array_type!(CryptoKey, CRYPTO_KEY_LENGTH, CRYPTO_KEY_LENGTH_ENCODED);
+
+pub type PublicKey = CryptoKey;
+pub type SecretKey = CryptoKey;
+pub type HashDigest = CryptoKey;
+pub type SharedSecret = CryptoKey;
+pub type RouteId = CryptoKey;
+pub type CryptoKeyDistance = CryptoKey;
+
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);
-byte_array_type!(
-    PublicKeyDistance,
-    PUBLIC_KEY_LENGTH,
-    PUBLIC_KEY_LENGTH_ENCODED
-);
 byte_array_type!(Nonce, NONCE_LENGTH, NONCE_LENGTH_ENCODED);
-byte_array_type!(
-    SharedSecret,
-    SHARED_SECRET_LENGTH,
-    SHARED_SECRET_LENGTH_ENCODED
-);
-byte_array_type!(RouteId, ROUTE_ID_LENGTH, ROUTE_ID_LENGTH_ENCODED);

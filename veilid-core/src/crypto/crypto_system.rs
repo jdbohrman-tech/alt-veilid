@@ -21,23 +21,23 @@ pub trait CryptoSystem {
         secret: &SecretKey,
     ) -> Result<SharedSecret, VeilidAPIError>;
     fn generate_keypair(&self) -> KeyPair;
-    fn generate_hash(&self, data: &[u8]) -> PublicKey;
+    fn generate_hash(&self, data: &[u8]) -> HashDigest;
     fn generate_hash_reader(
         &self,
         reader: &mut dyn std::io::Read,
-    ) -> Result<PublicKey, VeilidAPIError>;
+    ) -> Result<HashDigest, VeilidAPIError>;
 
     // Validation
-    fn validate_keypair(&self, dht_key: &PublicKey, dht_key_secret: &SecretKey) -> bool;
-    fn validate_hash(&self, data: &[u8], dht_key: &PublicKey) -> bool;
+    fn validate_keypair(&self, key: &PublicKey, secret: &SecretKey) -> bool;
+    fn validate_hash(&self, data: &[u8], hash: &HashDigest) -> bool;
     fn validate_hash_reader(
         &self,
         reader: &mut dyn std::io::Read,
-        key: &PublicKey,
+        hash: &HashDigest,
     ) -> Result<bool, VeilidAPIError>;
 
     // Distance Metric
-    fn distance(&self, key1: &PublicKey, key2: &PublicKey) -> PublicKeyDistance;
+    fn distance(&self, key1: &CryptoKey, key2: &CryptoKey) -> CryptoKeyDistance;
 
     // Authentication
     fn sign(

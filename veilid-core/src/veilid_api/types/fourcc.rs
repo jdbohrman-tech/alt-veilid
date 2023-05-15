@@ -24,6 +24,19 @@ impl From<[u8; 4]> for FourCC {
         Self(b)
     }
 }
+
+impl From<u32> for FourCC {
+    fn from(u: u32) -> Self {
+        Self(u.to_be_bytes())
+    }
+}
+
+impl From<FourCC> for u32 {
+    fn from(u: FourCC) -> Self {
+        u32::from_be_bytes(u.0)
+    }
+}
+
 impl TryFrom<&[u8]> for FourCC {
     type Error = VeilidAPIError;
     fn try_from(b: &[u8]) -> Result<Self, Self::Error> {

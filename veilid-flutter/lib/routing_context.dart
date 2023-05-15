@@ -4,7 +4,7 @@ import 'dart:convert';
 
 import 'package:change_case/change_case.dart';
 
-import 'base64url_no_pad.dart';
+import 'veilid_encoding.dart';
 import 'veilid.dart';
 
 //////////////////////////////////////
@@ -58,7 +58,7 @@ class DHTSchemaDFLT implements DHTSchema {
 }
 
 class DHTSchemaMember {
-  Key mKey;
+  PublicKey mKey;
   int mCnt;
 
   DHTSchemaMember({
@@ -111,8 +111,8 @@ class DHTSchemaSMPL implements DHTSchema {
 
 class DHTRecordDescriptor {
   TypedKey key;
-  Key owner;
-  Key? ownerSecret;
+  PublicKey owner;
+  PublicKey? ownerSecret;
   DHTSchema schema;
 
   DHTRecordDescriptor({
@@ -179,7 +179,7 @@ class ValueSubkeyRange {
 class ValueData {
   final int seq;
   final Uint8List data;
-  final Key writer;
+  final PublicKey writer;
 
   ValueData({
     required this.seq,

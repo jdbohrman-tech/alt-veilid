@@ -8,7 +8,7 @@ use super::*;
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
-    sender: Option<TypedKey>, xxx continue propagating this publickey->typedkey and get all the FFI done
+    sender: Option<TypedKey>,
     /// The content of the message to deliver to the application
     #[serde(with = "json_as_base64")]
     message: Vec<u8>,

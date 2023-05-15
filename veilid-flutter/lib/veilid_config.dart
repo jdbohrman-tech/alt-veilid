@@ -450,8 +450,8 @@ class VeilidConfigRPC {
 ////////////
 
 class VeilidConfigRoutingTable {
-  List<Key> nodeId;
-  List<Key> nodeIdSecret;
+  List<PublicKey> nodeId;
+  List<PublicKey> nodeIdSecret;
   List<String> bootstrap;
   int limitOverAttached;
   int limitFullyAttached;
@@ -484,9 +484,10 @@ class VeilidConfigRoutingTable {
   }
 
   VeilidConfigRoutingTable.fromJson(dynamic json)
-      : nodeId = List<Key>.from(json['node_id'].map((j) => Key.fromJson(j))),
-        nodeIdSecret =
-            List<Key>.from(json['node_id_secret'].map((j) => Key.fromJson(j))),
+      : nodeId = List<PublicKey>.from(
+            json['node_id'].map((j) => PublicKey.fromJson(j))),
+        nodeIdSecret = List<PublicKey>.from(
+            json['node_id_secret'].map((j) => PublicKey.fromJson(j))),
         bootstrap = List<String>.from(json['bootstrap'].map((j) => j)),
         limitOverAttached = json['limit_over_attached'],
         limitFullyAttached = json['limit_fully_attached'],

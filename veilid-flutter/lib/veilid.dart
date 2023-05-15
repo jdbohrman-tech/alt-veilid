@@ -127,13 +127,13 @@ abstract class Veilid {
 
   // Crypto
   List<CryptoKind> validCryptoKinds();
-  VeilidCryptoSystem getCryptoSystem(CryptoKind kind);
-  VeilidCryptoSystem bestCryptoSystem();
-  List<TypedKey> verifySignatures(
+  Future<VeilidCryptoSystem> getCryptoSystem(CryptoKind kind);
+  Future<VeilidCryptoSystem> bestCryptoSystem();
+  Future<List<TypedKey>> verifySignatures(
       List<TypedKey> nodeIds, Uint8List data, List<TypedSignature> signatures);
-  List<TypedSignature> generateSignatures(
+  Future<List<TypedSignature>> generateSignatures(
       Uint8List data, List<TypedKeyPair> keyPairs);
-  TypedKeyPair generateKeyPair(CryptoKind kind);
+  Future<TypedKeyPair> generateKeyPair(CryptoKind kind);
 
   // Routing context
   Future<VeilidRoutingContext> routingContext();

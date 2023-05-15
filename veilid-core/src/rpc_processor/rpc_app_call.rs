@@ -61,7 +61,7 @@ impl RPCProcessor {
         let sender = msg
             .opt_sender_nr
             .as_ref()
-            .map(|nr| nr.node_ids().get(crypto_kind).unwrap().value);
+            .map(|nr| nr.node_ids().get(crypto_kind).unwrap());
 
         // Register a waiter for this app call
         let handle = self

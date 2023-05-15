@@ -277,7 +277,7 @@ impl RoutingContext {
     pub async fn watch_dht_values(
         &self,
         key: TypedKey,
-        subkeys: &[ValueSubkeyRange],
+        subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
     ) -> Result<Timestamp, VeilidAPIError> {
@@ -292,7 +292,7 @@ impl RoutingContext {
     pub async fn cancel_dht_watch(
         &self,
         key: TypedKey,
-        subkeys: &[ValueSubkeyRange],
+        subkeys: ValueSubkeyRangeSet,
     ) -> Result<bool, VeilidAPIError> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.cancel_watch_values(key, subkeys).await

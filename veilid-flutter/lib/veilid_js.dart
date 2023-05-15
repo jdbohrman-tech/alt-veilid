@@ -7,7 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'base64url_no_pad.dart';
+import 'veilid_encoding.dart';
 
 //////////////////////////////////////////////////////////
 // WASM Platform-specific config

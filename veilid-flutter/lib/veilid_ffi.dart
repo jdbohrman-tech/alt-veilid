@@ -8,7 +8,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import 'veilid.dart';
-import 'base64url_no_pad.dart';
+import 'veilid_encoding.dart';
 
 //////////////////////////////////////////////////////////
 // FFI Platform-specific config
@@ -189,6 +189,46 @@ typedef _RoutingContextAppMessageC = Void Function(
     Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
 typedef _RoutingContextAppMessageDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn routing_context_create_dht_record(port: i64, id: u32, kind: u32, schema: FfiStr)
+typedef _RoutingContextCreateDHTRecordC = Void Function(
+    Int64, Uint32, Uint32, Pointer<Utf8>);
+typedef _RoutingContextCreateDHTRecordDart = void Function(
+    int, int, int, Pointer<Utf8>);
+// fn routing_context_open_dht_record(port: i64, id: u32, key: FfiStr, writer: FfiStr)
+typedef _RoutingContextOpenDHTRecordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _RoutingContextOpenDHTRecordDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn routing_context_close_dht_record(port: i64, id: u32, key: FfiStr)
+typedef _RoutingContextCloseDHTRecordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>);
+typedef _RoutingContextCloseDHTRecordDart = void Function(
+    int, int, Pointer<Utf8>);
+// fn routing_context_delete_dht_record(port: i64, id: u32, key: FfiStr)
+typedef _RoutingContextDeleteDHTRecordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>);
+typedef _RoutingContextDeleteDHTRecordDart = void Function(
+    int, int, Pointer<Utf8>);
+// fn routing_context_get_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, force_refresh: bool)
+typedef _RoutingContextGetDHTValueC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Uint32, Bool);
+typedef _RoutingContextGetDHTValueDart = void Function(
+    int, int, Pointer<Utf8>, int, bool);
+// fn routing_context_set_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, data: FfiStr)
+typedef _RoutingContextSetDHTValueC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Uint32, Pointer<Utf8>);
+typedef _RoutingContextSetDHTValueDart = void Function(
+    int, int, Pointer<Utf8>, int, Pointer<Utf8>);
+// fn routing_context_watch_dht_values(port: i64, id: u32, key: FfiStr, subkeys: FfiStr, expiration: FfiStr, count: u32)
+typedef _RoutingContextWatchDHTValuesC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Uint32);
+typedef _RoutingContextWatchDHTValuesDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, int);
+// fn routing_context_cancel_dht_watch(port: i64, id: u32, key: FfiStr, subkeys: FfiStr)
+typedef _RoutingContextCancelDHTWatchC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _RoutingContextCancelDHTWatchDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
 
 // fn new_private_route(port: i64)
 typedef _NewPrivateRouteC = Void Function(Int64);
@@ -257,7 +297,94 @@ typedef _TableDbTransactionDeleteC = Void Function(
     Int64, Uint32, Uint32, Pointer<Utf8>);
 typedef _TableDbTransactionDeleteDart = void Function(
     int, int, int, Pointer<Utf8>);
+// fn valid_crypto_kinds() -> *mut c_char
+typedef _ValidCryptoKindsC = Pointer<Utf8> Function();
+typedef _ValidCryptoKindsDart = Pointer<Utf8> Function();
+// fn best_crypto_kind() -> u32
+typedef _BestCryptoKindC = Uint32 Function();
+typedef _BestCryptoKindDart = int Function();
+// fn verify_signatures(port: i64, node_ids: FfiStr, data: FfiStr, signatures: FfiStr)
+typedef _VerifySignaturesC = Void Function(
+    Int64, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _VerifySignaturesDart = void Function(
+    int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn generate_signatures(port: i64, data: FfiStr, key_pairs: FfiStr)
+typedef _GenerateSignaturesC = Void Function(
+    Int64, Pointer<Utf8>, Pointer<Utf8>);
+typedef _GenerateSignaturesDart = void Function(
+    int, Pointer<Utf8>, Pointer<Utf8>);
+// fn generate_key_pair(port: i64, kind: u32) {
+typedef _GenerateKeyPairC = Void Function(Int64, Uint32);
+typedef _GenerateKeyPairDart = void Function(int, int);
+// fn crypto_cached_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
+typedef _CryptoCachedDHC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoCachedDHDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_compute_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
+typedef _CryptoComputeDHC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoComputeDHDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_random_nonce(port: i64, kind: u32)
+typedef _CryptoRandomNonceC = Void Function(Int64, Uint32);
+typedef _CryptoRandomNonceDart = void Function(int, int);
+// fn crypto_random_shared_secret(port: i64, kind: u32)
+typedef _CryptoRandomSharedSecretC = Void Function(Int64, Uint32);
+typedef _CryptoRandomSharedSecretDart = void Function(int, int);
+// fn crypto_generate_key_pair(port: i64, kind: u32)
+typedef _CryptoGenerateKeyPairC = Void Function(Int64, Uint32);
+typedef _CryptoGenerateKeyPairDart = void Function(int, int);
+// fn crypto_generate_hash(port: i64, kind: u32, data: FfiStr)
+typedef _CryptoGenerateHashC = Void Function(Int64, Uint32, Pointer<Utf8>);
+typedef _CryptoGenerateHashDart = void Function(int, int, Pointer<Utf8>);
+// fn crypto_validate_key_pair(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
+typedef _CryptoValidateKeyPairC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoValidateKeyPairDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_validate_hash(port: i64, kind: u32, data: FfiStr, hash: FfiStr)
+typedef _CryptoValidateHashC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoValidateHashDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_distance(port: i64, kind: u32, key1: FfiStr, key2: FfiStr)
+typedef _CryptoDistanceC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoDistanceDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_sign(port: i64, kind: u32, key: FfiStr, secret: FfiStr, data: FfiStr)
+typedef _CryptoSignC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoSignDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_verify(port: i64, kind: u32, key: FfiStr, data: FfiStr, signature: FfiStr)
+typedef _CryptoVerifyC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoVerifyDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_aead_overhead(port: i64, kind: u32)
+typedef _CryptoAeadOverheadC = Void Function(Int64, Uint32);
+typedef _CryptoAeadOverheadDart = void Function(int, int);
+// fn crypto_decrypt_aead(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr, associated_data: FfiStr)
+typedef _CryptoDecryptAeadC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoDecryptAeadDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_encrypt_aead(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr, associated_data: FfiStr)
+typedef _CryptoEncryptAeadC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoEncryptAeadDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_crypt_no_auth(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr)
+typedef _CryptoCryptNoAuthC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoCryptNoAuthDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
+// fn now() -> u64
+typedef _NowC = Uint64 Function();
+typedef _NowDart = int Function();
 // fn debug(port: i64, log_level: FfiStr)
 typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
 typedef _DebugDart = void Function(int, Pointer<Utf8>);
@@ -748,14 +875,14 @@ class VeilidFFI implements Veilid {
   final _RoutingContextWithSequencingDart _routingContextWithSequencing;
   final _RoutingContextAppCallDart _routingContextAppCall;
   final _RoutingContextAppMessageDart _routingContextAppMessage;
-  final _RoutingContextCreateDHTRecordDart _RoutingContextCreateDHTRecord;
-  final _RoutingContextOpenDHTRecordDart _RoutingContextOpenDHTRecord;
-  final _RoutingContextCloseDHTRecordDart _RoutingContextCloseDHTRecord;
-  final _RoutingContextDeleteDHTRecordDart _RoutingContextDeleteDHTRecord;
-  final _RoutingContextGetDHTValueDart _RoutingContextGetDHTValue;
-  final _RoutingContextSetDHTValueDart _RoutingContextSetDHTValue;
-  final _RoutingContextWatchDHTValuesDart _RoutingContextWatchDHTValues;
-  final _RoutingContextCancelDHTWatchDart _RoutingContextCancelDHTWatch;
+  final _RoutingContextCreateDHTRecordDart _routingContextCreateDHTRecord;
+  final _RoutingContextOpenDHTRecordDart _routingContextOpenDHTRecord;
+  final _RoutingContextCloseDHTRecordDart _routingContextCloseDHTRecord;
+  final _RoutingContextDeleteDHTRecordDart _routingContextDeleteDHTRecord;
+  final _RoutingContextGetDHTValueDart _routingContextGetDHTValue;
+  final _RoutingContextSetDHTValueDart _routingContextSetDHTValue;
+  final _RoutingContextWatchDHTValuesDart _routingContextWatchDHTValues;
+  final _RoutingContextCancelDHTWatchDart _routingContextCancelDHTWatch;
 
   final _NewPrivateRouteDart _newPrivateRoute;
   final _NewCustomPrivateRouteDart _newCustomPrivateRoute;
@@ -780,8 +907,7 @@ class VeilidFFI implements Veilid {
   final _TableDbTransactionDeleteDart _tableDbTransactionDelete;
 
   final _ValidCryptoKindsDart _validCryptoKinds;
-  final _GetCryptoSystemDart _getCryptoSystem;
-  final _BestCryptoSystemDart _bestCryptoSystem;
+  final _BestCryptoKindDart _bestCryptoKind;
   final _VerifySignaturesDart _verifySignatures;
   final _GenerateSignaturesDart _generateSignatures;
   final _GenerateKeyPairDart _generateKeyPair;
@@ -792,14 +918,12 @@ class VeilidFFI implements Veilid {
   final _CryptoRandomSharedSecretDart _cryptoRandomSharedSecret;
   final _CryptoGenerateKeyPairDart _cryptoGenerateKeyPair;
   final _CryptoGenerateHashDart _cryptoGenerateHash;
-  final _CryptoGenerateHashReaderDart _cryptoGenerateHashReader;
   final _CryptoValidateKeyPairDart _cryptoValidateKeyPair;
   final _CryptoValidateHashDart _cryptoValidateHash;
-  final _CryptoValidateHashReaderDart _cryptoValidateHashReader;
   final _CryptoDistanceDart _cryptoDistance;
   final _CryptoSignDart _cryptoSign;
   final _CryptoVerifyDart _cryptoVerify;
-  final _CryptoAaedOverheadDart _cryptoAeadOverhead;
+  final _CryptoAeadOverheadDart _cryptoAeadOverhead;
   final _CryptoDecryptAeadDart _cryptoDecryptAead;
   final _CryptoEncryptAeadDart _cryptoEncryptAead;
   final _CryptoCryptNoAuthDart _cryptoCryptNoAuth;
@@ -850,6 +974,36 @@ class VeilidFFI implements Veilid {
         _routingContextAppMessage = dylib.lookupFunction<
             _RoutingContextAppMessageC,
             _RoutingContextAppMessageDart>('routing_context_app_message'),
+        _routingContextCreateDHTRecord = dylib.lookupFunction<
+                _RoutingContextCreateDHTRecordC,
+                _RoutingContextCreateDHTRecordDart>(
+            'routing_context_create_dht_record'),
+        _routingContextOpenDHTRecord = dylib.lookupFunction<
+                _RoutingContextOpenDHTRecordC,
+                _RoutingContextOpenDHTRecordDart>(
+            'routing_context_open_dht_record'),
+        _routingContextCloseDHTRecord = dylib.lookupFunction<
+                _RoutingContextCloseDHTRecordC,
+                _RoutingContextCloseDHTRecordDart>(
+            'routing_context_close_dht_record'),
+        _routingContextDeleteDHTRecord = dylib.lookupFunction<
+                _RoutingContextDeleteDHTRecordC,
+                _RoutingContextDeleteDHTRecordDart>(
+            'routing_context_delete_dht_record'),
+        _routingContextGetDHTValue = dylib.lookupFunction<
+            _RoutingContextGetDHTValueC,
+            _RoutingContextGetDHTValueDart>('routing_context_get_dht_value'),
+        _routingContextSetDHTValue = dylib.lookupFunction<
+            _RoutingContextSetDHTValueC,
+            _RoutingContextSetDHTValueDart>('routing_context_set_dht_value'),
+        _routingContextWatchDHTValues = dylib.lookupFunction<
+                _RoutingContextWatchDHTValuesC,
+                _RoutingContextWatchDHTValuesDart>(
+            'routing_context_watch_dht_values'),
+        _routingContextCancelDHTWatch = dylib.lookupFunction<
+                _RoutingContextCancelDHTWatchC,
+                _RoutingContextCancelDHTWatchDart>(
+            'routing_context_cancel_dht_watch'),
         _newPrivateRoute =
             dylib.lookupFunction<_NewPrivateRouteC, _NewPrivateRouteDart>(
                 'new_private_route'),
@@ -900,6 +1054,31 @@ class VeilidFFI implements Veilid {
         _tableDbTransactionDelete = dylib.lookupFunction<
             _TableDbTransactionDeleteC,
             _TableDbTransactionDeleteDart>('table_db_transaction_delete'),
+
+xxx
+  final _ValidCryptoKindsDart _validCryptoKinds;
+  final _BestCryptoKindDart _bestCryptoKind;
+  final _VerifySignaturesDart _verifySignatures;
+  final _GenerateSignaturesDart _generateSignatures;
+  final _GenerateKeyPairDart _generateKeyPair;
+
+  final _CryptoCachedDHDart _cryptoCachedDH;
+  final _CryptoComputeDHDart _cryptoComputeDH;
+  final _CryptoRandomNonceDart _cryptoRandomNonce;
+  final _CryptoRandomSharedSecretDart _cryptoRandomSharedSecret;
+  final _CryptoGenerateKeyPairDart _cryptoGenerateKeyPair;
+  final _CryptoGenerateHashDart _cryptoGenerateHash;
+  final _CryptoValidateKeyPairDart _cryptoValidateKeyPair;
+  final _CryptoValidateHashDart _cryptoValidateHash;
+  final _CryptoDistanceDart _cryptoDistance;
+  final _CryptoSignDart _cryptoSign;
+  final _CryptoVerifyDart _cryptoVerify;
+  final _CryptoAeadOverheadDart _cryptoAeadOverhead;
+  final _CryptoDecryptAeadDart _cryptoDecryptAead;
+  final _CryptoEncryptAeadDart _cryptoEncryptAead;
+  final _CryptoCryptNoAuthDart _cryptoCryptNoAuth;
+
+
         _debug = dylib.lookupFunction<_DebugC, _DebugDart>('debug'),
         _veilidVersionString = dylib.lookupFunction<_VeilidVersionStringC,
             _VeilidVersionStringDart>('veilid_version_string'),

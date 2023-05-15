@@ -63,8 +63,8 @@ class Typed<V extends EncodedString> {
 }
 
 class KeyPair {
-  late Key key;
-  late Key secret;
+  late PublicKey key;
+  late PublicKey secret;
   KeyPair({required this.key, required this.secret});
 
   @override
@@ -79,8 +79,8 @@ class KeyPair {
         parts[1].codeUnits.length != 43) {
       throw const FormatException("malformed string");
     }
-    key = Key(parts[0]);
-    secret = Key(parts[1]);
+    key = PublicKey(parts[0]);
+    secret = PublicKey(parts[1]);
   }
 
   String get json {
@@ -92,8 +92,8 @@ class KeyPair {
 
 class TypedKeyPair {
   late CryptoKind kind;
-  late Key key;
-  late Key secret;
+  late PublicKey key;
+  late PublicKey secret;
   TypedKeyPair({required this.kind, required this.key, required this.secret});
 
   @override
@@ -110,8 +110,8 @@ class TypedKeyPair {
       throw VeilidAPIExceptionInvalidArgument("malformed string", "s", s);
     }
     kind = cryptoKindFromString(parts[0]);
-    key = Key(parts[1]);
-    secret = Key(parts[2]);
+    key = PublicKey(parts[1]);
+    secret = PublicKey(parts[2]);
   }
 
   String get json {
@@ -121,11 +121,17 @@ class TypedKeyPair {
   TypedKeyPair.fromJson(dynamic json) : this.fromString(json as String);
 }
 
-typedef Key = FixedEncodedString43;
+typedef CryptoKey = FixedEncodedString43;
 typedef Signature = FixedEncodedString86;
 typedef Nonce = FixedEncodedString32;
 
-typedef TypedKey = Typed<Key>;
+typedef PublicKey = CryptoKey;
+typedef SecretKey = CryptoKey;
+typedef HashDigest = CryptoKey;
+typedef SharedSecret = CryptoKey;
+typedef CryptoKeyDistance = CryptoKey;
+
+typedef TypedKey = Typed<CryptoKey>;
 typedef TypedSignature = Typed<Signature>;
 
 //////////////////////////////////////
@@ -133,23 +139,24 @@ typedef TypedSignature = Typed<Signature>;
 
 abstract class VeilidCryptoSystem {
   CryptoKind kind();
-  Key cachedDH(Key key, Key secret);
-  Key computeDH(Key key, Key secret);
-  Nonce randomNonce();
-  Key randomSharedSecret();
-  KeyPair generateKeyPair();
-  Key generateHash(Uint8List data);
-  Key generateHashReader(Stream<List<int>> reader);
-  bool validateKeyPair(Key key, Key secret);
-  bool validateHash(Uint8List data, Key hash);
-  bool validateHashReader(Stream<List<int>> reader, Key hash);
-  Key distance(Key key1, Key key2);
-  Signature sign(Key key, Key secret, Uint8List data);
-  void verify(Key key, Uint8List data, Signature signature);
-  BigInt aeadOverhead();
-  Uint8List decryptAead(
-      Uint8List body, Nonce nonce, Key sharedSecret, Uint8List? associatedData);
-  Uint8List encryptAead(
-      Uint8List body, Nonce nonce, Key sharedSecret, Uint8List? associatedData);
-  Uint8List cryptNoAuth(Uint8List body, Nonce nonce, Key sharedSecret);
+  Future<SharedSecret> cachedDH(PublicKey key, SecretKey secret);
+  Future<SharedSecret> computeDH(PublicKey key, SecretKey secret);
+  Future<Nonce> randomNonce();
+  Future<SharedSecret> randomSharedSecret();
+  Future<KeyPair> generateKeyPair();
+  Future<HashDigest> generateHash(Uint8List data);
+  Future<HashDigest> generateHashReader(Stream<List<int>> reader);
+  Future<bool> validateKeyPair(PublicKey key, SecretKey secret);
+  Future<bool> validateHash(Uint8List data, HashDigest hash);
+  Future<bool> validateHashReader(Stream<List<int>> reader, HashDigest hash);
+  Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2);
+  Future<Signature> sign(PublicKey key, SecretKey secret, Uint8List data);
+  Future<void> verify(PublicKey key, Uint8List data, Signature signature);
+  Future<int> aeadOverhead();
+  Future<Uint8List> decryptAead(Uint8List body, Nonce nonce,
+      SharedSecret sharedSecret, Uint8List? associatedData);
+  Future<Uint8List> encryptAead(Uint8List body, Nonce nonce,
+      SharedSecret sharedSecret, Uint8List? associatedData);
+  Future<Uint8List> cryptNoAuth(
+      Uint8List body, Nonce nonce, SharedSecret sharedSecret);
 }

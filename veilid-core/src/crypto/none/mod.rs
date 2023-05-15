@@ -139,14 +139,14 @@ impl CryptoSystem for CryptoSystemNONE {
         Ok(bytes == dht_key.bytes)
     }
     // Distance Metric
-    fn distance(&self, key1: &PublicKey, key2: &PublicKey) -> PublicKeyDistance {
+    fn distance(&self, key1: &PublicKey, key2: &PublicKey) -> CryptoKeyDistance {
         let mut bytes = [0u8; PUBLIC_KEY_LENGTH];
 
         for (n, byte) in bytes.iter_mut().enumerate() {
             *byte = key1.bytes[n] ^ key2.bytes[n];
         }
 
-        PublicKeyDistance::new(bytes)
+        CryptoKeyDistance::new(bytes)
     }
 
     // Authentication

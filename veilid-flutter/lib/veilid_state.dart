@@ -373,7 +373,7 @@ class VeilidLog implements VeilidUpdate {
 }
 
 class VeilidAppMessage implements VeilidUpdate {
-  final String? sender;
+  final TypedKey? sender;
   final Uint8List message;
 
   //
