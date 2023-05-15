@@ -20,7 +20,7 @@ enum VeilidConfigLogLevel {
 }
 
 extension VeilidConfigLogLevelExt on VeilidConfigLogLevel {
-  String get json {
+  String toJson() {
     return name.toPascalCase();
   }
 }
@@ -45,7 +45,7 @@ class VeilidConfigHTTPS {
     this.url,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'enabled': enabled,
       'listen_address': listenAddress,
@@ -76,7 +76,7 @@ class VeilidConfigHTTP {
     this.url,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'enabled': enabled,
       'listen_address': listenAddress,
@@ -103,10 +103,10 @@ class VeilidConfigApplication {
     required this.http,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'https': https.json,
-      'http': http.json,
+      'https': https.toJson(),
+      'http': http.toJson(),
     };
   }
 
@@ -129,7 +129,7 @@ class VeilidConfigUDP {
       required this.listenAddress,
       this.publicAddress});
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'enabled': enabled,
       'socket_pool_size': socketPoolSize,
@@ -161,7 +161,7 @@ class VeilidConfigTCP {
       required this.listenAddress,
       this.publicAddress});
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'connect': connect,
       'listen': listen,
@@ -197,7 +197,7 @@ class VeilidConfigWS {
       required this.path,
       this.url});
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'connect': connect,
       'listen': listen,
@@ -235,7 +235,7 @@ class VeilidConfigWSS {
       required this.path,
       this.url});
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'connect': connect,
       'listen': listen,
@@ -270,12 +270,12 @@ class VeilidConfigProtocol {
     required this.wss,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'udp': udp.json,
-      'tcp': tcp.json,
-      'ws': ws.json,
-      'wss': wss.json,
+      'udp': udp.toJson(),
+      'tcp': tcp.toJson(),
+      'ws': ws.toJson(),
+      'wss': wss.toJson(),
     };
   }
 
@@ -299,7 +299,7 @@ class VeilidConfigTLS {
     required this.connectionInitialTimeoutMs,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'certificate_path': certificatePath,
       'private_key_path': privateKeyPath,
@@ -357,7 +357,7 @@ class VeilidConfigDHT {
       required this.remoteMaxSubkeyCacheMemoryMb,
       required this.remoteMaxStorageSpaceMb});
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'max_find_node_count': maxFindNodeCount,
       'resolve_node_timeout_ms': resolveNodeTimeoutMs,
@@ -425,7 +425,7 @@ class VeilidConfigRPC {
       required this.maxRouteHopCount,
       required this.defaultRouteHopCount});
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'concurrency': concurrency,
       'queue_size': queueSize,
@@ -470,10 +470,10 @@ class VeilidConfigRoutingTable {
     required this.limitAttachedWeak,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'node_id': nodeId.map((p) => p.json).toList(),
-      'node_id_secret': nodeIdSecret.map((p) => p.json).toList(),
+      'node_id': nodeId.map((p) => p.toJson()).toList(),
+      'node_id_secret': nodeIdSecret.map((p) => p.toJson()).toList(),
       'bootstrap': bootstrap.map((p) => p).toList(),
       'limit_over_attached': limitOverAttached,
       'limit_fully_attached': limitFullyAttached,
@@ -539,7 +539,7 @@ class VeilidConfigNetwork {
     required this.protocol,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'connection_initial_timeout_ms': connectionInitialTimeoutMs,
       'connection_inactivity_timeout_ms': connectionInactivityTimeoutMs,
@@ -550,15 +550,15 @@ class VeilidConfigNetwork {
       'client_whitelist_timeout_ms': clientWhitelistTimeoutMs,
       'reverse_connection_receipt_time_ms': reverseConnectionReceiptTimeMs,
       'hole_punch_receipt_time_ms': holePunchReceiptTimeMs,
-      'routing_table': routingTable.json,
-      'rpc': rpc.json,
-      'dht': dht.json,
+      'routing_table': routingTable.toJson(),
+      'rpc': rpc.toJson(),
+      'dht': dht.toJson(),
       'upnp': upnp,
       'detect_address_changes': detectAddressChanges,
       'restricted_nat_retries': restrictedNatRetries,
-      'tls': tls.json,
-      'application': application.json,
-      'protocol': protocol.json,
+      'tls': tls.toJson(),
+      'application': application.toJson(),
+      'protocol': protocol.toJson(),
     };
   }
 
@@ -597,7 +597,7 @@ class VeilidConfigTableStore {
     required this.delete,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {'directory': directory, 'delete': delete};
   }
 
@@ -617,7 +617,7 @@ class VeilidConfigBlockStore {
     required this.delete,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {'directory': directory, 'delete': delete};
   }
 
@@ -641,7 +641,7 @@ class VeilidConfigProtectedStore {
     required this.delete,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'allow_insecure_fallback': allowInsecureFallback,
       'always_use_insecure_storage': alwaysUseInsecureStorage,
@@ -678,7 +678,7 @@ class VeilidConfigCapabilities {
     required this.protocolAcceptWSS,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'protocol_udp': protocolUDP,
       'protocol_connect_tcp': protocolConnectTCP,
@@ -721,15 +721,15 @@ class VeilidConfig {
     required this.network,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'program_name': programName,
       'namespace': namespace,
-      'capabilities': capabilities.json,
-      'protected_store': protectedStore.json,
-      'table_store': tableStore.json,
-      'block_store': blockStore.json,
-      'network': network.json
+      'capabilities': capabilities.toJson(),
+      'protected_store': protectedStore.toJson(),
+      'table_store': tableStore.toJson(),
+      'block_store': blockStore.toJson(),
+      'network': network.toJson()
     };
   }
 

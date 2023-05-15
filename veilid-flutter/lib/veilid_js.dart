@@ -25,10 +25,10 @@ class VeilidWASMConfigLoggingPerformance {
     required this.logsInConsole,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'enabled': enabled,
-      'level': level.json,
+      'level': level.toJson(),
       'logs_in_timings': logsInTimings,
       'logs_in_console': logsInConsole,
     };
@@ -50,10 +50,10 @@ class VeilidWASMConfigLoggingApi {
     required this.level,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'enabled': enabled,
-      'level': level.json,
+      'level': level.toJson(),
     };
   }
 
@@ -68,10 +68,10 @@ class VeilidWASMConfigLogging {
 
   VeilidWASMConfigLogging({required this.performance, required this.api});
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'performance': performance.json,
-      'api': api.json,
+      'performance': performance.toJson(),
+      'api': api.toJson(),
     };
   }
 
@@ -88,9 +88,9 @@ class VeilidWASMConfig {
     required this.logging,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'logging': logging.json,
+      'logging': logging.toJson(),
     };
   }
 
@@ -137,15 +137,17 @@ class VeilidRoutingContextJS implements VeilidRoutingContext {
   @override
   VeilidRoutingContextJS withCustomPrivacy(Stability stability) {
     final newId = js_util.callMethod(
-        wasm, "routing_context_with_custom_privacy", [_ctx.id, stability.json]);
+        wasm,
+        "routing_context_with_custom_privacy",
+        [_ctx.id, jsonEncode(stability)]);
 
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
   @override
   VeilidRoutingContextJS withSequencing(Sequencing sequencing) {
-    final newId = js_util.callMethod(
-        wasm, "routing_context_with_sequencing", [_ctx.id, sequencing.json]);
+    final newId = js_util.callMethod(wasm, "routing_context_with_sequencing",
+        [_ctx.id, jsonEncode(sequencing)]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
@@ -292,16 +294,14 @@ class VeilidTableDBJS extends VeilidTableDB {
 class VeilidJS implements Veilid {
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
-    var platformConfigJsonString =
-        jsonEncode(platformConfigJson, toEncodable: veilidApiToEncodable);
+    var platformConfigJsonString = jsonEncode(platformConfigJson);
     js_util
         .callMethod(wasm, "initialize_veilid_core", [platformConfigJsonString]);
   }
 
   @override
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel) {
-    var logLevelJsonString =
-        jsonEncode(logLevel.json, toEncodable: veilidApiToEncodable);
+    var logLevelJsonString = jsonEncode(logLevel);
     js_util.callMethod(wasm, "change_log_level", [layer, logLevelJsonString]);
   }
 
@@ -318,10 +318,8 @@ class VeilidJS implements Veilid {
       }
     }
 
-    await _wrapApiPromise(js_util.callMethod(wasm, "startup_veilid_core", [
-      js.allowInterop(updateCallback),
-      jsonEncode(config.json, toEncodable: veilidApiToEncodable)
-    ]));
+    await _wrapApiPromise(js_util.callMethod(wasm, "startup_veilid_core",
+        [js.allowInterop(updateCallback), jsonEncode(config)]));
 
     return streamController.stream;
   }
@@ -365,10 +363,8 @@ class VeilidJS implements Veilid {
   @override
   Future<RouteBlob> newCustomPrivateRoute(
       Stability stability, Sequencing sequencing) async {
-    var stabilityString =
-        jsonEncode(stability, toEncodable: veilidApiToEncodable);
-    var sequencingString =
-        jsonEncode(sequencing, toEncodable: veilidApiToEncodable);
+    var stabilityString = jsonEncode(stability);
+    var sequencingString = jsonEncode(sequencing);
 
     Map<String, dynamic> blobJson = jsonDecode(await _wrapApiPromise(js_util
         .callMethod(

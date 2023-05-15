@@ -606,10 +606,10 @@ pub extern "C" fn routing_context_set_dht_value(port: i64, id: u32, key: FfiStr,
 
 
 #[no_mangle]
-pub extern "C" fn routing_context_watch_dht_values(port: i64, id: u32, key: FfiStr, subkeys: FfiStr, expiration: FfiStr, count: u32) {
+pub extern "C" fn routing_context_watch_dht_values(port: i64, id: u32, key: FfiStr, subkeys: FfiStr, expiration: u64, count: u32) {
     let key: veilid_core::TypedKey = veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     let subkeys: veilid_core::ValueSubkeyRangeSet = veilid_core::deserialize_opt_json(subkeys.into_opt_string()).unwrap();
-    let expiration = veilid_core::Timestamp::from_str(expiration.as_opt_str().unwrap()).unwrap();
+    let expiration = veilid_core::Timestamp::from(expiration);
 
     DartIsolateWrapper::new(port).spawn_result(async move {        
         let routing_context = {
@@ -620,7 +620,7 @@ pub extern "C" fn routing_context_watch_dht_values(port: i64, id: u32, key: FfiS
             routing_context.clone()
         };
         let res = routing_context.watch_dht_values(key, subkeys, expiration, count).await?;
-        APIResult::Ok(res.to_string())
+        APIResult::Ok(res.as_u64())
     });
 }
 

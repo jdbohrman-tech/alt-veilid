@@ -55,7 +55,7 @@ class Typed<V extends EncodedString> {
     value = EncodedString.fromString<V>(parts.sublist(1).join(":"));
   }
 
-  String get json {
+  String toJson() {
     return toString();
   }
 
@@ -83,7 +83,7 @@ class KeyPair {
     secret = PublicKey(parts[1]);
   }
 
-  String get json {
+  String toJson() {
     return toString();
   }
 
@@ -114,7 +114,7 @@ class TypedKeyPair {
     secret = PublicKey(parts[2]);
   }
 
-  String get json {
+  String toJson() {
     return toString();
   }
 

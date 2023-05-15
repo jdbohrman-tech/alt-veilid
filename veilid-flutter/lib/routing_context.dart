@@ -33,7 +33,7 @@ abstract class DHTSchema {
         }
     }
   }
-  Map<String, dynamic> get json;
+  Map<String, dynamic> toJson();
 }
 
 class DHTSchemaDFLT implements DHTSchema {
@@ -49,7 +49,7 @@ class DHTSchemaDFLT implements DHTSchema {
   }
 
   @override
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'kind': "DFLT",
       'o_cnt': oCnt,
@@ -71,7 +71,7 @@ class DHTSchemaMember {
     }
   }
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'm_key': mKey,
       'm_cnt': mCnt,
@@ -97,11 +97,11 @@ class DHTSchemaSMPL implements DHTSchema {
     }
   }
   @override
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'kind': "SMPL",
       'o_cnt': oCnt,
-      'members': members.map((p) => p.json).toList(),
+      'members': members.map((p) => p.toJson()).toList(),
     };
   }
 }
@@ -122,12 +122,12 @@ class DHTRecordDescriptor {
     required this.schema,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'key': key.toString(),
       'owner': owner,
       'owner_secret': ownerSecret,
-      'schema': schema.json,
+      'schema': schema.toJson(),
     };
   }
 
@@ -168,7 +168,7 @@ class ValueSubkeyRange {
     }
   }
 
-  List<dynamic> get json {
+  List<dynamic> toJson() {
     return [low, high];
   }
 }
@@ -192,7 +192,7 @@ class ValueData {
         data = base64UrlNoPadDecode(json['data']),
         writer = json['writer'];
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {'seq': seq, 'data': base64UrlNoPadEncode(data), 'writer': writer};
   }
 }
@@ -205,7 +205,7 @@ enum Stability {
 }
 
 extension StabilityExt on Stability {
-  String get json {
+  String toJson() {
     return name.toPascalCase();
   }
 }
@@ -224,7 +224,7 @@ enum Sequencing {
 }
 
 extension SequencingExt on Sequencing {
-  String get json {
+  String toJson() {
     return name.toPascalCase();
   }
 }
@@ -245,7 +245,7 @@ class RouteBlob {
       : routeId = json['route_id'],
         blob = base64UrlNoPadDecode(json['blob']);
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {'route_id': routeId, 'blob': base64UrlNoPadEncode(blob)};
   }
 }

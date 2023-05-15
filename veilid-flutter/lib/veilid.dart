@@ -36,14 +36,27 @@ Object? veilidApiToEncodable(Object? value) {
     return value;
   }
   switch (value.runtimeType) {
-    case AttachmentState:
-      return (value as AttachmentState).json;
-    case VeilidLogLevel:
-      return (value as VeilidLogLevel).json;
-    case VeilidConfigLogLevel:
-      return (value as VeilidConfigLogLevel).json;
+    // case KeyPair:
+    //   return (value as KeyPair).json;
   }
   throw UnsupportedError('Cannot convert to JSON: $value');
+}
+
+T? Function(dynamic) optFromJson<T>(T Function(dynamic) jsonConstructor) {
+  return (dynamic j) {
+    if (j == null) {
+      return null;
+    } else {
+      return jsonConstructor(j);
+    }
+  };
+}
+
+List<T> Function(dynamic) jsonListConstructor<T>(
+    T Function(dynamic) jsonConstructor) {
+  return (dynamic j) {
+    return (j as List<dynamic>).map((e) => jsonConstructor(e)).toList();
+  };
 }
 
 //////////////////////////////////////
@@ -71,8 +84,7 @@ class Timestamp {
   Timestamp.fromString(String s) : value = BigInt.parse(s);
 
   Timestamp.fromJson(dynamic json) : this.fromString(json as String);
-
-  String get json {
+  String toJson() {
     return toString();
   }
 
@@ -97,8 +109,7 @@ class TimestampDuration {
   TimestampDuration.fromString(String s) : value = BigInt.parse(s);
 
   TimestampDuration.fromJson(dynamic json) : this.fromString(json as String);
-
-  String get json {
+  String toJson() {
     return toString();
   }
 

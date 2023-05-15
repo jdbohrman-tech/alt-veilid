@@ -20,7 +20,7 @@ enum AttachmentState {
 }
 
 extension AttachmentStateExt on AttachmentState {
-  String get json {
+  String toJson() {
     return name.toPascalCase();
   }
 }
@@ -41,7 +41,7 @@ enum VeilidLogLevel {
 }
 
 extension VeilidLogLevelExt on VeilidLogLevel {
-  String get json {
+  String toJson() {
     return name.toPascalCase();
   }
 }
@@ -63,11 +63,11 @@ class LatencyStats {
     required this.slowest,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'fastest': fastest.json,
-      'average': average.json,
-      'slowest': slowest.json,
+      'fastest': fastest.toJson(),
+      'average': average.toJson(),
+      'slowest': slowest.toJson(),
     };
   }
 
@@ -92,7 +92,7 @@ class TransferStats {
     required this.minimum,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'total': total.toString(),
       'maximum': maximum.toString(),
@@ -119,10 +119,10 @@ class TransferStatsDownUp {
     required this.up,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'down': down.json,
-      'up': up.json,
+      'down': down.toJson(),
+      'up': up.toJson(),
     };
   }
 
@@ -154,14 +154,14 @@ class RPCStats {
     required this.failedToSend,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'messages_sent': messagesSent,
       'messages_rcvd': messagesRcvd,
       'questions_in_flight': questionsInFlight,
-      'last_question': lastQuestion?.json,
-      'last_seen_ts': lastSeenTs?.json,
-      'first_consecutive_seen_ts': firstConsecutiveSeenTs?.json,
+      'last_question': lastQuestion?.toJson(),
+      'last_seen_ts': lastSeenTs?.toJson(),
+      'first_consecutive_seen_ts': firstConsecutiveSeenTs?.toJson(),
       'recent_lost_answers': recentLostAnswers,
       'failed_to_send': failedToSend,
     };
@@ -199,12 +199,12 @@ class PeerStats {
     required this.transfer,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'time_added': timeAdded.json,
-      'rpc_stats': rpcStats.json,
-      'latency': latency?.json,
-      'transfer': transfer.json,
+      'time_added': timeAdded.toJson(),
+      'rpc_stats': rpcStats.toJson(),
+      'latency': latency?.toJson(),
+      'transfer': transfer.toJson(),
     };
   }
 
@@ -230,11 +230,11 @@ class PeerTableData {
     required this.peerStats,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'node_ids': nodeIds.map((p) => p.json).toList(),
-      'peer_address': peerAddress.json,
-      'peer_stats': peerStats.json,
+      'node_ids': nodeIds.map((p) => p.toJson()).toList(),
+      'peer_address': peerAddress.toJson(),
+      'peer_stats': peerStats.toJson(),
     };
   }
 
@@ -256,7 +256,7 @@ enum ProtocolType {
 }
 
 extension ProtocolTypeExt on ProtocolType {
-  String get json {
+  String toJson() {
     return name.toUpperCase();
   }
 }
@@ -276,9 +276,9 @@ class PeerAddress {
     required this.socketAddress,
   });
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'protocol_type': protocolType.json,
+      'protocol_type': protocolType.toJson(),
       'socket_address': socketAddress,
     };
   }
@@ -347,7 +347,7 @@ abstract class VeilidUpdate {
         }
     }
   }
-  Map<String, dynamic> get json;
+  Map<String, dynamic> toJson();
 }
 
 class VeilidLog implements VeilidUpdate {
@@ -362,10 +362,10 @@ class VeilidLog implements VeilidUpdate {
   });
 
   @override
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'kind': "Log",
-      'log_level': logLevel.json,
+      'log_level': logLevel.toJson(),
       'message': message,
       'backtrace': backtrace
     };
@@ -383,7 +383,7 @@ class VeilidAppMessage implements VeilidUpdate {
   });
 
   @override
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'kind': "AppMessage",
       'sender': sender,
@@ -405,7 +405,7 @@ class VeilidAppCall implements VeilidUpdate {
   });
 
   @override
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'kind': "AppMessage",
       'sender': sender,
@@ -421,8 +421,8 @@ class VeilidUpdateAttachment implements VeilidUpdate {
   VeilidUpdateAttachment({required this.state});
 
   @override
-  Map<String, dynamic> get json {
-    var jsonRep = state.json;
+  Map<String, dynamic> toJson() {
+    var jsonRep = state.toJson();
     jsonRep['kind'] = "Attachment";
     return jsonRep;
   }
@@ -434,8 +434,8 @@ class VeilidUpdateNetwork implements VeilidUpdate {
   VeilidUpdateNetwork({required this.state});
 
   @override
-  Map<String, dynamic> get json {
-    var jsonRep = state.json;
+  Map<String, dynamic> toJson() {
+    var jsonRep = state.toJson();
     jsonRep['kind'] = "Network";
     return jsonRep;
   }
@@ -447,8 +447,8 @@ class VeilidUpdateConfig implements VeilidUpdate {
   VeilidUpdateConfig({required this.state});
 
   @override
-  Map<String, dynamic> get json {
-    var jsonRep = state.json;
+  Map<String, dynamic> toJson() {
+    var jsonRep = state.toJson();
     jsonRep['kind'] = "Config";
     return jsonRep;
   }
@@ -464,7 +464,7 @@ class VeilidUpdateRouteChange implements VeilidUpdate {
   });
 
   @override
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'dead_routes': deadRoutes.map((p) => p).toList(),
       'dead_remote_routes': deadRemoteRoutes.map((p) => p).toList()
@@ -487,12 +487,12 @@ class VeilidUpdateValueChange implements VeilidUpdate {
   });
 
   @override
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'key': key.json,
-      'subkeys': subkeys.map((p) => p.json).toList(),
+      'key': key.toJson(),
+      'subkeys': subkeys.map((p) => p.toJson()).toList(),
       'count': count,
-      'value_data': valueData.json,
+      'value_data': valueData.toJson(),
     };
   }
 }
@@ -513,9 +513,9 @@ class VeilidStateAttachment {
         publicInternetReady = json['public_internet_ready'],
         localNetworkReady = json['local_network_ready'];
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'state': state.json,
+      'state': state.toJson(),
       'public_internet_ready': publicInternetReady,
       'local_network_ready': localNetworkReady,
     };
@@ -544,12 +544,12 @@ class VeilidStateNetwork {
         peers = List<PeerTableData>.from(
             json['peers'].map((j) => PeerTableData.fromJson(j)));
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
       'started': started,
       'bps_down': bpsDown.toString(),
       'bps_up': bpsUp.toString(),
-      'peers': peers.map((p) => p.json).toList(),
+      'peers': peers.map((p) => p.toJson()).toList(),
     };
   }
 }
@@ -566,7 +566,7 @@ class VeilidStateConfig {
 
   VeilidStateConfig.fromJson(dynamic json) : config = json['config'];
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {'config': config};
   }
 }
@@ -584,11 +584,11 @@ class VeilidState {
         network = VeilidStateNetwork.fromJson(json['network']),
         config = VeilidStateConfig.fromJson(json['config']);
 
-  Map<String, dynamic> get json {
+  Map<String, dynamic> toJson() {
     return {
-      'attachment': attachment.json,
-      'network': network.json,
-      'config': config.json
+      'attachment': attachment.toJson(),
+      'network': network.toJson(),
+      'config': config.toJson()
     };
   }
 }

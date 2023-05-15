@@ -70,7 +70,7 @@ class FixedEncodedString32 extends EncodedString {
     return 24;
   }
 
-  String get json {
+  String toJson() {
     return toString();
   }
 
@@ -89,7 +89,7 @@ class FixedEncodedString43 extends EncodedString {
     return 32;
   }
 
-  String get json {
+  String toJson() {
     return toString();
   }
 
@@ -108,7 +108,7 @@ class FixedEncodedString86 extends EncodedString {
     return 64;
   }
 
-  String get json {
+  String toJson() {
     return toString();
   }
 
