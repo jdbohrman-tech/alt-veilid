@@ -615,7 +615,7 @@ pub extern "C" fn routing_context_watch_dht_values(port: i64, id: u32, key: FfiS
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_set_dht_value", "id", id));
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_watch_dht_values", "id", id));
             };
             routing_context.clone()
         };

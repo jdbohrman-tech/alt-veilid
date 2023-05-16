@@ -7,6 +7,119 @@ import 'package:change_case/change_case.dart';
 import 'veilid_encoding.dart';
 import 'veilid.dart';
 
+//////////////////////////////////////////////////////////
+// FFI Platform-specific config
+
+class VeilidFFIConfigLoggingTerminal {
+  bool enabled;
+  VeilidConfigLogLevel level;
+
+  VeilidFFIConfigLoggingTerminal({
+    required this.enabled,
+    required this.level,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'level': level.toJson(),
+    };
+  }
+
+  VeilidFFIConfigLoggingTerminal.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']);
+}
+
+class VeilidFFIConfigLoggingOtlp {
+  bool enabled;
+  VeilidConfigLogLevel level;
+  String grpcEndpoint;
+  String serviceName;
+
+  VeilidFFIConfigLoggingOtlp({
+    required this.enabled,
+    required this.level,
+    required this.grpcEndpoint,
+    required this.serviceName,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'level': level.toJson(),
+      'grpc_endpoint': grpcEndpoint,
+      'service_name': serviceName,
+    };
+  }
+
+  VeilidFFIConfigLoggingOtlp.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']),
+        grpcEndpoint = json['grpc_endpoint'],
+        serviceName = json['service_name'];
+}
+
+class VeilidFFIConfigLoggingApi {
+  bool enabled;
+  VeilidConfigLogLevel level;
+
+  VeilidFFIConfigLoggingApi({
+    required this.enabled,
+    required this.level,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'level': level.toJson(),
+    };
+  }
+
+  VeilidFFIConfigLoggingApi.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']);
+}
+
+class VeilidFFIConfigLogging {
+  VeilidFFIConfigLoggingTerminal terminal;
+  VeilidFFIConfigLoggingOtlp otlp;
+  VeilidFFIConfigLoggingApi api;
+
+  VeilidFFIConfigLogging(
+      {required this.terminal, required this.otlp, required this.api});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'terminal': terminal.toJson(),
+      'otlp': otlp.toJson(),
+      'api': api.toJson(),
+    };
+  }
+
+  VeilidFFIConfigLogging.fromJson(dynamic json)
+      : terminal = VeilidFFIConfigLoggingTerminal.fromJson(json['terminal']),
+        otlp = VeilidFFIConfigLoggingOtlp.fromJson(json['otlp']),
+        api = VeilidFFIConfigLoggingApi.fromJson(json['api']);
+}
+
+class VeilidFFIConfig {
+  VeilidFFIConfigLogging logging;
+
+  VeilidFFIConfig({
+    required this.logging,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'logging': logging.toJson(),
+    };
+  }
+
+  VeilidFFIConfig.fromJson(Map<String, dynamic> json)
+      : logging = VeilidFFIConfigLogging.fromJson(json['logging']);
+}
+
 //////////////////////////////////////
 /// VeilidConfigLogLevel
 
@@ -27,6 +140,95 @@ extension VeilidConfigLogLevelExt on VeilidConfigLogLevel {
 
 VeilidConfigLogLevel veilidConfigLogLevelFromJson(String j) {
   return VeilidConfigLogLevel.values.byName(j.toCamelCase());
+}
+
+//////////////////////////////////////////////////////////
+// WASM Platform-specific config
+
+class VeilidWASMConfigLoggingPerformance {
+  bool enabled;
+  VeilidConfigLogLevel level;
+  bool logsInTimings;
+  bool logsInConsole;
+
+  VeilidWASMConfigLoggingPerformance({
+    required this.enabled,
+    required this.level,
+    required this.logsInTimings,
+    required this.logsInConsole,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'level': level.toJson(),
+      'logs_in_timings': logsInTimings,
+      'logs_in_console': logsInConsole,
+    };
+  }
+
+  VeilidWASMConfigLoggingPerformance.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']),
+        logsInTimings = json['logs_in_timings'],
+        logsInConsole = json['logs_in_console'];
+}
+
+class VeilidWASMConfigLoggingApi {
+  bool enabled;
+  VeilidConfigLogLevel level;
+
+  VeilidWASMConfigLoggingApi({
+    required this.enabled,
+    required this.level,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'level': level.toJson(),
+    };
+  }
+
+  VeilidWASMConfigLoggingApi.fromJson(dynamic json)
+      : enabled = json['enabled'],
+        level = veilidConfigLogLevelFromJson(json['level']);
+}
+
+class VeilidWASMConfigLogging {
+  VeilidWASMConfigLoggingPerformance performance;
+  VeilidWASMConfigLoggingApi api;
+
+  VeilidWASMConfigLogging({required this.performance, required this.api});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'performance': performance.toJson(),
+      'api': api.toJson(),
+    };
+  }
+
+  VeilidWASMConfigLogging.fromJson(dynamic json)
+      : performance =
+            VeilidWASMConfigLoggingPerformance.fromJson(json['performance']),
+        api = VeilidWASMConfigLoggingApi.fromJson(json['api']);
+}
+
+class VeilidWASMConfig {
+  VeilidWASMConfigLogging logging;
+
+  VeilidWASMConfig({
+    required this.logging,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'logging': logging.toJson(),
+    };
+  }
+
+  VeilidWASMConfig.fromJson(dynamic json)
+      : logging = VeilidWASMConfigLogging.fromJson(json['logging']);
 }
 
 //////////////////////////////////////

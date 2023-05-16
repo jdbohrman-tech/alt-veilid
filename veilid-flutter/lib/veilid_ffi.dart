@@ -11,119 +11,6 @@ import 'veilid.dart';
 import 'veilid_encoding.dart';
 
 //////////////////////////////////////////////////////////
-// FFI Platform-specific config
-
-class VeilidFFIConfigLoggingTerminal {
-  bool enabled;
-  VeilidConfigLogLevel level;
-
-  VeilidFFIConfigLoggingTerminal({
-    required this.enabled,
-    required this.level,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'enabled': enabled,
-      'level': level.toJson(),
-    };
-  }
-
-  VeilidFFIConfigLoggingTerminal.fromJson(dynamic json)
-      : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']);
-}
-
-class VeilidFFIConfigLoggingOtlp {
-  bool enabled;
-  VeilidConfigLogLevel level;
-  String grpcEndpoint;
-  String serviceName;
-
-  VeilidFFIConfigLoggingOtlp({
-    required this.enabled,
-    required this.level,
-    required this.grpcEndpoint,
-    required this.serviceName,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'enabled': enabled,
-      'level': level.toJson(),
-      'grpc_endpoint': grpcEndpoint,
-      'service_name': serviceName,
-    };
-  }
-
-  VeilidFFIConfigLoggingOtlp.fromJson(dynamic json)
-      : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']),
-        grpcEndpoint = json['grpc_endpoint'],
-        serviceName = json['service_name'];
-}
-
-class VeilidFFIConfigLoggingApi {
-  bool enabled;
-  VeilidConfigLogLevel level;
-
-  VeilidFFIConfigLoggingApi({
-    required this.enabled,
-    required this.level,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'enabled': enabled,
-      'level': level.toJson(),
-    };
-  }
-
-  VeilidFFIConfigLoggingApi.fromJson(dynamic json)
-      : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']);
-}
-
-class VeilidFFIConfigLogging {
-  VeilidFFIConfigLoggingTerminal terminal;
-  VeilidFFIConfigLoggingOtlp otlp;
-  VeilidFFIConfigLoggingApi api;
-
-  VeilidFFIConfigLogging(
-      {required this.terminal, required this.otlp, required this.api});
-
-  Map<String, dynamic> toJson() {
-    return {
-      'terminal': terminal.toJson(),
-      'otlp': otlp.toJson(),
-      'api': api.toJson(),
-    };
-  }
-
-  VeilidFFIConfigLogging.fromJson(dynamic json)
-      : terminal = VeilidFFIConfigLoggingTerminal.fromJson(json['terminal']),
-        otlp = VeilidFFIConfigLoggingOtlp.fromJson(json['otlp']),
-        api = VeilidFFIConfigLoggingApi.fromJson(json['api']);
-}
-
-class VeilidFFIConfig {
-  VeilidFFIConfigLogging logging;
-
-  VeilidFFIConfig({
-    required this.logging,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'logging': logging.toJson(),
-    };
-  }
-
-  VeilidFFIConfig.fromJson(Map<String, dynamic> json)
-      : logging = VeilidFFIConfigLogging.fromJson(json['logging']);
-}
-
-//////////////////////////////////////////////////////////
 
 // Load the veilid_flutter library once
 const _base = 'veilid_flutter';
@@ -961,8 +848,9 @@ class VeilidTableDBFFI extends VeilidTableDB {
 // FFI implementation of VeilidCryptoSystem
 class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
   final CryptoKind _kind;
+  VeilidFFI _ffi;
 
-  VeilidCryptoSystemFFI._(this._kind);
+  VeilidCryptoSystemFFI._(this._ffi, this._kind);
 
   @override
   CryptoKind kind() {
@@ -970,42 +858,183 @@ class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
   }
 
   @override
-  Future<SharedSecret> cachedDH(PublicKey key, SecretKey secret) {}
+  Future<SharedSecret> cachedDH(PublicKey key, SecretKey secret) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_cached_dh");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoCachedDH(sendPort.nativePort, _kind, nativeKey, nativeSecret);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
   @override
-  Future<SharedSecret> computeDH(PublicKey key, SecretKey secret) {}
+  Future<SharedSecret> computeDH(PublicKey key, SecretKey secret) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_compute_dh");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoComputeDH(sendPort.nativePort, _kind, nativeKey, nativeSecret);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
   @override
-  Future<Nonce> randomNonce() {}
+  Future<Nonce> randomNonce() {
+    final recvPort = ReceivePort("crypto_random_nonce");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoRandomNonce(sendPort.nativePort, _kind);
+    return processFutureJson(Nonce.fromJson, recvPort.first);
+  }
+
   @override
-  Future<SharedSecret> randomSharedSecret() {}
+  Future<SharedSecret> randomSharedSecret() {
+    final recvPort = ReceivePort("crypto_random_shared_secret");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoRandomSharedSecret(sendPort.nativePort, _kind);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
   @override
-  Future<KeyPair> generateKeyPair() {}
+  Future<KeyPair> generateKeyPair() {
+    final recvPort = ReceivePort("crypto_generate_key_pair");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoGenerateKeyPair(sendPort.nativePort, _kind);
+    return processFutureJson(KeyPair.fromJson, recvPort.first);
+  }
+
   @override
-  Future<HashDigest> generateHash(Uint8List data) {}
+  Future<HashDigest> generateHash(Uint8List data) {
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_generate_hash");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoGenerateHash(sendPort.nativePort, _kind, nativeEncodedData);
+    return processFutureJson(HashDigest.fromJson, recvPort.first);
+  }
+
   @override
-  Future<HashDigest> generateHashReader(Stream<List<int>> reader) {}
+  Future<bool> validateKeyPair(PublicKey key, SecretKey secret) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_validate_key_pair");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoValidateKeyPair(
+        sendPort.nativePort, _kind, nativeKey, nativeSecret);
+    return processFuturePlain(recvPort.first);
+  }
+
   @override
-  Future<bool> validateKeyPair(PublicKey key, SecretKey secret) {}
+  Future<bool> validateHash(Uint8List data, HashDigest hash) {
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeHash = jsonEncode(hash).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_validate_hash");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoValidateHash(
+        sendPort.nativePort, _kind, nativeEncodedData, nativeHash);
+    return processFuturePlain(recvPort.first);
+  }
+
   @override
-  Future<bool> validateHash(Uint8List data, HashDigest hash) {}
+  Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2) {
+    final nativeKey1 = jsonEncode(key1).toNativeUtf8();
+    final nativeKey2 = jsonEncode(key2).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_distance");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoDistance(sendPort.nativePort, _kind, nativeKey1, nativeKey2);
+    return processFutureJson(CryptoKeyDistance.fromJson, recvPort.first);
+  }
+
   @override
-  Future<bool> validateHashReader(Stream<List<int>> reader, HashDigest hash) {}
+  Future<Signature> sign(PublicKey key, SecretKey secret, Uint8List data) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_sign");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoSign(
+        sendPort.nativePort, _kind, nativeKey, nativeSecret, nativeEncodedData);
+    return processFutureJson(Signature.fromJson, recvPort.first);
+  }
+
   @override
-  Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2) {}
+  Future<void> verify(PublicKey key, Uint8List data, Signature signature) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeSignature = jsonEncode(signature).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_sign");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoSign(sendPort.nativePort, _kind, nativeKey, nativeEncodedData,
+        nativeSignature);
+    return processFutureVoid(recvPort.first);
+  }
+
   @override
-  Future<Signature> sign(PublicKey key, SecretKey secret, Uint8List data) {}
-  @override
-  Future<void> verify(PublicKey key, Uint8List data, Signature signature) {}
-  @override
-  Future<int> aeadOverhead() {}
+  Future<int> aeadOverhead() {
+    final recvPort = ReceivePort("crypto_aead_overhead");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoAeadOverhead(
+      sendPort.nativePort,
+      _kind,
+    );
+    return processFuturePlain(recvPort.first);
+  }
+
   @override
   Future<Uint8List> decryptAead(Uint8List body, Nonce nonce,
-      SharedSecret sharedSecret, Uint8List? associatedData) {}
+      SharedSecret sharedSecret, Uint8List? associatedData) async {
+    final nativeEncodedBody = base64UrlNoPadEncode(body).toNativeUtf8();
+    final nativeNonce = jsonEncode(nonce).toNativeUtf8();
+    final nativeSharedSecret = jsonEncode(sharedSecret).toNativeUtf8();
+    final nativeSignature = (associatedData != null)
+        ? jsonEncode(associatedData).toNativeUtf8()
+        : nullptr;
+
+    final recvPort = ReceivePort("crypto_decrypt_aead");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoDecryptAead(sendPort.nativePort, _kind, nativeEncodedBody,
+        nativeNonce, nativeSharedSecret, nativeSignature);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
+  }
+
   @override
   Future<Uint8List> encryptAead(Uint8List body, Nonce nonce,
-      SharedSecret sharedSecret, Uint8List? associatedData) {}
+      SharedSecret sharedSecret, Uint8List? associatedData) async {
+    final nativeEncodedBody = base64UrlNoPadEncode(body).toNativeUtf8();
+    final nativeNonce = jsonEncode(nonce).toNativeUtf8();
+    final nativeSharedSecret = jsonEncode(sharedSecret).toNativeUtf8();
+    final nativeSignature = (associatedData != null)
+        ? jsonEncode(associatedData).toNativeUtf8()
+        : nullptr;
+
+    final recvPort = ReceivePort("crypto_encrypt_aead");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoEncryptAead(sendPort.nativePort, _kind, nativeEncodedBody,
+        nativeNonce, nativeSharedSecret, nativeSignature);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
+  }
+
   @override
   Future<Uint8List> cryptNoAuth(
-      Uint8List body, Nonce nonce, SharedSecret sharedSecret) {}
+      Uint8List body, Nonce nonce, SharedSecret sharedSecret) async {
+    final nativeEncodedBody = base64UrlNoPadEncode(body).toNativeUtf8();
+    final nativeNonce = jsonEncode(nonce).toNativeUtf8();
+    final nativeSharedSecret = jsonEncode(sharedSecret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_crypt_no_auth");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoCryptNoAuth(sendPort.nativePort, _kind, nativeEncodedBody,
+        nativeNonce, nativeSharedSecret);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
+  }
 }
 
 // FFI implementation of high level Veilid API
@@ -1363,16 +1392,15 @@ class VeilidFFI implements Veilid {
 
   @override
   Future<RouteBlob> newCustomPrivateRoute(
-      Stability stability, Sequencing sequencing) async {
+      Stability stability, Sequencing sequencing) {
     final recvPort = ReceivePort("new_custom_private_route");
     final sendPort = recvPort.sendPort;
     _newCustomPrivateRoute(
         sendPort.nativePort,
         jsonEncode(stability).toNativeUtf8(),
         jsonEncode(sequencing).toNativeUtf8());
-    final routeBlob =
-        await processFutureJson(RouteBlob.fromJson, recvPort.first);
-    return routeBlob;
+
+    return processFutureJson(RouteBlob.fromJson, recvPort.first);
   }
 
   @override
@@ -1436,12 +1464,12 @@ class VeilidFFI implements Veilid {
     if (!validCryptoKinds().contains(kind)) {
       throw VeilidAPIExceptionGeneric("unsupported cryptosystem");
     }
-    return VeilidCryptoSystemFFI._(kind);
+    return VeilidCryptoSystemFFI._(this, kind);
   }
 
   @override
   Future<VeilidCryptoSystem> bestCryptoSystem() async {
-    return VeilidCryptoSystemFFI._(_bestCryptoKind());
+    return VeilidCryptoSystemFFI._(this, _bestCryptoKind());
   }
 
   @override
@@ -1451,19 +1479,41 @@ class VeilidFFI implements Veilid {
     final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
     final nativeSignatures = jsonEncode(signatures).toNativeUtf8();
 
-    final recvPort = ReceivePort("app_call_reply");
+    final recvPort = ReceivePort("verify_signatures");
     final sendPort = recvPort.sendPort;
     _verifySignatures(
         sendPort.nativePort, nativeNodeIds, nativeData, nativeSignatures);
     return processFutureJson(
         jsonListConstructor<TypedKey>(TypedKey.fromJson), recvPort.first);
   }
-xxx
+
   @override
   Future<List<TypedSignature>> generateSignatures(
-      Uint8List data, List<TypedKeyPair> keyPairs) {}
+      Uint8List data, List<TypedKeyPair> keyPairs) {
+    final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeKeyPairs = jsonEncode(keyPairs).toNativeUtf8();
+
+    final recvPort = ReceivePort("generate_signatures");
+    final sendPort = recvPort.sendPort;
+    _generateSignatures(sendPort.nativePort, nativeData, nativeKeyPairs);
+    return processFutureJson(
+        jsonListConstructor<TypedSignature>(TypedSignature.fromJson),
+        recvPort.first);
+  }
+
   @override
-  Future<TypedKeyPair> generateKeyPair(CryptoKind kind) {}
+  Timestamp now() {
+    final ts = _now();
+    return Timestamp(value: BigInt.from(ts));
+  }
+
+  @override
+  Future<TypedKeyPair> generateKeyPair(CryptoKind kind) {
+    final recvPort = ReceivePort("generate_key_pair");
+    final sendPort = recvPort.sendPort;
+    _generateKeyPair(sendPort.nativePort, kind);
+    return processFutureJson(TypedKeyPair.fromJson, recvPort.first);
+  }
 
   @override
   Future<String> debug(String command) async {

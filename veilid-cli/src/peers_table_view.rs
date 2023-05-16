@@ -53,7 +53,7 @@ impl TableViewItem<PeerTableColumn> for PeerTableData {
             PeerTableColumn::NodeId => self
                 .node_ids
                 .first()
-                .cloned()
+                .map(|n| n.to_string())
                 .unwrap_or_else(|| "???".to_owned()),
             PeerTableColumn::Address => self.peer_address.clone(),
             PeerTableColumn::LatencyAvg => format!(

@@ -69,7 +69,7 @@ keyvaluedb = { path = "../external/keyvaluedb/keyvaluedb" }
 rkyv = { version = "^0", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
 data-encoding = { version = "^2" }
 weak-table = "0.3.2"
-range-set-blaze = "0.1.4"
+range-set-blaze = { git = "https://github.com/crioux/range-set-blaze.git" } # "0.1.4" xxx replace with git repo
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
