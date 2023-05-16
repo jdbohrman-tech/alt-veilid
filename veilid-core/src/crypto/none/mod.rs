@@ -1,7 +1,8 @@
 use super::*;
+use argon2::password_hash::Salt;
+use data_encoding::BASE64URL_NOPAD;
 use digest::Digest;
 use rand::RngCore;
-
 const AEAD_OVERHEAD: usize = PUBLIC_KEY_LENGTH;
 pub const CRYPTO_KIND_NONE: CryptoKind = FourCC([b'N', b'O', b'N', b'E']);
 
@@ -80,6 +81,52 @@ impl CryptoSystem for CryptoSystemNONE {
     }
 
     // Generation
+    fn random_bytes(&self, len: u32) -> Vec<u8> {
+        let mut bytes = Vec::<u8>::with_capacity(len as usize);
+        bytes.resize(len as usize, 0u8);
+        random_bytes(bytes.as_mut()).unwrap();
+        bytes
+    }
+    fn default_salt_length(&self) -> u32 {
+        4
+    }
+    fn hash_password(&self, password: &[u8], salt: &[u8]) -> Result<String, VeilidAPIError> {
+        if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
+            apibail_generic!("invalid salt length");
+        }
+        Ok(format!(
+            "{}:{}",
+            BASE64URL_NOPAD.encode(salt),
+            BASE64URL_NOPAD.encode(password)
+        ))
+    }
+    fn verify_password(
+        &self,
+        password: &[u8],
+        password_hash: String,
+    ) -> Result<bool, VeilidAPIError> {
+        let Some((salt, _)) = password_hash.split_once(":") else {
+            apibail_generic!("invalid format");
+        };
+        let Ok(salt) = BASE64URL_NOPAD.decode(salt.as_bytes()) else {
+            apibail_generic!("invalid salt");
+        };
+        return Ok(self.hash_password(password, &salt)? == password_hash);
+    }
+
+    fn derive_shared_secret(
+        &self,
+        password: &[u8],
+        salt: &[u8],
+    ) -> Result<SharedSecret, VeilidAPIError> {
+        if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
+            apibail_generic!("invalid salt length");
+        }
+        Ok(SharedSecret::new(
+            *blake3::hash(self.hash_password(password, salt)?.as_bytes()).as_bytes(),
+        ))
+    }
+
     fn random_nonce(&self) -> Nonce {
         let mut nonce = [0u8; NONCE_LENGTH];
         random_bytes(&mut nonce).unwrap();

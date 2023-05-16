@@ -10,9 +10,9 @@ license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
-default = [ "enable-crypto-vld0" ]
-crypto-test = [ "enable-crypto-vld0", "enable-crypto-none" ]
-crypto-test-none = [ "enable-crypto-none" ]
+default = ["enable-crypto-vld0"]
+crypto-test = ["enable-crypto-vld0", "enable-crypto-none"]
+crypto-test-none = ["enable-crypto-none"]
 enable-crypto-vld0 = []
 enable-crypto-none = []
 rt-async-std = ["async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std"]
@@ -70,6 +70,7 @@ rkyv = { version = "^0", default_features = false, features = ["std", "alloc", "
 data-encoding = { version = "^2" }
 weak-table = "0.3.2"
 range-set-blaze = { git = "https://github.com/crioux/range-set-blaze.git" } # "0.1.4" xxx replace with git repo
+argon2 = "0.5.0"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

@@ -1,5 +1,9 @@
 use super::*;
 
+use argon2::{
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, Salt, SaltString},
+    Argon2,
+};
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::XChaCha20;
 use chacha20poly1305 as ch;
@@ -71,6 +75,63 @@ impl CryptoSystem for CryptoSystemVLD0 {
     }
 
     // Generation
+    fn random_bytes(&self, len: u32) -> Vec<u8> {
+        let mut bytes = Vec::<u8>::with_capacity(len as usize);
+        bytes.resize(len as usize, 0u8);
+        random_bytes(bytes.as_mut()).unwrap();
+        bytes
+    }
+    fn default_salt_length(&self) -> u32 {
+        16
+    }
+    fn hash_password(&self, password: &[u8], salt: &[u8]) -> Result<String, VeilidAPIError> {
+        if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
+            apibail_generic!("invalid salt length");
+        }
+
+        // Hash password to PHC string ($argon2id$v=19$...)
+        let salt = SaltString::encode_b64(salt).map_err(VeilidAPIError::generic)?;
+
+        // Argon2 with default params (Argon2id v19)
+        let argon2 = Argon2::default();
+
+        let password_hash = argon2
+            .hash_password(password, &salt)
+            .map_err(VeilidAPIError::generic)?
+            .to_string();
+        Ok(password_hash)
+    }
+    fn verify_password(
+        &self,
+        password: &[u8],
+        password_hash: String,
+    ) -> Result<bool, VeilidAPIError> {
+        let parsed_hash = PasswordHash::new(&password_hash).map_err(VeilidAPIError::generic)?;
+        // Argon2 with default params (Argon2id v19)
+        let argon2 = Argon2::default();
+
+        Ok(argon2.verify_password(password, &parsed_hash).is_ok())
+    }
+
+    fn derive_shared_secret(
+        &self,
+        password: &[u8],
+        salt: &[u8],
+    ) -> Result<SharedSecret, VeilidAPIError> {
+        if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
+            apibail_generic!("invalid salt length");
+        }
+
+        // Argon2 with default params (Argon2id v19)
+        let argon2 = Argon2::default();
+
+        let mut output_key_material = [0u8; SHARED_SECRET_LENGTH];
+        argon2
+            .hash_password_into(password, salt, &mut output_key_material)
+            .map_err(VeilidAPIError::generic)?;
+        Ok(SharedSecret::new(output_key_material))
+    }
+
     fn random_nonce(&self) -> Nonce {
         let mut nonce = [0u8; NONCE_LENGTH];
         random_bytes(&mut nonce).unwrap();
