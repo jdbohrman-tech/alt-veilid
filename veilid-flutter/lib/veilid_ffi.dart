@@ -380,6 +380,42 @@ Future<T> processFutureJson<T>(
   });
 }
 
+Future<T?> processFutureOptJson<T>(
+    T Function(dynamic) jsonConstructor, Future<dynamic> future) {
+  return future.then((value) {
+    final list = value as List<dynamic>;
+    switch (list[0] as int) {
+      case messageErr:
+        {
+          throw VeilidAPIExceptionInternal("Internal API Error: ${list[1]}");
+        }
+      case messageOkJson:
+        {
+          if (list[1] == null) {
+            return null;
+          }
+          var ret = jsonDecode(list[1] as String);
+          return jsonConstructor(ret);
+        }
+      case messageErrJson:
+        {
+          throw VeilidAPIException.fromJson(jsonDecode(list[1]));
+        }
+      default:
+        {
+          throw VeilidAPIExceptionInternal(
+              "Unexpected async return message type: ${list[0]}");
+        }
+    }
+  }).catchError((e) {
+    // Wrap all other errors in VeilidAPIExceptionInternal
+    throw VeilidAPIExceptionInternal(e.toString());
+  }, test: (e) {
+    // Pass errors that are already VeilidAPIException through without wrapping
+    return e is! VeilidAPIException;
+  });
+}
+
 Future<void> processFutureVoid(Future<dynamic> future) {
   return future.then((value) {
     final list = value as List<dynamic>;
@@ -967,9 +1003,9 @@ class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
     final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
     final nativeSignature = jsonEncode(signature).toNativeUtf8();
 
-    final recvPort = ReceivePort("crypto_sign");
+    final recvPort = ReceivePort("crypto_verify");
     final sendPort = recvPort.sendPort;
-    _ffi._cryptoSign(sendPort.nativePort, _kind, nativeKey, nativeEncodedData,
+    _ffi._cryptoVerify(sendPort.nativePort, _kind, nativeKey, nativeEncodedData,
         nativeSignature);
     return processFutureVoid(recvPort.first);
   }

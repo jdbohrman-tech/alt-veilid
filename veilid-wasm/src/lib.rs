@@ -59,6 +59,12 @@ fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIErr
 pub fn to_json<T: Serialize + Debug>(val: T) -> JsValue {
     JsValue::from_str(&serialize_json(val))
 }
+pub fn to_opt_json<T: Serialize + Debug>(val: Option<T>) -> JsValue {
+    match val {
+        Some(v) => JsValue::from_str(&serialize_json(v)),
+        None => JsValue::UNDEFINED,
+    }
+}
 
 pub fn to_jsvalue<T>(val: T) -> JsValue
 where
@@ -111,6 +117,14 @@ where
     T: Serialize + Debug + 'static,
 {
     future_to_promise(future.map(|res| res.map(|v| to_json(v)).map_err(|e| to_json(e))))
+}
+
+pub fn wrap_api_future_opt_json<F, T>(future: F) -> Promise
+where
+    F: Future<Output = APIResult<Option<T>>> + 'static,
+    T: Serialize + Debug + 'static,
+{
+    future_to_promise(future.map(|res| res.map(|v| to_opt_json(v)).map_err(|e| to_json(e))))
 }
 
 pub fn wrap_api_future_plain<F, T>(future: F) -> Promise
@@ -489,7 +503,7 @@ pub fn routing_context_get_dht_value(
     force_refresh: bool,
 ) -> Promise {
     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
-    wrap_api_future_json(async move {
+    wrap_api_future_opt_json(async move {
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&id) else {
@@ -511,7 +525,7 @@ pub fn routing_context_set_dht_value(id: u32, key: String, subkey: u32, data: St
         .decode(&data.as_bytes())
         .unwrap();
 
-    wrap_api_future_json(async move {
+    wrap_api_future_opt_json(async move {
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&id) else {
@@ -1181,14 +1195,14 @@ pub fn crypto_verify(kind: u32, key: String, data: String, signature: String) ->
         .unwrap();
     let signature: veilid_core::Signature = veilid_core::deserialize_json(&signature).unwrap();
 
-    wrap_api_future_json(async move {
+    wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| {
             veilid_core::VeilidAPIError::invalid_argument("crypto_verify", "kind", kind.to_string())
         })?;
-        let out = csv.verify(&key, &data, &signature)?;
-        APIResult::Ok(out)
+        csv.verify(&key, &data, &signature)?;
+        APIRESULT_UNDEFINED
     })
 }
 

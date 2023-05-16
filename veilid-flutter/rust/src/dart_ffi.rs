@@ -566,7 +566,7 @@ pub extern "C" fn routing_context_delete_dht_record(port: i64, id: u32, key: Ffi
 #[no_mangle]
 pub extern "C" fn routing_context_get_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, force_refresh: bool) {
     let key: veilid_core::TypedKey = veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
-    DartIsolateWrapper::new(port).spawn_result_json(async move {        
+    DartIsolateWrapper::new(port).spawn_result_opt_json(async move {        
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
@@ -591,7 +591,7 @@ pub extern "C" fn routing_context_set_dht_value(port: i64, id: u32, key: FfiStr,
     )
     .unwrap();
 
-    DartIsolateWrapper::new(port).spawn_result_json(async move {        
+    DartIsolateWrapper::new(port).spawn_result_opt_json(async move {        
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
@@ -1252,12 +1252,12 @@ pub extern "C" fn crypto_verify(port: i64, kind: u32, key: FfiStr, data: FfiStr,
     let signature: veilid_core::Signature =
         veilid_core::deserialize_opt_json(signature.into_opt_string()).unwrap();
     
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_verify", "kind", kind.to_string()))?;
-        let out = csv.verify(&key, &data, &signature)?;
-        APIResult::Ok(out)
+        csv.verify(&key, &data, &signature)?;
+        APIRESULT_VOID
     });
 }
 
