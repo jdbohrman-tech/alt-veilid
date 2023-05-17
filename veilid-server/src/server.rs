@@ -59,8 +59,10 @@ pub async fn run_veilid_server_internal(
 
     // Create VeilidCore setup
     let update_callback = Arc::new(move |change: veilid_core::VeilidUpdate| {
-        if sender.send(change).is_err() {
-            error!("error sending veilid update callback");
+        if let Err(e) = sender.send(change) {
+            // Don't log here, as that loops the update callback in some cases and will deadlock
+            let change = e.into_inner();
+            eprintln!("error sending veilid update callback: {:?}", change);
         }
     });
     let config_callback = settings.get_core_config_callback();
@@ -88,12 +90,8 @@ pub async fn run_veilid_server_internal(
 
     // Process all updates
     let capi2 = capi.clone();
-    let mut shutdown_switch = {
-        let shutdown_switch_locked = SHUTDOWN_SWITCH.lock();
-        (*shutdown_switch_locked).as_ref().map(|ss| ss.instance())
-    }
-    .unwrap()
-    .fuse();
+    let update_receiver_shutdown = SingleShotEventual::new(Some(()));
+    let mut update_receiver_shutdown_instance = update_receiver_shutdown.instance().fuse();
     let update_receiver_jh = spawn_local(async move {
         loop {
             select! {
@@ -107,7 +105,7 @@ pub async fn run_veilid_server_internal(
                         break;
                     }
                 }
-                _ = shutdown_switch => {
+                _ = update_receiver_shutdown_instance => {
                     break;
                 }
             };
@@ -176,6 +174,9 @@ pub async fn run_veilid_server_internal(
 
     // Shut down Veilid API to release state change sender
     veilid_api.shutdown().await;
+
+    // Shut down update receiver now that there are no more updates
+    update_receiver_shutdown.resolve(()).await;
 
     // Wait for update receiver to exit
     let _ = update_receiver_jh.await;
