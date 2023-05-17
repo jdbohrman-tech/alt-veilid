@@ -103,7 +103,7 @@ impl CryptoSystem for CryptoSystemNONE {
     fn verify_password(
         &self,
         password: &[u8],
-        password_hash: String,
+        password_hash: &str,
     ) -> Result<bool, VeilidAPIError> {
         let Some((salt, _)) = password_hash.split_once(":") else {
             apibail_generic!("invalid format");
@@ -111,7 +111,7 @@ impl CryptoSystem for CryptoSystemNONE {
         let Ok(salt) = BASE64URL_NOPAD.decode(salt.as_bytes()) else {
             apibail_generic!("invalid salt");
         };
-        return Ok(self.hash_password(password, &salt)? == password_hash);
+        return Ok(&self.hash_password(password, &salt)? == password_hash);
     }
 
     fn derive_shared_secret(

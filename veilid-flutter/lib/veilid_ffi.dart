@@ -213,6 +213,28 @@ typedef _CryptoComputeDHC = Void Function(
     Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
 typedef _CryptoComputeDHDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_random_bytes(port: i64, kind: u32, len: u32)
+typedef _CryptoRandomBytesC = Void Function(Int64, Uint32, Uint32);
+typedef _CryptoRandomBytesDart = void Function(int, int, int);
+// fn crypto_default_salt_length(port: i64, kind: u32)
+typedef _CryptoDefaultSaltLengthC = Void Function(Int64, Uint32);
+typedef _CryptoDefaultSaltLengthDart = void Function(int, int);
+// fn crypto_hash_password(port: i64, kind: u32, password: FfiStr, salt: FfiStr )
+typedef _CryptoHashPasswordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoHashPasswordDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_verify_password(port: i64, kind: u32, password: FfiStr, password_hash: FfiStr )
+typedef _CryptoVerifyPasswordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoVerifyPasswordDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_derive_shared_secret(port: i64, kind: u32, password: FfiStr, salt: FfiStr )
+typedef _CryptoDeriveSharedSecretC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoDeriveSharedSecretDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+
 // fn crypto_random_nonce(port: i64, kind: u32)
 typedef _CryptoRandomNonceC = Void Function(Int64, Uint32);
 typedef _CryptoRandomNonceDart = void Function(int, int);
@@ -884,7 +906,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
 // FFI implementation of VeilidCryptoSystem
 class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
   final CryptoKind _kind;
-  VeilidFFI _ffi;
+  final VeilidFFI _ffi;
 
   VeilidCryptoSystemFFI._(this._ffi, this._kind);
 
@@ -912,6 +934,59 @@ class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
     final recvPort = ReceivePort("crypto_compute_dh");
     final sendPort = recvPort.sendPort;
     _ffi._cryptoComputeDH(sendPort.nativePort, _kind, nativeKey, nativeSecret);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<Uint8List> randomBytes(int len) async {
+    final recvPort = ReceivePort("crypto_random_bytes");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoRandomBytes(sendPort.nativePort, _kind, len);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
+  }
+
+  @override
+  Future<int> defaultSaltLength() {
+    final recvPort = ReceivePort("crypto_default_salt_length");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoDefaultSaltLength(sendPort.nativePort, _kind);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<String> hashPassword(Uint8List password, Uint8List salt) {
+    final nativeEncodedPassword = base64UrlNoPadEncode(password).toNativeUtf8();
+    final nativeEncodedSalt = base64UrlNoPadEncode(salt).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_hash_password");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoHashPassword(
+        sendPort.nativePort, _kind, nativeEncodedPassword, nativeEncodedSalt);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<bool> verifyPassword(Uint8List password, String passwordHash) {
+    final nativeEncodedPassword = base64UrlNoPadEncode(password).toNativeUtf8();
+    final nativeEncodedPasswordHash = passwordHash.toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_verify_password");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoVerifyPassword(sendPort.nativePort, _kind,
+        nativeEncodedPassword, nativeEncodedPasswordHash);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<SharedSecret> deriveSharedSecret(Uint8List password, Uint8List salt) {
+    final nativeEncodedPassword = base64UrlNoPadEncode(password).toNativeUtf8();
+    final nativeEncodedSalt = base64UrlNoPadEncode(salt).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_derive_shared_secret");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoHashPassword(
+        sendPort.nativePort, _kind, nativeEncodedPassword, nativeEncodedSalt);
     return processFutureJson(SharedSecret.fromJson, recvPort.first);
   }
 
@@ -1134,6 +1209,13 @@ class VeilidFFI implements Veilid {
 
   final _CryptoCachedDHDart _cryptoCachedDH;
   final _CryptoComputeDHDart _cryptoComputeDH;
+
+  final _CryptoRandomBytesDart _cryptoRandomBytes;
+  final _CryptoDefaultSaltLengthDart _cryptoDefaultSaltLength;
+  final _CryptoHashPasswordDart _cryptoHashPassword;
+  final _CryptoVerifyPasswordDart _cryptoVerifyPassword;
+  final _CryptoDeriveSharedSecretDart _cryptoDeriveSharedSecret;
+
   final _CryptoRandomNonceDart _cryptoRandomNonce;
   final _CryptoRandomSharedSecretDart _cryptoRandomSharedSecret;
   final _CryptoGenerateKeyPairDart _cryptoGenerateKeyPair;
@@ -1295,6 +1377,20 @@ class VeilidFFI implements Veilid {
         _cryptoComputeDH =
             dylib.lookupFunction<_CryptoComputeDHC, _CryptoComputeDHDart>(
                 'crypto_compute_dh'),
+        _cryptoRandomBytes =
+            dylib.lookupFunction<_CryptoRandomBytesC, _CryptoRandomBytesDart>(
+                'crypto_random_bytes'),
+        _cryptoDefaultSaltLength = dylib.lookupFunction<
+            _CryptoDefaultSaltLengthC,
+            _CryptoDefaultSaltLengthDart>('crypto_default_salt_length'),
+        _cryptoHashPassword =
+            dylib.lookupFunction<_CryptoHashPasswordC, _CryptoHashPasswordDart>(
+                'crypto_hash_password'),
+        _cryptoVerifyPassword = dylib.lookupFunction<_CryptoVerifyPasswordC,
+            _CryptoVerifyPasswordDart>('crypto_verify_password'),
+        _cryptoDeriveSharedSecret = dylib.lookupFunction<
+            _CryptoDeriveSharedSecretC,
+            _CryptoVerifyPasswordDart>('crypto_derive_shared_secret'),
         _cryptoRandomNonce =
             dylib.lookupFunction<_CryptoRandomNonceC, _CryptoRandomNonceDart>(
                 'crypto_random_nonce'),

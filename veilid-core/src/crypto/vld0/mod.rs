@@ -104,9 +104,9 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn verify_password(
         &self,
         password: &[u8],
-        password_hash: String,
+        password_hash: &str,
     ) -> Result<bool, VeilidAPIError> {
-        let parsed_hash = PasswordHash::new(&password_hash).map_err(VeilidAPIError::generic)?;
+        let parsed_hash = PasswordHash::new(password_hash).map_err(VeilidAPIError::generic)?;
         // Argon2 with default params (Argon2id v19)
         let argon2 = Argon2::default();
 

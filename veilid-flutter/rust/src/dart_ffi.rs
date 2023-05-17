@@ -1091,6 +1091,109 @@ pub extern "C" fn crypto_compute_dh(port: i64, kind: u32, key: FfiStr, secret: F
     });
 }
 
+
+#[no_mangle]
+pub extern "C" fn crypto_random_bytes(port: i64, kind: u32, len: u32) {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_random_bytes", "kind", kind.to_string()))?;
+        let out = csv.random_bytes(len);
+        let out = data_encoding::BASE64URL_NOPAD.encode(&out);
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn crypto_default_salt_length(port: i64, kind: u32) {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_default_salt_length", "kind", kind.to_string()))?;
+        let out = csv.default_salt_length();
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn crypto_hash_password(port: i64, kind: u32, password: FfiStr, salt: FfiStr ) {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            password.into_opt_string()
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    let salt: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            salt.into_opt_string()
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_hash_password", "kind", kind.to_string()))?;
+        let out = csv.hash_password(&password, &salt)?;
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn crypto_verify_password(port: i64, kind: u32, password: FfiStr, password_hash: FfiStr ) {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            password.into_opt_string()
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+    let password_hash = password_hash.into_opt_string().unwrap();
+
+    DartIsolateWrapper::new(port).spawn_result(async move {
+        let veilid_api = get_veilid_api().await?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_verify_password", "kind", kind.to_string()))?;
+        let out = csv.verify_password(&password, &password_hash)?;
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn crypto_derive_shared_secret(port: i64, kind: u32, password: FfiStr, salt: FfiStr ) {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            password.into_opt_string()
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        let salt: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(
+            salt.into_opt_string()
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_derive_shared_secret", "kind", kind.to_string()))?;
+        let out = csv.derive_shared_secret(&password, &salt)?;
+        APIResult::Ok(out)
+    });
+}
+
 #[no_mangle]
 pub extern "C" fn crypto_random_nonce(port: i64, kind: u32) {
     let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);

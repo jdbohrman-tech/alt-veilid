@@ -1015,6 +1015,117 @@ pub fn crypto_compute_dh(kind: u32, key: String, secret: String) -> Promise {
 }
 
 #[wasm_bindgen()]
+pub fn crypto_random_bytes(kind: u32, len: u32) -> Promise {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+
+    wrap_api_future_plain(async move {
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_random_bytes",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.random_bytes(len);
+        let out = data_encoding::BASE64URL_NOPAD.encode(&out);
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn crypto_default_salt_length(kind: u32) -> Promise {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+
+    wrap_api_future_plain(async move {
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_default_salt_length",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.default_salt_length();
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn crypto_hash_password(kind: u32, password: String, salt: String) -> Promise {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(password.as_bytes())
+        .unwrap();
+    let salt: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(salt.as_bytes())
+        .unwrap();
+
+    wrap_api_future_plain(async move {
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_hash_password",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.hash_password(&password, &salt)?;
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn crypto_verify_password(kind: u32, password: String, password_hash: String) -> Promise {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(password.as_bytes())
+        .unwrap();
+
+    wrap_api_future_plain(async move {
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_verify_password",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.verify_password(&password, &password_hash)?;
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn crypto_derive_shared_secret(kind: u32, password: String, salt: String) -> Promise {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(password.as_bytes())
+        .unwrap();
+    let salt: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(salt.as_bytes())
+        .unwrap();
+
+    wrap_api_future_json(async move {
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_derive_shared_secret",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.derive_shared_secret(&password, &salt)?;
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
 pub fn crypto_random_nonce(kind: u32) -> Promise {
     let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 

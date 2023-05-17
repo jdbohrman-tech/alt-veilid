@@ -16,11 +16,8 @@ pub trait CryptoSystem {
     fn random_bytes(&self, len: u32) -> Vec<u8>;
     fn default_salt_length(&self) -> u32;
     fn hash_password(&self, password: &[u8], salt: &[u8]) -> Result<String, VeilidAPIError>;
-    fn verify_password(
-        &self,
-        password: &[u8],
-        password_hash: String,
-    ) -> Result<bool, VeilidAPIError>;
+    fn verify_password(&self, password: &[u8], password_hash: &str)
+        -> Result<bool, VeilidAPIError>;
     fn derive_shared_secret(
         &self,
         password: &[u8],

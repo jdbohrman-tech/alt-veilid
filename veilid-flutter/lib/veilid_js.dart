@@ -157,7 +157,10 @@ class VeilidCryptoSystemJS implements VeilidCryptoSystem {
   final CryptoKind _kind;
   final VeilidJS _js;
 
-  VeilidCryptoSystemJS._(this._js, this._kind);
+  VeilidCryptoSystemJS._(this._js, this._kind) {
+    // Keep the reference
+    _js;
+  }
 
   @override
   CryptoKind kind() {
@@ -176,6 +179,41 @@ class VeilidCryptoSystemJS implements VeilidCryptoSystem {
     return SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, "crypto_compute_dh",
             [_kind, jsonEncode(key), jsonEncode(secret)]))));
+  }
+
+  @override
+  Future<Uint8List> randomBytes(int len) async {
+    return base64UrlNoPadDecode(await _wrapApiPromise(
+        js_util.callMethod(wasm, "crypto_random_bytes", [_kind, len])));
+  }
+
+  @override
+  Future<int> defaultSaltLength() {
+    return _wrapApiPromise(
+        js_util.callMethod(wasm, "crypto_default_salt_length", [_kind]));
+  }
+
+  @override
+  Future<String> hashPassword(Uint8List password, Uint8List salt) {
+    return _wrapApiPromise(js_util.callMethod(wasm, "crypto_hash_password",
+        [_kind, base64UrlNoPadEncode(password), base64UrlNoPadEncode(salt)]));
+  }
+
+  @override
+  Future<bool> verifyPassword(Uint8List password, String passwordHash) {
+    return _wrapApiPromise(js_util.callMethod(wasm, "crypto_verify_password",
+        [_kind, base64UrlNoPadEncode(password), passwordHash]));
+  }
+
+  @override
+  Future<SharedSecret> deriveSharedSecret(
+      Uint8List password, Uint8List salt) async {
+    return SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util
+        .callMethod(wasm, "crypto_derive_shared_secret", [
+      _kind,
+      base64UrlNoPadEncode(password),
+      base64UrlNoPadEncode(salt)
+    ]))));
   }
 
   @override

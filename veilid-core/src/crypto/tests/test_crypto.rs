@@ -195,11 +195,11 @@ pub async fn test_generation(vcrypto: CryptoSystemVersion) {
         )
         .expect_err("should reject long salt");
 
-    assert!(vcrypto.verify_password(b"abc123", pstr1.clone()).unwrap());
-    assert!(vcrypto.verify_password(b"abc123", pstr2.clone()).unwrap());
-    assert!(vcrypto.verify_password(b"abc123", pstr3.clone()).unwrap());
-    assert!(!vcrypto.verify_password(b"abc123", pstr4.clone()).unwrap());
-    assert!(!vcrypto.verify_password(b"abc123", pstr5.clone()).unwrap());
+    assert!(vcrypto.verify_password(b"abc123", &pstr1).unwrap());
+    assert!(vcrypto.verify_password(b"abc123", &pstr2).unwrap());
+    assert!(vcrypto.verify_password(b"abc123", &pstr3).unwrap());
+    assert!(!vcrypto.verify_password(b"abc123", &pstr4).unwrap());
+    assert!(!vcrypto.verify_password(b"abc123", &pstr5).unwrap());
 
     let ss1 = vcrypto.derive_shared_secret(b"abc123", b"qwerasdf");
     let ss2 = vcrypto.derive_shared_secret(b"abc123", b"qwerasdf");
