@@ -30,9 +30,8 @@ class _Ctx {
 // JS implementation of VeilidRoutingContext
 class VeilidRoutingContextJS implements VeilidRoutingContext {
   final _Ctx _ctx;
-  static final Finalizer<_Ctx> _finalizer = Finalizer((ctx) => {
-        js_util.callMethod(wasm, "release_routing_context", [ctx.id])
-      });
+  static final Finalizer<_Ctx> _finalizer = Finalizer(
+      (ctx) => js_util.callMethod(wasm, "release_routing_context", [ctx.id]));
 
   VeilidRoutingContextJS._(this._ctx) {
     _finalizer.attach(this, _ctx, detach: this);
@@ -338,9 +337,8 @@ class _TDBT {
 // JS implementation of VeilidTableDBTransaction
 class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
   final _TDBT _tdbt;
-  static final Finalizer<_TDBT> _finalizer = Finalizer((tdbt) => {
-        js_util.callMethod(wasm, "release_table_db_transaction", [tdbt.id])
-      });
+  static final Finalizer<_TDBT> _finalizer = Finalizer((tdbt) =>
+      js_util.callMethod(wasm, "release_table_db_transaction", [tdbt.id]));
 
   VeilidTableDBTransactionJS._(this._tdbt) {
     _finalizer.attach(this, _tdbt, detach: this);
@@ -388,9 +386,8 @@ class _TDB {
 // JS implementation of VeilidTableDB
 class VeilidTableDBJS extends VeilidTableDB {
   final _TDB _tdb;
-  static final Finalizer<_TDB> _finalizer = Finalizer((tdb) => {
-        js_util.callMethod(wasm, "release_table_db", [tdb.id])
-      });
+  static final Finalizer<_TDB> _finalizer = Finalizer(
+      (tdb) => js_util.callMethod(wasm, "release_table_db", [tdb.id]));
 
   VeilidTableDBJS._(this._tdb) {
     _finalizer.attach(this, _tdb, detach: this);

@@ -305,7 +305,7 @@ typedef _VeilidVersionStringC = Pointer<Utf8> Function();
 typedef _VeilidVersionStringDart = Pointer<Utf8> Function();
 
 // fn veilid_version() -> VeilidVersion
-class VeilidVersionFFI extends Struct {
+final class VeilidVersionFFI extends Struct {
   @Uint32()
   external int major;
   @Uint32()
@@ -582,7 +582,7 @@ class _Ctx {
 class VeilidRoutingContextFFI implements VeilidRoutingContext {
   final _Ctx _ctx;
   static final Finalizer<_Ctx> _finalizer =
-      Finalizer((ctx) => {ctx.ffi._releaseRoutingContext(ctx.id)});
+      Finalizer((ctx) => ctx.ffi._releaseRoutingContext(ctx.id));
 
   VeilidRoutingContextFFI._(this._ctx) {
     _finalizer.attach(this, _ctx, detach: this);
@@ -751,7 +751,7 @@ class _TDBT {
 class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
   final _TDBT _tdbt;
   static final Finalizer<_TDBT> _finalizer =
-      Finalizer((tdbt) => {tdbt.ffi._releaseTableDbTransaction(tdbt.id)});
+      Finalizer((tdbt) => tdbt.ffi._releaseTableDbTransaction(tdbt.id));
 
   VeilidTableDBTransactionFFI._(this._tdbt) {
     _finalizer.attach(this, _tdbt, detach: this);
@@ -822,7 +822,7 @@ class _TDB {
 class VeilidTableDBFFI extends VeilidTableDB {
   final _TDB _tdb;
   static final Finalizer<_TDB> _finalizer =
-      Finalizer((tdb) => {tdb.ffi._releaseTableDb(tdb.id)});
+      Finalizer((tdb) => tdb.ffi._releaseTableDb(tdb.id));
 
   VeilidTableDBFFI._(this._tdb) {
     _finalizer.attach(this, _tdb, detach: this);
@@ -985,7 +985,7 @@ class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
 
     final recvPort = ReceivePort("crypto_derive_shared_secret");
     final sendPort = recvPort.sendPort;
-    _ffi._cryptoHashPassword(
+    _ffi._cryptoDeriveSharedSecret(
         sendPort.nativePort, _kind, nativeEncodedPassword, nativeEncodedSalt);
     return processFutureJson(SharedSecret.fromJson, recvPort.first);
   }

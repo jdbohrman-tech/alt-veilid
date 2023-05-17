@@ -16,17 +16,15 @@ enum AttachmentState {
   attachedStrong,
   fullyAttached,
   overAttached,
-  detaching,
-}
+  detaching;
 
-extension AttachmentStateExt on AttachmentState {
   String toJson() {
     return name.toPascalCase();
   }
-}
 
-AttachmentState attachmentStateFromJson(String j) {
-  return AttachmentState.values.byName(j.toCamelCase());
+  factory AttachmentState.fromJson(String j) {
+    return AttachmentState.values.byName(j.toCamelCase());
+  }
 }
 
 //////////////////////////////////////
@@ -37,17 +35,15 @@ enum VeilidLogLevel {
   warn,
   info,
   debug,
-  trace,
-}
+  trace;
 
-extension VeilidLogLevelExt on VeilidLogLevel {
   String toJson() {
     return name.toPascalCase();
   }
-}
 
-VeilidLogLevel veilidLogLevelFromJson(String j) {
-  return VeilidLogLevel.values.byName(j.toCamelCase());
+  factory VeilidLogLevel.fromJson(String j) {
+    return VeilidLogLevel.values.byName(j.toCamelCase());
+  }
 }
 
 ////////////
@@ -221,7 +217,7 @@ class PeerStats {
 
 class PeerTableData {
   List<TypedKey> nodeIds;
-  PeerAddress peerAddress;
+  String peerAddress;
   PeerStats peerStats;
 
   PeerTableData({
@@ -233,7 +229,7 @@ class PeerTableData {
   Map<String, dynamic> toJson() {
     return {
       'node_ids': nodeIds.map((p) => p.toJson()).toList(),
-      'peer_address': peerAddress.toJson(),
+      'peer_address': peerAddress,
       'peer_stats': peerStats.toJson(),
     };
   }
@@ -241,51 +237,8 @@ class PeerTableData {
   PeerTableData.fromJson(dynamic json)
       : nodeIds = List<TypedKey>.from(
             json['node_ids'].map((j) => TypedKey.fromJson(j))),
-        peerAddress = PeerAddress.fromJson(json['peer_address']),
+        peerAddress = json['peer_address'],
         peerStats = PeerStats.fromJson(json['peer_stats']);
-}
-
-//////////////////////////////////////
-/// AttachmentState
-
-enum ProtocolType {
-  udp,
-  tcp,
-  ws,
-  wss,
-}
-
-extension ProtocolTypeExt on ProtocolType {
-  String toJson() {
-    return name.toUpperCase();
-  }
-}
-
-ProtocolType protocolTypeFromJson(String j) {
-  return ProtocolType.values.byName(j.toLowerCase());
-}
-
-////////////
-
-class PeerAddress {
-  ProtocolType protocolType;
-  String socketAddress;
-
-  PeerAddress({
-    required this.protocolType,
-    required this.socketAddress,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'protocol_type': protocolType.toJson(),
-      'socket_address': socketAddress,
-    };
-  }
-
-  PeerAddress.fromJson(dynamic json)
-      : protocolType = protocolTypeFromJson(json['protocol_type']),
-        socketAddress = json['socket_address'];
 }
 
 //////////////////////////////////////
@@ -297,7 +250,7 @@ abstract class VeilidUpdate {
       case "Log":
         {
           return VeilidLog(
-              logLevel: veilidLogLevelFromJson(json["log_level"]),
+              logLevel: VeilidLogLevel.fromJson(json["log_level"]),
               message: json["message"],
               backtrace: json["backtrace"]);
         }
@@ -509,7 +462,7 @@ class VeilidStateAttachment {
       this.state, this.publicInternetReady, this.localNetworkReady);
 
   VeilidStateAttachment.fromJson(dynamic json)
-      : state = attachmentStateFromJson(json['state']),
+      : state = AttachmentState.fromJson(json['state']),
         publicInternetReady = json['public_internet_ready'],
         localNetworkReady = json['local_network_ready'];
 

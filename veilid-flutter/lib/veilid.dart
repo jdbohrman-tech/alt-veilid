@@ -1,14 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:convert';
-
-import 'package:change_case/change_case.dart';
 
 import 'veilid_stub.dart'
     if (dart.library.io) 'veilid_ffi.dart'
     if (dart.library.js) 'veilid_js.dart';
-
-import 'veilid_encoding.dart';
 
 //////////////////////////////////////////////////////////
 
@@ -16,7 +11,6 @@ import 'routing_context.dart';
 import 'veilid_config.dart';
 import 'veilid_crypto.dart';
 import 'veilid_table_db.dart';
-import 'veilid_api_exception.dart';
 import 'veilid_state.dart';
 
 export 'default_config.dart';
@@ -126,7 +120,7 @@ class TimestampDuration {
 /// Veilid singleton factory
 
 abstract class Veilid {
-  static late Veilid instance = getVeilid();
+  static Veilid instance = getVeilid();
 
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson);
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel);

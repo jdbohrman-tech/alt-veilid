@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:convert';
 
 import 'package:change_case/change_case.dart';
 
@@ -201,17 +200,15 @@ class ValueData {
 
 enum Stability {
   lowLatency,
-  reliable,
-}
+  reliable;
 
-extension StabilityExt on Stability {
   String toJson() {
     return name.toPascalCase();
   }
-}
 
-Stability stabilityFromJson(String j) {
-  return Stability.values.byName(j.toCamelCase());
+  factory Stability.fromJson(String j) {
+    return Stability.values.byName(j.toCamelCase());
+  }
 }
 
 //////////////////////////////////////
@@ -220,17 +217,15 @@ Stability stabilityFromJson(String j) {
 enum Sequencing {
   noPreference,
   preferOrdered,
-  ensureOrdered,
-}
+  ensureOrdered;
 
-extension SequencingExt on Sequencing {
   String toJson() {
     return name.toPascalCase();
   }
-}
 
-Sequencing sequencingFromJson(String j) {
-  return Sequencing.values.byName(j.toCamelCase());
+  factory Sequencing.fromJson(String j) {
+    return Sequencing.values.byName(j.toCamelCase());
+  }
 }
 
 //////////////////////////////////////

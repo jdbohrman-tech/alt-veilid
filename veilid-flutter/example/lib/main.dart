@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:veilid/veilid.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 
 import 'veilid_theme.dart';

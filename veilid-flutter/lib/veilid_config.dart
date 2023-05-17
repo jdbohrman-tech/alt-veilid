@@ -1,10 +1,5 @@
-import 'dart:async';
-import 'dart:typed_data';
-import 'dart:convert';
-
 import 'package:change_case/change_case.dart';
 
-import 'veilid_encoding.dart';
 import 'veilid.dart';
 
 //////////////////////////////////////////////////////////
@@ -28,7 +23,7 @@ class VeilidFFIConfigLoggingTerminal {
 
   VeilidFFIConfigLoggingTerminal.fromJson(dynamic json)
       : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']);
+        level = VeilidConfigLogLevel.fromJson(json['level']);
 }
 
 class VeilidFFIConfigLoggingOtlp {
@@ -55,7 +50,7 @@ class VeilidFFIConfigLoggingOtlp {
 
   VeilidFFIConfigLoggingOtlp.fromJson(dynamic json)
       : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']),
+        level = VeilidConfigLogLevel.fromJson(json['level']),
         grpcEndpoint = json['grpc_endpoint'],
         serviceName = json['service_name'];
 }
@@ -78,7 +73,7 @@ class VeilidFFIConfigLoggingApi {
 
   VeilidFFIConfigLoggingApi.fromJson(dynamic json)
       : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']);
+        level = VeilidConfigLogLevel.fromJson(json['level']);
 }
 
 class VeilidFFIConfigLogging {
@@ -129,17 +124,15 @@ enum VeilidConfigLogLevel {
   warn,
   info,
   debug,
-  trace,
-}
+  trace;
 
-extension VeilidConfigLogLevelExt on VeilidConfigLogLevel {
   String toJson() {
     return name.toPascalCase();
   }
-}
 
-VeilidConfigLogLevel veilidConfigLogLevelFromJson(String j) {
-  return VeilidConfigLogLevel.values.byName(j.toCamelCase());
+  factory VeilidConfigLogLevel.fromJson(dynamic j) {
+    return VeilidConfigLogLevel.values.byName((j as String).toCamelCase());
+  }
 }
 
 //////////////////////////////////////////////////////////
@@ -169,7 +162,7 @@ class VeilidWASMConfigLoggingPerformance {
 
   VeilidWASMConfigLoggingPerformance.fromJson(dynamic json)
       : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']),
+        level = VeilidConfigLogLevel.fromJson(json['level']),
         logsInTimings = json['logs_in_timings'],
         logsInConsole = json['logs_in_console'];
 }
@@ -192,7 +185,7 @@ class VeilidWASMConfigLoggingApi {
 
   VeilidWASMConfigLoggingApi.fromJson(dynamic json)
       : enabled = json['enabled'],
-        level = veilidConfigLogLevelFromJson(json['level']);
+        level = VeilidConfigLogLevel.fromJson(json['level']);
 }
 
 class VeilidWASMConfigLogging {
@@ -574,7 +567,7 @@ class VeilidConfigDHT {
       'min_peer_count': minPeerCount,
       'min_peer_refresh_time_ms': minPeerRefreshTimeMs,
       'validate_dial_info_receipt_time_ms': validateDialInfoReceiptTimeMs,
-      'local_subkey_cache_size: 128': localSubkeyCacheSize,
+      'local_subkey_cache_size': localSubkeyCacheSize,
       'local_max_subkey_cache_memory_mb': localMaxSubkeyCacheMemoryMb,
       'remote_subkey_cache_size': remoteSubkeyCacheSize,
       'remote_max_records': remoteMaxRecords,
