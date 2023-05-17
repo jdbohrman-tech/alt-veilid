@@ -130,13 +130,22 @@ impl RoutingTable {
                     for e in filtered_entries {
                         let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
                         out += &format!(
-                            "    {} [{}]\n",
+                            "    {} [{}] {}\n",
                             e.0.encode(),
                             match state {
                                 BucketEntryState::Reliable => "R",
                                 BucketEntryState::Unreliable => "U",
                                 BucketEntryState::Dead => "D",
-                            }
+                            },
+                            e.1.with(inner, |_rti, e| {
+                                e.peer_stats()
+                                    .latency
+                                    .as_ref()
+                                    .map(|l| {
+                                        format!("{:.2}ms", timestamp_to_secs(l.average.as_u64()))
+                                    })
+                                    .unwrap_or_else(|| "???.??ms".to_string())
+                            })
                         );
                     }
                 }

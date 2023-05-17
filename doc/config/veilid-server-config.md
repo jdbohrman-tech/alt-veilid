@@ -155,7 +155,7 @@ testing:
 protected_store:
     allow_insecure_fallback: true
     always_use_insecure_storage: true
-    insecure_fallback_directory: '%INSECURE_FALLBACK_DIRECTORY%'
+    directory: '%DIRECTORY%'
     delete: false
 ```
 

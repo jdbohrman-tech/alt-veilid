@@ -64,7 +64,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
     protectedStore: VeilidConfigProtectedStore(
       allowInsecureFallback: false,
       alwaysUseInsecureStorage: false,
-      insecureFallbackDirectory: "",
+      directory: "",
       delete: false,
     ),
     tableStore: VeilidConfigTableStore(

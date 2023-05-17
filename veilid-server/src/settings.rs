@@ -47,7 +47,7 @@ core:
     protected_store:
         allow_insecure_fallback: true
         always_use_insecure_storage: true
-        insecure_fallback_directory: '%INSECURE_FALLBACK_DIRECTORY%'
+        directory: '%DIRECTORY%'
         delete: false
     table_store:
         directory: '%TABLE_STORE_DIRECTORY%'
@@ -157,8 +157,8 @@ core:
         &Settings::get_default_block_store_path().to_string_lossy(),
     )
     .replace(
-        "%INSECURE_FALLBACK_DIRECTORY%",
-        &Settings::get_default_protected_store_insecure_fallback_directory().to_string_lossy(),
+        "%DIRECTORY%",
+        &Settings::get_default_protected_store_directory().to_string_lossy(),
     )
     .replace(
         "%CERTIFICATE_PATH%",
@@ -586,7 +586,7 @@ pub struct BlockStore {
 pub struct ProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
-    pub insecure_fallback_directory: PathBuf,
+    pub directory: PathBuf,
     pub delete: bool,
 }
 
@@ -795,7 +795,7 @@ impl Settings {
         bs_path
     }
 
-    pub fn get_default_protected_store_insecure_fallback_directory() -> PathBuf {
+    pub fn get_default_protected_store_directory() -> PathBuf {
         #[cfg(unix)]
         {
             let globalpath = PathBuf::from("/var/db/veilid-server/protected_store");
@@ -935,10 +935,7 @@ impl Settings {
             inner.core.protected_store.always_use_insecure_storage,
             value
         );
-        set_config_value!(
-            inner.core.protected_store.insecure_fallback_directory,
-            value
-        );
+        set_config_value!(inner.core.protected_store.directory, value);
         set_config_value!(inner.core.protected_store.delete, value);
         set_config_value!(inner.core.table_store.directory, value);
         set_config_value!(inner.core.table_store.delete, value);
@@ -1065,11 +1062,11 @@ impl Settings {
                 "protected_store.always_use_insecure_storage" => Ok(Box::new(
                     inner.core.protected_store.always_use_insecure_storage,
                 )),
-                "protected_store.insecure_fallback_directory" => Ok(Box::new(
+                "protected_store.directory" => Ok(Box::new(
                     inner
                         .core
                         .protected_store
-                        .insecure_fallback_directory
+                        .directory
                         .to_string_lossy()
                         .to_string(),
                 )),
@@ -1504,8 +1501,8 @@ mod tests {
         assert_eq!(s.core.protected_store.allow_insecure_fallback, true);
         assert_eq!(s.core.protected_store.always_use_insecure_storage, true);
         assert_eq!(
-            s.core.protected_store.insecure_fallback_directory,
-            Settings::get_default_protected_store_insecure_fallback_directory()
+            s.core.protected_store.directory,
+            Settings::get_default_protected_store_directory()
         );
         assert_eq!(s.core.protected_store.delete, false);
 

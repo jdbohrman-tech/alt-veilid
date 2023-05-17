@@ -429,7 +429,7 @@ pub struct VeilidConfigBlockStore {
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
-    pub insecure_fallback_directory: String,
+    pub directory: String,
     pub delete: bool,
 }
 
@@ -634,7 +634,7 @@ impl VeilidConfig {
             get_config!(inner.block_store.delete);
             get_config!(inner.protected_store.allow_insecure_fallback);
             get_config!(inner.protected_store.always_use_insecure_storage);
-            get_config!(inner.protected_store.insecure_fallback_directory);
+            get_config!(inner.protected_store.directory);
             get_config!(inner.protected_store.delete);
             get_config!(inner.network.connection_initial_timeout_ms);
             get_config!(inner.network.connection_inactivity_timeout_ms);

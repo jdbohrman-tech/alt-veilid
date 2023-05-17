@@ -826,13 +826,13 @@ class VeilidConfigBlockStore {
 class VeilidConfigProtectedStore {
   bool allowInsecureFallback;
   bool alwaysUseInsecureStorage;
-  String insecureFallbackDirectory;
+  String directory;
   bool delete;
 
   VeilidConfigProtectedStore({
     required this.allowInsecureFallback,
     required this.alwaysUseInsecureStorage,
-    required this.insecureFallbackDirectory,
+    required this.directory,
     required this.delete,
   });
 
@@ -840,7 +840,7 @@ class VeilidConfigProtectedStore {
     return {
       'allow_insecure_fallback': allowInsecureFallback,
       'always_use_insecure_storage': alwaysUseInsecureStorage,
-      'insecure_fallback_directory': insecureFallbackDirectory,
+      'directory': directory,
       'delete': delete,
     };
   }
@@ -848,7 +848,7 @@ class VeilidConfigProtectedStore {
   VeilidConfigProtectedStore.fromJson(dynamic json)
       : allowInsecureFallback = json['allow_insecure_fallback'],
         alwaysUseInsecureStorage = json['always_use_insecure_storage'],
-        insecureFallbackDirectory = json['insecure_fallback_directory'],
+        directory = json['directory'],
         delete = json['delete'];
 }
 

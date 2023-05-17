@@ -181,7 +181,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "block_store.delete" => Ok(Box::new(false)),
         "protected_store.allow_insecure_fallback" => Ok(Box::new(true)),
         "protected_store.always_use_insecure_storage" => Ok(Box::new(false)),
-        "protected_store.insecure_fallback_directory" => Ok(Box::new(get_protected_store_path())),
+        "protected_store.directory" => Ok(Box::new(get_protected_store_path())),
         "protected_store.delete" => Ok(Box::new(false)),
         "network.connection_initial_timeout_ms" => Ok(Box::new(2_000u32)),
         "network.connection_inactivity_timeout_ms" => Ok(Box::new(60_000u32)),
@@ -307,10 +307,7 @@ pub async fn test_config() {
     assert_eq!(inner.block_store.delete, false);
     assert_eq!(inner.protected_store.allow_insecure_fallback, true);
     assert_eq!(inner.protected_store.always_use_insecure_storage, false);
-    assert_eq!(
-        inner.protected_store.insecure_fallback_directory,
-        get_protected_store_path()
-    );
+    assert_eq!(inner.protected_store.directory, get_protected_store_path());
     assert_eq!(inner.protected_store.delete, false);
     assert_eq!(inner.network.connection_initial_timeout_ms, 2_000u32);
     assert_eq!(inner.network.connection_inactivity_timeout_ms, 60_000u32);
