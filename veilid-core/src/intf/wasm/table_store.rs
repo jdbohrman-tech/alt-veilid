@@ -1,6 +1,6 @@
+use super::*;
 use crate::intf::table_db::TableDBInner;
 pub use crate::intf::table_db::{TableDB, TableDBTransaction};
-use crate::*;
 use keyvaluedb_web::*;
 
 struct TableStoreInner {
@@ -30,14 +30,10 @@ impl TableStore {
 
     /// Delete all known tables
     pub async fn delete_all(&self) {
-        if let Err(e) = self.delete("crypto_caches").await {
-            error!("failed to delete 'crypto_caches': {}", e);
-        }
-        if let Err(e) = self.delete("RouteSpecStore").await {
-            error!("failed to delete 'RouteSpecStore': {}", e);
-        }
-        if let Err(e) = self.delete("routing_table").await {
-            error!("failed to delete 'routing_table': {}", e);
+        for ktn in &KNOWN_TABLE_NAMES {
+            if let Err(e) = self.delete(ktn).await {
+                error!("failed to delete '{}': {}", ktn, e);
+            }
         }
     }
 

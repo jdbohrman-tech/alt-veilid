@@ -1,4 +1,4 @@
-use crate::*;
+use super::*;
 use data_encoding::BASE64URL_NOPAD;
 use rkyv::{
     bytecheck::CheckBytes, Archive as RkyvArchive, Deserialize as RkyvDeserialize,
@@ -19,18 +19,12 @@ impl ProtectedStore {
 
     #[instrument(level = "trace", skip(self), err)]
     pub async fn delete_all(&self) -> EyreResult<()> {
-        // Delete all known keys
-        if self.remove_user_secret("node_id").await? {
-            debug!("deleted protected_store key 'node_id'");
-        }
-        if self.remove_user_secret("node_id_secret").await? {
-            debug!("deleted protected_store key 'node_id_secret'");
-        }
-        if self.remove_user_secret("_test_key").await? {
-            debug!("deleted protected_store key '_test_key'");
-        }
-        if self.remove_user_secret("RouteSpecStore").await? {
-            debug!("deleted protected_store key 'RouteSpecStore'");
+        for kpsk in &KNOWN_PROTECTED_STORE_KEYS {
+            if let Err(e) = self.remove_user_secret(kpsk).await {
+                error!("failed to delete '{}': {}", kpsk, e);
+            } else {
+                debug!("deleted table '{}'", kpsk);
+            }
         }
         Ok(())
     }
