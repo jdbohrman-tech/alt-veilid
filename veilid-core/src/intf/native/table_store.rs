@@ -5,7 +5,7 @@ use keyvaluedb_sqlite::*;
 use std::path::PathBuf;
 
 struct TableStoreInner {
-    opened: BTreeMap<String, Weak<Mutex<TableDBUnlockedInner>>>,
+    opened: BTreeMap<String, Weak<TableDBUnlockedInner>>,
 }
 
 /// Veilid Table Storage

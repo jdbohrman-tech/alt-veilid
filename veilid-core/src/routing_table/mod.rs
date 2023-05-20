@@ -339,11 +339,11 @@ impl RoutingTable {
         // Deserialize bucket map and all entries from the table store
         let tstore = self.unlocked_inner.network_manager().table_store();
         let tdb = tstore.open("routing_table", 1).await?;
-        let Some(serialized_bucket_map): Option<BTreeMap<CryptoKind, Vec<Vec<u8>>>> = tdb.load_rkyv(0, b"serialized_bucket_map")? else {
+        let Some(serialized_bucket_map): Option<BTreeMap<CryptoKind, Vec<Vec<u8>>>> = tdb.load_rkyv(0, b"serialized_bucket_map").await? else {
             log_rtab!(debug "no bucket map in saved routing table");
             return Ok(());
         };
-        let Some(all_entry_bytes): Option<Vec<Vec<u8>>> = tdb.load_rkyv(0, b"all_entry_bytes")? else {
+        let Some(all_entry_bytes): Option<Vec<Vec<u8>>> = tdb.load_rkyv(0, b"all_entry_bytes").await? else {
             log_rtab!(debug "no all_entry_bytes in saved routing table");
             return Ok(());
         };

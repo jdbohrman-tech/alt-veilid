@@ -154,7 +154,7 @@ impl StorageManagerInner {
 
     async fn load_metadata(&mut self) -> EyreResult<()> {
         if let Some(metadata_db) = &self.metadata_db {
-            self.offline_subkey_writes = metadata_db.load_rkyv(0, b"offline_subkey_writes")?.unwrap_or_default();
+            self.offline_subkey_writes = metadata_db.load_rkyv(0, b"offline_subkey_writes").await?.unwrap_or_default();
         }
         Ok(())
     }
@@ -324,7 +324,7 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub fn handle_get_local_value(
+    pub async fn handle_get_local_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -334,7 +334,7 @@ impl StorageManagerInner {
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = local_record_store.get_subkey(key, subkey, want_descriptor)? {
+        if let Some(subkey_result) = local_record_store.get_subkey(key, subkey, want_descriptor).await? {
             return Ok(subkey_result);
         }
 
@@ -363,7 +363,7 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub fn handle_get_remote_value(
+    pub async fn handle_get_remote_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -373,7 +373,7 @@ impl StorageManagerInner {
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, want_descriptor)? {
+        if let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, want_descriptor).await? {
             return Ok(subkey_result);
         }
 

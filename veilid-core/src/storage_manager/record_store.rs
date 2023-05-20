@@ -74,11 +74,11 @@ where
             .await?;
 
         // Pull record index from table into a vector to ensure we sort them
-        let record_table_keys = record_table.get_keys(0)?;
+        let record_table_keys = record_table.get_keys(0).await?;
         let mut record_index_saved: Vec<(RecordTableKey, Record<D>)> =
             Vec::with_capacity(record_table_keys.len());
         for rtk in record_table_keys {
-            if let Some(vr) = record_table.load_rkyv::<Record<D>>(0, &rtk)? {
+            if let Some(vr) = record_table.load_rkyv::<Record<D>>(0, &rtk).await? {
                 let rik = RecordTableKey::try_from(rtk.as_ref())?;
                 record_index_saved.push((rik, vr));
             }
@@ -352,7 +352,7 @@ where
     //     self.with_record(key, |record| record.descriptor().clone())
     // }
 
-    pub fn get_subkey(
+    pub async fn get_subkey(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -393,6 +393,7 @@ where
         // If not in cache, try to pull from table store
         if let Some(record_data) = subkey_table
             .load_rkyv::<RecordData>(0, &stk.bytes())
+            .await
             .map_err(VeilidAPIError::internal)?
         {
             let out = record_data.signed_value_data().clone();
@@ -458,6 +459,7 @@ where
             // If not in cache, try to pull from table store
             if let Some(record_data) = subkey_table
                 .load_rkyv::<RecordData>(0, &stk_bytes)
+                .await
                 .map_err(VeilidAPIError::internal)?
             {
                 prior_record_data_size = record_data.total_size();

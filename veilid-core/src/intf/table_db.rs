@@ -127,16 +127,11 @@ impl TableDB {
             for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
-        let db = self.unlocked_inner.database.clone();
-        let out = db.get(col, key).await.wrap_err("failed to get key")?;
-        let b = match out {
-            Some(v) => v,
-            None => {
-                return Ok(None);
-            }
+        let out = match self.load(col, key).await? {
+            Some(v) => from_rkyv(v)?,
+            None => None,
         };
-        let obj = from_rkyv(b)?;
-        Ok(Some(obj))
+        Ok(out)
     }
 
     /// Read an serde-json key from a column in the TableDB immediately
@@ -144,32 +139,47 @@ impl TableDB {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        let db = self.unlocked_inner.database.clone();
-        let out = db.get(col, key).await.wrap_err("failed to get key")?;
-        let b = match out {
-            Some(v) => v,
-            None => {
-                return Ok(None);
-            }
+        let out = match self.load(col, key).await? {
+            Some(v) => serde_json::from_slice(&v)?,
+            None => None,
         };
-        let obj = serde_json::from_slice(&b)?;
-        Ok(Some(obj))
+        Ok(out)
     }
 
     /// Delete key with from a column in the TableDB
-    xxx fix me
-    pub async fn delete(&self, col: u32, key: &[u8]) -> EyreResult<bool> {
+    pub async fn delete(&self, col: u32, key: &[u8]) -> EyreResult<Option<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
-        let found = db.get(col, key).await.wrap_err("failed to get key")?;
-        match found {
-            None => Ok(false),
-            Some(_) => {
-                let mut dbt = db.transaction();
-                dbt.delete(col, key);
-                db.write(dbt).await.wrap_err("failed to delete key")?;
-                Ok(true)
-            }
-        }
+        let old_value = db.delete(col, key).await.wrap_err("failed to delete key")?;
+        Ok(old_value)
+    }
+
+    /// Delete rkyv key with from a column in the TableDB
+    pub async fn delete_rkyv<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    where
+        T: RkyvArchive,
+        <T as RkyvArchive>::Archived:
+            for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+        <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
+    {
+        let db = self.unlocked_inner.database.clone();
+        let old_value = match db.delete(col, key).await.wrap_err("failed to delete key")? {
+            Some(v) => from_rkyv(v)?,
+            None => None,
+        };
+        Ok(old_value)
+    }
+
+    /// Delete serde-json key with from a column in the TableDB
+    pub async fn delete_json<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        let db = self.unlocked_inner.database.clone();
+        let old_value = match db.delete(col, key).await.wrap_err("failed to delete key")? {
+            Some(v) => serde_json::from_slice(&v)?,
+            None => None,
+        };
+        Ok(old_value)
     }
 }
 
@@ -217,7 +227,7 @@ impl TableDBTransaction {
                 .take()
                 .ok_or_else(|| eyre!("transaction already completed"))?
         };
-        let db = self.db.unlocked_inner.lock().database.clone();
+        let db = self.db.unlocked_inner.database.clone();
         db.write(dbt)
             .await
             .wrap_err("commit failed, transaction lost")

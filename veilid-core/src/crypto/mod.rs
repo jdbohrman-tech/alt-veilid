@@ -170,12 +170,12 @@ impl Crypto {
 
         // load caches if they are valid for this node id
         let mut db = table_store.open("crypto_caches", 1).await?;
-        let caches_valid = match db.load(0, b"cache_validity_key")? {
+        let caches_valid = match db.load(0, b"cache_validity_key").await? {
             Some(v) => v == cache_validity_key,
             None => false,
         };
         if caches_valid {
-            if let Some(b) = db.load(0, b"dh_cache")? {
+            if let Some(b) = db.load(0, b"dh_cache").await? {
                 let mut inner = self.inner.lock();
                 bytes_to_cache(&b, &mut inner.dh_cache);
             }

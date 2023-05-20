@@ -177,7 +177,7 @@ impl StorageManager {
     /// Handle a recieved 'Get Value' query
     pub async fn inbound_get_value(&self, key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> Result<NetworkResult<SubkeyResult>, VeilidAPIError> {
         let mut inner = self.lock().await?;
-        let res = match inner.handle_get_remote_value(key, subkey, want_descriptor) {            
+        let res = match inner.handle_get_remote_value(key, subkey, want_descriptor).await {            
             Ok(res) => res,
             Err(VeilidAPIError::Internal { message }) => {
                 apibail_internal!(message);

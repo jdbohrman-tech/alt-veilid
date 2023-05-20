@@ -785,7 +785,7 @@ pub extern "C" fn table_db_get_keys(id: u32, col: u32) -> *mut c_char {
     let table_dbs = TABLE_DBS.lock();
     let Some(table_db) = table_dbs.get(&id) else {
         return std::ptr::null_mut();
-    };
+    }; xxx continue here and run all tests
     let Ok(keys) = table_db.clone().get_keys(col) else {
         return std::ptr::null_mut();
     };

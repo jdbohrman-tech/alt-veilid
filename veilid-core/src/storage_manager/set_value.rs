@@ -168,7 +168,7 @@ impl StorageManager {
         let mut inner = self.lock().await?;
 
         // See if the subkey we are modifying has a last known local value
-        let last_subkey_result = inner.handle_get_local_value(key, subkey, true)?;
+        let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
 
         // Make sure this value would actually be newer
         if let Some(last_value) = &last_subkey_result.value {

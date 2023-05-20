@@ -58,7 +58,7 @@ pub async fn test_store_delete_load(ts: TableStore) {
     );
 
     assert_eq!(
-        db.load(0, b"foo").unwrap(),
+        db.load(0, b"foo").await.unwrap(),
         None,
         "should not load missing key"
     );
@@ -67,11 +67,14 @@ pub async fn test_store_delete_load(ts: TableStore) {
         "should store new key"
     );
     assert_eq!(
-        db.load(0, b"foo").unwrap(),
+        db.load(0, b"foo").await.unwrap(),
         None,
         "should not load missing key"
     );
-    assert_eq!(db.load(1, b"foo").unwrap(), Some(b"1234567890".to_vec()));
+    assert_eq!(
+        db.load(1, b"foo").await.unwrap(),
+        Some(b"1234567890".to_vec())
+    );
 
     assert!(
         db.store(1, b"bar", b"FNORD").await.is_ok(),
@@ -96,16 +99,22 @@ pub async fn test_store_delete_load(ts: TableStore) {
         "should store new key"
     );
 
-    assert_eq!(db.load(1, b"bar").unwrap(), Some(b"FNORD".to_vec()));
+    assert_eq!(db.load(1, b"bar").await.unwrap(), Some(b"FNORD".to_vec()));
     assert_eq!(
-        db.load(0, b"bar").unwrap(),
+        db.load(0, b"bar").await.unwrap(),
         Some(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec())
     );
-    assert_eq!(db.load(2, b"bar").unwrap(), Some(b"QWERTYUIOP".to_vec()));
-    assert_eq!(db.load(2, b"baz").unwrap(), Some(b"QWERTY".to_vec()));
+    assert_eq!(
+        db.load(2, b"bar").await.unwrap(),
+        Some(b"QWERTYUIOP".to_vec())
+    );
+    assert_eq!(db.load(2, b"baz").await.unwrap(), Some(b"QWERTY".to_vec()));
 
-    assert_eq!(db.delete(1, b"bar").await.unwrap(), true);
-    assert_eq!(db.delete(1, b"bar").await.unwrap(), false);
+    assert_eq!(
+        db.delete(1, b"bar").await.unwrap(),
+        Some(b"QWERTYUIOP".to_vec())
+    );
+    assert_eq!(db.delete(1, b"bar").await.unwrap(), None);
     assert!(
         db.delete(4, b"bar").await.is_err(),
         "can't delete from column that doesn't exist"
@@ -114,17 +123,20 @@ pub async fn test_store_delete_load(ts: TableStore) {
     drop(db);
     let db = ts.open("test", 3).await.expect("should have opened");
 
-    assert_eq!(db.load(1, b"bar").unwrap(), None);
+    assert_eq!(db.load(1, b"bar").await.unwrap(), None);
     assert_eq!(
-        db.load(0, b"bar").unwrap(),
+        db.load(0, b"bar").await.unwrap(),
         Some(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec())
     );
-    assert_eq!(db.load(2, b"bar").unwrap(), Some(b"QWERTYUIOP".to_vec()));
-    assert_eq!(db.load(2, b"baz").unwrap(), Some(b"QWERTY".to_vec()));
+    assert_eq!(
+        db.load(2, b"bar").await.unwrap(),
+        Some(b"QWERTYUIOP".to_vec())
+    );
+    assert_eq!(db.load(2, b"baz").await.unwrap(), Some(b"QWERTY".to_vec()));
 }
 
-pub async fn test_frozen(vcrypto: CryptoSystemVersion, ts: TableStore) {
-    trace!("test_frozen");
+pub async fn test_rkyv(vcrypto: CryptoSystemVersion, ts: TableStore) {
+    trace!("test_rkyv");
 
     let _ = ts.delete("test");
     let db = ts.open("test", 3).await.expect("should have opened");
@@ -132,9 +144,17 @@ pub async fn test_frozen(vcrypto: CryptoSystemVersion, ts: TableStore) {
 
     assert!(db.store_rkyv(0, b"asdf", &keypair).await.is_ok());
 
-    assert_eq!(db.load_rkyv::<KeyPair>(0, b"qwer").unwrap(), None);
+    assert_eq!(db.load_rkyv::<KeyPair>(0, b"qwer").await.unwrap(), None);
 
-    let d = match db.load_rkyv::<KeyPair>(0, b"asdf") {
+    let d = match db.load_rkyv::<KeyPair>(0, b"asdf").await {
+        Ok(x) => x,
+        Err(e) => {
+            panic!("couldn't decode: {}", e);
+        }
+    };
+    assert_eq!(d, Some(keypair), "keys should be equal");
+
+    let d = match db.delete_rkyv::<KeyPair>(0, b"asdf").await {
         Ok(x) => x,
         Err(e) => {
             panic!("couldn't decode: {}", e);
@@ -148,7 +168,45 @@ pub async fn test_frozen(vcrypto: CryptoSystemVersion, ts: TableStore) {
     );
 
     assert!(
-        db.load_rkyv::<TypedKey>(1, b"foo").is_err(),
+        db.load_rkyv::<TypedKey>(1, b"foo").await.is_err(),
+        "should fail to unfreeze"
+    );
+}
+
+pub async fn test_json(vcrypto: CryptoSystemVersion, ts: TableStore) {
+    trace!("test_json");
+
+    let _ = ts.delete("test");
+    let db = ts.open("test", 3).await.expect("should have opened");
+    let keypair = vcrypto.generate_keypair();
+
+    assert!(db.store_json(0, b"asdf", &keypair).await.is_ok());
+
+    assert_eq!(db.load_json::<KeyPair>(0, b"qwer").await.unwrap(), None);
+
+    let d = match db.load_json::<KeyPair>(0, b"asdf").await {
+        Ok(x) => x,
+        Err(e) => {
+            panic!("couldn't decode: {}", e);
+        }
+    };
+    assert_eq!(d, Some(keypair), "keys should be equal");
+
+    let d = match db.delete_json::<KeyPair>(0, b"asdf").await {
+        Ok(x) => x,
+        Err(e) => {
+            panic!("couldn't decode: {}", e);
+        }
+    };
+    assert_eq!(d, Some(keypair), "keys should be equal");
+
+    assert!(
+        db.store(1, b"foo", b"1234567890").await.is_ok(),
+        "should store new key"
+    );
+
+    assert!(
+        db.load_json::<TypedKey>(1, b"foo").await.is_err(),
         "should fail to unfreeze"
     );
 }
@@ -162,7 +220,8 @@ pub async fn test_all() {
         let vcrypto = crypto.get(ck).unwrap();
         test_delete_open_delete(ts.clone()).await;
         test_store_delete_load(ts.clone()).await;
-        test_frozen(vcrypto, ts.clone()).await;
+        test_rkyv(vcrypto.clone(), ts.clone()).await;
+        test_json(vcrypto, ts.clone()).await;
         let _ = ts.delete("test").await;
     }
 

@@ -240,7 +240,7 @@ impl StorageManager {
         };
 
         // See if the requested subkey is our local record store
-        let last_subkey_result = inner.handle_get_local_value(key, subkey, true)?;
+        let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
 
         // Return the existing value if we have one unless we are forcing a refresh
         if !force_refresh {
@@ -319,7 +319,7 @@ impl StorageManager {
         };
 
         // See if the subkey we are modifying has a last known local value
-        let last_subkey_result = inner.handle_get_local_value(key, subkey, true)?;
+        let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
 
         // Get the descriptor and schema for the key
         let Some(descriptor) = last_subkey_result.descriptor else {

@@ -23,7 +23,7 @@ impl RouteSpecStoreContent {
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         let mut content: RouteSpecStoreContent =
-            rsstdb.load_rkyv(0, b"content")?.unwrap_or_default();
+            rsstdb.load_rkyv(0, b"content").await?.unwrap_or_default();
 
         // Look up all route hop noderefs since we can't serialize those
         let mut dead_ids = Vec::new();
