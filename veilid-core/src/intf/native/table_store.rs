@@ -1,11 +1,11 @@
 use super::*;
-use crate::intf::table_db::TableDBInner;
+use crate::intf::table_db::TableDBUnlockedInner;
 pub use crate::intf::table_db::{TableDB, TableDBTransaction};
 use keyvaluedb_sqlite::*;
 use std::path::PathBuf;
 
 struct TableStoreInner {
-    opened: BTreeMap<String, Weak<Mutex<TableDBInner>>>,
+    opened: BTreeMap<String, Weak<Mutex<TableDBUnlockedInner>>>,
 }
 
 /// Veilid Table Storage
