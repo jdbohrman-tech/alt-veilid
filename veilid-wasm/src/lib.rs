@@ -717,20 +717,21 @@ pub fn table_db_get_column_count(id: u32) -> u32 {
 }
 
 #[wasm_bindgen()]
-pub fn table_db_get_keys(id: u32, col: u32) -> Option<String> {
-    let table_dbs = (*TABLE_DBS).borrow();
-    let Some(table_db) = table_dbs.get(&id) else {
-        return None;
-    };
-    let Ok(keys) = table_db.clone().get_keys(col) else {
-        return None;
-    };
-    let keys: Vec<String> = keys
-        .into_iter()
-        .map(|k| data_encoding::BASE64URL_NOPAD.encode(&k))
-        .collect();
-    let out = veilid_core::serialize_json(keys);
-    Some(out)
+pub fn table_db_get_keys(id: u32, col: u32) -> Promise {
+    wrap_api_future_json(async move {
+        let table_dbs = (*TABLE_DBS).borrow();
+        let Some(table_db) = table_dbs.get(&id) else {
+            return None;
+        };
+        let Ok(keys) = table_db.clone().get_keys(col) else {
+            return None;
+        };
+        let out: Vec<String> = keys
+            .into_iter()
+            .map(|k| data_encoding::BASE64URL_NOPAD.encode(&k))
+            .collect();
+        APIResult::Ok(Some(out))
+    });
 }
 
 fn add_table_db_transaction(tdbt: veilid_core::TableDBTransaction) -> u32 {
@@ -903,6 +904,7 @@ pub fn table_db_delete(id: u32, col: u32, key: String) -> Promise {
             .delete(col, &key)
             .await
             .map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     })
 }

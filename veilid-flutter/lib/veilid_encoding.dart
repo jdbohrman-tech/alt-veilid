@@ -14,6 +14,12 @@ Uint8List base64UrlNoPadDecode(String source) {
   return base64.decode(source);
 }
 
+Uint8List base64UrlNoPadDecodeDynamic(dynamic source) {
+  source = source as String;
+  source = base64.normalize(source);
+  return base64.decode(source);
+}
+
 abstract class EncodedString {
   late String contents;
   EncodedString(String s) {

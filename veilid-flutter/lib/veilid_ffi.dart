@@ -148,9 +148,9 @@ typedef _DeleteTableDbDart = void Function(int, Pointer<Utf8>);
 // fn table_db_get_column_count(id: u32) -> u32
 typedef _TableDbGetColumnCountC = Uint32 Function(Uint32);
 typedef _TableDbGetColumnCountDart = int Function(int);
-// fn table_db_get_keys(id: u32, col: u32) -> *mut c_char
-typedef _TableDbGetKeysC = Pointer<Utf8> Function(Uint32, Uint32);
-typedef _TableDbGetKeysDart = Pointer<Utf8> Function(int, int);
+// fn table_db_get_keys(port: i64, id: u32, col: u32)
+typedef _TableDbGetKeysC = Pointer<Utf8> Function(Uint64, Uint32, Uint32);
+typedef _TableDbGetKeysDart = Pointer<Utf8> Function(int, int, int);
 // fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr)
 typedef _TableDbStoreC = Void Function(
     Int64, Uint32, Uint32, Pointer<Utf8>, Pointer<Utf8>);
@@ -834,15 +834,15 @@ class VeilidTableDBFFI extends VeilidTableDB {
   }
 
   @override
-  List<Uint8List> getKeys(int col) {
-    final s = _tdb.ffi._tableDbGetKeys(_tdb.id, col);
-    if (s.address == nullptr.address) {
-      throw VeilidAPIExceptionInternal("No db for id");
-    }
-    String ja = s.toDartString();
-    _tdb.ffi._freeString(s);
-    List<dynamic> jarr = jsonDecode(ja);
-    return jarr.map((e) => base64UrlNoPadDecode(e)).toList();
+  Future<List<Uint8List>> getKeys(int col) {
+    final recvPort = ReceivePort("veilid_table_db_get_keys");
+    final sendPort = recvPort.sendPort;
+
+    _tdb.ffi._tableDbGetKeys(sendPort.nativePort, _tdb.id, col);
+
+    return processFutureJson(
+        jsonListConstructor<Uint8List>(base64UrlNoPadDecodeDynamic),
+        recvPort.first);
   }
 
   @override
@@ -888,7 +888,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
   }
 
   @override
-  Future<bool> delete(int col, Uint8List key) {
+  Future<Uint8List?> delete(int col, Uint8List key) {
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_delete");

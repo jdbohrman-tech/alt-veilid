@@ -399,13 +399,9 @@ class VeilidTableDBJS extends VeilidTableDB {
   }
 
   @override
-  List<Uint8List> getKeys(int col) {
-    String? s = js_util.callMethod(wasm, "table_db_get_keys", [_tdb.id, col]);
-    if (s == null) {
-      throw VeilidAPIExceptionInternal("No db for id");
-    }
-    List<dynamic> jarr = jsonDecode(s);
-    return jarr.map((e) => base64UrlNoPadDecode(e)).toList();
+  Future<List<Uint8List>> getKeys(int col) async {
+    return jsonListConstructor(base64UrlNoPadDecodeDynamic)(jsonDecode(
+        await js_util.callMethod(wasm, "table_db_get_keys", [_tdb.id, col])));
   }
 
   @override
@@ -437,7 +433,7 @@ class VeilidTableDBJS extends VeilidTableDB {
   }
 
   @override
-  Future<bool> delete(int col, Uint8List key) {
+  Future<Uint8List?> delete(int col, Uint8List key) {
     final encodedKey = base64UrlNoPadEncode(key);
 
     return _wrapApiPromise(js_util

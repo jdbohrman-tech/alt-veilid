@@ -781,17 +781,20 @@ pub extern "C" fn table_db_get_column_count(id: u32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn table_db_get_keys(id: u32, col: u32) -> *mut c_char {
-    let table_dbs = TABLE_DBS.lock();
-    let Some(table_db) = table_dbs.get(&id) else {
-        return std::ptr::null_mut();
-    }; xxx continue here and run all tests
-    let Ok(keys) = table_db.clone().get_keys(col) else {
-        return std::ptr::null_mut();
-    };
-    let keys: Vec<String> = keys.into_iter().map(|k| BASE64URL_NOPAD.encode(&k)).collect();
-    let out = veilid_core::serialize_json(keys);
-    out.into_ffi_value()
+pub extern "C" fn table_db_get_keys(port: i64, id: u32, col: u32) {
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let table_db = {
+            let table_dbs = TABLE_DBS.lock();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_get_keys", "id", id));
+            };
+            table_db.clone()
+        };
+
+        let keys = table_db.get_keys(col).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        let out: Vec<String> = keys.into_iter().map(|k| BASE64URL_NOPAD.encode(&k)).collect();
+        APIResult::Ok(out)
+    });
 }
 
 fn add_table_db_transaction(tdbt: veilid_core::TableDBTransaction) -> u32 {
@@ -957,7 +960,7 @@ pub extern "C" fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr) {
             table_db.clone()
         };
         
-        let out = table_db.load(col, &key).map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = table_db.load(col, &key).await.map_err(veilid_core::VeilidAPIError::generic)?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     });
@@ -982,6 +985,7 @@ pub extern "C" fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr) {
         };
         
         let out = table_db.delete(col, &key).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     });
 }
