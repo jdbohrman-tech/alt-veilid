@@ -70,6 +70,7 @@ impl ServicesContext {
         trace!("init protected store");
         let protected_store = ProtectedStore::new(self.config.clone());
         if let Err(e) = protected_store.init().await {
+            error!("failed to init protected store: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -79,6 +80,7 @@ impl ServicesContext {
         trace!("init table store");
         let table_store = TableStore::new(self.config.clone());
         if let Err(e) = table_store.init().await {
+            error!("failed to init table store: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -92,6 +94,7 @@ impl ServicesContext {
             protected_store.clone(),
         );
         if let Err(e) = crypto.init().await {
+            error!("failed to init crypto: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -101,6 +104,7 @@ impl ServicesContext {
         trace!("init block store");
         let block_store = BlockStore::new(self.config.clone());
         if let Err(e) = block_store.init().await {
+            error!("failed to init block store: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -116,6 +120,7 @@ impl ServicesContext {
             self.block_store.clone().unwrap(),
         );
         if let Err(e) = storage_manager.init().await {
+            error!("failed to init storage manager: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -133,6 +138,7 @@ impl ServicesContext {
             crypto,
         );
         if let Err(e) = attachment_manager.init(update_callback).await {
+            error!("failed to init attachment manager: {}", e);
             self.shutdown().await;
             return Err(e);
         }

@@ -324,11 +324,11 @@ impl RoutingTable {
         let dbx = tdb.transact();
         if let Err(e) = dbx.store_rkyv(0, b"serialized_bucket_map", &serialized_bucket_map) {
             dbx.rollback();
-            return Err(e);
+            return Err(e.into());
         }
         if let Err(e) = dbx.store_rkyv(0, b"all_entry_bytes", &all_entry_bytes) {
             dbx.rollback();
-            return Err(e);
+            return Err(e.into());
         }
         dbx.commit().await?;
         Ok(())

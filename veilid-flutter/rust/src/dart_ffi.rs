@@ -33,7 +33,7 @@ lazy_static! {
         Mutex::new(BTreeMap::new());
 }
 
-async fn get_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIError> {
+async fn get_veilid_api() -> veilid_core::VeilidAPIResult<veilid_core::VeilidAPI> {
     let api_lock = VEILID_API.lock().await;
     api_lock
         .as_ref()
@@ -41,7 +41,7 @@ async fn get_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidA
         .ok_or(veilid_core::VeilidAPIError::NotInitialized)
 }
 
-async fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIError> {
+async fn take_veilid_api() -> veilid_core::VeilidAPIResult<veilid_core::VeilidAPI> {
     let mut api_lock = VEILID_API.lock().await;
     api_lock
         .take()
@@ -55,7 +55,7 @@ async fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::Veilid
 define_string_destructor!(free_string);
 
 // Utility types for async API results
-type APIResult<T> = Result<T, veilid_core::VeilidAPIError>;
+type APIResult<T> = veilid_core::VeilidAPIResult<T>;
 const APIRESULT_VOID: APIResult<()> = APIResult::Ok(());
 
 // Parse target
@@ -791,7 +791,7 @@ pub extern "C" fn table_db_get_keys(port: i64, id: u32, col: u32) {
             table_db.clone()
         };
 
-        let keys = table_db.get_keys(col).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        let keys = table_db.get_keys(col).await?;
         let out: Vec<String> = keys.into_iter().map(|k| BASE64URL_NOPAD.encode(&k)).collect();
         APIResult::Ok(out)
     });
@@ -839,7 +839,7 @@ pub extern "C" fn table_db_transaction_commit(port: i64, id: u32) {
             tdbt.clone()
         };
         
-        tdbt.commit().await.map_err(veilid_core::VeilidAPIError::generic)?;
+        tdbt.commit().await?;
         APIRESULT_VOID
     });
 }
@@ -938,7 +938,7 @@ pub extern "C" fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, valu
             table_db.clone()
         };
         
-        table_db.store(col, &key, &value).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        table_db.store(col, &key, &value).await?;
         APIRESULT_VOID
     });
 }
@@ -960,7 +960,7 @@ pub extern "C" fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr) {
             table_db.clone()
         };
         
-        let out = table_db.load(col, &key).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = table_db.load(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     });
@@ -984,7 +984,7 @@ pub extern "C" fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr) {
             table_db.clone()
         };
         
-        let out = table_db.delete(col, &key).await.map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = table_db.delete(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     });

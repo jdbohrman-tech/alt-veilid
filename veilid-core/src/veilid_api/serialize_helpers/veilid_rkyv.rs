@@ -122,14 +122,14 @@ impl<E: Debug + fmt::Display> std::error::Error for VeilidRkyvError<E> {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub fn to_rkyv<T>(value: &T) -> EyreResult<Vec<u8>>
+pub fn to_rkyv<T>(value: &T) -> VeilidAPIResult<Vec<u8>>
 where
     T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
 {
     let mut serializer = DefaultVeilidRkyvSerializer::default();
     serializer
         .serialize_value(value)
-        .wrap_err("failed to serialize object")?;
+        .map_err(|e| VeilidAPIError::generic(format!("failed to serialize object: {}", e)))?;
     Ok(serializer
         .into_inner()
         .into_serializer()
@@ -137,7 +137,7 @@ where
         .to_vec())
 }
 
-pub fn from_rkyv<T>(bytes: Vec<u8>) -> EyreResult<T>
+pub fn from_rkyv<T>(bytes: Vec<u8>) -> VeilidAPIResult<T>
 where
     T: RkyvArchive,
     <T as RkyvArchive>::Archived:
@@ -145,7 +145,7 @@ where
     <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
 {
     rkyv::check_archived_root::<T>(&bytes)
-        .map_err(|e| eyre!("checkbytes failed: {}", e))?
+        .map_err(|e| VeilidAPIError::generic(format!("checkbytes failed: {}", e)))?
         .deserialize(&mut VeilidSharedDeserializeMap::default())
-        .map_err(|e| eyre!("failed to deserialize: {}", e))
+        .map_err(|e| VeilidAPIError::generic(format!("failed to deserialize: {}", e)))
 }

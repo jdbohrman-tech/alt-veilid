@@ -1350,7 +1350,8 @@ impl RPCProcessor {
                 // Update the 'seen our node info' timestamp to determine if this node needs a
                 // 'node info update' ping
                 if let Some(sender_nr) = &opt_sender_nr {
-                    sender_nr.set_our_node_info_ts(routing_domain, operation.target_node_info_ts());
+                    sender_nr
+                        .set_seen_our_node_info_ts(routing_domain, operation.target_node_info_ts());
                 }
 
                 // Make the RPC message

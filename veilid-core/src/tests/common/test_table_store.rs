@@ -110,10 +110,7 @@ pub async fn test_store_delete_load(ts: TableStore) {
     );
     assert_eq!(db.load(2, b"baz").await.unwrap(), Some(b"QWERTY".to_vec()));
 
-    assert_eq!(
-        db.delete(1, b"bar").await.unwrap(),
-        Some(b"QWERTYUIOP".to_vec())
-    );
+    assert_eq!(db.delete(1, b"bar").await.unwrap(), Some(b"FNORD".to_vec()));
     assert_eq!(db.delete(1, b"bar").await.unwrap(), None);
     assert!(
         db.delete(4, b"bar").await.is_err(),

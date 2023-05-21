@@ -221,3 +221,36 @@ impl VeilidAPIError {
         }
     }
 }
+
+pub type VeilidAPIResult<T> = Result<T, VeilidAPIError>;
+
+impl From<std::io::Error> for VeilidAPIError {
+    fn from(e: std::io::Error) -> Self {
+        match e.kind() {
+            std::io::ErrorKind::TimedOut => VeilidAPIError::timeout(),
+            std::io::ErrorKind::ConnectionRefused => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::ConnectionReset => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::HostUnreachable => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::NetworkUnreachable => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::ConnectionAborted => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::NotConnected => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::AddrInUse => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::AddrNotAvailable => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::NetworkDown => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::ReadOnlyFilesystem => VeilidAPIError::internal(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::NotSeekable => VeilidAPIError::internal(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::FilesystemQuotaExceeded => VeilidAPIError::internal(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::Deadlock => VeilidAPIError::internal(e.to_string()),
+            std::io::ErrorKind::Unsupported => VeilidAPIError::internal(e.to_string()),
+            std::io::ErrorKind::OutOfMemory => VeilidAPIError::internal(e.to_string()),
+            _ => VeilidAPIError::generic(e.to_string()),
+        }
+    }
+}

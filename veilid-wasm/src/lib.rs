@@ -719,19 +719,21 @@ pub fn table_db_get_column_count(id: u32) -> u32 {
 #[wasm_bindgen()]
 pub fn table_db_get_keys(id: u32, col: u32) -> Promise {
     wrap_api_future_json(async move {
-        let table_dbs = (*TABLE_DBS).borrow();
-        let Some(table_db) = table_dbs.get(&id) else {
-            return None;
+        let table_db = {
+            let table_dbs = (*TABLE_DBS).borrow();
+            let Some(table_db) = table_dbs.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_store", "id", id));
+            };
+            table_db.clone()
         };
-        let Ok(keys) = table_db.clone().get_keys(col) else {
-            return None;
-        };
+
+        let keys = table_db.clone().get_keys(col).await?;
         let out: Vec<String> = keys
             .into_iter()
             .map(|k| data_encoding::BASE64URL_NOPAD.encode(&k))
             .collect();
-        APIResult::Ok(Some(out))
-    });
+        APIResult::Ok(out)
+    })
 }
 
 fn add_table_db_transaction(tdbt: veilid_core::TableDBTransaction) -> u32 {
@@ -775,9 +777,7 @@ pub fn table_db_transaction_commit(id: u32) -> Promise {
             tdbt.clone()
         };
 
-        tdbt.commit()
-            .await
-            .map_err(veilid_core::VeilidAPIError::generic)?;
+        tdbt.commit().await?;
         APIRESULT_UNDEFINED
     })
 }
@@ -856,10 +856,7 @@ pub fn table_db_store(id: u32, col: u32, key: String, value: String) -> Promise 
             table_db.clone()
         };
 
-        table_db
-            .store(col, &key, &value)
-            .await
-            .map_err(veilid_core::VeilidAPIError::generic)?;
+        table_db.store(col, &key, &value).await?;
         APIRESULT_UNDEFINED
     })
 }
@@ -878,9 +875,7 @@ pub fn table_db_load(id: u32, col: u32, key: String) -> Promise {
             table_db.clone()
         };
 
-        let out = table_db
-            .load(col, &key)
-            .map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = table_db.load(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     })
@@ -900,10 +895,7 @@ pub fn table_db_delete(id: u32, col: u32, key: String) -> Promise {
             table_db.clone()
         };
 
-        let out = table_db
-            .delete(col, &key)
-            .await
-            .map_err(veilid_core::VeilidAPIError::generic)?;
+        let out = table_db.delete(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
         APIResult::Ok(out)
     })

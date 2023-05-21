@@ -55,13 +55,13 @@ impl TableDB {
     }
 
     /// Get the total number of columns in the TableDB
-    pub fn get_column_count(&self) -> EyreResult<u32> {
+    pub fn get_column_count(&self) -> VeilidAPIResult<u32> {
         let db = &self.unlocked_inner.database;
-        db.num_columns().wrap_err("failed to get column count: {}")
+        db.num_columns().map_err(VeilidAPIError::from)
     }
 
     /// Get the list of keys in a column of the TableDB
-    pub async fn get_keys(&self, col: u32) -> EyreResult<Vec<Box<[u8]>>> {
+    pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Box<[u8]>>> {
         let db = self.unlocked_inner.database.clone();
         let mut out: Vec<Box<[u8]>> = Vec::new();
         db.iter(col, None, |kv| {
@@ -69,7 +69,7 @@ impl TableDB {
             Ok(Option::<()>::None)
         })
         .await
-        .wrap_err("failed to get keys for column")?;
+        .map_err(VeilidAPIError::from)?;
         Ok(out)
     }
 
@@ -80,15 +80,15 @@ impl TableDB {
     }
 
     /// Store a key with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> EyreResult<()> {
+    pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> VeilidAPIResult<()> {
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, value);
-        db.write(dbt).await.wrap_err("failed to store key")
+        db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub async fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub async fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
         T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
@@ -97,30 +97,30 @@ impl TableDB {
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, v.as_slice());
-        db.write(dbt).await.wrap_err("failed to store key")
+        db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
     /// Store a key in json format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub async fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub async fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
         T: serde::Serialize,
     {
-        let v = serde_json::to_vec(value)?;
+        let v = serde_json::to_vec(value).map_err(VeilidAPIError::internal)?;
 
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
         dbt.put(col, key, v.as_slice());
-        db.write(dbt).await.wrap_err("failed to store key")
+        db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
     /// Read a key from a column in the TableDB immediately.
-    pub async fn load(&self, col: u32, key: &[u8]) -> EyreResult<Option<Vec<u8>>> {
+    pub async fn load(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
-        db.get(col, key).await.wrap_err("failed to get key")
+        db.get(col, key).await.map_err(VeilidAPIError::from)
     }
 
     /// Read an rkyv key from a column in the TableDB immediately
-    pub async fn load_rkyv<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    pub async fn load_rkyv<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
     where
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
@@ -128,33 +128,33 @@ impl TableDB {
         <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
         let out = match self.load(col, key).await? {
-            Some(v) => from_rkyv(v)?,
+            Some(v) => Some(from_rkyv(v)?),
             None => None,
         };
         Ok(out)
     }
 
     /// Read an serde-json key from a column in the TableDB immediately
-    pub async fn load_json<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    pub async fn load_json<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
     where
         T: for<'de> serde::Deserialize<'de>,
     {
         let out = match self.load(col, key).await? {
-            Some(v) => serde_json::from_slice(&v)?,
+            Some(v) => Some(serde_json::from_slice(&v).map_err(VeilidAPIError::internal)?),
             None => None,
         };
         Ok(out)
     }
 
     /// Delete key with from a column in the TableDB
-    pub async fn delete(&self, col: u32, key: &[u8]) -> EyreResult<Option<Vec<u8>>> {
+    pub async fn delete(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
-        let old_value = db.delete(col, key).await.wrap_err("failed to delete key")?;
+        let old_value = db.delete(col, key).await.map_err(VeilidAPIError::from)?;
         Ok(old_value)
     }
 
     /// Delete rkyv key with from a column in the TableDB
-    pub async fn delete_rkyv<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    pub async fn delete_rkyv<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
     where
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
@@ -162,21 +162,21 @@ impl TableDB {
         <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
         let db = self.unlocked_inner.database.clone();
-        let old_value = match db.delete(col, key).await.wrap_err("failed to delete key")? {
-            Some(v) => from_rkyv(v)?,
+        let old_value = match db.delete(col, key).await.map_err(VeilidAPIError::from)? {
+            Some(v) => Some(from_rkyv(v)?),
             None => None,
         };
         Ok(old_value)
     }
 
     /// Delete serde-json key with from a column in the TableDB
-    pub async fn delete_json<T>(&self, col: u32, key: &[u8]) -> EyreResult<Option<T>>
+    pub async fn delete_json<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
     where
         T: for<'de> serde::Deserialize<'de>,
     {
         let db = self.unlocked_inner.database.clone();
-        let old_value = match db.delete(col, key).await.wrap_err("failed to delete key")? {
-            Some(v) => serde_json::from_slice(&v)?,
+        let old_value = match db.delete(col, key).await.map_err(VeilidAPIError::from)? {
+            Some(v) => Some(serde_json::from_slice(&v).map_err(VeilidAPIError::internal)?),
             None => None,
         };
         Ok(old_value)
@@ -219,18 +219,18 @@ impl TableDBTransaction {
     }
 
     /// Commit the transaction. Performs all actions atomically.
-    pub async fn commit(self) -> EyreResult<()> {
+    pub async fn commit(self) -> VeilidAPIResult<()> {
         let dbt = {
             let mut inner = self.inner.lock();
             inner
                 .dbt
                 .take()
-                .ok_or_else(|| eyre!("transaction already completed"))?
+                .ok_or_else(|| VeilidAPIError::generic("transaction already completed"))?
         };
         let db = self.db.unlocked_inner.database.clone();
         db.write(dbt)
             .await
-            .wrap_err("commit failed, transaction lost")
+            .map_err(|e| VeilidAPIError::generic(format!("commit failed, transaction lost: {}", e)))
     }
 
     /// Rollback the transaction. Does nothing to the TableDB.
@@ -246,7 +246,7 @@ impl TableDBTransaction {
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
-    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
         T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
@@ -257,11 +257,11 @@ impl TableDBTransaction {
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
-    pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> EyreResult<()>
+    pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
         T: serde::Serialize,
     {
-        let v = serde_json::to_vec(value)?;
+        let v = serde_json::to_vec(value).map_err(VeilidAPIError::internal)?;
         let mut inner = self.inner.lock();
         inner.dbt.as_mut().unwrap().put(col, key, v.as_slice());
         Ok(())

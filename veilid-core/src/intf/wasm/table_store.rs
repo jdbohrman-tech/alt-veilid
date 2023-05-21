@@ -1,10 +1,10 @@
 use super::*;
-use crate::intf::table_db::TableDBInner;
+use crate::intf::table_db::TableDBUnlockedInner;
 pub use crate::intf::table_db::{TableDB, TableDBTransaction};
 use keyvaluedb_web::*;
 
 struct TableStoreInner {
-    opened: BTreeMap<String, Weak<Mutex<TableDBInner>>>,
+    opened: BTreeMap<String, Weak<TableDBUnlockedInner>>,
 }
 
 #[derive(Clone)]
@@ -95,7 +95,7 @@ impl TableStore {
                 };
             }
         }
-        let db = Database::open(table_name.clone(), column_count)
+        let db = Database::open(table_name.clone(), column_count, false)
             .await
             .wrap_err("failed to open tabledb")?;
         trace!(

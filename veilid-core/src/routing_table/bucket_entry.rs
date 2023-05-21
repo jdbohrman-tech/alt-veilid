@@ -538,7 +538,7 @@ impl BucketEntryInner {
         }
     }
 
-    pub fn set_our_node_info_ts(&mut self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
+    pub fn set_seen_our_node_info_ts(&mut self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
         match routing_domain {
             RoutingDomain::LocalNetwork => {
                 self.local_network.last_seen_our_node_info_ts = seen_ts;

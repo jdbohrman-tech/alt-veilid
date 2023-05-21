@@ -170,8 +170,8 @@ pub trait NodeRefBase: Sized {
     ) -> bool {
         self.operate(|_rti, e| e.has_seen_our_node_info_ts(routing_domain, our_node_info_ts))
     }
-    fn set_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
-        self.operate_mut(|_rti, e| e.set_our_node_info_ts(routing_domain, seen_ts));
+    fn set_seen_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
+        self.operate_mut(|_rti, e| e.set_seen_our_node_info_ts(routing_domain, seen_ts));
     }
     fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
         self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class()))

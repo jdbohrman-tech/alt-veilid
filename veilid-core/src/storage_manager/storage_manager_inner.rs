@@ -154,7 +154,15 @@ impl StorageManagerInner {
 
     async fn load_metadata(&mut self) -> EyreResult<()> {
         if let Some(metadata_db) = &self.metadata_db {
-            self.offline_subkey_writes = metadata_db.load_rkyv(0, b"offline_subkey_writes").await?.unwrap_or_default();
+            self.offline_subkey_writes = match metadata_db.load_rkyv(0, b"offline_subkey_writes").await {
+                Ok(v) => v.unwrap_or_default(),
+                Err(_) => {
+                    if let Err(e) = metadata_db.delete(0,b"offline_subkey_writes").await {
+                        debug!("offline_subkey_writes format changed, clearing: {}", e);
+                    }
+                    Default::default()
+                }
+            }
         }
         Ok(())
     }

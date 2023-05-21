@@ -142,7 +142,10 @@ impl RoutingTable {
                                     .latency
                                     .as_ref()
                                     .map(|l| {
-                                        format!("{:.2}ms", timestamp_to_secs(l.average.as_u64()))
+                                        format!(
+                                            "{:.2}ms",
+                                            timestamp_to_secs(l.average.as_u64()) * 1000.0
+                                        )
                                     })
                                     .unwrap_or_else(|| "???.??ms".to_string())
                             })

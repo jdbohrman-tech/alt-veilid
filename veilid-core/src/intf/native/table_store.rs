@@ -45,10 +45,13 @@ impl TableStore {
     }
 
     pub(crate) async fn terminate(&self) {
-        assert!(
-            self.inner.lock().opened.is_empty(),
-            "all open databases should have been closed"
-        );
+        let inner = self.inner.lock();
+        if !inner.opened.is_empty() {
+            panic!(
+                "all open databases should have been closed: {:?}",
+                inner.opened
+            );
+        }
     }
 
     pub(crate) fn on_table_db_drop(&self, table: String) {
