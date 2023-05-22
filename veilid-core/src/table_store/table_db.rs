@@ -14,6 +14,7 @@ pub struct TableDBUnlockedInner {
     table: String,
     table_store: TableStore,
     database: Database,
+    encryption_key: Option<TypedSharedSecret>,
 }
 
 impl fmt::Debug for TableDBUnlockedInner {
@@ -34,12 +35,18 @@ pub struct TableDB {
 }
 
 impl TableDB {
-    pub(super) fn new(table: String, table_store: TableStore, database: Database) -> Self {
+    pub(super) fn new(
+        table: String,
+        table_store: TableStore,
+        database: Database,
+        encryption_key: Option<TypedSharedSecret>,
+    ) -> Self {
         Self {
             unlocked_inner: Arc::new(TableDBUnlockedInner {
                 table,
                 table_store,
                 database,
+                encryption_key,
             }),
         }
     }

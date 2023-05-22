@@ -84,7 +84,7 @@ impl CryptoSystem for CryptoSystemNONE {
     fn random_bytes(&self, len: u32) -> Vec<u8> {
         let mut bytes = Vec::<u8>::with_capacity(len as usize);
         bytes.resize(len as usize, 0u8);
-        random_bytes(bytes.as_mut()).unwrap();
+        random_bytes(bytes.as_mut());
         bytes
     }
     fn default_salt_length(&self) -> u32 {

@@ -29,6 +29,7 @@ mod receipt_manager;
 mod routing_table;
 mod rpc_processor;
 mod storage_manager;
+mod table_store;
 mod veilid_api;
 mod veilid_config;
 mod veilid_layer_filter;

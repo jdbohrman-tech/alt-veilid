@@ -169,7 +169,10 @@ impl Crypto {
         };
 
         // load caches if they are valid for this node id
-        let mut db = table_store.open("crypto_caches", 1).await?;
+        let mut db = table_store
+            .open("crypto_caches", 1)
+            .await
+            .wrap_err("failed to open crypto_caches")?;
         let caches_valid = match db.load(0, b"cache_validity_key").await? {
             Some(v) => v == cache_validity_key,
             None => false,

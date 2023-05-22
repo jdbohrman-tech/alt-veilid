@@ -78,7 +78,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn random_bytes(&self, len: u32) -> Vec<u8> {
         let mut bytes = Vec::<u8>::with_capacity(len as usize);
         bytes.resize(len as usize, 0u8);
-        random_bytes(bytes.as_mut()).unwrap();
+        random_bytes(bytes.as_mut());
         bytes
     }
     fn default_salt_length(&self) -> u32 {
@@ -134,12 +134,12 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
     fn random_nonce(&self) -> Nonce {
         let mut nonce = [0u8; NONCE_LENGTH];
-        random_bytes(&mut nonce).unwrap();
+        random_bytes(&mut nonce);
         Nonce::new(nonce)
     }
     fn random_shared_secret(&self) -> SharedSecret {
         let mut s = [0u8; SHARED_SECRET_LENGTH];
-        random_bytes(&mut s).unwrap();
+        random_bytes(&mut s);
         SharedSecret::new(s)
     }
     fn compute_dh(

@@ -20,9 +20,9 @@ pub use core::str::FromStr;
 pub use crypto::*;
 pub use intf::BlockStore;
 pub use intf::ProtectedStore;
-pub use intf::{TableDB, TableDBTransaction, TableStore};
 pub use network_manager::NetworkManager;
 pub use routing_table::{NodeRef, NodeRefBase};
+pub use table_store::{TableDB, TableDBTransaction, TableStore};
 
 use crate::*;
 use core::fmt;

@@ -78,7 +78,7 @@ impl ServicesContext {
 
         // Set up tablestore
         trace!("init table store");
-        let table_store = TableStore::new(self.config.clone());
+        let table_store = TableStore::new(self.config.clone(), protected_store.clone());
         if let Err(e) = table_store.init().await {
             error!("failed to init table store: {}", e);
             self.shutdown().await;

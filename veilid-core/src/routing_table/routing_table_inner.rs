@@ -563,7 +563,7 @@ impl RoutingTableInner {
                 // If we need a ping because this node hasn't seen our latest node info, then do it
                 if let Some(own_node_info_ts) = own_node_info_ts {
                     if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
-                        //xxx remove this when we fix
+                        //xxx remove this when we fix #208
                         debug!(
                             "!has_seen_our_node_info_ts: {} own_node_info_ts={}",
                             e.best_node_id(),
