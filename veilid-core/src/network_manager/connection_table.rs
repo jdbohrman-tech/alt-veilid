@@ -187,7 +187,7 @@ impl ConnectionTable {
     pub fn get_last_connection_by_remote(&self, remote: PeerAddress) -> Option<ConnectionHandle> {
         let mut inner = self.inner.lock();
 
-        let id = inner.ids_by_remote.get(&remote).map(|v| v[(v.len() - 1)])?;
+        let id = inner.ids_by_remote.get(&remote).map(|v| v[v.len() - 1])?;
         let protocol_index = Self::protocol_to_index(remote.protocol_type());
         let out = inner.conn_by_id[protocol_index].get(&id).unwrap();
         Some(out.get_handle())
