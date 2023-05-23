@@ -76,8 +76,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
     // Generation
     fn random_bytes(&self, len: u32) -> Vec<u8> {
-        let mut bytes = Vec::<u8>::with_capacity(len as usize);
-        bytes.resize(len as usize, 0u8);
+        let mut bytes = unsafe { unaligned_u8_vec_uninit(len as usize) };
         random_bytes(bytes.as_mut());
         bytes
     }
@@ -318,11 +317,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
     // NoAuth Encrypt/Decrypt
     fn crypt_in_place_no_auth(
         &self,
-        body: &mut Vec<u8>,
-        nonce: &Nonce,
+        body: &mut [u8],
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) {
-        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), &nonce.bytes.into());
+        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), nonce.into());
         cipher.apply_keystream(body);
     }
 
@@ -330,17 +329,17 @@ impl CryptoSystem for CryptoSystemVLD0 {
         &self,
         in_buf: &[u8],
         out_buf: &mut [u8],
-        nonce: &Nonce,
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) {
-        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), &nonce.bytes.into());
+        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), nonce.into());
         cipher.apply_keystream_b2b(in_buf, out_buf).unwrap();
     }
 
     fn crypt_no_auth_aligned_8(
         &self,
         in_buf: &[u8],
-        nonce: &Nonce,
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) -> Vec<u8> {
         let mut out_buf = unsafe { aligned_8_u8_vec_uninit(in_buf.len()) };
@@ -351,7 +350,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn crypt_no_auth_unaligned(
         &self,
         in_buf: &[u8],
-        nonce: &Nonce,
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) -> Vec<u8> {
         let mut out_buf = unsafe { unaligned_u8_vec_uninit(in_buf.len()) };

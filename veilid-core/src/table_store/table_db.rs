@@ -10,11 +10,26 @@ cfg_if! {
     }
 }
 
+struct CryptInfo {
+    vcrypto: CryptoSystemVersion,
+    key: SharedSecret,
+}
+impl CryptInfo {
+    pub fn new(crypto: Crypto, typed_key: TypedSharedSecret) -> Self {
+        let vcrypto = crypto.get(typed_key.kind).unwrap();
+        let key = typed_key.value;
+        Self { vcrypto, key }
+    }
+}
+
 pub struct TableDBUnlockedInner {
     table: String,
     table_store: TableStore,
+    crypto: Crypto,
     database: Database,
-    encryption_key: Option<TypedSharedSecret>,
+    // Encryption and decryption key will be the same unless configured for an in-place migration
+    encrypt_info: Option<CryptInfo>,
+    decrypt_info: Option<CryptInfo>,
 }
 
 impl fmt::Debug for TableDBUnlockedInner {
@@ -38,15 +53,22 @@ impl TableDB {
     pub(super) fn new(
         table: String,
         table_store: TableStore,
+        crypto: Crypto,
         database: Database,
         encryption_key: Option<TypedSharedSecret>,
+        decryption_key: Option<TypedSharedSecret>,
     ) -> Self {
+        let encrypt_info = encryption_key.map(|ek| CryptInfo::new(crypto.clone(), ek));
+        let decrypt_info = dcryption_key.map(|dk| CryptInfo::new(crypto.clone(), dk));
+
         Self {
             unlocked_inner: Arc::new(TableDBUnlockedInner {
                 table,
                 table_store,
+                crypto,
                 database,
-                encryption_key,
+                encrypt_info,
+                decrypt_info,
             }),
         }
     }
@@ -67,8 +89,46 @@ impl TableDB {
         db.num_columns().map_err(VeilidAPIError::from)
     }
 
+    fn maybe_encrypt(&self, data: &[u8]) -> Vec<u8> {
+        if let Some(ei) = &self.unlocked_inner.encrypt_info {
+            let mut out = unsafe { unaligned_u8_vec_uninit(NONCE_LENGTH + data.len()) };
+            random_bytes(&mut out[0..NONCE_LENGTH]);
+
+            ei.vcrypto.crypt_b2b_no_auth(
+                data,
+                &mut out[NONCE_LENGTH..],
+                &out[0..NONCE_LENGTH],
+                &ei.key,
+            );
+            out
+        } else {
+            data.to_vec()
+        }
+    }
+
+    fn maybe_decrypt(&self, data: &[u8]) -> VeilidAPIResult<Vec<u8>> {
+        if let Some(di) = &self.unlocked_inner.decrypt_info {
+            if data.len() <= NONCE_LENGTH {
+                return Err(VeilidAPIError::internal("data too short"));
+            }
+            xxxx make decrypt
+            let mut out = unsafe { unaligned_u8_vec_uninit(NONCE_LENGTH + data.len()) };
+            random_bytes(&mut out[0..NONCE_LENGTH]);
+
+            ei.vcrypto.crypt_b2b_no_auth(
+                data,
+                &mut out[NONCE_LENGTH..],
+                &out[0..NONCE_LENGTH],
+                &ei.key,
+            );
+            out
+        } else {
+            Ok(data.to_vec())
+        }
+    }
+
     /// Get the list of keys in a column of the TableDB
-    pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Box<[u8]>>> {
+    pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
         let mut out: Vec<Box<[u8]>> = Vec::new();
         db.iter(col, None, |kv| {

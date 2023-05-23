@@ -139,6 +139,9 @@ impl Crypto {
         trace!("Crypto::init");
         let table_store = self.unlocked_inner.table_store.clone();
 
+        // Set crypto for table store
+        table_store.set_crypto(self.clone());
+
         // Init node id from config
         if let Err(e) = self
             .unlocked_inner

@@ -6,6 +6,7 @@ struct TableStoreInner {
     encryption_key: Option<TypedSharedSecret>,
     all_table_names: HashMap<String, String>,
     all_tables_db: Option<Database>,
+    crypto: Option<Crypto>,
 }
 
 /// Veilid Table Storage
@@ -26,6 +27,7 @@ impl TableStore {
             encryption_key: None,
             all_table_names: HashMap::new(),
             all_tables_db: None,
+            crypto: None,
         }
     }
     pub(crate) fn new(config: VeilidConfig, protected_store: ProtectedStore) -> Self {
@@ -41,6 +43,11 @@ impl TableStore {
         }
     }
 
+    pub(crate) fn set_crypto(&self, crypto: Crypto) {
+        let mut inner = self.inner.lock();
+        inner.crypto = Some(crypto);
+    }
+
     // Flush internal control state
     async fn flush(&self) {
         let (all_table_names_value, all_tables_db) = {
@@ -54,7 +61,7 @@ impl TableStore {
         if let Err(e) = all_tables_db.write(dbt).await {
             error!("failed to write all tables db: {}", e);
         }
-    } xxx must from_rkyv the all_table_names
+    }
 
     // Internal naming support
     // Adds rename capability and ensures names of tables are totally unique and valid
@@ -159,16 +166,50 @@ impl TableStore {
     pub(crate) async fn init(&self) -> EyreResult<()> {
         let _async_guard = self.async_lock.lock().await;
 
-        let encryption_key: Option<TypedSharedSecret> = self
+        // Get device encryption key from protected store
+        let mut encryption_key: Option<TypedSharedSecret> = self
             .protected_store
             .load_user_secret_rkyv("device_encryption_key")
             .await?;
 
+        if let Some(encryption_key) = encryption_key {
+            // If encryption in current use is not the best encryption, then run table migration
+            let best_kind = best_crypto_kind();
+            if encryption_key.kind != best_kind {
+                // XXX: Run migration. See issue #209
+            }
+        } else {
+            // If we don't have an encryption key yet, then make one with the best cryptography and save it
+            let best_kind = best_crypto_kind();
+            let mut shared_secret = SharedSecret::default();
+            random_bytes(&mut shared_secret.bytes);
+            encryption_key = Some(TypedSharedSecret::new(best_kind, shared_secret));
+        }
+
+        // Deserialize all table names
         let all_tables_db = self
             .table_store_driver
             .open("__veilid_all_tables", 1)
             .await
             .wrap_err("failed to create all tables table")?;
+        match all_tables_db.get(0, b"all_table_names").await {
+            Ok(Some(v)) => match from_rkyv::<HashMap<String, String>>(v) {
+                Ok(all_table_names) => {
+                    let mut inner = self.inner.lock();
+                    inner.all_table_names = all_table_names;
+                }
+                Err(e) => {
+                    error!("could not deserialize __veilid_all_tables: {}", e);
+                }
+            },
+            Ok(None) => {
+                // No table names yet, that's okay
+                trace!("__veilid_all_tables is empty");
+            }
+            Err(e) => {
+                error!("could not get __veilid_all_tables: {}", e);
+            }
+        };
 
         {
             let mut inner = self.inner.lock();
@@ -190,6 +231,9 @@ impl TableStore {
 
     pub(crate) async fn terminate(&self) {
         let _async_guard = self.async_lock.lock().await;
+
+        self.flush().await;
+
         let mut inner = self.inner.lock();
         if !inner.opened.is_empty() {
             panic!(
@@ -198,6 +242,7 @@ impl TableStore {
             );
         }
         inner.all_tables_db = None;
+        inner.all_table_names.clear();
         inner.encryption_key = None;
     }
 
@@ -251,7 +296,9 @@ impl TableStore {
         let table_db = TableDB::new(
             table_name.clone(),
             self.clone(),
+            inner.crypto.as_ref().unwrap().clone(),
             db,
+            inner.encryption_key.clone(),
             inner.encryption_key.clone(),
         );
 

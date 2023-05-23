@@ -97,27 +97,27 @@ pub trait CryptoSystem {
     // NoAuth Encrypt/Decrypt
     fn crypt_in_place_no_auth(
         &self,
-        body: &mut Vec<u8>,
-        nonce: &Nonce,
+        body: &mut [u8],
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     );
     fn crypt_b2b_no_auth(
         &self,
         in_buf: &[u8],
         out_buf: &mut [u8],
-        nonce: &Nonce,
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     );
     fn crypt_no_auth_aligned_8(
         &self,
         body: &[u8],
-        nonce: &Nonce,
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) -> Vec<u8>;
     fn crypt_no_auth_unaligned(
         &self,
         body: &[u8],
-        nonce: &Nonce,
+        nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) -> Vec<u8>;
 }

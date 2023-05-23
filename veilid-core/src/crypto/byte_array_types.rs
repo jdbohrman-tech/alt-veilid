@@ -256,6 +256,20 @@ macro_rules! byte_array_type {
                 })
             }
         }
+
+        impl core::ops::Deref for $name {
+            type Target = [u8; $size];
+
+            fn deref(&self) -> &Self::Target {
+                &self.bytes
+            }
+        }
+
+        impl core::ops::DerefMut for $name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.bytes
+            }
+        }
     };
 }
 

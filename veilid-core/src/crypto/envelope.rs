@@ -183,8 +183,11 @@ impl Envelope {
         let dh_secret = vcrypto.cached_dh(&self.sender_id, node_id_secret)?;
 
         // Decrypt message without authentication
-        let body =
-            vcrypto.crypt_no_auth_aligned_8(&data[0x6A..data.len() - 64], &self.nonce, &dh_secret);
+        let body = vcrypto.crypt_no_auth_aligned_8(
+            &data[0x6A..data.len() - 64],
+            &self.nonce.bytes,
+            &dh_secret,
+        );
 
         Ok(body)
     }
@@ -227,7 +230,7 @@ impl Envelope {
         data[0x4A..0x6A].copy_from_slice(&self.recipient_id.bytes);
 
         // Encrypt and authenticate message
-        let encrypted_body = vcrypto.crypt_no_auth_unaligned(body, &self.nonce, &dh_secret);
+        let encrypted_body = vcrypto.crypt_no_auth_unaligned(body, &self.nonce.bytes, &dh_secret);
 
         // Write body
         if !encrypted_body.is_empty() {
