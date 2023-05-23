@@ -12,3 +12,4 @@ use super::*;
 pub use common::*;
 pub use crypto::tests::*;
 pub use network_manager::tests::*;
+pub use veilid_api::tests::*;

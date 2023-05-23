@@ -3,6 +3,7 @@
 use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
 use crate::tests::common::*;
+use crate::veilid_api::tests::*;
 use crate::*;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -160,6 +161,15 @@ cfg_if! {
             setup();
             block_on(async {
                 test_envelope_receipt::test_all().await;
+            })
+        }
+
+        #[test]
+        #[serial]
+        fn run_test_serialize_rkyv() {
+            setup();
+            block_on(async {
+                test_serialize_rkyv::test_all().await;
             })
         }
 
