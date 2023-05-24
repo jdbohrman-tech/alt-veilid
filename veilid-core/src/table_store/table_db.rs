@@ -1,3 +1,5 @@
+use rustls::internal::msgs::handshake::EncryptedExtensions;
+
 use crate::*;
 
 cfg_if! {
@@ -59,7 +61,7 @@ impl TableDB {
         decryption_key: Option<TypedSharedSecret>,
     ) -> Self {
         let encrypt_info = encryption_key.map(|ek| CryptInfo::new(crypto.clone(), ek));
-        let decrypt_info = dcryption_key.map(|dk| CryptInfo::new(crypto.clone(), dk));
+        let decrypt_info = decryption_key.map(|dk| CryptInfo::new(crypto.clone(), dk));
 
         Self {
             unlocked_inner: Arc::new(TableDBUnlockedInner {
@@ -89,15 +91,17 @@ impl TableDB {
         db.num_columns().map_err(VeilidAPIError::from)
     }
 
+    /// Encrypt buffer using encrypt key and prepend nonce to output
     fn maybe_encrypt(&self, data: &[u8]) -> Vec<u8> {
         if let Some(ei) = &self.unlocked_inner.encrypt_info {
             let mut out = unsafe { unaligned_u8_vec_uninit(NONCE_LENGTH + data.len()) };
             random_bytes(&mut out[0..NONCE_LENGTH]);
 
+            let (nonce, encout) = out.split_at_mut(NONCE_LENGTH);
             ei.vcrypto.crypt_b2b_no_auth(
                 data,
-                &mut out[NONCE_LENGTH..],
-                &out[0..NONCE_LENGTH],
+                encout,
+                (nonce as &[u8]).try_into().unwrap(),
                 &ei.key,
             );
             out
@@ -106,33 +110,31 @@ impl TableDB {
         }
     }
 
-    fn maybe_decrypt(&self, data: &[u8]) -> VeilidAPIResult<Vec<u8>> {
+    /// Decrypt buffer using decrypt key with nonce prepended to input
+    fn maybe_decrypt(&self, data: &[u8]) -> Vec<u8> {
         if let Some(di) = &self.unlocked_inner.decrypt_info {
-            if data.len() <= NONCE_LENGTH {
-                return Err(VeilidAPIError::internal("data too short"));
-            }
-            xxxx make decrypt
-            let mut out = unsafe { unaligned_u8_vec_uninit(NONCE_LENGTH + data.len()) };
-            random_bytes(&mut out[0..NONCE_LENGTH]);
+            assert!(data.len() > NONCE_LENGTH);
 
-            ei.vcrypto.crypt_b2b_no_auth(
-                data,
-                &mut out[NONCE_LENGTH..],
-                &out[0..NONCE_LENGTH],
-                &ei.key,
+            let mut out = unsafe { unaligned_u8_vec_uninit(data.len() - NONCE_LENGTH) };
+
+            di.vcrypto.crypt_b2b_no_auth(
+                &data[NONCE_LENGTH..],
+                &mut out,
+                (&data[0..NONCE_LENGTH]).try_into().unwrap(),
+                &di.key,
             );
             out
         } else {
-            Ok(data.to_vec())
+            data.to_vec()
         }
     }
 
     /// Get the list of keys in a column of the TableDB
     pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
-        let mut out: Vec<Box<[u8]>> = Vec::new();
+        let mut out = Vec::new();
         db.iter(col, None, |kv| {
-            out.push(kv.0.clone().into_boxed_slice());
+            out.push(self.maybe_decrypt(&kv.0));
             Ok(Option::<()>::None)
         })
         .await
@@ -150,7 +152,7 @@ impl TableDB {
     pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> VeilidAPIResult<()> {
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
-        dbt.put(col, key, value);
+        dbt.put(col, self.maybe_encrypt(key), self.maybe_encrypt(value));
         db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
@@ -163,7 +165,11 @@ impl TableDB {
 
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
-        dbt.put(col, key, v.as_slice());
+        dbt.put(
+            col,
+            self.maybe_encrypt(key),
+            self.maybe_encrypt(v.as_slice()),
+        );
         db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
@@ -176,14 +182,23 @@ impl TableDB {
 
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
-        dbt.put(col, key, v.as_slice());
+        dbt.put(
+            col,
+            self.maybe_encrypt(key),
+            self.maybe_encrypt(v.as_slice()),
+        );
         db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
     /// Read a key from a column in the TableDB immediately.
     pub async fn load(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
-        db.get(col, key).await.map_err(VeilidAPIError::from)
+        let ekey = self.maybe_encrypt(key);
+        Ok(db
+            .get(col, &ekey)
+            .await
+            .map_err(VeilidAPIError::from)?
+            .map(|v| self.maybe_decrypt(&v)))
     }
 
     /// Read an rkyv key from a column in the TableDB immediately
@@ -194,7 +209,9 @@ impl TableDB {
             for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
-        let out = match self.load(col, key).await? {
+        let ekey = self.maybe_encrypt(key);
+
+        let out = match self.load(col, &ekey).await?.map(|v| self.maybe_decrypt(&v)) {
             Some(v) => Some(from_rkyv(v)?),
             None => None,
         };
@@ -206,7 +223,9 @@ impl TableDB {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        let out = match self.load(col, key).await? {
+        let ekey = self.maybe_encrypt(key);
+
+        let out = match self.load(col, &ekey).await?.map(|v| self.maybe_decrypt(&v)) {
             Some(v) => Some(serde_json::from_slice(&v).map_err(VeilidAPIError::internal)?),
             None => None,
         };
@@ -215,8 +234,14 @@ impl TableDB {
 
     /// Delete key with from a column in the TableDB
     pub async fn delete(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
+        let ekey = self.maybe_encrypt(key);
+
         let db = self.unlocked_inner.database.clone();
-        let old_value = db.delete(col, key).await.map_err(VeilidAPIError::from)?;
+        let old_value = db
+            .delete(col, &ekey)
+            .await
+            .map_err(VeilidAPIError::from)?
+            .map(|v| self.maybe_decrypt(&v));
         Ok(old_value)
     }
 
@@ -228,8 +253,15 @@ impl TableDB {
             for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
+        let ekey = self.maybe_encrypt(key);
+
         let db = self.unlocked_inner.database.clone();
-        let old_value = match db.delete(col, key).await.map_err(VeilidAPIError::from)? {
+        let old_value = match db
+            .delete(col, &ekey)
+            .await
+            .map_err(VeilidAPIError::from)?
+            .map(|v| self.maybe_decrypt(&v))
+        {
             Some(v) => Some(from_rkyv(v)?),
             None => None,
         };
@@ -241,12 +273,28 @@ impl TableDB {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
+        let ekey = self.maybe_encrypt(key);
+
         let db = self.unlocked_inner.database.clone();
-        let old_value = match db.delete(col, key).await.map_err(VeilidAPIError::from)? {
+        let old_value = match db
+            .delete(col, &ekey)
+            .await
+            .map_err(VeilidAPIError::from)?
+            .map(|v| self.maybe_decrypt(&v))
+        {
             Some(v) => Some(serde_json::from_slice(&v).map_err(VeilidAPIError::internal)?),
             None => None,
         };
         Ok(old_value)
+    }
+
+    /// Perform commit
+    async fn do_commit(&self, dbt: TableDBTransaction) -> VeilidAPIResult<()> {
+        let db = self.unlocked_inner.database.clone();
+        xxx translate transaction to encrypt
+        db.write(dbt)
+            .await
+            .map_err(|e| VeilidAPIError::generic(format!("commit failed, transaction lost: {}", e)))
     }
 }
 
@@ -294,10 +342,7 @@ impl TableDBTransaction {
                 .take()
                 .ok_or_else(|| VeilidAPIError::generic("transaction already completed"))?
         };
-        let db = self.db.unlocked_inner.database.clone();
-        db.write(dbt)
-            .await
-            .map_err(|e| VeilidAPIError::generic(format!("commit failed, transaction lost: {}", e)))
+        self.db.do_commit(dbt).await
     }
 
     /// Rollback the transaction. Does nothing to the TableDB.
