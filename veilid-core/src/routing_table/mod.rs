@@ -13,6 +13,8 @@ mod stats_accounting;
 mod tasks;
 mod types;
 
+pub mod tests;
+
 use super::*;
 
 use crate::crypto::*;
@@ -290,8 +292,8 @@ impl RoutingTable {
         debug!("finished routing table terminate");
     }
 
-    /// Serialize routing table to table store
-    async fn save_buckets(&self) -> EyreResult<()> {
+    /// Serialize the routing table.
+    fn serialized_buckets(&self) -> EyreResult<(BTreeMap<CryptoKind, Vec<Vec<u8>>>, Vec<Vec<u8>>)> {
         // Since entries are shared by multiple buckets per cryptokind
         // we need to get the list of all unique entries when serializing
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::new();
@@ -319,6 +321,13 @@ impl RoutingTable {
             all_entry_bytes.push(entry_bytes);
         }
 
+        Ok((serialized_bucket_map, all_entry_bytes))
+    }
+
+    /// Write the serialized routing table to the table store.
+    async fn save_buckets(&self) -> EyreResult<()> {
+        let (serialized_bucket_map, all_entry_bytes) = self.serialized_buckets()?;
+
         let table_store = self.unlocked_inner.network_manager().table_store();
         let tdb = table_store.open("routing_table", 1).await?;
         let dbx = tdb.transact();
@@ -333,7 +342,6 @@ impl RoutingTable {
         dbx.commit().await?;
         Ok(())
     }
-
     /// Deserialize routing table from table store
     async fn load_buckets(&self) -> EyreResult<()> {
         // Deserialize bucket map and all entries from the table store
@@ -350,7 +358,18 @@ impl RoutingTable {
 
         // Reconstruct all entries
         let inner = &mut *self.inner.write();
+        self.populate_routing_table(inner, serialized_bucket_map, all_entry_bytes)?;
 
+        Ok(())
+    }
+
+    /// Write the deserialized table store data to the routing table.
+    pub fn populate_routing_table(
+        &self,
+        inner: &mut RoutingTableInner,
+        serialized_bucket_map: BTreeMap<CryptoKind, Vec<Vec<u8>>>,
+        all_entry_bytes: Vec<Vec<u8>>,
+    ) -> EyreResult<()> {
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::with_capacity(all_entry_bytes.len());
         for entry_bytes in all_entry_bytes {
             let entryinner =

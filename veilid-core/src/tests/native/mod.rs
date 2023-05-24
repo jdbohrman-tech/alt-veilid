@@ -2,6 +2,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
+use crate::routing_table::tests::*;
 use crate::tests::common::*;
 use crate::veilid_api::tests::*;
 use crate::*;
@@ -173,5 +174,13 @@ cfg_if! {
             })
         }
 
+        #[test]
+        #[serial]
+        fn run_test_routing_table_serialize() {
+            setup();
+            block_on(async {
+                routing_table::tests::test_serialize::test_all().await;
+            })
+        }
     }
 }
