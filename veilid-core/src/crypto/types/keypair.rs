@@ -56,9 +56,7 @@ impl fmt::Display for KeyPair {
 
 impl fmt::Debug for KeyPair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, concat!(stringify!($name), "("))?;
-        write!(f, "{}", self.encode())?;
-        write!(f, ")")
+        write!(f, "KeyPair({})", self.encode())
     }
 }
 

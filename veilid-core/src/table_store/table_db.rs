@@ -1,5 +1,3 @@
-use rustls::internal::msgs::handshake::EncryptedExtensions;
-
 use crate::*;
 
 cfg_if! {
@@ -27,7 +25,6 @@ impl CryptInfo {
 pub struct TableDBUnlockedInner {
     table: String,
     table_store: TableStore,
-    crypto: Crypto,
     database: Database,
     // Encryption and decryption key will be the same unless configured for an in-place migration
     encrypt_info: Option<CryptInfo>,
@@ -67,7 +64,6 @@ impl TableDB {
             unlocked_inner: Arc::new(TableDBUnlockedInner {
                 table,
                 table_store,
-                crypto,
                 database,
                 encrypt_info,
                 decrypt_info,
@@ -92,10 +88,26 @@ impl TableDB {
     }
 
     /// Encrypt buffer using encrypt key and prepend nonce to output
-    fn maybe_encrypt(&self, data: &[u8]) -> Vec<u8> {
+    /// Keyed nonces are unique because keys must be unique
+    /// Normally they must be sequential or random, but the critical
+    /// requirement is that they are different for each encryption
+    /// but if the contents are guaranteed to be unique, then a nonce
+    /// can be generated from the hash of the contents and the encryption key itself
+    fn maybe_encrypt(&self, data: &[u8], keyed_nonce: bool) -> Vec<u8> {
         if let Some(ei) = &self.unlocked_inner.encrypt_info {
             let mut out = unsafe { unaligned_u8_vec_uninit(NONCE_LENGTH + data.len()) };
-            random_bytes(&mut out[0..NONCE_LENGTH]);
+
+            if keyed_nonce {
+                // Key content nonce
+                let mut noncedata = Vec::with_capacity(data.len() + PUBLIC_KEY_LENGTH);
+                noncedata.extend_from_slice(data);
+                noncedata.extend_from_slice(&ei.key.bytes);
+                let noncehash = ei.vcrypto.generate_hash(&noncedata);
+                out[0..NONCE_LENGTH].copy_from_slice(&noncehash[0..NONCE_LENGTH])
+            } else {
+                // Random nonce
+                random_bytes(&mut out[0..NONCE_LENGTH]);
+            }
 
             let (nonce, encout) = out.split_at_mut(NONCE_LENGTH);
             ei.vcrypto.crypt_b2b_no_auth(
@@ -133,8 +145,8 @@ impl TableDB {
     pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
         let mut out = Vec::new();
-        db.iter(col, None, |kv| {
-            out.push(self.maybe_decrypt(&kv.0));
+        db.iter_keys(col, None, |k| {
+            out.push(self.maybe_decrypt(k));
             Ok(Option::<()>::None)
         })
         .await
@@ -152,7 +164,11 @@ impl TableDB {
     pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> VeilidAPIResult<()> {
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
-        dbt.put(col, self.maybe_encrypt(key), self.maybe_encrypt(value));
+        dbt.put(
+            col,
+            self.maybe_encrypt(key, true),
+            self.maybe_encrypt(value, false),
+        );
         db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
@@ -161,16 +177,8 @@ impl TableDB {
     where
         T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
-        let v = to_rkyv(value)?;
-
-        let db = self.unlocked_inner.database.clone();
-        let mut dbt = db.transaction();
-        dbt.put(
-            col,
-            self.maybe_encrypt(key),
-            self.maybe_encrypt(v.as_slice()),
-        );
-        db.write(dbt).await.map_err(VeilidAPIError::generic)
+        let value = to_rkyv(value)?;
+        self.store(col, key, &value).await
     }
 
     /// Store a key in json format with a value in a column in the TableDB. Performs a single transaction immediately.
@@ -178,24 +186,16 @@ impl TableDB {
     where
         T: serde::Serialize,
     {
-        let v = serde_json::to_vec(value).map_err(VeilidAPIError::internal)?;
-
-        let db = self.unlocked_inner.database.clone();
-        let mut dbt = db.transaction();
-        dbt.put(
-            col,
-            self.maybe_encrypt(key),
-            self.maybe_encrypt(v.as_slice()),
-        );
-        db.write(dbt).await.map_err(VeilidAPIError::generic)
+        let value = serde_json::to_vec(value).map_err(VeilidAPIError::internal)?;
+        self.store(col, key, &value).await
     }
 
     /// Read a key from a column in the TableDB immediately.
     pub async fn load(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
         let db = self.unlocked_inner.database.clone();
-        let ekey = self.maybe_encrypt(key);
+        let key = self.maybe_encrypt(key, true);
         Ok(db
-            .get(col, &ekey)
+            .get(col, &key)
             .await
             .map_err(VeilidAPIError::from)?
             .map(|v| self.maybe_decrypt(&v)))
@@ -209,9 +209,7 @@ impl TableDB {
             for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
-        let ekey = self.maybe_encrypt(key);
-
-        let out = match self.load(col, &ekey).await?.map(|v| self.maybe_decrypt(&v)) {
+        let out = match self.load(col, key).await? {
             Some(v) => Some(from_rkyv(v)?),
             None => None,
         };
@@ -223,9 +221,7 @@ impl TableDB {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        let ekey = self.maybe_encrypt(key);
-
-        let out = match self.load(col, &ekey).await?.map(|v| self.maybe_decrypt(&v)) {
+        let out = match self.load(col, key).await? {
             Some(v) => Some(serde_json::from_slice(&v).map_err(VeilidAPIError::internal)?),
             None => None,
         };
@@ -234,11 +230,11 @@ impl TableDB {
 
     /// Delete key with from a column in the TableDB
     pub async fn delete(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
-        let ekey = self.maybe_encrypt(key);
+        let key = self.maybe_encrypt(key, true);
 
         let db = self.unlocked_inner.database.clone();
         let old_value = db
-            .delete(col, &ekey)
+            .delete(col, &key)
             .await
             .map_err(VeilidAPIError::from)?
             .map(|v| self.maybe_decrypt(&v));
@@ -253,15 +249,7 @@ impl TableDB {
             for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
         <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
-        let ekey = self.maybe_encrypt(key);
-
-        let db = self.unlocked_inner.database.clone();
-        let old_value = match db
-            .delete(col, &ekey)
-            .await
-            .map_err(VeilidAPIError::from)?
-            .map(|v| self.maybe_decrypt(&v))
-        {
+        let old_value = match self.delete(col, key).await? {
             Some(v) => Some(from_rkyv(v)?),
             None => None,
         };
@@ -273,28 +261,11 @@ impl TableDB {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        let ekey = self.maybe_encrypt(key);
-
-        let db = self.unlocked_inner.database.clone();
-        let old_value = match db
-            .delete(col, &ekey)
-            .await
-            .map_err(VeilidAPIError::from)?
-            .map(|v| self.maybe_decrypt(&v))
-        {
+        let old_value = match self.delete(col, key).await? {
             Some(v) => Some(serde_json::from_slice(&v).map_err(VeilidAPIError::internal)?),
             None => None,
         };
         Ok(old_value)
-    }
-
-    /// Perform commit
-    async fn do_commit(&self, dbt: TableDBTransaction) -> VeilidAPIResult<()> {
-        let db = self.unlocked_inner.database.clone();
-        xxx translate transaction to encrypt
-        db.write(dbt)
-            .await
-            .map_err(|e| VeilidAPIError::generic(format!("commit failed, transaction lost: {}", e)))
     }
 }
 
@@ -342,7 +313,11 @@ impl TableDBTransaction {
                 .take()
                 .ok_or_else(|| VeilidAPIError::generic("transaction already completed"))?
         };
-        self.db.do_commit(dbt).await
+
+        let db = self.db.unlocked_inner.database.clone();
+        db.write(dbt)
+            .await
+            .map_err(|e| VeilidAPIError::generic(format!("commit failed, transaction lost: {}", e)))
     }
 
     /// Rollback the transaction. Does nothing to the TableDB.
@@ -353,8 +328,10 @@ impl TableDBTransaction {
 
     /// Store a key with a value in a column in the TableDB
     pub fn store(&self, col: u32, key: &[u8], value: &[u8]) {
+        let key = self.db.maybe_encrypt(key, true);
+        let value = self.db.maybe_encrypt(value, false);
         let mut inner = self.inner.lock();
-        inner.dbt.as_mut().unwrap().put(col, key, value);
+        inner.dbt.as_mut().unwrap().put_owned(col, key, value);
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
@@ -362,9 +339,12 @@ impl TableDBTransaction {
     where
         T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
-        let v = to_rkyv(value)?;
+        let value = to_rkyv(value)?;
+        let key = self.db.maybe_encrypt(key, true);
+        let value = self.db.maybe_encrypt(&value, false);
+
         let mut inner = self.inner.lock();
-        inner.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        inner.dbt.as_mut().unwrap().put_owned(col, key, value);
         Ok(())
     }
 
@@ -373,16 +353,20 @@ impl TableDBTransaction {
     where
         T: serde::Serialize,
     {
-        let v = serde_json::to_vec(value).map_err(VeilidAPIError::internal)?;
+        let value = serde_json::to_vec(value).map_err(VeilidAPIError::internal)?;
+        let key = self.db.maybe_encrypt(key, true);
+        let value = self.db.maybe_encrypt(&value, false);
+
         let mut inner = self.inner.lock();
-        inner.dbt.as_mut().unwrap().put(col, key, v.as_slice());
+        inner.dbt.as_mut().unwrap().put_owned(col, key, value);
         Ok(())
     }
 
     /// Delete key with from a column in the TableDB
     pub fn delete(&self, col: u32, key: &[u8]) {
+        let key = self.db.maybe_encrypt(key, true);
         let mut inner = self.inner.lock();
-        inner.dbt.as_mut().unwrap().delete(col, key);
+        inner.dbt.as_mut().unwrap().delete_owned(col, key);
     }
 }
 
