@@ -91,6 +91,12 @@ async fn wasm_test_envelope_receipt() {
 }
 
 #[wasm_bindgen_test]
+async fn wasm_test_serialize_json() {
+    setup();
+    test_serialize_json::test_all().await;
+}
+
+#[wasm_bindgen_test]
 async fn wasm_test_serialize_rkyv() {
     setup();
     test_serialize_rkyv::test_all().await;

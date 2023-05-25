@@ -33,6 +33,8 @@ pub async fn run_all_tests() {
     test_crypto::test_all().await;
     info!("TEST: test_envelope_receipt");
     test_envelope_receipt::test_all().await;
+    info!("TEST: veilid_api::tests::test_serialize_json");
+    veilid_api::tests::test_serialize_json::test_all().await;
     info!("TEST: veilid_api::tests::test_serialize_rkyv");
     veilid_api::tests::test_serialize_rkyv::test_all().await;
     info!("TEST: routing_table::test_serialize_routing_table");
@@ -128,6 +130,8 @@ cfg_if! {
         run_test!(test_crypto);
 
         run_test!(test_envelope_receipt);
+
+        run_test!(veilid_api, test_serialize_json);
 
         run_test!(veilid_api, test_serialize_rkyv);
 
