@@ -6,7 +6,6 @@ pub struct RouteSpecDetail {
     /// Crypto kind
     pub crypto_kind: CryptoKind,
     /// Secret key
-    #[with(Skip)]
     pub secret_key: SecretKey,
     /// Route hops (node id keys)
     pub hops: Vec<PublicKey>,

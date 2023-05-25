@@ -49,7 +49,7 @@ impl Receipt {
         nonce: Nonce,
         sender_id: PublicKey,
         extra_data: D,
-    ) -> Result<Self, VeilidAPIError> {
+    ) -> VeilidAPIResult<Self> {
         assert!(VALID_ENVELOPE_VERSIONS.contains(&version));
         assert!(VALID_CRYPTO_KINDS.contains(&crypto_kind));
 
@@ -68,7 +68,7 @@ impl Receipt {
         })
     }
 
-    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> Result<Receipt, VeilidAPIError> {
+    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> VeilidAPIResult<Receipt> {
         // Ensure we are at least the length of the envelope
         if data.len() < MIN_RECEIPT_SIZE {
             apibail_parse_error!("receipt too small", data.len());
@@ -153,11 +153,7 @@ impl Receipt {
         })
     }
 
-    pub fn to_signed_data(
-        &self,
-        crypto: Crypto,
-        secret: &SecretKey,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    pub fn to_signed_data(&self, crypto: Crypto, secret: &SecretKey) -> VeilidAPIResult<Vec<u8>> {
         // Ensure extra data isn't too long
         let receipt_size: usize = self.extra_data.len() + MIN_RECEIPT_SIZE;
         if receipt_size > MAX_RECEIPT_SIZE {

@@ -21,7 +21,7 @@ impl StorageManager {
         safety_selection: SafetySelection,
         value: SignedValueData,
         descriptor: SignedValueDescriptor,
-    ) -> Result<SignedValueData, VeilidAPIError> {
+    ) -> VeilidAPIResult<SignedValueData> {
         let routing_table = rpc_processor.routing_table();
 
         // Get the DHT parameters for 'SetValue'
@@ -164,7 +164,7 @@ impl StorageManager {
     /// Handle a recieved 'Set Value' query
     /// Returns a None if the value passed in was set
     /// Returns a Some(current value) if the value was older and the current value was kept
-    pub async fn inbound_set_value(&self, key: TypedKey, subkey: ValueSubkey, value: SignedValueData, descriptor: Option<SignedValueDescriptor>) -> Result<NetworkResult<Option<SignedValueData>>, VeilidAPIError> {
+    pub async fn inbound_set_value(&self, key: TypedKey, subkey: ValueSubkey, value: SignedValueData, descriptor: Option<SignedValueDescriptor>) -> VeilidAPIResult<NetworkResult<Option<SignedValueData>>> {
         let mut inner = self.lock().await?;
 
         // See if the subkey we are modifying has a last known local value

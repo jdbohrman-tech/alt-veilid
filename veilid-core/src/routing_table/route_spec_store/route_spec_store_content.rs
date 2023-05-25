@@ -55,47 +55,6 @@ impl RouteSpecStoreContent {
             content.remove_detail(&id);
         }
 
-        // Load secrets from pstore
-        let pstore = routing_table.network_manager().protected_store();
-        let secret_key_map: HashMap<PublicKey, SecretKey> = pstore
-            .load_user_secret_rkyv("RouteSpecStore")
-            .await?
-            .unwrap_or_default();
-
-        // Ensure we got secret keys for all the public keys
-        let mut got_secret_key_ids = HashSet::new();
-        for (rsid, rssd) in content.details.iter_mut() {
-            let mut found_all = true;
-            for (pk, rsd) in rssd.iter_route_set_mut() {
-                if let Some(sk) = secret_key_map.get(pk) {
-                    rsd.secret_key = *sk;
-                } else {
-                    found_all = false;
-                    break;
-                }
-            }
-            if found_all {
-                got_secret_key_ids.insert(rsid.clone());
-            }
-        }
-
-        // If we missed any, nuke those route ids
-        let dead_ids: Vec<RouteId> = content
-            .details
-            .keys()
-            .filter_map(|id| {
-                if !got_secret_key_ids.contains(id) {
-                    Some(*id)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        for id in dead_ids {
-            log_rtab!(debug "missing secret key, killing off private route: {}", id);
-            content.remove_detail(&id);
-        }
-
         Ok(content)
     }
 
@@ -105,18 +64,6 @@ impl RouteSpecStoreContent {
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         rsstdb.store_rkyv(0, b"content", self).await?;
-
-        // Keep secrets in protected store as well
-        let pstore = routing_table.network_manager().protected_store();
-
-        let mut out: HashMap<PublicKey, SecretKey> = HashMap::new();
-        for (_rsid, rssd) in self.details.iter() {
-            for (pk, rsd) in rssd.iter_route_set() {
-                out.insert(*pk, rsd.secret_key);
-            }
-        }
-
-        let _ = pstore.save_user_secret_rkyv("RouteSpecStore", &out).await?; // ignore if this previously existed or not
 
         Ok(())
     }

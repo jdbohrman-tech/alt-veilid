@@ -82,7 +82,7 @@ impl fmt::Display for DialInfo {
 
 impl FromStr for DialInfo {
     type Err = VeilidAPIError;
-    fn from_str(s: &str) -> Result<DialInfo, VeilidAPIError> {
+    fn from_str(s: &str) -> VeilidAPIResult<DialInfo> {
         let (proto, rest) = s.split_once('|').ok_or_else(|| {
             VeilidAPIError::parse_error("DialInfo::from_str missing protocol '|' separator", s)
         })?;
@@ -175,7 +175,7 @@ impl DialInfo {
             socket_address: socket_address.to_canonical(),
         })
     }
-    pub fn try_ws(socket_address: SocketAddress, url: String) -> Result<Self, VeilidAPIError> {
+    pub fn try_ws(socket_address: SocketAddress, url: String) -> VeilidAPIResult<Self> {
         let split_url = SplitUrl::from_str(&url).map_err(|e| {
             VeilidAPIError::parse_error(format!("unable to split WS url: {}", e), &url)
         })?;
@@ -199,7 +199,7 @@ impl DialInfo {
             request: url[5..].to_string(),
         }))
     }
-    pub fn try_wss(socket_address: SocketAddress, url: String) -> Result<Self, VeilidAPIError> {
+    pub fn try_wss(socket_address: SocketAddress, url: String) -> VeilidAPIResult<Self> {
         let split_url = SplitUrl::from_str(&url).map_err(|e| {
             VeilidAPIError::parse_error(format!("unable to split WSS url: {}", e), &url)
         })?;
@@ -321,7 +321,7 @@ impl DialInfo {
     pub fn try_vec_from_short<S: AsRef<str>, H: AsRef<str>>(
         short: S,
         hostname: H,
-    ) -> Result<Vec<Self>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<Self>> {
         let short = short.as_ref();
         let hostname = hostname.as_ref();
 
@@ -348,7 +348,7 @@ impl DialInfo {
         Self::try_vec_from_url(url)
     }
 
-    pub fn try_vec_from_url<S: AsRef<str>>(url: S) -> Result<Vec<Self>, VeilidAPIError> {
+    pub fn try_vec_from_url<S: AsRef<str>>(url: S) -> VeilidAPIResult<Vec<Self>> {
         let url = url.as_ref();
         let split_url = SplitUrl::from_str(url)
             .map_err(|e| VeilidAPIError::parse_error(format!("unable to split url: {}", e), url))?;

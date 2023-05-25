@@ -117,7 +117,7 @@ impl StorageManager {
         inner.rpc_processor = opt_rpc_processor
     }
 
-    async fn lock(&self) -> Result<AsyncMutexGuardArc<StorageManagerInner>, VeilidAPIError> {
+    async fn lock(&self) -> VeilidAPIResult<AsyncMutexGuardArc<StorageManagerInner>> {
         let inner = asyncmutex_lock_arc!(&self.inner);
         if !inner.initialized {
             apibail_not_initialized!();
@@ -131,7 +131,7 @@ impl StorageManager {
         kind: CryptoKind,
         schema: DHTSchema,
         safety_selection: SafetySelection,
-    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
         let mut inner = self.lock().await?;
 
         // Create a new owned local record from scratch
@@ -154,7 +154,7 @@ impl StorageManager {
         key: TypedKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
-    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
         let mut inner = self.lock().await?;
 
         // See if we have a local record already or not
@@ -202,13 +202,13 @@ impl StorageManager {
     }
 
     /// Close an opened local record
-    pub async fn close_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn close_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         let mut inner = self.lock().await?;
         inner.close_record(key)
     }
 
     /// Delete a local record
-    pub async fn delete_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn delete_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         let mut inner = self.lock().await?;
 
         // Ensure the record is closed
@@ -233,7 +233,7 @@ impl StorageManager {
         key: TypedKey,
         subkey: ValueSubkey,
         force_refresh: bool,
-    ) -> Result<Option<ValueData>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Option<ValueData>> {
         let mut inner = self.lock().await?;
         let Some(opened_record) = inner.opened_records.remove(&key) else {
             apibail_generic!("record not open");
@@ -301,7 +301,7 @@ impl StorageManager {
         key: TypedKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
-    ) -> Result<Option<ValueData>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Option<ValueData>> {
         let mut inner = self.lock().await?;
 
         // Get cryptosystem
@@ -395,7 +395,7 @@ impl StorageManager {
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
-    ) -> Result<Timestamp, VeilidAPIError> {
+    ) -> VeilidAPIResult<Timestamp> {
         let inner = self.lock().await?;
         unimplemented!();
     }
@@ -404,7 +404,7 @@ impl StorageManager {
         &self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
-    ) -> Result<bool, VeilidAPIError> {
+    ) -> VeilidAPIResult<bool> {
         let inner = self.lock().await?;
         unimplemented!();
     }

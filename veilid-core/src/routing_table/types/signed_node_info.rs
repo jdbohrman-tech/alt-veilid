@@ -8,11 +8,7 @@ pub enum SignedNodeInfo {
 }
 
 impl SignedNodeInfo {
-    pub fn validate(
-        &self,
-        node_ids: &TypedKeySet,
-        crypto: Crypto,
-    ) -> Result<TypedKeySet, VeilidAPIError> {
+    pub fn validate(&self, node_ids: &TypedKeySet, crypto: Crypto) -> VeilidAPIResult<TypedKeySet> {
         match self {
             SignedNodeInfo::Direct(d) => d.validate(node_ids, crypto),
             SignedNodeInfo::Relayed(r) => r.validate(node_ids, crypto),

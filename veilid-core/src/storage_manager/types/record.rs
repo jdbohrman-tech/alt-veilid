@@ -27,7 +27,7 @@ where
         cur_ts: Timestamp,
         descriptor: SignedValueDescriptor,
         detail: D,
-    ) -> Result<Self, VeilidAPIError> {
+    ) -> VeilidAPIResult<Self> {
         let schema = descriptor.schema()?;
         let subkey_count = schema.subkey_count();
         Ok(Self {

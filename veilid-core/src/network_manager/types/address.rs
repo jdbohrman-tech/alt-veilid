@@ -115,7 +115,7 @@ impl fmt::Display for Address {
 
 impl FromStr for Address {
     type Err = VeilidAPIError;
-    fn from_str(host: &str) -> Result<Address, VeilidAPIError> {
+    fn from_str(host: &str) -> VeilidAPIResult<Address> {
         if let Ok(addr) = Ipv4Addr::from_str(host) {
             Ok(Address::IPV4(addr))
         } else if let Ok(addr) = Ipv6Addr::from_str(host) {

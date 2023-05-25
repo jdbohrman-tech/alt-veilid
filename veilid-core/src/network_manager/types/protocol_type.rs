@@ -87,7 +87,7 @@ impl fmt::Display for ProtocolType {
 
 impl FromStr for ProtocolType {
     type Err = VeilidAPIError;
-    fn from_str(s: &str) -> Result<ProtocolType, VeilidAPIError> {
+    fn from_str(s: &str) -> VeilidAPIResult<ProtocolType> {
         match s.to_ascii_uppercase().as_str() {
             "UDP" => Ok(ProtocolType::UDP),
             "TCP" => Ok(ProtocolType::TCP),

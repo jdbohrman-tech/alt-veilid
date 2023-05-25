@@ -169,7 +169,7 @@ impl TableStore {
         // Get device encryption key from protected store
         let mut encryption_key: Option<TypedSharedSecret> = self
             .protected_store
-            .load_user_secret_rkyv("device_encryption_key")
+            .load_user_secret_json("device_encryption_key")
             .await?;
 
         if let Some(encryption_key) = encryption_key {
@@ -183,7 +183,14 @@ impl TableStore {
             let best_kind = best_crypto_kind();
             let mut shared_secret = SharedSecret::default();
             random_bytes(&mut shared_secret.bytes);
-            encryption_key = Some(TypedSharedSecret::new(best_kind, shared_secret));
+            let device_encryption_key = TypedSharedSecret::new(best_kind, shared_secret);
+
+            // Save the new device encryption key
+            self.protected_store
+                .save_user_secret_json("device_encryption_key", &device_encryption_key)
+                .await?;
+
+            encryption_key = Some(device_encryption_key);
         }
 
         // Deserialize all table names

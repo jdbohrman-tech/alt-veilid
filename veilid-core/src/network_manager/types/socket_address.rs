@@ -69,7 +69,7 @@ impl fmt::Display for SocketAddress {
 
 impl FromStr for SocketAddress {
     type Err = VeilidAPIError;
-    fn from_str(s: &str) -> Result<SocketAddress, VeilidAPIError> {
+    fn from_str(s: &str) -> VeilidAPIResult<SocketAddress> {
         let sa = SocketAddr::from_str(s)
             .map_err(|e| VeilidAPIError::parse_error("Failed to parse SocketAddress", e))?;
         Ok(SocketAddress::from_socket_addr(sa))

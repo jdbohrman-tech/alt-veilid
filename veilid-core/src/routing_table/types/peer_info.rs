@@ -16,7 +16,7 @@ impl PeerInfo {
         }
     }
 
-    pub fn validate(&self, crypto: Crypto) -> Result<(), VeilidAPIError> {
+    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
         let validated_node_ids = self.signed_node_info.validate(&self.node_ids, crypto)?;
         if validated_node_ids.is_empty() {
             // Shouldn't get here because signed node info validation also checks this

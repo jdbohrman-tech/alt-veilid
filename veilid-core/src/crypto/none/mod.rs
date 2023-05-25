@@ -71,11 +71,7 @@ impl CryptoSystem for CryptoSystemNONE {
     }
 
     // Cached Operations
-    fn cached_dh(
-        &self,
-        key: &PublicKey,
-        secret: &SecretKey,
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    fn cached_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
         self.crypto
             .cached_dh_internal::<CryptoSystemNONE>(self, key, secret)
     }
@@ -89,7 +85,7 @@ impl CryptoSystem for CryptoSystemNONE {
     fn default_salt_length(&self) -> u32 {
         4
     }
-    fn hash_password(&self, password: &[u8], salt: &[u8]) -> Result<String, VeilidAPIError> {
+    fn hash_password(&self, password: &[u8], salt: &[u8]) -> VeilidAPIResult<String> {
         if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
             apibail_generic!("invalid salt length");
         }
@@ -99,11 +95,7 @@ impl CryptoSystem for CryptoSystemNONE {
             BASE64URL_NOPAD.encode(password)
         ))
     }
-    fn verify_password(
-        &self,
-        password: &[u8],
-        password_hash: &str,
-    ) -> Result<bool, VeilidAPIError> {
+    fn verify_password(&self, password: &[u8], password_hash: &str) -> VeilidAPIResult<bool> {
         let Some((salt, _)) = password_hash.split_once(":") else {
             apibail_generic!("invalid format");
         };
@@ -113,11 +105,7 @@ impl CryptoSystem for CryptoSystemNONE {
         return Ok(&self.hash_password(password, &salt)? == password_hash);
     }
 
-    fn derive_shared_secret(
-        &self,
-        password: &[u8],
-        salt: &[u8],
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    fn derive_shared_secret(&self, password: &[u8], salt: &[u8]) -> VeilidAPIResult<SharedSecret> {
         if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
             apibail_generic!("invalid salt length");
         }
@@ -136,11 +124,7 @@ impl CryptoSystem for CryptoSystemNONE {
         random_bytes(&mut s).unwrap();
         SharedSecret::new(s)
     }
-    fn compute_dh(
-        &self,
-        key: &PublicKey,
-        secret: &SecretKey,
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    fn compute_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
         let s = do_xor_32(&key.bytes, &secret.bytes);
         Ok(SharedSecret::new(s))
     }
@@ -150,10 +134,7 @@ impl CryptoSystem for CryptoSystemNONE {
     fn generate_hash(&self, data: &[u8]) -> PublicKey {
         PublicKey::new(*blake3::hash(data).as_bytes())
     }
-    fn generate_hash_reader(
-        &self,
-        reader: &mut dyn std::io::Read,
-    ) -> Result<PublicKey, VeilidAPIError> {
+    fn generate_hash_reader(&self, reader: &mut dyn std::io::Read) -> VeilidAPIResult<PublicKey> {
         let mut hasher = blake3::Hasher::new();
         std::io::copy(reader, &mut hasher).map_err(VeilidAPIError::generic)?;
         Ok(PublicKey::new(*hasher.finalize().as_bytes()))
@@ -178,7 +159,7 @@ impl CryptoSystem for CryptoSystemNONE {
         &self,
         reader: &mut dyn std::io::Read,
         dht_key: &PublicKey,
-    ) -> Result<bool, VeilidAPIError> {
+    ) -> VeilidAPIResult<bool> {
         let mut hasher = blake3::Hasher::new();
         std::io::copy(reader, &mut hasher).map_err(VeilidAPIError::generic)?;
         let bytes = *hasher.finalize().as_bytes();
@@ -201,7 +182,7 @@ impl CryptoSystem for CryptoSystemNONE {
         dht_key: &PublicKey,
         dht_key_secret: &SecretKey,
         data: &[u8],
-    ) -> Result<Signature, VeilidAPIError> {
+    ) -> VeilidAPIResult<Signature> {
         if !is_bytes_eq_32(&do_xor_32(&dht_key.bytes, &dht_key_secret.bytes), 0xFFu8) {
             return Err(VeilidAPIError::parse_error(
                 "Keypair is invalid",
@@ -224,7 +205,7 @@ impl CryptoSystem for CryptoSystemNONE {
         dht_key: &PublicKey,
         data: &[u8],
         signature: &Signature,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         let mut dig = Blake3Digest512::new();
         dig.update(data);
         let sig = dig.finalize();
@@ -261,7 +242,7 @@ impl CryptoSystem for CryptoSystemNONE {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         _associated_data: Option<&[u8]>,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         let mut blob = nonce.bytes.to_vec();
         blob.extend_from_slice(&[0u8; 8]);
         let blob = do_xor_32(&blob, &shared_secret.bytes);
@@ -283,7 +264,7 @@ impl CryptoSystem for CryptoSystemNONE {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         let mut out = body.to_vec();
         self.decrypt_in_place_aead(&mut out, nonce, shared_secret, associated_data)
             .map_err(map_to_string)
@@ -297,7 +278,7 @@ impl CryptoSystem for CryptoSystemNONE {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         _associated_data: Option<&[u8]>,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         let mut blob = nonce.bytes.to_vec();
         blob.extend_from_slice(&[0u8; 8]);
         let blob = do_xor_32(&blob, &shared_secret.bytes);
@@ -312,7 +293,7 @@ impl CryptoSystem for CryptoSystemNONE {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         let mut out = body.to_vec();
         self.encrypt_in_place_aead(&mut out, nonce, shared_secret, associated_data)
             .map_err(map_to_string)

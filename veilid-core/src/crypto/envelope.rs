@@ -66,7 +66,7 @@ impl Envelope {
         }
     }
 
-    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> Result<Envelope, VeilidAPIError> {
+    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> VeilidAPIResult<Envelope> {
         // Ensure we are at least the length of the envelope
         // Silent drop here, as we use zero length packets as part of the protocol for hole punching
         if data.len() < MIN_ENVELOPE_SIZE {
@@ -175,7 +175,7 @@ impl Envelope {
         crypto: Crypto,
         data: &[u8],
         node_id_secret: &SecretKey,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         // Get DH secret
         let vcrypto = crypto
             .get(self.crypto_kind)
@@ -197,7 +197,7 @@ impl Envelope {
         crypto: Crypto,
         body: &[u8],
         node_id_secret: &SecretKey,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;
         if envelope_size > MAX_ENVELOPE_SIZE {

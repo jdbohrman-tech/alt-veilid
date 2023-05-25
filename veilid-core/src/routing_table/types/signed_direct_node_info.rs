@@ -20,11 +20,7 @@ impl SignedDirectNodeInfo {
         }
     }
 
-    pub fn validate(
-        &self,
-        node_ids: &TypedKeySet,
-        crypto: Crypto,
-    ) -> Result<TypedKeySet, VeilidAPIError> {
+    pub fn validate(&self, node_ids: &TypedKeySet, crypto: Crypto) -> VeilidAPIResult<TypedKeySet> {
         let node_info_bytes = Self::make_signature_bytes(&self.node_info, self.timestamp)?;
 
         // Verify the signatures that we can
@@ -41,7 +37,7 @@ impl SignedDirectNodeInfo {
         crypto: Crypto,
         typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
-    ) -> Result<Self, VeilidAPIError> {
+    ) -> VeilidAPIResult<Self> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
         let typed_signatures =
@@ -58,7 +54,7 @@ impl SignedDirectNodeInfo {
     fn make_signature_bytes(
         node_info: &NodeInfo,
         timestamp: Timestamp,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         let mut node_info_bytes = Vec::new();
 
         // Add nodeinfo to signature

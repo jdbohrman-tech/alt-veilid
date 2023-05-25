@@ -17,7 +17,7 @@ use x25519_dalek as xd;
 const AEAD_OVERHEAD: usize = 16;
 pub const CRYPTO_KIND_VLD0: CryptoKind = FourCC([b'V', b'L', b'D', b'0']);
 
-fn ed25519_to_x25519_pk(key: &ed::PublicKey) -> Result<xd::PublicKey, VeilidAPIError> {
+fn ed25519_to_x25519_pk(key: &ed::PublicKey) -> VeilidAPIResult<xd::PublicKey> {
     let bytes = key.to_bytes();
     let compressed = cd::edwards::CompressedEdwardsY(bytes);
     let point = compressed
@@ -26,7 +26,7 @@ fn ed25519_to_x25519_pk(key: &ed::PublicKey) -> Result<xd::PublicKey, VeilidAPIE
     let mp = point.to_montgomery();
     Ok(xd::PublicKey::from(mp.to_bytes()))
 }
-fn ed25519_to_x25519_sk(key: &ed::SecretKey) -> Result<xd::StaticSecret, VeilidAPIError> {
+fn ed25519_to_x25519_sk(key: &ed::SecretKey) -> VeilidAPIResult<xd::StaticSecret> {
     let exp = ed::ExpandedSecretKey::from(key);
     let bytes: [u8; ed::EXPANDED_SECRET_KEY_LENGTH] = exp.to_bytes();
     let lowbytes: [u8; 32] = bytes[0..32].try_into().map_err(VeilidAPIError::internal)?;
@@ -65,11 +65,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
     }
 
     // Cached Operations
-    fn cached_dh(
-        &self,
-        key: &PublicKey,
-        secret: &SecretKey,
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    fn cached_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
         self.crypto
             .cached_dh_internal::<CryptoSystemVLD0>(self, key, secret)
     }
@@ -83,7 +79,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn default_salt_length(&self) -> u32 {
         16
     }
-    fn hash_password(&self, password: &[u8], salt: &[u8]) -> Result<String, VeilidAPIError> {
+    fn hash_password(&self, password: &[u8], salt: &[u8]) -> VeilidAPIResult<String> {
         if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
             apibail_generic!("invalid salt length");
         }
@@ -100,11 +96,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
             .to_string();
         Ok(password_hash)
     }
-    fn verify_password(
-        &self,
-        password: &[u8],
-        password_hash: &str,
-    ) -> Result<bool, VeilidAPIError> {
+    fn verify_password(&self, password: &[u8], password_hash: &str) -> VeilidAPIResult<bool> {
         let parsed_hash = PasswordHash::new(password_hash).map_err(VeilidAPIError::generic)?;
         // Argon2 with default params (Argon2id v19)
         let argon2 = Argon2::default();
@@ -112,11 +104,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         Ok(argon2.verify_password(password, &parsed_hash).is_ok())
     }
 
-    fn derive_shared_secret(
-        &self,
-        password: &[u8],
-        salt: &[u8],
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    fn derive_shared_secret(&self, password: &[u8], salt: &[u8]) -> VeilidAPIResult<SharedSecret> {
         if salt.len() < Salt::MIN_LENGTH || salt.len() > Salt::MAX_LENGTH {
             apibail_generic!("invalid salt length");
         }
@@ -141,11 +129,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         random_bytes(&mut s);
         SharedSecret::new(s)
     }
-    fn compute_dh(
-        &self,
-        key: &PublicKey,
-        secret: &SecretKey,
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    fn compute_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
         let pk_ed = ed::PublicKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
         let pk_xd = ed25519_to_x25519_pk(&pk_ed)?;
         let sk_ed = ed::SecretKey::from_bytes(&secret.bytes).map_err(VeilidAPIError::internal)?;
@@ -158,10 +142,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn generate_hash(&self, data: &[u8]) -> PublicKey {
         PublicKey::new(*blake3::hash(data).as_bytes())
     }
-    fn generate_hash_reader(
-        &self,
-        reader: &mut dyn std::io::Read,
-    ) -> Result<PublicKey, VeilidAPIError> {
+    fn generate_hash_reader(&self, reader: &mut dyn std::io::Read) -> VeilidAPIResult<PublicKey> {
         let mut hasher = blake3::Hasher::new();
         std::io::copy(reader, &mut hasher).map_err(VeilidAPIError::generic)?;
         Ok(PublicKey::new(*hasher.finalize().as_bytes()))
@@ -187,7 +168,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         &self,
         reader: &mut dyn std::io::Read,
         dht_key: &PublicKey,
-    ) -> Result<bool, VeilidAPIError> {
+    ) -> VeilidAPIResult<bool> {
         let mut hasher = blake3::Hasher::new();
         std::io::copy(reader, &mut hasher).map_err(VeilidAPIError::generic)?;
         let bytes = *hasher.finalize().as_bytes();
@@ -210,7 +191,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         dht_key: &PublicKey,
         dht_key_secret: &SecretKey,
         data: &[u8],
-    ) -> Result<Signature, VeilidAPIError> {
+    ) -> VeilidAPIResult<Signature> {
         let mut kpb: [u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH] =
             [0u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH];
 
@@ -237,7 +218,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         dht_key: &PublicKey,
         data: &[u8],
         signature: &Signature,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         let pk = ed::PublicKey::from_bytes(&dht_key.bytes)
             .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
         let sig = ed::Signature::from_bytes(&signature.bytes)
@@ -261,7 +242,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         associated_data: Option<&[u8]>,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         let key = ch::Key::from(shared_secret.bytes);
         let xnonce = ch::XNonce::from(nonce.bytes);
         let aead = ch::XChaCha20Poly1305::new(&key);
@@ -276,7 +257,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         let mut out = body.to_vec();
         self.decrypt_in_place_aead(&mut out, nonce, shared_secret, associated_data)
             .map_err(map_to_string)
@@ -290,7 +271,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         associated_data: Option<&[u8]>,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         let key = ch::Key::from(shared_secret.bytes);
         let xnonce = ch::XNonce::from(nonce.bytes);
         let aead = ch::XChaCha20Poly1305::new(&key);
@@ -306,7 +287,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &Nonce,
         shared_secret: &SharedSecret,
         associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         let mut out = body.to_vec();
         self.encrypt_in_place_aead(&mut out, nonce, shared_secret, associated_data)
             .map_err(map_to_string)

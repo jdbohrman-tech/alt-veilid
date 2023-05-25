@@ -172,7 +172,7 @@ impl StorageManagerInner {
         kind: CryptoKind,
         schema: DHTSchema,
         safety_selection: SafetySelection,
-    ) -> Result<(TypedKey, KeyPair), VeilidAPIError> {
+    ) -> VeilidAPIResult<(TypedKey, KeyPair)> {
         // Get cryptosystem
         let Some(vcrypto) = self.unlocked_inner.crypto.get(kind) else {
             apibail_generic!("unsupported cryptosystem");
@@ -214,7 +214,7 @@ impl StorageManagerInner {
         key: TypedKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
-    ) -> Result<Option<DHTRecordDescriptor>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Option<DHTRecordDescriptor>> {
         // Ensure the record is closed
         if self.opened_records.contains_key(&key) {
             apibail_generic!("record is already open and should be closed first");
@@ -268,7 +268,7 @@ impl StorageManagerInner {
         subkey: ValueSubkey,
         subkey_result: SubkeyResult,
         safety_selection: SafetySelection,
-    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
         // Ensure the record is closed
         if self.opened_records.contains_key(&key) {
             panic!("new record should never be opened at this point");
@@ -325,7 +325,7 @@ impl StorageManagerInner {
         Ok(descriptor)
     }
 
-    pub fn close_record(&mut self, key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<()> {
         let Some(_opened_record) = self.opened_records.remove(&key) else {
             apibail_generic!("record not open");
         };
@@ -337,7 +337,7 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> Result<SubkeyResult, VeilidAPIError> {
+    ) -> VeilidAPIResult<SubkeyResult> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
@@ -357,7 +357,7 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: SignedValueData,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();                 
@@ -376,7 +376,7 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> Result<SubkeyResult, VeilidAPIError> {
+    ) -> VeilidAPIResult<SubkeyResult> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
@@ -397,7 +397,7 @@ impl StorageManagerInner {
         subkey: ValueSubkey,
         signed_value_data: SignedValueData,
         signed_value_descriptor: SignedValueDescriptor,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();

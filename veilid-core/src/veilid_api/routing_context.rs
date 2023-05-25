@@ -45,11 +45,11 @@ impl RoutingContext {
         }
     }
 
-    pub fn with_privacy(self) -> Result<Self, VeilidAPIError> {
+    pub fn with_privacy(self) -> VeilidAPIResult<Self> {
         self.with_custom_privacy(Stability::default())
     }
 
-    pub fn with_custom_privacy(self, stability: Stability) -> Result<Self, VeilidAPIError> {
+    pub fn with_custom_privacy(self, stability: Stability) -> VeilidAPIResult<Self> {
         let config = self.api.config()?;
         let c = config.get();
 
@@ -96,10 +96,7 @@ impl RoutingContext {
         self.api.clone()
     }
 
-    async fn get_destination(
-        &self,
-        target: Target,
-    ) -> Result<rpc_processor::Destination, VeilidAPIError> {
+    async fn get_destination(&self, target: Target) -> VeilidAPIResult<rpc_processor::Destination> {
         let rpc_processor = self.api.rpc_processor()?;
 
         match target {
@@ -141,11 +138,7 @@ impl RoutingContext {
     // App-level Messaging
 
     #[instrument(level = "debug", err, skip(self))]
-    pub async fn app_call(
-        &self,
-        target: Target,
-        request: Vec<u8>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn app_call(&self, target: Target, request: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
         let rpc_processor = self.api.rpc_processor()?;
 
         // Get destination
@@ -170,11 +163,7 @@ impl RoutingContext {
     }
 
     #[instrument(level = "debug", err, skip(self))]
-    pub async fn app_message(
-        &self,
-        target: Target,
-        message: Vec<u8>,
-    ) -> Result<(), VeilidAPIError> {
+    pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
         let rpc_processor = self.api.rpc_processor()?;
 
         // Get destination
@@ -206,7 +195,7 @@ impl RoutingContext {
         &self,
         kind: CryptoKind,
         schema: DHTSchema,
-    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .create_record(kind, schema, self.unlocked_inner.safety_selection)
@@ -220,7 +209,7 @@ impl RoutingContext {
         &self,
         key: TypedKey,
         writer: Option<KeyPair>,
-    ) -> Result<DHTRecordDescriptor, VeilidAPIError> {
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .open_record(key, writer, self.unlocked_inner.safety_selection)
@@ -229,7 +218,7 @@ impl RoutingContext {
 
     /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
     /// Closing a record allows you to re-open it with a different routing context
-    pub async fn close_dht_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.close_record(key).await
     }
@@ -237,7 +226,7 @@ impl RoutingContext {
     /// Deletes a DHT record at a specific key. If the record is opened, it must be closed before it is deleted.
     /// Deleting a record does not delete it from the network, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
-    pub async fn delete_dht_record(&self, key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn delete_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.delete_record(key).await
     }
@@ -251,7 +240,7 @@ impl RoutingContext {
         key: TypedKey,
         subkey: ValueSubkey,
         force_refresh: bool,
-    ) -> Result<Option<ValueData>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Option<ValueData>> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.get_value(key, subkey, force_refresh).await
     }
@@ -264,7 +253,7 @@ impl RoutingContext {
         key: TypedKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
-    ) -> Result<Option<ValueData>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Option<ValueData>> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.set_value(key, subkey, data).await
     }
@@ -280,7 +269,7 @@ impl RoutingContext {
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
-    ) -> Result<Timestamp, VeilidAPIError> {
+    ) -> VeilidAPIResult<Timestamp> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .watch_values(key, subkeys, expiration, count)
@@ -293,7 +282,7 @@ impl RoutingContext {
         &self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
-    ) -> Result<bool, VeilidAPIError> {
+    ) -> VeilidAPIResult<bool> {
         let storage_manager = self.api.storage_manager()?;
         storage_manager.cancel_watch_values(key, subkeys).await
     }
@@ -301,11 +290,11 @@ impl RoutingContext {
     ///////////////////////////////////
     /// Block Store
 
-    pub async fn find_block(&self, _block_id: PublicKey) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn find_block(&self, _block_id: PublicKey) -> VeilidAPIResult<Vec<u8>> {
         panic!("unimplemented");
     }
 
-    pub async fn supply_block(&self, _block_id: PublicKey) -> Result<bool, VeilidAPIError> {
+    pub async fn supply_block(&self, _block_id: PublicKey) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }
 }

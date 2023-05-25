@@ -49,70 +49,70 @@ impl VeilidAPI {
 
     ////////////////////////////////////////////////////////////////
     // Accessors
-    pub fn config(&self) -> Result<VeilidConfig, VeilidAPIError> {
+    pub fn config(&self) -> VeilidAPIResult<VeilidConfig> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.config.clone());
         }
         Err(VeilidAPIError::NotInitialized)
     }
-    pub fn crypto(&self) -> Result<Crypto, VeilidAPIError> {
+    pub fn crypto(&self) -> VeilidAPIResult<Crypto> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.crypto.clone());
         }
         Err(VeilidAPIError::NotInitialized)
     }
-    pub fn table_store(&self) -> Result<TableStore, VeilidAPIError> {
+    pub fn table_store(&self) -> VeilidAPIResult<TableStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.table_store.clone());
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn block_store(&self) -> Result<BlockStore, VeilidAPIError> {
+    pub fn block_store(&self) -> VeilidAPIResult<BlockStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.block_store.clone());
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn protected_store(&self) -> Result<ProtectedStore, VeilidAPIError> {
+    pub fn protected_store(&self) -> VeilidAPIResult<ProtectedStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.protected_store.clone());
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn attachment_manager(&self) -> Result<AttachmentManager, VeilidAPIError> {
+    pub fn attachment_manager(&self) -> VeilidAPIResult<AttachmentManager> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.clone());
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn network_manager(&self) -> Result<NetworkManager, VeilidAPIError> {
+    pub fn network_manager(&self) -> VeilidAPIResult<NetworkManager> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.network_manager());
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn rpc_processor(&self) -> Result<RPCProcessor, VeilidAPIError> {
+    pub fn rpc_processor(&self) -> VeilidAPIResult<RPCProcessor> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.network_manager().rpc_processor());
         }
         Err(VeilidAPIError::NotInitialized)
     }
-    pub fn routing_table(&self) -> Result<RoutingTable, VeilidAPIError> {
+    pub fn routing_table(&self) -> VeilidAPIResult<RoutingTable> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.network_manager().routing_table());
         }
         Err(VeilidAPIError::NotInitialized)
     }
-    pub fn storage_manager(&self) -> Result<StorageManager, VeilidAPIError> {
+    pub fn storage_manager(&self) -> VeilidAPIResult<StorageManager> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.storage_manager.clone());
@@ -124,7 +124,7 @@ impl VeilidAPI {
     // Attach/Detach
 
     /// Get a full copy of the current state
-    pub async fn get_state(&self) -> Result<VeilidState, VeilidAPIError> {
+    pub async fn get_state(&self) -> VeilidAPIResult<VeilidState> {
         let attachment_manager = self.attachment_manager()?;
         let network_manager = attachment_manager.network_manager();
         let config = self.config()?;
@@ -142,7 +142,7 @@ impl VeilidAPI {
 
     /// Connect to the network
     #[instrument(level = "debug", err, skip_all)]
-    pub async fn attach(&self) -> Result<(), VeilidAPIError> {
+    pub async fn attach(&self) -> VeilidAPIResult<()> {
         let attachment_manager = self.attachment_manager()?;
         if !attachment_manager.attach().await {
             apibail_generic!("Already attached");
@@ -152,7 +152,7 @@ impl VeilidAPI {
 
     /// Disconnect from the network
     #[instrument(level = "debug", err, skip_all)]
-    pub async fn detach(&self) -> Result<(), VeilidAPIError> {
+    pub async fn detach(&self) -> VeilidAPIResult<()> {
         let attachment_manager = self.attachment_manager()?;
         if !attachment_manager.detach().await {
             apibail_generic!("Already detached");
@@ -175,7 +175,7 @@ impl VeilidAPI {
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
     /// Those nodes importing the blob will have their choice of which crypto kind to use
     #[instrument(level = "debug", skip(self))]
-    pub async fn new_private_route(&self) -> Result<(RouteId, Vec<u8>), VeilidAPIError> {
+    pub async fn new_private_route(&self) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
             Stability::default(),
@@ -191,7 +191,7 @@ impl VeilidAPI {
         crypto_kinds: &[CryptoKind],
         stability: Stability,
         sequencing: Sequencing,
-    ) -> Result<(RouteId, Vec<u8>), VeilidAPIError> {
+    ) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         let default_route_hop_count: usize = {
             let config = self.config()?;
             let c = config.get();
@@ -238,14 +238,14 @@ impl VeilidAPI {
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> Result<RouteId, VeilidAPIError> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let rss = self.routing_table()?.route_spec_store();
         rss.import_remote_private_route(blob)
             .map_err(|e| VeilidAPIError::invalid_argument(e, "blob", "private route blob"))
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn release_private_route(&self, route_id: RouteId) -> Result<(), VeilidAPIError> {
+    pub fn release_private_route(&self, route_id: RouteId) -> VeilidAPIResult<()> {
         let rss = self.routing_table()?.route_spec_store();
         if !rss.release_route(route_id) {
             apibail_invalid_argument!("release_private_route", "key", route_id);
@@ -257,11 +257,7 @@ impl VeilidAPI {
     // App Calls
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn app_call_reply(
-        &self,
-        id: OperationId,
-        message: Vec<u8>,
-    ) -> Result<(), VeilidAPIError> {
+    pub async fn app_call_reply(&self, id: OperationId, message: Vec<u8>) -> VeilidAPIResult<()> {
         let rpc_processor = self.rpc_processor()?;
         rpc_processor
             .app_call_reply(id, message)
@@ -277,7 +273,7 @@ impl VeilidAPI {
         &self,
         _endpoint_mode: TunnelMode,
         _depth: u8,
-    ) -> Result<PartialTunnel, VeilidAPIError> {
+    ) -> VeilidAPIResult<PartialTunnel> {
         panic!("unimplemented");
     }
 
@@ -287,12 +283,12 @@ impl VeilidAPI {
         _endpoint_mode: TunnelMode,
         _depth: u8,
         _partial_tunnel: PartialTunnel,
-    ) -> Result<FullTunnel, VeilidAPIError> {
+    ) -> VeilidAPIResult<FullTunnel> {
         panic!("unimplemented");
     }
 
     #[instrument(level = "debug", err, skip(self))]
-    pub async fn cancel_tunnel(&self, _tunnel_id: TunnelId) -> Result<bool, VeilidAPIError> {
+    pub async fn cancel_tunnel(&self, _tunnel_id: TunnelId) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }
 }

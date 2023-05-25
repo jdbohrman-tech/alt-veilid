@@ -31,11 +31,7 @@ impl SignedRelayedNodeInfo {
         }
     }
 
-    pub fn validate(
-        &self,
-        node_ids: &TypedKeySet,
-        crypto: Crypto,
-    ) -> Result<TypedKeySet, VeilidAPIError> {
+    pub fn validate(&self, node_ids: &TypedKeySet, crypto: Crypto) -> VeilidAPIResult<TypedKeySet> {
         // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
         if common_crypto_kinds(
             self.node_info.crypto_support(),
@@ -68,7 +64,7 @@ impl SignedRelayedNodeInfo {
         node_info: NodeInfo,
         relay_ids: TypedKeySet,
         relay_info: SignedDirectNodeInfo,
-    ) -> Result<Self, VeilidAPIError> {
+    ) -> VeilidAPIResult<Self> {
         let timestamp = get_aligned_timestamp();
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
@@ -90,7 +86,7 @@ impl SignedRelayedNodeInfo {
         relay_ids: &[TypedKey],
         relay_info: &SignedDirectNodeInfo,
         timestamp: Timestamp,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         let mut sig_bytes = Vec::new();
 
         // Add nodeinfo to signature

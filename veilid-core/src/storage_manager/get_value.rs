@@ -22,7 +22,7 @@ impl StorageManager {
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
         last_subkey_result: SubkeyResult,
-    ) -> Result<SubkeyResult, VeilidAPIError> {
+    ) -> VeilidAPIResult<SubkeyResult> {
         let routing_table = rpc_processor.routing_table();
 
         // Get the DHT parameters for 'GetValue'
@@ -175,7 +175,7 @@ impl StorageManager {
     }
 
     /// Handle a recieved 'Get Value' query
-    pub async fn inbound_get_value(&self, key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> Result<NetworkResult<SubkeyResult>, VeilidAPIError> {
+    pub async fn inbound_get_value(&self, key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> VeilidAPIResult<NetworkResult<SubkeyResult>> {
         let mut inner = self.lock().await?;
         let res = match inner.handle_get_remote_value(key, subkey, want_descriptor).await {            
             Ok(res) => res,

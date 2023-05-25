@@ -39,7 +39,7 @@ impl Encodable for KeyPair {
     fn encoded_len() -> usize {
         PublicKey::encoded_len() + 1 + SecretKey::encoded_len()
     }
-    fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError> {
+    fn try_decode_bytes(b: &[u8]) -> VeilidAPIResult<Self> {
         if b.len() != Self::encoded_len() {
             apibail_parse_error!("input has wrong encoded length", format!("len={}", b.len()));
         }

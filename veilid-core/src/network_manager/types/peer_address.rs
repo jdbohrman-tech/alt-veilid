@@ -55,7 +55,7 @@ impl fmt::Display for PeerAddress {
 
 impl FromStr for PeerAddress {
     type Err = VeilidAPIError;
-    fn from_str(s: &str) -> Result<PeerAddress, VeilidAPIError> {
+    fn from_str(s: &str) -> VeilidAPIResult<PeerAddress> {
         let Some((first, second)) = s.split_once(':') else {
             return Err(VeilidAPIError::parse_error("PeerAddress is missing a colon: {}", s));
         };

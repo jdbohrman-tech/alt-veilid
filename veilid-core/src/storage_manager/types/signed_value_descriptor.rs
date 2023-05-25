@@ -31,7 +31,7 @@ impl SignedValueDescriptor {
         }
     }
 
-    pub fn validate(&self, vcrypto: CryptoSystemVersion) -> Result<(), VeilidAPIError> {
+    pub fn validate(&self, vcrypto: CryptoSystemVersion) -> VeilidAPIResult<()> {
         // validate signature
         vcrypto.verify(&self.owner, &self.schema_data, &self.signature)
     }
@@ -44,7 +44,7 @@ impl SignedValueDescriptor {
         &self.schema_data
     }
 
-    pub fn schema(&self) -> Result<DHTSchema, VeilidAPIError> {
+    pub fn schema(&self) -> VeilidAPIResult<DHTSchema> {
         DHTSchema::try_from(self.schema_data.as_slice())
     }
 
@@ -57,7 +57,7 @@ impl SignedValueDescriptor {
         schema_data: Vec<u8>,
         vcrypto: CryptoSystemVersion,
         owner_secret: SecretKey,
-    ) -> Result<Self, VeilidAPIError> {
+    ) -> VeilidAPIResult<Self> {
         // create signature
         let signature = vcrypto.sign(&owner, &owner_secret, &schema_data)?;
         Ok(Self {

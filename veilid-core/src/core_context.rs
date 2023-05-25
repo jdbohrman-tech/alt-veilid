@@ -206,7 +206,7 @@ impl VeilidCoreContext {
     async fn new_with_config_callback(
         update_callback: UpdateCallback,
         config_callback: ConfigCallback,
-    ) -> Result<VeilidCoreContext, VeilidAPIError> {
+    ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from callback
         trace!("setup config with callback");
         let mut config = VeilidConfig::new();
@@ -219,7 +219,7 @@ impl VeilidCoreContext {
     async fn new_with_config_json(
         update_callback: UpdateCallback,
         config_json: String,
-    ) -> Result<VeilidCoreContext, VeilidAPIError> {
+    ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from callback
         trace!("setup config with json");
         let mut config = VeilidConfig::new();
@@ -231,7 +231,7 @@ impl VeilidCoreContext {
     async fn new_common(
         update_callback: UpdateCallback,
         config: VeilidConfig,
-    ) -> Result<VeilidCoreContext, VeilidAPIError> {
+    ) -> VeilidAPIResult<VeilidCoreContext> {
         cfg_if! {
             if #[cfg(target_os = "android")] {
                 if !crate::intf::android::is_android_ready() {
@@ -281,7 +281,7 @@ lazy_static::lazy_static! {
 pub async fn api_startup(
     update_callback: UpdateCallback,
     config_callback: ConfigCallback,
-) -> Result<VeilidAPI, VeilidAPIError> {
+) -> VeilidAPIResult<VeilidAPI> {
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
     if *initialized_lock {
@@ -304,7 +304,7 @@ pub async fn api_startup(
 pub async fn api_startup_json(
     update_callback: UpdateCallback,
     config_json: String,
-) -> Result<VeilidAPI, VeilidAPIError> {
+) -> VeilidAPIResult<VeilidAPI> {
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
     if *initialized_lock {

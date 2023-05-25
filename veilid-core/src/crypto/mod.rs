@@ -146,7 +146,7 @@ impl Crypto {
         if let Err(e) = self
             .unlocked_inner
             .config
-            .init_node_ids(self.clone(), self.unlocked_inner.protected_store.clone())
+            .init_node_ids(self.clone(), table_store.clone())
             .await
         {
             return Err(e).wrap_err("init node id failed");
@@ -267,7 +267,7 @@ impl Crypto {
         node_ids: &[TypedKey],
         data: &[u8],
         typed_signatures: &[TypedSignature],
-    ) -> Result<TypedKeySet, VeilidAPIError> {
+    ) -> VeilidAPIResult<TypedKeySet> {
         let mut out = TypedKeySet::with_capacity(node_ids.len());
         for sig in typed_signatures {
             for nid in node_ids {
@@ -290,7 +290,7 @@ impl Crypto {
         data: &[u8],
         typed_key_pairs: &[TypedKeyPair],
         transform: F,
-    ) -> Result<Vec<R>, VeilidAPIError>
+    ) -> VeilidAPIResult<Vec<R>>
     where
         F: Fn(&TypedKeyPair, Signature) -> R,
     {
@@ -306,7 +306,7 @@ impl Crypto {
 
     /// Generate keypair
     /// Does not require startup/init
-    pub fn generate_keypair(crypto_kind: CryptoKind) -> Result<TypedKeyPair, VeilidAPIError> {
+    pub fn generate_keypair(crypto_kind: CryptoKind) -> VeilidAPIResult<TypedKeyPair> {
         #[cfg(feature = "enable-crypto-vld0")]
         if crypto_kind == CRYPTO_KIND_VLD0 {
             let kp = vld0_generate_keypair();
@@ -327,7 +327,7 @@ impl Crypto {
         vcrypto: &T,
         key: &PublicKey,
         secret: &SecretKey,
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    ) -> VeilidAPIResult<SharedSecret> {
         Ok(
             match self.inner.lock().dh_cache.entry(
                 DHCacheKey {

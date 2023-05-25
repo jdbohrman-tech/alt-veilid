@@ -66,11 +66,11 @@ where
 {
     fn encode(&self) -> String;
     fn encoded_len() -> usize;
-    fn try_decode<S: AsRef<str>>(input: S) -> Result<Self, VeilidAPIError> {
+    fn try_decode<S: AsRef<str>>(input: S) -> VeilidAPIResult<Self> {
         let b = input.as_ref().as_bytes();
         Self::try_decode_bytes(b)
     }
-    fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError>;
+    fn try_decode_bytes(b: &[u8]) -> VeilidAPIResult<Self>;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -180,7 +180,7 @@ macro_rules! byte_array_type {
             fn encoded_len() -> usize {
                 $encoded_size
             }
-            fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError> {
+            fn try_decode_bytes(b: &[u8]) -> VeilidAPIResult<Self> {
                 let mut bytes = [0u8; $size];
                 let res = BASE64URL_NOPAD.decode_len(b.len());
                 match res {

@@ -38,7 +38,7 @@ fn map_to_internal_error<T: ToString>(e: T) -> VeilidAPIError {
 
 fn decode_api_result<T: DeserializeOwned + fmt::Debug>(
     reader: &api_result::Reader,
-) -> Result<T, VeilidAPIError> {
+) -> VeilidAPIResult<T> {
     match reader.which().map_err(map_to_internal_error)? {
         api_result::Which::Ok(v) => {
             let ok_val = v.map_err(map_to_internal_error)?;
@@ -355,7 +355,7 @@ impl ClientApiConnection {
             .map_err(map_to_string)?
             .get_result()
             .map_err(map_to_string)?;
-        let res: Result<(), VeilidAPIError> = decode_api_result(&reader);
+        let res: VeilidAPIResult<()> = decode_api_result(&reader);
         res.map_err(map_to_string)
     }
 
@@ -379,7 +379,7 @@ impl ClientApiConnection {
             .map_err(map_to_string)?
             .get_result()
             .map_err(map_to_string)?;
-        let res: Result<(), VeilidAPIError> = decode_api_result(&reader);
+        let res: VeilidAPIResult<()> = decode_api_result(&reader);
         res.map_err(map_to_string)
     }
 
@@ -422,7 +422,7 @@ impl ClientApiConnection {
             .map_err(map_to_string)?
             .get_result()
             .map_err(map_to_string)?;
-        let res: Result<String, VeilidAPIError> = decode_api_result(&reader);
+        let res: VeilidAPIResult<String> = decode_api_result(&reader);
         res.map_err(map_to_string)
     }
 
@@ -453,7 +453,7 @@ impl ClientApiConnection {
             .map_err(map_to_string)?
             .get_result()
             .map_err(map_to_string)?;
-        let res: Result<(), VeilidAPIError> = decode_api_result(&reader);
+        let res: VeilidAPIResult<()> = decode_api_result(&reader);
         res.map_err(map_to_string)
     }
 
@@ -483,7 +483,7 @@ impl ClientApiConnection {
             .map_err(map_to_string)?
             .get_result()
             .map_err(map_to_string)?;
-        let res: Result<(), VeilidAPIError> = decode_api_result(&reader);
+        let res: VeilidAPIResult<()> = decode_api_result(&reader);
         res.map_err(map_to_string)
     }
 

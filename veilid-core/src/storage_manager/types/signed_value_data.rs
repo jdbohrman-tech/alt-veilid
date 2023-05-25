@@ -34,7 +34,7 @@ impl SignedValueData {
         owner: &PublicKey,
         subkey: ValueSubkey,
         vcrypto: CryptoSystemVersion,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         let node_info_bytes = Self::make_signature_bytes(&self.value_data, owner, subkey)?;
         // validate signature
         vcrypto.verify(&self.value_data.writer(), &node_info_bytes, &self.signature)
@@ -46,7 +46,7 @@ impl SignedValueData {
         subkey: ValueSubkey,
         vcrypto: CryptoSystemVersion,
         writer_secret: SecretKey,
-    ) -> Result<Self, VeilidAPIError> {
+    ) -> VeilidAPIResult<Self> {
         let node_info_bytes = Self::make_signature_bytes(&value_data, owner, subkey)?;
 
         // create signature
@@ -77,7 +77,7 @@ impl SignedValueData {
         value_data: &ValueData,
         owner: &PublicKey,
         subkey: ValueSubkey,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         let mut node_info_bytes =
             Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + 4 + value_data.data().len());
 

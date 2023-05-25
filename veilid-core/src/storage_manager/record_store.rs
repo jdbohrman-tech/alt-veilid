@@ -241,11 +241,7 @@ where
         Ok(())
     }
 
-    pub async fn new_record(
-        &mut self,
-        key: TypedKey,
-        record: Record<D>,
-    ) -> Result<(), VeilidAPIError> {
+    pub async fn new_record(&mut self, key: TypedKey, record: Record<D>) -> VeilidAPIResult<()> {
         let rtk = RecordTableKey { key };
         if self.record_index.contains_key(&rtk) {
             apibail_internal!("record already exists");
@@ -290,7 +286,7 @@ where
         Ok(())
     }
 
-    pub async fn delete_record(&mut self, key: TypedKey) -> Result<(), VeilidAPIError> {
+    pub async fn delete_record(&mut self, key: TypedKey) -> VeilidAPIResult<()> {
         // Get the record table key
         let rtk = RecordTableKey { key };
 
@@ -357,7 +353,7 @@ where
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> Result<Option<SubkeyResult>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Option<SubkeyResult>> {
         // record from index
         let Some((subkey_count, opt_descriptor)) = self.with_record(key, |record| {
             (record.subkey_count(), if want_descriptor {
@@ -419,7 +415,7 @@ where
         key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: SignedValueData,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         // Check size limit for data
         if signed_value_data.value_data().data().len() > self.limits.max_subkey_size {
             apibail_invalid_argument!(

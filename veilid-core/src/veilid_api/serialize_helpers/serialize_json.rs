@@ -3,9 +3,7 @@ use super::*;
 // Don't trace these functions as they are used in the transfer of API logs, which will recurse!
 
 // #[instrument(level = "trace", ret, err)]
-pub fn deserialize_json<'a, T: de::Deserialize<'a> + Debug>(
-    arg: &'a str,
-) -> Result<T, VeilidAPIError> {
+pub fn deserialize_json<'a, T: de::Deserialize<'a> + Debug>(arg: &'a str) -> VeilidAPIResult<T> {
     serde_json::from_str(arg).map_err(|e| VeilidAPIError::ParseError {
         message: e.to_string(),
         value: format!(
@@ -19,7 +17,7 @@ pub fn deserialize_json<'a, T: de::Deserialize<'a> + Debug>(
 // #[instrument(level = "trace", ret, err)]
 pub fn deserialize_opt_json<T: de::DeserializeOwned + Debug>(
     arg: Option<String>,
-) -> Result<T, VeilidAPIError> {
+) -> VeilidAPIResult<T> {
     let arg = arg.as_ref().ok_or_else(|| VeilidAPIError::ParseError {
         message: "invalid null string".to_owned(),
         value: format!(
