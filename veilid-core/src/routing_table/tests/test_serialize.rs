@@ -4,7 +4,7 @@ fn fake_routing_table() -> routing_table::RoutingTable {
     let veilid_config = VeilidConfig::new();
     let block_store = BlockStore::new(veilid_config.clone());
     let protected_store = ProtectedStore::new(veilid_config.clone());
-    let table_store = TableStore::new(veilid_config.clone());
+    let table_store = TableStore::new(veilid_config.clone(), protected_store.clone());
     let crypto = Crypto::new(
         veilid_config.clone(),
         table_store.clone(),
