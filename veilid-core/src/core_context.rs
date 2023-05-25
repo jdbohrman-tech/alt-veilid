@@ -88,11 +88,7 @@ impl ServicesContext {
 
         // Set up crypto
         trace!("init crypto");
-        let crypto = Crypto::new(
-            self.config.clone(),
-            table_store.clone(),
-            protected_store.clone(),
-        );
+        let crypto = Crypto::new(self.config.clone(), table_store.clone());
         if let Err(e) = crypto.init().await {
             error!("failed to init crypto: {}", e);
             self.shutdown().await;

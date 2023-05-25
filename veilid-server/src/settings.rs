@@ -6,13 +6,14 @@ use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use sysinfo::{DiskExt, SystemExt};
 use url::Url;
 use veilid_core::tools::*;
 use veilid_core::*;
 
 pub fn load_default_config() -> EyreResult<config::Config> {
-    let default_config = String::from(
+    let mut default_config = String::from(
         r#"---
 daemon:
     enabled: false
@@ -49,6 +50,8 @@ core:
         always_use_insecure_storage: true
         directory: '%DIRECTORY%'
         delete: false
+        device_encryption_key_password: '%DEVICE_ENCRYPTION_KEY_PASSWORD%'
+        new_device_encryption_key_password: %NEW_DEVICE_ENCRYPTION_KEY_PASSWORD%
     table_store:
         directory: '%TABLE_STORE_DIRECTORY%'
         delete: false
@@ -176,6 +179,30 @@ core:
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
         &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string(),
     );
+
+    let dek_password = if let Some(dek_password) = std::env::var_os("DEK_PASSWORD") {
+        dek_password
+            .to_str()
+            .ok_or_else(|| eyre!("DEK_PASSWORD is not valid unicode"))?
+            .to_owned()
+    } else {
+        "".to_owned()
+    };
+    default_config = default_config.replace("%DEVICE_ENCRYPTION_KEY_PASSWORD%", &dek_password);
+
+    let new_dek_password = if let Some(new_dek_password) = std::env::var_os("NEW_DEK_PASSWORD") {
+        format!(
+            "'{}'",
+            new_dek_password
+                .to_str()
+                .ok_or_else(|| eyre!("NEW_DEK_PASSWORD is not valid unicode"))?
+        )
+    } else {
+        "null".to_owned()
+    };
+    default_config =
+        default_config.replace("%NEW_DEVICE_ENCRYPTION_KEY_PASSWORD%", &new_dek_password);
+
     config::Config::builder()
         .add_source(config::File::from_str(
             &default_config,
@@ -588,6 +615,8 @@ pub struct ProtectedStore {
     pub always_use_insecure_storage: bool,
     pub directory: PathBuf,
     pub delete: bool,
+    pub device_encryption_key_password: String,
+    pub new_device_encryption_key_password: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -937,6 +966,17 @@ impl Settings {
         );
         set_config_value!(inner.core.protected_store.directory, value);
         set_config_value!(inner.core.protected_store.delete, value);
+        set_config_value!(
+            inner.core.protected_store.device_encryption_key_password,
+            value
+        );
+        set_config_value!(
+            inner
+                .core
+                .protected_store
+                .new_device_encryption_key_password,
+            value
+        );
         set_config_value!(inner.core.table_store.directory, value);
         set_config_value!(inner.core.table_store.delete, value);
         set_config_value!(inner.core.block_store.directory, value);
@@ -1071,6 +1111,20 @@ impl Settings {
                         .to_string(),
                 )),
                 "protected_store.delete" => Ok(Box::new(inner.core.protected_store.delete)),
+                "protected_store.device_encryption_key_password" => Ok(Box::new(
+                    inner
+                        .core
+                        .protected_store
+                        .device_encryption_key_password
+                        .clone(),
+                )),
+                "protected_store.new_device_encryption_key_password" => Ok(Box::new(
+                    inner
+                        .core
+                        .protected_store
+                        .new_device_encryption_key_password
+                        .clone(),
+                )),
 
                 "table_store.directory" => Ok(Box::new(
                     inner
@@ -1505,6 +1559,11 @@ mod tests {
             Settings::get_default_protected_store_directory()
         );
         assert_eq!(s.core.protected_store.delete, false);
+        assert_eq!(s.core.protected_store.device_encryption_key_password, "");
+        assert_eq!(
+            s.core.protected_store.new_device_encryption_key_password,
+            None
+        );
 
         assert_eq!(s.core.network.connection_initial_timeout_ms, 2_000u32);
         assert_eq!(s.core.network.connection_inactivity_timeout_ms, 60_000u32);

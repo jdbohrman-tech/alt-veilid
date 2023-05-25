@@ -43,6 +43,19 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .help("Specify configuration value to set (key in dot format, value in json format), eg: logging.api.enabled=true")
         )
         .arg(
+            Arg::new("password")
+                .short('p')
+                .long("password")
+                .takes_value(true)
+                .help("Specify password to use to protect the device encryption key")
+        )
+        .arg(
+            Arg::new("new-password")
+                .long("new-password")
+                .takes_value(true)
+                .help("Change password used to protect the device encryption key. Device storage will be migrated.")
+        )        
+        .arg(
             Arg::new("attach")
                 .long("attach")
                 .takes_value(true)

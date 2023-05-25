@@ -431,6 +431,8 @@ pub struct VeilidConfigProtectedStore {
     pub always_use_insecure_storage: bool,
     pub directory: String,
     pub delete: bool,
+    pub device_encryption_key_password: String,
+    pub new_device_encryption_key_password: Option<String>,
 }
 
 #[derive(
@@ -632,6 +634,8 @@ impl VeilidConfig {
             get_config!(inner.protected_store.always_use_insecure_storage);
             get_config!(inner.protected_store.directory);
             get_config!(inner.protected_store.delete);
+            get_config!(inner.protected_store.device_encryption_key_password);
+            get_config!(inner.protected_store.new_device_encryption_key_password);
             get_config!(inner.network.connection_initial_timeout_ms);
             get_config!(inner.network.connection_inactivity_timeout_ms);
             get_config!(inner.network.max_connections_per_ip4);
@@ -925,7 +929,7 @@ impl VeilidConfig {
         Ok(())
     }
 
-    //xxx#[cfg(not(test))]
+    #[cfg(not(test))]
     async fn init_node_id(
         &self,
         vcrypto: CryptoSystemVersion,

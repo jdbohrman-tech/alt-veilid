@@ -828,13 +828,16 @@ class VeilidConfigProtectedStore {
   bool alwaysUseInsecureStorage;
   String directory;
   bool delete;
+  String deviceEncryptionKey;
+  String? newDeviceEncryptionKey;
 
-  VeilidConfigProtectedStore({
-    required this.allowInsecureFallback,
-    required this.alwaysUseInsecureStorage,
-    required this.directory,
-    required this.delete,
-  });
+  VeilidConfigProtectedStore(
+      {required this.allowInsecureFallback,
+      required this.alwaysUseInsecureStorage,
+      required this.directory,
+      required this.delete,
+      required this.deviceEncryptionKey,
+      String? newDeviceEncryptionKey});
 
   Map<String, dynamic> toJson() {
     return {
@@ -842,6 +845,8 @@ class VeilidConfigProtectedStore {
       'always_use_insecure_storage': alwaysUseInsecureStorage,
       'directory': directory,
       'delete': delete,
+      'device_encryption_key': deviceEncryptionKey,
+      'new_device_encryption_key': newDeviceEncryptionKey,
     };
   }
 
@@ -849,7 +854,9 @@ class VeilidConfigProtectedStore {
       : allowInsecureFallback = json['allow_insecure_fallback'],
         alwaysUseInsecureStorage = json['always_use_insecure_storage'],
         directory = json['directory'],
-        delete = json['delete'];
+        delete = json['delete'],
+        deviceEncryptionKey = json['device_encryption_key'],
+        newDeviceEncryptionKey = json['new_device_encryption_key'];
 }
 
 ////////////

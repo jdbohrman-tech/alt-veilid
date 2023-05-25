@@ -163,19 +163,87 @@ impl TableStore {
         self.flush().await;
     }
 
+    async fn load_device_encryption_key(&self) -> EyreResult<Option<TypedSharedSecret>> {
+        let dek_bytes: Option<Vec<u8>> = self
+            .protected_store
+            .load_user_secret("device_encryption_key")
+            .await?;
+        let Some(dek_bytes) = dek_bytes else {
+            return Ok(None);
+        };
+
+        // Ensure the key is at least as long as necessary if unencrypted
+        if dek_bytes.len() < (4 + SHARED_SECRET_LENGTH) {
+            bail!("device encryption key is not valid");
+        }
+
+        // Get cryptosystem
+        let kind = FourCC::try_from(&dek_bytes[0..4]).unwrap();
+        let crypto = self.inner.lock().crypto.as_ref().unwrap().clone();
+        let Some(vcrypto) = crypto.get(kind) else {
+            bail!("unsupported cryptosystem");
+        };
+
+        // Decrypt encryption key if we have it
+        let device_encryption_key_password = {
+            let c = self.config.get();
+            c.protected_store.device_encryption_key_password.clone()
+        };
+        if !device_encryption_key_password.is_empty() {
+            if dek_bytes.len()
+                != (4 + SHARED_SECRET_LENGTH + vcrypto.aead_overhead() + NONCE_LENGTH)
+            {
+                bail!("password protected device encryption key is not valid");
+            }
+            let protected_key = &dek_bytes[4..(4 + SHARED_SECRET_LENGTH + vcrypto.aead_overhead())];
+            let nonce = &dek_bytes[(4 + SHARED_SECRET_LENGTH + vcrypto.aead_overhead())..];
+
+            let shared_secret = vcrypto
+                .derive_shared_secret(device_encryption_key_password.as_bytes(), &nonce)
+                .wrap_err("failed to derive shared secret")?;
+            let unprotected_key = vcrypto
+                .decrypt_aead(
+                    &protected_key,
+                    &Nonce::try_from(nonce).wrap_err("invalid nonce")?,
+                    &shared_secret,
+                    None,
+                )
+                .wrap_err("failed to decrypt device encryption key")?;
+            return Ok(Some(TypedSharedSecret::new(
+                kind,
+                SharedSecret::try_from(unprotected_key.as_slice())
+                    .wrap_err("invalid shared secret")?,
+            )));
+        }
+
+        Ok(Some(TypedSharedSecret::new(
+            kind,
+            SharedSecret::try_from(&dek_bytes[4..])?,
+        )))
+    }
+    async fn save_device_encryption_key(
+        &self,
+        device_encryption_key: Option<TypedSharedSecret>,
+    ) -> EyreResult<()> {
+        // Save the new device encryption key
+        self.protected_store
+            .save_user_secret_json("device_encryption_key", &device_encryption_key)
+            .await?;
+
+xxxx
+        Ok(())
+    }
+
     pub(crate) async fn init(&self) -> EyreResult<()> {
         let _async_guard = self.async_lock.lock().await;
 
         // Get device encryption key from protected store
-        let mut encryption_key: Option<TypedSharedSecret> = self
-            .protected_store
-            .load_user_secret_json("device_encryption_key")
-            .await?;
-
-        if let Some(encryption_key) = encryption_key {
+        let mut device_encryption_key = self.load_device_encryption_key().await?;
+        let mut device_encryption_key_changed = false;
+        if let Some(device_encryption_key) = device_encryption_key {
             // If encryption in current use is not the best encryption, then run table migration
             let best_kind = best_crypto_kind();
-            if encryption_key.kind != best_kind {
+            if device_encryption_key.kind != best_kind {
                 // XXX: Run migration. See issue #209
             }
         } else {
@@ -183,14 +251,14 @@ impl TableStore {
             let best_kind = best_crypto_kind();
             let mut shared_secret = SharedSecret::default();
             random_bytes(&mut shared_secret.bytes);
-            let device_encryption_key = TypedSharedSecret::new(best_kind, shared_secret);
 
-            // Save the new device encryption key
-            self.protected_store
-                .save_user_secret_json("device_encryption_key", &device_encryption_key)
+            device_encryption_key = Some(TypedSharedSecret::new(best_kind, shared_secret));
+            device_encryption_key_changed = true;
+        }
+
+        if device_encryption_key_changed {
+            self.save_device_encryption_key(device_encryption_key)
                 .await?;
-
-            encryption_key = Some(device_encryption_key);
         }
 
         // Deserialize all table names
@@ -220,7 +288,7 @@ impl TableStore {
 
         {
             let mut inner = self.inner.lock();
-            inner.encryption_key = encryption_key;
+            inner.encryption_key = device_encryption_key;
             inner.all_tables_db = Some(all_tables_db);
         }
 

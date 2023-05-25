@@ -82,7 +82,6 @@ struct CryptoInner {
 struct CryptoUnlockedInner {
     config: VeilidConfig,
     table_store: TableStore,
-    protected_store: ProtectedStore,
 }
 
 /// Crypto factory implementation
@@ -104,16 +103,11 @@ impl Crypto {
         }
     }
 
-    pub fn new(
-        config: VeilidConfig,
-        table_store: TableStore,
-        protected_store: ProtectedStore,
-    ) -> Self {
+    pub fn new(config: VeilidConfig, table_store: TableStore) -> Self {
         let out = Self {
             unlocked_inner: Arc::new(CryptoUnlockedInner {
                 config,
                 table_store,
-                protected_store,
             }),
             inner: Arc::new(Mutex::new(Self::new_inner())),
         };
