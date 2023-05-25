@@ -7,6 +7,8 @@ mod routing_context;
 mod serialize_helpers;
 mod types;
 
+pub mod tests;
+
 pub use api::*;
 pub use debug::*;
 pub use error::*;
