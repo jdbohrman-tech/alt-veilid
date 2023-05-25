@@ -73,6 +73,10 @@ pub async fn test_routingtable_buckets_round_trip() {
             }
         }
     }
+
+    // Even if these are mocks, we should still practice good hygiene.
+    original.terminate().await;
+    copy.terminate().await;
 }
 
 pub async fn test_all() {
