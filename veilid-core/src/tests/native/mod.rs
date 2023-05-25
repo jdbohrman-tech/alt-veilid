@@ -2,9 +2,9 @@
 #![cfg(not(target_arch = "wasm32"))]
 use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
-use crate::routing_table::tests::*;
+use crate::routing_table;
 use crate::tests::common::*;
-use crate::veilid_api::tests::*;
+use crate::veilid_api;
 use crate::*;
 
 ///////////////////////////////////////////////////////////////////////////
