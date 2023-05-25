@@ -57,6 +57,8 @@ pub struct LowLevelPortInfo {
 }
 pub type RoutingTableEntryFilter<'t> =
     Box<dyn FnMut(&RoutingTableInner, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
+pub type SerializedBuckets = Vec<Vec<u8>>;
+pub type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RoutingTableHealth {
@@ -293,13 +295,13 @@ impl RoutingTable {
     }
 
     /// Serialize the routing table.
-    fn serialized_buckets(&self) -> EyreResult<(BTreeMap<CryptoKind, Vec<Vec<u8>>>, Vec<Vec<u8>>)> {
+    fn serialized_buckets(&self) -> EyreResult<(SerializedBucketMap, SerializedBuckets)> {
         // Since entries are shared by multiple buckets per cryptokind
         // we need to get the list of all unique entries when serializing
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::new();
 
         // Serialize all buckets and get map of entries
-        let mut serialized_bucket_map: BTreeMap<CryptoKind, Vec<Vec<u8>>> = BTreeMap::new();
+        let mut serialized_bucket_map: SerializedBucketMap = BTreeMap::new();
         {
             let mut entry_map: HashMap<*const BucketEntry, u32> = HashMap::new();
             let inner = &*self.inner.read();
@@ -347,11 +349,11 @@ impl RoutingTable {
         // Deserialize bucket map and all entries from the table store
         let tstore = self.unlocked_inner.network_manager().table_store();
         let tdb = tstore.open("routing_table", 1).await?;
-        let Some(serialized_bucket_map): Option<BTreeMap<CryptoKind, Vec<Vec<u8>>>> = tdb.load_rkyv(0, b"serialized_bucket_map").await? else {
+        let Some(serialized_bucket_map): Option<SerializedBucketMap> = tdb.load_rkyv(0, b"serialized_bucket_map").await? else {
             log_rtab!(debug "no bucket map in saved routing table");
             return Ok(());
         };
-        let Some(all_entry_bytes): Option<Vec<Vec<u8>>> = tdb.load_rkyv(0, b"all_entry_bytes").await? else {
+        let Some(all_entry_bytes): Option<SerializedBuckets> = tdb.load_rkyv(0, b"all_entry_bytes").await? else {
             log_rtab!(debug "no all_entry_bytes in saved routing table");
             return Ok(());
         };
@@ -367,8 +369,8 @@ impl RoutingTable {
     pub fn populate_routing_table(
         &self,
         inner: &mut RoutingTableInner,
-        serialized_bucket_map: BTreeMap<CryptoKind, Vec<Vec<u8>>>,
-        all_entry_bytes: Vec<Vec<u8>>,
+        serialized_bucket_map: SerializedBucketMap,
+        all_entry_bytes: SerializedBuckets,
     ) -> EyreResult<()> {
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::with_capacity(all_entry_bytes.len());
         for entry_bytes in all_entry_bytes {
