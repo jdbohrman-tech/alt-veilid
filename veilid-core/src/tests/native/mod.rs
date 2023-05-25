@@ -33,7 +33,7 @@ pub async fn run_all_tests() {
     test_crypto::test_all().await;
     info!("TEST: test_envelope_receipt");
     test_envelope_receipt::test_all().await;
-    info!("TEST: veilid_api::test_serialize");
+    info!("TEST: veilid_api::tests::test_serialize_rkyv");
     veilid_api::tests::test_serialize_rkyv::test_all().await;
     info!("TEST: routing_table::test_serialize");
     routing_table::tests::test_serialize::test_all().await;
@@ -59,6 +59,34 @@ cfg_if! {
     if #[cfg(test)] {
         use serial_test::serial;
         use std::sync::Once;
+        use paste::paste;
+
+        macro_rules! run_test {
+            ($mod:ident, $func:ident) => {
+                paste! {
+                    #[test]
+                    #[serial]
+                    fn [<run_ $mod _ $func>]() {
+                        setup();
+                        block_on(async {
+                            $mod::tests::$func::test_all().await;
+                        })
+                    }
+                }
+            };
+            ($func:ident) => {
+                paste! {
+                    #[test]
+                    #[serial]
+                    fn [<run_ $func>]() {
+                        setup();
+                        block_on(async {
+                            $func::test_all().await;
+                        })
+                    }
+                }
+            };
+        }
 
         static SETUP_ONCE: Once = Once::new();
 
@@ -81,112 +109,28 @@ cfg_if! {
             });
         }
 
-        #[test]
-        #[serial]
-        fn run_test_host_interface() {
-            setup();
-            block_on(async {
-                test_host_interface::test_all().await;
-            });
-        }
+        run_test!(test_host_interface);
 
-        #[test]
-        #[serial]
-        fn run_test_dht_key() {
-            setup();
-            block_on(async {
-                test_types::test_all().await;
-            });
-        }
+        run_test!(test_types);
 
-        #[test]
-        #[serial]
-        fn run_test_veilid_core() {
-            setup();
-            block_on(async {
-                test_veilid_core::test_all().await;
-            });
-        }
+        run_test!(test_veilid_core);
 
-        #[test]
-        #[serial]
-        fn run_test_veilid_config() {
-            setup();
-            block_on(async {
-                test_veilid_config::test_all().await;
-            })
-        }
+        run_test!(test_veilid_config);
 
-        #[test]
-        #[serial]
-        fn run_test_connection_table() {
-            setup();
-            block_on(async {
-                test_connection_table::test_all().await;
-            })
-        }
+        run_test!(test_connection_table);
 
-        #[test]
-        #[serial]
-        fn run_test_signed_node_info() {
-            setup();
-            block_on(async {
-                test_signed_node_info::test_all().await;
-            })
-        }
+        run_test!(test_signed_node_info);
 
-        #[test]
-        #[serial]
-        fn run_test_table_store() {
-            setup();
-            block_on(async {
-                test_table_store::test_all().await;
-            })
-        }
+        run_test!(test_table_store);
 
-        #[test]
-        #[serial]
-        fn run_test_protected_store() {
-            setup();
-            block_on(async {
-                test_protected_store::test_all().await;
-            })
-        }
+        run_test!(test_protected_store);
 
-        #[test]
-        #[serial]
-        fn run_test_crypto() {
-            setup();
-            block_on(async {
-                test_crypto::test_all().await;
-            })
-        }
+        run_test!(test_crypto);
 
-        #[test]
-        #[serial]
-        fn run_test_envelope_receipt() {
-            setup();
-            block_on(async {
-                test_envelope_receipt::test_all().await;
-            })
-        }
+        run_test!(test_envelope_receipt);
 
-        #[test]
-        #[serial]
-        fn run_test_serialize_rkyv() {
-            setup();
-            block_on(async {
-                veilid_api::tests::test_serialize_rkyv::test_all().await;
-            })
-        }
+        run_test!(veilid_api, test_serialize_rkyv);
 
-        #[test]
-        #[serial]
-        fn run_test_routing_table_serialize() {
-            setup();
-            block_on(async {
-                routing_table::tests::test_serialize::test_all().await;
-            })
-        }
+        run_test!(routing_table, test_serialize);
     }
 }
