@@ -11,6 +11,7 @@ use crate::*;
 
 #[allow(dead_code)]
 pub async fn run_all_tests() {
+    // iOS and Android tests also run these.
     info!("TEST: test_host_interface");
     test_host_interface::test_all().await;
     info!("TEST: test_types");
@@ -31,6 +32,10 @@ pub async fn run_all_tests() {
     test_crypto::test_all().await;
     info!("TEST: test_envelope_receipt");
     test_envelope_receipt::test_all().await;
+    info!("TEST: veilid_api::test_serialize");
+    veilid_api::tests::test_serialize_rkyv::test_all().await;
+    info!("TEST: routing_table::test_serialize");
+    routing_table::tests::test_serialize::test_all().await;
 
     info!("Finished unit tests");
 }
@@ -170,7 +175,7 @@ cfg_if! {
         fn run_test_serialize_rkyv() {
             setup();
             block_on(async {
-                test_serialize_rkyv::test_all().await;
+                veilid_api::tests::test_serialize_rkyv::test_all().await;
             })
         }
 

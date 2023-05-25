@@ -89,3 +89,15 @@ async fn exec_test_envelope_receipt() {
     setup();
     test_envelope_receipt::test_all().await;
 }
+
+#[wasm_bindgen_test]
+async fn veilid_api__test_serialize_rkyv() {
+    setup();
+    veilid_api::test_serialize_rkyv::test_all().await;
+}
+
+#[wasm_bindgen_test]
+async fn routing_table__test_serialize() {
+    setup();
+    routing_table::test_serialize::test_all().await;
+}
