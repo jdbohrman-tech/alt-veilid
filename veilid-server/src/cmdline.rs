@@ -244,6 +244,13 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
     if matches.occurrences_of("delete-table-store") != 0 {
         settingsrw.core.table_store.delete = true;
     }
+    if matches.occurrences_of("password") != 0 {
+        settingsrw.core.protected_store.device_encryption_key_password = matches.value_of("password").unwrap().to_owned();
+    }
+    if matches.occurrences_of("new-password") != 0 {
+        settingsrw.core.protected_store.new_device_encryption_key_password = Some(matches.value_of("new-password").unwrap().to_owned());
+    }
+
     if matches.occurrences_of("dump-txt-record") != 0 {
         // Turn off terminal logging so we can be interactive
         settingsrw.logging.terminal.enabled = false;

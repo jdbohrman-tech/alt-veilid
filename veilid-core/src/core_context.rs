@@ -76,9 +76,16 @@ impl ServicesContext {
         }
         self.protected_store = Some(protected_store.clone());
 
-        // Set up tablestore
-        trace!("init table store");
+        // Set up tablestore and crypto system
+        trace!("create table store and crypto system");
         let table_store = TableStore::new(self.config.clone(), protected_store.clone());
+        let crypto = Crypto::new(self.config.clone(), table_store.clone());
+        table_store.set_crypto(crypto.clone());
+
+        // Initialize table store first, so crypto code can load caches
+        // Tablestore can use crypto during init, just not any cached operations or things
+        // that require flushing back to the tablestore
+        trace!("init table store");
         if let Err(e) = table_store.init().await {
             error!("failed to init table store: {}", e);
             self.shutdown().await;
@@ -88,7 +95,6 @@ impl ServicesContext {
 
         // Set up crypto
         trace!("init crypto");
-        let crypto = Crypto::new(self.config.clone(), table_store.clone());
         if let Err(e) = crypto.init().await {
             error!("failed to init crypto: {}", e);
             self.shutdown().await;

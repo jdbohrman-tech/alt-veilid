@@ -48,7 +48,7 @@ impl TableStore {
         inner.crypto = Some(crypto);
     }
 
-    // Flush internal control state
+    // Flush internal control state (must not use crypto)
     async fn flush(&self) {
         let (all_table_names_value, all_tables_db) = {
             let inner = self.inner.lock();
@@ -220,6 +220,7 @@ impl TableStore {
     ) -> EyreResult<Vec<u8>> {
         // Check if we are to protect the key
         if device_encryption_key_password.is_empty() {
+            debug!("no dek password");
             // Return the unprotected key bytes
             let mut out = Vec::with_capacity(4 + SHARED_SECRET_LENGTH);
             out.extend_from_slice(&dek.kind.0);
@@ -260,6 +261,7 @@ impl TableStore {
             .load_user_secret("device_encryption_key")
             .await?;
         let Some(dek_bytes) = dek_bytes else {
+            debug!("no device encryption key");
             return Ok(None);
         };
 
@@ -284,7 +286,7 @@ impl TableStore {
                 .protected_store
                 .remove_user_secret("device_encryption_key")
                 .await?;
-            trace!("removed device encryption key. existed: {}", existed);
+            debug!("removed device encryption key. existed: {}", existed);
             return Ok(());
         };
 
@@ -296,6 +298,7 @@ impl TableStore {
         let device_encryption_key_password =
             if let Some(new_device_encryption_key_password) = new_device_encryption_key_password {
                 // Change password
+                debug!("changing dek password");
                 self.config
                     .with_mut(|c| {
                         c.protected_store.device_encryption_key_password =
@@ -305,6 +308,7 @@ impl TableStore {
                     .unwrap()
             } else {
                 // Get device encryption key protection password if we have it
+                debug!("saving with existing dek password");
                 let c = self.config.get();
                 c.protected_store.device_encryption_key_password.clone()
             };
@@ -319,7 +323,7 @@ impl TableStore {
             .protected_store
             .save_user_secret("device_encryption_key", &dek_bytes)
             .await?;
-        trace!("saving device encryption key. existed: {}", existed);
+        debug!("saving device encryption key. existed: {}", existed);
         Ok(())
     }
 
