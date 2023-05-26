@@ -10,6 +10,15 @@ pub async fn test_round_trip_peerinfo() {
     assert_eq!(SERIALIZED_PEERINFO, back);
 }
 
+pub async fn test_alignedu64() {
+    let a = AlignedU64::new(0x0123456789abcdef);
+
+    let b = serialize_json(a);
+    let c = deserialize_json(&b).unwrap();
+
+    assert_ne!(a, c);
+}
+
 pub async fn test_all() {
     test_round_trip_peerinfo().await;
 }
