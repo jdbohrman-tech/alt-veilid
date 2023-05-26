@@ -64,26 +64,31 @@ cfg_if! {
         use paste::paste;
 
         macro_rules! run_test {
-            ($mod:ident, $func:ident) => {
+            // Nearly all test runner code is cookie cutter, and copy-pasting makes it too easy to make a typo.
+
+            // Pass in a module and test module, and we'll run its `test_all`.
+            ($parent_module:ident, $test_module:ident) => {
                 paste! {
                     #[test]
                     #[serial]
-                    fn [<run_ $mod _ $func>]() {
+                    fn [<run_ $parent_module _ $test_module>]() {
                         setup();
                         block_on(async {
-                            $mod::tests::$func::test_all().await;
+                            $parent_module::tests::$test_module::test_all().await;
                         })
                     }
                 }
             };
-            ($func:ident) => {
+
+            // Pass in a test module name, and we'll run its `test_all`.
+            ($test_module:ident) => {
                 paste! {
                     #[test]
                     #[serial]
-                    fn [<run_ $func>]() {
+                    fn [<run_ $test_module>]() {
                         setup();
                         block_on(async {
-                            $func::test_all().await;
+                            $test_module::test_all().await;
                         })
                     }
                 }
