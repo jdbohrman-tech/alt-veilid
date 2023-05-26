@@ -3,6 +3,7 @@
 use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
 use crate::routing_table;
+use crate::table_store::tests::*;
 use crate::tests::common::*;
 use crate::veilid_api;
 use crate::*;

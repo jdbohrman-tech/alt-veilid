@@ -1,4 +1,8 @@
 //! Test suite for the Web and headless browsers.
+
+//XXXXXXXXXXXXXXX
+//XXX DOES NOT WORK.
+
 #![cfg(target_arch = "wasm32")]
 
 extern crate alloc;

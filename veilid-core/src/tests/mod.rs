@@ -13,4 +13,5 @@ pub use common::*;
 pub use crypto::tests::*;
 pub use network_manager::tests::*;
 pub use routing_table::tests::*;
+pub use table_store::tests::*;
 pub use veilid_api::tests::*;

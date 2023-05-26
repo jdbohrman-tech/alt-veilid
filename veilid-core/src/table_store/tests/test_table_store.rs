@@ -1,4 +1,4 @@
-use super::test_veilid_config::*;
+use crate::tests::test_veilid_config::*;
 use crate::*;
 
 async fn startup() -> VeilidAPI {
@@ -208,6 +208,56 @@ pub async fn test_json(vcrypto: CryptoSystemVersion, ts: TableStore) {
     );
 }
 
+pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore) {
+    trace!("test_protect_unprotect");
+
+    let dek1 = TypedSharedSecret::new(
+        vcrypto.kind(),
+        SharedSecret::new([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]),
+    );
+    let dek2 = TypedSharedSecret::new(
+        vcrypto.kind(),
+        SharedSecret::new([
+            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0xFF,
+        ]),
+    );
+    let dek3 = TypedSharedSecret::new(
+        vcrypto.kind(),
+        SharedSecret::new([0x80u8; SHARED_SECRET_LENGTH]),
+    );
+
+    let deks = [dek1, dek2, dek3];
+    let passwords = ["", " ", "  ", "12345678", "|/\\!@#$%^&*()_+", "Ⓜ️", "🔥🔥♾️"];
+
+    for dek in deks {
+        for password in passwords {
+            let dek_bytes = ts
+                .maybe_protect_device_encryption_key(dek, password)
+                .expect(&format!("protect: dek: '{}' pw: '{}'", dek, password));
+            let unprotected = ts
+                .maybe_unprotect_device_encryption_key(&dek_bytes, password)
+                .expect(&format!("unprotect: dek: '{}' pw: '{}'", dek, password));
+            assert_eq!(unprotected, dek);
+            let invalid_password = format!("{}x", password);
+            let _ = ts
+                .maybe_unprotect_device_encryption_key(&dek_bytes, &invalid_password)
+                .expect_err(&format!(
+                    "invalid_password: dek: '{}' pw: '{}'",
+                    dek, &invalid_password
+                ));
+            if password != "" {
+                let _ = ts
+                    .maybe_unprotect_device_encryption_key(&dek_bytes, "")
+                    .expect_err(&format!("empty_password: dek: '{}' pw: ''", dek));
+            }
+        }
+    }
+}
+
 pub async fn test_all() {
     let api = startup().await;
     let crypto = api.crypto().unwrap();
@@ -215,6 +265,7 @@ pub async fn test_all() {
 
     for ck in VALID_CRYPTO_KINDS {
         let vcrypto = crypto.get(ck).unwrap();
+        test_protect_unprotect(vcrypto.clone(), ts.clone()).await;
         test_delete_open_delete(ts.clone()).await;
         test_store_delete_load(ts.clone()).await;
         test_rkyv(vcrypto.clone(), ts.clone()).await;

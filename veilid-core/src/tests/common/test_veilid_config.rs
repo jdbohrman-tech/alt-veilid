@@ -166,7 +166,7 @@ pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
 
 fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
-        "program_name" => Ok(Box::new(String::from("Veilid"))),
+        "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
         "namespace" => Ok(Box::new(String::from(""))),
         "capabilities.protocol_udp" => Ok(Box::new(true)),
         "capabilities.protocol_connect_tcp" => Ok(Box::new(true)),
@@ -176,13 +176,17 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "capabilities.protocol_connect_wss" => Ok(Box::new(true)),
         "capabilities.protocol_accept_wss" => Ok(Box::new(true)),
         "table_store.directory" => Ok(Box::new(get_table_store_path())),
-        "table_store.delete" => Ok(Box::new(false)),
+        "table_store.delete" => Ok(Box::new(true)),
         "block_store.directory" => Ok(Box::new(get_block_store_path())),
-        "block_store.delete" => Ok(Box::new(false)),
+        "block_store.delete" => Ok(Box::new(true)),
         "protected_store.allow_insecure_fallback" => Ok(Box::new(true)),
         "protected_store.always_use_insecure_storage" => Ok(Box::new(false)),
         "protected_store.directory" => Ok(Box::new(get_protected_store_path())),
-        "protected_store.delete" => Ok(Box::new(false)),
+        "protected_store.delete" => Ok(Box::new(true)),
+        "protected_store.device_encryption_key_password" => Ok(Box::new("".to_owned())),
+        "protected_store.new_device_encryption_key_password" => {
+            Ok(Box::new(Option::<String>::None))
+        }
         "network.connection_initial_timeout_ms" => Ok(Box::new(2_000u32)),
         "network.connection_inactivity_timeout_ms" => Ok(Box::new(60_000u32)),
         "network.max_connections_per_ip4" => Ok(Box::new(8u32)),
@@ -302,13 +306,21 @@ pub async fn test_config() {
     assert_eq!(inner.capabilities.protocol_connect_wss, true);
     assert_eq!(inner.capabilities.protocol_accept_wss, true);
     assert_eq!(inner.table_store.directory, get_table_store_path());
-    assert_eq!(inner.table_store.delete, false);
+    assert_eq!(inner.table_store.delete, true);
     assert_eq!(inner.block_store.directory, get_block_store_path());
-    assert_eq!(inner.block_store.delete, false);
+    assert_eq!(inner.block_store.delete, true);
     assert_eq!(inner.protected_store.allow_insecure_fallback, true);
     assert_eq!(inner.protected_store.always_use_insecure_storage, false);
     assert_eq!(inner.protected_store.directory, get_protected_store_path());
-    assert_eq!(inner.protected_store.delete, false);
+    assert_eq!(inner.protected_store.delete, true);
+    assert_eq!(
+        inner.protected_store.device_encryption_key_password,
+        "".to_owned()
+    );
+    assert_eq!(
+        inner.protected_store.new_device_encryption_key_password,
+        Option::<String>::None
+    );
     assert_eq!(inner.network.connection_initial_timeout_ms, 2_000u32);
     assert_eq!(inner.network.connection_inactivity_timeout_ms, 60_000u32);
     assert_eq!(inner.network.max_connections_per_ip4, 8u32);
