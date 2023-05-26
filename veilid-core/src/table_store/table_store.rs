@@ -421,6 +421,15 @@ impl TableStore {
     /// existing TableDB's column count, the database will be upgraded to add the missing columns
     pub async fn open(&self, name: &str, column_count: u32) -> VeilidAPIResult<TableDB> {
         let _async_guard = self.async_lock.lock().await;
+
+        // If we aren't initialized yet, bail
+        {
+            let inner = self.inner.lock();
+            if inner.all_tables_db.is_none() {
+                apibail_not_initialized!();
+            }
+        }
+
         let table_name = self.name_get_or_create(name).await?;
 
         // See if this table is already opened
@@ -477,6 +486,14 @@ impl TableStore {
     /// Delete a TableDB table by name
     pub async fn delete(&self, name: &str) -> VeilidAPIResult<bool> {
         let _async_guard = self.async_lock.lock().await;
+        // If we aren't initialized yet, bail
+        {
+            let inner = self.inner.lock();
+            if inner.all_tables_db.is_none() {
+                apibail_not_initialized!();
+            }
+        }
+
         let Some(table_name) = self.name_get(name).await? else {
             // Did not exist in name table
             return Ok(false);
@@ -510,6 +527,13 @@ impl TableStore {
     /// Rename a TableDB table
     pub async fn rename(&self, old_name: &str, new_name: &str) -> VeilidAPIResult<()> {
         let _async_guard = self.async_lock.lock().await;
+        // If we aren't initialized yet, bail
+        {
+            let inner = self.inner.lock();
+            if inner.all_tables_db.is_none() {
+                apibail_not_initialized!();
+            }
+        }
         trace!("TableStore::rename {} -> {}", old_name, new_name);
         self.name_rename(old_name, new_name).await
     }

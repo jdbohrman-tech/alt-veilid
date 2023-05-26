@@ -41,31 +41,35 @@ pub async fn test_routingtable_buckets_round_trip() {
     )
     .unwrap();
 
-    let original_inner = &*original.inner.read();
-    let copy_inner = &*copy.inner.read();
+    // Wrap to close lifetime of 'inner' which is borrowed here so terminate() can succeed
+    // (it also .write() locks routing table inner)
+    {
+        let original_inner = &*original.inner.read();
+        let copy_inner = &*copy.inner.read();
 
-    let routing_table_keys: Vec<_> = original_inner.buckets.keys().clone().collect();
-    let copy_keys: Vec<_> = copy_inner.buckets.keys().clone().collect();
+        let routing_table_keys: Vec<_> = original_inner.buckets.keys().clone().collect();
+        let copy_keys: Vec<_> = copy_inner.buckets.keys().clone().collect();
 
-    assert_eq!(routing_table_keys.len(), copy_keys.len());
+        assert_eq!(routing_table_keys.len(), copy_keys.len());
 
-    for crypto in routing_table_keys {
-        // The same keys are present in the original and copy RoutingTables.
-        let original_buckets = original_inner.buckets.get(&crypto).unwrap();
-        let copy_buckets = copy_inner.buckets.get(&crypto).unwrap();
+        for crypto in routing_table_keys {
+            // The same keys are present in the original and copy RoutingTables.
+            let original_buckets = original_inner.buckets.get(&crypto).unwrap();
+            let copy_buckets = copy_inner.buckets.get(&crypto).unwrap();
 
-        // Recurse into RoutingTable.inner.buckets
-        for (left_buckets, right_buckets) in original_buckets.iter().zip(copy_buckets.iter()) {
-            // Recurse into RoutingTable.inner.buckets.entries
-            for ((left_crypto, left_entries), (right_crypto, right_entries)) in
-                left_buckets.entries().zip(right_buckets.entries())
-            {
-                assert_eq!(left_crypto, right_crypto);
+            // Recurse into RoutingTable.inner.buckets
+            for (left_buckets, right_buckets) in original_buckets.iter().zip(copy_buckets.iter()) {
+                // Recurse into RoutingTable.inner.buckets.entries
+                for ((left_crypto, left_entries), (right_crypto, right_entries)) in
+                    left_buckets.entries().zip(right_buckets.entries())
+                {
+                    assert_eq!(left_crypto, right_crypto);
 
-                assert_eq!(
-                    format!("{:?}", left_entries),
-                    format!("{:?}", right_entries)
-                );
+                    assert_eq!(
+                        format!("{:?}", left_entries),
+                        format!("{:?}", right_entries)
+                    );
+                }
             }
         }
     }
