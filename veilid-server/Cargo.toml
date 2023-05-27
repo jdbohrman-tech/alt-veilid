@@ -52,7 +52,7 @@ futures-util = { version = "^0", default_features = false, features = ["alloc"] 
 url = "^2"
 ctrlc = "^3"
 lazy_static = "^1"
-bugsalot = "^0"
+bugsalot = { path = "../../bugsalot" }
 flume = { version = "^0", features = ["async"] }
 rpassword = "^6"
 hostname = "^0"

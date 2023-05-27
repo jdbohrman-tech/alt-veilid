@@ -207,6 +207,10 @@ impl TableStore {
             ));
         }
 
+        if dek_bytes.len() != (4 + SHARED_SECRET_LENGTH) {
+            bail!("password protected device encryption key is not valid");
+        }
+
         Ok(TypedSharedSecret::new(
             kind,
             SharedSecret::try_from(&dek_bytes[4..])?,
@@ -349,7 +353,16 @@ impl TableStore {
             device_encryption_key_changed = true;
         }
 
-        if device_encryption_key_changed {
+        // Check for password change
+        let changing_password = self
+            .config
+            .get()
+            .protected_store
+            .new_device_encryption_key_password
+            .is_some();
+
+        // Save encryption key if it has changed or if the protecting password wants to change
+        if device_encryption_key_changed || changing_password {
             self.save_device_encryption_key(device_encryption_key)
                 .await?;
         }
