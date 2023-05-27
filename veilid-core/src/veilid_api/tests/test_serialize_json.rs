@@ -11,14 +11,34 @@ pub async fn test_round_trip_peerinfo() {
 }
 
 pub async fn test_alignedu64() {
-    let a = AlignedU64::new(0x0123456789abcdef);
+    let orig = AlignedU64::new(0x0123456789abcdef);
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
-    let b = serialize_json(a);
-    let c = deserialize_json(&b).unwrap();
+    assert_eq!(orig, copy);
+}
 
-    assert_ne!(a, c);
+pub async fn test_fourcc() {
+    let orig = FourCC::from_str("D34D").unwrap();
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_safetyspec() {
+    let orig = SafetySpec {
+        preferred_route: Some(CryptoKey::new(*b"thisISaKEYthat's32charsLONGitIS!")),
+        hop_count: 23,
+        stability: Stability::default(),
+        sequencing: Sequencing::default(),
+    };
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
+
+    assert_eq!(orig, copy);
 }
 
 pub async fn test_all() {
     test_round_trip_peerinfo().await;
+    test_alignedu64().await;
+    test_fourcc().await;
+    test_safetyspec().await;
 }
