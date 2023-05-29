@@ -1248,6 +1248,7 @@ dependencies = [
  "ciborium",
  "clap 3.2.25",
  "criterion-plot",
+ "futures",
  "itertools",
  "lazy_static",
  "num-traits",
@@ -2869,6 +2870,7 @@ dependencies = [
 name = "keyvaluedb-web"
 version = "0.1.0"
 dependencies = [
+ "async-lock",
  "console_log",
  "flume",
  "futures",

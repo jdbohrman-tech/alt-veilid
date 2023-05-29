@@ -125,7 +125,10 @@ impl TableDB {
     /// Decrypt buffer using decrypt key with nonce prepended to input
     fn maybe_decrypt(&self, data: &[u8]) -> Vec<u8> {
         if let Some(di) = &self.unlocked_inner.decrypt_info {
-            assert!(data.len() > NONCE_LENGTH);
+            assert!(data.len() >= NONCE_LENGTH);
+            if data.len() == NONCE_LENGTH {
+                return Vec::new();
+            }
 
             let mut out = unsafe { unaligned_u8_vec_uninit(data.len() - NONCE_LENGTH) };
 
