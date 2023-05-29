@@ -810,7 +810,7 @@ impl RoutingTableInner {
         peer_info: PeerInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
-        // if our own node if is in the list then ignore it, as we don't add ourselves to our own routing table
+        // if our own node is in the list, then ignore it as we don't add ourselves to our own routing table
         if self
             .unlocked_inner
             .matches_own_node_id(peer_info.node_ids())
@@ -821,7 +821,8 @@ impl RoutingTableInner {
 
         // node can not be its own relay
         let rids = peer_info.signed_node_info().relay_ids();
-        if self.unlocked_inner.matches_own_node_id(&rids) {
+        let nids = peer_info.node_ids();
+        if nids.contains_any(&rids) {
             log_rtab!(debug "node can not be its own relay");
             return None;
         }
