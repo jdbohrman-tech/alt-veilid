@@ -4,7 +4,6 @@ mod dh_cache;
 mod envelope;
 mod receipt;
 mod types;
-mod value;
 
 pub mod crypto_system;
 #[cfg(feature = "enable-crypto-none")]
@@ -20,7 +19,6 @@ pub use dh_cache::*;
 pub use envelope::*;
 pub use receipt::*;
 pub use types::*;
-pub use value::*;
 
 #[cfg(feature = "enable-crypto-none")]
 pub use none::*;
@@ -84,7 +82,6 @@ struct CryptoInner {
 struct CryptoUnlockedInner {
     config: VeilidConfig,
     table_store: TableStore,
-    protected_store: ProtectedStore,
 }
 
 /// Crypto factory implementation
@@ -106,16 +103,11 @@ impl Crypto {
         }
     }
 
-    pub fn new(
-        config: VeilidConfig,
-        table_store: TableStore,
-        protected_store: ProtectedStore,
-    ) -> Self {
+    pub fn new(config: VeilidConfig, table_store: TableStore) -> Self {
         let out = Self {
             unlocked_inner: Arc::new(CryptoUnlockedInner {
                 config,
                 table_store,
-                protected_store,
             }),
             inner: Arc::new(Mutex::new(Self::new_inner())),
         };
@@ -140,12 +132,11 @@ impl Crypto {
     pub async fn init(&self) -> EyreResult<()> {
         trace!("Crypto::init");
         let table_store = self.unlocked_inner.table_store.clone();
-
         // Init node id from config
         if let Err(e) = self
             .unlocked_inner
             .config
-            .init_node_ids(self.clone(), self.unlocked_inner.protected_store.clone())
+            .init_node_ids(self.clone(), table_store.clone())
             .await
         {
             return Err(e).wrap_err("init node id failed");
@@ -171,13 +162,16 @@ impl Crypto {
         };
 
         // load caches if they are valid for this node id
-        let mut db = table_store.open("crypto_caches", 1).await?;
-        let caches_valid = match db.load(0, b"cache_validity_key")? {
+        let mut db = table_store
+            .open("crypto_caches", 1)
+            .await
+            .wrap_err("failed to open crypto_caches")?;
+        let caches_valid = match db.load(0, b"cache_validity_key").await? {
             Some(v) => v == cache_validity_key,
             None => false,
         };
         if caches_valid {
-            if let Some(b) = db.load(0, b"dh_cache")? {
+            if let Some(b) = db.load(0, b"dh_cache").await? {
                 let mut inner = self.inner.lock();
                 bytes_to_cache(&b, &mut inner.dh_cache);
             }
@@ -263,7 +257,7 @@ impl Crypto {
         node_ids: &[TypedKey],
         data: &[u8],
         typed_signatures: &[TypedSignature],
-    ) -> Result<TypedKeySet, VeilidAPIError> {
+    ) -> VeilidAPIResult<TypedKeySet> {
         let mut out = TypedKeySet::with_capacity(node_ids.len());
         for sig in typed_signatures {
             for nid in node_ids {
@@ -286,7 +280,7 @@ impl Crypto {
         data: &[u8],
         typed_key_pairs: &[TypedKeyPair],
         transform: F,
-    ) -> Result<Vec<R>, VeilidAPIError>
+    ) -> VeilidAPIResult<Vec<R>>
     where
         F: Fn(&TypedKeyPair, Signature) -> R,
     {
@@ -302,7 +296,7 @@ impl Crypto {
 
     /// Generate keypair
     /// Does not require startup/init
-    pub fn generate_keypair(crypto_kind: CryptoKind) -> Result<TypedKeyPair, VeilidAPIError> {
+    pub fn generate_keypair(crypto_kind: CryptoKind) -> VeilidAPIResult<TypedKeyPair> {
         #[cfg(feature = "enable-crypto-vld0")]
         if crypto_kind == CRYPTO_KIND_VLD0 {
             let kp = vld0_generate_keypair();
@@ -323,7 +317,7 @@ impl Crypto {
         vcrypto: &T,
         key: &PublicKey,
         secret: &SecretKey,
-    ) -> Result<SharedSecret, VeilidAPIError> {
+    ) -> VeilidAPIResult<SharedSecret> {
         Ok(
             match self.inner.lock().dh_cache.entry(
                 DHCacheKey {

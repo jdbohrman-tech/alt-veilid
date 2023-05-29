@@ -22,6 +22,13 @@ pub enum RouteNode {
 }
 
 impl RouteNode {
+    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+        match self {
+            RouteNode::NodeId(_) => Ok(()),
+            RouteNode::PeerInfo(pi) => pi.validate(crypto),
+        }
+    }
+
     pub fn node_ref(
         &self,
         routing_table: RoutingTable,
@@ -48,10 +55,10 @@ impl RouteNode {
             RouteNode::NodeId(id) => {
                 format!("{}", TypedKey::new(crypto_kind, *id))
             }
-            RouteNode::PeerInfo(pi) => match pi.node_ids.get(crypto_kind) {
+            RouteNode::PeerInfo(pi) => match pi.node_ids().get(crypto_kind) {
                 Some(id) => format!("{}", id),
                 None => {
-                    format!("({})?{}", crypto_kind, pi.node_ids)
+                    format!("({})?{}", crypto_kind, pi.node_ids())
                 }
             },
         }
@@ -66,6 +73,11 @@ pub struct RouteHop {
     /// The encrypted blob to pass to the next hop as its data (None for stubs)
     pub next_hop: Option<RouteHopData>,
 }
+impl RouteHop {
+    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+        self.node.validate(crypto)
+    }
+}
 
 /// The kind of hops a private route can have
 #[derive(Clone, Debug)]
@@ -78,6 +90,15 @@ pub enum PrivateRouteHops {
     Empty,
 }
 
+impl PrivateRouteHops {
+    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+        match self {
+            PrivateRouteHops::FirstHop(rh) => rh.validate(crypto),
+            PrivateRouteHops::Data(_) => Ok(()),
+            PrivateRouteHops::Empty => Ok(()),
+        }
+    }
+}
 /// A private route for receiver privacy
 #[derive(Clone, Debug)]
 pub struct PrivateRoute {
@@ -106,6 +127,10 @@ impl PrivateRoute {
                 next_hop: None,
             }),
         }
+    }
+
+    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+        self.hops.validate(crypto)
     }
 
     /// Check if this is a stub route
@@ -155,7 +180,7 @@ impl PrivateRoute {
         // Get the safety route to use from the spec
         Some(match &pr_first_hop.node {
             RouteNode::NodeId(n) => TypedKey::new(self.public_key.kind, *n),
-            RouteNode::PeerInfo(p) => p.node_ids.get(self.public_key.kind).unwrap(),
+            RouteNode::PeerInfo(p) => p.node_ids().get(self.public_key.kind).unwrap(),
         })
     }
 }

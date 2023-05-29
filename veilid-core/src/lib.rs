@@ -28,8 +28,9 @@ mod network_manager;
 mod receipt_manager;
 mod routing_table;
 mod rpc_processor;
+mod storage_manager;
+mod table_store;
 mod veilid_api;
-#[macro_use]
 mod veilid_config;
 mod veilid_layer_filter;
 
@@ -39,6 +40,14 @@ pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;
 pub use veilid_tools as tools;
+
+use enumset::*;
+use rkyv::{
+    bytecheck, bytecheck::CheckBytes, de::deserializers::SharedDeserializeMap, with::Skip,
+    Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
+};
+type RkyvDefaultValidator<'t> = rkyv::validation::validators::DefaultValidator<'t>;
+use serde::*;
 
 pub mod veilid_capnp {
     include!(concat!(env!("OUT_DIR"), "/proto/veilid_capnp.rs"));

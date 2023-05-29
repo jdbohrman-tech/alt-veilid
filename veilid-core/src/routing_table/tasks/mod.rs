@@ -9,7 +9,7 @@ pub mod rolling_transfers;
 use super::*;
 
 impl RoutingTable {
-    pub(crate) fn start_tasks(&self) {
+    pub(crate) fn setup_tasks(&self) {
         // Set rolling transfers tick task
         {
             let this = self.clone();
@@ -176,7 +176,7 @@ impl RoutingTable {
         Ok(())
     }
 
-    pub(crate) async fn stop_tasks(&self) {
+    pub(crate) async fn cancel_tasks(&self) {
         // Cancel all tasks being ticked
         debug!("stopping rolling transfers task");
         if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {

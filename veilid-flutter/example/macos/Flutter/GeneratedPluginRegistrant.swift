@@ -5,12 +5,12 @@
 import FlutterMacOS
 import Foundation
 
-import flutter_acrylic
-import path_provider_macos
+import macos_window_utils
+import path_provider_foundation
 import veilid
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
-  FlutterAcrylicPlugin.register(with: registry.registrar(forPlugin: "FlutterAcrylicPlugin"))
+  MacOSWindowUtilsPlugin.register(with: registry.registrar(forPlugin: "MacOSWindowUtilsPlugin"))
   PathProviderPlugin.register(with: registry.registrar(forPlugin: "PathProviderPlugin"))
   VeilidPlugin.register(with: registry.registrar(forPlugin: "VeilidPlugin"))
 }

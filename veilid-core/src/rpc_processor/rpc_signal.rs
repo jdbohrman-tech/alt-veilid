@@ -22,7 +22,7 @@ impl RPCProcessor {
             ));
         }
 
-        let signal = RPCOperationSignal { signal_info };
+        let signal = RPCOperationSignal::new(signal_info);
         let statement = RPCStatement::new(RPCStatementDetail::Signal(signal));
 
         // Send the signal request
@@ -44,8 +44,9 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let signal = match msg.operation.into_kind() {
-            RPCOperationKind::Statement(s) => match s.into_detail() {
+        let (_, _, _, kind) = msg.operation.destructure();
+        let signal = match kind {
+            RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::Signal(s) => s,
                 _ => panic!("not a signal"),
             },
@@ -54,8 +55,9 @@ impl RPCProcessor {
 
         // Handle it
         let network_manager = self.network_manager();
+        let signal_info = signal.destructure();
         network_manager
-            .handle_signal(signal.signal_info)
+            .handle_signal(signal_info)
             .await
             .map_err(RPCError::network)
     }

@@ -115,7 +115,7 @@ impl RouteSpecStore {
             dr
         };
 
-        let update = VeilidUpdate::Route(VeilidStateRoute {
+        let update = VeilidUpdate::RouteChange(VeilidRouteChange {
             dead_routes,
             dead_remote_routes,
         });
@@ -1550,7 +1550,9 @@ impl RouteSpecStore {
                 .get_root::<veilid_capnp::private_route::Reader>()
                 .map_err(RPCError::internal)
                 .wrap_err("failed to make reader for private_route")?;
-            let private_route = decode_private_route(&pr_reader, crypto.clone()).wrap_err("failed to decode private route")?;
+            let private_route = decode_private_route(&pr_reader).wrap_err("failed to decode private route")?;
+            private_route.validate(crypto.clone()).wrap_err("failed to validate private route")?;
+
             out.push(private_route);
         }
         

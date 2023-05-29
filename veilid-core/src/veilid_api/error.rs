@@ -2,6 +2,14 @@ use super::*;
 
 #[allow(unused_macros)]
 #[macro_export]
+macro_rules! apibail_not_initialized {
+    () => {
+        return Err(VeilidAPIError::not_initialized())
+    };
+}
+
+#[allow(unused_macros)]
+#[macro_export]
 macro_rules! apibail_timeout {
     () => {
         return Err(VeilidAPIError::timeout())
@@ -66,6 +74,14 @@ macro_rules! apibail_no_connection {
 
 #[allow(unused_macros)]
 #[macro_export]
+macro_rules! apibail_key_not_found {
+    ($x:expr) => {
+        return Err(VeilidAPIError::key_not_found($x))
+    };
+}
+
+#[allow(unused_macros)]
+#[macro_export]
 macro_rules! apibail_invalid_target {
     () => {
         return Err(VeilidAPIError::invalid_target())
@@ -119,8 +135,8 @@ pub enum VeilidAPIError {
     InvalidTarget,
     #[error("No connection: {message}")]
     NoConnection { message: String },
-    #[error("No peer info: {node_id}")]
-    NoPeerInfo { node_id: TypedKey },
+    #[error("Key not found: {key}")]
+    KeyNotFound { key: TypedKey },
     #[error("Internal: {message}")]
     Internal { message: String },
     #[error("Unimplemented: {message}")]
@@ -163,8 +179,8 @@ impl VeilidAPIError {
             message: msg.to_string(),
         }
     }
-    pub fn no_peer_info(node_id: TypedKey) -> Self {
-        Self::NoPeerInfo { node_id }
+    pub fn key_not_found(key: TypedKey) -> Self {
+        Self::KeyNotFound { key }
     }
     pub fn internal<T: ToString>(msg: T) -> Self {
         Self::Internal {
@@ -202,6 +218,39 @@ impl VeilidAPIError {
     pub fn generic<T: ToString>(msg: T) -> Self {
         Self::Generic {
             message: msg.to_string(),
+        }
+    }
+}
+
+pub type VeilidAPIResult<T> = Result<T, VeilidAPIError>;
+
+impl From<std::io::Error> for VeilidAPIError {
+    fn from(e: std::io::Error) -> Self {
+        match e.kind() {
+            std::io::ErrorKind::TimedOut => VeilidAPIError::timeout(),
+            std::io::ErrorKind::ConnectionRefused => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::ConnectionReset => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::HostUnreachable => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::NetworkUnreachable => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::ConnectionAborted => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::NotConnected => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::AddrInUse => VeilidAPIError::no_connection(e.to_string()),
+            std::io::ErrorKind::AddrNotAvailable => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::NetworkDown => VeilidAPIError::no_connection(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::ReadOnlyFilesystem => VeilidAPIError::internal(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::NotSeekable => VeilidAPIError::internal(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::FilesystemQuotaExceeded => VeilidAPIError::internal(e.to_string()),
+            #[cfg(feature = "io_error_more")]
+            std::io::ErrorKind::Deadlock => VeilidAPIError::internal(e.to_string()),
+            std::io::ErrorKind::Unsupported => VeilidAPIError::internal(e.to_string()),
+            std::io::ErrorKind::OutOfMemory => VeilidAPIError::internal(e.to_string()),
+            _ => VeilidAPIError::generic(e.to_string()),
         }
     }
 }

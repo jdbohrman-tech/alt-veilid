@@ -66,7 +66,7 @@ impl Envelope {
         }
     }
 
-    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> Result<Envelope, VeilidAPIError> {
+    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> VeilidAPIResult<Envelope> {
         // Ensure we are at least the length of the envelope
         // Silent drop here, as we use zero length packets as part of the protocol for hole punching
         if data.len() < MIN_ENVELOPE_SIZE {
@@ -175,7 +175,7 @@ impl Envelope {
         crypto: Crypto,
         data: &[u8],
         node_id_secret: &SecretKey,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         // Get DH secret
         let vcrypto = crypto
             .get(self.crypto_kind)
@@ -183,8 +183,11 @@ impl Envelope {
         let dh_secret = vcrypto.cached_dh(&self.sender_id, node_id_secret)?;
 
         // Decrypt message without authentication
-        let body =
-            vcrypto.crypt_no_auth_aligned_8(&data[0x6A..data.len() - 64], &self.nonce, &dh_secret);
+        let body = vcrypto.crypt_no_auth_aligned_8(
+            &data[0x6A..data.len() - 64],
+            &self.nonce.bytes,
+            &dh_secret,
+        );
 
         Ok(body)
     }
@@ -194,7 +197,7 @@ impl Envelope {
         crypto: Crypto,
         body: &[u8],
         node_id_secret: &SecretKey,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    ) -> VeilidAPIResult<Vec<u8>> {
         // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;
         if envelope_size > MAX_ENVELOPE_SIZE {
@@ -227,7 +230,7 @@ impl Envelope {
         data[0x4A..0x6A].copy_from_slice(&self.recipient_id.bytes);
 
         // Encrypt and authenticate message
-        let encrypted_body = vcrypto.crypt_no_auth_unaligned(body, &self.nonce, &dh_secret);
+        let encrypted_body = vcrypto.crypt_no_auth_unaligned(body, &self.nonce.bytes, &dh_secret);
 
         // Write body
         if !encrypted_body.is_empty() {

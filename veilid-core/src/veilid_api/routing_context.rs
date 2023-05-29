@@ -4,7 +4,7 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(PublicKey),     // Node by any of its public keys
+    NodeId(TypedKey),      // Node by its public key
     PrivateRoute(RouteId), // Remote private route by its id
 }
 
@@ -45,11 +45,11 @@ impl RoutingContext {
         }
     }
 
-    pub fn with_privacy(self) -> Result<Self, VeilidAPIError> {
+    pub fn with_privacy(self) -> VeilidAPIResult<Self> {
         self.with_custom_privacy(Stability::default())
     }
 
-    pub fn with_custom_privacy(self, stability: Stability) -> Result<Self, VeilidAPIError> {
+    pub fn with_custom_privacy(self, stability: Stability) -> VeilidAPIResult<Self> {
         let config = self.api.config()?;
         let c = config.get();
 
@@ -96,16 +96,16 @@ impl RoutingContext {
         self.api.clone()
     }
 
-    async fn get_destination(
-        &self,
-        target: Target,
-    ) -> Result<rpc_processor::Destination, VeilidAPIError> {
+    async fn get_destination(&self, target: Target) -> VeilidAPIResult<rpc_processor::Destination> {
         let rpc_processor = self.api.rpc_processor()?;
 
         match target {
             Target::NodeId(node_id) => {
                 // Resolve node
-                let mut nr = match rpc_processor.resolve_node(node_id).await {
+                let mut nr = match rpc_processor
+                    .resolve_node(node_id, self.unlocked_inner.safety_selection)
+                    .await
+                {
                     Ok(Some(nr)) => nr,
                     Ok(None) => apibail_invalid_target!(),
                     Err(e) => return Err(e.into()),
@@ -138,11 +138,7 @@ impl RoutingContext {
     // App-level Messaging
 
     #[instrument(level = "debug", err, skip(self))]
-    pub async fn app_call(
-        &self,
-        target: Target,
-        request: Vec<u8>,
-    ) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn app_call(&self, target: Target, request: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
         let rpc_processor = self.api.rpc_processor()?;
 
         // Get destination
@@ -167,11 +163,7 @@ impl RoutingContext {
     }
 
     #[instrument(level = "debug", err, skip(self))]
-    pub async fn app_message(
-        &self,
-        target: Target,
-        message: Vec<u8>,
-    ) -> Result<(), VeilidAPIError> {
+    pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
         let rpc_processor = self.api.rpc_processor()?;
 
         // Get destination
@@ -195,51 +187,114 @@ impl RoutingContext {
     }
 
     ///////////////////////////////////
-    /// DHT Values
+    /// DHT Records
 
-    pub async fn get_value(
+    /// Creates a new DHT record a specified crypto kind and schema
+    /// Returns the newly allocated DHT record's key if successful. The records is considered 'open' after the create operation succeeds.
+    pub async fn create_dht_record(
         &self,
-        _key: TypedKey,
-        _subkey: ValueSubkey,
-    ) -> Result<ValueData, VeilidAPIError> {
-        panic!("unimplemented");
+        kind: CryptoKind,
+        schema: DHTSchema,
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager
+            .create_record(kind, schema, self.unlocked_inner.safety_selection)
+            .await
     }
 
-    pub async fn set_value(
+    /// Opens a DHT record at a specific key. Associates a secret if one is provided to provide writer capability.
+    /// Returns the DHT record descriptor for the opened record if successful
+    /// Records may only be opened or created . To re-open with a different routing context, first close the value.
+    pub async fn open_dht_record(
         &self,
-        _key: TypedKey,
-        _subkey: ValueSubkey,
-        _value: ValueData,
-    ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
+        key: TypedKey,
+        writer: Option<KeyPair>,
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager
+            .open_record(key, writer, self.unlocked_inner.safety_selection)
+            .await
     }
 
-    pub async fn watch_value(
-        &self,
-        _key: TypedKey,
-        _subkeys: &[ValueSubkeyRange],
-        _expiration: Timestamp,
-        _count: u32,
-    ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
+    /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
+    /// Closing a record allows you to re-open it with a different routing context
+    pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.close_record(key).await
     }
 
-    pub async fn cancel_watch_value(
+    /// Deletes a DHT record at a specific key. If the record is opened, it must be closed before it is deleted.
+    /// Deleting a record does not delete it from the network, but will remove the storage of the record
+    /// locally, and will prevent its value from being refreshed on the network by this node.
+    pub async fn delete_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.delete_record(key).await
+    }
+
+    /// Gets the latest value of a subkey
+    /// May pull the latest value from the network, but by settings 'force_refresh' you can force a network data refresh
+    /// Returns None if the value subkey has not yet been set
+    /// Returns Some(data) if the value subkey has valid data
+    pub async fn get_dht_value(
         &self,
-        _key: TypedKey,
-        _subkeys: &[ValueSubkeyRange],
-    ) -> Result<bool, VeilidAPIError> {
-        panic!("unimplemented");
+        key: TypedKey,
+        subkey: ValueSubkey,
+        force_refresh: bool,
+    ) -> VeilidAPIResult<Option<ValueData>> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.get_value(key, subkey, force_refresh).await
+    }
+
+    /// Pushes a changed subkey value to the network
+    /// Returns None if the value was successfully put
+    /// Returns Some(data) if the value put was older than the one available on the network
+    pub async fn set_dht_value(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        data: Vec<u8>,
+    ) -> VeilidAPIResult<Option<ValueData>> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.set_value(key, subkey, data).await
+    }
+
+    /// Watches changes to an opened or created value
+    /// Changes to subkeys within the subkey range are returned via a ValueChanged callback
+    /// If the subkey range is empty, all subkey changes are considered
+    /// Expiration can be infinite to keep the watch for the maximum amount of time
+    /// Return value upon success is the amount of time allowed for the watch
+    pub async fn watch_dht_values(
+        &self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        expiration: Timestamp,
+        count: u32,
+    ) -> VeilidAPIResult<Timestamp> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager
+            .watch_values(key, subkeys, expiration, count)
+            .await
+    }
+
+    /// Cancels a watch early
+    /// This is a convenience function that cancels watching all subkeys in a range
+    pub async fn cancel_dht_watch(
+        &self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+    ) -> VeilidAPIResult<bool> {
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.cancel_watch_values(key, subkeys).await
     }
 
     ///////////////////////////////////
     /// Block Store
 
-    pub async fn find_block(&self, _block_id: PublicKey) -> Result<Vec<u8>, VeilidAPIError> {
+    pub async fn find_block(&self, _block_id: PublicKey) -> VeilidAPIResult<Vec<u8>> {
         panic!("unimplemented");
     }
 
-    pub async fn supply_block(&self, _block_id: PublicKey) -> Result<bool, VeilidAPIError> {
+    pub async fn supply_block(&self, _block_id: PublicKey) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }
 }

@@ -31,55 +31,73 @@ pub fn setup() -> () {
 }
 
 #[wasm_bindgen_test]
-async fn run_test_host_interface() {
+async fn wasm_test_host_interface() {
     setup();
     test_host_interface::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn run_test_dht_key() {
+async fn wasm_test_types() {
     setup();
-    test_dht_key::test_all().await;
+    test_types::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn run_test_veilid_core() {
+async fn wasm_test_veilid_core() {
     setup();
     test_veilid_core::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn test_veilid_config() {
+async fn wasm_test_veilid_config() {
     setup();
     test_veilid_config::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn run_test_connection_table() {
+async fn wasm_test_connection_table() {
     setup();
     test_connection_table::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn exec_test_table_store() {
+async fn wasm_test_signed_node_info() {
+    setup();
+    test_signed_node_info::test_all().await;
+}
+
+#[wasm_bindgen_test]
+async fn wasm_test_table_store() {
     setup();
     test_table_store::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn exec_test_protected_store() {
+async fn wasm_test_protected_store() {
     setup();
     test_protected_store::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn exec_test_crypto() {
+async fn wasm_test_crypto() {
     setup();
     test_crypto::test_all().await;
 }
 
 #[wasm_bindgen_test]
-async fn exec_test_envelope_receipt() {
+async fn wasm_test_envelope_receipt() {
     setup();
     test_envelope_receipt::test_all().await;
+}
+
+#[wasm_bindgen_test]
+async fn wasm_test_serialize_rkyv() {
+    setup();
+    test_serialize_rkyv::test_all().await;
+}
+
+#[wasm_bindgen_test]
+async fn wasm_test_routing_table_serialize() {
+    setup();
+    test_routing_table_serialize::test_all().await;
 }

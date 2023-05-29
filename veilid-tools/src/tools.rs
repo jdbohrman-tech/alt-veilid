@@ -32,6 +32,37 @@ macro_rules! bail_io_error_other {
     };
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(feature="rt-tokio")] {
+        #[macro_export]
+        macro_rules! asyncmutex_try_lock {
+            ($x:expr) => {
+                $x.try_lock().ok()
+            };
+        }
+
+        #[macro_export]
+        macro_rules! asyncmutex_lock_arc {
+            ($x:expr) => {
+                $x.clone().lock_owned().await
+            };
+        }
+    } else {
+        #[macro_export]
+        macro_rules! asyncmutex_try_lock {
+            ($x:expr) => {
+                $x.try_lock()
+            };
+        }
+        #[macro_export]
+        macro_rules! asyncmutex_lock_arc {
+            ($x:expr) => {
+                $x.lock_arc().await
+            };
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn system_boxed<'a, Out>(
@@ -97,6 +128,10 @@ pub fn secs_to_timestamp(secs: f64) -> u64 {
 
 pub fn ms_to_us(ms: u32) -> u64 {
     (ms as u64) * 1000u64
+}
+
+pub fn us_to_ms(us: u64) -> EyreResult<u32> {
+    u32::try_from(us / 1000u64).wrap_err("could not convert microseconds")
 }
 
 // Calculate retry attempt with logarhythmic falloff

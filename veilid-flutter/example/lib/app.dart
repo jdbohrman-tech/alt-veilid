@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -97,11 +98,11 @@ class _MyAppState extends State<MyApp> with UiLoggy {
         if (update is VeilidLog) {
           await processLog(update);
         } else if (update is VeilidAppMessage) {
-          loggy.info("AppMessage: ${update.json}");
+          loggy.info("AppMessage: ${jsonEncode(update)}");
         } else if (update is VeilidAppCall) {
-          loggy.info("AppCall: ${update.json}");
+          loggy.info("AppCall: ${jsonEncode(update)}");
         } else {
-          loggy.trace("Update: ${update.json}");
+          loggy.trace("Update: ${jsonEncode(update)}");
         }
       }
     }

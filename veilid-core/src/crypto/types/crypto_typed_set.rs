@@ -141,9 +141,9 @@ where
         }
         false
     }
-    pub fn contains_key(&self, key: &K) -> bool {
+    pub fn contains_value(&self, value: &K) -> bool {
         for tk in &self.items {
-            if tk.value == *key {
+            if tk.value == *value {
                 return true;
             }
         }
@@ -279,6 +279,28 @@ where
     fn from(x: Vec<CryptoTyped<K>>) -> Self {
         let mut tks = CryptoTypedSet::<K>::with_capacity(x.len());
         tks.add_all(&x);
+        tks
+    }
+}
+impl<K> From<&[CryptoTyped<K>]> for CryptoTypedSet<K>
+where
+    K: Clone
+        + Copy
+        + fmt::Debug
+        + fmt::Display
+        + FromStr
+        + PartialEq
+        + Eq
+        + PartialOrd
+        + Ord
+        + Hash
+        + RkyvArchive
+        + Encodable,
+    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
+{
+    fn from(x: &[CryptoTyped<K>]) -> Self {
+        let mut tks = CryptoTypedSet::<K>::with_capacity(x.len());
+        tks.add_all(x);
         tks
     }
 }

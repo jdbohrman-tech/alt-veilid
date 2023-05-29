@@ -1,4 +1,4 @@
-mod table_db;
+use super::*;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm;
@@ -8,3 +8,5 @@ pub use wasm::*;
 mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::*;
+
+pub static KNOWN_PROTECTED_STORE_KEYS: [&'static str; 2] = ["device_encryption_key", "_test_key"];

@@ -1,9 +1,7 @@
 use crate::*;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use serde::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-pub type ConfigCallbackReturn = Result<Box<dyn core::any::Any + Send>, VeilidAPIError>;
+pub type ConfigCallbackReturn = VeilidAPIResult<Box<dyn core::any::Any + Send>>;
 pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sync>;
 
 /// Enable and configure HTTPS access to the Veilid node
@@ -277,19 +275,25 @@ pub struct VeilidConfigTLS {
     RkyvDeserialize,
 )]
 pub struct VeilidConfigDHT {
-    pub resolve_node_timeout_ms: Option<u32>,
+    pub max_find_node_count: u32,
+    pub resolve_node_timeout_ms: u32,
     pub resolve_node_count: u32,
     pub resolve_node_fanout: u32,
-    pub max_find_node_count: u32,
-    pub get_value_timeout_ms: Option<u32>,
+    pub get_value_timeout_ms: u32,
     pub get_value_count: u32,
     pub get_value_fanout: u32,
-    pub set_value_timeout_ms: Option<u32>,
+    pub set_value_timeout_ms: u32,
     pub set_value_count: u32,
     pub set_value_fanout: u32,
     pub min_peer_count: u32,
     pub min_peer_refresh_time_ms: u32,
     pub validate_dial_info_receipt_time_ms: u32,
+    pub local_subkey_cache_size: u32,
+    pub local_max_subkey_cache_memory_mb: u32,
+    pub remote_subkey_cache_size: u32,
+    pub remote_max_records: u32,
+    pub remote_max_subkey_cache_memory_mb: u32,
+    pub remote_max_storage_space_mb: u32,
 }
 
 /// Configure RPC
@@ -425,8 +429,10 @@ pub struct VeilidConfigBlockStore {
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
-    pub insecure_fallback_directory: String,
+    pub directory: String,
     pub delete: bool,
+    pub device_encryption_key_password: String,
+    pub new_device_encryption_key_password: Option<String>,
 }
 
 #[derive(
@@ -581,7 +587,7 @@ impl VeilidConfig {
         &mut self,
         config: String,
         update_cb: UpdateCallback,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         self.update_cb = Some(update_cb);
 
         self.with_mut(|inner| {
@@ -590,11 +596,7 @@ impl VeilidConfig {
         })
     }
 
-    pub fn setup(
-        &mut self,
-        cb: ConfigCallback,
-        update_cb: UpdateCallback,
-    ) -> Result<(), VeilidAPIError> {
+    pub fn setup(&mut self, cb: ConfigCallback, update_cb: UpdateCallback) -> VeilidAPIResult<()> {
         self.update_cb = Some(update_cb);
         self.with_mut(|inner| {
             // Simple config transformation
@@ -630,8 +632,10 @@ impl VeilidConfig {
             get_config!(inner.block_store.delete);
             get_config!(inner.protected_store.allow_insecure_fallback);
             get_config!(inner.protected_store.always_use_insecure_storage);
-            get_config!(inner.protected_store.insecure_fallback_directory);
+            get_config!(inner.protected_store.directory);
             get_config!(inner.protected_store.delete);
+            get_config!(inner.protected_store.device_encryption_key_password);
+            get_config!(inner.protected_store.new_device_encryption_key_password);
             get_config!(inner.network.connection_initial_timeout_ms);
             get_config!(inner.network.connection_inactivity_timeout_ms);
             get_config!(inner.network.max_connections_per_ip4);
@@ -649,10 +653,10 @@ impl VeilidConfig {
             get_config!(inner.network.routing_table.limit_attached_strong);
             get_config!(inner.network.routing_table.limit_attached_good);
             get_config!(inner.network.routing_table.limit_attached_weak);
+            get_config!(inner.network.dht.max_find_node_count);
             get_config!(inner.network.dht.resolve_node_timeout_ms);
             get_config!(inner.network.dht.resolve_node_count);
             get_config!(inner.network.dht.resolve_node_fanout);
-            get_config!(inner.network.dht.max_find_node_count);
             get_config!(inner.network.dht.get_value_timeout_ms);
             get_config!(inner.network.dht.get_value_count);
             get_config!(inner.network.dht.get_value_fanout);
@@ -662,6 +666,12 @@ impl VeilidConfig {
             get_config!(inner.network.dht.min_peer_count);
             get_config!(inner.network.dht.min_peer_refresh_time_ms);
             get_config!(inner.network.dht.validate_dial_info_receipt_time_ms);
+            get_config!(inner.network.dht.local_subkey_cache_size);
+            get_config!(inner.network.dht.local_max_subkey_cache_memory_mb);
+            get_config!(inner.network.dht.remote_subkey_cache_size);
+            get_config!(inner.network.dht.remote_max_records);
+            get_config!(inner.network.dht.remote_max_subkey_cache_memory_mb);
+            get_config!(inner.network.dht.remote_max_storage_space_mb);
             get_config!(inner.network.rpc.concurrency);
             get_config!(inner.network.rpc.queue_size);
             get_config!(inner.network.rpc.max_timestamp_behind_ms);
@@ -724,13 +734,16 @@ impl VeilidConfig {
 
         // Remove secrets
         safe_cfg.network.routing_table.node_id_secret = TypedSecretSet::new();
+        safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
+        safe_cfg.protected_store.new_device_encryption_key_password = None;
+
 
         safe_cfg
     }
 
-    pub fn with_mut<F, R>(&self, f: F) -> Result<R, VeilidAPIError>
+    pub fn with_mut<F, R>(&self, f: F) -> VeilidAPIResult<R>
     where
-        F: FnOnce(&mut VeilidConfigInner) -> Result<R, VeilidAPIError>,
+        F: FnOnce(&mut VeilidConfigInner) -> VeilidAPIResult<R>,
     {
         let out = {
             let inner = &mut *self.inner.write();
@@ -754,7 +767,7 @@ impl VeilidConfig {
         Ok(out)
     }
 
-    pub fn get_key_json(&self, key: &str) -> Result<String, VeilidAPIError> {
+    pub fn get_key_json(&self, key: &str) -> VeilidAPIResult<String> {
         let c = self.get();
 
         // Generate json from whole config
@@ -777,7 +790,7 @@ impl VeilidConfig {
             Ok(out.to_string())
         }
     }
-    pub fn set_key_json(&self, key: &str, value: &str) -> Result<(), VeilidAPIError> {
+    pub fn set_key_json(&self, key: &str, value: &str) -> VeilidAPIResult<()> {
         self.with_mut(|c| {
             // Split key into path parts
             let keypath: Vec<&str> = key.split('.').collect();
@@ -814,7 +827,7 @@ impl VeilidConfig {
         })
     }
 
-    fn validate(inner: &VeilidConfigInner) -> Result<(), VeilidAPIError> {
+    fn validate(inner: &VeilidConfigInner) -> VeilidAPIResult<()> {
         if inner.program_name.is_empty() {
             apibail_generic!("Program name must not be empty in 'program_name'");
         }
@@ -923,8 +936,8 @@ impl VeilidConfig {
     async fn init_node_id(
         &self,
         vcrypto: CryptoSystemVersion,
-        protected_store: intf::ProtectedStore,
-    ) -> Result<(TypedKey, TypedSecret), VeilidAPIError> {
+        table_store: TableStore,
+    ) -> VeilidAPIResult<(TypedKey, TypedSecret)> {
         let ck = vcrypto.kind();
         let mut node_id = self.inner.read().network.routing_table.node_id.get(ck);
         let mut node_id_secret = self
@@ -935,45 +948,36 @@ impl VeilidConfig {
             .node_id_secret
             .get(ck);
 
-        // See if node id was previously stored in the protected store
+        // See if node id was previously stored in the table store
+        let config_table = table_store.open("__veilid_config", 1).await?;
+
+        let table_key_node_id = format!("node_id_{}", ck);
+        let table_key_node_id_secret = format!("node_id_secret_{}", ck);
+
         if node_id.is_none() {
-            debug!("pulling node_id_{} from storage", ck);
-            if let Some(s) = protected_store
-                .load_user_secret_string(format!("node_id_{}", ck))
+            debug!("pulling {} from storage", table_key_node_id);
+            if let Ok(Some(stored_node_id)) = config_table
+                .load_json::<TypedKey>(0, table_key_node_id.as_bytes())
                 .await
-                .map_err(VeilidAPIError::internal)?
             {
-                debug!("node_id_{} found in storage", ck);
-                node_id = match TypedKey::from_str(s.as_str()) {
-                    Ok(v) => Some(v),
-                    Err(_) => {
-                        debug!("node id in protected store is not valid");
-                        None
-                    }
-                }
+                debug!("{} found in storage", table_key_node_id);
+                node_id = Some(stored_node_id);
             } else {
-                debug!("node_id_{} not found in storage", ck);
+                debug!("{} not found in storage", table_key_node_id);
             }
         }
 
         // See if node id secret was previously stored in the protected store
         if node_id_secret.is_none() {
-            debug!("pulling node id secret from storage");
-            if let Some(s) = protected_store
-                .load_user_secret_string(format!("node_id_secret_{}", ck))
+            debug!("pulling {} from storage", table_key_node_id_secret);
+            if let Ok(Some(stored_node_id_secret)) = config_table
+                .load_json::<TypedSecret>(0, table_key_node_id_secret.as_bytes())
                 .await
-                .map_err(VeilidAPIError::internal)?
             {
-                debug!("node_id_secret_{} found in storage", ck);
-                node_id_secret = match TypedSecret::from_str(s.as_str()) {
-                    Ok(v) => Some(v),
-                    Err(_) => {
-                        debug!("node id secret in protected store is not valid");
-                        None
-                    }
-                }
+                debug!("{} found in storage", table_key_node_id_secret);
+                node_id_secret = Some(stored_node_id_secret);
             } else {
-                debug!("node_id_secret_{} not found in storage", ck);
+                debug!("{} not found in storage", table_key_node_id_secret);
             }
         }
 
@@ -997,14 +1001,12 @@ impl VeilidConfig {
         info!("Node Id: {}", node_id);
 
         // Save the node id / secret in storage
-        protected_store
-            .save_user_secret_string(format!("node_id_{}", ck), node_id.to_string())
-            .await
-            .map_err(VeilidAPIError::internal)?;
-        protected_store
-            .save_user_secret_string(format!("node_id_secret_{}", ck), node_id_secret.to_string())
-            .await
-            .map_err(VeilidAPIError::internal)?;
+        config_table
+            .store_json(0, table_key_node_id.as_bytes(), &node_id)
+            .await?;
+        config_table
+            .store_json(0, table_key_node_id_secret.as_bytes(), &node_id_secret)
+            .await?;
 
         Ok((node_id, node_id_secret))
     }
@@ -1015,8 +1017,8 @@ impl VeilidConfig {
     pub async fn init_node_ids(
         &self,
         crypto: Crypto,
-        protected_store: intf::ProtectedStore,
-    ) -> Result<(), VeilidAPIError> {
+        table_store: TableStore,
+    ) -> VeilidAPIResult<()> {
         let mut out_node_id = TypedKeySet::new();
         let mut out_node_id_secret = TypedSecretSet::new();
 
@@ -1031,8 +1033,7 @@ impl VeilidConfig {
                 (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
             };
             #[cfg(not(test))]
-            let (node_id, node_id_secret) =
-                self.init_node_id(vcrypto, protected_store.clone()).await?;
+            let (node_id, node_id_secret) = self.init_node_id(vcrypto, table_store.clone()).await?;
 
             // Save for config
             out_node_id.add(node_id);

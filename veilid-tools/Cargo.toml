@@ -11,8 +11,9 @@ crate-type = [ "cdylib", "staticlib", "rlib" ]
 
 [features]
 default = []
-rt-async-std = [ "async-std", "async_executors/async_std", ]
-rt-tokio = [ "tokio", "tokio-util", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", ]
+rt-async-std = [ "async-std", "async_executors/async_std" ]
+rt-tokio = [ "tokio", "tokio-util", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer" ]
+rt-wasm-bindgen = [ "async_executors/bindgen", "async_executors/timer"]
 
 veilid_tools_android_tests = [ "dep:paranoid-android" ]
 veilid_tools_ios_tests = [ "dep:oslog", "dep:tracing-oslog" ]
@@ -52,7 +53,7 @@ nix = "^0"
 wasm-bindgen = "^0"
 js-sys = "^0"
 wasm-bindgen-futures = "^0"
-async_executors = { version = "^0", default-features = false, features = [ "bindgen", "timer" ]}
+async_executors = { version = "^0", default-features = false}
 async-lock = "^2"
 send_wrapper = { version = "^0.6", features = ["futures"] }
 

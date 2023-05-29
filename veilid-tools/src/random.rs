@@ -16,13 +16,12 @@ impl RngCore for VeilidRng {
     }
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        if let Err(e) = self.try_fill_bytes(dest) {
-            panic!("Error: {}", e);
-        }
+        random_bytes(dest);
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
-        random_bytes(dest).map_err(rand::Error::new)
+        random_bytes(dest);
+        Ok(())
     }
 }
 
@@ -30,7 +29,7 @@ cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         use js_sys::Math;
 
-        pub fn random_bytes(dest: &mut [u8]) -> EyreResult<()> {
+        pub fn random_bytes(dest: &mut [u8]) {
             let len = dest.len();
             let u32len = len / 4;
             let remlen = len % 4;
@@ -49,8 +48,6 @@ cfg_if! {
                     dest[u32len * 4 + n] = ((r >> (n * 8)) & 0xFF) as u8;
                 }
             }
-
-            Ok(())
         }
 
         pub fn get_random_u32() -> u32 {
@@ -65,9 +62,9 @@ cfg_if! {
 
     } else {
 
-        pub fn random_bytes(dest: &mut [u8]) -> EyreResult<()> {
+        pub fn random_bytes(dest: &mut [u8]) {
             let mut rng = rand::thread_rng();
-            rng.try_fill_bytes(dest).wrap_err("failed to fill bytes")
+            rng.fill_bytes(dest);
         }
 
         pub fn get_random_u32() -> u32 {

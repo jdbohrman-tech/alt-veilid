@@ -2,10 +2,10 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RoutedOperation {
-    pub sequencing: Sequencing,
-    pub signatures: Vec<Signature>,
-    pub nonce: Nonce,
-    pub data: Vec<u8>,
+    sequencing: Sequencing,
+    signatures: Vec<Signature>,
+    nonce: Nonce,
+    data: Vec<u8>,
 }
 
 impl RoutedOperation {
@@ -17,10 +17,33 @@ impl RoutedOperation {
             data,
         }
     }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        //xxx
+        Ok(())
+    }
+    pub fn sequencing(&self) -> Sequencing {
+        self.sequencing
+    }
+    pub fn signatures(&self) -> &[Signature] {
+        &self.signatures
+    }
 
-    pub fn decode(
-        reader: &veilid_capnp::routed_operation::Reader,
-    ) -> Result<RoutedOperation, RPCError> {
+    pub fn add_signature(&mut self, signature: Signature) {
+        self.signatures.push(signature);
+    }
+
+    pub fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn destructure(self) -> (Sequencing, Vec<Signature>, Nonce, Vec<u8>) {
+        (self.sequencing, self.signatures, self.nonce, self.data)
+    }
+
+    pub fn decode(reader: &veilid_capnp::routed_operation::Reader) -> Result<Self, RPCError> {
         let sigs_reader = reader.get_signatures().map_err(RPCError::protocol)?;
         let mut signatures = Vec::<Signature>::with_capacity(
             sigs_reader
@@ -36,13 +59,13 @@ impl RoutedOperation {
         let sequencing = decode_sequencing(reader.get_sequencing().map_err(RPCError::protocol)?);
         let n_reader = reader.get_nonce().map_err(RPCError::protocol)?;
         let nonce = decode_nonce(&n_reader);
-        let data = reader.get_data().map_err(RPCError::protocol)?.to_vec();
+        let data = reader.get_data().map_err(RPCError::protocol)?;
 
-        Ok(RoutedOperation {
+        Ok(Self {
             sequencing,
             signatures,
             nonce,
-            data,
+            data: data.to_vec(),
         })
     }
 
@@ -73,22 +96,39 @@ impl RoutedOperation {
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationRoute {
-    pub safety_route: SafetyRoute,
-    pub operation: RoutedOperation,
+    safety_route: SafetyRoute,
+    operation: RoutedOperation,
 }
 
 impl RPCOperationRoute {
-    pub fn decode(
-        reader: &veilid_capnp::operation_route::Reader,
-        crypto: Crypto,
-    ) -> Result<RPCOperationRoute, RPCError> {
+    pub fn new(safety_route: SafetyRoute, operation: RoutedOperation) -> Self {
+        Self {
+            safety_route,
+            operation,
+        }
+    }
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        self.operation.validate(validate_context)
+    }
+
+    pub fn safety_route(&self) -> &SafetyRoute {
+        &self.safety_route
+    }
+    pub fn operation(&self) -> &RoutedOperation {
+        &self.operation
+    }
+    pub fn destructure(self) -> (SafetyRoute, RoutedOperation) {
+        (self.safety_route, self.operation)
+    }
+
+    pub fn decode(reader: &veilid_capnp::operation_route::Reader) -> Result<Self, RPCError> {
         let sr_reader = reader.get_safety_route().map_err(RPCError::protocol)?;
-        let safety_route = decode_safety_route(&sr_reader, crypto)?;
+        let safety_route = decode_safety_route(&sr_reader)?;
 
         let o_reader = reader.get_operation().map_err(RPCError::protocol)?;
         let operation = RoutedOperation::decode(&o_reader)?;
 
-        Ok(RPCOperationRoute {
+        Ok(Self {
             safety_route,
             operation,
         })

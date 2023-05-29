@@ -7,7 +7,7 @@ use clap::ArgMatches;
 use futures_util::StreamExt;
 use signal_hook::consts::signal::*;
 use signal_hook_async_std::Signals;
-use std::io::Read;
+//use std::io::Read;
 use tracing::*;
 
 #[instrument(skip(signals))]
@@ -34,23 +34,23 @@ pub fn run_daemon(settings: Settings, _matches: ArgMatches) -> EyreResult<()> {
         let s = settings.read();
         if let Some(pid_file) = s.daemon.pid_file.clone() {
             daemon = daemon.pid_file(pid_file.clone()); //.chown_pid_file(true);
-            daemon = daemon.exit_action(move || {
-                // wait for pid file to exist before exiting parent
-                let pid_path = std::path::Path::new(&pid_file);
-                loop {
-                    if let Ok(mut f) = std::fs::File::open(pid_path) {
-                        let mut s = String::new();
-                        if f.read_to_string(&mut s).is_ok()
-                            && !s.is_empty()
-                            && s.parse::<u32>().is_ok()
-                        {
-                            println!("pidfile found");
-                            break;
-                        }
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                }
-            })
+                                                        // daemon = daemon.exit_action(move || {
+                                                        //     // wait for pid file to exist before exiting parent
+                                                        //     let pid_path = std::path::Path::new(&pid_file);
+                                                        //     loop {
+                                                        //         if let Ok(mut f) = std::fs::File::open(pid_path) {
+                                                        //             let mut s = String::new();
+                                                        //             if f.read_to_string(&mut s).is_ok()
+                                                        //                 && !s.is_empty()
+                                                        //                 && s.parse::<u32>().is_ok()
+                                                        //             {
+                                                        //                 println!("pidfile found");
+                                                        //                 break;
+                                                        //             }
+                                                        //         }
+                                                        //         std::thread::sleep(std::time::Duration::from_millis(100));
+                                                        //     }
+                                                        // })
         }
         if let Some(chroot) = &s.daemon.chroot {
             daemon = daemon.chroot(chroot);

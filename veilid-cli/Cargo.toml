@@ -38,7 +38,7 @@ cfg-if = "^1"
 capnp = "^0"
 capnp-rpc = "^0"
 config = { version = "^0", features = ["yaml"] }
-bugsalot = "^0"
+bugsalot = { git = "https://github.com/crioux/bugsalot.git" }
 flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"

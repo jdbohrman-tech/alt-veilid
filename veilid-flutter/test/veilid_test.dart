@@ -11,6 +11,6 @@ void main() {
   tearDown(() {});
 
   test('veilidVersionString', () async {
-    expect(Veilid.instance.veilidVersionString(), '0.1.0');
+    expect(api.veilidVersionString(), '0.1.0');
   });
 }

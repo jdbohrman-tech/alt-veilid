@@ -19,11 +19,12 @@ mod signature512;
 mod signed_direct_node_info;
 mod signed_node_info;
 mod signed_relayed_node_info;
+mod signed_value_data;
+mod signed_value_descriptor;
 mod socket_address;
 mod tunnel;
 mod typed_key;
 mod typed_signature;
-mod value_data;
 
 pub use address::*;
 pub use address_type_set::*;
@@ -46,10 +47,24 @@ pub use signature512::*;
 pub use signed_direct_node_info::*;
 pub use signed_node_info::*;
 pub use signed_relayed_node_info::*;
+pub use signed_value_data::*;
+pub use signed_value_descriptor::*;
 pub use socket_address::*;
 pub use tunnel::*;
 pub use typed_key::*;
 pub use typed_signature::*;
-pub use value_data::*;
 
 use super::*;
+
+#[derive(Debug, Clone)]
+pub enum QuestionContext {
+    GetValue(ValidateGetValueContext),
+    SetValue(ValidateSetValueContext),
+}
+
+#[derive(Clone)]
+pub struct RPCValidateContext {
+    pub crypto: Crypto,
+    pub rpc_processor: RPCProcessor,
+    pub question_context: Option<QuestionContext>,
+}

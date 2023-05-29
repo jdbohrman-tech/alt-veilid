@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-mod aligned_u64;
 mod api;
 mod debug;
 mod error;
@@ -8,7 +7,8 @@ mod routing_context;
 mod serialize_helpers;
 mod types;
 
-pub use aligned_u64::*;
+pub mod tests;
+
 pub use api::*;
 pub use debug::*;
 pub use error::*;
@@ -22,17 +22,15 @@ pub use core::str::FromStr;
 pub use crypto::*;
 pub use intf::BlockStore;
 pub use intf::ProtectedStore;
-pub use intf::{TableDB, TableDBTransaction, TableStore};
 pub use network_manager::NetworkManager;
 pub use routing_table::{NodeRef, NodeRefBase};
+pub use table_store::{TableDB, TableDBTransaction, TableStore};
 
 use crate::*;
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
-use enumset::*;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use routing_table::{RouteSpecStore, RoutingTable};
+use routing_table::{Direction, RouteSpecStore, RoutingTable};
 use rpc_processor::*;
-use serde::*;
+use storage_manager::StorageManager;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

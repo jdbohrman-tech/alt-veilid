@@ -127,12 +127,17 @@ where
     type Err = VeilidAPIError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let b = s.as_bytes();
-        if b.len() != (5 + K::encoded_len()) || b[4..5] != b":"[..] {
-            apibail_parse_error!("invalid typed key", s);
+        if b.len() == (5 + K::encoded_len()) && b[4..5] == b":"[..] {
+            let kind: CryptoKind = b[0..4].try_into().expect("should not fail to convert");
+            let value = K::try_decode_bytes(&b[5..])?;
+            Ok(Self { kind, value })
+        } else if b.len() == K::encoded_len() {
+            let kind = best_crypto_kind();
+            let value = K::try_decode_bytes(b)?;
+            Ok(Self { kind, value })
+        } else {
+            apibail_generic!("invalid cryptotyped format");
         }
-        let kind: CryptoKind = b[0..4].try_into().expect("should not fail to convert");
-        let value = K::try_decode_bytes(&b[5..])?;
-        Ok(Self { kind, value })
     }
 }
 impl<'de, K> Deserialize<'de> for CryptoTyped<K>

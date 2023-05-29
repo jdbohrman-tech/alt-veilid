@@ -2,7 +2,7 @@ use crate::*;
 
 //use js_sys::*;
 
-pub async fn get_outbound_relay_peer() -> Option<crate::veilid_api::PeerInfo> {
+pub async fn get_outbound_relay_peer() -> Option<crate::routing_table::PeerInfo> {
     // unimplemented!
     None
 }

@@ -171,11 +171,11 @@ impl RoutingTableInner {
         node_info: &NodeInfo,
     ) -> bool {
         // Should not be passing around nodeinfo with an invalid network class
-        if matches!(node_info.network_class, NetworkClass::Invalid) {
+        if matches!(node_info.network_class(), NetworkClass::Invalid) {
             return false;
         }
         // Ensure all of the dial info works in this routing domain
-        for did in &node_info.dial_info_detail_list {
+        for did in node_info.dial_info_detail_list() {
             if !self.ensure_dial_info_is_valid(routing_domain, &did.dial_info) {
                 return false;
             }
@@ -258,7 +258,7 @@ impl RoutingTableInner {
             } else {
                 Some(
                     rdd.common()
-                        .with_peer_info(self, |pi| pi.signed_node_info.timestamp()),
+                        .with_peer_info(self, |pi| pi.signed_node_info().timestamp()),
                 )
             }
         })
@@ -557,11 +557,18 @@ impl RoutingTableInner {
                     .map(|nr| nr.same_bucket_entry(&entry))
                     .unwrap_or(false);
                 if e.needs_ping(cur_ts, is_our_relay) {
+                    debug!("needs_ping: {}", e.best_node_id());
                     return true;
                 }
                 // If we need a ping because this node hasn't seen our latest node info, then do it
                 if let Some(own_node_info_ts) = own_node_info_ts {
                     if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
+                        //xxx remove this when we fix #208
+                        debug!(
+                            "!has_seen_our_node_info_ts: {} own_node_info_ts={}",
+                            e.best_node_id(),
+                            own_node_info_ts
+                        );
                         return true;
                     }
                 }
@@ -803,37 +810,42 @@ impl RoutingTableInner {
         peer_info: PeerInfo,
         allow_invalid: bool,
     ) -> Option<NodeRef> {
-        // if our own node if is in the list then ignore it, as we don't add ourselves to our own routing table
-        if self.unlocked_inner.matches_own_node_id(&peer_info.node_ids) {
+        // if our own node is in the list, then ignore it as we don't add ourselves to our own routing table
+        if self
+            .unlocked_inner
+            .matches_own_node_id(peer_info.node_ids())
+        {
             log_rtab!(debug "can't register own node id in routing table");
             return None;
         }
 
         // node can not be its own relay
-        let rids = peer_info.signed_node_info.relay_ids();
-        if self.unlocked_inner.matches_own_node_id(&rids) {
+        let rids = peer_info.signed_node_info().relay_ids();
+        let nids = peer_info.node_ids();
+        if nids.contains_any(&rids) {
             log_rtab!(debug "node can not be its own relay");
             return None;
         }
 
         if !allow_invalid {
             // verify signature
-            if !peer_info.signed_node_info.has_any_signature() {
-                log_rtab!(debug "signed node info for {:?} has invalid signature", &peer_info.node_ids);
+            if !peer_info.signed_node_info().has_any_signature() {
+                log_rtab!(debug "signed node info for {:?} has no valid signature", peer_info.node_ids());
                 return None;
             }
             // verify signed node info is valid in this routing domain
             if !self.signed_node_info_is_valid_in_routing_domain(
                 routing_domain,
-                &peer_info.signed_node_info,
+                peer_info.signed_node_info(),
             ) {
-                log_rtab!(debug "signed node info for {:?} not valid in the {:?} routing domain", peer_info.node_ids, routing_domain);
+                log_rtab!(debug "signed node info for {:?} not valid in the {:?} routing domain", peer_info.node_ids(), routing_domain);
                 return None;
             }
         }
 
-        self.create_node_ref(outer_self, &peer_info.node_ids, |_rti, e| {
-            e.update_signed_node_info(routing_domain, peer_info.signed_node_info);
+        let (node_ids, signed_node_info) = peer_info.destructure();
+        self.create_node_ref(outer_self, &node_ids, |_rti, e| {
+            e.update_signed_node_info(routing_domain, signed_node_info);
         })
         .map(|mut nr| {
             nr.set_filter(Some(
@@ -1149,7 +1161,6 @@ impl RoutingTableInner {
         let vcrypto = self.unlocked_inner.crypto().get(crypto_kind).unwrap();
 
         // Filter to ensure entries support the crypto kind in use
-
         let filter = Box::new(
             move |_rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
                 if let Some(entry) = opt_entry {
@@ -1205,9 +1216,6 @@ impl RoutingTableInner {
             };
 
             // distance is the next metric, closer nodes first
-            // since multiple cryptosystems are in use, the distance for a key is the shortest
-            // distance to that key over all supported cryptosystems
-
             let da = vcrypto.distance(&a_key.value, &node_id.value);
             let db = vcrypto.distance(&b_key.value, &node_id.value);
             da.cmp(&db)
@@ -1217,5 +1225,72 @@ impl RoutingTableInner {
             self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform);
         log_rtab!(">> find_closest_nodes: node count = {}", out.len());
         out
+    }
+
+    pub fn sort_and_clean_closest_noderefs(
+        &self,
+        node_id: TypedKey,
+        closest_nodes: &mut Vec<NodeRef>,
+    ) {
+        // Lock all noderefs
+        let kind = node_id.kind;
+        let mut closest_nodes_locked: Vec<NodeRefLocked> = closest_nodes
+            .iter()
+            .filter_map(|x| {
+                if x.node_ids().kinds().contains(&kind) {
+                    Some(x.locked(self))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // Sort closest
+        let sort = make_closest_noderef_sort(self.unlocked_inner.crypto(), node_id);
+        closest_nodes_locked.sort_by(sort);
+
+        // Unlock noderefs
+        *closest_nodes = closest_nodes_locked.iter().map(|x| x.unlocked()).collect();
+    }
+}
+
+fn make_closest_noderef_sort(
+    crypto: Crypto,
+    node_id: TypedKey,
+) -> impl Fn(&NodeRefLocked, &NodeRefLocked) -> core::cmp::Ordering {
+    let cur_ts = get_aligned_timestamp();
+    let kind = node_id.kind;
+    // Get cryptoversion to check distance with
+    let vcrypto = crypto.get(kind).unwrap();
+
+    move |a: &NodeRefLocked, b: &NodeRefLocked| -> core::cmp::Ordering {
+        // same nodes are always the same
+        if a.same_entry(b) {
+            return core::cmp::Ordering::Equal;
+        }
+
+        // reliable nodes come first, pessimistically treating our own node as unreliable
+        a.operate(|_rti, a_entry| {
+            b.operate(|_rti, b_entry| {
+                let ra = a_entry.check_reliable(cur_ts);
+                let rb = b_entry.check_reliable(cur_ts);
+                if ra != rb {
+                    if ra {
+                        return core::cmp::Ordering::Less;
+                    } else {
+                        return core::cmp::Ordering::Greater;
+                    }
+                }
+
+                // get keys
+                let a_key = a_entry.node_ids().get(kind).unwrap();
+                let b_key = b_entry.node_ids().get(kind).unwrap();
+
+                // distance is the next metric, closer nodes first
+                let da = vcrypto.distance(&a_key.value, &node_id.value);
+                let db = vcrypto.distance(&b_key.value, &node_id.value);
+                da.cmp(&db)
+            })
+        })
     }
 }

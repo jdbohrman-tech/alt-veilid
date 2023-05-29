@@ -67,10 +67,7 @@ pub fn encode_route_hop(
     Ok(())
 }
 
-pub fn decode_route_hop(
-    reader: &veilid_capnp::route_hop::Reader,
-    crypto: Crypto,
-) -> Result<RouteHop, RPCError> {
+pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<RouteHop, RPCError> {
     let n_reader = reader.reborrow().get_node();
     let node = match n_reader.which().map_err(RPCError::protocol)? {
         veilid_capnp::route_hop::node::Which::NodeId(ni) => {
@@ -80,7 +77,7 @@ pub fn decode_route_hop(
         veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
             let pi_reader = pi.map_err(RPCError::protocol)?;
             RouteNode::PeerInfo(
-                decode_peer_info(&pi_reader, crypto)
+                decode_peer_info(&pi_reader)
                     .map_err(RPCError::map_protocol("invalid peer info in route hop"))?,
             )
         }
@@ -128,7 +125,6 @@ pub fn encode_private_route(
 
 pub fn decode_private_route(
     reader: &veilid_capnp::private_route::Reader,
-    crypto: Crypto,
 ) -> Result<PrivateRoute, RPCError> {
     let public_key = decode_typed_key(&reader.get_public_key().map_err(
         RPCError::map_protocol("invalid public key in private route"),
@@ -138,7 +134,7 @@ pub fn decode_private_route(
     let hops = match reader.get_hops().which().map_err(RPCError::protocol)? {
         veilid_capnp::private_route::hops::Which::FirstHop(rh_reader) => {
             let rh_reader = rh_reader.map_err(RPCError::protocol)?;
-            PrivateRouteHops::FirstHop(decode_route_hop(&rh_reader, crypto)?)
+            PrivateRouteHops::FirstHop(decode_route_hop(&rh_reader)?)
         }
         veilid_capnp::private_route::hops::Which::Data(rhd_reader) => {
             let rhd_reader = rhd_reader.map_err(RPCError::protocol)?;
@@ -182,7 +178,6 @@ pub fn encode_safety_route(
 
 pub fn decode_safety_route(
     reader: &veilid_capnp::safety_route::Reader,
-    crypto: Crypto,
 ) -> Result<SafetyRoute, RPCError> {
     let public_key = decode_typed_key(
         &reader
@@ -197,7 +192,7 @@ pub fn decode_safety_route(
         }
         veilid_capnp::safety_route::hops::Which::Private(pr_reader) => {
             let pr_reader = pr_reader.map_err(RPCError::protocol)?;
-            SafetyRouteHops::Private(decode_private_route(&pr_reader, crypto)?)
+            SafetyRouteHops::Private(decode_private_route(&pr_reader)?)
         }
     };
 

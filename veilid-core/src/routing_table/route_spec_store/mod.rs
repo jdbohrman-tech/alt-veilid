@@ -16,9 +16,6 @@ pub use route_spec_store_content::*;
 pub use route_stats::*;
 
 use crate::veilid_api::*;
-use rkyv::{
-    with::Skip, Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
-};
 
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;

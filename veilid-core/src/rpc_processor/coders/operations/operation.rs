@@ -16,25 +16,30 @@ impl RPCOperationKind {
         }
     }
 
-    pub fn decode(
-        kind_reader: &veilid_capnp::operation::kind::Reader,
-        crypto: Crypto,
-    ) -> Result<Self, RPCError> {
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        match self {
+            RPCOperationKind::Question(r) => r.validate(validate_context),
+            RPCOperationKind::Statement(r) => r.validate(validate_context),
+            RPCOperationKind::Answer(r) => r.validate(validate_context),
+        }
+    }
+
+    pub fn decode(kind_reader: &veilid_capnp::operation::kind::Reader) -> Result<Self, RPCError> {
         let which_reader = kind_reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
             veilid_capnp::operation::kind::Which::Question(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCQuestion::decode(&q_reader, crypto)?;
+                let out = RPCQuestion::decode(&q_reader)?;
                 RPCOperationKind::Question(out)
             }
             veilid_capnp::operation::kind::Which::Statement(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCStatement::decode(&q_reader, crypto)?;
+                let out = RPCStatement::decode(&q_reader)?;
                 RPCOperationKind::Statement(out)
             }
             veilid_capnp::operation::kind::Which::Answer(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCAnswer::decode(&q_reader, crypto)?;
+                let out = RPCAnswer::decode(&q_reader)?;
                 RPCOperationKind::Answer(out)
             }
         };
@@ -93,6 +98,17 @@ impl RPCOperation {
         }
     }
 
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        // Validate sender peer info
+        if let Some(sender_peer_info) = &self.opt_sender_peer_info {
+            sender_peer_info
+                .validate(validate_context.crypto.clone())
+                .map_err(RPCError::protocol)?;
+        }
+        // Validate operation kind
+        self.kind.validate(validate_context)
+    }
+
     pub fn op_id(&self) -> OperationId {
         self.op_id
     }
@@ -108,21 +124,23 @@ impl RPCOperation {
         &self.kind
     }
 
-    pub fn into_kind(self) -> RPCOperationKind {
-        self.kind
+    pub fn destructure(self) -> (OperationId, Option<PeerInfo>, Timestamp, RPCOperationKind) {
+        (
+            self.op_id,
+            self.opt_sender_peer_info,
+            self.target_node_info_ts,
+            self.kind,
+        )
     }
 
-    pub fn decode(
-        operation_reader: &veilid_capnp::operation::Reader,
-        crypto: Crypto,
-    ) -> Result<Self, RPCError> {
+    pub fn decode(operation_reader: &veilid_capnp::operation::Reader) -> Result<Self, RPCError> {
         let op_id = OperationId::new(operation_reader.get_op_id());
 
         let sender_peer_info = if operation_reader.has_sender_peer_info() {
             let pi_reader = operation_reader
                 .get_sender_peer_info()
                 .map_err(RPCError::protocol)?;
-            let pi = decode_peer_info(&pi_reader, crypto.clone())?;
+            let pi = decode_peer_info(&pi_reader)?;
             Some(pi)
         } else {
             None
@@ -131,7 +149,7 @@ impl RPCOperation {
         let target_node_info_ts = Timestamp::new(operation_reader.get_target_node_info_ts());
 
         let kind_reader = operation_reader.get_kind();
-        let kind = RPCOperationKind::decode(&kind_reader, crypto)?;
+        let kind = RPCOperationKind::decode(&kind_reader)?;
 
         Ok(RPCOperation {
             op_id,
