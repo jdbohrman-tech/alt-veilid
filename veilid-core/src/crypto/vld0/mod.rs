@@ -10,7 +10,7 @@ use chacha20poly1305 as ch;
 use chacha20poly1305::aead::{AeadInPlace, NewAead};
 use core::convert::TryInto;
 use curve25519_dalek as cd;
-use digest::Digest;
+use curve25519_dalek::digest::Digest;
 use ed25519_dalek as ed;
 use x25519_dalek as xd;
 
