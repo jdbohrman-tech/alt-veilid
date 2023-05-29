@@ -1,5 +1,5 @@
-use digest::generic_array::typenum::U64;
-use digest::{Digest, Output};
+use curve25519_dalek::digest::generic_array::typenum::U64;
+use curve25519_dalek::digest::{Digest, Output};
 use generic_array::GenericArray;
 
 pub struct Blake3Digest512 {
