@@ -1428,6 +1428,8 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
+ "maplit",
+ "ncurses",
  "signal-hook",
  "tokio 1.28.2",
  "unicode-segmentation",
@@ -3227,6 +3229,17 @@ checksum = "b1bb540dc6ef51cfe1916ec038ce7a620daf3a111e2502d745197cd53d6bca15"
 dependencies = [
  "libc",
  "socket2 0.4.9",
+]
+
+[[package]]
+name = "ncurses"
+version = "5.101.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e2c5d34d72657dc4b638a1c25d40aae81e4f1c699062f72f467237920752032"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
 ]
 
 [[package]]

@@ -709,7 +709,10 @@ impl UI {
 
         // Instantiate the cursive runnable
         let runnable = CursiveRunnable::new(
-            || -> Result<Box<dyn cursive_buffered_backend::Backend>, Box<DumbError>> {
+            || -> Result<Box<dyn cursive::backend::Backend>, Box<DumbError>> {
+                #[cfg(target_os = "macos")]
+                let backend = cursive::backends::curses::n::Backend::init().unwrap();
+                #[cfg(not(target_os = "macos"))]
                 let backend = cursive::backends::crossterm::Backend::init().unwrap();
                 let buffered_backend = cursive_buffered_backend::BufferedBackend::new(backend);
                 Ok(Box::new(buffered_backend))

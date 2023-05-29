@@ -16,7 +16,6 @@ rt-async-std = [ "async-std", "veilid-core/rt-async-std", "cursive/rt-async-std"
 rt-tokio = [ "tokio", "tokio-util", "veilid-core/rt-tokio", "cursive/rt-tokio" ]
 
 [dependencies]
-cursive = { path = "../external/cursive/cursive", default-features = false, features = [ "crossterm", "toml", "ansi" ]}
 async-std = { version = "^1.9", features = ["unstable", "attributes"], optional = true }
 tokio = { version = "^1", features = ["full"], optional = true }
 tokio-util = { version = "^0", features = ["compat"], optional = true}
@@ -45,6 +44,12 @@ crossbeam-channel = "^0"
 hex = "^0"
 veilid-core = { path = "../veilid-core" }
 json = "^0"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+cursive = { path = "../external/cursive/cursive", default-features = false, features = [ "crossterm", "toml", "ansi" ]}
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cursive = { path = "../external/cursive/cursive", default-features = false, features = [ "ncurses-backend", "toml", "ansi" ]}
 
 [dev-dependencies]
 serial_test = "^0"
