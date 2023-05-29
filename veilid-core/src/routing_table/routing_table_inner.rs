@@ -557,18 +557,11 @@ impl RoutingTableInner {
                     .map(|nr| nr.same_bucket_entry(&entry))
                     .unwrap_or(false);
                 if e.needs_ping(cur_ts, is_our_relay) {
-                    debug!("needs_ping: {}", e.best_node_id());
                     return true;
                 }
                 // If we need a ping because this node hasn't seen our latest node info, then do it
                 if let Some(own_node_info_ts) = own_node_info_ts {
                     if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
-                        //xxx remove this when we fix #208
-                        debug!(
-                            "!has_seen_our_node_info_ts: {} own_node_info_ts={}",
-                            e.best_node_id(),
-                            own_node_info_ts
-                        );
                         return true;
                     }
                 }
