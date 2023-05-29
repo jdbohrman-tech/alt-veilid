@@ -13,9 +13,6 @@
 [submodule "external/keyvaluedb"]
 	path = external/keyvaluedb
 	url = ../keyvaluedb.git
-[submodule "external/netlink"]
-	path = external/netlink
-	url = ../netlink.git
 [submodule "external/libmdns"]
 	path = external/libmdns
 	url = ../libmdns.git

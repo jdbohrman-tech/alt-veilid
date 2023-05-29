@@ -14,18 +14,18 @@ exclude = [ "./external/keyring-manager", "./external/netlink", "./external/curs
 cursive = { path = "./external/cursive/cursive" }
 cursive_core = { path = "./external/cursive/cursive-core" }
 
-netlink-sys = { path = "./external/netlink/netlink-sys" }
-netlink-packet-core = { path = "./external/netlink/netlink-packet-core" }
-netlink-packet-utils = { path = "./external/netlink/netlink-packet-utils" }
-#netlink-packet-generic = { path = "./external/netlink/netlink-packet-generic" }
-netlink-packet-route = { path = "./external/netlink/netlink-packet-route" }
-#netlink-packet-audit = { path = "./external/netlink/netlink-packet-audit" }
-#netlink-packet-sock-diag = { path = "./external/netlink/netlink-packet-sock-diag" }
-netlink-proto = { path = "./external/netlink/netlink-proto" }
-#genetlink = { path = "./external/netlink/genetlink" }
-rtnetlink = { path = "./external/netlink/rtnetlink" }
-#audit = { path = "./external/netlink/audit" }
-#ethtool = { path = "./external/netlink/ethtool" }
+# netlink-sys = { path = "./external/netlink/netlink-sys" }
+# netlink-packet-core = { path = "./external/netlink/netlink-packet-core" }
+# netlink-packet-utils = { path = "./external/netlink/netlink-packet-utils" }
+# #netlink-packet-generic = { path = "./external/netlink/netlink-packet-generic" }
+# netlink-packet-route = { path = "./external/netlink/netlink-packet-route" }
+# #netlink-packet-audit = { path = "./external/netlink/netlink-packet-audit" }
+# #netlink-packet-sock-diag = { path = "./external/netlink/netlink-packet-sock-diag" }
+# netlink-proto = { path = "./external/netlink/netlink-proto" }
+# #genetlink = { path = "./external/netlink/genetlink" }
+# rtnetlink = { path = "./external/netlink/rtnetlink" }
+# #audit = { path = "./external/netlink/audit" }
+# #ethtool = { path = "./external/netlink/ethtool" }
 
 [profile.release]
 opt-level = "s"

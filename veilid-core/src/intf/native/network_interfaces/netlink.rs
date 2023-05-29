@@ -7,15 +7,16 @@ use libc::{
     close, if_indextoname, ioctl, socket, IFF_LOOPBACK, IFF_RUNNING, IF_NAMESIZE, SIOCGIFFLAGS,
     SOCK_DGRAM,
 };
-use rtnetlink::packet::{
+use netlink_packet_route::{
     nlas::address::Nla, AddressMessage, AF_INET, AF_INET6, IFA_F_DADFAILED, IFA_F_DEPRECATED,
     IFA_F_OPTIMISTIC, IFA_F_PERMANENT, IFA_F_TEMPORARY, IFA_F_TENTATIVE,
 };
+use rtnetlink::{new_connection_with_socket, Handle, IpVersion};
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
-        use rtnetlink::{new_connection_with_socket, sys::SmolSocket as RTNetLinkSocket, Handle, IpVersion};
+        use netlink_sys::{SmolSocket as RTNetLinkSocket};
     } else if #[cfg(feature="rt-tokio")] {
-        use rtnetlink::{new_connection_with_socket, sys::TokioSocket as RTNetLinkSocket, Handle, IpVersion};
+        use netlink_sys::{TokioSocket as RTNetLinkSocket};
     }
 }
 use std::convert::TryInto;
