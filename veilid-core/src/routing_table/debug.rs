@@ -2,28 +2,6 @@ use super::*;
 use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION_0;
 
 impl RoutingTable {
-    pub(crate) fn debug_info_nodeinfo(&self) -> String {
-        let mut out = String::new();
-        let inner = self.inner.read();
-        out += "Routing Table Info:\n";
-
-        out += &format!("   Node Ids: {}\n", self.unlocked_inner.node_ids());
-        out += &format!(
-            "   Self Latency Stats Accounting: {:#?}\n\n",
-            inner.self_latency_stats_accounting
-        );
-        out += &format!(
-            "   Self Transfer Stats Accounting: {:#?}\n\n",
-            inner.self_transfer_stats_accounting
-        );
-        out += &format!(
-            "   Self Transfer Stats: {:#?}\n\n",
-            inner.self_transfer_stats
-        );
-
-        out
-    }
-
     pub(crate) async fn debug_info_txtrecord(&self) -> String {
         let mut out = String::new();
 
@@ -71,11 +49,31 @@ impl RoutingTable {
                 node_ids,
                 some_hostname.unwrap()
             );
-            for short_url in short_urls {
-                out += &format!(",{}", short_url);
-            }
+            out += &short_urls.join(",");
             out += "\n";
         }
+        out
+    }
+
+    pub(crate) fn debug_info_nodeinfo(&self) -> String {
+        let mut out = String::new();
+        let inner = self.inner.read();
+        out += "Routing Table Info:\n";
+
+        out += &format!("   Node Ids: {}\n", self.unlocked_inner.node_ids());
+        out += &format!(
+            "   Self Latency Stats Accounting: {:#?}\n\n",
+            inner.self_latency_stats_accounting
+        );
+        out += &format!(
+            "   Self Transfer Stats Accounting: {:#?}\n\n",
+            inner.self_transfer_stats_accounting
+        );
+        out += &format!(
+            "   Self Transfer Stats: {:#?}\n\n",
+            inner.self_transfer_stats
+        );
+
         out
     }
 
@@ -132,13 +130,25 @@ impl RoutingTable {
                     for e in filtered_entries {
                         let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
                         out += &format!(
-                            "    {} [{}]\n",
+                            "    {} [{}] {}\n",
                             e.0.encode(),
                             match state {
                                 BucketEntryState::Reliable => "R",
                                 BucketEntryState::Unreliable => "U",
                                 BucketEntryState::Dead => "D",
-                            }
+                            },
+                            e.1.with(inner, |_rti, e| {
+                                e.peer_stats()
+                                    .latency
+                                    .as_ref()
+                                    .map(|l| {
+                                        format!(
+                                            "{:.2}ms",
+                                            timestamp_to_secs(l.average.as_u64()) * 1000.0
+                                        )
+                                    })
+                                    .unwrap_or_else(|| "???.??ms".to_string())
+                            })
                         );
                     }
                 }

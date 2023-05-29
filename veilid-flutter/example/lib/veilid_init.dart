@@ -14,7 +14,7 @@ void veilidInit() {
                 logsInConsole: false),
             api: VeilidWASMConfigLoggingApi(
                 enabled: true, level: VeilidConfigLogLevel.info)));
-    Veilid.instance.initializeVeilidCore(platformConfig.json);
+    Veilid.instance.initializeVeilidCore(platformConfig.toJson());
   } else {
     var platformConfig = VeilidFFIConfig(
         logging: VeilidFFIConfigLogging(
@@ -29,6 +29,6 @@ void veilidInit() {
                 serviceName: "VeilidExample"),
             api: VeilidFFIConfigLoggingApi(
                 enabled: true, level: VeilidConfigLogLevel.info)));
-    Veilid.instance.initializeVeilidCore(platformConfig.json);
+    Veilid.instance.initializeVeilidCore(platformConfig.toJson());
   }
 }

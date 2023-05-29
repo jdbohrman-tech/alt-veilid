@@ -43,6 +43,19 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .help("Specify configuration value to set (key in dot format, value in json format), eg: logging.api.enabled=true")
         )
         .arg(
+            Arg::new("password")
+                .short('p')
+                .long("password")
+                .takes_value(true)
+                .help("Specify password to use to protect the device encryption key")
+        )
+        .arg(
+            Arg::new("new-password")
+                .long("new-password")
+                .takes_value(true)
+                .help("Change password used to protect the device encryption key. Device storage will be migrated.")
+        )        
+        .arg(
             Arg::new("attach")
                 .long("attach")
                 .takes_value(true)
@@ -82,7 +95,7 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .long("generate-key-pair")
                 .takes_value(true)
                 .value_name("crypto_kind")
-                .default_missing_value("VLD0")
+                .default_missing_value("")
                 .help("Only generate a new keypair and print it")
                 .long_help("Generate a new keypair for a specific crypto kind and print both the key and its secret to the terminal, then exit immediately."),                
         )
@@ -231,6 +244,13 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
     if matches.occurrences_of("delete-table-store") != 0 {
         settingsrw.core.table_store.delete = true;
     }
+    if matches.occurrences_of("password") != 0 {
+        settingsrw.core.protected_store.device_encryption_key_password = matches.value_of("password").unwrap().to_owned();
+    }
+    if matches.occurrences_of("new-password") != 0 {
+        settingsrw.core.protected_store.new_device_encryption_key_password = Some(matches.value_of("new-password").unwrap().to_owned());
+    }
+
     if matches.occurrences_of("dump-txt-record") != 0 {
         // Turn off terminal logging so we can be interactive
         settingsrw.logging.terminal.enabled = false;

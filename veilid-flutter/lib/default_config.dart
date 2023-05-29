@@ -1,7 +1,52 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:system_info2/system_info2.dart' as sysinfo;
 import 'veilid.dart';
+
+const int megaByte = 1024 * 1024;
+
+int getLocalSubkeyCacheSize() {
+  if (kIsWeb) {
+    return 128;
+  }
+  return 1024;
+}
+
+int getLocalMaxSubkeyCacheMemoryMb() {
+  if (kIsWeb) {
+    return 256;
+  }
+  return sysinfo.SysInfo.getTotalPhysicalMemory() ~/ 32 ~/ megaByte;
+}
+
+int getRemoteSubkeyCacheSize() {
+  if (kIsWeb) {
+    return 64;
+  }
+  return 128;
+}
+
+int getRemoteMaxRecords() {
+  if (kIsWeb) {
+    return 64;
+  }
+  return 128;
+}
+
+int getRemoteMaxSubkeyCacheMemoryMb() {
+  if (kIsWeb) {
+    return 256;
+  }
+  return sysinfo.SysInfo.getTotalPhysicalMemory() ~/ 32 ~/ megaByte;
+}
+
+int getRemoteMaxStorageSpaceMb() {
+  if (kIsWeb) {
+    return 128;
+  }
+  return 256;
+}
 
 Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
   return VeilidConfig(
@@ -19,8 +64,10 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
     protectedStore: VeilidConfigProtectedStore(
       allowInsecureFallback: false,
       alwaysUseInsecureStorage: false,
-      insecureFallbackDirectory: "",
+      directory: "",
       delete: false,
+      deviceEncryptionKey: "",
+      newDeviceEncryptionKey: null,
     ),
     tableStore: VeilidConfigTableStore(
       directory: kIsWeb
@@ -63,25 +110,30 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
         queueSize: 1024,
         maxTimestampBehindMs: 10000,
         maxTimestampAheadMs: 10000,
-        timeoutMs: 10000,
+        timeoutMs: 5000,
         maxRouteHopCount: 4,
         defaultRouteHopCount: 1,
       ),
       dht: VeilidConfigDHT(
-        resolveNodeTimeoutMs: null,
-        resolveNodeCount: 20,
-        resolveNodeFanout: 3,
-        maxFindNodeCount: 20,
-        getValueTimeoutMs: null,
-        getValueCount: 20,
-        getValueFanout: 3,
-        setValueTimeoutMs: null,
-        setValueCount: 20,
-        setValueFanout: 5,
-        minPeerCount: 20,
-        minPeerRefreshTimeMs: 2000,
-        validateDialInfoReceiptTimeMs: 2000,
-      ),
+          resolveNodeTimeoutMs: 10000,
+          resolveNodeCount: 20,
+          resolveNodeFanout: 3,
+          maxFindNodeCount: 20,
+          getValueTimeoutMs: 10000,
+          getValueCount: 20,
+          getValueFanout: 3,
+          setValueTimeoutMs: 10000,
+          setValueCount: 20,
+          setValueFanout: 5,
+          minPeerCount: 20,
+          minPeerRefreshTimeMs: 2000,
+          validateDialInfoReceiptTimeMs: 2000,
+          localSubkeyCacheSize: getLocalSubkeyCacheSize(),
+          localMaxSubkeyCacheMemoryMb: getLocalMaxSubkeyCacheMemoryMb(),
+          remoteSubkeyCacheSize: getRemoteSubkeyCacheSize(),
+          remoteMaxRecords: getRemoteMaxRecords(),
+          remoteMaxSubkeyCacheMemoryMb: getRemoteMaxSubkeyCacheMemoryMb(),
+          remoteMaxStorageSpaceMb: getRemoteMaxStorageSpaceMb()),
       upnp: true,
       detectAddressChanges: true,
       restrictedNatRetries: 0,

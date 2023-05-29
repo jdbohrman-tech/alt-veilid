@@ -11,6 +11,7 @@ mod connection_manager;
 mod connection_table;
 mod network_connection;
 mod tasks;
+mod types;
 
 pub mod tests;
 
@@ -18,6 +19,7 @@ pub mod tests;
 
 pub use connection_manager::*;
 pub use network_connection::*;
+pub use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 use connection_handle::*;
@@ -31,6 +33,7 @@ use native::*;
 use receipt_manager::*;
 use routing_table::*;
 use rpc_processor::*;
+use storage_manager::*;
 #[cfg(target_arch = "wasm32")]
 use wasm::*;
 
@@ -144,6 +147,7 @@ struct NetworkManagerInner {
 struct NetworkManagerUnlockedInner {
     // Handles
     config: VeilidConfig,
+    storage_manager: StorageManager,
     protected_store: ProtectedStore,
     table_store: TableStore,
     block_store: BlockStore,
@@ -174,6 +178,7 @@ impl NetworkManager {
     }
     fn new_unlocked_inner(
         config: VeilidConfig,
+        storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
@@ -181,6 +186,7 @@ impl NetworkManager {
     ) -> NetworkManagerUnlockedInner {
         NetworkManagerUnlockedInner {
             config,
+            storage_manager,
             protected_store,
             table_store,
             block_store,
@@ -195,6 +201,7 @@ impl NetworkManager {
 
     pub fn new(
         config: VeilidConfig,
+        storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
@@ -204,6 +211,7 @@ impl NetworkManager {
             inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
+                storage_manager,
                 protected_store,
                 table_store,
                 block_store,
@@ -211,7 +219,7 @@ impl NetworkManager {
             )),
         };
 
-        this.start_tasks();
+        this.setup_tasks();
 
         this
     }
@@ -223,6 +231,9 @@ impl NetworkManager {
         F: FnOnce(&VeilidConfigInner) -> R,
     {
         f(&*self.unlocked_inner.config.get())
+    }
+    pub fn storage_manager(&self) -> StorageManager {
+        self.unlocked_inner.storage_manager.clone()
     }
     pub fn protected_store(&self) -> ProtectedStore {
         self.unlocked_inner.protected_store.clone()
@@ -368,7 +379,7 @@ impl NetworkManager {
         debug!("starting network manager shutdown");
 
         // Cancel all tasks
-        self.stop_tasks().await;
+        self.cancel_tasks().await;
 
         // Shutdown network components if they started up
         debug!("shutting down network components");
@@ -461,7 +472,7 @@ impl NetworkManager {
                     will_validate_dial_info: false,
                 };  
             };
-        let own_node_info = own_peer_info.signed_node_info.node_info();
+        let own_node_info = own_peer_info.signed_node_info().node_info();
 
         let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
         let will_tunnel = own_node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
@@ -488,7 +499,7 @@ impl NetworkManager {
                 };  
             };
 
-        let own_node_info = own_peer_info.signed_node_info.node_info();
+        let own_node_info = own_peer_info.signed_node_info().node_info();
 
         let will_relay = own_node_info.can_inbound_relay();
         let will_validate_dial_info = own_node_info.can_validate_dial_info();
@@ -1389,7 +1400,7 @@ impl NetworkManager {
 
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
-                match rpc.resolve_node(recipient_id.value).await {
+                match rpc.resolve_node(recipient_id, SafetySelection::Unsafe(Sequencing::default())).await {
                     Ok(v) => v,
                     Err(e) => {
                         log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);
@@ -1551,8 +1562,8 @@ impl NetworkManager {
                     if let Some(nr) = routing_table.lookup_node_ref(k) {
                         let peer_stats = nr.peer_stats();
                         let peer = PeerTableData {
-                            node_ids: nr.node_ids().iter().map(|x| x.to_string()).collect(),
-                            peer_address: v.last_connection.remote(),
+                            node_ids: nr.node_ids().iter().copied().collect(),
+                            peer_address: v.last_connection.remote().to_string(),
                             peer_stats,
                         };
                         out.push(peer);

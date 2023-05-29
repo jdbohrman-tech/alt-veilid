@@ -34,17 +34,17 @@ impl RPCProcessor {
         };
 
         // Apply sequencing preference
-        next_hop_nr.set_sequencing(routed_operation.sequencing);
+        next_hop_nr.set_sequencing(routed_operation.sequencing());
 
         // Pass along the route
-        let next_hop_route = RPCOperationRoute {
-            safety_route: SafetyRoute {
+        let next_hop_route = RPCOperationRoute::new(
+            SafetyRoute {
                 public_key: safety_route.public_key,
                 hop_count: safety_route.hop_count - 1,
                 hops: SafetyRouteHops::Data(route_hop.next_hop.unwrap()),
             },
-            operation: routed_operation,
-        };
+            routed_operation,
+        );
         let next_hop_route_stmt = RPCStatement::new(RPCStatementDetail::Route(next_hop_route));
 
         // Send the next route statement
@@ -76,17 +76,17 @@ impl RPCProcessor {
         };
 
         // Apply sequencing preference
-        next_hop_nr.set_sequencing(routed_operation.sequencing);
+        next_hop_nr.set_sequencing(routed_operation.sequencing());
 
         // Pass along the route
-        let next_hop_route = RPCOperationRoute {
-            safety_route: SafetyRoute {
+        let next_hop_route = RPCOperationRoute::new(
+            SafetyRoute {
                 public_key: safety_route_public_key,
                 hop_count: 0,
                 hops: SafetyRouteHops::Private(next_private_route),
             },
-            operation: routed_operation,
-        };
+            routed_operation,
+        );
         let next_hop_route_stmt = RPCStatement::new(RPCStatementDetail::Route(next_hop_route));
 
         // Send the next route statement
@@ -114,8 +114,8 @@ impl RPCProcessor {
             .cached_dh(&remote_sr_pubkey.value, &node_id_secret)
             .map_err(RPCError::protocol)?;
         let body = match vcrypto.decrypt_aead(
-            &routed_operation.data,
-            &routed_operation.nonce,
+            routed_operation.data(),
+            routed_operation.nonce(),
             &dh_secret,
             None,
         ) {
@@ -132,7 +132,7 @@ impl RPCProcessor {
         self.enqueue_safety_routed_message(
             detail,
             remote_sr_pubkey.value,
-            routed_operation.sequencing,
+            routed_operation.sequencing(),
             body,
         )
         .map_err(RPCError::internal)?;
@@ -162,8 +162,8 @@ impl RPCProcessor {
         let Some((secret_key, safety_spec)) = rss
             .with_signature_validated_route(
                 &pr_pubkey,
-                &routed_operation.signatures,
-                &routed_operation.data,
+                routed_operation.signatures(),
+                routed_operation.data(),
                 sender_id.value,
                 |rssd, rsd| { 
                     (
@@ -172,7 +172,7 @@ impl RPCProcessor {
                             preferred_route,
                             hop_count: rssd.hop_count(),
                             stability: rssd.get_stability(),
-                            sequencing: routed_operation.sequencing,
+                            sequencing: routed_operation.sequencing(),
                         },
                     )
                 }
@@ -188,8 +188,8 @@ impl RPCProcessor {
             .map_err(RPCError::protocol)?;
         let body = vcrypto
             .decrypt_aead(
-                &routed_operation.data,
-                &routed_operation.nonce,
+                routed_operation.data(),
+                routed_operation.nonce(),
                 &dh_secret,
                 None,
             )
@@ -341,8 +341,11 @@ impl RPCProcessor {
             let rh_reader = dec_blob_reader
                 .get_root::<veilid_capnp::route_hop::Reader>()
                 .map_err(RPCError::protocol)?;
-            decode_route_hop(&rh_reader, self.crypto.clone())?
+            decode_route_hop(&rh_reader)?
         };
+        
+        // Validate the RouteHop
+        route_hop.validate(self.crypto.clone()).map_err(RPCError::protocol)?;
 
         // Sign the operation if this is not our last hop
         // as the last hop is already signed by the envelope
@@ -350,9 +353,9 @@ impl RPCProcessor {
             let node_id = self.routing_table.node_id(crypto_kind);
             let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
             let sig = vcrypto
-                .sign(&node_id.value, &node_id_secret, &route_operation.data)
+                .sign(&node_id.value, &node_id_secret, route_operation.data())
                 .map_err(RPCError::internal)?;
-            route_operation.signatures.push(sig);
+            route_operation.add_signature(sig);
         }
 
         Ok(NetworkResult::value(route_hop))
@@ -374,8 +377,9 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let mut route = match msg.operation.into_kind() {
-            RPCOperationKind::Statement(s) => match s.into_detail() {
+        let (_,_,_,kind) = msg.operation.destructure();
+        let route = match kind {
+            RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::Route(s) => s,
                 _ => panic!("not a route statement"),
             },
@@ -383,7 +387,7 @@ impl RPCProcessor {
         };
 
         // Get crypto kind
-        let crypto_kind = route.safety_route.crypto_kind();
+        let crypto_kind = route.safety_route().crypto_kind();
         let Some(vcrypto) = self.crypto.get(crypto_kind) else {
             return Ok(NetworkResult::invalid_message(
                 "routed operation crypto is not supported",
@@ -391,13 +395,14 @@ impl RPCProcessor {
         };
 
         // See what kind of safety route we have going on here
-        match route.safety_route.hops {
+        let (safety_route, mut routed_operation) = route.destructure();
+        match safety_route.hops {
             // There is a safety route hop
             SafetyRouteHops::Data(ref route_hop_data) => {
                 // Decrypt the blob with DEC(nonce, DH(the SR's public key, this hop's secret)
                 let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
                 let dh_secret = vcrypto
-                    .cached_dh(&route.safety_route.public_key.value, &node_id_secret)
+                    .cached_dh(&safety_route.public_key.value, &node_id_secret)
                     .map_err(RPCError::protocol)?;
                 let mut dec_blob_data = vcrypto
                     .decrypt_aead(
@@ -422,14 +427,17 @@ impl RPCProcessor {
                         let pr_reader = dec_blob_reader
                             .get_root::<veilid_capnp::private_route::Reader>()
                             .map_err(RPCError::protocol)?;
-                        decode_private_route(&pr_reader, self.crypto.clone())?
+                        decode_private_route(&pr_reader)?
                     };
+                    
+                    // Validate the private route
+                    private_route.validate(self.crypto.clone()).map_err(RPCError::protocol)?;
 
                     // Switching from full safety route to private route first hop
                     network_result_try!(
                         self.process_private_route_first_hop(
-                            route.operation,
-                            route.safety_route.public_key,
+                            routed_operation,
+                            safety_route.public_key,
                             private_route,
                         )
                         .await?
@@ -440,15 +448,18 @@ impl RPCProcessor {
                         let rh_reader = dec_blob_reader
                             .get_root::<veilid_capnp::route_hop::Reader>()
                             .map_err(RPCError::protocol)?;
-                        decode_route_hop(&rh_reader, self.crypto.clone())?
+                        decode_route_hop(&rh_reader)?
                     };
+
+                    // Validate the route hop
+                    route_hop.validate(self.crypto.clone()).map_err(RPCError::protocol)?;
 
                     // Continue the full safety route with another hop
                     network_result_try!(
                         self.process_route_safety_route_hop(
-                            route.operation,
+                            routed_operation,
                             route_hop,
-                            route.safety_route
+                            safety_route
                         )
                         .await?
                     );
@@ -464,8 +475,8 @@ impl RPCProcessor {
                         // Safety route was a stub, start with the beginning of the private route
                         network_result_try!(
                             self.process_private_route_first_hop(
-                                route.operation,
-                                route.safety_route.public_key,
+                                routed_operation,
+                                safety_route.public_key,
                                 private_route,
                             )
                             .await?
@@ -476,7 +487,7 @@ impl RPCProcessor {
                         let route_hop = network_result_try!(self.decrypt_private_route_hop_data(
                             &route_hop_data,
                             &private_route.public_key,
-                            &mut route.operation
+                            &mut routed_operation
                         )?);
 
                         // Ensure hop count > 0
@@ -489,9 +500,9 @@ impl RPCProcessor {
                         // Make next PrivateRoute and pass it on
                         network_result_try!(
                             self.process_route_private_route_hop(
-                                route.operation,
+                                routed_operation,
                                 route_hop.node,
-                                route.safety_route.public_key,
+                                safety_route.public_key,
                                 PrivateRoute {
                                     public_key: private_route.public_key,
                                     hop_count: private_route.hop_count - 1,
@@ -511,7 +522,7 @@ impl RPCProcessor {
                                 "route should be at the end",
                             ));
                         }
-                        if route.safety_route.hop_count != 0 {
+                        if safety_route.hop_count != 0 {
                             return Ok(NetworkResult::invalid_message(
                                 "Safety hop count should be zero if switched to private route",
                             ));
@@ -521,8 +532,8 @@ impl RPCProcessor {
                         network_result_try!(self.process_routed_operation(
                             detail,
                             vcrypto,
-                            route.operation,
-                            route.safety_route.public_key,
+                            routed_operation,
+                            safety_route.public_key,
                             private_route.public_key,
                         )?);
                     }

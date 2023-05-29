@@ -1,6 +1,7 @@
 mod bucket;
 mod bucket_entry;
 mod debug;
+mod find_peers;
 mod node_ref;
 mod node_ref_filter;
 mod privacy;
@@ -10,16 +11,21 @@ mod routing_domains;
 mod routing_table_inner;
 mod stats_accounting;
 mod tasks;
+mod types;
 
-use crate::*;
+pub mod tests;
+
+use super::*;
 
 use crate::crypto::*;
 use crate::network_manager::*;
 use crate::rpc_processor::*;
 use bucket::*;
+use hashlink::LruCache;
+
 pub use bucket_entry::*;
 pub use debug::*;
-use hashlink::LruCache;
+pub use find_peers::*;
 pub use node_ref::*;
 pub use node_ref_filter::*;
 pub use privacy::*;
@@ -28,6 +34,7 @@ pub use routing_domain_editor::*;
 pub use routing_domains::*;
 pub use routing_table_inner::*;
 pub use stats_accounting::*;
+pub use types::*;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -50,6 +57,8 @@ pub struct LowLevelPortInfo {
 }
 pub type RoutingTableEntryFilter<'t> =
     Box<dyn FnMut(&RoutingTableInner, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
+pub type SerializedBuckets = Vec<Vec<u8>>;
+pub type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RoutingTableHealth {
@@ -208,7 +217,7 @@ impl RoutingTable {
             unlocked_inner,
         };
 
-        this.start_tasks();
+        this.setup_tasks();
 
         this
     }
@@ -259,7 +268,7 @@ impl RoutingTable {
         debug!("starting routing table terminate");
 
         // Stop tasks
-        self.stop_tasks().await;
+        self.cancel_tasks().await;
 
         // Load bucket entries from table db if possible
         debug!("saving routing table entries");
@@ -285,14 +294,14 @@ impl RoutingTable {
         debug!("finished routing table terminate");
     }
 
-    /// Serialize routing table to table store
-    async fn save_buckets(&self) -> EyreResult<()> {
+    /// Serialize the routing table.
+    fn serialized_buckets(&self) -> EyreResult<(SerializedBucketMap, SerializedBuckets)> {
         // Since entries are shared by multiple buckets per cryptokind
         // we need to get the list of all unique entries when serializing
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::new();
 
         // Serialize all buckets and get map of entries
-        let mut serialized_bucket_map: BTreeMap<CryptoKind, Vec<Vec<u8>>> = BTreeMap::new();
+        let mut serialized_bucket_map: SerializedBucketMap = BTreeMap::new();
         {
             let mut entry_map: HashMap<*const BucketEntry, u32> = HashMap::new();
             let inner = &*self.inner.read();
@@ -314,38 +323,55 @@ impl RoutingTable {
             all_entry_bytes.push(entry_bytes);
         }
 
+        Ok((serialized_bucket_map, all_entry_bytes))
+    }
+
+    /// Write the serialized routing table to the table store.
+    async fn save_buckets(&self) -> EyreResult<()> {
+        let (serialized_bucket_map, all_entry_bytes) = self.serialized_buckets()?;
+
         let table_store = self.unlocked_inner.network_manager().table_store();
         let tdb = table_store.open("routing_table", 1).await?;
         let dbx = tdb.transact();
         if let Err(e) = dbx.store_rkyv(0, b"serialized_bucket_map", &serialized_bucket_map) {
             dbx.rollback();
-            return Err(e);
+            return Err(e.into());
         }
         if let Err(e) = dbx.store_rkyv(0, b"all_entry_bytes", &all_entry_bytes) {
             dbx.rollback();
-            return Err(e);
+            return Err(e.into());
         }
         dbx.commit().await?;
         Ok(())
     }
-
     /// Deserialize routing table from table store
     async fn load_buckets(&self) -> EyreResult<()> {
         // Deserialize bucket map and all entries from the table store
         let tstore = self.unlocked_inner.network_manager().table_store();
         let tdb = tstore.open("routing_table", 1).await?;
-        let Some(serialized_bucket_map): Option<BTreeMap<CryptoKind, Vec<Vec<u8>>>> = tdb.load_rkyv(0, b"serialized_bucket_map")? else {
+        let Some(serialized_bucket_map): Option<SerializedBucketMap> = tdb.load_rkyv(0, b"serialized_bucket_map").await? else {
             log_rtab!(debug "no bucket map in saved routing table");
             return Ok(());
         };
-        let Some(all_entry_bytes): Option<Vec<Vec<u8>>> = tdb.load_rkyv(0, b"all_entry_bytes")? else {
+        let Some(all_entry_bytes): Option<SerializedBuckets> = tdb.load_rkyv(0, b"all_entry_bytes").await? else {
             log_rtab!(debug "no all_entry_bytes in saved routing table");
             return Ok(());
         };
 
         // Reconstruct all entries
         let inner = &mut *self.inner.write();
+        self.populate_routing_table(inner, serialized_bucket_map, all_entry_bytes)?;
 
+        Ok(())
+    }
+
+    /// Write the deserialized table store data to the routing table.
+    pub fn populate_routing_table(
+        &self,
+        inner: &mut RoutingTableInner,
+        serialized_bucket_map: SerializedBucketMap,
+        all_entry_bytes: SerializedBuckets,
+    ) -> EyreResult<()> {
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::with_capacity(all_entry_bytes.len());
         for entry_bytes in all_entry_bytes {
             let entryinner =
@@ -789,8 +815,8 @@ impl RoutingTable {
                 e.with(rti, |_rti, e| {
                     if let Some(ni) = e.node_info(routing_domain) {
                         let dif = DialInfoFilter::all()
-                            .with_protocol_type_set(ni.outbound_protocols)
-                            .with_address_type_set(ni.address_types);
+                            .with_protocol_type_set(ni.outbound_protocols())
+                            .with_address_type_set(ni.address_types());
                         if dial_info.matches_filter(&dif) {
                             return true;
                         }
@@ -848,7 +874,7 @@ impl RoutingTable {
                     // does it have some dial info we need?
                     let filter = |n: &NodeInfo| {
                         let mut keep = false;
-                        for did in &n.dial_info_detail_list {
+                        for did in n.dial_info_detail_list() {
                             if matches!(did.dial_info.address_type(), AddressType::IPV4) {
                                 for (n, protocol_type) in protocol_types.iter().enumerate() {
                                     if nodes_proto_v4[n] < max_per_type
@@ -961,6 +987,16 @@ impl RoutingTable {
             .find_closest_nodes(node_count, node_id, filters, transform)
     }
 
+    pub fn sort_and_clean_closest_noderefs(
+        &self,
+        node_id: TypedKey,
+        closest_nodes: &mut Vec<NodeRef>,
+    ) {
+        self.inner
+            .read()
+            .sort_and_clean_closest_noderefs(node_id, closest_nodes)
+    }
+
     #[instrument(level = "trace", skip(self), ret)]
     pub fn register_find_node_answer(
         &self,
@@ -971,12 +1007,12 @@ impl RoutingTable {
         let mut out = Vec::<NodeRef>::with_capacity(peers.len());
         for p in peers {
             // Ensure we're getting back nodes we asked for
-            if !p.node_ids.kinds().contains(&crypto_kind) {
+            if !p.node_ids().kinds().contains(&crypto_kind) {
                 continue;
             }
 
             // Don't register our own node
-            if self.matches_own_node_id(&p.node_ids) {
+            if self.matches_own_node_id(p.node_ids()) {
                 continue;
             }
 

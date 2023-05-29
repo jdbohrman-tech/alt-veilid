@@ -1,17 +1,32 @@
 use super::*;
 
+const MAX_FIND_NODE_A_PEERS_LEN: usize = 20;
+
 #[derive(Debug, Clone)]
 pub struct RPCOperationFindNodeQ {
-    pub node_id: TypedKey,
+    node_id: TypedKey,
 }
 
 impl RPCOperationFindNodeQ {
-    pub fn decode(
-        reader: &veilid_capnp::operation_find_node_q::Reader,
-    ) -> Result<RPCOperationFindNodeQ, RPCError> {
+    pub fn new(node_id: TypedKey) -> Self {
+        Self { node_id }
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        Ok(())
+    }
+
+    // pub fn node_id(&self) -> &TypedKey {
+    //     &self.node_id
+    // }
+
+    pub fn destructure(self) -> TypedKey {
+        self.node_id
+    }
+
+    pub fn decode(reader: &veilid_capnp::operation_find_node_q::Reader) -> Result<Self, RPCError> {
         let ni_reader = reader.get_node_id().map_err(RPCError::protocol)?;
         let node_id = decode_typed_key(&ni_reader)?;
-        Ok(RPCOperationFindNodeQ { node_id })
+        Ok(Self { node_id })
     }
     pub fn encode(
         &self,
@@ -25,15 +40,40 @@ impl RPCOperationFindNodeQ {
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationFindNodeA {
-    pub peers: Vec<PeerInfo>,
+    peers: Vec<PeerInfo>,
 }
 
 impl RPCOperationFindNodeA {
+    pub fn new(peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
+        if peers.len() > MAX_FIND_NODE_A_PEERS_LEN {
+            return Err(RPCError::protocol("find node peers length too long"));
+        }
+
+        Ok(Self { peers })
+    }
+
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
+        Ok(())
+    }
+
+    // pub fn peers(&self) -> &[PeerInfo] {
+    //     &self.peers
+    // }
+
+    pub fn destructure(self) -> Vec<PeerInfo> {
+        self.peers
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_find_node_a::Reader,
-        crypto: Crypto,
     ) -> Result<RPCOperationFindNodeA, RPCError> {
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
+
+        if peers_reader.len() as usize > MAX_FIND_NODE_A_PEERS_LEN {
+            return Err(RPCError::protocol("find node peers length too long"));
+        }
+
         let mut peers = Vec::<PeerInfo>::with_capacity(
             peers_reader
                 .len()
@@ -41,11 +81,11 @@ impl RPCOperationFindNodeA {
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p, crypto.clone())?;
+            let peer_info = decode_peer_info(&p)?;
             peers.push(peer_info);
         }
 
-        Ok(RPCOperationFindNodeA { peers })
+        Ok(Self { peers })
     }
     pub fn encode(
         &self,

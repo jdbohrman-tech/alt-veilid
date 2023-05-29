@@ -2,7 +2,7 @@
 
 use crate::*;
 
-pub async fn get_outbound_relay_peer() -> Option<crate::veilid_api::PeerInfo> {
+pub async fn get_outbound_relay_peer() -> Option<crate::routing_table::PeerInfo> {
     panic!("Native Veilid should never require an outbound relay");
 }
 

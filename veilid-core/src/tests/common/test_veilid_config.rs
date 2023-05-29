@@ -166,7 +166,7 @@ pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
 
 fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
-        "program_name" => Ok(Box::new(String::from("Veilid"))),
+        "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
         "namespace" => Ok(Box::new(String::from(""))),
         "capabilities.protocol_udp" => Ok(Box::new(true)),
         "capabilities.protocol_connect_tcp" => Ok(Box::new(true)),
@@ -176,13 +176,17 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "capabilities.protocol_connect_wss" => Ok(Box::new(true)),
         "capabilities.protocol_accept_wss" => Ok(Box::new(true)),
         "table_store.directory" => Ok(Box::new(get_table_store_path())),
-        "table_store.delete" => Ok(Box::new(false)),
+        "table_store.delete" => Ok(Box::new(true)),
         "block_store.directory" => Ok(Box::new(get_block_store_path())),
-        "block_store.delete" => Ok(Box::new(false)),
+        "block_store.delete" => Ok(Box::new(true)),
         "protected_store.allow_insecure_fallback" => Ok(Box::new(true)),
         "protected_store.always_use_insecure_storage" => Ok(Box::new(false)),
-        "protected_store.insecure_fallback_directory" => Ok(Box::new(get_protected_store_path())),
-        "protected_store.delete" => Ok(Box::new(false)),
+        "protected_store.directory" => Ok(Box::new(get_protected_store_path())),
+        "protected_store.delete" => Ok(Box::new(true)),
+        "protected_store.device_encryption_key_password" => Ok(Box::new("".to_owned())),
+        "protected_store.new_device_encryption_key_password" => {
+            Ok(Box::new(Option::<String>::None))
+        }
         "network.connection_initial_timeout_ms" => Ok(Box::new(2_000u32)),
         "network.connection_inactivity_timeout_ms" => Ok(Box::new(60_000u32)),
         "network.max_connections_per_ip4" => Ok(Box::new(8u32)),
@@ -204,22 +208,28 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.rpc.queue_size" => Ok(Box::new(1024u32)),
         "network.rpc.max_timestamp_behind_ms" => Ok(Box::new(Some(10_000u32))),
         "network.rpc.max_timestamp_ahead_ms" => Ok(Box::new(Some(10_000u32))),
-        "network.rpc.timeout_ms" => Ok(Box::new(10_000u32)),
+        "network.rpc.timeout_ms" => Ok(Box::new(5_000u32)),
         "network.rpc.max_route_hop_count" => Ok(Box::new(4u8)),
         "network.rpc.default_route_hop_count" => Ok(Box::new(1u8)),
-        "network.dht.resolve_node_timeout_ms" => Ok(Box::new(Option::<u32>::None)),
-        "network.dht.resolve_node_count" => Ok(Box::new(20u32)),
-        "network.dht.resolve_node_fanout" => Ok(Box::new(3u32)),
         "network.dht.max_find_node_count" => Ok(Box::new(20u32)),
-        "network.dht.get_value_timeout_ms" => Ok(Box::new(Option::<u32>::None)),
-        "network.dht.get_value_count" => Ok(Box::new(20u32)),
-        "network.dht.get_value_fanout" => Ok(Box::new(3u32)),
-        "network.dht.set_value_timeout_ms" => Ok(Box::new(Option::<u32>::None)),
-        "network.dht.set_value_count" => Ok(Box::new(20u32)),
-        "network.dht.set_value_fanout" => Ok(Box::new(5u32)),
+        "network.dht.resolve_node_timeout_ms" => Ok(Box::new(10_000u32)),
+        "network.dht.resolve_node_count" => Ok(Box::new(1u32)),
+        "network.dht.resolve_node_fanout" => Ok(Box::new(4u32)),
+        "network.dht.get_value_timeout_ms" => Ok(Box::new(10_000u32)),
+        "network.dht.get_value_count" => Ok(Box::new(3u32)),
+        "network.dht.get_value_fanout" => Ok(Box::new(4u32)),
+        "network.dht.set_value_timeout_ms" => Ok(Box::new(10_000u32)),
+        "network.dht.set_value_count" => Ok(Box::new(5u32)),
+        "network.dht.set_value_fanout" => Ok(Box::new(4u32)),
         "network.dht.min_peer_count" => Ok(Box::new(20u32)),
         "network.dht.min_peer_refresh_time_ms" => Ok(Box::new(2_000u32)),
         "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(5_000u32)),
+        "network.dht.local_subkey_cache_size" => Ok(Box::new(128u32)),
+        "network.dht.local_max_subkey_cache_memory_mb" => Ok(Box::new(256u32)),
+        "network.dht.remote_subkey_cache_size" => Ok(Box::new(1024u32)),
+        "network.dht.remote_max_records" => Ok(Box::new(4096u32)),
+        "network.dht.remote_max_subkey_cache_memory_mb" => Ok(Box::new(64u32)),
+        "network.dht.remote_max_storage_space_mb" => Ok(Box::new(64u32)),
         "network.upnp" => Ok(Box::new(false)),
         "network.detect_address_changes" => Ok(Box::new(true)),
         "network.restricted_nat_retries" => Ok(Box::new(3u32)),
@@ -286,7 +296,7 @@ pub async fn test_config() {
     }
 
     let inner = vc.get();
-    assert_eq!(inner.program_name, String::from("Veilid"));
+    assert_eq!(inner.program_name, String::from("VeilidCoreTests"));
     assert_eq!(inner.namespace, String::from(""));
     assert_eq!(inner.capabilities.protocol_udp, true);
     assert_eq!(inner.capabilities.protocol_connect_tcp, true);
@@ -296,16 +306,21 @@ pub async fn test_config() {
     assert_eq!(inner.capabilities.protocol_connect_wss, true);
     assert_eq!(inner.capabilities.protocol_accept_wss, true);
     assert_eq!(inner.table_store.directory, get_table_store_path());
-    assert_eq!(inner.table_store.delete, false);
+    assert_eq!(inner.table_store.delete, true);
     assert_eq!(inner.block_store.directory, get_block_store_path());
-    assert_eq!(inner.block_store.delete, false);
+    assert_eq!(inner.block_store.delete, true);
     assert_eq!(inner.protected_store.allow_insecure_fallback, true);
     assert_eq!(inner.protected_store.always_use_insecure_storage, false);
+    assert_eq!(inner.protected_store.directory, get_protected_store_path());
+    assert_eq!(inner.protected_store.delete, true);
     assert_eq!(
-        inner.protected_store.insecure_fallback_directory,
-        get_protected_store_path()
+        inner.protected_store.device_encryption_key_password,
+        "".to_owned()
     );
-    assert_eq!(inner.protected_store.delete, false);
+    assert_eq!(
+        inner.protected_store.new_device_encryption_key_password,
+        Option::<String>::None
+    );
     assert_eq!(inner.network.connection_initial_timeout_ms, 2_000u32);
     assert_eq!(inner.network.connection_inactivity_timeout_ms, 60_000u32);
     assert_eq!(inner.network.max_connections_per_ip4, 8u32);
@@ -317,7 +332,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.rpc.concurrency, 2u32);
     assert_eq!(inner.network.rpc.queue_size, 1024u32);
-    assert_eq!(inner.network.rpc.timeout_ms, 10_000u32);
+    assert_eq!(inner.network.rpc.timeout_ms, 5_000u32);
     assert_eq!(inner.network.rpc.max_route_hop_count, 4u8);
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
     assert_eq!(inner.network.routing_table.node_id.len(), 0);
@@ -329,18 +344,16 @@ pub async fn test_config() {
     assert_eq!(inner.network.routing_table.limit_attached_good, 8u32);
     assert_eq!(inner.network.routing_table.limit_attached_weak, 4u32);
 
-    assert_eq!(
-        inner.network.dht.resolve_node_timeout_ms,
-        Option::<u32>::None
-    );
-    assert_eq!(inner.network.dht.resolve_node_count, 20u32);
-    assert_eq!(inner.network.dht.resolve_node_fanout, 3u32);
-    assert_eq!(inner.network.dht.get_value_timeout_ms, Option::<u32>::None);
-    assert_eq!(inner.network.dht.get_value_count, 20u32);
-    assert_eq!(inner.network.dht.get_value_fanout, 3u32);
-    assert_eq!(inner.network.dht.set_value_timeout_ms, Option::<u32>::None);
-    assert_eq!(inner.network.dht.set_value_count, 20u32);
-    assert_eq!(inner.network.dht.set_value_fanout, 5u32);
+    assert_eq!(inner.network.dht.max_find_node_count, 20u32);
+    assert_eq!(inner.network.dht.resolve_node_timeout_ms, 10_000u32);
+    assert_eq!(inner.network.dht.resolve_node_count, 1u32);
+    assert_eq!(inner.network.dht.resolve_node_fanout, 4u32);
+    assert_eq!(inner.network.dht.get_value_timeout_ms, 10_000u32);
+    assert_eq!(inner.network.dht.get_value_count, 3u32);
+    assert_eq!(inner.network.dht.get_value_fanout, 4u32);
+    assert_eq!(inner.network.dht.set_value_timeout_ms, 10_000u32);
+    assert_eq!(inner.network.dht.set_value_count, 5u32);
+    assert_eq!(inner.network.dht.set_value_fanout, 4u32);
     assert_eq!(inner.network.dht.min_peer_count, 20u32);
     assert_eq!(inner.network.dht.min_peer_refresh_time_ms, 2_000u32);
     assert_eq!(

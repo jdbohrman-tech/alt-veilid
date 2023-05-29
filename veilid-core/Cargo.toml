@@ -10,13 +10,14 @@ license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
-default = [ "enable-crypto-vld0" ]
-crypto-test = [ "enable-crypto-vld0", "enable-crypto-none" ]
-crypto-test-none = [ "enable-crypto-none" ]
+default = ["enable-crypto-vld0"]
+crypto-test = ["enable-crypto-vld0", "enable-crypto-none"]
+crypto-test-none = ["enable-crypto-none"]
 enable-crypto-vld0 = []
 enable-crypto-none = []
 rt-async-std = ["async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink?/smol_socket", "veilid-tools/rt-async-std"]
 rt-tokio = ["tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink?/tokio_socket", "veilid-tools/rt-tokio"]
+rt-wasm-bindgen = ["veilid-tools/rt-wasm-bindgen", "async_executors/bindgen"]
 
 veilid_core_android_tests = ["dep:paranoid-android"]
 veilid_core_ios_tests = ["dep:tracing-oslog"]
@@ -65,11 +66,11 @@ rtnetlink = { version = "^0", default-features = false, optional = true }
 async-std-resolver = { version = "^0", optional = true }
 trust-dns-resolver = { version = "^0", optional = true }
 keyvaluedb = { path = "../external/keyvaluedb/keyvaluedb" }
-#rkyv = { version = "^0", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
-rkyv = { git = "https://github.com/rkyv/rkyv.git", rev = "57e2a8d", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
-bytecheck = "^0"
+rkyv = { version = "^0", default_features = false, features = ["std", "alloc", "strict", "size_32", "validation"] }
 data-encoding = { version = "^2" }
 weak-table = "0.3.2"
+range-set-blaze = "0.1.5"
+argon2 = "0.5.0"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
@@ -91,8 +92,8 @@ rustls = "^0.19"
 rustls-pemfile = "^0.2"
 futures-util = { version = "^0", default-features = false, features = ["async-await", "sink", "std", "io"] }
 keyvaluedb-sqlite = { path = "../external/keyvaluedb/keyvaluedb-sqlite" }
-socket2 = "^0"
-bugsalot = "^0"
+socket2 = { version = "^0", features = ["all"] }
+bugsalot = { git = "https://github.com/crioux/bugsalot.git" }
 chrono = "^0"
 libc = "^0"
 nix = "^0"

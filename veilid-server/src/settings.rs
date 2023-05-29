@@ -6,12 +6,14 @@ use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use sysinfo::{DiskExt, SystemExt};
 use url::Url;
 use veilid_core::tools::*;
 use veilid_core::*;
 
 pub fn load_default_config() -> EyreResult<config::Config> {
-    let default_config = String::from(
+    let mut default_config = String::from(
         r#"---
 daemon:
     enabled: false
@@ -46,8 +48,10 @@ core:
     protected_store:
         allow_insecure_fallback: true
         always_use_insecure_storage: true
-        insecure_fallback_directory: '%INSECURE_FALLBACK_DIRECTORY%'
+        directory: '%DIRECTORY%'
         delete: false
+        device_encryption_key_password: '%DEVICE_ENCRYPTION_KEY_PASSWORD%'
+        new_device_encryption_key_password: %NEW_DEVICE_ENCRYPTION_KEY_PASSWORD%
     table_store:
         directory: '%TABLE_STORE_DIRECTORY%'
         delete: false
@@ -78,23 +82,29 @@ core:
             queue_size: 1024
             max_timestamp_behind_ms: 10000
             max_timestamp_ahead_ms: 10000
-            timeout_ms: 10000
+            timeout_ms: 5000
             max_route_hop_count: 4
             default_route_hop_count: 1
         dht:
-            resolve_node_timeout:
-            resolve_node_count: 20
-            resolve_node_fanout: 3
             max_find_node_count: 20
-            get_value_timeout:
-            get_value_count: 20
-            get_value_fanout: 3
-            set_value_timeout:
-            set_value_count: 20
-            set_value_fanout: 5
+            resolve_node_timeout_ms: 10000
+            resolve_node_count: 1
+            resolve_node_fanout: 4
+            get_value_timeout_ms: 10000
+            get_value_count: 3
+            get_value_fanout: 4
+            set_value_timeout_ms: 10000
+            set_value_count: 5
+            set_value_fanout: 4
             min_peer_count: 20
             min_peer_refresh_time_ms: 2000
             validate_dial_info_receipt_time_ms: 2000
+            local_subkey_cache_size: 128
+            local_max_subkey_cache_memory_mb: 256
+            remote_subkey_cache_size: 1024
+            remote_max_records: 65536
+            remote_max_subkey_cache_memory_mb: %REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%
+            remote_max_storage_space_mb: 0
         upnp: true
         detect_address_changes: true
         restricted_nat_retries: 0
@@ -150,8 +160,8 @@ core:
         &Settings::get_default_block_store_path().to_string_lossy(),
     )
     .replace(
-        "%INSECURE_FALLBACK_DIRECTORY%",
-        &Settings::get_default_protected_store_insecure_fallback_directory().to_string_lossy(),
+        "%DIRECTORY%",
+        &Settings::get_default_protected_store_directory().to_string_lossy(),
     )
     .replace(
         "%CERTIFICATE_PATH%",
@@ -164,7 +174,35 @@ core:
         &Settings::get_default_private_key_directory()
             .join("server.key")
             .to_string_lossy(),
+    )
+    .replace(
+        "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
+        &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string(),
     );
+
+    let dek_password = if let Some(dek_password) = std::env::var_os("DEK_PASSWORD") {
+        dek_password
+            .to_str()
+            .ok_or_else(|| eyre!("DEK_PASSWORD is not valid unicode"))?
+            .to_owned()
+    } else {
+        "".to_owned()
+    };
+    default_config = default_config.replace("%DEVICE_ENCRYPTION_KEY_PASSWORD%", &dek_password);
+
+    let new_dek_password = if let Some(new_dek_password) = std::env::var_os("NEW_DEK_PASSWORD") {
+        format!(
+            "'{}'",
+            new_dek_password
+                .to_str()
+                .ok_or_else(|| eyre!("NEW_DEK_PASSWORD is not valid unicode"))?
+        )
+    } else {
+        "null".to_owned()
+    };
+    default_config =
+        default_config.replace("%NEW_DEVICE_ENCRYPTION_KEY_PASSWORD%", &new_dek_password);
+
     config::Config::builder()
         .add_source(config::File::from_str(
             &default_config,
@@ -499,19 +537,25 @@ pub struct Rpc {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Dht {
-    pub resolve_node_timeout_ms: Option<u32>,
+    pub max_find_node_count: u32,
+    pub resolve_node_timeout_ms: u32,
     pub resolve_node_count: u32,
     pub resolve_node_fanout: u32,
-    pub max_find_node_count: u32,
-    pub get_value_timeout_ms: Option<u32>,
+    pub get_value_timeout_ms: u32,
     pub get_value_count: u32,
     pub get_value_fanout: u32,
-    pub set_value_timeout_ms: Option<u32>,
+    pub set_value_timeout_ms: u32,
     pub set_value_count: u32,
     pub set_value_fanout: u32,
     pub min_peer_count: u32,
     pub min_peer_refresh_time_ms: u32,
     pub validate_dial_info_receipt_time_ms: u32,
+    pub local_subkey_cache_size: u32,
+    pub local_max_subkey_cache_memory_mb: u32,
+    pub remote_subkey_cache_size: u32,
+    pub remote_max_records: u32,
+    pub remote_max_subkey_cache_memory_mb: u32,
+    pub remote_max_storage_space_mb: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -569,8 +613,10 @@ pub struct BlockStore {
 pub struct ProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
-    pub insecure_fallback_directory: PathBuf,
+    pub directory: PathBuf,
     pub delete: bool,
+    pub device_encryption_key_password: String,
+    pub new_device_encryption_key_password: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -621,7 +667,13 @@ impl Settings {
         }
 
         // Generate config
-        let inner: SettingsInner = cfg.try_deserialize()?;
+        let mut inner: SettingsInner = cfg.try_deserialize()?;
+
+        // Fill in missing defaults
+        if inner.core.network.dht.remote_max_storage_space_mb == 0 {
+            inner.core.network.dht.remote_max_storage_space_mb =
+                Self::get_default_remote_max_storage_space_mb(&inner);
+        }
 
         //
         Ok(Self {
@@ -772,7 +824,7 @@ impl Settings {
         bs_path
     }
 
-    pub fn get_default_protected_store_insecure_fallback_directory() -> PathBuf {
+    pub fn get_default_protected_store_directory() -> PathBuf {
         #[cfg(unix)]
         {
             let globalpath = PathBuf::from("/var/db/veilid-server/protected_store");
@@ -833,6 +885,36 @@ impl Settings {
         pk_path
     }
 
+    pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {
+        let sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_memory());
+        ((sys.free_memory() / (1024u64 * 1024u64)) / 16) as u32
+    }
+
+    pub fn get_default_remote_max_storage_space_mb(inner: &SettingsInner) -> u32 {
+        let mut sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_disks());
+        let dht_storage_path = inner.core.table_store.directory.clone();
+        // Sort longer mount point paths first since we want the mount point closest to our table store directory
+        sys.sort_disks_by(|a, b| {
+            b.mount_point()
+                .to_string_lossy()
+                .len()
+                .cmp(&a.mount_point().to_string_lossy().len())
+        });
+        for disk in sys.disks() {
+            if dht_storage_path.starts_with(disk.mount_point()) {
+                let available_mb = disk.available_space() / 1_000_000u64;
+                if available_mb > 40_000 {
+                    // Default to 10GB if more than 40GB is available
+                    return 10_000;
+                }
+                // Default to 1/4 of the available space, if less than 40GB is available
+                return available_mb as u32;
+            }
+        }
+        // If we can't figure out our storage path go with 1GB of space and pray
+        1_000
+    }
+
     pub fn set(&self, key: &str, value: &str) -> EyreResult<()> {
         let mut inner = self.inner.write();
 
@@ -882,11 +964,19 @@ impl Settings {
             inner.core.protected_store.always_use_insecure_storage,
             value
         );
+        set_config_value!(inner.core.protected_store.directory, value);
+        set_config_value!(inner.core.protected_store.delete, value);
         set_config_value!(
-            inner.core.protected_store.insecure_fallback_directory,
+            inner.core.protected_store.device_encryption_key_password,
             value
         );
-        set_config_value!(inner.core.protected_store.delete, value);
+        set_config_value!(
+            inner
+                .core
+                .protected_store
+                .new_device_encryption_key_password,
+            value
+        );
         set_config_value!(inner.core.table_store.directory, value);
         set_config_value!(inner.core.table_store.delete, value);
         set_config_value!(inner.core.block_store.directory, value);
@@ -921,10 +1011,10 @@ impl Settings {
         set_config_value!(inner.core.network.rpc.timeout_ms, value);
         set_config_value!(inner.core.network.rpc.max_route_hop_count, value);
         set_config_value!(inner.core.network.rpc.default_route_hop_count, value);
+        set_config_value!(inner.core.network.dht.max_find_node_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_timeout_ms, value);
         set_config_value!(inner.core.network.dht.resolve_node_count, value);
         set_config_value!(inner.core.network.dht.resolve_node_fanout, value);
-        set_config_value!(inner.core.network.dht.max_find_node_count, value);
         set_config_value!(inner.core.network.dht.get_value_timeout_ms, value);
         set_config_value!(inner.core.network.dht.get_value_count, value);
         set_config_value!(inner.core.network.dht.get_value_fanout, value);
@@ -937,6 +1027,18 @@ impl Settings {
             inner.core.network.dht.validate_dial_info_receipt_time_ms,
             value
         );
+        set_config_value!(inner.core.network.dht.local_subkey_cache_size, value);
+        set_config_value!(
+            inner.core.network.dht.local_max_subkey_cache_memory_mb,
+            value
+        );
+        set_config_value!(inner.core.network.dht.remote_subkey_cache_size, value);
+        set_config_value!(inner.core.network.dht.remote_max_records, value);
+        set_config_value!(
+            inner.core.network.dht.remote_max_subkey_cache_memory_mb,
+            value
+        );
+        set_config_value!(inner.core.network.dht.remote_max_storage_space_mb, value);
         set_config_value!(inner.core.network.upnp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
         set_config_value!(inner.core.network.restricted_nat_retries, value);
@@ -1000,15 +1102,29 @@ impl Settings {
                 "protected_store.always_use_insecure_storage" => Ok(Box::new(
                     inner.core.protected_store.always_use_insecure_storage,
                 )),
-                "protected_store.insecure_fallback_directory" => Ok(Box::new(
+                "protected_store.directory" => Ok(Box::new(
                     inner
                         .core
                         .protected_store
-                        .insecure_fallback_directory
+                        .directory
                         .to_string_lossy()
                         .to_string(),
                 )),
                 "protected_store.delete" => Ok(Box::new(inner.core.protected_store.delete)),
+                "protected_store.device_encryption_key_password" => Ok(Box::new(
+                    inner
+                        .core
+                        .protected_store
+                        .device_encryption_key_password
+                        .clone(),
+                )),
+                "protected_store.new_device_encryption_key_password" => Ok(Box::new(
+                    inner
+                        .core
+                        .protected_store
+                        .new_device_encryption_key_password
+                        .clone(),
+                )),
 
                 "table_store.directory" => Ok(Box::new(
                     inner
@@ -1108,6 +1224,9 @@ impl Settings {
                 "network.rpc.default_route_hop_count" => {
                     Ok(Box::new(inner.core.network.rpc.default_route_hop_count))
                 }
+                "network.dht.max_find_node_count" => {
+                    Ok(Box::new(inner.core.network.dht.max_find_node_count))
+                }
                 "network.dht.resolve_node_timeout_ms" => {
                     Ok(Box::new(inner.core.network.dht.resolve_node_timeout_ms))
                 }
@@ -1116,9 +1235,6 @@ impl Settings {
                 }
                 "network.dht.resolve_node_fanout" => {
                     Ok(Box::new(inner.core.network.dht.resolve_node_fanout))
-                }
-                "network.dht.max_find_node_count" => {
-                    Ok(Box::new(inner.core.network.dht.max_find_node_count))
                 }
                 "network.dht.get_value_timeout_ms" => {
                     Ok(Box::new(inner.core.network.dht.get_value_timeout_ms))
@@ -1145,6 +1261,25 @@ impl Settings {
                 "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(
                     inner.core.network.dht.validate_dial_info_receipt_time_ms,
                 )),
+                "network.dht.local_subkey_cache_size" => {
+                    Ok(Box::new(inner.core.network.dht.local_subkey_cache_size))
+                }
+                "network.dht.local_max_subkey_cache_memory_mb" => Ok(Box::new(
+                    inner.core.network.dht.local_max_subkey_cache_memory_mb,
+                )),
+                "network.dht.remote_subkey_cache_size" => {
+                    Ok(Box::new(inner.core.network.dht.remote_subkey_cache_size))
+                }
+                "network.dht.remote_max_records" => {
+                    Ok(Box::new(inner.core.network.dht.remote_max_records))
+                }
+                "network.dht.remote_max_subkey_cache_memory_mb" => Ok(Box::new(
+                    inner.core.network.dht.remote_max_subkey_cache_memory_mb,
+                )),
+                "network.dht.remote_max_storage_space_mb" => {
+                    Ok(Box::new(inner.core.network.dht.remote_max_storage_space_mb))
+                }
+
                 "network.upnp" => Ok(Box::new(inner.core.network.upnp)),
                 "network.detect_address_changes" => {
                     Ok(Box::new(inner.core.network.detect_address_changes))
@@ -1420,10 +1555,15 @@ mod tests {
         assert_eq!(s.core.protected_store.allow_insecure_fallback, true);
         assert_eq!(s.core.protected_store.always_use_insecure_storage, true);
         assert_eq!(
-            s.core.protected_store.insecure_fallback_directory,
-            Settings::get_default_protected_store_insecure_fallback_directory()
+            s.core.protected_store.directory,
+            Settings::get_default_protected_store_directory()
         );
         assert_eq!(s.core.protected_store.delete, false);
+        assert_eq!(s.core.protected_store.device_encryption_key_password, "");
+        assert_eq!(
+            s.core.protected_store.new_device_encryption_key_password,
+            None
+        );
 
         assert_eq!(s.core.network.connection_initial_timeout_ms, 2_000u32);
         assert_eq!(s.core.network.connection_inactivity_timeout_ms, 60_000u32);
@@ -1446,20 +1586,20 @@ mod tests {
         assert_eq!(s.core.network.rpc.queue_size, 1024);
         assert_eq!(s.core.network.rpc.max_timestamp_behind_ms, Some(10_000u32));
         assert_eq!(s.core.network.rpc.max_timestamp_ahead_ms, Some(10_000u32));
-        assert_eq!(s.core.network.rpc.timeout_ms, 10_000u32);
+        assert_eq!(s.core.network.rpc.timeout_ms, 5_000u32);
         assert_eq!(s.core.network.rpc.max_route_hop_count, 4);
         assert_eq!(s.core.network.rpc.default_route_hop_count, 1);
         //
-        assert_eq!(s.core.network.dht.resolve_node_timeout_ms, None);
-        assert_eq!(s.core.network.dht.resolve_node_count, 20u32);
-        assert_eq!(s.core.network.dht.resolve_node_fanout, 3u32);
         assert_eq!(s.core.network.dht.max_find_node_count, 20u32);
-        assert_eq!(s.core.network.dht.get_value_timeout_ms, None);
-        assert_eq!(s.core.network.dht.get_value_count, 20u32);
-        assert_eq!(s.core.network.dht.get_value_fanout, 3u32);
-        assert_eq!(s.core.network.dht.set_value_timeout_ms, None);
-        assert_eq!(s.core.network.dht.set_value_count, 20u32);
-        assert_eq!(s.core.network.dht.set_value_fanout, 5u32);
+        assert_eq!(s.core.network.dht.resolve_node_timeout_ms, 10_000u32);
+        assert_eq!(s.core.network.dht.resolve_node_count, 1u32);
+        assert_eq!(s.core.network.dht.resolve_node_fanout, 4u32);
+        assert_eq!(s.core.network.dht.get_value_timeout_ms, 10_000u32);
+        assert_eq!(s.core.network.dht.get_value_count, 3u32);
+        assert_eq!(s.core.network.dht.get_value_fanout, 4u32);
+        assert_eq!(s.core.network.dht.set_value_timeout_ms, 10_000u32);
+        assert_eq!(s.core.network.dht.set_value_count, 5u32);
+        assert_eq!(s.core.network.dht.set_value_fanout, 4u32);
         assert_eq!(s.core.network.dht.min_peer_count, 20u32);
         assert_eq!(s.core.network.dht.min_peer_refresh_time_ms, 2_000u32);
         assert_eq!(

@@ -162,6 +162,66 @@ pub async fn test_dh(vcrypto: CryptoSystemVersion) {
     trace!("cached_dh: {:?}", r5);
 }
 
+pub async fn test_generation(vcrypto: CryptoSystemVersion) {
+    let b1 = vcrypto.random_bytes(32);
+    let b2 = vcrypto.random_bytes(32);
+    assert_ne!(b1, b2);
+    assert_eq!(b1.len(), 32);
+    assert_eq!(b2.len(), 32);
+    let b3 = vcrypto.random_bytes(0);
+    let b4 = vcrypto.random_bytes(0);
+    assert_eq!(b3, b4);
+    assert_eq!(b3.len(), 0);
+
+    assert_ne!(vcrypto.default_salt_length(), 0);
+
+    let pstr1 = vcrypto.hash_password(b"abc123", b"qwerasdf").unwrap();
+    let pstr2 = vcrypto.hash_password(b"abc123", b"qwerasdf").unwrap();
+    assert_eq!(pstr1, pstr2);
+    let pstr3 = vcrypto.hash_password(b"abc123", b"qwerasdg").unwrap();
+    assert_ne!(pstr1, pstr3);
+    let pstr4 = vcrypto.hash_password(b"abc124", b"qwerasdf").unwrap();
+    assert_ne!(pstr1, pstr4);
+    let pstr5 = vcrypto.hash_password(b"abc124", b"qwerasdg").unwrap();
+    assert_ne!(pstr3, pstr5);
+
+    vcrypto
+        .hash_password(b"abc123", b"qwe")
+        .expect_err("should reject short salt");
+    vcrypto
+        .hash_password(
+            b"abc123",
+            b"qwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerz",
+        )
+        .expect_err("should reject long salt");
+
+    assert!(vcrypto.verify_password(b"abc123", &pstr1).unwrap());
+    assert!(vcrypto.verify_password(b"abc123", &pstr2).unwrap());
+    assert!(vcrypto.verify_password(b"abc123", &pstr3).unwrap());
+    assert!(!vcrypto.verify_password(b"abc123", &pstr4).unwrap());
+    assert!(!vcrypto.verify_password(b"abc123", &pstr5).unwrap());
+
+    let ss1 = vcrypto.derive_shared_secret(b"abc123", b"qwerasdf");
+    let ss2 = vcrypto.derive_shared_secret(b"abc123", b"qwerasdf");
+    assert_eq!(ss1, ss2);
+    let ss3 = vcrypto.derive_shared_secret(b"abc123", b"qwerasdg");
+    assert_ne!(ss1, ss3);
+    let ss4 = vcrypto.derive_shared_secret(b"abc124", b"qwerasdf");
+    assert_ne!(ss1, ss4);
+    let ss5 = vcrypto.derive_shared_secret(b"abc124", b"qwerasdg");
+    assert_ne!(ss3, ss5);
+
+    vcrypto
+        .derive_shared_secret(b"abc123", b"qwe")
+        .expect_err("should reject short salt");
+    vcrypto
+        .derive_shared_secret(
+            b"abc123",
+            b"qwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerz",
+        )
+        .expect_err("should reject long salt");
+}
+
 pub async fn test_all() {
     let api = crypto_tests_startup().await;
     let crypto = api.crypto().unwrap();
@@ -171,7 +231,8 @@ pub async fn test_all() {
         let vcrypto = crypto.get(v).unwrap();
         test_aead(vcrypto.clone()).await;
         test_no_auth(vcrypto.clone()).await;
-        test_dh(vcrypto).await;
+        test_dh(vcrypto.clone()).await;
+        test_generation(vcrypto).await;
     }
 
     crypto_tests_shutdown(api.clone()).await;

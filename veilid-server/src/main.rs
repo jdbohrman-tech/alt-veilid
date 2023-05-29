@@ -45,10 +45,27 @@ fn main() -> EyreResult<()> {
     // --- Generate DHT Key ---
     if matches.occurrences_of("generate-key-pair") != 0 {
         if let Some(ckstr) = matches.get_one::<String>("generate-key-pair") {
-            let ck: veilid_core::CryptoKind =
-                veilid_core::FourCC::from_str(ckstr).wrap_err("couldn't parse crypto kind")?;
-            let tkp = veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
-            println!("{}", tkp.to_string());
+            if ckstr == "" {
+                let mut tks = veilid_core::TypedKeySet::new();
+                let mut tss = veilid_core::TypedSecretSet::new();
+                for ck in veilid_core::VALID_CRYPTO_KINDS {
+                    let tkp = veilid_core::Crypto::generate_keypair(ck)
+                        .wrap_err("invalid crypto kind")?;
+                    tks.add(veilid_core::TypedKey::new(tkp.kind, tkp.value.key));
+                    tss.add(veilid_core::TypedSecret::new(tkp.kind, tkp.value.secret));
+                }
+                println!(
+                    "Public Keys:\n{}\nSecret Keys:\n{}\n",
+                    tks.to_string(),
+                    tss.to_string()
+                );
+            } else {
+                let ck: veilid_core::CryptoKind =
+                    veilid_core::FourCC::from_str(ckstr).wrap_err("couldn't parse crypto kind")?;
+                let tkp =
+                    veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
+                println!("{}", tkp.to_string());
+            }
             return Ok(());
         } else {
             bail!("missing crypto kind");

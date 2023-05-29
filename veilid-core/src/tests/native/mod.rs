@@ -2,16 +2,20 @@
 #![cfg(not(target_arch = "wasm32"))]
 use crate::crypto::tests::*;
 use crate::network_manager::tests::*;
+use crate::routing_table;
+use crate::table_store::tests::*;
 use crate::tests::common::*;
+use crate::veilid_api;
 use crate::*;
 
 ///////////////////////////////////////////////////////////////////////////
 
 #[allow(dead_code)]
 pub async fn run_all_tests() {
+    // iOS and Android tests also run these.
     info!("TEST: test_host_interface");
     test_host_interface::test_all().await;
-    info!("TEST: test_dht_key");
+    info!("TEST: test_types");
     test_types::test_all().await;
     info!("TEST: test_veilid_core");
     test_veilid_core::test_all().await;
@@ -19,6 +23,8 @@ pub async fn run_all_tests() {
     test_veilid_config::test_all().await;
     info!("TEST: test_connection_table");
     test_connection_table::test_all().await;
+    info!("TEST: test_signed_node_info");
+    test_signed_node_info::test_all().await;
     info!("TEST: test_table_store");
     test_table_store::test_all().await;
     info!("TEST: test_protected_store");
@@ -27,6 +33,10 @@ pub async fn run_all_tests() {
     test_crypto::test_all().await;
     info!("TEST: test_envelope_receipt");
     test_envelope_receipt::test_all().await;
+    info!("TEST: veilid_api::test_serialize");
+    veilid_api::tests::test_serialize_rkyv::test_all().await;
+    info!("TEST: routing_table::test_serialize");
+    routing_table::tests::test_serialize::test_all().await;
 
     info!("Finished unit tests");
 }
@@ -118,6 +128,15 @@ cfg_if! {
 
         #[test]
         #[serial]
+        fn run_test_signed_node_info() {
+            setup();
+            block_on(async {
+                test_signed_node_info::test_all().await;
+            })
+        }
+
+        #[test]
+        #[serial]
         fn run_test_table_store() {
             setup();
             block_on(async {
@@ -152,5 +171,22 @@ cfg_if! {
             })
         }
 
+        #[test]
+        #[serial]
+        fn run_test_serialize_rkyv() {
+            setup();
+            block_on(async {
+                veilid_api::tests::test_serialize_rkyv::test_all().await;
+            })
+        }
+
+        #[test]
+        #[serial]
+        fn run_test_routing_table_serialize() {
+            setup();
+            block_on(async {
+                routing_table::tests::test_serialize::test_all().await;
+            })
+        }
     }
 }

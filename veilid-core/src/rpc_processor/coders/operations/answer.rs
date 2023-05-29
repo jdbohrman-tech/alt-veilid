@@ -9,18 +9,18 @@ impl RPCAnswer {
     pub fn new(detail: RPCAnswerDetail) -> Self {
         Self { detail }
     }
-    pub fn into_detail(self) -> RPCAnswerDetail {
-        self.detail
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        self.detail.validate(validate_context)
     }
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
-    pub fn decode(
-        reader: &veilid_capnp::answer::Reader,
-        crypto: Crypto,
-    ) -> Result<RPCAnswer, RPCError> {
+    pub fn destructure(self) -> RPCAnswerDetail {
+        self.detail
+    }
+    pub fn decode(reader: &veilid_capnp::answer::Reader) -> Result<RPCAnswer, RPCError> {
         let d_reader = reader.get_detail();
-        let detail = RPCAnswerDetail::decode(&d_reader, crypto)?;
+        let detail = RPCAnswerDetail::decode(&d_reader)?;
         Ok(RPCAnswer { detail })
     }
     pub fn encode(&self, builder: &mut veilid_capnp::answer::Builder) -> Result<(), RPCError> {
@@ -60,10 +60,23 @@ impl RPCAnswerDetail {
             RPCAnswerDetail::CancelTunnelA(_) => "CancelTunnelA",
         }
     }
-
+    pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        match self {
+            RPCAnswerDetail::StatusA(r) => r.validate(validate_context),
+            RPCAnswerDetail::FindNodeA(r) => r.validate(validate_context),
+            RPCAnswerDetail::AppCallA(r) => r.validate(validate_context),
+            RPCAnswerDetail::GetValueA(r) => r.validate(validate_context),
+            RPCAnswerDetail::SetValueA(r) => r.validate(validate_context),
+            RPCAnswerDetail::WatchValueA(r) => r.validate(validate_context),
+            RPCAnswerDetail::SupplyBlockA(r) => r.validate(validate_context),
+            RPCAnswerDetail::FindBlockA(r) => r.validate(validate_context),
+            RPCAnswerDetail::StartTunnelA(r) => r.validate(validate_context),
+            RPCAnswerDetail::CompleteTunnelA(r) => r.validate(validate_context),
+            RPCAnswerDetail::CancelTunnelA(r) => r.validate(validate_context),
+        }
+    }
     pub fn decode(
         reader: &veilid_capnp::answer::detail::Reader,
-        crypto: Crypto,
     ) -> Result<RPCAnswerDetail, RPCError> {
         let which_reader = reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
@@ -74,7 +87,7 @@ impl RPCAnswerDetail {
             }
             veilid_capnp::answer::detail::FindNodeA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindNodeA::decode(&op_reader, crypto)?;
+                let out = RPCOperationFindNodeA::decode(&op_reader)?;
                 RPCAnswerDetail::FindNodeA(out)
             }
             veilid_capnp::answer::detail::AppCallA(r) => {
@@ -84,27 +97,27 @@ impl RPCAnswerDetail {
             }
             veilid_capnp::answer::detail::GetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationGetValueA::decode(&op_reader, crypto)?;
+                let out = RPCOperationGetValueA::decode(&op_reader)?;
                 RPCAnswerDetail::GetValueA(out)
             }
             veilid_capnp::answer::detail::SetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSetValueA::decode(&op_reader, crypto)?;
+                let out = RPCOperationSetValueA::decode(&op_reader)?;
                 RPCAnswerDetail::SetValueA(out)
             }
             veilid_capnp::answer::detail::WatchValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationWatchValueA::decode(&op_reader, crypto)?;
+                let out = RPCOperationWatchValueA::decode(&op_reader)?;
                 RPCAnswerDetail::WatchValueA(out)
             }
             veilid_capnp::answer::detail::SupplyBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSupplyBlockA::decode(&op_reader, crypto)?;
+                let out = RPCOperationSupplyBlockA::decode(&op_reader)?;
                 RPCAnswerDetail::SupplyBlockA(out)
             }
             veilid_capnp::answer::detail::FindBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindBlockA::decode(&op_reader, crypto)?;
+                let out = RPCOperationFindBlockA::decode(&op_reader)?;
                 RPCAnswerDetail::FindBlockA(out)
             }
             veilid_capnp::answer::detail::StartTunnelA(r) => {

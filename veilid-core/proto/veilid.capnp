@@ -27,13 +27,12 @@ struct Nonce24 @0xb6260db25d8d7dfc {
     u2                      @2  :UInt64;
 }
 
-using PublicKey = Key256;                               # Node id / DHT key / Route id, etc
+using PublicKey = Key256;                               # Node id / Hash / DHT key / Route id, etc
 using Nonce = Nonce24;                                  # One-time encryption nonce
 using Signature = Signature512;                         # Signature block
 using TunnelID = UInt64;                                # Id for tunnels
 using CryptoKind = UInt32;                              # FOURCC code for cryptography type
 using ValueSeqNum = UInt32;                             # sequence numbers for values
-using ValueSchema = UInt32;                             # FOURCC code for schema (0 = freeform, SUB0 = subkey control v0)
 using Subkey = UInt32;                                  # subkey index for dht
 
 struct TypedKey @0xe2d567a9f1e61b29 {
@@ -312,47 +311,66 @@ struct OperationAppMessage @0x9baf542d81b411f5 {
     message                 @0  :Data;                  # opaque message to application
 }
 
-struct SubkeyRange {
+struct SubkeyRange @0xf592dac0a4d0171c {
     start                   @0  :Subkey;                # the start of a subkey range
     end                     @1  :Subkey;                # the end of a subkey range
 }
-
-struct ValueData @0xb4b7416f169f2a3d {
+    
+struct SignedValueData @0xb4b7416f169f2a3d {
     seq                     @0  :ValueSeqNum;           # sequence number of value
-    schema                  @1  :ValueSchema;           # fourcc code of schema for value
-    data                    @2  :Data;                  # value or subvalue contents
+    data                    @1  :Data;                  # value or subvalue contents
+    writer                  @2  :PublicKey;             # the public key of the writer
+    signature               @3  :Signature;             # signature of data at this subkey, using the writer key (which may be the same as the owner key)
+                                                        # signature covers:
+                                                        #  * ownerKey
+                                                        #  * subkey
+                                                        #  * sequence number
+                                                        #  * data
+                                                        # signature does not need to cover schema because schema is validated upon every set
+                                                        # so the data either fits, or it doesn't.
 }
+
+struct SignedValueDescriptor @0xe7911cd3f9e1b0e7 {
+    owner                   @0  :PublicKey;             # the public key of the owner
+    schemaData              @1  :Data;                  # the schema data
+                                                        # Changing this after key creation is not supported as it would change the dht key
+    signature               @2  :Signature;             # Schema data is signed by ownerKey and is verified both by set and get operations
+}
+
 
 struct OperationGetValueQ @0xf88a5b6da5eda5d0 {
-    key                     @0  :TypedKey;              # the location of the value
-    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
+    key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
+    subkey                  @1  :Subkey;                # the index of the subkey
+    wantDescriptor          @2  :Bool;                  # whether or not to include the descriptor for the key
 }
+
 
 struct OperationGetValueA @0xd896bb46f2e0249f {
-    union {
-        data                @0  :ValueData;             # the value if successful
-        peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
-    }
+    value                   @0  :SignedValueData;       # optional: the value if successful, or if unset, no value returned
+    peers                   @1  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
+    descriptor              @2  :SignedValueDescriptor; # optional: the descriptor if requested if the value is also returned
 }
 
-struct OperationSetValueQ @0xbac06191ff8bdbc5 {
-    key                     @0  :TypedKey;              # the location of the value
-    subkey                  @1  :Subkey;                # the index of the subkey (0 for the default subkey)
-    value                   @2  :ValueData;             # value or subvalue contents (older or equal seq number gets dropped)
+struct OperationSetValueQ @0xbac06191ff8bdbc5 {         
+    key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
+    subkey                  @1  :Subkey;                # the index of the subkey
+    value                   @2  :SignedValueData;       # value or subvalue contents (older or equal seq number gets dropped)
+    descriptor              @3  :SignedValueDescriptor; # optional: the descriptor if needed
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
-    union {
-        data                @0  :ValueData;             # the new value if successful, may be a different value than what was set if the seq number was lower or equal
-        peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
-    }
+    set                     @0  :Bool;                  # true if the set was close enough to be set
+    value                   @1  :SignedValueData;       # optional: the current value at the key if the set seq number was lower or equal to what was there before
+    peers                   @2  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
 }
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     key                     @0  :TypedKey;              # key for value to watch
-    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch, if empty, watch everything
+    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
+    watcher                 @4  :PublicKey;             # the watcher performing the watch, can be the owner or a schema member
+    signature               @5  :Signature;             # signature of the watcher, must be one of the schema members or the key owner. signature covers: key, subkeys, expiration, count
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
@@ -364,7 +382,7 @@ struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     key                     @0  :TypedKey;              # key for value that changed
     subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
-    value                   @3  :ValueData;             # first value that changed (the rest can be gotten with getvalue)
+    value                   @3  :SignedValueData;       # first value that changed (the rest can be gotten with getvalue)
 }
 
 struct OperationSupplyBlockQ @0xadbf4c542d749971 {
@@ -372,10 +390,8 @@ struct OperationSupplyBlockQ @0xadbf4c542d749971 {
 }
 
 struct OperationSupplyBlockA @0xf003822e83b5c0d7 {
-    union {
-        expiration          @0  :UInt64;                # when the block supplier entry will need to be refreshed
-        peers               @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
-    }
+    expiration              @0  :UInt64;                # when the block supplier entry will need to be refreshed, or 0 if not successful
+    peers                   @1  :List(PeerInfo);        # returned 'closer peer' information if not successful       
 }
 
 struct OperationFindBlockQ @0xaf4353ff004c7156 {

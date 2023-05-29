@@ -19,7 +19,7 @@ use veilid_core::*;
 
 // Encoding for ApiResult
 fn encode_api_result<T: Serialize + fmt::Debug>(
-    result: &Result<T, VeilidAPIError>,
+    result: &VeilidAPIResult<T>,
     builder: &mut api_result::Builder,
 ) {
     match result {

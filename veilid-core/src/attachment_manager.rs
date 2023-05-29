@@ -1,7 +1,8 @@
-use crate::crypto::Crypto;
-use crate::network_manager::*;
-use crate::routing_table::*;
 use crate::*;
+use crypto::Crypto;
+use network_manager::*;
+use routing_table::*;
+use storage_manager::*;
 
 pub struct AttachmentManagerInner {
     last_attachment_state: AttachmentState,
@@ -26,6 +27,7 @@ pub struct AttachmentManager {
 impl AttachmentManager {
     fn new_unlocked_inner(
         config: VeilidConfig,
+        storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
@@ -35,6 +37,7 @@ impl AttachmentManager {
             config: config.clone(),
             network_manager: NetworkManager::new(
                 config,
+                storage_manager,
                 protected_store,
                 table_store,
                 block_store,
@@ -54,6 +57,7 @@ impl AttachmentManager {
     }
     pub fn new(
         config: VeilidConfig,
+        storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
         block_store: BlockStore,
@@ -63,6 +67,7 @@ impl AttachmentManager {
             inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
+                storage_manager,
                 protected_store,
                 table_store,
                 block_store,

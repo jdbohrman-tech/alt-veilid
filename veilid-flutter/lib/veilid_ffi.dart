@@ -8,7 +8,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import 'veilid.dart';
-import 'base64url_no_pad.dart';
+import 'veilid_encoding.dart';
 
 //////////////////////////////////////////////////////////
 
@@ -76,6 +76,46 @@ typedef _RoutingContextAppMessageC = Void Function(
     Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
 typedef _RoutingContextAppMessageDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn routing_context_create_dht_record(port: i64, id: u32, kind: u32, schema: FfiStr)
+typedef _RoutingContextCreateDHTRecordC = Void Function(
+    Int64, Uint32, Uint32, Pointer<Utf8>);
+typedef _RoutingContextCreateDHTRecordDart = void Function(
+    int, int, int, Pointer<Utf8>);
+// fn routing_context_open_dht_record(port: i64, id: u32, key: FfiStr, writer: FfiStr)
+typedef _RoutingContextOpenDHTRecordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _RoutingContextOpenDHTRecordDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn routing_context_close_dht_record(port: i64, id: u32, key: FfiStr)
+typedef _RoutingContextCloseDHTRecordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>);
+typedef _RoutingContextCloseDHTRecordDart = void Function(
+    int, int, Pointer<Utf8>);
+// fn routing_context_delete_dht_record(port: i64, id: u32, key: FfiStr)
+typedef _RoutingContextDeleteDHTRecordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>);
+typedef _RoutingContextDeleteDHTRecordDart = void Function(
+    int, int, Pointer<Utf8>);
+// fn routing_context_get_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, force_refresh: bool)
+typedef _RoutingContextGetDHTValueC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Uint32, Bool);
+typedef _RoutingContextGetDHTValueDart = void Function(
+    int, int, Pointer<Utf8>, int, bool);
+// fn routing_context_set_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, data: FfiStr)
+typedef _RoutingContextSetDHTValueC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Uint32, Pointer<Utf8>);
+typedef _RoutingContextSetDHTValueDart = void Function(
+    int, int, Pointer<Utf8>, int, Pointer<Utf8>);
+// fn routing_context_watch_dht_values(port: i64, id: u32, key: FfiStr, subkeys: FfiStr, expiration: FfiStr, count: u32)
+typedef _RoutingContextWatchDHTValuesC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Uint64, Uint32);
+typedef _RoutingContextWatchDHTValuesDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, int, int);
+// fn routing_context_cancel_dht_watch(port: i64, id: u32, key: FfiStr, subkeys: FfiStr)
+typedef _RoutingContextCancelDHTWatchC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _RoutingContextCancelDHTWatchDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
 
 // fn new_private_route(port: i64)
 typedef _NewPrivateRouteC = Void Function(Int64);
@@ -108,9 +148,9 @@ typedef _DeleteTableDbDart = void Function(int, Pointer<Utf8>);
 // fn table_db_get_column_count(id: u32) -> u32
 typedef _TableDbGetColumnCountC = Uint32 Function(Uint32);
 typedef _TableDbGetColumnCountDart = int Function(int);
-// fn table_db_get_keys(id: u32, col: u32) -> *mut c_char
-typedef _TableDbGetKeysC = Pointer<Utf8> Function(Uint32, Uint32);
-typedef _TableDbGetKeysDart = Pointer<Utf8> Function(int, int);
+// fn table_db_get_keys(port: i64, id: u32, col: u32)
+typedef _TableDbGetKeysC = Pointer<Utf8> Function(Uint64, Uint32, Uint32);
+typedef _TableDbGetKeysDart = Pointer<Utf8> Function(int, int, int);
 // fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr)
 typedef _TableDbStoreC = Void Function(
     Int64, Uint32, Uint32, Pointer<Utf8>, Pointer<Utf8>);
@@ -144,7 +184,116 @@ typedef _TableDbTransactionDeleteC = Void Function(
     Int64, Uint32, Uint32, Pointer<Utf8>);
 typedef _TableDbTransactionDeleteDart = void Function(
     int, int, int, Pointer<Utf8>);
+// fn valid_crypto_kinds() -> *mut c_char
+typedef _ValidCryptoKindsC = Pointer<Utf8> Function();
+typedef _ValidCryptoKindsDart = Pointer<Utf8> Function();
+// fn best_crypto_kind() -> u32
+typedef _BestCryptoKindC = Uint32 Function();
+typedef _BestCryptoKindDart = int Function();
+// fn verify_signatures(port: i64, node_ids: FfiStr, data: FfiStr, signatures: FfiStr)
+typedef _VerifySignaturesC = Void Function(
+    Int64, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _VerifySignaturesDart = void Function(
+    int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn generate_signatures(port: i64, data: FfiStr, key_pairs: FfiStr)
+typedef _GenerateSignaturesC = Void Function(
+    Int64, Pointer<Utf8>, Pointer<Utf8>);
+typedef _GenerateSignaturesDart = void Function(
+    int, Pointer<Utf8>, Pointer<Utf8>);
+// fn generate_key_pair(port: i64, kind: u32) {
+typedef _GenerateKeyPairC = Void Function(Int64, Uint32);
+typedef _GenerateKeyPairDart = void Function(int, int);
+// fn crypto_cached_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
+typedef _CryptoCachedDHC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoCachedDHDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_compute_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
+typedef _CryptoComputeDHC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoComputeDHDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_random_bytes(port: i64, kind: u32, len: u32)
+typedef _CryptoRandomBytesC = Void Function(Int64, Uint32, Uint32);
+typedef _CryptoRandomBytesDart = void Function(int, int, int);
+// fn crypto_default_salt_length(port: i64, kind: u32)
+typedef _CryptoDefaultSaltLengthC = Void Function(Int64, Uint32);
+typedef _CryptoDefaultSaltLengthDart = void Function(int, int);
+// fn crypto_hash_password(port: i64, kind: u32, password: FfiStr, salt: FfiStr )
+typedef _CryptoHashPasswordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoHashPasswordDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_verify_password(port: i64, kind: u32, password: FfiStr, password_hash: FfiStr )
+typedef _CryptoVerifyPasswordC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoVerifyPasswordDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_derive_shared_secret(port: i64, kind: u32, password: FfiStr, salt: FfiStr )
+typedef _CryptoDeriveSharedSecretC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoDeriveSharedSecretDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
 
+// fn crypto_random_nonce(port: i64, kind: u32)
+typedef _CryptoRandomNonceC = Void Function(Int64, Uint32);
+typedef _CryptoRandomNonceDart = void Function(int, int);
+// fn crypto_random_shared_secret(port: i64, kind: u32)
+typedef _CryptoRandomSharedSecretC = Void Function(Int64, Uint32);
+typedef _CryptoRandomSharedSecretDart = void Function(int, int);
+// fn crypto_generate_key_pair(port: i64, kind: u32)
+typedef _CryptoGenerateKeyPairC = Void Function(Int64, Uint32);
+typedef _CryptoGenerateKeyPairDart = void Function(int, int);
+// fn crypto_generate_hash(port: i64, kind: u32, data: FfiStr)
+typedef _CryptoGenerateHashC = Void Function(Int64, Uint32, Pointer<Utf8>);
+typedef _CryptoGenerateHashDart = void Function(int, int, Pointer<Utf8>);
+// fn crypto_validate_key_pair(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
+typedef _CryptoValidateKeyPairC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoValidateKeyPairDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_validate_hash(port: i64, kind: u32, data: FfiStr, hash: FfiStr)
+typedef _CryptoValidateHashC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoValidateHashDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_distance(port: i64, kind: u32, key1: FfiStr, key2: FfiStr)
+typedef _CryptoDistanceC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoDistanceDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_sign(port: i64, kind: u32, key: FfiStr, secret: FfiStr, data: FfiStr)
+typedef _CryptoSignC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoSignDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_verify(port: i64, kind: u32, key: FfiStr, data: FfiStr, signature: FfiStr)
+typedef _CryptoVerifyC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoVerifyDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_aead_overhead(port: i64, kind: u32)
+typedef _CryptoAeadOverheadC = Void Function(Int64, Uint32);
+typedef _CryptoAeadOverheadDart = void Function(int, int);
+// fn crypto_decrypt_aead(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr, associated_data: FfiStr)
+typedef _CryptoDecryptAeadC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoDecryptAeadDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_encrypt_aead(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr, associated_data: FfiStr)
+typedef _CryptoEncryptAeadC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoEncryptAeadDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_crypt_no_auth(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr)
+typedef _CryptoCryptNoAuthC = Void Function(
+    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef _CryptoCryptNoAuthDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+
+// fn now() -> u64
+typedef _NowC = Uint64 Function();
+typedef _NowDart = int Function();
 // fn debug(port: i64, log_level: FfiStr)
 typedef _DebugC = Void Function(Int64, Pointer<Utf8>);
 typedef _DebugDart = void Function(int, Pointer<Utf8>);
@@ -156,7 +305,7 @@ typedef _VeilidVersionStringC = Pointer<Utf8> Function();
 typedef _VeilidVersionStringDart = Pointer<Utf8> Function();
 
 // fn veilid_version() -> VeilidVersion
-class VeilidVersionFFI extends Struct {
+final class VeilidVersionFFI extends Struct {
   @Uint32()
   external int major;
   @Uint32()
@@ -230,6 +379,42 @@ Future<T> processFutureJson<T>(
         {
           if (list[1] == null) {
             throw VeilidAPIExceptionInternal("Null MESSAGE_OK_JSON value");
+          }
+          var ret = jsonDecode(list[1] as String);
+          return jsonConstructor(ret);
+        }
+      case messageErrJson:
+        {
+          throw VeilidAPIException.fromJson(jsonDecode(list[1]));
+        }
+      default:
+        {
+          throw VeilidAPIExceptionInternal(
+              "Unexpected async return message type: ${list[0]}");
+        }
+    }
+  }).catchError((e) {
+    // Wrap all other errors in VeilidAPIExceptionInternal
+    throw VeilidAPIExceptionInternal(e.toString());
+  }, test: (e) {
+    // Pass errors that are already VeilidAPIException through without wrapping
+    return e is! VeilidAPIException;
+  });
+}
+
+Future<T?> processFutureOptJson<T>(
+    T Function(dynamic) jsonConstructor, Future<dynamic> future) {
+  return future.then((value) {
+    final list = value as List<dynamic>;
+    switch (list[0] as int) {
+      case messageErr:
+        {
+          throw VeilidAPIExceptionInternal("Internal API Error: ${list[1]}");
+        }
+      case messageOkJson:
+        {
+          if (list[1] == null) {
+            return null;
           }
           var ret = jsonDecode(list[1] as String);
           return jsonConstructor(ret);
@@ -397,7 +582,7 @@ class _Ctx {
 class VeilidRoutingContextFFI implements VeilidRoutingContext {
   final _Ctx _ctx;
   static final Finalizer<_Ctx> _finalizer =
-      Finalizer((ctx) => {ctx.ffi._releaseRoutingContext(ctx.id)});
+      Finalizer((ctx) => ctx.ffi._releaseRoutingContext(ctx.id));
 
   VeilidRoutingContextFFI._(this._ctx) {
     _finalizer.attach(this, _ctx, detach: this);
@@ -412,14 +597,14 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   @override
   VeilidRoutingContextFFI withCustomPrivacy(Stability stability) {
     final newId = _ctx.ffi._routingContextWithCustomPrivacy(
-        _ctx.id, stability.json.toNativeUtf8());
+        _ctx.id, jsonEncode(stability).toNativeUtf8());
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
   VeilidRoutingContextFFI withSequencing(Sequencing sequencing) {
-    final newId = _ctx.ffi
-        ._routingContextWithSequencing(_ctx.id, sequencing.json.toNativeUtf8());
+    final newId = _ctx.ffi._routingContextWithSequencing(
+        _ctx.id, jsonEncode(sequencing).toNativeUtf8());
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
@@ -437,7 +622,7 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   }
 
   @override
-  Future<void> appMessage(String target, Uint8List message) async {
+  Future<void> appMessage(String target, Uint8List message) {
     final nativeEncodedTarget = target.toNativeUtf8();
     final nativeEncodedMessage = base64UrlNoPadEncode(message).toNativeUtf8();
 
@@ -446,6 +631,111 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
     _ctx.ffi._routingContextAppMessage(sendPort.nativePort, _ctx.id,
         nativeEncodedTarget, nativeEncodedMessage);
     return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<DHTRecordDescriptor> createDHTRecord(
+      CryptoKind kind, DHTSchema schema) async {
+    final nativeSchema = jsonEncode(schema).toNativeUtf8();
+    final recvPort = ReceivePort("routing_context_create_dht_record");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextCreateDHTRecord(
+        sendPort.nativePort, _ctx.id, kind, nativeSchema);
+    final dhtRecordDescriptor =
+        await processFutureJson(DHTRecordDescriptor.fromJson, recvPort.first);
+    return dhtRecordDescriptor;
+  }
+
+  @override
+  Future<DHTRecordDescriptor> openDHTRecord(
+      TypedKey key, KeyPair? writer) async {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeWriter =
+        writer != null ? jsonEncode(key).toNativeUtf8() : nullptr;
+    final recvPort = ReceivePort("routing_context_open_dht_record");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextOpenDHTRecord(
+        sendPort.nativePort, _ctx.id, nativeKey, nativeWriter);
+    final dhtRecordDescriptor =
+        await processFutureJson(DHTRecordDescriptor.fromJson, recvPort.first);
+    return dhtRecordDescriptor;
+  }
+
+  @override
+  Future<void> closeDHTRecord(TypedKey key) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final recvPort = ReceivePort("routing_context_close_dht_record");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi
+        ._routingContextCloseDHTRecord(sendPort.nativePort, _ctx.id, nativeKey);
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<void> deleteDHTRecord(TypedKey key) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final recvPort = ReceivePort("routing_context_delete_dht_record");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextDeleteDHTRecord(
+        sendPort.nativePort, _ctx.id, nativeKey);
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<ValueData?> getDHTValue(
+      TypedKey key, int subkey, bool forceRefresh) async {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final recvPort = ReceivePort("routing_context_get_dht_value");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextGetDHTValue(
+        sendPort.nativePort, _ctx.id, nativeKey, subkey, forceRefresh);
+    final valueData = await processFutureJson(
+        optFromJson(ValueData.fromJson), recvPort.first);
+    return valueData;
+  }
+
+  @override
+  Future<ValueData?> setDHTValue(
+      TypedKey key, int subkey, Uint8List data) async {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
+
+    final recvPort = ReceivePort("routing_context_set_dht_value");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextSetDHTValue(
+        sendPort.nativePort, _ctx.id, nativeKey, subkey, nativeData);
+    final valueData = await processFutureJson(
+        optFromJson(ValueData.fromJson), recvPort.first);
+    return valueData;
+  }
+
+  @override
+  Future<Timestamp> watchDHTValues(TypedKey key, ValueSubkeyRange subkeys,
+      Timestamp expiration, int count) async {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSubkeys = jsonEncode(subkeys).toNativeUtf8();
+    final nativeExpiration = expiration.value.toInt();
+
+    final recvPort = ReceivePort("routing_context_watch_dht_values");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextWatchDHTValues(sendPort.nativePort, _ctx.id,
+        nativeKey, nativeSubkeys, nativeExpiration, count);
+    final actualExpiration = Timestamp(
+        value: BigInt.from(await processFuturePlain<int>(recvPort.first)));
+    return actualExpiration;
+  }
+
+  @override
+  Future<bool> cancelDHTWatch(TypedKey key, ValueSubkeyRange subkeys) async {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSubkeys = jsonEncode(subkeys).toNativeUtf8();
+
+    final recvPort = ReceivePort("routing_context_cancel_dht_watch");
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextCancelDHTWatch(
+        sendPort.nativePort, _ctx.id, nativeKey, nativeSubkeys);
+    final cancelled = await processFuturePlain<bool>(recvPort.first);
+    return cancelled;
   }
 }
 
@@ -461,7 +751,7 @@ class _TDBT {
 class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
   final _TDBT _tdbt;
   static final Finalizer<_TDBT> _finalizer =
-      Finalizer((tdbt) => {tdbt.ffi._releaseTableDbTransaction(tdbt.id)});
+      Finalizer((tdbt) => tdbt.ffi._releaseTableDbTransaction(tdbt.id));
 
   VeilidTableDBTransactionFFI._(this._tdbt) {
     _finalizer.attach(this, _tdbt, detach: this);
@@ -532,7 +822,7 @@ class _TDB {
 class VeilidTableDBFFI extends VeilidTableDB {
   final _TDB _tdb;
   static final Finalizer<_TDB> _finalizer =
-      Finalizer((tdb) => {tdb.ffi._releaseTableDb(tdb.id)});
+      Finalizer((tdb) => tdb.ffi._releaseTableDb(tdb.id));
 
   VeilidTableDBFFI._(this._tdb) {
     _finalizer.attach(this, _tdb, detach: this);
@@ -544,15 +834,15 @@ class VeilidTableDBFFI extends VeilidTableDB {
   }
 
   @override
-  List<Uint8List> getKeys(int col) {
-    final s = _tdb.ffi._tableDbGetKeys(_tdb.id, col);
-    if (s.address == nullptr.address) {
-      throw VeilidAPIExceptionInternal("No db for id");
-    }
-    String ja = s.toDartString();
-    _tdb.ffi._freeString(s);
-    List<dynamic> jarr = jsonDecode(ja);
-    return jarr.map((e) => base64UrlNoPadDecode(e)).toList();
+  Future<List<Uint8List>> getKeys(int col) {
+    final recvPort = ReceivePort("veilid_table_db_get_keys");
+    final sendPort = recvPort.sendPort;
+
+    _tdb.ffi._tableDbGetKeys(sendPort.nativePort, _tdb.id, col);
+
+    return processFutureJson(
+        jsonListConstructor<Uint8List>(base64UrlNoPadDecodeDynamic),
+        recvPort.first);
   }
 
   @override
@@ -598,18 +888,263 @@ class VeilidTableDBFFI extends VeilidTableDB {
   }
 
   @override
-  Future<bool> delete(int col, Uint8List key) {
+  Future<Uint8List?> delete(int col, Uint8List key) {
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_delete");
     final sendPort = recvPort.sendPort;
-    _tdb.ffi._tableDbLoad(
+    _tdb.ffi._tableDbDelete(
       sendPort.nativePort,
       _tdb.id,
       col,
       nativeEncodedKey,
     );
     return processFuturePlain(recvPort.first);
+  }
+}
+
+// FFI implementation of VeilidCryptoSystem
+class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
+  final CryptoKind _kind;
+  final VeilidFFI _ffi;
+
+  VeilidCryptoSystemFFI._(this._ffi, this._kind);
+
+  @override
+  CryptoKind kind() {
+    return _kind;
+  }
+
+  @override
+  Future<SharedSecret> cachedDH(PublicKey key, SecretKey secret) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_cached_dh");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoCachedDH(sendPort.nativePort, _kind, nativeKey, nativeSecret);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<SharedSecret> computeDH(PublicKey key, SecretKey secret) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_compute_dh");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoComputeDH(sendPort.nativePort, _kind, nativeKey, nativeSecret);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<Uint8List> randomBytes(int len) async {
+    final recvPort = ReceivePort("crypto_random_bytes");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoRandomBytes(sendPort.nativePort, _kind, len);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
+  }
+
+  @override
+  Future<int> defaultSaltLength() {
+    final recvPort = ReceivePort("crypto_default_salt_length");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoDefaultSaltLength(sendPort.nativePort, _kind);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<String> hashPassword(Uint8List password, Uint8List salt) {
+    final nativeEncodedPassword = base64UrlNoPadEncode(password).toNativeUtf8();
+    final nativeEncodedSalt = base64UrlNoPadEncode(salt).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_hash_password");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoHashPassword(
+        sendPort.nativePort, _kind, nativeEncodedPassword, nativeEncodedSalt);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<bool> verifyPassword(Uint8List password, String passwordHash) {
+    final nativeEncodedPassword = base64UrlNoPadEncode(password).toNativeUtf8();
+    final nativeEncodedPasswordHash = passwordHash.toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_verify_password");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoVerifyPassword(sendPort.nativePort, _kind,
+        nativeEncodedPassword, nativeEncodedPasswordHash);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<SharedSecret> deriveSharedSecret(Uint8List password, Uint8List salt) {
+    final nativeEncodedPassword = base64UrlNoPadEncode(password).toNativeUtf8();
+    final nativeEncodedSalt = base64UrlNoPadEncode(salt).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_derive_shared_secret");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoDeriveSharedSecret(
+        sendPort.nativePort, _kind, nativeEncodedPassword, nativeEncodedSalt);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<Nonce> randomNonce() {
+    final recvPort = ReceivePort("crypto_random_nonce");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoRandomNonce(sendPort.nativePort, _kind);
+    return processFutureJson(Nonce.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<SharedSecret> randomSharedSecret() {
+    final recvPort = ReceivePort("crypto_random_shared_secret");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoRandomSharedSecret(sendPort.nativePort, _kind);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<KeyPair> generateKeyPair() {
+    final recvPort = ReceivePort("crypto_generate_key_pair");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoGenerateKeyPair(sendPort.nativePort, _kind);
+    return processFutureJson(KeyPair.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<HashDigest> generateHash(Uint8List data) {
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_generate_hash");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoGenerateHash(sendPort.nativePort, _kind, nativeEncodedData);
+    return processFutureJson(HashDigest.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<bool> validateKeyPair(PublicKey key, SecretKey secret) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_validate_key_pair");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoValidateKeyPair(
+        sendPort.nativePort, _kind, nativeKey, nativeSecret);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<bool> validateHash(Uint8List data, HashDigest hash) {
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeHash = jsonEncode(hash).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_validate_hash");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoValidateHash(
+        sendPort.nativePort, _kind, nativeEncodedData, nativeHash);
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2) {
+    final nativeKey1 = jsonEncode(key1).toNativeUtf8();
+    final nativeKey2 = jsonEncode(key2).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_distance");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoDistance(sendPort.nativePort, _kind, nativeKey1, nativeKey2);
+    return processFutureJson(CryptoKeyDistance.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<Signature> sign(PublicKey key, SecretKey secret, Uint8List data) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_sign");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoSign(
+        sendPort.nativePort, _kind, nativeKey, nativeSecret, nativeEncodedData);
+    return processFutureJson(Signature.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<void> verify(PublicKey key, Uint8List data, Signature signature) {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeSignature = jsonEncode(signature).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_verify");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoVerify(sendPort.nativePort, _kind, nativeKey, nativeEncodedData,
+        nativeSignature);
+    return processFutureVoid(recvPort.first);
+  }
+
+  @override
+  Future<int> aeadOverhead() {
+    final recvPort = ReceivePort("crypto_aead_overhead");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoAeadOverhead(
+      sendPort.nativePort,
+      _kind,
+    );
+    return processFuturePlain(recvPort.first);
+  }
+
+  @override
+  Future<Uint8List> decryptAead(Uint8List body, Nonce nonce,
+      SharedSecret sharedSecret, Uint8List? associatedData) async {
+    final nativeEncodedBody = base64UrlNoPadEncode(body).toNativeUtf8();
+    final nativeNonce = jsonEncode(nonce).toNativeUtf8();
+    final nativeSharedSecret = jsonEncode(sharedSecret).toNativeUtf8();
+    final nativeSignature = (associatedData != null)
+        ? jsonEncode(associatedData).toNativeUtf8()
+        : nullptr;
+
+    final recvPort = ReceivePort("crypto_decrypt_aead");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoDecryptAead(sendPort.nativePort, _kind, nativeEncodedBody,
+        nativeNonce, nativeSharedSecret, nativeSignature);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
+  }
+
+  @override
+  Future<Uint8List> encryptAead(Uint8List body, Nonce nonce,
+      SharedSecret sharedSecret, Uint8List? associatedData) async {
+    final nativeEncodedBody = base64UrlNoPadEncode(body).toNativeUtf8();
+    final nativeNonce = jsonEncode(nonce).toNativeUtf8();
+    final nativeSharedSecret = jsonEncode(sharedSecret).toNativeUtf8();
+    final nativeSignature = (associatedData != null)
+        ? jsonEncode(associatedData).toNativeUtf8()
+        : nullptr;
+
+    final recvPort = ReceivePort("crypto_encrypt_aead");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoEncryptAead(sendPort.nativePort, _kind, nativeEncodedBody,
+        nativeNonce, nativeSharedSecret, nativeSignature);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
+  }
+
+  @override
+  Future<Uint8List> cryptNoAuth(
+      Uint8List body, Nonce nonce, SharedSecret sharedSecret) async {
+    final nativeEncodedBody = base64UrlNoPadEncode(body).toNativeUtf8();
+    final nativeNonce = jsonEncode(nonce).toNativeUtf8();
+    final nativeSharedSecret = jsonEncode(sharedSecret).toNativeUtf8();
+
+    final recvPort = ReceivePort("crypto_crypt_no_auth");
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoCryptNoAuth(sendPort.nativePort, _kind, nativeEncodedBody,
+        nativeNonce, nativeSharedSecret);
+    final out = await processFuturePlain(recvPort.first);
+    return base64UrlNoPadDecode(out);
   }
 }
 
@@ -635,6 +1170,14 @@ class VeilidFFI implements Veilid {
   final _RoutingContextWithSequencingDart _routingContextWithSequencing;
   final _RoutingContextAppCallDart _routingContextAppCall;
   final _RoutingContextAppMessageDart _routingContextAppMessage;
+  final _RoutingContextCreateDHTRecordDart _routingContextCreateDHTRecord;
+  final _RoutingContextOpenDHTRecordDart _routingContextOpenDHTRecord;
+  final _RoutingContextCloseDHTRecordDart _routingContextCloseDHTRecord;
+  final _RoutingContextDeleteDHTRecordDart _routingContextDeleteDHTRecord;
+  final _RoutingContextGetDHTValueDart _routingContextGetDHTValue;
+  final _RoutingContextSetDHTValueDart _routingContextSetDHTValue;
+  final _RoutingContextWatchDHTValuesDart _routingContextWatchDHTValues;
+  final _RoutingContextCancelDHTWatchDart _routingContextCancelDHTWatch;
 
   final _NewPrivateRouteDart _newPrivateRoute;
   final _NewCustomPrivateRouteDart _newCustomPrivateRoute;
@@ -658,6 +1201,36 @@ class VeilidFFI implements Veilid {
   final _TableDbTransactionStoreDart _tableDbTransactionStore;
   final _TableDbTransactionDeleteDart _tableDbTransactionDelete;
 
+  final _ValidCryptoKindsDart _validCryptoKinds;
+  final _BestCryptoKindDart _bestCryptoKind;
+  final _VerifySignaturesDart _verifySignatures;
+  final _GenerateSignaturesDart _generateSignatures;
+  final _GenerateKeyPairDart _generateKeyPair;
+
+  final _CryptoCachedDHDart _cryptoCachedDH;
+  final _CryptoComputeDHDart _cryptoComputeDH;
+
+  final _CryptoRandomBytesDart _cryptoRandomBytes;
+  final _CryptoDefaultSaltLengthDart _cryptoDefaultSaltLength;
+  final _CryptoHashPasswordDart _cryptoHashPassword;
+  final _CryptoVerifyPasswordDart _cryptoVerifyPassword;
+  final _CryptoDeriveSharedSecretDart _cryptoDeriveSharedSecret;
+
+  final _CryptoRandomNonceDart _cryptoRandomNonce;
+  final _CryptoRandomSharedSecretDart _cryptoRandomSharedSecret;
+  final _CryptoGenerateKeyPairDart _cryptoGenerateKeyPair;
+  final _CryptoGenerateHashDart _cryptoGenerateHash;
+  final _CryptoValidateKeyPairDart _cryptoValidateKeyPair;
+  final _CryptoValidateHashDart _cryptoValidateHash;
+  final _CryptoDistanceDart _cryptoDistance;
+  final _CryptoSignDart _cryptoSign;
+  final _CryptoVerifyDart _cryptoVerify;
+  final _CryptoAeadOverheadDart _cryptoAeadOverhead;
+  final _CryptoDecryptAeadDart _cryptoDecryptAead;
+  final _CryptoEncryptAeadDart _cryptoEncryptAead;
+  final _CryptoCryptNoAuthDart _cryptoCryptNoAuth;
+
+  final _NowDart _now;
   final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
   final _VeilidVersionDart _veilidVersion;
@@ -703,6 +1276,36 @@ class VeilidFFI implements Veilid {
         _routingContextAppMessage = dylib.lookupFunction<
             _RoutingContextAppMessageC,
             _RoutingContextAppMessageDart>('routing_context_app_message'),
+        _routingContextCreateDHTRecord = dylib.lookupFunction<
+                _RoutingContextCreateDHTRecordC,
+                _RoutingContextCreateDHTRecordDart>(
+            'routing_context_create_dht_record'),
+        _routingContextOpenDHTRecord = dylib.lookupFunction<
+                _RoutingContextOpenDHTRecordC,
+                _RoutingContextOpenDHTRecordDart>(
+            'routing_context_open_dht_record'),
+        _routingContextCloseDHTRecord = dylib.lookupFunction<
+                _RoutingContextCloseDHTRecordC,
+                _RoutingContextCloseDHTRecordDart>(
+            'routing_context_close_dht_record'),
+        _routingContextDeleteDHTRecord = dylib.lookupFunction<
+                _RoutingContextDeleteDHTRecordC,
+                _RoutingContextDeleteDHTRecordDart>(
+            'routing_context_delete_dht_record'),
+        _routingContextGetDHTValue = dylib.lookupFunction<
+            _RoutingContextGetDHTValueC,
+            _RoutingContextGetDHTValueDart>('routing_context_get_dht_value'),
+        _routingContextSetDHTValue = dylib.lookupFunction<
+            _RoutingContextSetDHTValueC,
+            _RoutingContextSetDHTValueDart>('routing_context_set_dht_value'),
+        _routingContextWatchDHTValues = dylib.lookupFunction<
+                _RoutingContextWatchDHTValuesC,
+                _RoutingContextWatchDHTValuesDart>(
+            'routing_context_watch_dht_values'),
+        _routingContextCancelDHTWatch = dylib.lookupFunction<
+                _RoutingContextCancelDHTWatchC,
+                _RoutingContextCancelDHTWatchDart>(
+            'routing_context_cancel_dht_watch'),
         _newPrivateRoute =
             dylib.lookupFunction<_NewPrivateRouteC, _NewPrivateRouteDart>(
                 'new_private_route'),
@@ -753,6 +1356,77 @@ class VeilidFFI implements Veilid {
         _tableDbTransactionDelete = dylib.lookupFunction<
             _TableDbTransactionDeleteC,
             _TableDbTransactionDeleteDart>('table_db_transaction_delete'),
+        _validCryptoKinds =
+            dylib.lookupFunction<_ValidCryptoKindsC, _ValidCryptoKindsDart>(
+                'valid_crypto_kinds'),
+        _bestCryptoKind =
+            dylib.lookupFunction<_BestCryptoKindC, _BestCryptoKindDart>(
+                'best_crypto_kind'),
+        _verifySignatures =
+            dylib.lookupFunction<_VerifySignaturesC, _VerifySignaturesDart>(
+                'verify_signatures'),
+        _generateSignatures =
+            dylib.lookupFunction<_GenerateSignaturesC, _GenerateSignaturesDart>(
+                'generate_signatures'),
+        _generateKeyPair =
+            dylib.lookupFunction<_GenerateKeyPairC, _GenerateKeyPairDart>(
+                'generate_key_pair'),
+        _cryptoCachedDH =
+            dylib.lookupFunction<_CryptoCachedDHC, _CryptoCachedDHDart>(
+                'crypto_cached_dh'),
+        _cryptoComputeDH =
+            dylib.lookupFunction<_CryptoComputeDHC, _CryptoComputeDHDart>(
+                'crypto_compute_dh'),
+        _cryptoRandomBytes =
+            dylib.lookupFunction<_CryptoRandomBytesC, _CryptoRandomBytesDart>(
+                'crypto_random_bytes'),
+        _cryptoDefaultSaltLength = dylib.lookupFunction<
+            _CryptoDefaultSaltLengthC,
+            _CryptoDefaultSaltLengthDart>('crypto_default_salt_length'),
+        _cryptoHashPassword =
+            dylib.lookupFunction<_CryptoHashPasswordC, _CryptoHashPasswordDart>(
+                'crypto_hash_password'),
+        _cryptoVerifyPassword = dylib.lookupFunction<_CryptoVerifyPasswordC,
+            _CryptoVerifyPasswordDart>('crypto_verify_password'),
+        _cryptoDeriveSharedSecret = dylib.lookupFunction<
+            _CryptoDeriveSharedSecretC,
+            _CryptoVerifyPasswordDart>('crypto_derive_shared_secret'),
+        _cryptoRandomNonce =
+            dylib.lookupFunction<_CryptoRandomNonceC, _CryptoRandomNonceDart>(
+                'crypto_random_nonce'),
+        _cryptoRandomSharedSecret = dylib.lookupFunction<
+            _CryptoRandomSharedSecretC,
+            _CryptoRandomSharedSecretDart>('crypto_random_shared_secret'),
+        _cryptoGenerateKeyPair = dylib.lookupFunction<_CryptoGenerateKeyPairC,
+            _CryptoGenerateKeyPairDart>('crypto_generate_key_pair'),
+        _cryptoGenerateHash =
+            dylib.lookupFunction<_CryptoGenerateHashC, _CryptoGenerateHashDart>(
+                'crypto_generate_hash'),
+        _cryptoValidateKeyPair = dylib.lookupFunction<_CryptoValidateKeyPairC,
+            _CryptoValidateKeyPairDart>('crypto_validate_key_pair'),
+        _cryptoValidateHash =
+            dylib.lookupFunction<_CryptoValidateHashC, _CryptoValidateHashDart>(
+                'crypto_validate_hash'),
+        _cryptoDistance =
+            dylib.lookupFunction<_CryptoDistanceC, _CryptoDistanceDart>(
+                'crypto_distance'),
+        _cryptoSign =
+            dylib.lookupFunction<_CryptoSignC, _CryptoSignDart>('crypto_sign'),
+        _cryptoVerify = dylib
+            .lookupFunction<_CryptoVerifyC, _CryptoVerifyDart>('crypto_verify'),
+        _cryptoAeadOverhead =
+            dylib.lookupFunction<_CryptoAeadOverheadC, _CryptoAeadOverheadDart>(
+                'crypto_aead_overhead'),
+        _cryptoDecryptAead =
+            dylib.lookupFunction<_CryptoDecryptAeadC, _CryptoDecryptAeadDart>(
+                'crypto_decrypt_aead'),
+        _cryptoEncryptAead =
+            dylib.lookupFunction<_CryptoEncryptAeadC, _CryptoEncryptAeadDart>(
+                'crypto_encrypt_aead'),
+        _cryptoCryptNoAuth =
+            dylib.lookupFunction<_CryptoCryptNoAuthC, _CryptoCryptNoAuthDart>(
+                'crypto_crypt_no_auth'),
+        _now = dylib.lookupFunction<_NowC, _NowDart>('now'),
         _debug = dylib.lookupFunction<_DebugC, _DebugDart>('debug'),
         _veilidVersionString = dylib.lookupFunction<_VeilidVersionStringC,
             _VeilidVersionStringDart>('veilid_version_string'),
@@ -768,9 +1442,7 @@ class VeilidFFI implements Veilid {
 
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
-    var nativePlatformConfig =
-        jsonEncode(platformConfigJson, toEncodable: veilidApiToEncodable)
-            .toNativeUtf8();
+    var nativePlatformConfig = jsonEncode(platformConfigJson).toNativeUtf8();
 
     _initializeVeilidCore(nativePlatformConfig);
 
@@ -779,9 +1451,7 @@ class VeilidFFI implements Veilid {
 
   @override
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel) {
-    var nativeLogLevel =
-        jsonEncode(logLevel.json, toEncodable: veilidApiToEncodable)
-            .toNativeUtf8();
+    var nativeLogLevel = jsonEncode(logLevel).toNativeUtf8();
     var nativeLayer = layer.toNativeUtf8();
     _changeLogLevel(nativeLayer, nativeLogLevel);
     malloc.free(nativeLayer);
@@ -790,9 +1460,7 @@ class VeilidFFI implements Veilid {
 
   @override
   Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config) {
-    var nativeConfig =
-        jsonEncode(config.json, toEncodable: veilidApiToEncodable)
-            .toNativeUtf8();
+    var nativeConfig = jsonEncode(config).toNativeUtf8();
     final recvStreamPort = ReceivePort("veilid_api_stream");
     final sendStreamPort = recvStreamPort.sendPort;
     final recvPort = ReceivePort("startup_veilid_core");
@@ -856,14 +1524,15 @@ class VeilidFFI implements Veilid {
 
   @override
   Future<RouteBlob> newCustomPrivateRoute(
-      Stability stability, Sequencing sequencing) async {
+      Stability stability, Sequencing sequencing) {
     final recvPort = ReceivePort("new_custom_private_route");
     final sendPort = recvPort.sendPort;
-    _newCustomPrivateRoute(sendPort.nativePort, stability.json.toNativeUtf8(),
-        sequencing.json.toNativeUtf8());
-    final routeBlob =
-        await processFutureJson(RouteBlob.fromJson, recvPort.first);
-    return routeBlob;
+    _newCustomPrivateRoute(
+        sendPort.nativePort,
+        jsonEncode(stability).toNativeUtf8(),
+        jsonEncode(sequencing).toNativeUtf8());
+
+    return processFutureJson(RouteBlob.fromJson, recvPort.first);
   }
 
   @override
@@ -912,6 +1581,70 @@ class VeilidFFI implements Veilid {
     _deleteTableDb(sendPort.nativePort, name.toNativeUtf8());
     final deleted = await processFuturePlain(recvPort.first);
     return deleted;
+  }
+
+  @override
+  List<CryptoKind> validCryptoKinds() {
+    final vckString = _validCryptoKinds();
+    final vck = jsonDecode(vckString.toDartString());
+    _freeString(vckString);
+    return vck;
+  }
+
+  @override
+  Future<VeilidCryptoSystem> getCryptoSystem(CryptoKind kind) async {
+    if (!validCryptoKinds().contains(kind)) {
+      throw VeilidAPIExceptionGeneric("unsupported cryptosystem");
+    }
+    return VeilidCryptoSystemFFI._(this, kind);
+  }
+
+  @override
+  Future<VeilidCryptoSystem> bestCryptoSystem() async {
+    return VeilidCryptoSystemFFI._(this, _bestCryptoKind());
+  }
+
+  @override
+  Future<List<TypedKey>> verifySignatures(
+      List<TypedKey> nodeIds, Uint8List data, List<TypedSignature> signatures) {
+    final nativeNodeIds = jsonEncode(nodeIds).toNativeUtf8();
+    final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeSignatures = jsonEncode(signatures).toNativeUtf8();
+
+    final recvPort = ReceivePort("verify_signatures");
+    final sendPort = recvPort.sendPort;
+    _verifySignatures(
+        sendPort.nativePort, nativeNodeIds, nativeData, nativeSignatures);
+    return processFutureJson(
+        jsonListConstructor<TypedKey>(TypedKey.fromJson), recvPort.first);
+  }
+
+  @override
+  Future<List<TypedSignature>> generateSignatures(
+      Uint8List data, List<TypedKeyPair> keyPairs) {
+    final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeKeyPairs = jsonEncode(keyPairs).toNativeUtf8();
+
+    final recvPort = ReceivePort("generate_signatures");
+    final sendPort = recvPort.sendPort;
+    _generateSignatures(sendPort.nativePort, nativeData, nativeKeyPairs);
+    return processFutureJson(
+        jsonListConstructor<TypedSignature>(TypedSignature.fromJson),
+        recvPort.first);
+  }
+
+  @override
+  Timestamp now() {
+    final ts = _now();
+    return Timestamp(value: BigInt.from(ts));
+  }
+
+  @override
+  Future<TypedKeyPair> generateKeyPair(CryptoKind kind) {
+    final recvPort = ReceivePort("generate_key_pair");
+    final sendPort = recvPort.sendPort;
+    _generateKeyPair(sendPort.nativePort, kind);
+    return processFutureJson(TypedKeyPair.fromJson, recvPort.first);
   }
 
   @override

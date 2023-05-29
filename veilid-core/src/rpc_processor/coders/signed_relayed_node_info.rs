@@ -6,16 +6,16 @@ pub fn encode_signed_relayed_node_info(
 ) -> Result<(), RPCError> {
     //
     let mut ni_builder = builder.reborrow().init_node_info();
-    encode_node_info(&signed_relayed_node_info.node_info, &mut ni_builder)?;
+    encode_node_info(signed_relayed_node_info.node_info(), &mut ni_builder)?;
 
     let mut rids_builder = builder.reborrow().init_relay_ids(
         signed_relayed_node_info
-            .relay_ids
+            .relay_ids()
             .len()
             .try_into()
             .map_err(RPCError::map_invalid_format("out of bound error"))?,
     );
-    for (i, typed_key) in signed_relayed_node_info.relay_ids.iter().enumerate() {
+    for (i, typed_key) in signed_relayed_node_info.relay_ids().iter().enumerate() {
         encode_typed_key(
             typed_key,
             &mut rids_builder.reborrow().get(
@@ -26,20 +26,20 @@ pub fn encode_signed_relayed_node_info(
     }
 
     let mut ri_builder = builder.reborrow().init_relay_info();
-    encode_signed_direct_node_info(&signed_relayed_node_info.relay_info, &mut ri_builder)?;
+    encode_signed_direct_node_info(signed_relayed_node_info.relay_info(), &mut ri_builder)?;
 
     builder
         .reborrow()
-        .set_timestamp(signed_relayed_node_info.timestamp.into());
+        .set_timestamp(signed_relayed_node_info.timestamp().into());
 
     let mut sigs_builder = builder.reborrow().init_signatures(
         signed_relayed_node_info
-            .signatures
+            .signatures()
             .len()
             .try_into()
             .map_err(RPCError::map_invalid_format("out of bound error"))?,
     );
-    for (i, typed_signature) in signed_relayed_node_info.signatures.iter().enumerate() {
+    for (i, typed_signature) in signed_relayed_node_info.signatures().iter().enumerate() {
         encode_typed_signature(
             typed_signature,
             &mut sigs_builder.reborrow().get(
@@ -54,8 +54,6 @@ pub fn encode_signed_relayed_node_info(
 
 pub fn decode_signed_relayed_node_info(
     reader: &veilid_capnp::signed_relayed_node_info::Reader,
-    crypto: Crypto,
-    node_ids: &mut TypedKeySet,
 ) -> Result<SignedRelayedNodeInfo, RPCError> {
     let ni_reader = reader
         .reborrow()
@@ -81,20 +79,7 @@ pub fn decode_signed_relayed_node_info(
         .reborrow()
         .get_relay_info()
         .map_err(RPCError::protocol)?;
-    let relay_info = decode_signed_direct_node_info(&ri_reader, crypto.clone(), &mut relay_ids)?;
-
-    // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
-    if common_crypto_kinds(
-        &node_info.crypto_support,
-        &relay_info.node_info.crypto_support,
-    )
-    .len()
-        != node_info.crypto_support.len()
-    {
-        return Err(RPCError::protocol(
-            "relay should have superset of node crypto kinds",
-        ));
-    }
+    let relay_info = decode_signed_direct_node_info(&ri_reader)?;
 
     let timestamp = reader.reborrow().get_timestamp().into();
 
@@ -113,14 +98,11 @@ pub fn decode_signed_relayed_node_info(
         let typed_signature = decode_typed_signature(&sig_reader)?;
         typed_signatures.push(typed_signature);
     }
-    SignedRelayedNodeInfo::new(
-        crypto,
-        node_ids,
+    Ok(SignedRelayedNodeInfo::new(
         node_info,
         relay_ids,
         relay_info,
         timestamp,
         typed_signatures,
-    )
-    .map_err(RPCError::protocol)
+    ))
 }

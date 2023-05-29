@@ -1,7 +1,6 @@
-use crate::*;
+use super::*;
 use data_encoding::BASE64URL_NOPAD;
 use keyring_manager::*;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use std::path::Path;
 
 pub struct ProtectedStoreInner {
@@ -30,18 +29,12 @@ impl ProtectedStore {
 
     #[instrument(level = "trace", skip(self), err)]
     pub async fn delete_all(&self) -> EyreResult<()> {
-        // Delete all known keys
-        if self.remove_user_secret("node_id").await? {
-            debug!("deleted protected_store key 'node_id'");
-        }
-        if self.remove_user_secret("node_id_secret").await? {
-            debug!("deleted protected_store key 'node_id_secret'");
-        }
-        if self.remove_user_secret("_test_key").await? {
-            debug!("deleted protected_store key '_test_key'");
-        }
-        if self.remove_user_secret("RouteSpecStore").await? {
-            debug!("deleted protected_store key 'RouteSpecStore'");
+        for kpsk in &KNOWN_PROTECTED_STORE_KEYS {
+            if let Err(e) = self.remove_user_secret(kpsk).await {
+                error!("failed to delete '{}': {}", kpsk, e);
+            } else {
+                debug!("deleted table '{}'", kpsk);
+            }
         }
         Ok(())
     }
@@ -65,9 +58,8 @@ impl ProtectedStore {
                 || c.protected_store.allow_insecure_fallback)
                 && inner.keyring_manager.is_none()
             {
-                let insecure_fallback_directory =
-                    Path::new(&c.protected_store.insecure_fallback_directory);
-                let insecure_keyring_file = insecure_fallback_directory.to_owned().join(format!(
+                let directory = Path::new(&c.protected_store.directory);
+                let insecure_keyring_file = directory.to_owned().join(format!(
                     "insecure_keyring{}",
                     if c.namespace.is_empty() {
                         "".to_owned()
@@ -153,7 +145,7 @@ impl ProtectedStore {
     pub async fn save_user_secret_rkyv<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
     where
         K: AsRef<str> + fmt::Debug,
-        T: RkyvSerialize<rkyv::ser::serializers::AllocSerializer<1024>>,
+        T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
         let v = to_rkyv(value)?;
         self.save_user_secret(key, &v).await
@@ -175,9 +167,8 @@ impl ProtectedStore {
         K: AsRef<str> + fmt::Debug,
         T: RkyvArchive,
         <T as RkyvArchive>::Archived:
-            for<'t> bytecheck::CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
-        <T as RkyvArchive>::Archived:
-            RkyvDeserialize<T, rkyv::de::deserializers::SharedDeserializeMap>,
+            for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
+        <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
     {
         let out = self.load_user_secret(key).await?;
         let b = match out {

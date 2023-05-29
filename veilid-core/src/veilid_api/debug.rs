@@ -3,6 +3,7 @@
 
 use super::*;
 use data_encoding::BASE64URL_NOPAD;
+use network_manager::*;
 use routing_table::*;
 
 #[derive(Default, Debug)]
@@ -304,7 +305,7 @@ fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     context: &str,
     argument: &str,
     getter: G,
-) -> Result<T, VeilidAPIError> {
+) -> VeilidAPIResult<T> {
     let Some(val) = getter(value) else {
         apibail_invalid_argument!(context, argument, value);
     };
@@ -316,7 +317,7 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     context: &str,
     argument: &str,
     getter: G,
-) -> Result<T, VeilidAPIError> {
+) -> VeilidAPIResult<T> {
     if pos >= debug_args.len() {
         apibail_missing_argument!(context, argument);
     }
@@ -328,7 +329,7 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
 }
 
 impl VeilidAPI {
-    async fn debug_buckets(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_buckets(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let mut min_state = BucketEntryState::Unreliable;
         if args.len() == 1 {
@@ -344,19 +345,19 @@ impl VeilidAPI {
         Ok(routing_table.debug_info_buckets(min_state))
     }
 
-    async fn debug_dialinfo(&self, _args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_dialinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table dialinfo
         let routing_table = self.network_manager()?.routing_table();
         Ok(routing_table.debug_info_dialinfo())
     }
 
-    async fn debug_txtrecord(&self, _args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_txtrecord(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table txt record
         let routing_table = self.network_manager()?.routing_table();
         Ok(routing_table.debug_info_txtrecord().await)
     }
 
-    async fn debug_entries(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_entries(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let mut min_state = BucketEntryState::Unreliable;
@@ -373,7 +374,7 @@ impl VeilidAPI {
         Ok(routing_table.debug_info_entries(min_state))
     }
 
-    async fn debug_entry(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_entry(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let routing_table = self.network_manager()?.routing_table();
 
@@ -390,13 +391,13 @@ impl VeilidAPI {
         Ok(routing_table.debug_info_entry(node_ref))
     }
 
-    async fn debug_nodeinfo(&self, _args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
         Ok(routing_table.debug_info_nodeinfo())
     }
 
-    async fn debug_config(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_config(&self, args: String) -> VeilidAPIResult<String> {
         let config = self.config()?;
         let args = args.trim_start();
         if args.is_empty() {
@@ -425,7 +426,7 @@ impl VeilidAPI {
         Ok("Config value set".to_owned())
     }
 
-    async fn debug_restart(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_restart(&self, args: String) -> VeilidAPIResult<String> {
         let args = args.trim_start();
         if args.is_empty() {
             apibail_missing_argument!("debug_restart", "arg_0");
@@ -451,7 +452,7 @@ impl VeilidAPI {
         }
     }
 
-    async fn debug_purge(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_purge(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         if !args.is_empty() {
             if args[0] == "buckets" {
@@ -503,7 +504,7 @@ impl VeilidAPI {
         }
     }
 
-    async fn debug_attach(&self, _args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_attach(&self, _args: String) -> VeilidAPIResult<String> {
         if !matches!(
             self.get_state().await?.attachment.state,
             AttachmentState::Detached
@@ -516,7 +517,7 @@ impl VeilidAPI {
         Ok("Attached".to_owned())
     }
 
-    async fn debug_detach(&self, _args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_detach(&self, _args: String) -> VeilidAPIResult<String> {
         if matches!(
             self.get_state().await?.attachment.state,
             AttachmentState::Detaching
@@ -529,7 +530,7 @@ impl VeilidAPI {
         Ok("Detached".to_owned())
     }
 
-    async fn debug_contact(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_contact(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let network_manager = self.network_manager()?;
@@ -550,7 +551,7 @@ impl VeilidAPI {
         Ok(format!("{:#?}", cm))
     }
 
-    async fn debug_ping(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_ping(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
         let rpc = netman.rpc_processor();
@@ -592,7 +593,7 @@ impl VeilidAPI {
         Ok(format!("{:#?}", out))
     }
 
-    async fn debug_route_allocate(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_allocate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // [ord|*ord] [rel] [<count>] [in|out] [avoid_node_id]
 
         let netman = self.network_manager()?;
@@ -651,7 +652,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_release(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_release(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -683,7 +684,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_publish(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_publish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id> [full]
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -735,7 +736,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_unpublish(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_unpublish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -757,7 +758,7 @@ impl VeilidAPI {
         };
         Ok(out)
     }
-    async fn debug_route_print(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_print(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -776,7 +777,7 @@ impl VeilidAPI {
             None => Ok("Route does not exist".to_owned()),
         }
     }
-    async fn debug_route_list(&self, _args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -799,7 +800,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_import(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_import(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <blob>
 
         let blob = get_debug_argument_at(&args, 1, "debug_route", "blob", get_string)?;
@@ -819,7 +820,7 @@ impl VeilidAPI {
         return Ok(out);
     }
 
-    async fn debug_route_test(&self, args: Vec<String>) -> Result<String, VeilidAPIError> {
+    async fn debug_route_test(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -847,7 +848,7 @@ impl VeilidAPI {
         return Ok(out);
     }
 
-    async fn debug_route(&self, args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_route(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let command = get_debug_argument_at(&args, 0, "debug_route", "command", get_string)?;
@@ -873,7 +874,40 @@ impl VeilidAPI {
         }
     }
 
-    pub async fn debug_help(&self, _args: String) -> Result<String, VeilidAPIError> {
+    async fn debug_record_list(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        // <local|remote>
+        let storage_manager = self.storage_manager()?;
+
+        let scope = get_debug_argument_at(&args, 1, "debug_record_list", "scope", get_string)?;
+        let out = match scope.as_str() {
+            "local" => {
+                let mut out = format!("Local Records:\n");
+                out += &storage_manager.debug_local_records().await;
+                out
+            }
+            "remote" => {
+                let mut out = format!("Remote Records:\n");
+                out += &storage_manager.debug_remote_records().await;
+                out
+            }
+            _ => "Invalid scope\n".to_owned(),
+        };
+        return Ok(out);
+    }
+
+    async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+
+        let command = get_debug_argument_at(&args, 0, "debug_record", "command", get_string)?;
+
+        if command == "list" {
+            self.debug_record_list(args).await
+        } else {
+            Ok(">>> Unknown command\n".to_owned())
+        }
+    }
+
+    pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
         Ok(r#">>> Debug commands:
         help
         buckets [dead|reliable]
@@ -896,6 +930,7 @@ impl VeilidAPI {
               list
               import <blob>
               test <route>
+        record list <local|remote> 
 
         <destination> is:
          * direct:  <node>[+<safety>][<modifiers>]
@@ -912,7 +947,7 @@ impl VeilidAPI {
         .to_owned())
     }
 
-    pub async fn debug(&self, args: String) -> Result<String, VeilidAPIError> {
+    pub async fn debug(&self, args: String) -> VeilidAPIResult<String> {
         let res = {
             let args = args.trim_start();
             if args.is_empty() {
@@ -952,6 +987,8 @@ impl VeilidAPI {
                 self.debug_restart(rest).await
             } else if arg == "route" {
                 self.debug_route(rest).await
+            } else if arg == "record" {
+                self.debug_record(rest).await
             } else {
                 Err(VeilidAPIError::generic("Unknown debug command"))
             }

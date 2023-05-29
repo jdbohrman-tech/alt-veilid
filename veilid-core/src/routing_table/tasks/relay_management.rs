@@ -13,8 +13,8 @@ impl RoutingTable {
         let Some(own_peer_info) = self.get_own_peer_info(RoutingDomain::PublicInternet) else {
             return Ok(());
         };
-        let own_node_info = own_peer_info.signed_node_info.node_info();
-        let network_class = own_node_info.network_class;
+        let own_node_info = own_peer_info.signed_node_info().node_info();
+        let network_class = own_node_info.network_class();
 
         // Get routing domain editor
         let mut editor = self.edit_routing_domain(RoutingDomain::PublicInternet);

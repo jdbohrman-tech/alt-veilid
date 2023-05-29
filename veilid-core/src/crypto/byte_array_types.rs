@@ -7,22 +7,26 @@ use core::hash::Hash;
 
 use data_encoding::BASE64URL_NOPAD;
 
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-
 //////////////////////////////////////////////////////////////////////
 
-/// Length of a public key in bytes
+/// Length of a crypto key in bytes
 #[allow(dead_code)]
-pub const PUBLIC_KEY_LENGTH: usize = 32;
-/// Length of a public key in bytes after encoding to base64url
+pub const CRYPTO_KEY_LENGTH: usize = 32;
+/// Length of a crypto key in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const PUBLIC_KEY_LENGTH_ENCODED: usize = 43;
+pub const CRYPTO_KEY_LENGTH_ENCODED: usize = 43;
+/// Length of a crypto key in bytes
+#[allow(dead_code)]
+pub const PUBLIC_KEY_LENGTH: usize = CRYPTO_KEY_LENGTH;
+/// Length of a crypto key in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const PUBLIC_KEY_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a secret key in bytes
 #[allow(dead_code)]
-pub const SECRET_KEY_LENGTH: usize = 32;
+pub const SECRET_KEY_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a secret key in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const SECRET_KEY_LENGTH_ENCODED: usize = 43;
+pub const SECRET_KEY_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a signature in bytes
 #[allow(dead_code)]
 pub const SIGNATURE_LENGTH: usize = 64;
@@ -37,16 +41,22 @@ pub const NONCE_LENGTH: usize = 24;
 pub const NONCE_LENGTH_ENCODED: usize = 32;
 /// Length of a shared secret in bytes
 #[allow(dead_code)]
-pub const SHARED_SECRET_LENGTH: usize = 32;
+pub const SHARED_SECRET_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a shared secret in bytes after encoding to base64url
 #[allow(dead_code)]
-pub const SHARED_SECRET_LENGTH_ENCODED: usize = 43;
+pub const SHARED_SECRET_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a route id in bytes
 #[allow(dead_code)]
-pub const ROUTE_ID_LENGTH: usize = 32;
+pub const ROUTE_ID_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a route id in bytes afer encoding to base64url
 #[allow(dead_code)]
-pub const ROUTE_ID_LENGTH_ENCODED: usize = 43;
+pub const ROUTE_ID_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
+/// Length of a hash digest in bytes
+#[allow(dead_code)]
+pub const HASH_DIGEST_LENGTH: usize = CRYPTO_KEY_LENGTH;
+/// Length of a hash digest in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const HASH_DIGEST_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -56,11 +66,11 @@ where
 {
     fn encode(&self) -> String;
     fn encoded_len() -> usize;
-    fn try_decode<S: AsRef<str>>(input: S) -> Result<Self, VeilidAPIError> {
+    fn try_decode<S: AsRef<str>>(input: S) -> VeilidAPIResult<Self> {
         let b = input.as_ref().as_bytes();
         Self::try_decode_bytes(b)
     }
-    fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError>;
+    fn try_decode_bytes(b: &[u8]) -> VeilidAPIResult<Self>;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -120,18 +130,6 @@ macro_rules! byte_array_type {
                 Self { bytes }
             }
 
-            pub fn try_from_vec(v: Vec<u8>) -> Result<Self, VeilidAPIError> {
-                let vl = v.len();
-                Ok(Self {
-                    bytes: v.try_into().map_err(|_| {
-                        VeilidAPIError::generic(format!(
-                            "Expected a Vec of length {} but it was {}",
-                            $size, vl
-                        ))
-                    })?,
-                })
-            }
-
             pub fn bit(&self, index: usize) -> bool {
                 assert!(index < ($size * 8));
                 let bi = index / 8;
@@ -182,7 +180,7 @@ macro_rules! byte_array_type {
             fn encoded_len() -> usize {
                 $encoded_size
             }
-            fn try_decode_bytes(b: &[u8]) -> Result<Self, VeilidAPIError> {
+            fn try_decode_bytes(b: &[u8]) -> VeilidAPIResult<Self> {
                 let mut bytes = [0u8; $size];
                 let res = BASE64URL_NOPAD.decode_len(b.len());
                 match res {
@@ -244,23 +242,47 @@ macro_rules! byte_array_type {
                 Self::try_decode(value)
             }
         }
+        impl TryFrom<&[u8]> for $name {
+            type Error = VeilidAPIError;
+            fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+                let vl = v.len();
+                Ok(Self {
+                    bytes: v.try_into().map_err(|_| {
+                        VeilidAPIError::generic(format!(
+                            "Expected a slice of length {} but it was {}",
+                            $size, vl
+                        ))
+                    })?,
+                })
+            }
+        }
+
+        impl core::ops::Deref for $name {
+            type Target = [u8; $size];
+
+            fn deref(&self) -> &Self::Target {
+                &self.bytes
+            }
+        }
+
+        impl core::ops::DerefMut for $name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.bytes
+            }
+        }
     };
 }
 
 /////////////////////////////////////////
 
-byte_array_type!(PublicKey, PUBLIC_KEY_LENGTH, PUBLIC_KEY_LENGTH_ENCODED);
-byte_array_type!(SecretKey, SECRET_KEY_LENGTH, SECRET_KEY_LENGTH_ENCODED);
+byte_array_type!(CryptoKey, CRYPTO_KEY_LENGTH, CRYPTO_KEY_LENGTH_ENCODED);
+
+pub type PublicKey = CryptoKey;
+pub type SecretKey = CryptoKey;
+pub type HashDigest = CryptoKey;
+pub type SharedSecret = CryptoKey;
+pub type RouteId = CryptoKey;
+pub type CryptoKeyDistance = CryptoKey;
+
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);
-byte_array_type!(
-    PublicKeyDistance,
-    PUBLIC_KEY_LENGTH,
-    PUBLIC_KEY_LENGTH_ENCODED
-);
 byte_array_type!(Nonce, NONCE_LENGTH, NONCE_LENGTH_ENCODED);
-byte_array_type!(
-    SharedSecret,
-    SHARED_SECRET_LENGTH,
-    SHARED_SECRET_LENGTH_ENCODED
-);
-byte_array_type!(RouteId, ROUTE_ID_LENGTH, ROUTE_ID_LENGTH_ENCODED);

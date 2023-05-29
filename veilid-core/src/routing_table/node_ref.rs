@@ -170,17 +170,17 @@ pub trait NodeRefBase: Sized {
     ) -> bool {
         self.operate(|_rti, e| e.has_seen_our_node_info_ts(routing_domain, our_node_info_ts))
     }
-    fn set_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
-        self.operate_mut(|_rti, e| e.set_our_node_info_ts(routing_domain, seen_ts));
+    fn set_seen_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
+        self.operate_mut(|_rti, e| e.set_seen_our_node_info_ts(routing_domain, seen_ts));
     }
     fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class))
+        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class()))
     }
     fn outbound_protocols(&self, routing_domain: RoutingDomain) -> Option<ProtocolTypeSet> {
-        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.outbound_protocols))
+        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.outbound_protocols()))
     }
     fn address_types(&self, routing_domain: RoutingDomain) -> Option<AddressTypeSet> {
-        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.address_types))
+        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.address_types()))
     }
     fn node_info_outbound_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
         let mut dif = DialInfoFilter::all();
@@ -199,7 +199,7 @@ pub trait NodeRefBase: Sized {
                 .and_then(|rpi| {
                     // If relay is ourselves, then return None, because we can't relay through ourselves
                     // and to contact this node we should have had an existing inbound connection
-                    if rti.unlocked_inner.matches_own_node_id(&rpi.node_ids) {
+                    if rti.unlocked_inner.matches_own_node_id(rpi.node_ids()) {
                         return None;
                     }
 

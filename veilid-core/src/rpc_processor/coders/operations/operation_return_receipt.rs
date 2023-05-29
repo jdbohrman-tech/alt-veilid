@@ -2,17 +2,46 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct RPCOperationReturnReceipt {
-    pub receipt: Vec<u8>,
+    receipt: Vec<u8>,
 }
 
 impl RPCOperationReturnReceipt {
+    pub fn new(receipt: Vec<u8>) -> Result<Self, RPCError> {
+        if receipt.len() < MIN_RECEIPT_SIZE {
+            return Err(RPCError::protocol("ReturnReceipt receipt too short to set"));
+        }
+        if receipt.len() > MAX_RECEIPT_SIZE {
+            return Err(RPCError::protocol("ReturnReceipt receipt too long to set"));
+        }
+
+        Ok(Self { receipt })
+    }
+    pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        Ok(())
+    }
+
+    // pub fn receipt(&self) -> &[u8] {
+    //     &self.receipt
+    // }
+
+    pub fn destructure(self) -> Vec<u8> {
+        self.receipt
+    }
+
     pub fn decode(
         reader: &veilid_capnp::operation_return_receipt::Reader,
-    ) -> Result<RPCOperationReturnReceipt, RPCError> {
-        let rcpt_reader = reader.get_receipt().map_err(RPCError::protocol)?;
-        let receipt = rcpt_reader.to_vec();
+    ) -> Result<Self, RPCError> {
+        let rr = reader.get_receipt().map_err(RPCError::protocol)?;
+        if rr.len() < MIN_RECEIPT_SIZE {
+            return Err(RPCError::protocol("ReturnReceipt receipt too short to set"));
+        }
+        if rr.len() > MAX_RECEIPT_SIZE {
+            return Err(RPCError::protocol("ReturnReceipt receipt too long to set"));
+        }
 
-        Ok(RPCOperationReturnReceipt { receipt })
+        Ok(Self {
+            receipt: rr.to_vec(),
+        })
     }
     pub fn encode(
         &self,

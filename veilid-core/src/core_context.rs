@@ -1,12 +1,16 @@
 use crate::api_tracing_layer::*;
 use crate::attachment_manager::*;
 use crate::crypto::Crypto;
+use crate::storage_manager::*;
 use crate::veilid_api::*;
 use crate::veilid_config::*;
 use crate::*;
 
 pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;
 
+/// Internal services startup mechanism
+/// Ensures that everything is started up, and shut down in the right order
+/// and provides an atomic state for if the system is properly operational
 struct ServicesContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
@@ -16,6 +20,7 @@ struct ServicesContext {
     pub block_store: Option<BlockStore>,
     pub crypto: Option<Crypto>,
     pub attachment_manager: Option<AttachmentManager>,
+    pub storage_manager: Option<StorageManager>,
 }
 
 impl ServicesContext {
@@ -28,6 +33,7 @@ impl ServicesContext {
             block_store: None,
             crypto: None,
             attachment_manager: None,
+            storage_manager: None,
         }
     }
 
@@ -39,6 +45,7 @@ impl ServicesContext {
         block_store: BlockStore,
         crypto: Crypto,
         attachment_manager: AttachmentManager,
+        storage_manager: StorageManager,
     ) -> Self {
         Self {
             config,
@@ -48,6 +55,7 @@ impl ServicesContext {
             block_store: Some(block_store),
             crypto: Some(crypto),
             attachment_manager: Some(attachment_manager),
+            storage_manager: Some(storage_manager),
         }
     }
 
@@ -62,15 +70,24 @@ impl ServicesContext {
         trace!("init protected store");
         let protected_store = ProtectedStore::new(self.config.clone());
         if let Err(e) = protected_store.init().await {
+            error!("failed to init protected store: {}", e);
             self.shutdown().await;
             return Err(e);
         }
         self.protected_store = Some(protected_store.clone());
 
-        // Set up tablestore
+        // Set up tablestore and crypto system
+        trace!("create table store and crypto system");
+        let table_store = TableStore::new(self.config.clone(), protected_store.clone());
+        let crypto = Crypto::new(self.config.clone(), table_store.clone());
+        table_store.set_crypto(crypto.clone());
+
+        // Initialize table store first, so crypto code can load caches
+        // Tablestore can use crypto during init, just not any cached operations or things
+        // that require flushing back to the tablestore
         trace!("init table store");
-        let table_store = TableStore::new(self.config.clone());
         if let Err(e) = table_store.init().await {
+            error!("failed to init table store: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -78,12 +95,8 @@ impl ServicesContext {
 
         // Set up crypto
         trace!("init crypto");
-        let crypto = Crypto::new(
-            self.config.clone(),
-            table_store.clone(),
-            protected_store.clone(),
-        );
         if let Err(e) = crypto.init().await {
+            error!("failed to init crypto: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -93,22 +106,41 @@ impl ServicesContext {
         trace!("init block store");
         let block_store = BlockStore::new(self.config.clone());
         if let Err(e) = block_store.init().await {
+            error!("failed to init block store: {}", e);
             self.shutdown().await;
             return Err(e);
         }
         self.block_store = Some(block_store.clone());
+
+        // Set up storage manager
+        trace!("init storage manager");
+        let storage_manager = StorageManager::new(
+            self.config.clone(),
+            self.crypto.clone().unwrap(),
+            self.protected_store.clone().unwrap(),
+            self.table_store.clone().unwrap(),
+            self.block_store.clone().unwrap(),
+        );
+        if let Err(e) = storage_manager.init().await {
+            error!("failed to init storage manager: {}", e);
+            self.shutdown().await;
+            return Err(e);
+        }
+        self.storage_manager = Some(storage_manager.clone());
 
         // Set up attachment manager
         trace!("init attachment manager");
         let update_callback = self.update_callback.clone();
         let attachment_manager = AttachmentManager::new(
             self.config.clone(),
+            storage_manager,
             protected_store,
             table_store,
             block_store,
             crypto,
         );
         if let Err(e) = attachment_manager.init(update_callback).await {
+            error!("failed to init attachment manager: {}", e);
             self.shutdown().await;
             return Err(e);
         }
@@ -125,6 +157,10 @@ impl ServicesContext {
         if let Some(attachment_manager) = &mut self.attachment_manager {
             trace!("terminate attachment manager");
             attachment_manager.terminate().await;
+        }
+        if let Some(storage_manager) = &mut self.storage_manager {
+            trace!("terminate storage manager");
+            storage_manager.terminate().await;
         }
         if let Some(block_store) = &mut self.block_store {
             trace!("terminate block store");
@@ -159,6 +195,7 @@ pub struct VeilidCoreContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
     // Services
+    pub storage_manager: StorageManager,
     pub protected_store: ProtectedStore,
     pub table_store: TableStore,
     pub block_store: BlockStore,
@@ -171,7 +208,7 @@ impl VeilidCoreContext {
     async fn new_with_config_callback(
         update_callback: UpdateCallback,
         config_callback: ConfigCallback,
-    ) -> Result<VeilidCoreContext, VeilidAPIError> {
+    ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from callback
         trace!("setup config with callback");
         let mut config = VeilidConfig::new();
@@ -184,7 +221,7 @@ impl VeilidCoreContext {
     async fn new_with_config_json(
         update_callback: UpdateCallback,
         config_json: String,
-    ) -> Result<VeilidCoreContext, VeilidAPIError> {
+    ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from callback
         trace!("setup config with json");
         let mut config = VeilidConfig::new();
@@ -196,7 +233,7 @@ impl VeilidCoreContext {
     async fn new_common(
         update_callback: UpdateCallback,
         config: VeilidConfig,
-    ) -> Result<VeilidCoreContext, VeilidAPIError> {
+    ) -> VeilidAPIResult<VeilidCoreContext> {
         cfg_if! {
             if #[cfg(target_os = "android")] {
                 if !crate::intf::android::is_android_ready() {
@@ -209,8 +246,9 @@ impl VeilidCoreContext {
         sc.startup().await.map_err(VeilidAPIError::generic)?;
 
         Ok(VeilidCoreContext {
-            update_callback: sc.update_callback,
             config: sc.config,
+            update_callback: sc.update_callback,
+            storage_manager: sc.storage_manager.unwrap(),
             protected_store: sc.protected_store.unwrap(),
             table_store: sc.table_store.unwrap(),
             block_store: sc.block_store.unwrap(),
@@ -229,6 +267,7 @@ impl VeilidCoreContext {
             self.block_store,
             self.crypto,
             self.attachment_manager,
+            self.storage_manager,
         );
         sc.shutdown().await;
     }
@@ -244,7 +283,7 @@ lazy_static::lazy_static! {
 pub async fn api_startup(
     update_callback: UpdateCallback,
     config_callback: ConfigCallback,
-) -> Result<VeilidAPI, VeilidAPIError> {
+) -> VeilidAPIResult<VeilidAPI> {
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
     if *initialized_lock {
@@ -267,7 +306,7 @@ pub async fn api_startup(
 pub async fn api_startup_json(
     update_callback: UpdateCallback,
     config_json: String,
-) -> Result<VeilidAPI, VeilidAPIError> {
+) -> VeilidAPIResult<VeilidAPI> {
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
     if *initialized_lock {
