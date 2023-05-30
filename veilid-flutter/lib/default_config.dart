@@ -66,8 +66,8 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
       alwaysUseInsecureStorage: false,
       directory: "",
       delete: false,
-      deviceEncryptionKey: "",
-      newDeviceEncryptionKey: null,
+      deviceEncryptionKeyPassword: "",
+      newDeviceEncryptionKeyPassword: null,
     ),
     tableStore: VeilidConfigTableStore(
       directory: kIsWeb
