@@ -103,9 +103,7 @@ async fn wasm_test_serialize_rkyv() {
 }
 
 #[wasm_bindgen_test]
-async fn wasm_test_routing_table_serialize() {
+async fn wasm_test_serialize_routing_table() {
     setup();
-    test_routing_table_serialize::test_all().await;
-    setup();
-    test_serialize::test_all().await;
+    test_serialize_routing_table::test_all().await;
 }
