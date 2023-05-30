@@ -110,8 +110,18 @@ class _MyAppState extends State<MyApp> with UiLoggy {
 
   Future<void> toggleStartup(bool startup) async {
     if (startup && !_startedUp) {
-      var updateStream = await Veilid.instance.startupVeilidCore(
-          await getDefaultVeilidConfig("Veilid Plugin Example"));
+      var config = await getDefaultVeilidConfig("Veilid Plugin Example");
+      if (const String.fromEnvironment("DELETE_TABLE_STORE") == "1") {
+        config.tableStore.delete = true;
+      }
+      if (const String.fromEnvironment("DELETE_PROTECTED_STORE") == "1") {
+        config.protectedStore.delete = true;
+      }
+      if (const String.fromEnvironment("DELETE_BLOCK_STORE") == "1") {
+        config.blockStore.delete = true;
+      }
+
+      var updateStream = await Veilid.instance.startupVeilidCore(config);
       setState(() {
         _updateStream = updateStream;
         _updateProcessor = processUpdates();
