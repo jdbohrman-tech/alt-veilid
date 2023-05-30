@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [features]
 default = [ "rt-tokio" ]
+macos = [ "cursive/ncurses-backend" ]
 rt-async-std = [ "async-std", "veilid-core/rt-async-std", "cursive/rt-async-std" ]
 rt-tokio = [ "tokio", "tokio-util", "veilid-core/rt-tokio", "cursive/rt-tokio" ]
 
