@@ -36,9 +36,111 @@ pub async fn test_safetyspec() {
     assert_eq!(orig, copy);
 }
 
+pub async fn test_latencystats() {
+    let orig = LatencyStats {
+        fastest: AlignedU64::from(1234),
+        average: AlignedU64::from(2345),
+        slowest: AlignedU64::from(3456),
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_transferstats() {
+    let orig = TransferStats {
+        total: AlignedU64::from(1_000_000),
+        maximum: AlignedU64::from(3456),
+        average: AlignedU64::from(2345),
+        minimum: AlignedU64::from(1234),
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_transferstatsdownup() {
+    let orig = TransferStatsDownUp {
+        down: TransferStats {
+            total: AlignedU64::from(1_000_000),
+            maximum: AlignedU64::from(3456),
+            average: AlignedU64::from(2345),
+            minimum: AlignedU64::from(1234),
+        },
+        up: TransferStats {
+            total: AlignedU64::from(1_000_000 * 2),
+            maximum: AlignedU64::from(3456 * 2),
+            average: AlignedU64::from(2345 * 2),
+            minimum: AlignedU64::from(1234 * 2),
+        },
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_rpcstats() {
+    let orig = RPCStats {
+        messages_sent: 1_000_000,
+        messages_rcvd: 2_000_000,
+        questions_in_flight: 42,
+        last_question_ts: Some(AlignedU64::from(1685569084280)),
+        last_seen_ts: Some(AlignedU64::from(1685569101256)),
+        first_consecutive_seen_ts: Some(AlignedU64::from(1685569111851)),
+        recent_lost_answers: 5,
+        failed_to_send: 3,
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_peerstats() {
+    let orig = PeerStats {
+        time_added: AlignedU64::from(1685569176894),
+        rpc_stats: RPCStats {
+            messages_sent: 1_000_000,
+            messages_rcvd: 2_000_000,
+            questions_in_flight: 42,
+            last_question_ts: Some(AlignedU64::from(1685569084280)),
+            last_seen_ts: Some(AlignedU64::from(1685569101256)),
+            first_consecutive_seen_ts: Some(AlignedU64::from(1685569111851)),
+            recent_lost_answers: 5,
+            failed_to_send: 3,
+        },
+        latency: Some(LatencyStats {
+            fastest: AlignedU64::from(1234),
+            average: AlignedU64::from(2345),
+            slowest: AlignedU64::from(3456),
+        }),
+        transfer: TransferStatsDownUp {
+            down: TransferStats {
+                total: AlignedU64::from(1_000_000),
+                maximum: AlignedU64::from(3456),
+                average: AlignedU64::from(2345),
+                minimum: AlignedU64::from(1234),
+            },
+            up: TransferStats {
+                total: AlignedU64::from(1_000_000 * 2),
+                maximum: AlignedU64::from(3456 * 2),
+                average: AlignedU64::from(2345 * 2),
+                minimum: AlignedU64::from(1234 * 2),
+            },
+        },
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
 pub async fn test_all() {
     test_round_trip_peerinfo().await;
     test_alignedu64().await;
     test_fourcc().await;
     test_safetyspec().await;
+    test_latencystats().await;
+    test_transferstats().await;
+    test_transferstatsdownup().await;
+    test_rpcstats().await;
+    test_peerstats().await;
 }
