@@ -133,6 +133,61 @@ pub async fn test_peerstats() {
     assert_eq!(orig, copy);
 }
 
+pub async fn test_tunnelmode() {
+    let orig = TunnelMode::Raw;
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+pub async fn test_tunnelerror() {
+    let orig = TunnelError::NoCapacity;
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_tunnelendpoint() {
+    let orig = TunnelEndpoint {
+        mode: TunnelMode::Raw,
+        description: "Here there be tygers.".to_string(),
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_fulltunnel() {
+    let orig = FullTunnel {
+        id: AlignedU64::from(42),
+        timeout: AlignedU64::from(3_000_000),
+        local: TunnelEndpoint {
+            mode: TunnelMode::Turn,
+            description: "Left end.".to_string(),
+        },
+        remote: TunnelEndpoint {
+            mode: TunnelMode::Turn,
+            description: "Right end.".to_string(),
+        },
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_partialtunnel() {
+    let orig = PartialTunnel {
+        id: AlignedU64::from(42),
+        timeout: AlignedU64::from(3_000_000),
+        local: TunnelEndpoint {
+            mode: TunnelMode::Turn,
+            description: "I'm so lonely.".to_string(),
+        },
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
 pub async fn test_all() {
     test_round_trip_peerinfo().await;
     test_alignedu64().await;
@@ -143,4 +198,10 @@ pub async fn test_all() {
     test_transferstatsdownup().await;
     test_rpcstats().await;
     test_peerstats().await;
+    test_tunnelmode().await;
+    test_tunnelmode().await;
+    test_tunnelerror().await;
+    test_tunnelendpoint().await;
+    test_fulltunnel().await;
+    test_partialtunnel().await;
 }
