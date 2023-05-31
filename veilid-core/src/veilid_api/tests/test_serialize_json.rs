@@ -187,7 +187,22 @@ pub async fn test_partialtunnel() {
 
     assert_eq!(orig, copy);
 }
+pub async fn test_veilidloglevel() {
+    let orig = VeilidLogLevel::Info;
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
+    assert_eq!(orig, copy);
+}
+pub async fn test_veilidlog() {
+    let orig = VeilidLog {
+        log_level: VeilidLogLevel::Debug,
+        message: "A log! A log!".to_string(),
+        backtrace: Some("Func1 -> Func2 -> Func3".to_string()),
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
 pub async fn test_all() {
     test_round_trip_peerinfo().await;
     test_alignedu64().await;
@@ -204,4 +219,6 @@ pub async fn test_all() {
     test_tunnelendpoint().await;
     test_fulltunnel().await;
     test_partialtunnel().await;
+    test_veilidloglevel().await;
+    test_veilidlog().await;
 }
