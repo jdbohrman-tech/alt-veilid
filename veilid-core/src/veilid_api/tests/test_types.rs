@@ -1,7 +1,7 @@
 use super::fixtures::*;
 use crate::*;
 
-// veilid_api/types/aligned_u64.rs
+// aligned_u64
 
 pub async fn test_alignedu64() {
     let orig = AlignedU64::new(0x0123456789abcdef);
@@ -10,7 +10,7 @@ pub async fn test_alignedu64() {
     assert_eq!(orig, copy);
 }
 
-// veilid_api/types/app_messsage_call.rs
+// app_messsage_call
 
 pub async fn test_veilidappmessage() {
     let orig = VeilidAppMessage {
@@ -33,7 +33,7 @@ pub async fn test_veilidappcall() {
     assert_eq!(orig, copy);
 }
 
-// veilid_api/types/fourcc.rs
+// fourcc
 
 pub async fn test_fourcc() {
     let orig = FourCC::from_str("D34D").unwrap();
@@ -42,7 +42,7 @@ pub async fn test_fourcc() {
     assert_eq!(orig, copy);
 }
 
-// veilid_api/types/safety.rs
+// safety
 
 pub async fn test_sequencing() {
     let orig = Sequencing::PreferOrdered;
@@ -77,7 +77,7 @@ pub async fn test_safetyspec() {
     assert_eq!(orig, copy);
 }
 
-// veilid_api/types/stats.rs
+// stats
 
 pub async fn test_latencystats() {
     let orig = fix_latencystats();
@@ -114,7 +114,7 @@ pub async fn test_peerstats() {
     assert_eq!(orig, copy);
 }
 
-//  veilid_api/types/tunnel.rs
+//  tunnel
 
 pub async fn test_tunnelmode() {
     let orig = TunnelMode::Raw;
@@ -171,7 +171,7 @@ pub async fn test_partialtunnel() {
     assert_eq!(orig, copy);
 }
 
-// veilid_api/types/veilid_log.rs
+// veilid_log
 
 pub async fn test_veilidloglevel() {
     let orig = VeilidLogLevel::Info;
@@ -191,7 +191,7 @@ pub async fn test_veilidlog() {
     assert_eq!(orig, copy);
 }
 
-// veilid_api/types/veilid_state.rs
+// veilid_state
 
 pub async fn test_attachmentstate() {
     let orig = AttachmentState::FullyAttached;
