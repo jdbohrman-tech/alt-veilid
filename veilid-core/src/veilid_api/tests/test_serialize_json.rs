@@ -28,7 +28,7 @@ pub async fn test_fourcc() {
 
 pub async fn test_safetyspec() {
     let orig = SafetySpec {
-        preferred_route: Some(fix_typedkey().value),
+        preferred_route: Some(fix_cryptokey()),
         hop_count: 23,
         stability: Stability::default(),
         sequencing: Sequencing::default(),
@@ -207,15 +207,19 @@ pub async fn test_veilidstateattachment() {
     assert_eq!(orig, copy);
 }
 
+fn fix_cryptokey() -> CryptoKey {
+    let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
+    random_bytes(&mut fake_key);
+    CryptoKey::new(fake_key)
+}
+
 fn fix_typedkey() -> TypedKey {
     let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
     random_bytes(&mut fake_key);
-    let b = TypedKey {
+    TypedKey {
         kind: FourCC::from_str("FAKE").unwrap(),
-        value: CryptoKey::new(fake_key),
-    };
-    b
-    //panic!("{}", b);
+        value: fix_cryptokey(),
+    }
 }
 
 fn fix_peertabledata() -> PeerTableData {
@@ -245,6 +249,210 @@ pub async fn test_veilidstatenetwork() {
     assert_eq!(orig, copy);
 }
 
+pub async fn test_veilidroutechange() {
+    let orig = VeilidRouteChange {
+        dead_routes: vec![fix_cryptokey()],
+        dead_remote_routes: vec![fix_cryptokey()],
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+fn fix_veilidconfiginner() -> VeilidConfigInner {
+    VeilidConfigInner {
+        program_name: "Bob".to_string(),
+        namespace: "Internets".to_string(),
+        capabilities: VeilidConfigCapabilities {
+            protocol_udp: false,
+            protocol_connect_tcp: true,
+            protocol_accept_tcp: false,
+            protocol_connect_ws: true,
+            protocol_accept_ws: false,
+            protocol_connect_wss: true,
+            protocol_accept_wss: false,
+        },
+        protected_store: VeilidConfigProtectedStore {
+            allow_insecure_fallback: true,
+            always_use_insecure_storage: false,
+            directory: "/root".to_string(),
+            delete: true,
+            device_encryption_key_password: "1234".to_string(),
+            new_device_encryption_key_password: Some("5678".to_string()),
+        },
+        table_store: VeilidConfigTableStore {
+            directory: "Yellow Pages".to_string(),
+            delete: false,
+        },
+        block_store: VeilidConfigBlockStore {
+            directory: "C:\\Program Files".to_string(),
+            delete: true,
+        },
+        network: VeilidConfigNetwork {
+            connection_initial_timeout_ms: 1000,
+            connection_inactivity_timeout_ms: 2000,
+            max_connections_per_ip4: 3000,
+            max_connections_per_ip6_prefix: 4000,
+            max_connections_per_ip6_prefix_size: 5000,
+            max_connection_frequency_per_min: 6000,
+            client_whitelist_timeout_ms: 7000,
+            reverse_connection_receipt_time_ms: 8000,
+            hole_punch_receipt_time_ms: 9000,
+            routing_table: VeilidConfigRoutingTable {
+                node_id: TypedKeySet::new(),
+                node_id_secret: TypedSecretSet::new(),
+                bootstrap: vec!["boots".to_string()],
+                limit_over_attached: 1,
+                limit_fully_attached: 2,
+                limit_attached_strong: 3,
+                limit_attached_good: 4,
+                limit_attached_weak: 5,
+            },
+            rpc: VeilidConfigRPC {
+                concurrency: 5,
+                queue_size: 6,
+                max_timestamp_behind_ms: Some(1000),
+                max_timestamp_ahead_ms: Some(2000),
+                timeout_ms: 3000,
+                max_route_hop_count: 7,
+                default_route_hop_count: 8,
+            },
+            dht: VeilidConfigDHT {
+                max_find_node_count: 1,
+                resolve_node_timeout_ms: 2,
+                resolve_node_count: 3,
+                resolve_node_fanout: 4,
+                get_value_timeout_ms: 5,
+                get_value_count: 6,
+                get_value_fanout: 7,
+                set_value_timeout_ms: 8,
+                set_value_count: 9,
+                set_value_fanout: 10,
+                min_peer_count: 11,
+                min_peer_refresh_time_ms: 12,
+                validate_dial_info_receipt_time_ms: 13,
+                local_subkey_cache_size: 14,
+                local_max_subkey_cache_memory_mb: 15,
+                remote_subkey_cache_size: 16,
+                remote_max_records: 17,
+                remote_max_subkey_cache_memory_mb: 18,
+                remote_max_storage_space_mb: 19,
+            },
+            upnp: true,
+            detect_address_changes: false,
+            restricted_nat_retries: 10000,
+            tls: VeilidConfigTLS {
+                certificate_path: "/etc/ssl/certs/cert.pem".to_string(),
+                private_key_path: "/etc/ssl/keys/key.pem".to_string(),
+                connection_initial_timeout_ms: 1000,
+            },
+            application: VeilidConfigApplication {
+                https: VeilidConfigHTTPS {
+                    enabled: true,
+                    listen_address: "10.0.0.3".to_string(),
+                    path: "/https_path/".to_string(),
+                    url: Some("https://veilid.com/".to_string()),
+                },
+                http: VeilidConfigHTTP {
+                    enabled: true,
+                    listen_address: "10.0.0.4".to_string(),
+                    path: "/http_path/".to_string(),
+                    url: Some("http://veilid.com/".to_string()),
+                },
+            },
+            protocol: VeilidConfigProtocol {
+                udp: VeilidConfigUDP {
+                    enabled: false,
+                    socket_pool_size: 30,
+                    listen_address: "10.0.0.2".to_string(),
+                    public_address: Some("2.3.4.5".to_string()),
+                },
+                tcp: VeilidConfigTCP {
+                    connect: true,
+                    listen: false,
+                    max_connections: 8,
+                    listen_address: "10.0.0.1".to_string(),
+                    public_address: Some("1.2.3.4".to_string()),
+                },
+                ws: VeilidConfigWS {
+                    connect: false,
+                    listen: true,
+                    max_connections: 9,
+                    listen_address: "127.0.0.1".to_string(),
+                    path: "Straight".to_string(),
+                    url: Some("https://veilid.com/ws".to_string()),
+                },
+                wss: VeilidConfigWSS {
+                    connect: true,
+                    listen: false,
+                    max_connections: 10,
+                    listen_address: "::1".to_string(),
+                    path: "Curved".to_string(),
+                    url: Some("https://veilid.com/wss".to_string()),
+                },
+            },
+        },
+    }
+}
+
+pub async fn test_veilidstateconfig() {
+    let orig = VeilidStateConfig {
+        config: fix_veilidconfiginner(),
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+fn fix_veilidvaluechange() -> VeilidValueChange {
+    VeilidValueChange {
+        key: fix_typedkey(),
+        subkeys: vec![1, 2, 3, 4],
+        count: 5,
+        value: ValueData {
+            seq: 23,
+            data: b"ValueData".to_vec(),
+            writer: fix_cryptokey(),
+        },
+    }
+}
+
+pub async fn test_veilidvaluechange() {
+    let orig = fix_veilidvaluechange();
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_veilidupdate() {
+    let orig = VeilidUpdate::ValueChange(fix_veilidvaluechange());
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_veilidstate() {
+    let orig = VeilidState {
+        attachment: VeilidStateAttachment {
+            state: AttachmentState::OverAttached,
+            public_internet_ready: true,
+            local_network_ready: false,
+        },
+        network: VeilidStateNetwork {
+            started: true,
+            bps_down: AlignedU64::from(14_400),
+            bps_up: AlignedU64::from(1200),
+            peers: vec![fix_peertabledata()],
+        },
+        config: VeilidStateConfig {
+            config: fix_veilidconfiginner(),
+        },
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
 pub async fn test_all() {
     test_round_trip_peerinfo().await;
     test_alignedu64().await;
@@ -266,4 +474,10 @@ pub async fn test_all() {
     test_attachmentstate().await;
     test_veilidstateattachment().await;
     test_peertabledata().await;
+    test_veilidstatenetwork().await;
+    test_veilidroutechange().await;
+    test_veilidstateconfig().await;
+    test_veilidvaluechange().await;
+    test_veilidupdate().await;
+    test_veilidstate().await;
 }
