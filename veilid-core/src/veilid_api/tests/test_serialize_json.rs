@@ -20,6 +20,29 @@ pub async fn test_alignedu64() {
     assert_eq!(orig, copy);
 }
 
+// veilid_api/types/app_messsage_call.rs
+
+pub async fn test_veilidappmessage() {
+    let orig = VeilidAppMessage {
+        sender: Some(fix_typedkey()),
+        message: b"Hi there!".to_vec(),
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_veilidappcall() {
+    let orig = VeilidAppCall {
+        sender: Some(fix_typedkey()),
+        message: b"Well, hello!".to_vec(),
+        id: AlignedU64::from(123),
+    };
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
 // veilid_api/types/fourcc.rs
 
 pub async fn test_fourcc() {
@@ -30,6 +53,27 @@ pub async fn test_fourcc() {
 }
 
 // veilid_api/types/safety.rs
+
+pub async fn test_sequencing() {
+    let orig = Sequencing::PreferOrdered;
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_stability() {
+    let orig = Stability::Reliable;
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
+
+pub async fn test_safetyselection() {
+    let orig = SafetySelection::Unsafe(Sequencing::EnsureOrdered);
+    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+
+    assert_eq!(orig, copy);
+}
 
 pub async fn test_safetyspec() {
     let orig = SafetySpec {
@@ -137,7 +181,7 @@ pub async fn test_partialtunnel() {
     assert_eq!(orig, copy);
 }
 
-// veilid_api/types/veilid_lo.rs
+// veilid_api/types/veilid_log.rs
 
 pub async fn test_veilidloglevel() {
     let orig = VeilidLogLevel::Info;
@@ -254,14 +298,18 @@ pub async fn test_veilidstate() {
 pub async fn test_all() {
     test_round_trip_peerinfo().await;
     test_alignedu64().await;
+    test_veilidappmessage().await;
+    test_veilidappcall().await;
     test_fourcc().await;
+    test_sequencing().await;
+    test_stability().await;
+    test_safetyselection().await;
     test_safetyspec().await;
     test_latencystats().await;
     test_transferstats().await;
     test_transferstatsdownup().await;
     test_rpcstats().await;
     test_peerstats().await;
-    test_tunnelmode().await;
     test_tunnelmode().await;
     test_tunnelerror().await;
     test_tunnelendpoint().await;
