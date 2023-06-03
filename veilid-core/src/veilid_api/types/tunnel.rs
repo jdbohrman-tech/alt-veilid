@@ -1,8 +1,11 @@
+#[cfg(feature = "unstable-tunnels")]
 use super::*;
 
 /// Tunnel identifier
+#[cfg(feature = "unstable-tunnels")]
 pub type TunnelId = AlignedU64;
 
+#[cfg(feature = "unstable-tunnels")]
 #[derive(
     Copy,
     Clone,
@@ -16,6 +19,7 @@ pub type TunnelId = AlignedU64;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum TunnelMode {
@@ -23,6 +27,7 @@ pub enum TunnelMode {
     Turn,
 }
 
+#[cfg(feature = "unstable-tunnels")]
 #[derive(
     Copy,
     Clone,
@@ -36,6 +41,7 @@ pub enum TunnelMode {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum TunnelError {
@@ -45,13 +51,17 @@ pub enum TunnelError {
     NoCapacity,   // Endpoint is full
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[cfg(feature = "unstable-tunnels")]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize, JsonSchema,
+)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TunnelEndpoint {
     pub mode: TunnelMode,
     pub description: String, // XXX: TODO
 }
 
+#[cfg(feature = "unstable-tunnels")]
 impl Default for TunnelEndpoint {
     fn default() -> Self {
         Self {
@@ -61,8 +71,17 @@ impl Default for TunnelEndpoint {
     }
 }
 
+#[cfg(feature = "unstable-tunnels")]
 #[derive(
-    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct FullTunnel {
@@ -72,8 +91,17 @@ pub struct FullTunnel {
     pub remote: TunnelEndpoint,
 }
 
+#[cfg(feature = "unstable-tunnels")]
 #[derive(
-    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PartialTunnel {

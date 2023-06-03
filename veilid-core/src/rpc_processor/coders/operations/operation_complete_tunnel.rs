@@ -1,5 +1,6 @@
 use super::*;
 
+#[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
 pub struct RPCOperationCompleteTunnelQ {
     id: TunnelId,
@@ -74,6 +75,7 @@ impl RPCOperationCompleteTunnelQ {
     }
 }
 
+#[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
 pub enum RPCOperationCompleteTunnelA {
     Tunnel(FullTunnel),

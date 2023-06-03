@@ -18,6 +18,7 @@ use cfg_if::*;
 #[allow(unused_imports)]
 use color_eyre::eyre::{bail, ensure, eyre, Result as EyreResult, WrapErr};
 use server::*;
+use std::collections::HashMap;
 use std::str::FromStr;
 use tools::*;
 use tracing::*;
@@ -69,6 +70,24 @@ fn main() -> EyreResult<()> {
             return Ok(());
         } else {
             bail!("missing crypto kind");
+        }
+    }
+    // -- Emit JSON-Schema --
+    if matches.occurrences_of("emit-schema") != 0 {
+        if let Some(esstr) = matches.value_of("emit-schema") {
+            let mut schemas = HashMap::<String, String>::new();
+            veilid_core::emit_schemas(&mut schemas);
+
+            if let Some(schema) = schemas.get(esstr) {
+                println!("{}", schema);
+            } else {
+                println!("Valid schemas:");
+                for s in schemas.keys() {
+                    println!("  {}", s);
+                }
+            }
+
+            return Ok(());
         }
     }
 

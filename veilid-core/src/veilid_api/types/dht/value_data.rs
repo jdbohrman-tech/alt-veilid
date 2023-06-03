@@ -13,11 +13,23 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
+    /// An increasing sequence number to time-order the DHT record changes
     seq: ValueSeqNum,
+
+    /// The contents of a DHT Record
+    #[serde(
+        serialize_with = "json_as_base64::serialize",
+        deserialize_with = "json_as_base64::deserialize"
+    )]
+    #[schemars(with = "String")]
     data: Vec<u8>,
+
+    /// The public identity key of the writer of the data
+    #[schemars(with = "String")]
     writer: PublicKey,
 }
 impl ValueData {

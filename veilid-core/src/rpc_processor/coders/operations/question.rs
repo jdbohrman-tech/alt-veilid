@@ -51,8 +51,11 @@ pub enum RPCQuestionDetail {
     WatchValueQ(RPCOperationWatchValueQ),
     SupplyBlockQ(RPCOperationSupplyBlockQ),
     FindBlockQ(RPCOperationFindBlockQ),
+    #[cfg(feature = "unstable-tunnels")]
     StartTunnelQ(RPCOperationStartTunnelQ),
+    #[cfg(feature = "unstable-tunnels")]
     CompleteTunnelQ(RPCOperationCompleteTunnelQ),
+    #[cfg(feature = "unstable-tunnels")]
     CancelTunnelQ(RPCOperationCancelTunnelQ),
 }
 
@@ -67,8 +70,11 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::WatchValueQ(_) => "WatchValueQ",
             RPCQuestionDetail::SupplyBlockQ(_) => "SupplyBlockQ",
             RPCQuestionDetail::FindBlockQ(_) => "FindBlockQ",
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::StartTunnelQ(_) => "StartTunnelQ",
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CompleteTunnelQ(_) => "CompleteTunnelQ",
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CancelTunnelQ(_) => "CancelTunnelQ",
         }
     }
@@ -82,8 +88,11 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::WatchValueQ(r) => r.validate(validate_context),
             RPCQuestionDetail::SupplyBlockQ(r) => r.validate(validate_context),
             RPCQuestionDetail::FindBlockQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::StartTunnelQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CompleteTunnelQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CancelTunnelQ(r) => r.validate(validate_context),
         }
     }
@@ -133,16 +142,19 @@ impl RPCQuestionDetail {
                 let out = RPCOperationFindBlockQ::decode(&op_reader)?;
                 RPCQuestionDetail::FindBlockQ(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::StartTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationStartTunnelQ::decode(&op_reader)?;
                 RPCQuestionDetail::StartTunnelQ(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::CompleteTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCompleteTunnelQ::decode(&op_reader)?;
                 RPCQuestionDetail::CompleteTunnelQ(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::CancelTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCancelTunnelQ::decode(&op_reader)?;
@@ -170,12 +182,15 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::FindBlockQ(d) => {
                 d.encode(&mut builder.reborrow().init_find_block_q())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::StartTunnelQ(d) => {
                 d.encode(&mut builder.reborrow().init_start_tunnel_q())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CompleteTunnelQ(d) => {
                 d.encode(&mut builder.reborrow().init_complete_tunnel_q())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CancelTunnelQ(d) => {
                 d.encode(&mut builder.reborrow().init_cancel_tunnel_q())
             }

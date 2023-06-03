@@ -500,9 +500,10 @@ struct Question @0xd8510bc33492ef70 {
         findBlockQ          @9  :OperationFindBlockQ;
         
         # Tunnel operations
-        startTunnelQ        @10 :OperationStartTunnelQ;
-        completeTunnelQ     @11 :OperationCompleteTunnelQ;
-        cancelTunnelQ       @12 :OperationCancelTunnelQ; 
+        # #[cfg(feature="unstable-tunnels")]
+        # startTunnelQ        @10 :OperationStartTunnelQ;
+        # completeTunnelQ     @11 :OperationCompleteTunnelQ;
+        # cancelTunnelQ       @12 :OperationCancelTunnelQ; 
     }
 }
 
@@ -537,9 +538,10 @@ struct Answer @0xacacb8b6988c1058 {
         findBlockA          @7  :OperationFindBlockA;
     
         # Tunnel operations
-        startTunnelA        @8  :OperationStartTunnelA;
-        completeTunnelA     @9  :OperationCompleteTunnelA;
-        cancelTunnelA       @10  :OperationCancelTunnelA;
+        # #[cfg(feature="unstable-tunnels")]
+        # startTunnelA        @8  :OperationStartTunnelA;
+        # completeTunnelA     @9  :OperationCompleteTunnelA;
+        # cancelTunnelA       @10  :OperationCancelTunnelA;
     }
 }
 

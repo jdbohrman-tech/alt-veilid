@@ -19,6 +19,7 @@ pub use smpl::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]

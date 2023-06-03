@@ -47,6 +47,7 @@ use rkyv::{
     Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
 };
 type RkyvDefaultValidator<'t> = rkyv::validation::validators::DefaultValidator<'t>;
+use schemars::{schema_for, JsonSchema};
 use serde::*;
 
 pub mod veilid_capnp {

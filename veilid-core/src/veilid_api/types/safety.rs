@@ -15,6 +15,7 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Sequencing {
@@ -44,6 +45,7 @@ impl Default for Sequencing {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Stability {
@@ -72,6 +74,7 @@ impl Default for Stability {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum SafetySelection {
@@ -111,10 +114,12 @@ impl Default for SafetySelection {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
     /// preferred safety route set id if it still exists
+    #[schemars(with = "Option<String>")]
     pub preferred_route: Option<RouteId>,
     /// must be greater than 0
     pub hop_count: usize,

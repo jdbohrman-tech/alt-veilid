@@ -4,8 +4,6 @@ mod fanout_call;
 mod operation_waiter;
 mod rpc_app_call;
 mod rpc_app_message;
-mod rpc_cancel_tunnel;
-mod rpc_complete_tunnel;
 mod rpc_error;
 mod rpc_find_block;
 mod rpc_find_node;
@@ -14,12 +12,18 @@ mod rpc_return_receipt;
 mod rpc_route;
 mod rpc_set_value;
 mod rpc_signal;
-mod rpc_start_tunnel;
 mod rpc_status;
 mod rpc_supply_block;
 mod rpc_validate_dial_info;
 mod rpc_value_changed;
 mod rpc_watch_value;
+
+#[cfg(feature = "unstable-tunnels")]
+mod rpc_cancel_tunnel;
+#[cfg(feature = "unstable-tunnels")]
+mod rpc_complete_tunnel;
+#[cfg(feature = "unstable-tunnels")]
+mod rpc_start_tunnel;
 
 pub use coders::*;
 pub use destination::*;
@@ -1410,8 +1414,11 @@ impl RPCProcessor {
                 RPCQuestionDetail::WatchValueQ(_) => self.process_watch_value_q(msg).await,
                 RPCQuestionDetail::SupplyBlockQ(_) => self.process_supply_block_q(msg).await,
                 RPCQuestionDetail::FindBlockQ(_) => self.process_find_block_q(msg).await,
+                #[cfg(feature = "unstable-tunnels")]
                 RPCQuestionDetail::StartTunnelQ(_) => self.process_start_tunnel_q(msg).await,
+                #[cfg(feature = "unstable-tunnels")]
                 RPCQuestionDetail::CompleteTunnelQ(_) => self.process_complete_tunnel_q(msg).await,
+                #[cfg(feature = "unstable-tunnels")]
                 RPCQuestionDetail::CancelTunnelQ(_) => self.process_cancel_tunnel_q(msg).await,
             },
             RPCOperationKind::Statement(s) => match s.detail() {

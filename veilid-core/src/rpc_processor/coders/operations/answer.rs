@@ -39,8 +39,11 @@ pub enum RPCAnswerDetail {
     WatchValueA(RPCOperationWatchValueA),
     SupplyBlockA(RPCOperationSupplyBlockA),
     FindBlockA(RPCOperationFindBlockA),
+    #[cfg(feature = "unstable-tunnels")]
     StartTunnelA(RPCOperationStartTunnelA),
+    #[cfg(feature = "unstable-tunnels")]
     CompleteTunnelA(RPCOperationCompleteTunnelA),
+    #[cfg(feature = "unstable-tunnels")]
     CancelTunnelA(RPCOperationCancelTunnelA),
 }
 
@@ -55,8 +58,11 @@ impl RPCAnswerDetail {
             RPCAnswerDetail::WatchValueA(_) => "WatchValueA",
             RPCAnswerDetail::SupplyBlockA(_) => "SupplyBlockA",
             RPCAnswerDetail::FindBlockA(_) => "FindBlockA",
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::StartTunnelA(_) => "StartTunnelA",
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::CompleteTunnelA(_) => "CompleteTunnelA",
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::CancelTunnelA(_) => "CancelTunnelA",
         }
     }
@@ -70,8 +76,11 @@ impl RPCAnswerDetail {
             RPCAnswerDetail::WatchValueA(r) => r.validate(validate_context),
             RPCAnswerDetail::SupplyBlockA(r) => r.validate(validate_context),
             RPCAnswerDetail::FindBlockA(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::StartTunnelA(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::CompleteTunnelA(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::CancelTunnelA(r) => r.validate(validate_context),
         }
     }
@@ -120,16 +129,19 @@ impl RPCAnswerDetail {
                 let out = RPCOperationFindBlockA::decode(&op_reader)?;
                 RPCAnswerDetail::FindBlockA(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::StartTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationStartTunnelA::decode(&op_reader)?;
                 RPCAnswerDetail::StartTunnelA(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::CompleteTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCompleteTunnelA::decode(&op_reader)?;
                 RPCAnswerDetail::CompleteTunnelA(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::CancelTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCancelTunnelA::decode(&op_reader)?;
@@ -155,12 +167,15 @@ impl RPCAnswerDetail {
                 d.encode(&mut builder.reborrow().init_supply_block_a())
             }
             RPCAnswerDetail::FindBlockA(d) => d.encode(&mut builder.reborrow().init_find_block_a()),
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::StartTunnelA(d) => {
                 d.encode(&mut builder.reborrow().init_start_tunnel_a())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::CompleteTunnelA(d) => {
                 d.encode(&mut builder.reborrow().init_complete_tunnel_a())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCAnswerDetail::CancelTunnelA(d) => {
                 d.encode(&mut builder.reborrow().init_cancel_tunnel_a())
             }

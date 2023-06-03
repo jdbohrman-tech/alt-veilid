@@ -117,6 +117,7 @@ macro_rules! apibail_already_initialized {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]
@@ -136,7 +137,10 @@ pub enum VeilidAPIError {
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("Key not found: {key}")]
-    KeyNotFound { key: TypedKey },
+    KeyNotFound { 
+        #[schemars(with="String")]
+        key: TypedKey 
+    },
     #[error("Internal: {message}")]
     Internal { message: String },
     #[error("Unimplemented: {message}")]

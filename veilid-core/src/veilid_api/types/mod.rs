@@ -4,6 +4,7 @@ mod dht;
 mod fourcc;
 mod safety;
 mod stats;
+#[cfg(feature = "unstable-tunnels")]
 mod tunnel;
 mod veilid_log;
 mod veilid_state;
@@ -16,6 +17,7 @@ pub use dht::*;
 pub use fourcc::*;
 pub use safety::*;
 pub use stats::*;
+#[cfg(feature = "unstable-tunnels")]
 pub use tunnel::*;
 pub use veilid_log::*;
 pub use veilid_state::*;

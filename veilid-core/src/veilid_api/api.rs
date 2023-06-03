@@ -268,6 +268,7 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Tunnel Building
 
+    #[cfg(feature = "unstable-tunnels")]
     #[instrument(level = "debug", err, skip(self))]
     pub async fn start_tunnel(
         &self,
@@ -277,6 +278,7 @@ impl VeilidAPI {
         panic!("unimplemented");
     }
 
+    #[cfg(feature = "unstable-tunnels")]
     #[instrument(level = "debug", err, skip(self))]
     pub async fn complete_tunnel(
         &self,
@@ -287,6 +289,7 @@ impl VeilidAPI {
         panic!("unimplemented");
     }
 
+    #[cfg(feature = "unstable-tunnels")]
     #[instrument(level = "debug", err, skip(self))]
     pub async fn cancel_tunnel(&self, _tunnel_id: TunnelId) -> VeilidAPIResult<bool> {
         panic!("unimplemented");

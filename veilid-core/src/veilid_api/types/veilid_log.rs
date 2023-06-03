@@ -14,6 +14,7 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum VeilidLogLevel {
@@ -78,7 +79,16 @@ impl fmt::Display for VeilidLogLevel {
 
 /// A VeilidCore log message with optional backtrace
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidLog {

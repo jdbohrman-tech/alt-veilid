@@ -9,11 +9,10 @@ pub fn serialize<T: Integer + Serialize, S: Serializer>(
     v: &RangeSetBlaze<T>,
     s: S,
 ) -> Result<S::Ok, S::Error> {
-    let cnt = v.ranges_len() * 2;
+    let cnt = v.ranges_len();
     let mut seq = s.serialize_seq(Some(cnt))?;
     for range in v.ranges() {
-        seq.serialize_element(range.start())?;
-        seq.serialize_element(range.end())?;
+        seq.serialize_element(&(range.start(), range.end()))?;
     }
     seq.end()
 }
@@ -41,10 +40,7 @@ pub fn deserialize<'de, T: Integer + Deserialize<'de>, D: Deserializer<'de>>(
         {
             let mut values = RangeSetBlaze::<T>::new();
 
-            while let Some(start) = seq.next_element()? {
-                let Some(end) = seq.next_element()? else {
-                    break;
-                };
+            while let Some((start, end)) = seq.next_element()? {
                 values.ranges_insert(start..=end);
             }
 
