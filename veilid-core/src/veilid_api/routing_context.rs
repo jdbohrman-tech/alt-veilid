@@ -290,10 +290,12 @@ impl RoutingContext {
     ///////////////////////////////////
     /// Block Store
 
+    #[cfg(feature = "unstable-blockstore")]
     pub async fn find_block(&self, _block_id: PublicKey) -> VeilidAPIResult<Vec<u8>> {
         panic!("unimplemented");
     }
 
+    #[cfg(feature = "unstable-blockstore")]
     pub async fn supply_block(&self, _block_id: PublicKey) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }

@@ -496,8 +496,9 @@ struct Question @0xd8510bc33492ef70 {
         getValueQ           @5  :OperationGetValueQ;
         setValueQ           @6  :OperationSetValueQ;
         watchValueQ         @7  :OperationWatchValueQ;
-        supplyBlockQ        @8  :OperationSupplyBlockQ;
-        findBlockQ          @9  :OperationFindBlockQ;
+        # #[cfg(feature="unstable-blockstore")]
+        # supplyBlockQ        @8  :OperationSupplyBlockQ;
+        # findBlockQ          @9  :OperationFindBlockQ;
         
         # Tunnel operations
         # #[cfg(feature="unstable-tunnels")]
@@ -534,8 +535,9 @@ struct Answer @0xacacb8b6988c1058 {
         getValueA           @3  :OperationGetValueA;
         setValueA           @4  :OperationSetValueA;
         watchValueA         @5  :OperationWatchValueA;    
-        supplyBlockA        @6  :OperationSupplyBlockA; 
-        findBlockA          @7  :OperationFindBlockA;
+        # #[cfg(feature="unstable-blockstore")]
+        #supplyBlockA        @6  :OperationSupplyBlockA; 
+        #findBlockA          @7  :OperationFindBlockA;
     
         # Tunnel operations
         # #[cfg(feature="unstable-tunnels")]

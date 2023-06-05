@@ -18,49 +18,210 @@ pub struct CryptoSystemResponse {
 #[serde(tag = "cs_op")]
 pub enum CryptoSystemRequestOp {
     Release,
-    CachedDh,
-    ComputeDh,
-    RandomBytes,
+    CachedDh {
+        #[schemars(with = "String")]
+        key: PublicKey,
+        #[schemars(with = "String")]
+        secret: SecretKey,
+    },
+    ComputeDh {
+        #[schemars(with = "String")]
+        key: PublicKey,
+        #[schemars(with = "String")]
+        secret: SecretKey,
+    },
+    RandomBytes {
+        len: u32,
+    },
     DefaultSaltLength,
-    HashPassword,
-    VerifyPassword,
-    DeriveSharedSecret,
+    HashPassword {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        password: Vec<u8>,
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        salt: Vec<u8>,
+    },
+    VerifyPassword {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        password: Vec<u8>,
+        password_hash: String,
+    },
+    DeriveSharedSecret {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        password: Vec<u8>,
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        salt: Vec<u8>,
+    },
     RandomNonce,
     RandomSharedSecret,
     GenerateKeyPair,
-    GenerateHash,
-    ValidateKeyPair,
-    ValidateHash,
-    Distance,
-    Sign,
-    Verify,
+    GenerateHash {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        data: Vec<u8>,
+    },
+    ValidateKeyPair {
+        #[schemars(with = "String")]
+        key: PublicKey,
+        #[schemars(with = "String")]
+        secret: SecretKey,
+    },
+    ValidateHash {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        data: Vec<u8>,
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        hash_digest: Vec<u8>,
+    },
+    Distance {
+        #[schemars(with = "String")]
+        key1: CryptoKey,
+        #[schemars(with = "String")]
+        key2: CryptoKey,
+    },
+    Sign {
+        #[schemars(with = "String")]
+        key: PublicKey,
+        #[schemars(with = "String")]
+        secret: SecretKey,
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        data: Vec<u8>,
+    },
+    Verify {
+        #[schemars(with = "String")]
+        key: PublicKey,
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        data: Vec<u8>,
+        #[schemars(with = "String")]
+        secret: Signature,
+    },
     AeadOverhead,
-    DecryptAead,
-    EncryptAead,
-    CryptNoAuth,
+    DecryptAead {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        body: Vec<u8>,
+        #[schemars(with = "String")]
+        nonce: Nonce,
+        #[schemars(with = "String")]
+        shared_secret: SharedSecret,
+        #[serde(with = "opt_json_as_base64")]
+        #[schemars(with = "Option<String>")]
+        associated_data: Option<Vec<u8>>,
+    },
+    EncryptAead {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        body: Vec<u8>,
+        #[schemars(with = "String")]
+        nonce: Nonce,
+        #[schemars(with = "String")]
+        shared_secret: SharedSecret,
+        #[serde(with = "opt_json_as_base64")]
+        #[schemars(with = "Option<String>")]
+        associated_data: Option<Vec<u8>>,
+    },
+    CryptNoAuth {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        body: Vec<u8>,
+        #[schemars(with = "String")]
+        nonce: Nonce,
+        #[schemars(with = "String")]
+        shared_secret: SharedSecret,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "cs_op")]
 pub enum CryptoSystemResponseOp {
     Release,
-    CachedDh,
-    ComputeDh,
-    RandomBytes,
-    DefaultSaltLength,
-    HashPassword,
-    VerifyPassword,
-    DeriveSharedSecret,
-    RandomNonce,
-    RandomSharedSecret,
-    GenerateKeyPair,
-    GenerateHash,
-    ValidateKeyPair,
-    ValidateHash,
-    Distance,
-    Sign,
-    Verify,
-    AeadOverhead,
-    DecryptAead,
-    EncryptAead,
-    CryptNoAuth,
+    CachedDh {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithString<SharedSecret>,
+    },
+    ComputeDh {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithString<SharedSecret>,
+    },
+    RandomBytes {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithVecU8,
+    },
+    DefaultSaltLength {
+        value: u32,
+    },
+    HashPassword {
+        #[serde(flatten)]
+        result: ApiResult<String>,
+    },
+    VerifyPassword {
+        #[serde(flatten)]
+        result: ApiResult<bool>,
+    },
+    DeriveSharedSecret {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithString<SharedSecret>,
+    },
+    RandomNonce {
+        #[schemars(with = "String")]
+        value: Nonce,
+    },
+    RandomSharedSecret {
+        #[schemars(with = "String")]
+        value: SharedSecret,
+    },
+    GenerateKeyPair {
+        #[schemars(with = "String")]
+        value: KeyPair,
+    },
+    GenerateHash {
+        #[schemars(with = "String")]
+        value: HashDigest,
+    },
+    ValidateKeyPair {
+        value: bool,
+    },
+    ValidateHash {
+        value: bool,
+    },
+    Distance {
+        #[schemars(with = "String")]
+        value: CryptoKeyDistance,
+    },
+    Sign {
+        #[schemars(with = "String")]
+        value: Signature,
+    },
+    Verify {
+        #[serde(flatten)]
+        result: ApiResult<()>,
+    },
+    AeadOverhead {
+        value: u32,
+    },
+    DecryptAead {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithVecU8,
+    },
+    EncryptAead {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithVecU8,
+    },
+    CryptNoAuth {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithVecU8,
+    },
 }

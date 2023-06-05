@@ -11,7 +11,8 @@ pub use crypto_system::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Request {
-    /// Operation Id (pairs with Response)
+    /// Operation Id (pairs with Response, or empty if unidirectional)
+    #[serde(default)]
     id: String,
     /// The request operation variant
     #[serde(flatten)]
@@ -20,7 +21,8 @@ pub struct Request {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Response {
-    /// Operation Id (pairs with Request)
+    /// Operation Id (pairs with Request, or empty if unidirectional)
+    #[serde(default)]
     id: String,
     /// The response operation variant
     #[serde(flatten)]
@@ -36,17 +38,14 @@ pub enum RequestOp {
     NewPrivateRoute,
     NewCustomPrivateRoute {
         #[schemars(with = "Vec<String>")]
-        crypto_kinds: Vec<CryptoKind>,
+        kinds: Vec<CryptoKind>,
         #[serde(default)]
         stability: Stability,
         #[serde(default)]
         sequencing: Sequencing,
     },
     ImportRemotePrivateRoute {
-        #[serde(
-            serialize_with = "json_as_base64::serialize",
-            deserialize_with = "json_as_base64::deserialize"
-        )]
+        #[serde(with = "json_as_base64")]
         #[schemars(with = "String")]
         blob: Vec<u8>,
     },
@@ -57,10 +56,7 @@ pub enum RequestOp {
     AppCallReply {
         #[schemars(with = "String")]
         call_id: OperationId,
-        #[serde(
-            serialize_with = "json_as_base64::serialize",
-            deserialize_with = "json_as_base64::deserialize"
-        )]
+        #[serde(with = "json_as_base64")]
         #[schemars(with = "String")]
         message: Vec<u8>,
     },
@@ -79,27 +75,21 @@ pub enum RequestOp {
     // Crypto
     GetCryptoSystem {
         #[schemars(with = "String")]
-        crypto_kind: CryptoKind,
+        kind: CryptoKind,
     },
     BestCryptoSystem,
     CryptoSystem(CryptoSystemRequest),
     VerifySignatures {
         #[schemars(with = "Vec<String>")]
         node_ids: Vec<TypedKey>,
-        #[serde(
-            serialize_with = "json_as_base64::serialize",
-            deserialize_with = "json_as_base64::deserialize"
-        )]
+        #[serde(with = "json_as_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
         #[schemars(with = "Vec<String>")]
         signatures: Vec<TypedSignature>,
     },
     GenerateSignatures {
-        #[serde(
-            serialize_with = "json_as_base64::serialize",
-            deserialize_with = "json_as_base64::deserialize"
-        )]
+        #[serde(with = "json_as_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
         #[schemars(with = "Vec<String>")]
@@ -107,7 +97,7 @@ pub enum RequestOp {
     },
     GenerateKeyPair {
         #[schemars(with = "String")]
-        crypto_kind: CryptoKind,
+        kind: CryptoKind,
     },
     // Misc
     Now,
@@ -122,10 +112,7 @@ pub enum RequestOp {
 pub struct NewPrivateRouteResult {
     #[schemars(with = "String")]
     route_id: RouteId,
-    #[serde(
-        serialize_with = "json_as_base64::serialize",
-        deserialize_with = "json_as_base64::deserialize"
-    )]
+    #[serde(with = "json_as_base64")]
     #[schemars(with = "String")]
     blob: Vec<u8>,
 }
@@ -133,6 +120,9 @@ pub struct NewPrivateRouteResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "op")]
 pub enum ResponseOp {
+    Update {
+        value: VeilidUpdate,
+    },
     GetState {
         #[serde(flatten)]
         result: ApiResult<VeilidState>,
@@ -153,28 +143,74 @@ pub enum ResponseOp {
         #[serde(flatten)]
         result: ApiResult<NewPrivateRouteResult>,
     },
-    ImportRemotePrivateRoute,
-    ReleasePrivateRoute,
-    AppCallReply,
+    ImportRemotePrivateRoute {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithString<RouteId>,
+    },
+    ReleasePrivateRoute {
+        #[serde(flatten)]
+        result: ApiResult<()>,
+    },
+    AppCallReply {
+        #[serde(flatten)]
+        result: ApiResult<()>,
+    },
     // Routing Context
-    NewRoutingContext,
+    NewRoutingContext {
+        value: String,
+    },
     RoutingContext(RoutingContextResponse),
     // TableDb
-    OpenTableDb,
-    DeleteTableDb,
+    OpenTableDb {
+        #[serde(flatten)]
+        result: ApiResult<String>,
+    },
+    DeleteTableDb {
+        #[serde(flatten)]
+        result: ApiResult<bool>,
+    },
     TableDb(TableDbResponse),
     // Crypto
-    GetCryptoSystem,
-    BestCryptoSystem,
+    GetCryptoSystem {
+        #[serde(flatten)]
+        result: ApiResult<String>,
+    },
+    BestCryptoSystem {
+        value: String,
+    },
     CryptoSystem(CryptoSystemResponse),
-    VerifySignatures,
-    GenerateSignatures,
-    GenerateKeyPair,
+    VerifySignatures {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<Vec<String>>")]
+        result: ApiResultWithVecString<TypedKeySet>,
+    },
+    GenerateSignatures {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<Vec<String>>")]
+        result: ApiResultWithVecString<TypedSignatureSet>,
+    },
+    GenerateKeyPair {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithString<TypedKeyPair>,
+    },
     // Misc
-    Now,
-    Debug,
-    VeilidVersionString,
-    VeilidVersion,
+    Now {
+        #[schemars(with = "String")]
+        value: Timestamp,
+    },
+    Debug {
+        value: String,
+    },
+    VeilidVersionString {
+        value: String,
+    },
+    VeilidVersion {
+        major: u32,
+        minor: u32,
+        patch: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -185,6 +221,49 @@ where
 {
     Ok { value: T },
     Err { error: VeilidAPIError },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ApiResultWithString<T>
+where
+    T: Clone + fmt::Debug,
+{
+    Ok {
+        #[schemars(with = "String")]
+        value: T,
+    },
+    Err {
+        error: VeilidAPIError,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ApiResultWithVecU8 {
+    Ok {
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        value: Vec<u8>,
+    },
+    Err {
+        error: VeilidAPIError,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ApiResultWithVecString<T>
+where
+    T: Clone + fmt::Debug,
+{
+    Ok {
+        #[schemars(with = "Vec<String>")]
+        value: T,
+    },
+    Err {
+        error: VeilidAPIError,
+    },
 }
 
 pub fn emit_schemas(out: &mut HashMap<String, String>) {

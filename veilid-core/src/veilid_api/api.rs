@@ -70,6 +70,7 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::not_initialized())
     }
+    #[cfg(feature = "unstable-blockstore")]
     pub fn block_store(&self) -> VeilidAPIResult<BlockStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {

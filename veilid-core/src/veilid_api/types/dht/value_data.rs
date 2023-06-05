@@ -21,10 +21,7 @@ pub struct ValueData {
     seq: ValueSeqNum,
 
     /// The contents of a DHT Record
-    #[serde(
-        serialize_with = "json_as_base64::serialize",
-        deserialize_with = "json_as_base64::deserialize"
-    )]
+    #[serde(with = "json_as_base64")]
     #[schemars(with = "String")]
     data: Vec<u8>,
 

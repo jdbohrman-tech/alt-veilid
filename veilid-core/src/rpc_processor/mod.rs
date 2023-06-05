@@ -5,7 +5,6 @@ mod operation_waiter;
 mod rpc_app_call;
 mod rpc_app_message;
 mod rpc_error;
-mod rpc_find_block;
 mod rpc_find_node;
 mod rpc_get_value;
 mod rpc_return_receipt;
@@ -13,10 +12,14 @@ mod rpc_route;
 mod rpc_set_value;
 mod rpc_signal;
 mod rpc_status;
-mod rpc_supply_block;
 mod rpc_validate_dial_info;
 mod rpc_value_changed;
 mod rpc_watch_value;
+
+#[cfg(feature = "unstable-blockstore")]
+mod rpc_find_block;
+#[cfg(feature = "unstable-blockstore")]
+mod rpc_supply_block;
 
 #[cfg(feature = "unstable-tunnels")]
 mod rpc_cancel_tunnel;
@@ -1412,7 +1415,9 @@ impl RPCProcessor {
                 RPCQuestionDetail::GetValueQ(_) => self.process_get_value_q(msg).await,
                 RPCQuestionDetail::SetValueQ(_) => self.process_set_value_q(msg).await,
                 RPCQuestionDetail::WatchValueQ(_) => self.process_watch_value_q(msg).await,
+                #[cfg(feature = "unstable-blockstore")]
                 RPCQuestionDetail::SupplyBlockQ(_) => self.process_supply_block_q(msg).await,
+                #[cfg(feature = "unstable-blockstore")]
                 RPCQuestionDetail::FindBlockQ(_) => self.process_find_block_q(msg).await,
                 #[cfg(feature = "unstable-tunnels")]
                 RPCQuestionDetail::StartTunnelQ(_) => self.process_start_tunnel_q(msg).await,

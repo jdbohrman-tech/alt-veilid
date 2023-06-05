@@ -150,6 +150,7 @@ struct NetworkManagerUnlockedInner {
     storage_manager: StorageManager,
     protected_store: ProtectedStore,
     table_store: TableStore,
+    #[cfg(feature="unstable-blockstore")]
     block_store: BlockStore,
     crypto: Crypto,
     // Accessors
@@ -181,6 +182,7 @@ impl NetworkManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
+        #[cfg(feature="unstable-blockstore")]
         block_store: BlockStore,
         crypto: Crypto,
     ) -> NetworkManagerUnlockedInner {
@@ -189,6 +191,7 @@ impl NetworkManager {
             storage_manager,
             protected_store,
             table_store,
+            #[cfg(feature="unstable-blockstore")]
             block_store,
             crypto,
             routing_table: RwLock::new(None),
@@ -204,6 +207,7 @@ impl NetworkManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
+        #[cfg(feature="unstable-blockstore")]
         block_store: BlockStore,
         crypto: Crypto,
     ) -> Self {
@@ -214,6 +218,7 @@ impl NetworkManager {
                 storage_manager,
                 protected_store,
                 table_store,
+                #[cfg(feature="unstable-blockstore")]
                 block_store,
                 crypto,
             )),
@@ -241,6 +246,7 @@ impl NetworkManager {
     pub fn table_store(&self) -> TableStore {
         self.unlocked_inner.table_store.clone()
     }
+    #[cfg(feature="unstable-blockstore")]
     pub fn block_store(&self) -> BlockStore {
         self.unlocked_inner.block_store.clone()
     }

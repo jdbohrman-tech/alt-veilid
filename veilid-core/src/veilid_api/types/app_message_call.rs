@@ -16,18 +16,12 @@ use super::*;
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
-    #[serde(
-        serialize_with = "opt_json_as_string::serialize",
-        deserialize_with = "opt_json_as_string::deserialize"
-    )]
+    #[serde(with = "opt_json_as_string")]
     #[schemars(with = "Option<String>")]
     sender: Option<TypedKey>,
 
     /// The content of the message to deliver to the application
-    #[serde(
-        serialize_with = "json_as_base64::serialize",
-        deserialize_with = "json_as_base64::deserialize"
-    )]
+    #[serde(with = "json_as_base64")]
     #[schemars(with = "String")]
     message: Vec<u8>,
 }
@@ -61,26 +55,17 @@ impl VeilidAppMessage {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
-    #[serde(
-        serialize_with = "opt_json_as_string::serialize",
-        deserialize_with = "opt_json_as_string::deserialize"
-    )]
+    #[serde(with = "opt_json_as_string")]
     #[schemars(with = "Option<String>")]
     sender: Option<TypedKey>,
 
     /// The content of the request to deliver to the application
-    #[serde(
-        serialize_with = "json_as_base64::serialize",
-        deserialize_with = "json_as_base64::deserialize"
-    )]
+    #[serde(with = "json_as_base64")]
     #[schemars(with = "String")]
     message: Vec<u8>,
 
     /// The id to reply to
-    #[serde(
-        serialize_with = "json_as_string::serialize",
-        deserialize_with = "json_as_string::deserialize"
-    )]
+    #[serde(with = "json_as_string")]
     #[schemars(with = "String")]
     id: OperationId,
 }

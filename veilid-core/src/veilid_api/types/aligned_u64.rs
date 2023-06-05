@@ -24,10 +24,7 @@ use super::*;
 #[archive_attr(repr(C, align(8)), derive(CheckBytes))]
 #[serde(transparent)]
 pub struct AlignedU64(
-    #[serde(
-        serialize_with = "json_as_string::serialize",
-        deserialize_with = "json_as_string::deserialize"
-    )]
+    #[serde(with = "json_as_string")]
     #[schemars(with = "String")]
     u64,
 );

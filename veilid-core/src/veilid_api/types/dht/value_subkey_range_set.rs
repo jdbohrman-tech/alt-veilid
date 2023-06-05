@@ -18,12 +18,10 @@ use range_set_blaze::*;
     JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
+#[serde(transparent)]
 pub struct ValueSubkeyRangeSet {
     #[with(RkyvRangeSetBlaze)]
-    #[serde(
-        serialize_with = "serialize_range_set_blaze::serialize",
-        deserialize_with = "serialize_range_set_blaze::deserialize"
-    )]
+    #[serde(with = "serialize_range_set_blaze")]
     #[schemars(with = "Vec<(u32,u32)>")]
     data: RangeSetBlaze<ValueSubkey>,
 }

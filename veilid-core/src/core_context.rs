@@ -17,6 +17,7 @@ struct ServicesContext {
 
     pub protected_store: Option<ProtectedStore>,
     pub table_store: Option<TableStore>,
+    #[cfg(feature = "unstable-blockstore")]
     pub block_store: Option<BlockStore>,
     pub crypto: Option<Crypto>,
     pub attachment_manager: Option<AttachmentManager>,
@@ -30,6 +31,7 @@ impl ServicesContext {
             update_callback,
             protected_store: None,
             table_store: None,
+            #[cfg(feature = "unstable-blockstore")]
             block_store: None,
             crypto: None,
             attachment_manager: None,
@@ -42,7 +44,7 @@ impl ServicesContext {
         update_callback: UpdateCallback,
         protected_store: ProtectedStore,
         table_store: TableStore,
-        block_store: BlockStore,
+        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
         attachment_manager: AttachmentManager,
         storage_manager: StorageManager,
@@ -52,6 +54,7 @@ impl ServicesContext {
             update_callback,
             protected_store: Some(protected_store),
             table_store: Some(table_store),
+            #[cfg(feature = "unstable-blockstore")]
             block_store: Some(block_store),
             crypto: Some(crypto),
             attachment_manager: Some(attachment_manager),
@@ -103,14 +106,17 @@ impl ServicesContext {
         self.crypto = Some(crypto.clone());
 
         // Set up block store
-        trace!("init block store");
-        let block_store = BlockStore::new(self.config.clone());
-        if let Err(e) = block_store.init().await {
-            error!("failed to init block store: {}", e);
-            self.shutdown().await;
-            return Err(e);
+        #[cfg(feature = "unstable-blockstore")]
+        {
+            trace!("init block store");
+            let block_store = BlockStore::new(self.config.clone());
+            if let Err(e) = block_store.init().await {
+                error!("failed to init block store: {}", e);
+                self.shutdown().await;
+                return Err(e);
+            }
+            self.block_store = Some(block_store.clone());
         }
-        self.block_store = Some(block_store.clone());
 
         // Set up storage manager
         trace!("init storage manager");
@@ -119,6 +125,7 @@ impl ServicesContext {
             self.crypto.clone().unwrap(),
             self.protected_store.clone().unwrap(),
             self.table_store.clone().unwrap(),
+            #[cfg(feature = "unstable-blockstore")]
             self.block_store.clone().unwrap(),
         );
         if let Err(e) = storage_manager.init().await {
@@ -136,6 +143,7 @@ impl ServicesContext {
             storage_manager,
             protected_store,
             table_store,
+            #[cfg(feature = "unstable-blockstore")]
             block_store,
             crypto,
         );
@@ -162,6 +170,7 @@ impl ServicesContext {
             trace!("terminate storage manager");
             storage_manager.terminate().await;
         }
+        #[cfg(feature = "unstable-blockstore")]
         if let Some(block_store) = &mut self.block_store {
             trace!("terminate block store");
             block_store.terminate().await;
@@ -198,6 +207,7 @@ pub struct VeilidCoreContext {
     pub storage_manager: StorageManager,
     pub protected_store: ProtectedStore,
     pub table_store: TableStore,
+    #[cfg(feature = "unstable-blockstore")]
     pub block_store: BlockStore,
     pub crypto: Crypto,
     pub attachment_manager: AttachmentManager,
@@ -251,6 +261,7 @@ impl VeilidCoreContext {
             storage_manager: sc.storage_manager.unwrap(),
             protected_store: sc.protected_store.unwrap(),
             table_store: sc.table_store.unwrap(),
+            #[cfg(feature = "unstable-blockstore")]
             block_store: sc.block_store.unwrap(),
             crypto: sc.crypto.unwrap(),
             attachment_manager: sc.attachment_manager.unwrap(),
@@ -264,6 +275,7 @@ impl VeilidCoreContext {
             self.update_callback.clone(),
             self.protected_store,
             self.table_store,
+            #[cfg(feature = "unstable-blockstore")]
             self.block_store,
             self.crypto,
             self.attachment_manager,

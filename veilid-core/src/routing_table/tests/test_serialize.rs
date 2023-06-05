@@ -2,6 +2,7 @@ use crate::*;
 
 fn fake_routing_table() -> routing_table::RoutingTable {
     let veilid_config = VeilidConfig::new();
+    #[cfg(feature = "unstable-blockstore")]
     let block_store = BlockStore::new(veilid_config.clone());
     let protected_store = ProtectedStore::new(veilid_config.clone());
     let table_store = TableStore::new(veilid_config.clone(), protected_store.clone());
@@ -11,6 +12,7 @@ fn fake_routing_table() -> routing_table::RoutingTable {
         crypto.clone(),
         protected_store.clone(),
         table_store.clone(),
+        #[cfg(feature = "unstable-blockstore")]
         block_store.clone(),
     );
     let network_manager = network_manager::NetworkManager::new(
@@ -18,6 +20,7 @@ fn fake_routing_table() -> routing_table::RoutingTable {
         storage_manager,
         protected_store.clone(),
         table_store.clone(),
+        #[cfg(feature = "unstable-blockstore")]
         block_store.clone(),
         crypto.clone(),
     );

@@ -30,7 +30,7 @@ impl AttachmentManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
-        block_store: BlockStore,
+        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
     ) -> AttachmentManagerUnlockedInner {
         AttachmentManagerUnlockedInner {
@@ -40,6 +40,7 @@ impl AttachmentManager {
                 storage_manager,
                 protected_store,
                 table_store,
+                #[cfg(feature = "unstable-blockstore")]
                 block_store,
                 crypto,
             ),
@@ -60,7 +61,7 @@ impl AttachmentManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
-        block_store: BlockStore,
+        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
     ) -> Self {
         Self {
@@ -70,6 +71,7 @@ impl AttachmentManager {
                 storage_manager,
                 protected_store,
                 table_store,
+                #[cfg(feature = "unstable-blockstore")]
                 block_store,
                 crypto,
             )),
