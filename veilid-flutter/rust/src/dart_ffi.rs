@@ -908,8 +908,8 @@ pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key:
             tdbt.clone()
         };
         
-        let out = tdbt.delete(col, &key);
-        APIResult::Ok(out)
+        tdbt.delete(col, &key);
+        APIRESULT_VOID
     });
 }
 

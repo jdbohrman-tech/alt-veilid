@@ -20,6 +20,13 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type")]
+pub enum RecvMessage {
+    Response(Response),
+    Update(VeilidUpdate),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Response {
     /// Operation Id (pairs with Request, or empty if unidirectional)
     #[serde(default)]
@@ -72,6 +79,7 @@ pub enum RequestOp {
         name: String,
     },
     TableDb(TableDbRequest),
+    TableDbTransaction(TableDbTransactionRequest),
     // Crypto
     GetCryptoSystem {
         #[schemars(with = "String")]
@@ -120,9 +128,6 @@ pub struct NewPrivateRouteResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "op")]
 pub enum ResponseOp {
-    Update {
-        value: VeilidUpdate,
-    },
     GetState {
         #[serde(flatten)]
         result: ApiResult<VeilidState>,
@@ -171,6 +176,7 @@ pub enum ResponseOp {
         result: ApiResult<bool>,
     },
     TableDb(TableDbResponse),
+    TableDbTransaction(TableDbTransactionResponse),
     // Crypto
     GetCryptoSystem {
         #[serde(flatten)]
@@ -250,6 +256,25 @@ pub enum ApiResultWithVecU8 {
         error: VeilidAPIError,
     },
 }
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+pub struct VecU8 {
+    #[serde(with = "json_as_base64")]
+    #[schemars(with = "String")]
+    value: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ApiResultWithVecVecU8 {
+    Ok {
+        #[schemars(with = "Vec<String>")]
+        value: Vec<VecU8>,
+    },
+    Err {
+        error: VeilidAPIError,
+    },
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
@@ -268,7 +293,7 @@ where
 
 pub fn emit_schemas(out: &mut HashMap<String, String>) {
     let schema_request = schema_for!(Request);
-    let schema_response = schema_for!(Response);
+    let schema_recv_message = schema_for!(RecvMessage);
 
     out.insert(
         "Request".to_owned(),
@@ -276,7 +301,7 @@ pub fn emit_schemas(out: &mut HashMap<String, String>) {
     );
 
     out.insert(
-        "Response".to_owned(),
-        serde_json::to_string_pretty(&schema_response).unwrap(),
+        "RecvMessage".to_owned(),
+        serde_json::to_string_pretty(&schema_recv_message).unwrap(),
     );
 }

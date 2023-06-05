@@ -368,7 +368,7 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
   }
 
   @override
-  Future<bool> delete(int col, Uint8List key) {
+  Future<void> delete(int col, Uint8List key) {
     final encodedKey = base64UrlNoPadEncode(key);
 
     return _wrapApiPromise(js_util.callMethod(

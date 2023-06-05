@@ -797,7 +797,7 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
   }
 
   @override
-  Future<bool> delete(int col, Uint8List key) {
+  Future<void> delete(int col, Uint8List key) {
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_transaction_delete");
@@ -888,7 +888,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
   }
 
   @override
-  Future<Uint8List?> delete(int col, Uint8List key) {
+  Future<Uint8List?> delete(int col, Uint8List key) async {
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_delete");
@@ -899,7 +899,11 @@ class VeilidTableDBFFI extends VeilidTableDB {
       col,
       nativeEncodedKey,
     );
-    return processFuturePlain(recvPort.first);
+    String? out = await processFuturePlain(recvPort.first);
+    if (out == null) {
+      return null;
+    }
+    return base64UrlNoPadDecode(out);
   }
 }
 

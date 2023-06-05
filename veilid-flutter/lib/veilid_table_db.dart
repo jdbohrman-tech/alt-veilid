@@ -8,7 +8,7 @@ abstract class VeilidTableDBTransaction {
   Future<void> commit();
   Future<void> rollback();
   Future<void> store(int col, Uint8List key, Uint8List value);
-  Future<bool> delete(int col, Uint8List key);
+  Future<void> delete(int col, Uint8List key);
 
   Future<void> storeJson(int col, Uint8List key, Object? object,
       {Object? Function(Object? nonEncodable)? toEncodable}) async {
