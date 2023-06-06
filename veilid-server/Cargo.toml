@@ -3,7 +3,6 @@ name = "veilid-server"
 version = "0.1.0"
 authors = ["John Smith <jsmith@example.com>"]
 edition = "2021"
-build = "build.rs"
 license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 
 [[bin]]
@@ -39,9 +38,7 @@ color-eyre = { version = "^0", default-features = false }
 backtrace = "^0"
 clap = "^3"
 directories = "^4"
-capnp = "^0"
 parking_lot = "^0"
-capnp-rpc = "^0"
 config = { version = "^0", features = ["yaml"] }
 cfg-if = "^1"
 serde = "^1"
@@ -74,6 +71,3 @@ tracing-journald = "^0"
 
 [dev-dependencies]
 serial_test = "^0"
-
-[build-dependencies]
-capnpc = "^0"

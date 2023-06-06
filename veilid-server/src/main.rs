@@ -24,11 +24,6 @@ use tools::*;
 use tracing::*;
 use veilid_logs::*;
 
-#[allow(clippy::all)]
-pub mod veilid_client_capnp {
-    include!(concat!(env!("OUT_DIR"), "/proto/veilid_client_capnp.rs"));
-}
-
 #[instrument(err)]
 fn main() -> EyreResult<()> {
     #[cfg(windows)]
@@ -76,7 +71,7 @@ fn main() -> EyreResult<()> {
     if matches.occurrences_of("emit-schema") != 0 {
         if let Some(esstr) = matches.value_of("emit-schema") {
             let mut schemas = HashMap::<String, String>::new();
-            veilid_core::emit_schemas(&mut schemas);
+            veilid_core::json_api::emit_schemas(&mut schemas);
 
             if let Some(schema) = schemas.get(esstr) {
                 println!("{}", schema);
