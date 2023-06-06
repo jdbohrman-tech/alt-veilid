@@ -2,16 +2,16 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CryptoSystemRequest {
-    cs_id: String,
+    pub cs_id: u32,
     #[serde(flatten)]
-    cs_op: CryptoSystemRequestOp,
+    pub cs_op: CryptoSystemRequestOp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CryptoSystemResponse {
-    cs_id: String,
+    pub cs_id: u32,
     #[serde(flatten)]
-    cs_op: CryptoSystemResponseOp,
+    pub cs_op: CryptoSystemResponseOp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -140,6 +140,7 @@ pub enum CryptoSystemRequestOp {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "cs_op")]
 pub enum CryptoSystemResponseOp {
+    InvalidId,
     Release,
     CachedDh {
         #[serde(flatten)]

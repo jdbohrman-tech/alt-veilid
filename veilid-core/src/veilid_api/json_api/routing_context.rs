@@ -2,16 +2,16 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RoutingContextRequest {
-    rc_id: String,
+    pub rc_id: u32,
     #[serde(flatten)]
-    rc_op: RoutingContextRequestOp,
+    pub rc_op: RoutingContextRequestOp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RoutingContextResponse {
-    rc_id: String,
+    pub rc_id: u32,
     #[serde(flatten)]
-    rc_op: RoutingContextResponseOp,
+    pub rc_op: RoutingContextResponseOp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -86,15 +86,18 @@ pub enum RoutingContextRequestOp {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "rc_op")]
 pub enum RoutingContextResponseOp {
+    InvalidId,
     Release,
     WithPrivacy {
-        value: String,
+        #[serde(flatten)]
+        result: ApiResult<u32>,
     },
     WithCustomPrivacy {
-        value: String,
+        #[serde(flatten)]
+        result: ApiResult<u32>,
     },
     WithSequencing {
-        value: String,
+        value: u32,
     },
     AppCall {
         #[serde(flatten)]

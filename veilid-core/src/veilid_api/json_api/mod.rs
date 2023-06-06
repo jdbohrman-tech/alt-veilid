@@ -9,11 +9,14 @@ pub use table_db::*;
 mod crypto_system;
 pub use crypto_system::*;
 
+mod process;
+pub use process::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Request {
     /// Operation Id (pairs with Response, or empty if unidirectional)
     #[serde(default)]
-    id: String,
+    id: u32,
     /// The request operation variant
     #[serde(flatten)]
     op: RequestOp,
@@ -30,7 +33,7 @@ pub enum RecvMessage {
 pub struct Response {
     /// Operation Id (pairs with Request, or empty if unidirectional)
     #[serde(default)]
-    id: String,
+    id: u32,
     /// The response operation variant
     #[serde(flatten)]
     op: ResponseOp,
@@ -163,13 +166,13 @@ pub enum ResponseOp {
     },
     // Routing Context
     NewRoutingContext {
-        value: String,
+        value: u32,
     },
     RoutingContext(RoutingContextResponse),
     // TableDb
     OpenTableDb {
         #[serde(flatten)]
-        result: ApiResult<String>,
+        result: ApiResult<u32>,
     },
     DeleteTableDb {
         #[serde(flatten)]
@@ -180,10 +183,10 @@ pub enum ResponseOp {
     // Crypto
     GetCryptoSystem {
         #[serde(flatten)]
-        result: ApiResult<String>,
+        result: ApiResult<u32>,
     },
     BestCryptoSystem {
-        value: String,
+        value: u32,
     },
     CryptoSystem(CryptoSystemResponse),
     VerifySignatures {

@@ -295,12 +295,4 @@ impl VeilidAPI {
     pub async fn cancel_tunnel(&self, _tunnel_id: TunnelId) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }
-
-    ////////////////////////////////////////////////////////////////
-    // JSON API
-
-    #[instrument(level = "debug", skip(self))]
-    pub async fn json_request(&self, request: json_api::Request) -> json_api::Response {
-        panic!("unimplemented");
-    }
 }

@@ -3,17 +3,16 @@
 mod api;
 mod debug;
 mod error;
-mod json_api;
 mod routing_context;
 mod serialize_helpers;
 mod types;
 
+pub mod json_api;
 pub mod tests;
 
 pub use api::*;
 pub use debug::*;
 pub use error::*;
-pub use json_api::*;
 pub use routing_context::*;
 pub use serialize_helpers::*;
 pub use types::*;
