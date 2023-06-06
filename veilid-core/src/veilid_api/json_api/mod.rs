@@ -186,7 +186,8 @@ pub enum ResponseOp {
         result: ApiResult<u32>,
     },
     BestCryptoSystem {
-        value: u32,
+        #[serde(flatten)]
+        result: ApiResult<u32>,
     },
     CryptoSystem(CryptoSystemResponse),
     VerifySignatures {
@@ -197,7 +198,7 @@ pub enum ResponseOp {
     GenerateSignatures {
         #[serde(flatten)]
         #[schemars(with = "ApiResult<Vec<String>>")]
-        result: ApiResultWithVecString<TypedSignatureSet>,
+        result: ApiResultWithVecString<Vec<TypedSignature>>,
     },
     GenerateKeyPair {
         #[serde(flatten)]
@@ -210,7 +211,8 @@ pub enum ResponseOp {
         value: Timestamp,
     },
     Debug {
-        value: String,
+        #[serde(flatten)]
+        result: ApiResult<String>,
     },
     VeilidVersionString {
         value: String,

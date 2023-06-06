@@ -19,6 +19,15 @@ fn to_json_api_result_with_string<T: Clone + fmt::Debug>(
     }
 }
 
+fn to_json_api_result_with_vec_string<T: Clone + fmt::Debug>(
+    r: VeilidAPIResult<T>,
+) -> json_api::ApiResultWithVecString<T> {
+    match r {
+        Err(e) => json_api::ApiResultWithVecString::Err { error: e },
+        Ok(v) => json_api::ApiResultWithVecString::Ok { value: v },
+    }
+}
+
 fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> json_api::ApiResultWithVecU8 {
     match r {
         Err(e) => json_api::ApiResultWithVecU8::Err { error: e },
@@ -42,6 +51,7 @@ pub struct JsonRequestProcessor {
     routing_contexts: Mutex<BTreeMap<u32, RoutingContext>>,
     table_dbs: Mutex<BTreeMap<u32, TableDB>>,
     table_db_transactions: Mutex<BTreeMap<u32, TableDBTransaction>>,
+    crypto_systems: Mutex<BTreeMap<u32, CryptoSystemVersion>>,
 }
 
 impl JsonRequestProcessor {
@@ -51,6 +61,7 @@ impl JsonRequestProcessor {
             routing_contexts: Default::default(),
             table_dbs: Default::default(),
             table_db_transactions: Default::default(),
+            crypto_systems: Default::default(),
         }
     }
 
@@ -146,6 +157,37 @@ impl JsonRequestProcessor {
     fn release_table_db_transaction(&self, id: u32) -> i32 {
         let mut tdbts = self.table_db_transactions.lock();
         if tdbts.remove(&id).is_none() {
+            return 0;
+        }
+        return 1;
+    }
+
+    // CryptoSystem
+    fn add_crypto_system(&self, csv: CryptoSystemVersion) -> u32 {
+        let mut next_id: u32 = 1;
+        let mut crypto_systems = self.crypto_systems.lock();
+        while crypto_systems.contains_key(&next_id) {
+            next_id += 1;
+        }
+        crypto_systems.insert(next_id, csv);
+        next_id
+    }
+    fn lookup_crypto_system(&self, id: u32, cs_id: u32) -> Result<CryptoSystemVersion, Response> {
+        let crypto_systems = self.crypto_systems.lock();
+        let Some(crypto_system) = crypto_systems.get(&cs_id).cloned() else {
+            return Err(Response {
+                id,
+                op: ResponseOp::CryptoSystem(CryptoSystemResponse {
+                    cs_id,
+                    cs_op: CryptoSystemResponseOp::InvalidId
+                })
+            });
+        };
+        Ok(crypto_system)
+    }
+    fn release_crypto_system(&self, id: u32) -> i32 {
+        let mut crypto_systems = self.crypto_systems.lock();
+        if crypto_systems.remove(&id).is_none() {
             return 0;
         }
         return 1;
@@ -370,6 +412,122 @@ impl JsonRequestProcessor {
         }
     }
 
+    pub async fn process_crypto_system_request(
+        &self,
+        csv: CryptoSystemVersion,
+        csr: CryptoSystemRequest,
+    ) -> CryptoSystemResponse {
+        let cs_op = match csr.cs_op {
+            CryptoSystemRequestOp::Release => {
+                self.release_crypto_system(csr.cs_id);
+                CryptoSystemResponseOp::Release {}
+            }
+            CryptoSystemRequestOp::CachedDh { key, secret } => CryptoSystemResponseOp::CachedDh {
+                result: to_json_api_result_with_string(csv.cached_dh(&key, &secret)),
+            },
+            CryptoSystemRequestOp::ComputeDh { key, secret } => CryptoSystemResponseOp::ComputeDh {
+                result: to_json_api_result_with_string(csv.compute_dh(&key, &secret)),
+            },
+            CryptoSystemRequestOp::RandomBytes { len } => CryptoSystemResponseOp::RandomBytes {
+                value: csv.random_bytes(len),
+            },
+            CryptoSystemRequestOp::DefaultSaltLength => CryptoSystemResponseOp::DefaultSaltLength {
+                value: csv.default_salt_length(),
+            },
+            CryptoSystemRequestOp::HashPassword { password, salt } => {
+                CryptoSystemResponseOp::HashPassword {
+                    result: to_json_api_result(csv.hash_password(&password, &salt)),
+                }
+            }
+            CryptoSystemRequestOp::VerifyPassword {
+                password,
+                password_hash,
+            } => CryptoSystemResponseOp::VerifyPassword {
+                result: to_json_api_result(csv.verify_password(&password, &password_hash)),
+            },
+            CryptoSystemRequestOp::DeriveSharedSecret { password, salt } => {
+                CryptoSystemResponseOp::DeriveSharedSecret {
+                    result: to_json_api_result_with_string(
+                        csv.derive_shared_secret(&password, &salt),
+                    ),
+                }
+            }
+            CryptoSystemRequestOp::RandomNonce => CryptoSystemResponseOp::RandomNonce {
+                value: csv.random_nonce(),
+            },
+            CryptoSystemRequestOp::RandomSharedSecret => {
+                CryptoSystemResponseOp::RandomSharedSecret {
+                    value: csv.random_shared_secret(),
+                }
+            }
+            CryptoSystemRequestOp::GenerateKeyPair => CryptoSystemResponseOp::GenerateKeyPair {
+                value: csv.generate_keypair(),
+            },
+            CryptoSystemRequestOp::GenerateHash { data } => CryptoSystemResponseOp::GenerateHash {
+                value: csv.generate_hash(&data),
+            },
+            CryptoSystemRequestOp::ValidateKeyPair { key, secret } => {
+                CryptoSystemResponseOp::ValidateKeyPair {
+                    value: csv.validate_keypair(&key, &secret),
+                }
+            }
+            CryptoSystemRequestOp::ValidateHash { data, hash_digest } => {
+                CryptoSystemResponseOp::ValidateHash {
+                    value: csv.validate_hash(&data, &hash_digest),
+                }
+            }
+            CryptoSystemRequestOp::Distance { key1, key2 } => CryptoSystemResponseOp::Distance {
+                value: csv.distance(&key1, &key2),
+            },
+            CryptoSystemRequestOp::Sign { key, secret, data } => CryptoSystemResponseOp::Sign {
+                result: to_json_api_result_with_string(csv.sign(&key, &secret, &data)),
+            },
+            CryptoSystemRequestOp::Verify { key, data, secret } => CryptoSystemResponseOp::Verify {
+                result: to_json_api_result(csv.verify(&key, &data, &secret)),
+            },
+            CryptoSystemRequestOp::AeadOverhead => CryptoSystemResponseOp::AeadOverhead {
+                value: csv.aead_overhead() as u32,
+            },
+            CryptoSystemRequestOp::DecryptAead {
+                body,
+                nonce,
+                shared_secret,
+                associated_data,
+            } => CryptoSystemResponseOp::DecryptAead {
+                result: to_json_api_result_with_vec_u8(csv.decrypt_aead(
+                    &body,
+                    &nonce,
+                    &shared_secret,
+                    associated_data.as_ref().map(|ad| ad.as_slice()),
+                )),
+            },
+            CryptoSystemRequestOp::EncryptAead {
+                body,
+                nonce,
+                shared_secret,
+                associated_data,
+            } => CryptoSystemResponseOp::EncryptAead {
+                result: to_json_api_result_with_vec_u8(csv.encrypt_aead(
+                    &body,
+                    &nonce,
+                    &shared_secret,
+                    associated_data.as_ref().map(|ad| ad.as_slice()),
+                )),
+            },
+            CryptoSystemRequestOp::CryptNoAuth {
+                body,
+                nonce,
+                shared_secret,
+            } => CryptoSystemResponseOp::CryptNoAuth {
+                value: csv.crypt_no_auth_unaligned(&body, &nonce, &shared_secret),
+            },
+        };
+        CryptoSystemResponse {
+            cs_id: csr.cs_id,
+            cs_op,
+        }
+    }
+
     pub async fn process_request(&self, request: Request) -> Response {
         let id = request.id;
 
@@ -482,20 +640,121 @@ impl JsonRequestProcessor {
                         .await,
                 )
             }
-            RequestOp::GetCryptoSystem { kind } => todo!(),
-            RequestOp::BestCryptoSystem => todo!(),
-            RequestOp::CryptoSystem(_) => todo!(),
+            RequestOp::GetCryptoSystem { kind } => {
+                let crypto = match self.api.crypto() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Response {
+                            id,
+                            op: ResponseOp::GetCryptoSystem {
+                                result: to_json_api_result(Err(e)),
+                            },
+                        }
+                    }
+                };
+                ResponseOp::GetCryptoSystem {
+                    result: to_json_api_result(
+                        crypto
+                            .get(kind)
+                            .ok_or_else(|| {
+                                VeilidAPIError::invalid_argument(
+                                    "unsupported cryptosystem",
+                                    "kind",
+                                    kind,
+                                )
+                            })
+                            .map(|csv| self.add_crypto_system(csv)),
+                    ),
+                }
+            }
+            RequestOp::BestCryptoSystem => {
+                let crypto = match self.api.crypto() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Response {
+                            id,
+                            op: ResponseOp::GetCryptoSystem {
+                                result: to_json_api_result(Err(e)),
+                            },
+                        }
+                    }
+                };
+                ResponseOp::BestCryptoSystem {
+                    result: to_json_api_result(Ok(self.add_crypto_system(crypto.best()))),
+                }
+            }
+            RequestOp::CryptoSystem(csr) => {
+                let csv = match self.lookup_crypto_system(id, csr.cs_id) {
+                    Ok(v) => v,
+                    Err(e) => return e,
+                };
+                ResponseOp::CryptoSystem(self.process_crypto_system_request(csv, csr).await)
+            }
             RequestOp::VerifySignatures {
                 node_ids,
                 data,
                 signatures,
-            } => todo!(),
-            RequestOp::GenerateSignatures { data, key_pairs } => todo!(),
-            RequestOp::GenerateKeyPair { kind } => todo!(),
-            RequestOp::Now => todo!(),
-            RequestOp::Debug { command } => todo!(),
-            RequestOp::VeilidVersionString => todo!(),
-            RequestOp::VeilidVersion => todo!(),
+            } => {
+                let crypto = match self.api.crypto() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Response {
+                            id,
+                            op: ResponseOp::GetCryptoSystem {
+                                result: to_json_api_result(Err(e)),
+                            },
+                        }
+                    }
+                };
+                ResponseOp::VerifySignatures {
+                    result: to_json_api_result_with_vec_string(crypto.verify_signatures(
+                        &node_ids,
+                        &data,
+                        &signatures,
+                    )),
+                }
+            }
+            RequestOp::GenerateSignatures { data, key_pairs } => {
+                let crypto = match self.api.crypto() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Response {
+                            id,
+                            op: ResponseOp::GetCryptoSystem {
+                                result: to_json_api_result(Err(e)),
+                            },
+                        }
+                    }
+                };
+                ResponseOp::GenerateSignatures {
+                    result: to_json_api_result_with_vec_string(crypto.generate_signatures(
+                        &data,
+                        &key_pairs,
+                        |k, s| TypedSignature::new(k.kind, s),
+                    )),
+                }
+            }
+            RequestOp::GenerateKeyPair { kind } => ResponseOp::GenerateKeyPair {
+                result: to_json_api_result_with_string(Crypto::generate_keypair(kind)),
+            },
+            RequestOp::Now => ResponseOp::Now {
+                value: get_aligned_timestamp(),
+            },
+            RequestOp::Debug { command } => ResponseOp::Debug {
+                result: to_json_api_result(self.api.debug(command).await),
+            },
+            RequestOp::VeilidVersionString => ResponseOp::VeilidVersionString {
+                value: veilid_version_string(),
+            },
+            RequestOp::VeilidVersion => {
+                let (major, minor, patch) = veilid_version();
+
+                ResponseOp::VeilidVersion {
+                    major,
+                    minor,
+                    patch,
+                }
+            }
         };
 
         Response { id, op }

@@ -74,9 +74,8 @@ pub enum CryptoSystemRequestOp {
         #[serde(with = "json_as_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
-        #[serde(with = "json_as_base64")]
         #[schemars(with = "String")]
-        hash_digest: Vec<u8>,
+        hash_digest: HashDigest,
     },
     Distance {
         #[schemars(with = "String")]
@@ -153,9 +152,9 @@ pub enum CryptoSystemResponseOp {
         result: ApiResultWithString<SharedSecret>,
     },
     RandomBytes {
-        #[serde(flatten)]
-        #[schemars(with = "ApiResult<String>")]
-        result: ApiResultWithVecU8,
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        value: Vec<u8>,
     },
     DefaultSaltLength {
         value: u32,
@@ -200,8 +199,9 @@ pub enum CryptoSystemResponseOp {
         value: CryptoKeyDistance,
     },
     Sign {
-        #[schemars(with = "String")]
-        value: Signature,
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithString<Signature>,
     },
     Verify {
         #[serde(flatten)]
@@ -221,8 +221,8 @@ pub enum CryptoSystemResponseOp {
         result: ApiResultWithVecU8,
     },
     CryptNoAuth {
-        #[serde(flatten)]
-        #[schemars(with = "ApiResult<String>")]
-        result: ApiResultWithVecU8,
+        #[serde(with = "json_as_base64")]
+        #[schemars(with = "String")]
+        value: Vec<u8>,
     },
 }
