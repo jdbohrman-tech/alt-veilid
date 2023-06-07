@@ -1,7 +1,7 @@
 use super::*;
 use futures_util::FutureExt;
 
-fn to_json_api_result<T: Clone + fmt::Debug + JsonSchema>(
+pub fn to_json_api_result<T: Clone + fmt::Debug + JsonSchema>(
     r: VeilidAPIResult<T>,
 ) -> json_api::ApiResult<T> {
     match r {
@@ -10,7 +10,7 @@ fn to_json_api_result<T: Clone + fmt::Debug + JsonSchema>(
     }
 }
 
-fn to_json_api_result_with_string<T: Clone + fmt::Debug>(
+pub fn to_json_api_result_with_string<T: Clone + fmt::Debug>(
     r: VeilidAPIResult<T>,
 ) -> json_api::ApiResultWithString<T> {
     match r {
@@ -19,7 +19,7 @@ fn to_json_api_result_with_string<T: Clone + fmt::Debug>(
     }
 }
 
-fn to_json_api_result_with_vec_string<T: Clone + fmt::Debug>(
+pub fn to_json_api_result_with_vec_string<T: Clone + fmt::Debug>(
     r: VeilidAPIResult<T>,
 ) -> json_api::ApiResultWithVecString<T> {
     match r {
@@ -28,14 +28,14 @@ fn to_json_api_result_with_vec_string<T: Clone + fmt::Debug>(
     }
 }
 
-fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> json_api::ApiResultWithVecU8 {
+pub fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> json_api::ApiResultWithVecU8 {
     match r {
         Err(e) => json_api::ApiResultWithVecU8::Err { error: e },
         Ok(v) => json_api::ApiResultWithVecU8::Ok { value: v },
     }
 }
 
-fn to_json_api_result_with_vec_vec_u8(
+pub fn to_json_api_result_with_vec_vec_u8(
     r: VeilidAPIResult<Vec<Vec<u8>>>,
 ) -> json_api::ApiResultWithVecVecU8 {
     match r {
@@ -46,38 +46,45 @@ fn to_json_api_result_with_vec_vec_u8(
     }
 }
 
+struct JsonRequestProcessorInner {
+    routing_contexts: BTreeMap<u32, RoutingContext>,
+    table_dbs: BTreeMap<u32, TableDB>,
+    table_db_transactions: BTreeMap<u32, TableDBTransaction>,
+    crypto_systems: BTreeMap<u32, CryptoSystemVersion>,
+}
+
+#[derive(Clone)]
 pub struct JsonRequestProcessor {
     api: VeilidAPI,
-    routing_contexts: Mutex<BTreeMap<u32, RoutingContext>>,
-    table_dbs: Mutex<BTreeMap<u32, TableDB>>,
-    table_db_transactions: Mutex<BTreeMap<u32, TableDBTransaction>>,
-    crypto_systems: Mutex<BTreeMap<u32, CryptoSystemVersion>>,
+    inner: Arc<Mutex<JsonRequestProcessorInner>>,
 }
 
 impl JsonRequestProcessor {
     pub fn new(api: VeilidAPI) -> Self {
         Self {
             api,
-            routing_contexts: Default::default(),
-            table_dbs: Default::default(),
-            table_db_transactions: Default::default(),
-            crypto_systems: Default::default(),
+            inner: Arc::new(Mutex::new(JsonRequestProcessorInner {
+                routing_contexts: Default::default(),
+                table_dbs: Default::default(),
+                table_db_transactions: Default::default(),
+                crypto_systems: Default::default(),
+            })),
         }
     }
 
     // Routing Context
     fn add_routing_context(&self, routing_context: RoutingContext) -> u32 {
+        let mut inner = self.inner.lock();
         let mut next_id: u32 = 1;
-        let mut rc = self.routing_contexts.lock();
-        while rc.contains_key(&next_id) {
+        while inner.routing_contexts.contains_key(&next_id) {
             next_id += 1;
         }
-        rc.insert(next_id, routing_context);
+        inner.routing_contexts.insert(next_id, routing_context);
         next_id
     }
     fn lookup_routing_context(&self, id: u32, rc_id: u32) -> Result<RoutingContext, Response> {
-        let routing_contexts = self.routing_contexts.lock();
-        let Some(routing_context) = routing_contexts.get(&rc_id).cloned() else {
+        let inner = self.inner.lock();
+        let Some(routing_context) = inner.routing_contexts.get(&rc_id).cloned() else {
             return Err(Response {
                 id,
                 op: ResponseOp::RoutingContext(RoutingContextResponse {
@@ -89,8 +96,8 @@ impl JsonRequestProcessor {
         Ok(routing_context)
     }
     fn release_routing_context(&self, id: u32) -> i32 {
-        let mut rc = self.routing_contexts.lock();
-        if rc.remove(&id).is_none() {
+        let mut inner = self.inner.lock();
+        if inner.routing_contexts.remove(&id).is_none() {
             return 0;
         }
         return 1;
@@ -98,17 +105,17 @@ impl JsonRequestProcessor {
 
     // TableDB
     fn add_table_db(&self, table_db: TableDB) -> u32 {
+        let mut inner = self.inner.lock();
         let mut next_id: u32 = 1;
-        let mut rc = self.table_dbs.lock();
-        while rc.contains_key(&next_id) {
+        while inner.table_dbs.contains_key(&next_id) {
             next_id += 1;
         }
-        rc.insert(next_id, table_db);
+        inner.table_dbs.insert(next_id, table_db);
         next_id
     }
     fn lookup_table_db(&self, id: u32, db_id: u32) -> Result<TableDB, Response> {
-        let table_dbs = self.table_dbs.lock();
-        let Some(table_db) = table_dbs.get(&db_id).cloned() else {
+        let inner = self.inner.lock();
+        let Some(table_db) = inner.table_dbs.get(&db_id).cloned() else {
             return Err(Response {
                 id,
                 op: ResponseOp::TableDb(TableDbResponse {
@@ -120,8 +127,8 @@ impl JsonRequestProcessor {
         Ok(table_db)
     }
     fn release_table_db(&self, id: u32) -> i32 {
-        let mut rc = self.table_dbs.lock();
-        if rc.remove(&id).is_none() {
+        let mut inner = self.inner.lock();
+        if inner.table_dbs.remove(&id).is_none() {
             return 0;
         }
         return 1;
@@ -129,12 +136,12 @@ impl JsonRequestProcessor {
 
     // TableDBTransaction
     fn add_table_db_transaction(&self, tdbt: TableDBTransaction) -> u32 {
+        let mut inner = self.inner.lock();
         let mut next_id: u32 = 1;
-        let mut tdbts = self.table_db_transactions.lock();
-        while tdbts.contains_key(&next_id) {
+        while inner.table_db_transactions.contains_key(&next_id) {
             next_id += 1;
         }
-        tdbts.insert(next_id, tdbt);
+        inner.table_db_transactions.insert(next_id, tdbt);
         next_id
     }
     fn lookup_table_db_transaction(
@@ -142,8 +149,8 @@ impl JsonRequestProcessor {
         id: u32,
         tx_id: u32,
     ) -> Result<TableDBTransaction, Response> {
-        let table_db_transactions = self.table_db_transactions.lock();
-        let Some(table_db_transaction) = table_db_transactions.get(&tx_id).cloned() else {
+        let inner = self.inner.lock();
+        let Some(table_db_transaction) = inner.table_db_transactions.get(&tx_id).cloned() else {
             return Err(Response {
                 id,
                 op: ResponseOp::TableDbTransaction(TableDbTransactionResponse {
@@ -155,8 +162,8 @@ impl JsonRequestProcessor {
         Ok(table_db_transaction)
     }
     fn release_table_db_transaction(&self, id: u32) -> i32 {
-        let mut tdbts = self.table_db_transactions.lock();
-        if tdbts.remove(&id).is_none() {
+        let mut inner = self.inner.lock();
+        if inner.table_db_transactions.remove(&id).is_none() {
             return 0;
         }
         return 1;
@@ -164,17 +171,17 @@ impl JsonRequestProcessor {
 
     // CryptoSystem
     fn add_crypto_system(&self, csv: CryptoSystemVersion) -> u32 {
+        let mut inner = self.inner.lock();
         let mut next_id: u32 = 1;
-        let mut crypto_systems = self.crypto_systems.lock();
-        while crypto_systems.contains_key(&next_id) {
+        while inner.crypto_systems.contains_key(&next_id) {
             next_id += 1;
         }
-        crypto_systems.insert(next_id, csv);
+        inner.crypto_systems.insert(next_id, csv);
         next_id
     }
     fn lookup_crypto_system(&self, id: u32, cs_id: u32) -> Result<CryptoSystemVersion, Response> {
-        let crypto_systems = self.crypto_systems.lock();
-        let Some(crypto_system) = crypto_systems.get(&cs_id).cloned() else {
+        let inner = self.inner.lock();
+        let Some(crypto_system) = inner.crypto_systems.get(&cs_id).cloned() else {
             return Err(Response {
                 id,
                 op: ResponseOp::CryptoSystem(CryptoSystemResponse {
@@ -186,8 +193,8 @@ impl JsonRequestProcessor {
         Ok(crypto_system)
     }
     fn release_crypto_system(&self, id: u32) -> i32 {
-        let mut crypto_systems = self.crypto_systems.lock();
-        if crypto_systems.remove(&id).is_none() {
+        let mut inner = self.inner.lock();
+        if inner.crypto_systems.remove(&id).is_none() {
             return 0;
         }
         return 1;
@@ -528,10 +535,15 @@ impl JsonRequestProcessor {
         }
     }
 
-    pub async fn process_request(&self, request: Request) -> Response {
+    pub async fn process_request(self, request: Request) -> Response {
         let id = request.id;
 
         let op = match request.op {
+            RequestOp::Control { args: _args } => ResponseOp::Control {
+                result: to_json_api_result(VeilidAPIResult::Err(VeilidAPIError::unimplemented(
+                    "control should be handled by veilid-core host application",
+                ))),
+            },
             RequestOp::GetState => ResponseOp::GetState {
                 result: to_json_api_result(self.api.get_state().await),
             },

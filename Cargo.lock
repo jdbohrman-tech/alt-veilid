@@ -846,27 +846,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13e2d432d1601d61d1e11140d04e9d239b5cf7316fa1106523c3d86eea19c29d"
 
 [[package]]
-name = "capnp-futures"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71d520e0af228b92de357f230f4987ee4f9786f2b8aa24b9cfe53f5b11c17198"
-dependencies = [
- "capnp",
- "futures",
-]
-
-[[package]]
-name = "capnp-rpc"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ab8e869783e491cbcc350427a5e775aa4d8a1deaa5198d74332957cfa430779"
-dependencies = [
- "capnp",
- "capnp-futures",
- "futures",
-]
-
-[[package]]
 name = "capnpc"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5928,6 +5907,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "triomphe"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1ee9bd9239c339d714d657fac840c6d2a4f9c45f4f9ec7b0975113458be78db"
+dependencies = [
+ "serde",
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "trust-dns-proto"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6161,9 +6150,6 @@ dependencies = [
  "async-std",
  "async-tungstenite 0.8.0",
  "bugsalot",
- "capnp",
- "capnp-rpc",
- "capnpc",
  "cfg-if 1.0.0",
  "clap 3.2.25",
  "config",
@@ -6366,6 +6352,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "veilid-core",
+ "wg",
  "windows-service",
 ]
 
@@ -6674,6 +6661,17 @@ dependencies = [
  "libc",
  "memory_units",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "wg"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f390449c16e0679435fc97a6b49d24e67f09dd05fea1de54db1b60902896d273"
+dependencies = [
+ "atomic-waker",
+ "parking_lot 0.12.1",
+ "triomphe",
 ]
 
 [[package]]

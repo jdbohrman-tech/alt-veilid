@@ -1,8 +1,6 @@
 use crate::client_api;
 use crate::settings::*;
-use crate::tools::*;
 use crate::veilid_logs::*;
-use crate::*;
 use flume::{unbounded, Receiver, Sender};
 use futures_util::select;
 use futures_util::FutureExt;
@@ -11,7 +9,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::*;
-use veilid_core::tools::SingleShotEventual;
+use veilid_core::tools::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ServerMode {
@@ -140,7 +138,7 @@ pub async fn run_veilid_server_internal(
                     break;
                 }
             }
-            sleep(Duration::from_millis(100)).await;
+            sleep(100).await;
         }
         match veilid_api.debug("txtrecord".to_string()).await {
             Ok(v) => {

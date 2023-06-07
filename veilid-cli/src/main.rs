@@ -18,11 +18,6 @@ mod settings;
 mod tools;
 mod ui;
 
-#[allow(clippy::all)]
-pub mod veilid_client_capnp {
-    include!(concat!(env!("OUT_DIR"), "/proto/veilid_client_capnp.rs"));
-}
-
 fn parse_command_line(default_config_path: &OsStr) -> Result<clap::ArgMatches, String> {
     let matches = Command::new("veilid-cli")
         .version("0.1")

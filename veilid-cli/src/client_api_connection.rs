@@ -1,8 +1,5 @@
 use crate::command_processor::*;
 use crate::tools::*;
-use crate::veilid_client_capnp::*;
-use capnp::capability::Promise;
-use capnp_rpc::{pry, rpc_twoparty_capnp, twoparty, Disconnector, RpcSystem};
 use futures::future::FutureExt;
 use serde::de::DeserializeOwned;
 use std::cell::RefCell;
@@ -10,25 +7,6 @@ use std::net::SocketAddr;
 use std::rc::Rc;
 use veilid_core::tools::*;
 use veilid_core::*;
-
-macro_rules! capnp_failed {
-    ($ex:expr) => {{
-        let msg = format!("Capnp Error: {}", $ex);
-        error!("{}", msg);
-        Promise::err(capnp::Error::failed(msg))
-    }};
-}
-
-macro_rules! pry_result {
-    ($ex:expr) => {
-        match $ex {
-            Ok(v) => v,
-            Err(e) => {
-                return capnp_failed!(e);
-            }
-        }
-    };
-}
 
 fn map_to_internal_error<T: ToString>(e: T) -> VeilidAPIError {
     VeilidAPIError::Internal {

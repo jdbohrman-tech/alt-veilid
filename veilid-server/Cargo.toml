@@ -10,13 +10,13 @@ name = "veilid-server"
 path = "src/main.rs"
 
 [features]
-default = [ "rt-tokio", "veilid-core/default" ]
-crypto-test = [ "rt-tokio", "veilid-core/crypto-test"]
-crypto-test-none = [ "rt-tokio", "veilid-core/crypto-test-none"]
+default = ["rt-tokio", "veilid-core/default"]
+crypto-test = ["rt-tokio", "veilid-core/crypto-test"]
+crypto-test-none = ["rt-tokio", "veilid-core/crypto-test-none"]
 
-rt-async-std = [ "veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys" ]
-rt-tokio = [ "veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio", "console-subscriber" ]
-tracking = [ "veilid-core/tracking" ]
+rt-async-std = ["veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys"]
+rt-tokio = ["veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio", "console-subscriber"]
+tracking = ["veilid-core/tracking"]
 
 [dependencies]
 veilid-core = { path = "../veilid-core", default-features = false }
@@ -55,6 +55,7 @@ rpassword = "^6"
 hostname = "^0"
 stop-token = { version = "^0", default-features = false }
 sysinfo = { version = "^0.28.4", default-features = false }
+wg = "0.3.2"
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "^0"

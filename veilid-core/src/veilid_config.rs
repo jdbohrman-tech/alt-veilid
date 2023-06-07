@@ -750,7 +750,7 @@ impl VeilidConfig {
         self.inner.read()
     }
 
-    fn safe_config(&self) -> VeilidConfigInner {
+    pub fn safe_config(&self) -> VeilidConfigInner {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
@@ -773,6 +773,11 @@ impl VeilidConfig {
             let out = f(&mut editedinner)?;
             // Validate
             Self::validate(&mut editedinner)?;
+            // See if things have changed
+            if *inner == editedinner {
+                // No changes, return early
+                return Ok(out);
+            }
             // Commit changes
             *inner = editedinner.clone();
             out

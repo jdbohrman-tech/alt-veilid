@@ -1,19 +1,29 @@
 use crate::settings::*;
 use crate::tools::*;
-use crate::veilid_client_capnp::*;
 use crate::veilid_logs::VeilidLogs;
 use cfg_if::*;
-use futures_util::{future::try_join_all, FutureExt as FuturesFutureExt, StreamExt};
-use serde::*;
-use std::cell::RefCell;
+use futures_util::{future::try_join_all, stream::FuturesUnordered, StreamExt};
+
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::fmt;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use stop_token::future::FutureExt;
 use stop_token::*;
 use tracing::*;
+use veilid_core::tools::*;
 use veilid_core::*;
+use wg::AsyncWaitGroup;
 
+cfg_if! {
+    if #[cfg(feature="rt-async-std")] {
+        use async_std::io::prelude::BufReadExt;
+        use async_std::io::WriteExt;
+    } else if #[cfg(feature="rt-tokio")] {
+        use tokio::io::AsyncBufReadExt;
+        use tokio::io::AsyncWriteExt;
+    }
+}
 // struct VeilidServerImpl {
 //     veilid_api: veilid_core::VeilidAPI,
 //     veilid_logs: VeilidLogs,
@@ -36,50 +46,11 @@ use veilid_core::*;
 //         }
 //     }
 
-//     #[instrument(level = "trace", skip_all)]
-//     fn shutdown(
-//         &mut self,
-//         _params: veilid_server::ShutdownParams,
-//         mut _results: veilid_server::ShutdownResults,
-//     ) -> Promise<(), ::capnp::Error> {
-//         trace!("VeilidServerImpl::shutdown");
-
-//         cfg_if::cfg_if! {
-//             if #[cfg(windows)] {
-//                 assert!(false, "write me!");
-//             }
-//             else {
-//                 crate::server::shutdown();
-//             }
-//         }
-
-//         Promise::ok(())
-//     }
-
-//     #[instrument(level = "trace", skip_all)]
-//     fn change_log_level(
-//         &mut self,
-//         params: veilid_server::ChangeLogLevelParams,
-//         mut results: veilid_server::ChangeLogLevelResults,
-//     ) -> Promise<(), ::capnp::Error> {
-//         trace!("VeilidServerImpl::change_log_level");
-
-//         let layer = pry!(pry!(params.get()).get_layer()).to_owned();
-//         let log_level_json = pry!(pry!(params.get()).get_log_level()).to_owned();
-//         let log_level: veilid_core::VeilidConfigLogLevel =
-//             pry!(veilid_core::deserialize_json(&log_level_json)
-//                 .map_err(|e| ::capnp::Error::failed(format!("{:?}", e))));
-
-//         let result = self.veilid_logs.change_log_level(layer, log_level);
-//         encode_api_result(&result, &mut results.get().init_result());
-//         Promise::ok(())
-//     }
 // }
 
 // --- Client API Server-Side ---------------------------------
 
-type ClientApiAllFuturesJoinHandle =
-    JoinHandle<Result<Vec<()>, Box<(dyn std::error::Error + 'static)>>>;
+type ClientApiAllFuturesJoinHandle = MustJoinHandle<std::io::Result<Vec<()>>>;
 
 struct ClientApiInner {
     veilid_api: veilid_core::VeilidAPI,
@@ -87,8 +58,10 @@ struct ClientApiInner {
     settings: Settings,
     stop: Option<StopSource>,
     join_handle: Option<ClientApiAllFuturesJoinHandle>,
+    update_channels: HashMap<(SocketAddr, SocketAddr), flume::Sender<String>>,
 }
 
+#[derive(Clone)]
 pub struct ClientApi {
     inner: Arc<Mutex<ClientApiInner>>,
 }
@@ -99,23 +72,43 @@ impl ClientApi {
         veilid_api: veilid_core::VeilidAPI,
         veilid_logs: VeilidLogs,
         settings: Settings,
-    ) -> Rc<Self> {
-        Rc::new(Self {
-            inner: RefCell::new(ClientApiInner {
+    ) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(ClientApiInner {
                 veilid_api,
                 veilid_logs,
                 settings,
                 stop: Some(StopSource::new()),
                 join_handle: None,
-            }),
-        })
+                update_channels: HashMap::new(),
+            })),
+        }
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    fn shutdown(&self) {
+        trace!("ClientApi::shutdown");
+
+        crate::server::shutdown();
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    fn change_log_level(
+        &self,
+        layer: String,
+        log_level: VeilidConfigLogLevel,
+    ) -> VeilidAPIResult<()> {
+        trace!("ClientApi::change_log_level");
+
+        let veilid_logs = self.inner.lock().veilid_logs.clone();
+        veilid_logs.change_log_level(layer, log_level)
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn stop(self: Rc<Self>) {
+    pub async fn stop(&self) {
         trace!("ClientApi::stop requested");
         let jh = {
-            let mut inner = self.inner.borrow_mut();
+            let mut inner = self.inner.lock();
             if inner.join_handle.is_none() {
                 trace!("ClientApi stop ignored");
                 return;
@@ -131,10 +124,7 @@ impl ClientApi {
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    async fn handle_incoming(
-        self,
-        bind_addr: SocketAddr,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn handle_incoming(self, bind_addr: SocketAddr) -> std::io::Result<()> {
         let listener = TcpListener::bind(bind_addr).await?;
         debug!("Client API listening on: {:?}", bind_addr);
 
@@ -147,55 +137,249 @@ impl ClientApi {
             }
         }
 
+        // Make wait group for all incoming connections
+        let awg = AsyncWaitGroup::new();
+
         let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
-        let incoming_loop = async move {
-            while let Ok(Some(stream_result)) =
-                incoming_stream.next().timeout_at(stop_token.clone()).await
-            {
-                let stream = stream_result?;
-                stream.set_nodelay(true)?;
-                cfg_if! {
-                    if #[cfg(feature="rt-async-std")] {
-                        use futures_util::AsyncReadExt;
-                        let (reader, writer) = stream.split();
-                    } else if #[cfg(feature="rt-tokio")] {
-                        use tokio_util::compat::*;
-                        let (reader, writer) = stream.into_split();
-                        let reader = reader.compat();
-                        let writer = writer.compat_write();
-                    }
+        while let Ok(Some(stream_result)) =
+            incoming_stream.next().timeout_at(stop_token.clone()).await
+        {
+            // Get the stream to process
+            let stream = stream_result?;
+            stream.set_nodelay(true)?;
+
+            // Increment wait group
+            awg.add(1);
+            let t_awg = awg.clone();
+
+            // Process the connection
+            spawn(self.clone().handle_connection(stream, t_awg)).detach();
+        }
+
+        // Wait for all connections to terminate
+        awg.wait().await;
+
+        Ok(())
+    }
+
+    // Process control messages for the server
+    async fn process_control(self, args: Vec<String>) -> VeilidAPIResult<String> {
+        if args.len() == 0 {
+            apibail_generic!("no control request specified");
+        }
+        if args[0] == "shutdown" {
+            if args.len() != 1 {
+                apibail_generic!("wrong number of arguments");
+            }
+            self.shutdown();
+            Ok("".to_owned())
+        } else if args[0] == "change_log_level" {
+            if args.len() != 3 {
+                apibail_generic!("wrong number of arguments");
+            }
+            let log_level: VeilidConfigLogLevel = deserialize_json(&args[2])?;
+            self.change_log_level(args[1].clone(), log_level)?;
+            Ok("".to_owned())
+        } else if args[0] == "get_server_settings" {
+            if args.len() != 1 {
+                apibail_generic!("wrong number of arguments");
+            }
+            let settings = self.inner.lock().settings.clone();
+            let settings = &*settings.read();
+            let settings_json_string = serialize_json(settings);
+            let mut settings_json =
+                json::parse(&settings_json_string).map_err(VeilidAPIError::internal)?;
+            settings_json["core"]["network"].remove("node_id_secret");
+            settings_json["core"]["protected_store"].remove("device_encryption_key_password");
+            settings_json["core"]["protected_store"].remove("new_device_encryption_key_password");
+            let safe_settings_json = settings_json.to_string();
+            Ok(safe_settings_json)
+        } else if args[0] == "emit_schema" {
+            if args.len() != 2 {
+                apibail_generic!("wrong number of arguments");
+            }
+
+            let mut schemas = HashMap::<String, String>::new();
+            veilid_core::json_api::emit_schemas(&mut schemas);
+
+            let Some(schema) = schemas.get(&args[1]) else {
+                apibail_invalid_argument!("invalid schema", "schema", args[1].clone());
+            };
+
+            Ok(schema.clone())
+        } else {
+            apibail_generic!("unknown control message");
+        }
+    }
+
+    pub async fn handle_connection(self, stream: TcpStream, awg: AsyncWaitGroup) {
+        // Get address of peer
+        let peer_addr = match stream.peer_addr() {
+            Ok(v) => v,
+            Err(e) => {
+                error!("can't get peer address: {}", e);
+                return;
+            }
+        };
+        // Get local address
+        let local_addr = match stream.local_addr() {
+            Ok(v) => v,
+            Err(e) => {
+                error!("can't get local address: {}", e);
+                return;
+            }
+        };
+        // Get connection tuple
+        let conn_tuple = (local_addr, peer_addr);
+
+        debug!(
+            "Accepted Client API Connection: {:?} -> {:?}",
+            peer_addr, local_addr
+        );
+
+        // Make stop token to quit when stop() is requested externally
+        let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
+
+        // Split into reader and writer halves
+        // with line buffering on the reader
+        cfg_if! {
+            if #[cfg(feature="rt-async-std")] {
+                use futures_util::AsyncReadExt;
+                let (reader, mut writer) = stream.split();
+                let mut reader = BufReader::new(reader);
+            } else if #[cfg(feature="rt-tokio")] {
+                let (reader, mut writer) = stream.into_split();
+                let mut reader = BufReader::new(reader);
+            }
+        }
+
+        // Make request processor for this connection
+        let api = self.inner.lock().veilid_api.clone();
+        let jrp = json_api::JsonRequestProcessor::new(api);
+
+        // Futures to process unordered
+        let mut unord = FuturesUnordered::new();
+        let (more_futures_tx, more_futures_rx) = flume::unbounded();
+
+        // Output to serialize
+        let (responses_tx, responses_rx) = flume::unbounded();
+
+        // Request receive processor
+        let this = self.clone();
+        let recv_requests_future = async move {
+            // Start sending updates
+            this.inner
+                .lock()
+                .update_channels
+                .insert(conn_tuple, responses_tx.clone());
+
+            let mut line = String::new();
+            while let Ok(size) = reader.read_line(&mut line).await {
+                // Eof?
+                if size == 0 {
+                    break;
                 }
 
-                xxx spawn json_api handler
-                spawn_local(rpc_system.map(drop));
-            }
-            Ok::<(), Box<dyn std::error::Error>>(())
-        };
+                // Put the processing in the async queue
+                let jrp = jrp.clone();
+                let line = line.trim().to_owned();
+                // Ignore newlines
+                if line.len() == 0 {
+                    continue;
+                }
+                let responses_tx = responses_tx.clone();
+                let this2 = this.clone();
+                let process_request = async move {
+                    // Unmarshal NDJSON - newline => json
+                    // (trim all whitespace around input lines just to make things more permissive for API users)
+                    let request: json_api::Request = deserialize_json(&line)?;
 
-        incoming_loop.await
+                    // See if this is a control message or a veilid-core message
+                    let response = if let json_api::RequestOp::Control { args } = request.op {
+                        // Process control messages
+                        json_api::Response {
+                            id: request.id,
+                            op: json_api::ResponseOp::Control {
+                                result: json_api::to_json_api_result(
+                                    this2.process_control(args).await,
+                                ),
+                            },
+                        }
+                    } else {
+                        // Process with ndjson api
+                        jrp.clone().process_request(request).await
+                    };
+
+                    // Marshal json + newline => NDJSON
+                    let response_string =
+                        serialize_json(json_api::RecvMessage::Response(response)) + "\n";
+                    if let Err(e) = responses_tx.send_async(response_string).await {
+                        warn!("response not sent: {}", e)
+                    }
+                    VeilidAPIResult::Ok(())
+                };
+                if let Err(e) = more_futures_tx
+                    .send_async(system_boxed(process_request))
+                    .await
+                {
+                    warn!("request dropped: {}", e)
+                }
+            }
+
+            // Stop sending updates
+            // Will cause send_responses_future to stop because we drop the responses_tx
+            this.inner.lock().update_channels.remove(&conn_tuple);
+
+            VeilidAPIResult::Ok(())
+        };
+        unord.push(system_boxed(recv_requests_future));
+
+        // Response send processor
+        let send_responses_future = async move {
+            while let Ok(resp) = responses_rx.recv_async().await {
+                if let Err(e) = writer.write_all(resp.as_bytes()).await {
+                    error!("failed to write response: {}", e)
+                }
+            }
+            VeilidAPIResult::Ok(())
+        };
+        unord.push(system_boxed(send_responses_future));
+
+        // Send and receive until we're done or a stop is requested
+        while let Ok(Some(r)) = unord.next().timeout_at(stop_token.clone()).await {
+            match r {
+                Ok(()) => {}
+                Err(e) => {
+                    warn!("JSON API Failure: {}", e);
+                }
+            }
+            // Add more futures if we had one that completed
+            // Allows processing requests in an async fashion
+            for fut in more_futures_rx.drain() {
+                unord.push(fut);
+            }
+        }
+
+        debug!(
+            "Closed Client API Connection: {:?} -> {:?}",
+            peer_addr, local_addr
+        );
+
+        awg.done();
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub fn handle_update(self: Rc<Self>, veilid_update: veilid_core::VeilidUpdate) {
-        // serialize update
-        let veilid_update = serialize_json(veilid_update);
+    pub fn handle_update(&self, veilid_update: veilid_core::VeilidUpdate) {
+        // serialize update to NDJSON
+        let veilid_update = serialize_json(json_api::RecvMessage::Update(veilid_update)) + "\n";
 
         // Pass other updates to clients
-        self.send_request_to_all_clients(|_id, registration| {
-            match veilid_update
-                .len()
-                .try_into()
-                .map_err(|e| ::capnp::Error::failed(format!("{:?}", e)))
-            {
-                Ok(len) => {
-                    let mut request = registration.client.update_request();
-                    let mut rpc_veilid_update = request.get().init_veilid_update(len);
-                    rpc_veilid_update.push_str(&veilid_update);
-                    Some(request.send())
-                }
-                Err(_) => None,
+        let inner = self.inner.lock();
+        for ch in inner.update_channels.values() {
+            if let Err(e) = ch.send(veilid_update.clone()) {
+                eprintln!("failed to send update: {}", e);
             }
-        });
+        }
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -204,6 +388,6 @@ impl ClientApi {
             .iter()
             .map(|addr| self.clone().handle_incoming(*addr));
         let bind_futures_join = try_join_all(bind_futures);
-        self.inner.borrow_mut().join_handle = Some(spawn_local(bind_futures_join));
+        self.inner.lock().join_handle = Some(spawn(bind_futures_join));
     }
 }

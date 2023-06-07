@@ -16,10 +16,10 @@ pub use process::*;
 pub struct Request {
     /// Operation Id (pairs with Response, or empty if unidirectional)
     #[serde(default)]
-    id: u32,
+    pub id: u32,
     /// The request operation variant
     #[serde(flatten)]
-    op: RequestOp,
+    pub op: RequestOp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -33,15 +33,18 @@ pub enum RecvMessage {
 pub struct Response {
     /// Operation Id (pairs with Request, or empty if unidirectional)
     #[serde(default)]
-    id: u32,
+    pub id: u32,
     /// The response operation variant
     #[serde(flatten)]
-    op: ResponseOp,
+    pub op: ResponseOp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "op")]
 pub enum RequestOp {
+    Control {
+        args: Vec<String>,
+    },
     GetState,
     Attach,
     Detach,
@@ -131,6 +134,10 @@ pub struct NewPrivateRouteResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "op")]
 pub enum ResponseOp {
+    Control {
+        #[serde(flatten)]
+        result: ApiResult<String>,
+    },
     GetState {
         #[serde(flatten)]
         result: ApiResult<VeilidState>,
