@@ -28,27 +28,6 @@ mod tools;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
-pub use cfg_if::*;
-#[allow(unused_imports)]
-pub use eyre::{bail, ensure, eyre, Report as EyreReport, Result as EyreResult, WrapErr};
-pub use futures_util::future::{select, Either};
-pub use futures_util::select;
-pub use futures_util::stream::FuturesUnordered;
-pub use futures_util::{AsyncRead, AsyncWrite};
-pub use log_thru::*;
-pub use owo_colors::OwoColorize;
-pub use parking_lot::*;
-pub use split_url::*;
-pub use static_assertions::*;
-pub use stop_token::*;
-pub use thiserror::Error as ThisError;
-cfg_if! {
-    if #[cfg(feature = "tracing")] {
-        pub use tracing::*;
-    } else {
-        pub use log::*;
-    }
-}
 pub type PinBox<T> = Pin<Box<T>>;
 pub type PinBoxFuture<T> = PinBox<dyn Future<Output = T> + 'static>;
 pub type PinBoxFutureLifetime<'a, T> = PinBox<dyn Future<Output = T> + 'a>;
@@ -120,6 +99,7 @@ pub use eventual_value_clone::*;
 pub use interval::*;
 pub use ip_addr_port::*;
 pub use ip_extra::*;
+pub use log_thru::*;
 pub use must_join_handle::*;
 pub use must_join_single_future::*;
 pub use mutable_future::*;
@@ -128,16 +108,31 @@ pub use random::*;
 pub use single_shot_eventual::*;
 pub use sleep::*;
 pub use spawn::*;
+pub use split_url::*;
 pub use tick_task::*;
 pub use timeout::*;
 pub use timeout_or::*;
 pub use timestamp::*;
 pub use tools::*;
+
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
 
 // Tests must be public for wasm-pack tests
 pub mod tests;
+
+cfg_if! {
+    if #[cfg(feature = "tracing")] {
+        use tracing::*;
+    } else {
+        use log::*;
+    }
+}
+use cfg_if::*;
+use futures_util::{AsyncRead, AsyncWrite};
+use parking_lot::*;
+use stop_token::*;
+use thiserror::Error as ThisError;
 
 // For iOS tests
 #[no_mangle]

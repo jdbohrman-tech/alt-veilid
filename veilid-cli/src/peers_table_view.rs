@@ -23,8 +23,11 @@ pub enum PeerTableColumn {
 //     }
 // }
 
-fn format_ts(ts: Timestamp) -> String {
-    let ts = ts.as_u64();
+fn format_ts(ts: &json::JsonValue) -> String {
+    if ts.is_null() {
+        return "---".to_owned();
+    }
+    let ts = json_str_u64(ts);
     let secs = timestamp_to_secs(ts);
     if secs >= 1.0 {
         format!("{:.2}s", timestamp_to_secs(ts))
@@ -33,8 +36,11 @@ fn format_ts(ts: Timestamp) -> String {
     }
 }
 
-fn format_bps(bps: ByteCount) -> String {
-    let bps = bps.as_u64();
+fn format_bps(bps: &json::JsonValue) -> String {
+    if bps.is_null() {
+        return "---".to_owned();
+    }
+    let bps = json_str_u64(bps);
     if bps >= 1024u64 * 1024u64 * 1024u64 {
         format!("{:.2}GB/s", (bps / (1024u64 * 1024u64)) as f64 / 1024.0)
     } else if bps >= 1024u64 * 1024u64 {
@@ -46,25 +52,20 @@ fn format_bps(bps: ByteCount) -> String {
     }
 }
 
-impl TableViewItem<PeerTableColumn> for PeerTableData {
+impl TableViewItem<PeerTableColumn> for json::JsonValue {
     fn to_column(&self, column: PeerTableColumn) -> String {
         match column {
-            PeerTableColumn::NodeId => self
-                .node_ids
-                .first()
-                .map(|n| n.to_string())
-                .unwrap_or_else(|| "???".to_owned()),
-            PeerTableColumn::Address => self.peer_address.clone(),
-            PeerTableColumn::LatencyAvg => format!(
-                "{}",
-                self.peer_stats
-                    .latency
-                    .as_ref()
-                    .map(|l| format_ts(l.average))
-                    .unwrap_or("---".to_owned())
-            ),
-            PeerTableColumn::TransferDownAvg => format_bps(self.peer_stats.transfer.down.average),
-            PeerTableColumn::TransferUpAvg => format_bps(self.peer_stats.transfer.up.average),
+            PeerTableColumn::NodeId => self["node_ids"][0].to_string(),
+            PeerTableColumn::Address => self["peer_address"].to_string(),
+            PeerTableColumn::LatencyAvg => {
+                format!("{}", format_ts(&self["peer_stats"]["latency"]["average"]))
+            }
+            PeerTableColumn::TransferDownAvg => {
+                format_bps(&self["peer_stats"]["transfer"]["down"]["average"])
+            }
+            PeerTableColumn::TransferUpAvg => {
+                format_bps(&self["peer_stats"]["transfer"]["up"]["average"])
+            }
         }
     }
 
@@ -75,26 +76,20 @@ impl TableViewItem<PeerTableColumn> for PeerTableData {
         match column {
             PeerTableColumn::NodeId => self.to_column(column).cmp(&other.to_column(column)),
             PeerTableColumn::Address => self.to_column(column).cmp(&other.to_column(column)),
-            PeerTableColumn::LatencyAvg => self
-                .peer_stats
-                .latency
-                .as_ref()
-                .map(|l| l.average)
-                .cmp(&other.peer_stats.latency.as_ref().map(|l| l.average)),
-            PeerTableColumn::TransferDownAvg => self
-                .peer_stats
-                .transfer
-                .down
-                .average
-                .cmp(&other.peer_stats.transfer.down.average),
-            PeerTableColumn::TransferUpAvg => self
-                .peer_stats
-                .transfer
-                .up
-                .average
-                .cmp(&other.peer_stats.transfer.up.average),
+            PeerTableColumn::LatencyAvg => json_str_u64(&self["peer_stats"]["latency"]["average"])
+                .cmp(&json_str_u64(&other["peer_stats"]["latency"]["average"])),
+            PeerTableColumn::TransferDownAvg => {
+                json_str_u64(&self["peer_stats"]["transfer"]["down"]["average"]).cmp(&json_str_u64(
+                    &other["peer_stats"]["transfer"]["down"]["average"],
+                ))
+            }
+            PeerTableColumn::TransferUpAvg => {
+                json_str_u64(&self["peer_stats"]["transfer"]["up"]["average"]).cmp(&json_str_u64(
+                    &other["peer_stats"]["transfer"]["up"]["average"],
+                ))
+            }
         }
     }
 }
 
-pub type PeersTableView = TableView<PeerTableData, PeerTableColumn>;
+pub type PeersTableView = TableView<json::JsonValue, PeerTableColumn>;

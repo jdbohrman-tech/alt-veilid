@@ -1,6 +1,7 @@
 use crate::command_processor::*;
 use crate::peers_table_view::*;
 use crate::settings::Settings;
+use crate::tools::*;
 use crossbeam_channel::Sender;
 use cursive::align::*;
 use cursive::event::*;
@@ -12,11 +13,8 @@ use cursive::Cursive;
 use cursive::CursiveRunnable;
 use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
 //use cursive_multiplex::*;
-use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
-use std::rc::Rc;
 use thiserror::Error;
-use veilid_tools::*;
 
 //////////////////////////////////////////////////////////////
 ///
@@ -82,19 +80,15 @@ pub struct UIInner {
     ui_state: UIState,
     log_colors: HashMap<Level, cursive::theme::Color>,
     cmdproc: Option<CommandProcessor>,
-    cb_sink: Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>,
     cmd_history: VecDeque<String>,
     cmd_history_position: usize,
     cmd_history_max_size: usize,
     connection_dialog_state: Option<ConnectionState>,
 }
 
-type Handle<T> = Rc<RefCell<T>>;
-
-#[derive(Clone)]
 pub struct UI {
-    siv: Handle<CursiveRunnable>,
-    inner: Handle<UIInner>,
+    siv: CursiveRunnable,
+    inner: Arc<Mutex<UIInner>>,
 }
 
 #[derive(Error, Debug)]
@@ -112,11 +106,11 @@ impl UI {
         inner.cmdproc.as_ref().unwrap().clone()
     }
 
-    fn inner(s: &mut Cursive) -> std::cell::Ref<'_, UIInner> {
-        s.user_data::<Handle<UIInner>>().unwrap().borrow()
+    fn inner(s: &mut Cursive) -> MutexGuard<'_, UIInner> {
+        s.user_data::<Arc<Mutex<UIInner>>>().unwrap().lock()
     }
-    fn inner_mut(s: &mut Cursive) -> std::cell::RefMut<'_, UIInner> {
-        s.user_data::<Handle<UIInner>>().unwrap().borrow_mut()
+    fn inner_mut(s: &mut Cursive) -> MutexGuard<'_, UIInner> {
+        s.user_data::<Arc<Mutex<UIInner>>>().unwrap().lock()
     }
 
     fn setup_colors(siv: &mut CursiveRunnable, inner: &mut UIInner, settings: &Settings) {
@@ -425,7 +419,7 @@ impl UI {
             "Detaching" => None,
             _ => None,
         };
-        let mut cmdproc = Self::command_processor(s);
+        let cmdproc = Self::command_processor(s);
         if let Some(a) = action {
             if a {
                 cmdproc.attach();
@@ -707,7 +701,7 @@ impl UI {
     ////////////////////////////////////////////////////////////////////////////
     // Public functions
 
-    pub fn new(node_log_scrollback: usize, settings: &Settings) -> Self {
+    pub fn new(node_log_scrollback: usize, settings: &Settings) -> (Self, UISender) {
         cursive_flexi_logger_view::resize(node_log_scrollback);
 
         // Instantiate the cursive runnable
@@ -726,9 +720,9 @@ impl UI {
         let cb_sink = runnable.cb_sink().clone();
 
         // Create the UI object
-        let this = Self {
-            siv: Rc::new(RefCell::new(runnable)),
-            inner: Rc::new(RefCell::new(UIInner {
+        let mut this = Self {
+            siv: runnable,
+            inner: Arc::new(Mutex::new(UIInner {
                 ui_state: UIState::new(),
                 log_colors: Default::default(),
                 cmdproc: None,
@@ -740,15 +734,13 @@ impl UI {
                 cmd_history_position: 0,
                 cmd_history_max_size: settings.interface.command_line.history_size,
                 connection_dialog_state: None,
-                cb_sink,
             })),
         };
 
-        let mut siv = this.siv.borrow_mut();
-        let mut inner = this.inner.borrow_mut();
+        let mut inner = this.inner.lock();
 
         // Make the inner object accessible in callbacks easily
-        siv.set_user_data(this.inner.clone());
+        this.siv.set_user_data(this.inner.clone());
 
         // Create layouts
 
@@ -831,87 +823,44 @@ impl UI {
                 .child(TextView::new(version)),
         );
 
-        siv.add_fullscreen_layer(mainlayout);
+        this.siv.add_fullscreen_layer(mainlayout);
 
-        UI::setup_colors(&mut siv, &mut inner, settings);
-        UI::setup_quit_handler(&mut siv);
-        siv.set_global_callback(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
+        UI::setup_colors(&mut this.siv, &mut inner, settings);
+        UI::setup_quit_handler(&mut this.siv);
+        this.siv
+            .set_global_callback(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
 
         drop(inner);
-        drop(siv);
 
-        this
+        let inner = this.inner.clone();
+        (this, UISender { inner, cb_sink })
     }
     pub fn cursive_flexi_logger(&self) -> Box<CursiveLogWriter> {
-        let mut flv =
-            cursive_flexi_logger_view::cursive_flexi_logger(self.siv.borrow().cb_sink().clone());
-        flv.set_colors(self.inner.borrow().log_colors.clone());
+        let mut flv = cursive_flexi_logger_view::cursive_flexi_logger(self.siv.cb_sink().clone());
+        flv.set_colors(self.inner.lock().log_colors.clone());
         flv
     }
     pub fn set_command_processor(&mut self, cmdproc: CommandProcessor) {
-        let mut inner = self.inner.borrow_mut();
+        let mut inner = self.inner.lock();
         inner.cmdproc = Some(cmdproc);
-        let _ = inner.cb_sink.send(Box::new(UI::update_cb));
-    }
-    pub fn set_attachment_state(
-        &mut self,
-        state: AttachmentState,
-        public_internet_ready: bool,
-        local_network_ready: bool,
-    ) {
-        let mut inner = self.inner.borrow_mut();
-        inner.ui_state.attachment_state.set(state);
-        inner
-            .ui_state
-            .public_internet_ready
-            .set(public_internet_ready);
-        inner.ui_state.local_network_ready.set(local_network_ready);
-
-        let _ = inner.cb_sink.send(Box::new(UI::update_cb));
-    }
-    pub fn set_network_status(
-        &mut self,
-        started: bool,
-        bps_down: u64,
-        bps_up: u64,
-        peers: Vec<PeerTableData>,
-    ) {
-        let mut inner = self.inner.borrow_mut();
-        inner.ui_state.network_started.set(started);
-        inner.ui_state.network_down_up.set((
-            ((bps_down as f64) / 1000.0f64) as f32,
-            ((bps_up as f64) / 1000.0f64) as f32,
-        ));
-        inner.ui_state.peers_state.set(peers);
-        let _ = inner.cb_sink.send(Box::new(UI::update_cb));
-    }
-    pub fn set_config(&mut self, config: VeilidConfigInner) {
-        let mut inner = self.inner.borrow_mut();
-
-        inner
-            .ui_state
-            .node_id
-            .set(config.network.routing_table.node_id.to_string());
-    }
-    pub fn set_connection_state(&mut self, state: ConnectionState) {
-        let mut inner = self.inner.borrow_mut();
-        inner.ui_state.connection_state.set(state);
-        let _ = inner.cb_sink.send(Box::new(UI::update_cb));
     }
 
-    pub fn add_node_event(&self, event: String) {
-        let inner = self.inner.borrow();
-        let color = *inner.log_colors.get(&Level::Info).unwrap();
-        let mut starting_style: Style = color.into();
-        for line in event.lines() {
-            let (spanned_string, end_style) =
-                cursive::utils::markup::ansi::parse_with_starting_style(starting_style, line);
-            cursive_flexi_logger_view::push_to_log(spanned_string);
-            starting_style = end_style;
-        }
-        let _ = inner.cb_sink.send(Box::new(UI::update_cb));
+    // Note: Cursive is not re-entrant, can't borrow_mut self.siv again after this
+    pub async fn run_async(&mut self) {
+        self.siv.run_async().await;
     }
+    // pub fn run(&mut self) {
+    //      self.siv.run();
+    // }
+}
 
+#[derive(Clone)]
+pub struct UISender {
+    inner: Arc<Mutex<UIInner>>,
+    cb_sink: Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>,
+}
+
+impl UISender {
     pub fn display_string_dialog<T: ToString, S: ToString>(
         &self,
         title: T,
@@ -920,31 +869,84 @@ impl UI {
     ) {
         let title = title.to_string();
         let text = text.to_string();
-        let inner = self.inner.borrow();
-        let _ = inner.cb_sink.send(Box::new(move |s| {
+        let _ = self.cb_sink.send(Box::new(move |s| {
             UI::display_string_dialog_cb(s, title, text, close_cb)
         }));
     }
 
     pub fn quit(&self) {
-        let inner = self.inner.borrow();
-        let _ = inner.cb_sink.send(Box::new(|s| {
+        let _ = self.cb_sink.send(Box::new(|s| {
             s.quit();
         }));
     }
 
     pub fn send_callback(&self, callback: UICallback) {
-        let inner = self.inner.borrow();
-        let _ = inner.cb_sink.send(Box::new(move |s| callback(s)));
+        let _ = self.cb_sink.send(Box::new(move |s| callback(s)));
+    }
+    pub fn set_attachment_state(
+        &mut self,
+        state: String,
+        public_internet_ready: bool,
+        local_network_ready: bool,
+    ) {
+        {
+            let mut inner = self.inner.lock();
+            inner.ui_state.attachment_state.set(state);
+            inner
+                .ui_state
+                .public_internet_ready
+                .set(public_internet_ready);
+            inner.ui_state.local_network_ready.set(local_network_ready);
+        }
+
+        let _ = self.cb_sink.send(Box::new(UI::update_cb));
+    }
+    pub fn set_network_status(
+        &mut self,
+        started: bool,
+        bps_down: u64,
+        bps_up: u64,
+        peers: Vec<json::JsonValue>,
+    ) {
+        {
+            let mut inner = self.inner.lock();
+            inner.ui_state.network_started.set(started);
+            inner.ui_state.network_down_up.set((
+                ((bps_down as f64) / 1000.0f64) as f32,
+                ((bps_up as f64) / 1000.0f64) as f32,
+            ));
+            inner.ui_state.peers_state.set(peers);
+        }
+        let _ = self.cb_sink.send(Box::new(UI::update_cb));
+    }
+    pub fn set_config(&mut self, config: &json::JsonValue) {
+        let mut inner = self.inner.lock();
+
+        inner
+            .ui_state
+            .node_id
+            .set(config["network"]["routing_table"]["node_id"].to_string());
+    }
+    pub fn set_connection_state(&mut self, state: ConnectionState) {
+        {
+            let mut inner = self.inner.lock();
+            inner.ui_state.connection_state.set(state);
+        }
+        let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }
 
-    // Note: Cursive is not re-entrant, can't borrow_mut self.siv again after this
-    pub async fn run_async(&mut self) {
-        let mut siv = self.siv.borrow_mut();
-        siv.run_async().await;
+    pub fn add_node_event(&self, event: String) {
+        {
+            let inner = self.inner.lock();
+            let color = *inner.log_colors.get(&Level::Info).unwrap();
+            let mut starting_style: Style = color.into();
+            for line in event.lines() {
+                let (spanned_string, end_style) =
+                    cursive::utils::markup::ansi::parse_with_starting_style(starting_style, line);
+                cursive_flexi_logger_view::push_to_log(spanned_string);
+                starting_style = end_style;
+            }
+        }
+        let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }
-    // pub fn run(&mut self) {
-    //     let mut siv = self.siv.borrow_mut();
-    //     siv.run();
-    // }
 }

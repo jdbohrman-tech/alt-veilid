@@ -6158,6 +6158,7 @@ dependencies = [
  "cursive-flexi-logger-view",
  "cursive_buffered_backend",
  "cursive_table_view",
+ "data-encoding",
  "directories",
  "flexi_logger",
  "flume",

@@ -167,20 +167,20 @@ impl ClientApi {
         if args.len() == 0 {
             apibail_generic!("no control request specified");
         }
-        if args[0] == "shutdown" {
+        if args[0] == "Shutdown" {
             if args.len() != 1 {
                 apibail_generic!("wrong number of arguments");
             }
             self.shutdown();
             Ok("".to_owned())
-        } else if args[0] == "change_log_level" {
+        } else if args[0] == "ChangeLogLevel" {
             if args.len() != 3 {
                 apibail_generic!("wrong number of arguments");
             }
             let log_level: VeilidConfigLogLevel = deserialize_json(&args[2])?;
             self.change_log_level(args[1].clone(), log_level)?;
             Ok("".to_owned())
-        } else if args[0] == "get_server_settings" {
+        } else if args[0] == "GetServerSettings" {
             if args.len() != 1 {
                 apibail_generic!("wrong number of arguments");
             }
@@ -194,7 +194,7 @@ impl ClientApi {
             settings_json["core"]["protected_store"].remove("new_device_encryption_key_password");
             let safe_settings_json = settings_json.to_string();
             Ok(safe_settings_json)
-        } else if args[0] == "emit_schema" {
+        } else if args[0] == "EmitSchema" {
             if args.len() != 2 {
                 apibail_generic!("wrong number of arguments");
             }

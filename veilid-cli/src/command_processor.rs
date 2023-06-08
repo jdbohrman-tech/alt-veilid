@@ -1,20 +1,19 @@
 use crate::client_api_connection::*;
 use crate::settings::Settings;
+use crate::tools::*;
 use crate::ui::*;
-use std::cell::*;
 use std::net::SocketAddr;
-use std::rc::Rc;
 use std::time::SystemTime;
 use veilid_tools::*;
 
-pub fn convert_loglevel(s: &str) -> Result<VeilidConfigLogLevel, String> {
+pub fn convert_loglevel(s: &str) -> Result<String, String> {
     match s.to_ascii_lowercase().as_str() {
-        "off" => Ok(VeilidConfigLogLevel::Off),
-        "error" => Ok(VeilidConfigLogLevel::Error),
-        "warn" => Ok(VeilidConfigLogLevel::Warn),
-        "info" => Ok(VeilidConfigLogLevel::Info),
-        "debug" => Ok(VeilidConfigLogLevel::Debug),
-        "trace" => Ok(VeilidConfigLogLevel::Trace),
+        "off" => Ok("Off".to_owned()),
+        "error" => Ok("Error".to_owned()),
+        "warn" => Ok("Warn".to_owned()),
+        "info" => Ok("Info".to_owned()),
+        "debug" => Ok("Debug".to_owned()),
+        "trace" => Ok("Trace".to_owned()),
         _ => Err(format!("Invalid log level: {}", s)),
     }
 }
@@ -38,7 +37,7 @@ impl ConnectionState {
 }
 
 struct CommandProcessorInner {
-    ui: UI,
+    ui_sender: UISender,
     capi: Option<ClientApiConnection>,
     reconnect: bool,
     finished: bool,
@@ -46,21 +45,19 @@ struct CommandProcessorInner {
     autoreconnect: bool,
     server_addr: Option<SocketAddr>,
     connection_waker: Eventual,
-    last_call_id: Option<OperationId>,
+    last_call_id: Option<u64>,
 }
-
-type Handle<T> = Rc<RefCell<T>>;
 
 #[derive(Clone)]
 pub struct CommandProcessor {
-    inner: Handle<CommandProcessorInner>,
+    inner: Arc<Mutex<CommandProcessorInner>>,
 }
 
 impl CommandProcessor {
-    pub fn new(ui: UI, settings: &Settings) -> Self {
+    pub fn new(ui_sender: UISender, settings: &Settings) -> Self {
         Self {
-            inner: Rc::new(RefCell::new(CommandProcessorInner {
-                ui,
+            inner: Arc::new(Mutex::new(CommandProcessorInner {
+                ui_sender,
                 capi: None,
                 reconnect: settings.autoreconnect,
                 finished: false,
@@ -72,20 +69,20 @@ impl CommandProcessor {
             })),
         }
     }
-    pub fn set_client_api_connection(&mut self, capi: ClientApiConnection) {
-        self.inner.borrow_mut().capi = Some(capi);
+    pub fn set_client_api_connection(&self, capi: ClientApiConnection) {
+        self.inner.lock().capi = Some(capi);
     }
-    fn inner(&self) -> Ref<CommandProcessorInner> {
-        self.inner.borrow()
+    fn inner(&self) -> MutexGuard<CommandProcessorInner> {
+        self.inner.lock()
     }
-    fn inner_mut(&self) -> RefMut<CommandProcessorInner> {
-        self.inner.borrow_mut()
+    fn inner_mut(&self) -> MutexGuard<CommandProcessorInner> {
+        self.inner.lock()
     }
-    fn ui(&self) -> UI {
-        self.inner.borrow().ui.clone()
+    fn ui_sender(&self) -> UISender {
+        self.inner.lock().ui_sender.clone()
     }
     fn capi(&self) -> ClientApiConnection {
-        self.inner.borrow().capi.as_ref().unwrap().clone()
+        self.inner.lock().capi.as_ref().unwrap().clone()
     }
 
     fn word_split(line: &str) -> (String, Option<String>) {
@@ -102,12 +99,12 @@ impl CommandProcessor {
     pub fn cancel_command(&self) {
         trace!("CommandProcessor::cancel_command");
         let capi = self.capi();
-        capi.cancel();
+        capi.cancel_all();
     }
 
     pub fn cmd_help(&self, _rest: Option<String>, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_help");
-        self.ui().add_node_event(
+        self.ui_sender().add_node_event(
             r#"Commands:
 exit/quit           - exit the client
 disconnect          - disconnect the client from the Veilid node 
@@ -120,14 +117,14 @@ reply               - reply to an AppCall not handled directly by the server
 "#
             .to_owned(),
         );
-        let ui = self.ui();
+        let ui = self.ui_sender();
         ui.send_callback(callback);
         Ok(())
     }
 
     pub fn cmd_exit(&self, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_exit");
-        let ui = self.ui();
+        let ui = self.ui_sender();
         ui.send_callback(callback);
         ui.quit();
         Ok(())
@@ -135,8 +132,8 @@ reply               - reply to an AppCall not handled directly by the server
 
     pub fn cmd_shutdown(&self, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_shutdown");
-        let mut capi = self.capi();
-        let ui = self.ui();
+        let capi = self.capi();
+        let ui = self.ui_sender();
         spawn_detached_local(async move {
             if let Err(e) = capi.server_shutdown().await {
                 error!("Server command 'shutdown' failed to execute: {}", e);
@@ -148,8 +145,8 @@ reply               - reply to an AppCall not handled directly by the server
 
     pub fn cmd_attach(&self, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_attach");
-        let mut capi = self.capi();
-        let ui = self.ui();
+        let capi = self.capi();
+        let ui = self.ui_sender();
         spawn_detached_local(async move {
             if let Err(e) = capi.server_attach().await {
                 error!("Server command 'attach' failed: {}", e);
@@ -161,8 +158,8 @@ reply               - reply to an AppCall not handled directly by the server
 
     pub fn cmd_detach(&self, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_detach");
-        let mut capi = self.capi();
-        let ui = self.ui();
+        let capi = self.capi();
+        let ui = self.ui_sender();
         spawn_detached_local(async move {
             if let Err(e) = capi.server_detach().await {
                 error!("Server command 'detach' failed: {}", e);
@@ -174,8 +171,8 @@ reply               - reply to an AppCall not handled directly by the server
 
     pub fn cmd_disconnect(&self, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_disconnect");
-        let mut capi = self.capi();
-        let ui = self.ui();
+        let capi = self.capi();
+        let ui = self.ui_sender();
         spawn_detached_local(async move {
             capi.disconnect().await;
             ui.send_callback(callback);
@@ -185,8 +182,8 @@ reply               - reply to an AppCall not handled directly by the server
 
     pub fn cmd_debug(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_debug");
-        let mut capi = self.capi();
-        let ui = self.ui();
+        let capi = self.capi();
+        let ui = self.ui_sender();
         spawn_detached_local(async move {
             match capi.server_debug(rest.unwrap_or_default()).await {
                 Ok(output) => ui.display_string_dialog("Debug Output", output, callback),
@@ -202,8 +199,8 @@ reply               - reply to an AppCall not handled directly by the server
         callback: UICallback,
     ) -> Result<(), String> {
         trace!("CommandProcessor::cmd_change_log_level");
-        let mut capi = self.capi();
-        let ui = self.ui();
+        let capi = self.capi();
+        let ui = self.ui_sender();
         spawn_detached_local(async move {
             let (layer, rest) = Self::word_split(&rest.unwrap_or_default());
             let log_level = match convert_loglevel(&rest.unwrap_or_default()) {
@@ -234,8 +231,8 @@ reply               - reply to an AppCall not handled directly by the server
     pub fn cmd_reply(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_reply");
 
-        let mut capi = self.capi();
-        let ui = self.ui();
+        let capi = self.capi();
+        let ui = self.ui_sender();
         let some_last_id = self.inner_mut().last_call_id.take();
         spawn_detached_local(async move {
             let (first, second) = Self::word_split(&rest.clone().unwrap_or_default());
@@ -248,7 +245,7 @@ reply               - reply to an AppCall not handled directly by the server
                     }
                     Ok(v) => v,
                 };
-                (OperationId::new(id), second)
+                (id, second)
             } else {
                 let id = match some_last_id {
                     None => {
@@ -306,14 +303,14 @@ reply               - reply to an AppCall not handled directly by the server
             "change_log_level" => self.cmd_change_log_level(rest, callback),
             "reply" => self.cmd_reply(rest, callback),
             _ => {
-                let ui = self.ui();
+                let ui = self.ui_sender();
                 ui.send_callback(callback);
                 Err(format!("Invalid command: {}", cmd))
             }
         }
     }
 
-    pub async fn connection_manager(&mut self) {
+    pub async fn connection_manager(&self) {
         // Connect until we're done
         while !self.inner_mut().finished {
             // Wait for connection request
@@ -341,7 +338,7 @@ reply               - reply to an AppCall not handled directly by the server
                 } else {
                     debug!("Retrying connection to {}", server_addr);
                 }
-                let mut capi = self.capi();
+                let capi = self.capi();
                 let res = capi.connect(server_addr).await;
                 if res.is_ok() {
                     info!(
@@ -376,7 +373,7 @@ reply               - reply to an AppCall not handled directly by the server
 
     // called by ui
     ////////////////////////////////////////////
-    pub fn set_server_address(&mut self, server_addr: Option<SocketAddr>) {
+    pub fn set_server_address(&self, server_addr: Option<SocketAddr>) {
         self.inner_mut().server_addr = server_addr;
     }
     pub fn get_server_address(&self) -> Option<SocketAddr> {
@@ -386,54 +383,61 @@ reply               - reply to an AppCall not handled directly by the server
     // calls into ui
     ////////////////////////////////////////////
 
-    pub fn log_message(&mut self, message: String) {
-        self.inner().ui.add_node_event(message);
+    pub fn log_message(&self, message: String) {
+        self.inner().ui_sender.add_node_event(message);
     }
 
-    pub fn update_attachment(&mut self, attachment: json::JsonValue) {
-        self.inner_mut().ui.set_attachment_state(
-            attachment.state,
-            attachment.public_internet_ready,
-            attachment.local_network_ready,
+    pub fn update_attachment(&self, attachment: json::JsonValue) {
+        self.inner_mut().ui_sender.set_attachment_state(
+            attachment["state"].as_str().unwrap_or_default().to_owned(),
+            attachment["public_internet_ready"]
+                .as_bool()
+                .unwrap_or_default(),
+            attachment["local_network_ready"]
+                .as_bool()
+                .unwrap_or_default(),
         );
     }
 
-    pub fn update_network_status(&mut self, network: veilid_core::VeilidStateNetwork) {
-        self.inner_mut().ui.set_network_status(
-            network.started,
-            network.bps_down.as_u64(),
-            network.bps_up.as_u64(),
-            network.peers,
+    pub fn update_network_status(&self, network: json::JsonValue) {
+        self.inner_mut().ui_sender.set_network_status(
+            network["started"].as_bool().unwrap_or_default(),
+            json_str_u64(&network["bps_down"]),
+            json_str_u64(&network["bps_up"]),
+            network["peers"]
+                .members()
+                .cloned()
+                .collect::<Vec<json::JsonValue>>(),
         );
     }
-    pub fn update_config(&mut self, config: veilid_core::VeilidStateConfig) {
-        self.inner_mut().ui.set_config(config.config)
+    pub fn update_config(&self, config: json::JsonValue) {
+        self.inner_mut().ui_sender.set_config(&config["config"])
     }
-    pub fn update_route(&mut self, route: veilid_core::VeilidRouteChange) {
+    pub fn update_route(&self, route: json::JsonValue) {
         let mut out = String::new();
-        if !route.dead_routes.is_empty() {
-            out.push_str(&format!("Dead routes: {:?}", route.dead_routes));
+        if route["dead_routes"].len() != 0 {
+            out.push_str(&format!("Dead routes: {:?}", route["dead_routes"]));
         }
-        if !route.dead_remote_routes.is_empty() {
+        if route["dead_routes"].len() != 0 {
             if !out.is_empty() {
                 out.push_str("\n");
             }
             out.push_str(&format!(
                 "Dead remote routes: {:?}",
-                route.dead_remote_routes
+                route["dead_remote_routes"]
             ));
         }
         if !out.is_empty() {
-            self.inner().ui.add_node_event(out);
+            self.inner().ui_sender.add_node_event(out);
         }
     }
-    pub fn update_value_change(&mut self, value_change: json::JsonValue) {
+    pub fn update_value_change(&self, value_change: json::JsonValue) {
         let out = format!("Value change: {:?}", value_change.as_str().unwrap_or("???"));
-        self.inner().ui.add_node_event(out);
+        self.inner().ui_sender.add_node_event(out);
     }
 
-    pub fn update_log(&mut self, log: json::JsonValue) {
-        self.inner().ui.add_node_event(format!(
+    pub fn update_log(&self, log: json::JsonValue) {
+        self.inner().ui_sender.add_node_event(format!(
             "{}: {}{}",
             log["log_level"].as_str().unwrap_or("???"),
             log["message"].as_str().unwrap_or("???"),
@@ -445,79 +449,83 @@ reply               - reply to an AppCall not handled directly by the server
         ));
     }
 
-    pub fn update_app_message(&mut self, msg: json::JsonValue) {
+    pub fn update_app_message(&self, msg: json::JsonValue) {
+        let message = json_str_vec_u8(&msg["message"]);
+
         // check is message body is ascii printable
         let mut printable = true;
-        for c in msg.message() {
+        for c in &message {
             if *c < 32 || *c > 126 {
                 printable = false;
             }
         }
 
         let strmsg = if printable {
-            String::from_utf8_lossy(msg.message()).to_string()
+            String::from_utf8_lossy(&message).to_string()
         } else {
-            hex::encode(msg.message())
+            hex::encode(message)
         };
 
         self.inner()
-            .ui
-            .add_node_event(format!("AppMessage ({:?}): {}", msg.sender(), strmsg));
+            .ui_sender
+            .add_node_event(format!("AppMessage ({:?}): {}", msg["sender"], strmsg));
     }
 
-    pub fn update_app_call(&mut self, call: veilid_core::VeilidAppCall) {
+    pub fn update_app_call(&self, call: json::JsonValue) {
+        let message = json_str_vec_u8(&call["message"]);
+
         // check is message body is ascii printable
         let mut printable = true;
-        for c in call.message() {
+        for c in &message {
             if *c < 32 || *c > 126 {
                 printable = false;
             }
         }
 
         let strmsg = if printable {
-            String::from_utf8_lossy(call.message()).to_string()
+            String::from_utf8_lossy(&message).to_string()
         } else {
-            format!("#{}", hex::encode(call.message()))
+            format!("#{}", hex::encode(&message))
         };
 
-        self.inner().ui.add_node_event(format!(
+        let id = json_str_u64(&call["id"]);
+
+        self.inner().ui_sender.add_node_event(format!(
             "AppCall ({:?}) id = {:016x} : {}",
-            call.sender(),
-            call.id().as_u64(),
-            strmsg
+            call["sender"], id, strmsg
         ));
 
-        self.inner_mut().last_call_id = Some(call.id());
+        self.inner_mut().last_call_id = Some(id);
     }
 
-    pub fn update_shutdown(&mut self) {
+    pub fn update_shutdown(&self) {
         // Do nothing with this, we'll process shutdown when rpc connection closes
     }
 
     // called by client_api_connection
     // calls into ui
     ////////////////////////////////////////////
-    pub fn set_connection_state(&mut self, state: ConnectionState) {
-        self.inner_mut().ui.set_connection_state(state);
+    pub fn set_connection_state(&self, state: ConnectionState) {
+        self.inner_mut().ui_sender.set_connection_state(state);
     }
     // called by ui
     ////////////////////////////////////////////
-    pub fn start_connection(&mut self) {
+    pub fn start_connection(&self) {
         self.inner_mut().reconnect = true;
         self.inner_mut().connection_waker.resolve();
     }
-    // pub fn stop_connection(&mut self) {
+    // pub fn stop_connection(&self) {
     //     self.inner_mut().reconnect = false;
     //     let mut capi = self.capi().clone();
     //     spawn_detached(async move {
     //         capi.disconnect().await;
     //     });
     // }
-    pub fn cancel_reconnect(&mut self) {
+    pub fn cancel_reconnect(&self) {
         self.inner_mut().reconnect = false;
         self.inner_mut().connection_waker.resolve();
     }
-    pub fn quit(&mut self) {
+    pub fn quit(&self) {
         self.inner_mut().finished = true;
         self.inner_mut().reconnect = false;
         self.inner_mut().connection_waker.resolve();
@@ -526,8 +534,8 @@ reply               - reply to an AppCall not handled directly by the server
     // called by ui
     // calls into client_api_connection
     ////////////////////////////////////////////
-    pub fn attach(&mut self) {
-        let mut capi = self.capi();
+    pub fn attach(&self) {
+        let capi = self.capi();
 
         spawn_detached_local(async move {
             if let Err(e) = capi.server_attach().await {
@@ -536,8 +544,8 @@ reply               - reply to an AppCall not handled directly by the server
         });
     }
 
-    pub fn detach(&mut self) {
-        let mut capi = self.capi();
+    pub fn detach(&self) {
+        let capi = self.capi();
 
         spawn_detached_local(async move {
             if let Err(e) = capi.server_detach().await {

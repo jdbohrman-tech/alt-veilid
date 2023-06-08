@@ -69,7 +69,7 @@ impl ProtectedStore {
                 ));
 
                 // Ensure permissions are correct
-                ensure_file_private_owner(&insecure_keyring_file)?;
+                ensure_file_private_owner(&insecure_keyring_file).map_err(|e| eyre!("{}", e))?;
 
                 // Open the insecure keyring
                 inner.keyring_manager = Some(

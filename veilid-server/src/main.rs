@@ -14,14 +14,10 @@ mod veilid_logs;
 #[cfg(windows)]
 mod windows;
 
-use cfg_if::*;
-#[allow(unused_imports)]
-use color_eyre::eyre::{bail, ensure, eyre, Result as EyreResult, WrapErr};
 use server::*;
 use std::collections::HashMap;
 use std::str::FromStr;
 use tools::*;
-use tracing::*;
 use veilid_logs::*;
 
 #[instrument(err)]

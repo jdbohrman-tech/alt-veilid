@@ -41,15 +41,6 @@ pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;
 pub use veilid_tools as tools;
 
-use enumset::*;
-use rkyv::{
-    bytecheck, bytecheck::CheckBytes, de::deserializers::SharedDeserializeMap, with::Skip,
-    Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
-};
-type RkyvDefaultValidator<'t> = rkyv::validation::validators::DefaultValidator<'t>;
-use schemars::{schema_for, JsonSchema};
-use serde::*;
-
 pub mod veilid_capnp {
     include!(concat!(env!("OUT_DIR"), "/proto/veilid_capnp.rs"));
 }
@@ -94,4 +85,20 @@ pub static DEFAULT_LOG_IGNORE_LIST: [&str; 21] = [
     "attohttpc",
 ];
 
+use cfg_if::*;
+use enumset::*;
+use eyre::{bail, eyre, Report as EyreReport, Result as EyreResult, WrapErr};
+use parking_lot::*;
+use rkyv::{
+    bytecheck, bytecheck::CheckBytes, de::deserializers::SharedDeserializeMap, with::Skip,
+    Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
+};
+use tracing::*;
 use veilid_tools::*;
+type RkyvDefaultValidator<'t> = rkyv::validation::validators::DefaultValidator<'t>;
+use futures_util::stream::FuturesUnordered;
+use owo_colors::OwoColorize;
+use schemars::{schema_for, JsonSchema};
+use serde::*;
+use stop_token::*;
+use thiserror::Error as ThisError;

@@ -1,5 +1,8 @@
-use cfg_if::*;
-use core::future::Future;
+pub use cfg_if::*;
+pub use color_eyre::eyre::{bail, ensure, eyre, Result as EyreResult, WrapErr};
+pub use core::future::Future;
+pub use parking_lot::*;
+pub use tracing::*;
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {

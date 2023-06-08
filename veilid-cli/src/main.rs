@@ -3,7 +3,6 @@
 #![recursion_limit = "256"]
 
 use crate::tools::*;
-use veilid_tools::*;
 
 use clap::{Arg, ColorChoice, Command};
 use flexi_logger::*;
@@ -92,7 +91,7 @@ fn main() -> Result<(), String> {
     }
 
     // Create UI object
-    let mut sivui = ui::UI::new(settings.interface.node_log.scrollback, &settings);
+    let (mut sivui, uisender) = ui::UI::new(settings.interface.node_log.scrollback, &settings);
 
     // Set up loggers
     {
@@ -155,19 +154,19 @@ fn main() -> Result<(), String> {
 
     // Create command processor
     debug!("Creating Command Processor ");
-    let mut comproc = command_processor::CommandProcessor::new(sivui.clone(), &settings);
+    let comproc = command_processor::CommandProcessor::new(uisender, &settings);
     sivui.set_command_processor(comproc.clone());
 
     // Create client api client side
     info!("Starting API connection");
-    let mut capi = client_api_connection::ClientApiConnection::new(comproc.clone());
+    let capi = client_api_connection::ClientApiConnection::new(comproc.clone());
 
     // Save client api in command processor
     comproc.set_client_api_connection(capi.clone());
 
     // Keep a connection to the server
     comproc.set_server_address(server_addr);
-    let mut comproc2 = comproc.clone();
+    let comproc2 = comproc.clone();
     let connection_future = comproc.connection_manager();
 
     // Start async

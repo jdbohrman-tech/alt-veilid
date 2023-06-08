@@ -1,5 +1,6 @@
 use crate::client_api;
 use crate::settings::*;
+use crate::tools::*;
 use crate::veilid_logs::*;
 use flume::{unbounded, Receiver, Sender};
 use futures_util::select;

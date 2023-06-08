@@ -97,11 +97,13 @@ cfg_if! {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub fn split_port(name: &str) -> EyreResult<(String, Option<u16>)> {
+pub fn split_port(name: &str) -> Result<(String, Option<u16>), String> {
     if let Some(split) = name.rfind(':') {
         let hoststr = &name[0..split];
         let portstr = &name[split + 1..];
-        let port: u16 = portstr.parse::<u16>().wrap_err("invalid port")?;
+        let port: u16 = portstr
+            .parse::<u16>()
+            .map_err(|e| format!("invalid port: {}", e))?;
 
         Ok((hoststr.to_string(), Some(port)))
     } else {
@@ -130,8 +132,8 @@ pub fn ms_to_us(ms: u32) -> u64 {
     (ms as u64) * 1000u64
 }
 
-pub fn us_to_ms(us: u64) -> EyreResult<u32> {
-    u32::try_from(us / 1000u64).wrap_err("could not convert microseconds")
+pub fn us_to_ms(us: u64) -> Result<u32, String> {
+    u32::try_from(us / 1000u64).map_err(|e| format!("could not convert microseconds: {}", e))
 }
 
 // Calculate retry attempt with logarhythmic falloff
@@ -224,7 +226,7 @@ pub fn compatible_unspecified_socket_addr(socket_addr: &SocketAddr) -> SocketAdd
     }
 }
 
-pub fn listen_address_to_socket_addrs(listen_address: &str) -> EyreResult<Vec<SocketAddr>> {
+pub fn listen_address_to_socket_addrs(listen_address: &str) -> Result<Vec<SocketAddr>, String> {
     // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
     // If the address is specified, only use the specified port and fail otherwise
     let ip_addrs = vec![
@@ -235,7 +237,7 @@ pub fn listen_address_to_socket_addrs(listen_address: &str) -> EyreResult<Vec<So
     Ok(if let Some(portstr) = listen_address.strip_prefix(':') {
         let port = portstr
             .parse::<u16>()
-            .wrap_err("Invalid port format in udp listen address")?;
+            .map_err(|e| format!("Invalid port format in udp listen address: {}", e))?;
         ip_addrs.iter().map(|a| SocketAddr::new(*a, port)).collect()
     } else if let Ok(port) = listen_address.parse::<u16>() {
         ip_addrs.iter().map(|a| SocketAddr::new(*a, port)).collect()
@@ -243,11 +245,11 @@ pub fn listen_address_to_socket_addrs(listen_address: &str) -> EyreResult<Vec<So
         cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
                 use core::str::FromStr;
-                vec![SocketAddr::from_str(listen_address).map_err(|e| io_error_other!(e)).wrap_err("Unable to parse address")?]
+                vec![SocketAddr::from_str(listen_address).map_err(|e| format!("Unable to parse address: {}",e))?]
             } else {
                 listen_address
                     .to_socket_addrs()
-                    .wrap_err("Unable to resolve address")?
+                    .map_err(|e| format!("Unable to resolve address: {}", e))?
                     .collect()
             }
         }
@@ -277,7 +279,7 @@ cfg_if::cfg_if! {
         use std::os::unix::prelude::PermissionsExt;
         use nix::unistd::{Uid, Gid};
 
-        pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> EyreResult<()>
+        pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> Result<(), String>
         {
             let path = path.as_ref();
             if !path.exists() {
@@ -286,13 +288,13 @@ cfg_if::cfg_if! {
 
             let uid = Uid::effective();
             let gid = Gid::effective();
-            let meta = std::fs::metadata(path).wrap_err("unable to get metadata for path")?;
+            let meta = std::fs::metadata(path).map_err(|e| format!("unable to get metadata for path: {}", e))?;
 
             if meta.mode() != 0o600 {
-                std::fs::set_permissions(path,std::fs::Permissions::from_mode(0o600)).wrap_err("unable to set correct permissions on path")?;
+                std::fs::set_permissions(path,std::fs::Permissions::from_mode(0o600)).map_err(|e| format!("unable to set correct permissions on path: {}", e))?;
             }
             if meta.uid() != uid.as_raw() || meta.gid() != gid.as_raw() {
-                bail!("path has incorrect owner/group");
+                return Err("path has incorrect owner/group".to_owned());
             }
             Ok(())
         }
@@ -300,7 +302,7 @@ cfg_if::cfg_if! {
         //use std::os::windows::fs::MetadataExt;
         //use windows_permissions::*;
 
-        pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> EyreResult<()>
+        pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> Result<(), String>
         {
             let path = path.as_ref();
             if !path.exists() {
