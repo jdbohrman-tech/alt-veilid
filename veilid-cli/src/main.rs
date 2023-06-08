@@ -3,7 +3,7 @@
 #![recursion_limit = "256"]
 
 use crate::tools::*;
-use veilid_core::tools::*;
+use veilid_tools::*;
 
 use clap::{Arg, ColorChoice, Command};
 use flexi_logger::*;

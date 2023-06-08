@@ -5,8 +5,7 @@ use std::cell::*;
 use std::net::SocketAddr;
 use std::rc::Rc;
 use std::time::SystemTime;
-use veilid_core::tools::*;
-use veilid_core::*;
+use veilid_tools::*;
 
 pub fn convert_loglevel(s: &str) -> Result<VeilidConfigLogLevel, String> {
     match s.to_ascii_lowercase().as_str() {
@@ -387,7 +386,11 @@ reply               - reply to an AppCall not handled directly by the server
     // calls into ui
     ////////////////////////////////////////////
 
-    pub fn update_attachment(&mut self, attachment: veilid_core::VeilidStateAttachment) {
+    pub fn log_message(&mut self, message: String) {
+        self.inner().ui.add_node_event(message);
+    }
+
+    pub fn update_attachment(&mut self, attachment: json::JsonValue) {
         self.inner_mut().ui.set_attachment_state(
             attachment.state,
             attachment.public_internet_ready,
@@ -424,17 +427,17 @@ reply               - reply to an AppCall not handled directly by the server
             self.inner().ui.add_node_event(out);
         }
     }
-    pub fn update_value_change(&mut self, value_change: veilid_core::VeilidValueChange) {
-        let out = format!("Value change: {:?}", value_change);
+    pub fn update_value_change(&mut self, value_change: json::JsonValue) {
+        let out = format!("Value change: {:?}", value_change.as_str().unwrap_or("???"));
         self.inner().ui.add_node_event(out);
     }
 
-    pub fn update_log(&mut self, log: veilid_core::VeilidLog) {
+    pub fn update_log(&mut self, log: json::JsonValue) {
         self.inner().ui.add_node_event(format!(
             "{}: {}{}",
-            log.log_level,
-            log.message,
-            if let Some(bt) = log.backtrace {
+            log["log_level"].as_str().unwrap_or("???"),
+            log["message"].as_str().unwrap_or("???"),
+            if let Some(bt) = log["backtrace"].as_str() {
                 format!("\nBacktrace:\n{}", bt)
             } else {
                 "".to_owned()
@@ -442,7 +445,7 @@ reply               - reply to an AppCall not handled directly by the server
         ));
     }
 
-    pub fn update_app_message(&mut self, msg: veilid_core::VeilidAppMessage) {
+    pub fn update_app_message(&mut self, msg: json::JsonValue) {
         // check is message body is ascii printable
         let mut printable = true;
         for c in msg.message() {

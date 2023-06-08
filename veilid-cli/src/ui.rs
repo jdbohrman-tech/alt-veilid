@@ -12,12 +12,11 @@ use cursive::Cursive;
 use cursive::CursiveRunnable;
 use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
 //use cursive_multiplex::*;
-use log::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use thiserror::Error;
-use veilid_core::*;
+use veilid_tools::*;
 
 //////////////////////////////////////////////////////////////
 ///
@@ -50,20 +49,20 @@ impl<T> Dirty<T> {
 pub type UICallback = Box<dyn Fn(&mut Cursive) + Send>;
 
 struct UIState {
-    attachment_state: Dirty<AttachmentState>,
+    attachment_state: Dirty<String>,
     public_internet_ready: Dirty<bool>,
     local_network_ready: Dirty<bool>,
     network_started: Dirty<bool>,
     network_down_up: Dirty<(f32, f32)>,
     connection_state: Dirty<ConnectionState>,
-    peers_state: Dirty<Vec<PeerTableData>>,
+    peers_state: Dirty<Vec<json::JsonValue>>,
     node_id: Dirty<String>,
 }
 
 impl UIState {
     pub fn new() -> Self {
         Self {
-            attachment_state: Dirty::new(AttachmentState::Detached),
+            attachment_state: Dirty::new("Detached".to_owned()),
             public_internet_ready: Dirty::new(false),
             local_network_ready: Dirty::new(false),
             network_started: Dirty::new(false),
@@ -239,15 +238,16 @@ impl UI {
         s.find_name("peers").unwrap()
     }
     fn render_attachment_state(inner: &mut UIInner) -> String {
-        let att = match inner.ui_state.attachment_state.get() {
-            AttachmentState::Detached => "[----]",
-            AttachmentState::Attaching => "[/   ]",
-            AttachmentState::AttachedWeak => "[|   ]",
-            AttachmentState::AttachedGood => "[||  ]",
-            AttachmentState::AttachedStrong => "[||| ]",
-            AttachmentState::FullyAttached => "[||||]",
-            AttachmentState::OverAttached => "[++++]",
-            AttachmentState::Detaching => "[////]",
+        let att = match inner.ui_state.attachment_state.get().as_str() {
+            "Detached" => "[----]",
+            "Attaching" => "[/   ]",
+            "AttachedWeak" => "[|   ]",
+            "AttachedGood" => "[||  ]",
+            "AttachedStrong" => "[||| ]",
+            "FullyAttached" => "[||||]",
+            "OverAttached" => "[++++]",
+            "Detaching" => "[////]",
+            _ => "[????]",
         };
         let pi = if *inner.ui_state.public_internet_ready.get() {
             "+P"
@@ -272,15 +272,16 @@ impl UI {
     }
     fn render_button_attach<'a>(inner: &mut UIInner) -> (&'a str, bool) {
         if let ConnectionState::Connected(_, _) = inner.ui_state.connection_state.get() {
-            match inner.ui_state.attachment_state.get() {
-                AttachmentState::Detached => ("Attach", true),
-                AttachmentState::Attaching => ("Detach", true),
-                AttachmentState::AttachedWeak => ("Detach", true),
-                AttachmentState::AttachedGood => ("Detach", true),
-                AttachmentState::AttachedStrong => ("Detach", true),
-                AttachmentState::FullyAttached => ("Detach", true),
-                AttachmentState::OverAttached => ("Detach", true),
-                AttachmentState::Detaching => ("Detach", false),
+            match inner.ui_state.attachment_state.get().as_str() {
+                "Detached" => ("Attach", true),
+                "Attaching" => ("Detach", true),
+                "AttachedWeak" => ("Detach", true),
+                "AttachedGood" => ("Detach", true),
+                "AttachedStrong" => ("Detach", true),
+                "FullyAttached" => ("Detach", true),
+                "OverAttached" => ("Detach", true),
+                "Detaching" => ("Detach", false),
+                _ => ("???", false),
             }
         } else {
             (" ---- ", false)
@@ -412,15 +413,17 @@ impl UI {
     }
 
     fn on_button_attach_pressed(s: &mut Cursive) {
-        let action: Option<bool> = match Self::inner_mut(s).ui_state.attachment_state.get() {
-            AttachmentState::Detached => Some(true),
-            AttachmentState::Attaching => Some(false),
-            AttachmentState::AttachedWeak => Some(false),
-            AttachmentState::AttachedGood => Some(false),
-            AttachmentState::AttachedStrong => Some(false),
-            AttachmentState::FullyAttached => Some(false),
-            AttachmentState::OverAttached => Some(false),
-            AttachmentState::Detaching => None,
+        let action: Option<bool> = match Self::inner_mut(s).ui_state.attachment_state.get().as_str()
+        {
+            "Detached" => Some(true),
+            "Attaching" => Some(false),
+            "AttachedWeak" => Some(false),
+            "AttachedGood" => Some(false),
+            "AttachedStrong" => Some(false),
+            "FullyAttached" => Some(false),
+            "OverAttached" => Some(false),
+            "Detaching" => None,
+            _ => None,
         };
         let mut cmdproc = Self::command_processor(s);
         if let Some(a) = action {

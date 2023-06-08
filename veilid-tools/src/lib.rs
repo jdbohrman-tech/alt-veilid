@@ -140,8 +140,5 @@ pub use wasm::*;
 pub mod tests;
 
 // For iOS tests
-
 #[no_mangle]
-pub extern "C" fn main_rs() {
-    // start game code here
-}
+pub extern "C" fn main_rs() {}

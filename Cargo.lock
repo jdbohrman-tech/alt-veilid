@@ -6160,6 +6160,7 @@ dependencies = [
  "cursive_table_view",
  "directories",
  "flexi_logger",
+ "flume",
  "futures",
  "hex",
  "json",
@@ -6168,10 +6169,11 @@ dependencies = [
  "serde",
  "serde_derive",
  "serial_test",
+ "stop-token",
  "thiserror",
  "tokio 1.28.2",
  "tokio-util",
- "veilid-core",
+ "veilid-tools",
 ]
 
 [[package]]

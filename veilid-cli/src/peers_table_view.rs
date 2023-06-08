@@ -1,7 +1,6 @@
 use super::*;
 use cursive_table_view::*;
 use std::cmp::Ordering;
-use veilid_core::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PeerTableColumn {
