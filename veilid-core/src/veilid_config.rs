@@ -545,6 +545,35 @@ impl Default for VeilidConfigLogLevel {
         Self::Off
     }
 }
+impl FromStr for VeilidConfigLogLevel {
+    type Err = VeilidAPIError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "Off" => Self::Off,
+            "Error" => Self::Error,
+            "Warn" => Self::Warn,
+            "Info" => Self::Info,
+            "Debug" => Self::Debug,
+            "Trace" => Self::Trace,
+            _ => {
+                apibail_invalid_argument!("Can't convert str", "s", s);
+            }
+        })
+    }
+}
+impl fmt::Display for VeilidConfigLogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        let text = match self {
+            Self::Off => "Off",
+            Self::Error => "Error",
+            Self::Warn => "Warn",
+            Self::Info => "Info",
+            Self::Debug => "Debug",
+            Self::Trace => "Trace",
+        };
+        write!(f, "{}", text)
+    }
+}
 
 #[derive(
     Default,

@@ -387,7 +387,7 @@ reply               - reply to an AppCall not handled directly by the server
         self.inner().ui_sender.add_node_event(message);
     }
 
-    pub fn update_attachment(&self, attachment: json::JsonValue) {
+    pub fn update_attachment(&self, attachment: &json::JsonValue) {
         self.inner_mut().ui_sender.set_attachment_state(
             attachment["state"].as_str().unwrap_or_default().to_owned(),
             attachment["public_internet_ready"]
@@ -399,7 +399,7 @@ reply               - reply to an AppCall not handled directly by the server
         );
     }
 
-    pub fn update_network_status(&self, network: json::JsonValue) {
+    pub fn update_network_status(&self, network: &json::JsonValue) {
         self.inner_mut().ui_sender.set_network_status(
             network["started"].as_bool().unwrap_or_default(),
             json_str_u64(&network["bps_down"]),
@@ -410,10 +410,10 @@ reply               - reply to an AppCall not handled directly by the server
                 .collect::<Vec<json::JsonValue>>(),
         );
     }
-    pub fn update_config(&self, config: json::JsonValue) {
+    pub fn update_config(&self, config: &json::JsonValue) {
         self.inner_mut().ui_sender.set_config(&config["config"])
     }
-    pub fn update_route(&self, route: json::JsonValue) {
+    pub fn update_route(&self, route: &json::JsonValue) {
         let mut out = String::new();
         if route["dead_routes"].len() != 0 {
             out.push_str(&format!("Dead routes: {:?}", route["dead_routes"]));
@@ -431,12 +431,12 @@ reply               - reply to an AppCall not handled directly by the server
             self.inner().ui_sender.add_node_event(out);
         }
     }
-    pub fn update_value_change(&self, value_change: json::JsonValue) {
+    pub fn update_value_change(&self, value_change: &json::JsonValue) {
         let out = format!("Value change: {:?}", value_change.as_str().unwrap_or("???"));
         self.inner().ui_sender.add_node_event(out);
     }
 
-    pub fn update_log(&self, log: json::JsonValue) {
+    pub fn update_log(&self, log: &json::JsonValue) {
         self.inner().ui_sender.add_node_event(format!(
             "{}: {}{}",
             log["log_level"].as_str().unwrap_or("???"),
@@ -449,7 +449,7 @@ reply               - reply to an AppCall not handled directly by the server
         ));
     }
 
-    pub fn update_app_message(&self, msg: json::JsonValue) {
+    pub fn update_app_message(&self, msg: &json::JsonValue) {
         let message = json_str_vec_u8(&msg["message"]);
 
         // check is message body is ascii printable
@@ -471,7 +471,7 @@ reply               - reply to an AppCall not handled directly by the server
             .add_node_event(format!("AppMessage ({:?}): {}", msg["sender"], strmsg));
     }
 
-    pub fn update_app_call(&self, call: json::JsonValue) {
+    pub fn update_app_call(&self, call: &json::JsonValue) {
         let message = json_str_vec_u8(&call["message"]);
 
         // check is message body is ascii printable
