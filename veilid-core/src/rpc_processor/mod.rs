@@ -844,6 +844,10 @@ impl RPCProcessor {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
             node_ref.stats_failed_to_send(send_ts, wants_answer);
+
+            // Also clear the last_connections for the entry so we make a new connection next time
+            node_ref.clear_last_connections();
+
             return;
         }
 
@@ -872,6 +876,10 @@ impl RPCProcessor {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
             node_ref.stats_question_lost();
+
+            // Also clear the last_connections for the entry so we make a new connection next time
+            node_ref.clear_last_connections();
+
             return;
         }
         // Get route spec store

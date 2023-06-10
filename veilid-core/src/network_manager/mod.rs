@@ -1077,8 +1077,17 @@ impl NetworkManager {
 
         // Dial info filter comes from the target node ref
         let dial_info_filter = target_node_ref.dial_info_filter();
-        let sequencing = target_node_ref.sequencing();
+        let mut sequencing = target_node_ref.sequencing();
+        
+        // If the node has had lost questions or failures to send, prefer sequencing
+        // to improve reliability. The node may be experiencing UDP fragmentation drops
+        // or other firewalling issues and may perform better with TCP.
+        let unreliable = target_node_ref.peer_stats().rpc_stats.failed_to_send > 0 || target_node_ref.peer_stats().rpc_stats.recent_lost_answers > 0;
+        if unreliable && sequencing < Sequencing::PreferOrdered {
+            sequencing = Sequencing::PreferOrdered;
+        }
 
+        // Get the best contact method with these parameters from the routing domain
         let cm = routing_table.get_contact_method(
             routing_domain,
             &peer_a,
