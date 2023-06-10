@@ -30,9 +30,19 @@ impl RPCProcessor {
                         let routing_domain = match target.best_routing_domain() {
                             Some(rd) => rd,
                             None => {
+                                // Because this exits before calling 'question()',
+                                // a failure to find a routing domain constitutes a send failure
+                                let send_ts = get_aligned_timestamp();
+                                self.record_send_failure(
+                                    RPCKind::Question,
+                                    send_ts,
+                                    target.clone(),
+                                    None,
+                                    None,
+                                );
                                 return Ok(NetworkResult::no_connection_other(
                                     "no routing domain for target",
-                                ))
+                                ));
                             }
                         };
                         (Some(target.clone()), routing_domain)
@@ -45,9 +55,26 @@ impl RPCProcessor {
                         let routing_domain = match relay.best_routing_domain() {
                             Some(rd) => rd,
                             None => {
+                                // Because this exits before calling 'question()',
+                                // a failure to find a routing domain constitutes a send failure for both the target and its relay
+                                let send_ts = get_aligned_timestamp();
+                                self.record_send_failure(
+                                    RPCKind::Question,
+                                    send_ts,
+                                    relay.clone(),
+                                    None,
+                                    None,
+                                );
+                                self.record_send_failure(
+                                    RPCKind::Question,
+                                    send_ts,
+                                    target.clone(),
+                                    None,
+                                    None,
+                                );
                                 return Ok(NetworkResult::no_connection_other(
                                     "no routing domain for peer",
-                                ))
+                                ));
                             }
                         };
                         (Some(target.clone()), routing_domain)
