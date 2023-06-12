@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "veilid-python"
+version = "0.1.0"
+description = ""
+authors = ["Christien Rioux <chris@veilid.org>"]
+readme = "README.md"
+packages = [{include = "veilid_python"}]
+
+[tool.poetry.scripts]
+update_bindings = "veilid_python.update_bindings:main"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+[tool.poetry.group.dev.dependencies]
+datamodel-code-generator = "^0.20.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -511,16 +511,17 @@ class VeilidStateNetwork {
 /// VeilidStateConfig
 
 class VeilidStateConfig {
-  final Map<String, dynamic> config;
+  final VeilidConfig config;
 
   VeilidStateConfig({
     required this.config,
   });
 
-  VeilidStateConfig.fromJson(dynamic json) : config = json['config'];
+  VeilidStateConfig.fromJson(dynamic json)
+      : config = VeilidConfig.fromJson(json['config']);
 
   Map<String, dynamic> toJson() {
-    return {'config': config};
+    return {'config': config.toJson()};
   }
 }
 

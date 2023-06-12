@@ -856,7 +856,8 @@ class VeilidConfigProtectedStore {
         directory = json['directory'],
         delete = json['delete'],
         deviceEncryptionKeyPassword = json['device_encryption_key_password'],
-        newDeviceEncryptionKeyPassword = json['new_device_encryption_key_password'];
+        newDeviceEncryptionKeyPassword =
+            json['new_device_encryption_key_password'];
 }
 
 ////////////
