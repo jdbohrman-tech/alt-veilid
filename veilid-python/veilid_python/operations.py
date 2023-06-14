@@ -55,7 +55,7 @@ class TableDbOperation(StrEnum):
     LOAD = "Load"
     DELETE = "Delete"
 
-class TableDBTransactionOperation(StrEnum):
+class TableDbTransactionOperation(StrEnum):
     INVALID_ID = "InvalidId"
     COMMIT = "Commit"
     ROLLBACK = "Rollback"

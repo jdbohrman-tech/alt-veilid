@@ -6,14 +6,13 @@ authors = ["Christien Rioux <chris@veilid.org>"]
 readme = "README.md"
 packages = [{include = "veilid_python"}]
 
-[tool.poetry.scripts]
-update_bindings = "veilid_python.update_bindings:main"
-
 [tool.poetry.dependencies]
 python = "^3.11"
+jsonschema = "^4.17.3"
 
 [tool.poetry.group.dev.dependencies]
-datamodel-code-generator = "^0.20.0"
+pytest = "^7.3.2"
+pytest-asyncio = "^0.21.0"
 
 [build-system]
 requires = ["poetry-core"]

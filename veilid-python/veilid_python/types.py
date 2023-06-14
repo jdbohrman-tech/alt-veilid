@@ -3,7 +3,9 @@ import json
 import base64
 
 from enum import StrEnum
-from typing import Self, Optional, Any
+from typing import Self, Optional, Any, Tuple
+
+####################################################################
 
 def urlsafe_b64encode_no_pad(b: bytes) -> str:
     """
@@ -33,6 +35,33 @@ class VeilidJSONEncoder(json.JSONEncoder):
     def dumps(req: Any, *args, **kwargs) -> str:
         return json.dumps(req, cls = VeilidJSONEncoder, *args, **kwargs)
 
+####################################################################
+
+class VeilidLogLevel(StrEnum):
+    ERROR = 'Error'
+    WARN = 'Warn'
+    INFO = 'Info'
+    DEBUG = 'Debug'
+    TRACE = 'Trace'
+
+class CryptoKind(StrEnum):
+    CRYPTO_KIND_NONE = "NONE"
+    CRYPTO_KIND_VLD0 = "VLD0"
+
+class Stability(StrEnum):
+    LOW_LATENCY = "LowLatency"
+    RELIABLE = "Reliable"
+
+class Sequencing(StrEnum):
+    NO_PREFERENCE = "NoPreference"
+    PREFER_ORDERED = "PreferOrdered"
+    ENSURE_ORDERED = "EnsureOrdered"
+
+class DHTSchemaKind(StrEnum):
+    DFLT = "DFLT"
+    SMPL = "SMPL"
+
+####################################################################
 
 class Timestamp(int):
     pass
@@ -49,47 +78,106 @@ class OperationId(int):
 class RouteId(str):
     pass
 
-class TypedKey(str):
-    pass
+class CryptoKey:
+    def to_bytes(self) -> bytes:
+        return urlsafe_b64decode_no_pad(self)
 
-class TypedKeyPair(str):
-    pass
+class CryptoKeyDistance(CryptoKey, str):
+    @staticmethod
+    def from_bytes(b: bytes) -> Self:
+        return CryptoKeyDistance(urlsafe_b64encode_no_pad(b))
 
-class TypedSignature(str):
-    pass
+class PublicKey(CryptoKey, str):
+    @staticmethod
+    def from_bytes(b: bytes) -> Self:
+        return PublicKey(urlsafe_b64encode_no_pad(b))
 
-class CryptoKey(str):
-    pass
+class SecretKey(CryptoKey, str):
+    @staticmethod
+    def from_bytes(b: bytes) -> Self:
+        return SecretKey(urlsafe_b64encode_no_pad(b))
 
-class CryptoKeyDistance(str):
-    pass
+class SharedSecret(CryptoKey, str):
+    @staticmethod
+    def from_bytes(b: bytes) -> Self:
+        return SharedSecret(urlsafe_b64encode_no_pad(b))
 
-class PublicKey(CryptoKey):
-    pass
-
-class SecretKey(CryptoKey):
-    pass
-
-class SharedSecret(CryptoKey):
-    pass
+class HashDigest(CryptoKey, str):
+    @staticmethod
+    def from_bytes(b: bytes) -> Self:
+        return HashDigest(urlsafe_b64encode_no_pad(b))
 
 class Signature(str):
-    pass
+    @staticmethod
+    def from_bytes(b: bytes) -> Self:
+        return Signature(urlsafe_b64encode_no_pad(b))
+    def to_bytes(self) -> bytes:
+        return urlsafe_b64decode_no_pad(self)
 
 class Nonce(str):
-    pass
+    @staticmethod
+    def from_bytes(b: bytes) -> Self:
+        return Signature(urlsafe_b64encode_no_pad(b))
+    def to_bytes(self) -> bytes:
+        return urlsafe_b64decode_no_pad(self)
 
 class KeyPair(str):
-    pass
+    @staticmethod
+    def from_parts(key: PublicKey, secret: SecretKey) -> Self:
+        return KeyPair(key + ":" + secret)
+    def key(self) -> PublicKey:
+        return PublicKey(str.split(":", 1)[0])
+    def secret(self) -> SecretKey:
+        return SecretKey(str.split(":", 1)[1])
+    def to_parts(self) -> Tuple[PublicKey, SecretKey]:
+        parts = str.split(":", 1)
+        return (PublicKey(parts[0]), SecretKey(parts[1]))
 
-class HashDigest(CryptoKey):
-    pass
+class CryptoTyped:
+    def kind(self) -> CryptoKind:
+        if self[4] != ':':
+            raise ValueError("Not CryptoTyped")
+        return CryptoKind(self[0:4])
+    def _value(self) -> str:
+        if self[4] != ':':
+            raise ValueError("Not CryptoTyped")
+        return self[5:]
+
+class TypedKey(CryptoTyped, str):
+    @staticmethod
+    def from_value(kind: CryptoKind, value: PublicKey) -> Self:
+        return TypedKey(kind + ":" + value)
+    def value(self) -> PublicKey:
+        PublicKey(self._value())
+    
+class TypedSecret(CryptoTyped, str):
+    @staticmethod
+    def from_value(kind: CryptoKind, value: SecretKey) -> Self:
+        return TypedSecret(kind + ":" + value)
+    def value(self) -> SecretKey:
+        SecretKey(self._value())
+
+class TypedKeyPair(CryptoTyped, str):
+    @staticmethod
+    def from_value(kind: CryptoKind, value: KeyPair) -> Self:
+        return TypedKeyPair(kind + ":" + value)
+    def value(self) -> KeyPair:
+        KeyPair(self._value())
+
+class TypedSignature(CryptoTyped, str):
+    @staticmethod
+    def from_value(kind: CryptoKind, value: Signature) -> Self:
+        return TypedSignature(kind + ":" + value)
+    def value(self) -> Signature:
+        Signature(self._value())
 
 class ValueSubkey(int):
     pass
 
 class ValueSeqNum(int):
     pass
+
+####################################################################
 
 class VeilidVersion:
     _major: int
@@ -109,13 +197,6 @@ class VeilidVersion:
     def patch(self):
         return self._patch
 
-class VeilidLogLevel(StrEnum):
-    ERROR = 'Error'
-    WARN = 'Warn'
-    INFO = 'Info'
-    DEBUG = 'Debug'
-    TRACE = 'Trace'
-
 class NewPrivateRouteResult:
     route_id: RouteId
     blob: bytes
@@ -129,23 +210,6 @@ class NewPrivateRouteResult:
         return NewPrivateRouteResult(
             RouteId(j['route_id']),
             urlsafe_b64decode_no_pad(j['blob']))
-
-class CryptoKind(StrEnum):
-    CRYPTO_KIND_NONE = "NONE"
-    CRYPTO_KIND_VLD0 = "VLD0"
-
-class Stability(StrEnum):
-    LOW_LATENCY = "LowLatency"
-    RELIABLE = "Reliable"
-
-class Sequencing(StrEnum):
-    NO_PREFERENCE = "NoPreference"
-    PREFER_ORDERED = "PreferOrdered"
-    ENSURE_ORDERED = "EnsureOrdered"
-
-class DHTSchemaKind(StrEnum):
-    DFLT = "DFLT"
-    SMPL = "SMPL"
 
 class DHTSchemaSMPLMember:
     m_key: PublicKey

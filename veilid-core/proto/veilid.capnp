@@ -230,7 +230,7 @@ struct NodeInfo @0xe125d847e3f9f419 {
     outboundProtocols       @1  :ProtocolTypeSet;       # protocols that can go outbound
     addressTypes            @2  :AddressTypeSet;        # address types supported
     envelopeSupport         @3  :List(UInt8);           # supported rpc envelope/receipt versions
-    cryptoSupport           @4  :List( );               # cryptography systems supported
+    cryptoSupport           @4  :List(CryptoKind);      # cryptography systems supported
     dialInfoDetailList      @5  :List(DialInfoDetail);  # inbound dial info details for this node
 }
 

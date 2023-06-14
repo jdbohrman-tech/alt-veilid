@@ -44,11 +44,11 @@ class RoutingContext(ABC):
     async def watch_dht_values(self, key: TypedKey, subkeys: list[(ValueSubkey, ValueSubkey)], expiration: Timestamp, count: int) -> Timestamp:
         pass
     @abstractmethod  
-    async def cancel_dht_values(self, key: TypedKey, subkeys: list[(ValueSubkey, ValueSubkey)]) -> bool:
+    async def cancel_dht_watch(self, key: TypedKey, subkeys: list[(ValueSubkey, ValueSubkey)]) -> bool:
         pass
     
 
-class TableDBTransaction(ABC):
+class TableDbTransaction(ABC):
     @abstractmethod  
     async def commit(self):
         pass
@@ -62,15 +62,15 @@ class TableDBTransaction(ABC):
     async def delete(self, col: int, key: bytes):
         pass
 
-class TableDB(ABC):
+class TableDb(ABC):
     @abstractmethod  
     async def get_column_count(self) -> int:
         pass
     @abstractmethod  
-    async def get_keys(self, col: int) -> list[str]:
+    async def get_keys(self, col: int) -> list[bytes]:
         pass
     @abstractmethod  
-    async def transact(self) -> TableDBTransaction:
+    async def transact(self) -> TableDbTransaction:
         pass
     @abstractmethod  
     async def store(self, col: int, key: bytes, value: bytes):
@@ -177,7 +177,7 @@ class VeilidAPI(ABC):
     async def new_routing_context(self) -> RoutingContext:
         pass
     @abstractmethod  
-    async def open_table_db(self, name: str, column_count: int) -> TableDB:
+    async def open_table_db(self, name: str, column_count: int) -> TableDb:
         pass
     @abstractmethod  
     async def delete_table_db(self, name: str):
