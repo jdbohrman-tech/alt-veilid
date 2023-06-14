@@ -230,7 +230,7 @@ struct NodeInfo @0xe125d847e3f9f419 {
     outboundProtocols       @1  :ProtocolTypeSet;       # protocols that can go outbound
     addressTypes            @2  :AddressTypeSet;        # address types supported
     envelopeSupport         @3  :List(UInt8);           # supported rpc envelope/receipt versions
-    cryptoSupport           @4  :List(CryptoKind);      # cryptography systems supported
+    cryptoSupport           @4  :List( );               # cryptography systems supported
     dialInfoDetailList      @5  :List(DialInfoDetail);  # inbound dial info details for this node
 }
 
@@ -534,7 +534,8 @@ struct Answer @0xacacb8b6988c1058 {
         appCallA            @2  :OperationAppCallA;
         getValueA           @3  :OperationGetValueA;
         setValueA           @4  :OperationSetValueA;
-        watchValueA         @5  :OperationWatchValueA;    
+        watchValueA         @5  :OperationWatchValueA;
+
         # #[cfg(feature="unstable-blockstore")]
         #supplyBlockA        @6  :OperationSupplyBlockA; 
         #findBlockA          @7  :OperationFindBlockA;

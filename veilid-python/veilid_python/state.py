@@ -1,7 +1,8 @@
 from typing import Self, Optional
 from enum import StrEnum
-from .types import Timestamp, TimestampDuration, ByteCount
-from .config import VeilidConfig
+
+from .types import *
+from .config import *
 
 class AttachmentState(StrEnum):
     DETACHED = 'Detached'
@@ -25,6 +26,7 @@ class VeilidStateAttachment:
 
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return VeilidStateAttachment(
             AttachmentState(j['state']),
             j['public_internet_ready'],
@@ -54,6 +56,7 @@ class RPCStats:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return RPCStats(
             j['messages_sent'],
             j['messages_rcvd'],
@@ -76,6 +79,7 @@ class LatencyStats:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return LatencyStats(
             TimestampDuration(j['fastest']),
             TimestampDuration(j['average']),
@@ -96,6 +100,7 @@ class TransferStats:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return TransferStats(
             ByteCount(j['total']),
             ByteCount(j['maximum']),
@@ -113,6 +118,7 @@ class TransferStatsDownUp:
 
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return TransferStatsDownUp(
             TransferStats.from_json(j['down']),
             TransferStats.from_json(j['up']))
@@ -131,6 +137,7 @@ class PeerStats:
 
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return PeerStats(
             j['time_added'],
             RPCStats.from_json(j['rpc_stats']),
@@ -149,6 +156,7 @@ class PeerTableData:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return PeerTableData(
             j['node_ids'],
             j['peer_address'],
@@ -168,6 +176,7 @@ class VeilidStateNetwork:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return VeilidStateNetwork(
             j['started'],
             ByteCount(j['bps_down']),
@@ -182,9 +191,9 @@ class VeilidStateConfig:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return VeilidStateConfig(
             j['config'])
-
 
 class VeilidState:
     attachment: VeilidStateAttachment
@@ -198,8 +207,143 @@ class VeilidState:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return VeilidState(
             VeilidStateAttachment.from_json(j['attachment']), 
             VeilidStateNetwork.from_json(j['network']), 
             VeilidStateConfig.from_json(j['config']))
         
+class VeilidLog:
+    log_level: VeilidLogLevel
+    message: str
+    backtrace: Optional[str]
+
+    def __init__(self, log_level: VeilidLogLevel, message: str, backtrace: Optional[str]):
+        self.log_level = log_level
+        self.message = message
+        self.backtrace = backtrace
+    
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        '''JSON object hook'''
+        return VeilidLog(
+            VeilidLogLevel(j['attachment']), 
+            j['message'], 
+            j['backtrace'])
+    
+class VeilidAppMessage:
+    sender: Optional[TypedKey]
+    message: bytes
+    
+    def __init__(self, sender: Optional[TypedKey], message: bytes):
+        self.sender = sender
+        self.message = message
+    
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        '''JSON object hook'''
+        return VeilidAppMessage(
+            None if j['sender'] is None else TypedKey(j['sender']),
+            urlsafe_b64decode_no_pad(j['message']))
+
+class VeilidAppCall:
+    sender: Optional[TypedKey]
+    message: bytes
+    operation_id: str
+    
+    def __init__(self, sender: Optional[TypedKey], message: bytes, operation_id: str):
+        self.sender = sender
+        self.message = message
+        self.operation_id = operation_id
+    
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        '''JSON object hook'''
+        return VeilidAppCall(
+            None if j['sender'] is None else TypedKey(j['sender']),
+            urlsafe_b64decode_no_pad(j['message']),
+            j['operation_id'])
+
+class VeilidRouteChange:
+    dead_routes: list[RouteId]
+    dead_remote_routes: list[RouteId]
+
+    def __init__(self, dead_routes: list[RouteId], dead_remote_routes: list[RouteId]):
+        self.dead_routes = dead_routes
+        self.dead_remote_routes = dead_remote_routes
+    
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        '''JSON object hook'''
+        return VeilidRouteChange(
+            map(lambda x: RouteId(x), j['dead_routes']),
+            map(lambda x: RouteId(x), j['dead_remote_routes']))
+
+class VeilidValueChange:
+    key: TypedKey
+    subkeys: list[ValueSubkey]
+    count: int
+    value: ValueData
+
+    def __init__(self, key: TypedKey, subkeys: list[ValueSubkey], count: int, value: ValueData):
+        self.key = key
+        self.subkeys = subkeys
+        self.count = count
+        self.value = value
+    
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        '''JSON object hook'''
+        return VeilidValueChange(
+            TypedKey(j['key']),
+            map(lambda x: ValueSubkey(x), j['subkeys']),
+            j['count'],
+            ValueData.from_json(j['value']))
+
+
+class VeilidUpdateKind(StrEnum):
+    LOG = "Log"
+    APP_MESSAGE = "AppMessage"
+    APP_CALL = "AppCall"
+    ATTACHMENT = "Attachment"
+    NETWORK = "Network"
+    CONFIG = "Config"
+    ROUTE_CHANGE = "RouteChange"
+    VALUE_CHANGE = "ValueChange"
+    SHUTDOWN = "Shutdown"
+
+class VeilidUpdate:
+    kind: VeilidUpdateKind
+    detail: Optional[VeilidLog | VeilidAppMessage | VeilidAppCall | VeilidStateAttachment | VeilidStateNetwork | VeilidStateConfig | VeilidRouteChange | VeilidValueChange]
+
+    def __init__(self, kind: VeilidUpdateKind, detail: Optional[VeilidLog | VeilidAppMessage | VeilidAppCall | VeilidStateAttachment | VeilidStateNetwork | VeilidStateConfig | VeilidRouteChange | VeilidValueChange]):
+        self.kind = kind
+        self.detail = detail
+    
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        '''JSON object hook'''
+        kind = VeilidUpdateKind(j['kind'])
+        detail = None
+        match kind:
+            case VeilidUpdateKind.LOG:
+                detail = VeilidLog.from_json(j)
+            case VeilidUpdateKind.APP_MESSAGE:
+                detail = VeilidAppMessage.from_json(j)
+            case VeilidUpdateKind.APP_CALL:
+                detail = VeilidAppCall.from_json(j)
+            case VeilidUpdateKind.ATTACHMENT:
+                detail = VeilidStateAttachment.from_json(j)
+            case VeilidUpdateKind.NETWORK:
+                detail = VeilidStateNetwork.from_json(j)
+            case VeilidUpdateKind.CONFIG:
+                detail = VeilidStateConfig.from_json(j)
+            case VeilidUpdateKind.ROUTE_CHANGE:
+                detail = VeilidRouteChange.from_json(j)
+            case VeilidUpdateKind.VALUE_CHANGE:
+                detail = VeilidValueChange.from_json(j)
+            case VeilidUpdateKind.SHUTDOWN:
+                detail = None
+            case _:
+                raise ValueError("Unknown VeilidUpdateKind")
+                

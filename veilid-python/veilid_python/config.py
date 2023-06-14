@@ -1,5 +1,6 @@
 from typing import Self, Optional
 from enum import StrEnum
+from json import dumps
 
 class VeilidConfigLogLevel(StrEnum):
     OFF = 'Off'
@@ -38,6 +39,8 @@ class VeilidConfigCapabilities:
             j['protocol_accept_ws'],
             j['protocol_connect_wss'],
             j['protocol_accept_wss'])
+    def to_json(self) -> dict:
+        return self.__dict__
 
 class VeilidConfigProtectedStore:
     allow_insecure_fallback: bool
@@ -61,6 +64,8 @@ class VeilidConfigProtectedStore:
     def from_json(j: dict) -> Self:
         return VeilidConfigProtectedStore(j['allow_insecure_fallback'], j['always_use_insecure_storage'],
             j['directory'], j['delete'], j['device_encryption_key_password'], j['new_device_encryption_key_password'])
+    def to_json(self) -> dict:
+        return self.__dict__
 
 class VeilidConfigTableStore:
     directory: str
@@ -73,6 +78,8 @@ class VeilidConfigTableStore:
     @staticmethod
     def from_json(j: dict) -> Self:
         return VeilidConfigTableStore(j['directory'], j['delete'])
+    def to_json(self) -> dict:
+        return self.__dict__
 
 class VeilidConfigBlockStore:
     directory: str
@@ -85,6 +92,8 @@ class VeilidConfigBlockStore:
     @staticmethod
     def from_json(j: dict) -> Self:
         return VeilidConfigBlockStore(j['directory'], j['delete'])
+    def to_json(self) -> dict:
+        return self.__dict__
 
 class VeilidConfigRoutingTable:
     node_id: list[str]
@@ -119,6 +128,8 @@ class VeilidConfigRoutingTable:
             j['limit_attached_strong'],
             j['limit_attached_good'],
             j['limit_attached_weak'])
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidConfigRPC:
@@ -151,6 +162,286 @@ class VeilidConfigRPC:
             j['timeout_ms'],
             j['max_route_hop_count'],
             j['default_route_hop_count'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigDHT:
+    max_find_node_count: int
+    resolve_node_timeout_ms: int
+    resolve_node_count: int
+    resolve_node_fanout: int
+    get_value_timeout_ms: int
+    get_value_count: int
+    get_value_fanout: int
+    set_value_timeout_ms: int
+    set_value_count: int
+    set_value_fanout: int
+    min_peer_count: int
+    min_peer_refresh_time_ms: int
+    validate_dial_info_receipt_time_ms: int
+    local_subkey_cache_size: int
+    local_max_subkey_cache_memory_mb: int
+    remote_subkey_cache_size: int
+    remote_max_records: int
+    remote_max_subkey_cache_memory_mb: int
+    remote_max_storage_space_mb: int
+
+    def __init__(self,  max_find_node_count: int, resolve_node_timeout_ms: int, resolve_node_count: int,
+        resolve_node_fanout: int, get_value_timeout_ms: int, get_value_count: int, get_value_fanout: int,
+        set_value_timeout_ms: int, set_value_count: int, set_value_fanout: int,
+        min_peer_count: int, min_peer_refresh_time_ms: int, validate_dial_info_receipt_time_ms: int,
+        local_subkey_cache_size: int, local_max_subkey_cache_memory_mb: int,
+        remote_subkey_cache_size: int, remote_max_records: int, remote_max_subkey_cache_memory_mb: int, remote_max_storage_space_mb: int):
+
+        self.max_find_node_count = max_find_node_count
+        self.resolve_node_timeout_ms =resolve_node_timeout_ms
+        self.resolve_node_count = resolve_node_count
+        self.resolve_node_fanout = resolve_node_fanout
+        self.get_value_timeout_ms = get_value_timeout_ms
+        self.get_value_count = get_value_count
+        self.get_value_fanout = get_value_fanout
+        self.set_value_timeout_ms = set_value_timeout_ms
+        self.set_value_count = set_value_count
+        self.set_value_fanout = set_value_fanout
+        self.min_peer_count = min_peer_count
+        self.min_peer_refresh_time_ms = min_peer_refresh_time_ms
+        self.validate_dial_info_receipt_time_ms = validate_dial_info_receipt_time_ms
+        self.local_subkey_cache_size = local_subkey_cache_size
+        self.local_max_subkey_cache_memory_mb = local_max_subkey_cache_memory_mb
+        self.remote_subkey_cache_size = remote_subkey_cache_size
+        self.remote_max_records = remote_max_records
+        self.remote_max_subkey_cache_memory_mb = remote_max_subkey_cache_memory_mb
+        self.remote_max_storage_space_mb = remote_max_storage_space_mb
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigDHT(
+            j['max_find_node_count'],
+            j['resolve_node_timeout_ms'],
+            j['resolve_node_count'],
+            j['resolve_node_fanout'],
+            j['get_value_timeout_ms'],
+            j['get_value_count'],
+            j['get_value_fanout'],
+            j['set_value_timeout_ms'],
+            j['set_value_count'],
+            j['set_value_fanout'],
+            j['min_peer_count'],
+            j['min_peer_refresh_time_ms'],
+            j['validate_dial_info_receipt_time_ms'],
+            j['local_subkey_cache_size'],
+            j['local_max_subkey_cache_memory_mb'],
+            j['remote_subkey_cache_size'],
+            j['remote_max_records'],
+            j['remote_max_subkey_cache_memory_mb'],
+            j['remote_max_storage_space_mb'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigTLS:
+    certificate_path: str
+    private_key_path: str
+    connection_initial_timeout_ms: int
+
+    def __init__(self, certificate_path: str, private_key_path: str, connection_initial_timeout_ms: int):
+        self.certificate_path = certificate_path
+        self.private_key_path = private_key_path
+        self.connection_initial_timeout_ms = connection_initial_timeout_ms
+    
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigTLS(
+            j['certificate_path'],
+            j['private_key_path'],
+            j['connection_initial_timeout_ms'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigHTTPS:
+    enabled: bool
+    listen_address: str
+    path: str
+    url: Optional[str]
+    
+    def __init__(self, enabled: bool, listen_address: str, path: str, url: Optional[str]):
+        self.enabled = enabled
+        self.listen_address = listen_address
+        self.path = path
+        self.url = url
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigHTTPS(
+            j['enabled'],
+            j['listen_address'],
+            j['path'],
+            j['url'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigHTTP:
+    enabled: bool
+    listen_address: str
+    path: str
+    url: Optional[str]
+    
+    def __init__(self, enabled: bool, listen_address: str, path: str, url: Optional[str]):
+        self.enabled = enabled
+        self.listen_address = listen_address
+        self.path = path
+        self.url = url
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigHTTP(
+            j['enabled'],
+            j['listen_address'],
+            j['path'],
+            j['url'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigApplication:
+    https: VeilidConfigHTTPS
+    http: VeilidConfigHTTP
+
+    def __init__(self, https: VeilidConfigHTTPS, http: VeilidConfigHTTP):
+        self.https = https
+        self.http = http
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigApplication(
+            VeilidConfigHTTPS.from_json(j['https']),
+            VeilidConfigHTTP.from_json(j['http']))
+    def to_json(self) -> dict:
+        return self.__dict__
+
+
+class VeilidConfigUDP:
+    enabled: bool
+    socket_pool_size: int
+    listen_address: str
+    public_address: Optional[str]
+    
+    def __init__(self, enabled: bool, socket_pool_size: int, listen_address: str, public_address: Optional[str]):
+        self.enabled = enabled
+        self.socket_pool_size = socket_pool_size
+        self.listen_address = listen_address
+        self.public_address = public_address
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigUDP(
+            j['enabled'], 
+            j['socket_pool_size'], 
+            j['listen_address'], 
+            j['public_address'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigTCP:
+    connect: bool
+    listen: bool
+    max_connections: int
+    listen_address: str
+    public_address: Optional[str]
+    
+    def __init__(self, connect: bool, listen: bool, max_connections: int, listen_address: str, public_address: Optional[str]):
+        self.connect = connect
+        self.listen = listen
+        self.max_connections = max_connections
+        self.listen_address = listen_address
+        self.public_address = public_address
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigTCP(
+            j['connect'], 
+            j['listen'], 
+            j['max_connections'], 
+            j['listen_address'], 
+            j['public_address'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigWS:
+    connect: bool
+    listen: bool
+    max_connections: int
+    listen_address: str
+    path: str
+    url: Optional[str]
+    
+    def __init__(self, connect: bool, listen: bool, max_connections: int, listen_address: str, path: str, url: Optional[str]):
+        self.connect = connect
+        self.listen = listen
+        self.max_connections = max_connections
+        self.listen_address = listen_address
+        self.path = path
+        self.url = url
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigWS(
+            j['connect'], 
+            j['listen'], 
+            j['max_connections'], 
+            j['listen_address'], 
+            j['path'],
+            j['url'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigWSS:
+    connect: bool
+    listen: bool
+    max_connections: int
+    listen_address: str
+    path: str
+    url: Optional[str]
+    
+    def __init__(self, connect: bool, listen: bool, max_connections: int, listen_address: str, path: str, url: Optional[str]):
+        self.connect = connect
+        self.listen = listen
+        self.max_connections = max_connections
+        self.listen_address = listen_address
+        self.path = path
+        self.url = url
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigWSS(
+            j['connect'], 
+            j['listen'], 
+            j['max_connections'], 
+            j['listen_address'], 
+            j['path'],
+            j['url'])
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class VeilidConfigProtocol:
+    udp: VeilidConfigUDP
+    tcp: VeilidConfigTCP
+    ws: VeilidConfigWS
+    wss: VeilidConfigWSS
+
+    def __init__(self, udp: VeilidConfigUDP, tcp: VeilidConfigTCP, ws: VeilidConfigWS, wss: VeilidConfigWSS):
+        self.udp = udp
+        self.tcp = tcp
+        self.ws = ws
+        self.wss = wss
+
+    @staticmethod
+    def from_json(j: dict) -> Self:
+        return VeilidConfigProtocol(
+            VeilidConfigUDP.from_json(j['udp']),
+            VeilidConfigTCP.from_json(j['tcp']),
+            VeilidConfigWS.from_json(j['ws']),
+            VeilidConfigWSS.from_json(j['wss']))
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidConfigNetwork:
@@ -221,6 +512,8 @@ class VeilidConfigNetwork:
             VeilidConfigTLS.from_json(j['tls']),
             VeilidConfigApplication.from_json(j['application']),
             VeilidConfigProtocol.from_json(j['protocol']))
+    def to_json(self) -> dict:
+        return self.__dict__
 
 class VeilidConfig:
     program_name: str
@@ -245,10 +538,14 @@ class VeilidConfig:
     
     @staticmethod
     def from_json(j: dict) -> Self:
+        '''JSON object hook'''
         return VeilidConfig(j['program_name'], j['namespace'],
             VeilidConfigCapabilities.from_json(j['capabilities']), 
             VeilidConfigProtectedStore.from_json(j['protected_store']), 
             VeilidConfigTableStore.from_json(j['table_store']),
             VeilidConfigBlockStore.from_json(j['block_store']), 
             VeilidConfigNetwork.from_json(j['network']))
-        
+    def to_json(self) -> dict:
+        return self.__dict__
+    
+    

@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Self, Any
 
 class VeilidAPIError(Exception):
     """Veilid API error exception base class"""
@@ -131,3 +131,12 @@ class VeilidAPIErrorGeneric(VeilidAPIError):
     def __init__(self, message: str):
         super().__init__("Generic")
         self.message = message
+
+
+def raise_api_result(api_result: dict) -> Any:
+    if "value" in api_result:
+        return api_result["value"]
+    elif "error" in api_result:
+        raise VeilidAPIError.from_json(api_result["error"])
+    else:
+        raise ValueError("Invalid format for ApiResult")
