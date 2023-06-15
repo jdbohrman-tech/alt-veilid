@@ -59,16 +59,34 @@ class _JsonVeilidAPI(VeilidAPI):
 
     async def __aexit__(self, *excinfo):
         await self.close()
-        
-    async def close(self):
-        if self.handle_recv_messages_task is not None:
-            self.handle_recv_messages_task.cancel()
-            try:
-                await self.handle_recv_messages_task
-            except asyncio.CancelledError:
-                pass
 
-    
+    async def _cleanup_close(self):
+        await self.lock.acquire()
+        try:
+            self.reader = None
+            self.writer.close()
+            await self.writer.wait_closed()
+            self.writer = None
+        finally:
+            self.lock.release()
+
+    async def close(self):
+        # Take the task
+        await self.lock.acquire()
+        try:
+            if self.handle_recv_messages_task is None:
+                return
+            handle_recv_messages_task = self.handle_recv_messages_task
+            self.handle_recv_messages_task = None 
+        finally:
+            self.lock.release()
+        # Cancel it
+        handle_recv_messages_task.cancel()
+        try:
+            await handle_recv_messages_task
+        except asyncio.CancelledError:
+            pass
+
     @staticmethod
     async def connect(host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]) -> Self:
         reader, writer = await asyncio.open_connection(host, port)
@@ -109,11 +127,7 @@ class _JsonVeilidAPI(VeilidAPI):
         except:
             pass
         finally:
-            self.reader = None
-            self.writer.close()
-            await self.writer.wait_closed()
-            self.writer = None
-            self.handle_recv_messages_task = None
+            await self._cleanup_close()
             
     async def allocate_request_future(self, id: int) -> asyncio.Future:
         reqfuture = asyncio.get_running_loop().create_future()
@@ -135,6 +149,10 @@ class _JsonVeilidAPI(VeilidAPI):
             self.lock.release()
 
     def send_one_way_ndjson_request(self, op: Operation, **kwargs):
+        
+        if self.writer is None:
+            return
+        
         # Make NDJSON string for request
         # Always use id 0 because no reply will be received for one-way requests
         req = { "id": 0, "op": op }
@@ -156,6 +174,7 @@ class _JsonVeilidAPI(VeilidAPI):
         try:
             id = self.next_id
             self.next_id += 1
+            writer = self.writer    
         finally:
             self.lock.release()
 
@@ -174,8 +193,8 @@ class _JsonVeilidAPI(VeilidAPI):
 
         # Send to socket
         try:
-            self.writer.write(reqbytes)
-            await self.writer.drain()
+            writer.write(reqbytes)
+            await writer.drain()
         except:
             # Send failed, release future
             await self.cancel_request_future(id)

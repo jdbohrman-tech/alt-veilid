@@ -12,6 +12,13 @@
   ],
   "configurations": [
     {
+      "name": "Python: Attach using Process Id",
+      "type": "python",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "justMyCode": true
+    },
+    {
       "type": "lldb",
       "request": "attach",
       "name": "Attach to veilid-server",

@@ -102,7 +102,7 @@ impl ClientApi {
         };
         trace!("ClientApi::stop: waiting for stop");
         if let Err(err) = jh.await {
-            error!("{}", err);
+            eprintln!("{}", err);
         }
         trace!("ClientApi::stop: stopped");
     }
@@ -225,7 +225,7 @@ impl ClientApi {
         // Marshal json + newline => NDJSON
         let response_string = serialize_json(json_api::RecvMessage::Response(response)) + "\n";
         if let Err(e) = responses_tx.send_async(response_string).await {
-            warn!("response not sent: {}", e)
+            eprintln!("response not sent: {}", e)
         }
         VeilidAPIResult::Ok(None)
     }
@@ -272,7 +272,7 @@ impl ClientApi {
                 responses_tx: responses_tx.clone(),
             };
             if let Err(e) = requests_tx.send_async(Some(request_line)).await {
-                error!("failed to enqueue request: {}", e);
+                eprintln!("failed to enqueue request: {}", e);
                 break;
             }
         }
@@ -291,7 +291,7 @@ impl ClientApi {
     ) -> VeilidAPIResult<Option<RequestLine>> {
         while let Ok(resp) = responses_rx.recv_async().await {
             if let Err(e) = writer.write_all(resp.as_bytes()).await {
-                error!("failed to write response: {}", e)
+                eprintln!("failed to write response: {}", e)
             }
         }
         VeilidAPIResult::Ok(None)
@@ -302,7 +302,7 @@ impl ClientApi {
         let peer_addr = match stream.peer_addr() {
             Ok(v) => v,
             Err(e) => {
-                error!("can't get peer address: {}", e);
+                eprintln!("can't get peer address: {}", e);
                 return;
             }
         };
@@ -310,7 +310,7 @@ impl ClientApi {
         let local_addr = match stream.local_addr() {
             Ok(v) => v,
             Err(e) => {
-                error!("can't get local address: {}", e);
+                eprintln!("can't get local address: {}", e);
                 return;
             }
         };
@@ -387,7 +387,7 @@ impl ClientApi {
                 }
                 Err(e) => {
                     // Connection processing failure, abort
-                    error!("Connection processing failure: {}", e);
+                    eprintln!("Connection processing failure: {}", e);
                     break;
                 }
             };
