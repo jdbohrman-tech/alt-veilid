@@ -114,13 +114,15 @@ pub struct VeilidStateConfig {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidValueChange {
-    key: TypedKey,
-    subkeys: Vec<ValueSubkey>,
-    count: u32,
-    value: ValueData,
+    pub key: TypedKey,
+    pub subkeys: Vec<ValueSubkey>,
+    pub count: u32,
+    pub value: ValueData,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]
 pub enum VeilidUpdate {
@@ -135,7 +137,9 @@ pub enum VeilidUpdate {
     Shutdown,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidState {
     pub attachment: VeilidStateAttachment,

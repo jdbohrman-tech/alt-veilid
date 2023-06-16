@@ -45,7 +45,9 @@ pub enum TunnelError {
     NoCapacity,   // Endpoint is full
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TunnelEndpoint {
     pub mode: TunnelMode,
@@ -62,7 +64,16 @@ impl Default for TunnelEndpoint {
 }
 
 #[derive(
-    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct FullTunnel {
@@ -73,7 +84,16 @@ pub struct FullTunnel {
 }
 
 #[derive(
-    Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PartialTunnel {

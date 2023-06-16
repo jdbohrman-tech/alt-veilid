@@ -20,7 +20,7 @@ use range_set_blaze::*;
 pub struct ValueSubkeyRangeSet {
     #[with(RkyvRangeSetBlaze)]
     #[serde(with = "serialize_range_set_blaze")]
-    data: RangeSetBlaze<ValueSubkey>,
+    pub data: RangeSetBlaze<ValueSubkey>,
 }
 
 impl ValueSubkeyRangeSet {

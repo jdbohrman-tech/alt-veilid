@@ -16,9 +16,9 @@ use super::*;
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
-    seq: ValueSeqNum,
-    data: Vec<u8>,
-    writer: PublicKey,
+    pub seq: ValueSeqNum,
+    pub data: Vec<u8>,
+    pub writer: PublicKey,
 }
 impl ValueData {
     pub const MAX_LEN: usize = 32768;
