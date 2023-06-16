@@ -1331,9 +1331,9 @@ impl RouteSpecStore {
             }
 
             // ensure this isn't also an allocated route
-            if inner.content.get_id_by_key(&private_route.public_key.value).is_some() {
-                bail!("should not import allocated route");
-            }
+            // if inner.content.get_id_by_key(&private_route.public_key.value).is_some() {
+            //     bail!("should not import allocated route");
+            // }
         }
 
         inner.cache.cache_remote_private_route(cur_ts, id, private_routes);

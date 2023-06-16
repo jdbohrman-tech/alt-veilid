@@ -2347,12 +2347,12 @@
           "description": "Direct question blob passed to hosting application for processing to send an eventual AppReply",
           "type": "object",
           "required": [
-            "id",
+            "call_id",
             "kind",
             "message"
           ],
           "properties": {
-            "id": {
+            "call_id": {
               "description": "The id to reply to",
               "type": "string"
             },

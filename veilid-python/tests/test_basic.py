@@ -12,6 +12,15 @@ async def test_connect():
         pass
     await simple_connect_and_run(func)
 
+
+@pytest.mark.asyncio
+async def test_get_node_id():
+    async def func(api: veilid.VeilidAPI):
+        # get our own node id
+        state = await api.get_state()
+        node_id = state.config.config.network.routing_table.node_id.pop()
+    await simple_connect_and_run(func)
+
 @pytest.mark.asyncio
 async def test_fail_connect():
     with pytest.raises(Exception):
@@ -27,3 +36,4 @@ async def test_version():
         vstr = await api.veilid_version_string()
         print("veilid_version_string: {}".format(vstr))
     await simple_connect_and_run(func)
+

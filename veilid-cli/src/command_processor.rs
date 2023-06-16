@@ -488,7 +488,7 @@ reply               - reply to an AppCall not handled directly by the server
             format!("#{}", hex::encode(&message))
         };
 
-        let id = json_str_u64(&call["id"]);
+        let id = json_str_u64(&call["call_id"]);
 
         self.inner().ui_sender.add_node_event(format!(
             "AppCall ({:?}) id = {:016x} : {}",

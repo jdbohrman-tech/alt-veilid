@@ -223,15 +223,15 @@ class _JsonVeilidAPI(VeilidAPI):
         raise_api_result(await self.send_ndjson_request(Operation.ATTACH))
     async def detach(self):
         raise_api_result(await self.send_ndjson_request(Operation.DETACH))
-    async def new_private_route(self) -> NewPrivateRouteResult:
-        return NewPrivateRouteResult.from_json(raise_api_result(await self.send_ndjson_request(Operation.NEW_PRIVATE_ROUTE)))
-    async def new_custom_private_route(self, kinds: list[CryptoKind], stability: Stability, sequencing: Sequencing) -> NewPrivateRouteResult:
+    async def new_private_route(self) -> Tuple[RouteId, bytes]:
+        return NewPrivateRouteResult.from_json(raise_api_result(await self.send_ndjson_request(Operation.NEW_PRIVATE_ROUTE))).to_tuple()
+    async def new_custom_private_route(self, kinds: list[CryptoKind], stability: Stability, sequencing: Sequencing) -> Tuple[RouteId, bytes]:
         return NewPrivateRouteResult.from_json(raise_api_result(
             await self.send_ndjson_request(Operation.NEW_CUSTOM_PRIVATE_ROUTE,
                 kinds = kinds,
                 stability = stability,
                 sequencing = sequencing)
-            ))
+            )).to_tuple()
     async def import_remote_private_route(self, blob: bytes) -> RouteId:
         return RouteId(raise_api_result(
             await self.send_ndjson_request(Operation.IMPORT_REMOTE_PRIVATE_ROUTE,

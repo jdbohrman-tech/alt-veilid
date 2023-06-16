@@ -204,6 +204,9 @@ class NewPrivateRouteResult:
         self.route_id = route_id
         self.blob = blob
 
+    def to_tuple(self) -> Tuple[RouteId, bytes]:
+        return (self.route_id, self.blob)
+
     @staticmethod
     def from_json(j: dict) -> Self:
         return NewPrivateRouteResult(

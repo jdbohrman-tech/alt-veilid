@@ -159,10 +159,10 @@ class VeilidAPI(ABC):
     async def detach(self):
         pass
     @abstractmethod  
-    async def new_private_route(self) -> NewPrivateRouteResult:
+    async def new_private_route(self) -> Tuple[RouteId, bytes]:
         pass
     @abstractmethod  
-    async def new_custom_private_route(self, kinds: list[CryptoKind], stability: Stability, sequencing: Sequencing) -> NewPrivateRouteResult:
+    async def new_custom_private_route(self, kinds: list[CryptoKind], stability: Stability, sequencing: Sequencing) -> Tuple[RouteId, bytes]:
         pass
     @abstractmethod  
     async def import_remote_private_route(self, blob: bytes) -> RouteId:

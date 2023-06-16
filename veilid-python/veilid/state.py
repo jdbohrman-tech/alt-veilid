@@ -250,12 +250,12 @@ class VeilidAppMessage:
 class VeilidAppCall:
     sender: Optional[TypedKey]
     message: bytes
-    operation_id: str
+    call_id: str
     
-    def __init__(self, sender: Optional[TypedKey], message: bytes, operation_id: str):
+    def __init__(self, sender: Optional[TypedKey], message: bytes, call_id: str):
         self.sender = sender
         self.message = message
-        self.operation_id = operation_id
+        self.call_id = call_id
     
     @staticmethod
     def from_json(j: dict) -> Self:
@@ -263,7 +263,7 @@ class VeilidAppCall:
         return VeilidAppCall(
             None if j['sender'] is None else TypedKey(j['sender']),
             urlsafe_b64decode_no_pad(j['message']),
-            j['operation_id'])
+            j['call_id'])
 
 class VeilidRouteChange:
     dead_routes: list[RouteId]

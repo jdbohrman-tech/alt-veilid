@@ -1560,12 +1560,12 @@ class VeilidFFI implements Veilid {
   }
 
   @override
-  Future<void> appCallReply(String id, Uint8List message) {
-    final nativeId = id.toNativeUtf8();
+  Future<void> appCallReply(String call_id, Uint8List message) {
+    final nativeCallId = call_id.toNativeUtf8();
     final nativeEncodedMessage = base64UrlNoPadEncode(message).toNativeUtf8();
     final recvPort = ReceivePort("app_call_reply");
     final sendPort = recvPort.sendPort;
-    _appCallReply(sendPort.nativePort, nativeId, nativeEncodedMessage);
+    _appCallReply(sendPort.nativePort, nativeCallId, nativeEncodedMessage);
     return processFutureVoid(recvPort.first);
   }
 

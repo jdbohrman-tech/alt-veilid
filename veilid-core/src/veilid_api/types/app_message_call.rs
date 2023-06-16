@@ -67,15 +67,15 @@ pub struct VeilidAppCall {
     /// The id to reply to
     #[serde(with = "json_as_string")]
     #[schemars(with = "String")]
-    id: OperationId,
+    call_id: OperationId,
 }
 
 impl VeilidAppCall {
-    pub fn new(sender: Option<TypedKey>, message: Vec<u8>, id: OperationId) -> Self {
+    pub fn new(sender: Option<TypedKey>, message: Vec<u8>, call_id: OperationId) -> Self {
         Self {
             sender,
             message,
-            id,
+            call_id,
         }
     }
 
@@ -86,6 +86,6 @@ impl VeilidAppCall {
         &self.message
     }
     pub fn id(&self) -> OperationId {
-        self.id
+        self.call_id
     }
 }
