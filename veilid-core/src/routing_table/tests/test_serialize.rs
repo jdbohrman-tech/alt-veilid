@@ -10,7 +10,6 @@ fn fake_routing_table() -> routing_table::RoutingTable {
     let storage_manager = storage_manager::StorageManager::new(
         veilid_config.clone(),
         crypto.clone(),
-        protected_store.clone(),
         table_store.clone(),
         #[cfg(feature = "unstable-blockstore")]
         block_store.clone(),

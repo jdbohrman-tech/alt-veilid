@@ -123,7 +123,6 @@ impl ServicesContext {
         let storage_manager = StorageManager::new(
             self.config.clone(),
             self.crypto.clone().unwrap(),
-            self.protected_store.clone().unwrap(),
             self.table_store.clone().unwrap(),
             #[cfg(feature = "unstable-blockstore")]
             self.block_store.clone().unwrap(),
