@@ -23,7 +23,7 @@ pub struct ValueSubkeyRangeSet {
     #[with(RkyvRangeSetBlaze)]
     #[serde(with = "serialize_range_set_blaze")]
     #[schemars(with = "Vec<(u32,u32)>")]
-    pub data: RangeSetBlaze<ValueSubkey>,
+    data: RangeSetBlaze<ValueSubkey>,
 }
 
 impl ValueSubkeyRangeSet {
@@ -31,6 +31,9 @@ impl ValueSubkeyRangeSet {
         Self {
             data: Default::default(),
         }
+    }
+    pub fn new_with_data(data: RangeSetBlaze<ValueSubkey>) -> Self {
+        Self { data }
     }
     pub fn single(value: ValueSubkey) -> Self {
         let mut data = RangeSetBlaze::new();

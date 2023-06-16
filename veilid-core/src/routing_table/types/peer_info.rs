@@ -1,6 +1,8 @@
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, PartialEq, Eq, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerInfo {
     node_ids: TypedKeySet,

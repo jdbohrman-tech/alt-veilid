@@ -13,21 +13,18 @@ pub async fn test_alignedu64() {
 // app_messsage_call
 
 pub async fn test_veilidappmessage() {
-    let orig = VeilidAppMessage {
-        sender: Some(fix_typedkey()),
-        message: b"Hi there!".to_vec(),
-    };
+    let orig = VeilidAppMessage::new(Some(fix_typedkey()), b"Hi there!".to_vec());
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
 pub async fn test_veilidappcall() {
-    let orig = VeilidAppCall {
-        sender: Some(fix_typedkey()),
-        message: b"Well, hello!".to_vec(),
-        call_id: AlignedU64::from(123),
-    };
+    let orig = VeilidAppCall::new(
+        Some(fix_typedkey()),
+        b"Well, hello!".to_vec(),
+        AlignedU64::from(123),
+    );
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
