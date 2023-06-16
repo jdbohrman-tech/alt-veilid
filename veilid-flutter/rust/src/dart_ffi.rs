@@ -707,21 +707,21 @@ pub extern "C" fn release_private_route(port: i64, route_id: FfiStr) {
 }
 
 #[no_mangle]
-pub extern "C" fn app_call_reply(port: i64, id: FfiStr, message: FfiStr) {
-    let id = id.into_opt_string().unwrap_or_default();
+pub extern "C" fn app_call_reply(port: i64, call_id: FfiStr, message: FfiStr) {
+    let call_id = call_id.into_opt_string().unwrap_or_default();
     let message = message.into_opt_string().unwrap_or_default();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let id = match id.parse() {
+        let call_id = match call_id.parse() {
             Ok(v) => v,
             Err(e) => {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(e, "id", id))
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(e, "call_id", call_id))
             }
         };
         let message = data_encoding::BASE64URL_NOPAD
             .decode(message.as_bytes())
             .map_err(|e| veilid_core::VeilidAPIError::invalid_argument(e, "message", message))?;
         let veilid_api = get_veilid_api().await?;
-        veilid_api.app_call_reply(id, message).await?;
+        veilid_api.app_call_reply(call_id, message).await?;
         APIRESULT_VOID
     });
 }
@@ -908,8 +908,8 @@ pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key:
             tdbt.clone()
         };
         
-        let out = tdbt.delete(col, &key);
-        APIResult::Ok(out)
+        tdbt.delete(col, &key);
+        APIRESULT_VOID
     });
 }
 

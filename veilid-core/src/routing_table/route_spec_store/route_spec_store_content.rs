@@ -40,7 +40,7 @@ impl RouteSpecStoreContent {
             // Go through best route and resolve noderefs
             let mut hop_node_refs = Vec::with_capacity(rsd.hops.len());
             for h in &rsd.hops {
-                let Some(nr) = routing_table.lookup_node_ref(TypedKey::new(rsd.crypto_kind, *h)) else {
+                let Ok(Some(nr)) = routing_table.lookup_node_ref(TypedKey::new(rsd.crypto_kind, *h)) else {
                     dead_ids.push(rsid.clone());
                     break;
                 };

@@ -14,6 +14,7 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum VeilidLogLevel {
@@ -63,22 +64,45 @@ impl VeilidLogLevel {
     }
 }
 
+impl FromStr for VeilidLogLevel {
+    type Err = VeilidAPIError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "Error" => Self::Error,
+            "Warn" => Self::Warn,
+            "Info" => Self::Info,
+            "Debug" => Self::Debug,
+            "Trace" => Self::Trace,
+            _ => {
+                apibail_invalid_argument!("Can't convert str", "s", s);
+            }
+        })
+    }
+}
 impl fmt::Display for VeilidLogLevel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let text = match self {
-            Self::Error => "ERROR",
-            Self::Warn => "WARN",
-            Self::Info => "INFO",
-            Self::Debug => "DEBUG",
-            Self::Trace => "TRACE",
+            Self::Error => "Error",
+            Self::Warn => "Warn",
+            Self::Info => "Info",
+            Self::Debug => "Debug",
+            Self::Trace => "Trace",
         };
         write!(f, "{}", text)
     }
 }
-
 /// A VeilidCore log message with optional backtrace
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct VeilidLog {

@@ -31,16 +31,22 @@ fn get_string(text: &str) -> Option<String> {
     Some(text.to_owned())
 }
 
-fn get_route_id(rss: RouteSpecStore, allow_remote: bool) -> impl Fn(&str) -> Option<RouteId> {
+fn get_route_id(
+    rss: RouteSpecStore,
+    allow_allocated: bool,
+    allow_remote: bool,
+) -> impl Fn(&str) -> Option<RouteId> {
     return move |text: &str| {
         if text.is_empty() {
             return None;
         }
         match RouteId::from_str(text).ok() {
             Some(key) => {
-                let routes = rss.list_allocated_routes(|k, _| Some(*k));
-                if routes.contains(&key) {
-                    return Some(key);
+                if allow_allocated {
+                    let routes = rss.list_allocated_routes(|k, _| Some(*k));
+                    if routes.contains(&key) {
+                        return Some(key);
+                    }
                 }
                 if allow_remote {
                     let rroutes = rss.list_remote_routes(|k, _| Some(*k));
@@ -50,11 +56,13 @@ fn get_route_id(rss: RouteSpecStore, allow_remote: bool) -> impl Fn(&str) -> Opt
                 }
             }
             None => {
-                let routes = rss.list_allocated_routes(|k, _| Some(*k));
-                for r in routes {
-                    let rkey = r.encode();
-                    if rkey.starts_with(text) {
-                        return Some(r);
+                if allow_allocated {
+                    let routes = rss.list_allocated_routes(|k, _| Some(*k));
+                    for r in routes {
+                        let rkey = r.encode();
+                        if rkey.starts_with(text) {
+                            return Some(r);
+                        }
                     }
                 }
                 if allow_remote {
@@ -90,7 +98,7 @@ fn get_safety_selection(text: &str, routing_table: RoutingTable) -> Option<Safet
         let mut sequencing = Sequencing::default();
         for x in text.split(",") {
             let x = x.trim();
-            if let Some(pr) = get_route_id(rss.clone(), false)(x) {
+            if let Some(pr) = get_route_id(rss.clone(), true, false)(x) {
                 preferred_route = Some(pr)
             }
             if let Some(n) = get_number(x) {
@@ -143,19 +151,29 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
             return None;
         }
         if &text[0..1] == "#" {
+            let rss = routing_table.route_spec_store();
+
             // Private route
             let text = &text[1..];
-            let n = get_number(text)?;
-            let mut dc = DEBUG_CACHE.lock();
-            let private_route_id = dc.imported_routes.get(n)?.clone();
 
-            let rss = routing_table.route_spec_store();
-            let Some(private_route) = rss.best_remote_private_route(&private_route_id) else {
-                // Remove imported route
-                dc.imported_routes.remove(n);
-                info!("removed dead imported route {}", n);
-                return None;
+            let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text) {
+                let Some(private_route) = rss.best_remote_private_route(&prid) else {
+                    return None;
+                };
+                private_route
+            } else {
+                let mut dc = DEBUG_CACHE.lock();
+                let n = get_number(text)?;
+                let prid = dc.imported_routes.get(n)?.clone();
+                let Some(private_route) = rss.best_remote_private_route(&prid) else {
+                    // Remove imported route
+                    dc.imported_routes.remove(n);
+                    info!("removed dead imported route {}", n);
+                    return None;
+                };
+                private_route
             };
+
             Some(Destination::private_route(
                 private_route,
                 ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
@@ -217,9 +235,9 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
             .unwrap_or((text, None));
 
         let mut nr = if let Some(key) = get_public_key(text) {
-            routing_table.lookup_any_node_ref(key)?
+            routing_table.lookup_any_node_ref(key).ok().flatten()?
         } else if let Some(key) = get_typed_key(text) {
-            routing_table.lookup_node_ref(key)?
+            routing_table.lookup_node_ref(key).ok().flatten()?
         } else {
             return None;
         };
@@ -663,7 +681,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true),
+            get_route_id(rss.clone(), true, true),
         )?;
 
         // Release route
@@ -695,7 +713,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), false),
+            get_route_id(rss.clone(), true, false),
         )?;
         let full = {
             if args.len() > 2 {
@@ -747,7 +765,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), false),
+            get_route_id(rss.clone(), true, false),
         )?;
 
         // Unpublish route
@@ -769,7 +787,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true),
+            get_route_id(rss.clone(), true, true),
         )?;
 
         match rss.debug_route(&route_id) {
@@ -831,7 +849,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true),
+            get_route_id(rss.clone(), true, true),
         )?;
 
         let success = rss
@@ -916,7 +934,7 @@ impl VeilidAPI {
         entry <node>
         nodeinfo
         config [key [new value]]
-        purge <buckets|connections>
+        purge <buckets|connections|routes>
         attach
         detach
         restart network

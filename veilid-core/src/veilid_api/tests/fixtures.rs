@@ -212,10 +212,6 @@ pub fn fix_veilidvaluechange() -> VeilidValueChange {
         key: fix_typedkey(),
         subkeys: vec![1, 2, 3, 4],
         count: 5,
-        value: ValueData {
-            seq: 23,
-            data: b"ValueData".to_vec(),
-            writer: fix_cryptokey(),
-        },
+        value: ValueData::new_with_seq(23, b"ValueData".to_vec(), fix_cryptokey()),
     }
 }

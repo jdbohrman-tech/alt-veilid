@@ -1,7 +1,16 @@
 use super::*;
 
 #[derive(
-    Clone, Default, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    Debug,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct NodeInfo {

@@ -1,7 +1,9 @@
 use super::*;
 
 /// Signed NodeInfo that can be passed around amongst peers and verifiable
-#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
+)]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedDirectNodeInfo {
     node_info: NodeInfo,

@@ -49,10 +49,15 @@ pub enum RPCQuestionDetail {
     GetValueQ(RPCOperationGetValueQ),
     SetValueQ(RPCOperationSetValueQ),
     WatchValueQ(RPCOperationWatchValueQ),
+    #[cfg(feature = "unstable-blockstore")]
     SupplyBlockQ(RPCOperationSupplyBlockQ),
+    #[cfg(feature = "unstable-blockstore")]
     FindBlockQ(RPCOperationFindBlockQ),
+    #[cfg(feature = "unstable-tunnels")]
     StartTunnelQ(RPCOperationStartTunnelQ),
+    #[cfg(feature = "unstable-tunnels")]
     CompleteTunnelQ(RPCOperationCompleteTunnelQ),
+    #[cfg(feature = "unstable-tunnels")]
     CancelTunnelQ(RPCOperationCancelTunnelQ),
 }
 
@@ -65,10 +70,15 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::GetValueQ(_) => "GetValueQ",
             RPCQuestionDetail::SetValueQ(_) => "SetValueQ",
             RPCQuestionDetail::WatchValueQ(_) => "WatchValueQ",
+            #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::SupplyBlockQ(_) => "SupplyBlockQ",
+            #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::FindBlockQ(_) => "FindBlockQ",
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::StartTunnelQ(_) => "StartTunnelQ",
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CompleteTunnelQ(_) => "CompleteTunnelQ",
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CancelTunnelQ(_) => "CancelTunnelQ",
         }
     }
@@ -80,10 +90,15 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::GetValueQ(r) => r.validate(validate_context),
             RPCQuestionDetail::SetValueQ(r) => r.validate(validate_context),
             RPCQuestionDetail::WatchValueQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::SupplyBlockQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::FindBlockQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::StartTunnelQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CompleteTunnelQ(r) => r.validate(validate_context),
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CancelTunnelQ(r) => r.validate(validate_context),
         }
     }
@@ -123,26 +138,31 @@ impl RPCQuestionDetail {
                 let out = RPCOperationWatchValueQ::decode(&op_reader)?;
                 RPCQuestionDetail::WatchValueQ(out)
             }
+            #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::question::detail::SupplyBlockQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationSupplyBlockQ::decode(&op_reader)?;
                 RPCQuestionDetail::SupplyBlockQ(out)
             }
+            #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::question::detail::FindBlockQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationFindBlockQ::decode(&op_reader)?;
                 RPCQuestionDetail::FindBlockQ(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::StartTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationStartTunnelQ::decode(&op_reader)?;
                 RPCQuestionDetail::StartTunnelQ(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::CompleteTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCompleteTunnelQ::decode(&op_reader)?;
                 RPCQuestionDetail::CompleteTunnelQ(out)
             }
+            #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::CancelTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCancelTunnelQ::decode(&op_reader)?;
@@ -164,18 +184,23 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::WatchValueQ(d) => {
                 d.encode(&mut builder.reborrow().init_watch_value_q())
             }
+            #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::SupplyBlockQ(d) => {
                 d.encode(&mut builder.reborrow().init_supply_block_q())
             }
+            #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::FindBlockQ(d) => {
                 d.encode(&mut builder.reborrow().init_find_block_q())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::StartTunnelQ(d) => {
                 d.encode(&mut builder.reborrow().init_start_tunnel_q())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CompleteTunnelQ(d) => {
                 d.encode(&mut builder.reborrow().init_complete_tunnel_q())
             }
+            #[cfg(feature = "unstable-tunnels")]
             RPCQuestionDetail::CancelTunnelQ(d) => {
                 d.encode(&mut builder.reborrow().init_cancel_tunnel_q())
             }

@@ -1,5 +1,10 @@
-use cfg_if::*;
+pub use cfg_if::*;
+pub use log::*;
+pub use parking_lot::*;
+pub use veilid_tools::*;
+
 use core::future::Future;
+use core::str::FromStr;
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
@@ -16,4 +21,14 @@ cfg_if! {
         }
 
     }
+}
+
+pub fn json_str_u64(value: &json::JsonValue) -> u64 {
+    u64::from_str(value.as_str().unwrap_or_default()).unwrap_or_default()
+}
+
+pub fn json_str_vec_u8(value: &json::JsonValue) -> Vec<u8> {
+    data_encoding::BASE64URL_NOPAD
+        .decode(value.as_str().unwrap_or_default().as_bytes())
+        .unwrap_or_default()
 }

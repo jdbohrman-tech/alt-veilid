@@ -15,12 +15,15 @@ use range_set_blaze::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
+#[serde(transparent)]
 pub struct ValueSubkeyRangeSet {
     #[with(RkyvRangeSetBlaze)]
     #[serde(with = "serialize_range_set_blaze")]
-    pub data: RangeSetBlaze<ValueSubkey>,
+    #[schemars(with = "Vec<(u32,u32)>")]
+    data: RangeSetBlaze<ValueSubkey>,
 }
 
 impl ValueSubkeyRangeSet {
@@ -28,6 +31,9 @@ impl ValueSubkeyRangeSet {
         Self {
             data: Default::default(),
         }
+    }
+    pub fn new_with_data(data: RangeSetBlaze<ValueSubkey>) -> Self {
+        Self { data }
     }
     pub fn single(value: ValueSubkey) -> Self {
         let mut data = RangeSetBlaze::new();

@@ -17,10 +17,15 @@ pub async fn test_all() {
     test_transferstatsdownup().await;
     test_rpcstats().await;
     test_peerstats().await;
+    #[cfg(feature = "unstable-tunnels")]
     test_tunnelmode().await;
+    #[cfg(feature = "unstable-tunnels")]
     test_tunnelerror().await;
+    #[cfg(feature = "unstable-tunnels")]
     test_tunnelendpoint().await;
+    #[cfg(feature = "unstable-tunnels")]
     test_fulltunnel().await;
+    #[cfg(feature = "unstable-tunnels")]
     test_partialtunnel().await;
     test_veilidloglevel().await;
     test_veilidlog().await;

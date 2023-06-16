@@ -55,6 +55,27 @@ pub mod json_as_base64 {
     }
 }
 
+pub mod opt_json_as_base64 {
+    use data_encoding::BASE64URL_NOPAD;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S: Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
+        let base64 = v.as_ref().map(|x| BASE64URL_NOPAD.encode(&x));
+        Option::<String>::serialize(&base64, s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<u8>>, D::Error> {
+        let base64 = Option::<String>::deserialize(d)?;
+        base64
+            .map(|x| {
+                BASE64URL_NOPAD
+                    .decode(x.as_bytes())
+                    .map_err(|e| serde::de::Error::custom(e))
+            })
+            .transpose()
+    }
+}
+
 pub mod json_as_string {
     use std::fmt::Display;
     use std::str::FromStr;

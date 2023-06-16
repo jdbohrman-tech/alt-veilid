@@ -150,6 +150,7 @@ struct NetworkManagerUnlockedInner {
     storage_manager: StorageManager,
     protected_store: ProtectedStore,
     table_store: TableStore,
+    #[cfg(feature="unstable-blockstore")]
     block_store: BlockStore,
     crypto: Crypto,
     // Accessors
@@ -181,6 +182,7 @@ impl NetworkManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
+        #[cfg(feature="unstable-blockstore")]
         block_store: BlockStore,
         crypto: Crypto,
     ) -> NetworkManagerUnlockedInner {
@@ -189,6 +191,7 @@ impl NetworkManager {
             storage_manager,
             protected_store,
             table_store,
+            #[cfg(feature="unstable-blockstore")]
             block_store,
             crypto,
             routing_table: RwLock::new(None),
@@ -204,6 +207,7 @@ impl NetworkManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
+        #[cfg(feature="unstable-blockstore")]
         block_store: BlockStore,
         crypto: Crypto,
     ) -> Self {
@@ -214,6 +218,7 @@ impl NetworkManager {
                 storage_manager,
                 protected_store,
                 table_store,
+                #[cfg(feature="unstable-blockstore")]
                 block_store,
                 crypto,
             )),
@@ -241,6 +246,7 @@ impl NetworkManager {
     pub fn table_store(&self) -> TableStore {
         self.unlocked_inner.table_store.clone()
     }
+    #[cfg(feature="unstable-blockstore")]
     pub fn block_store(&self) -> BlockStore {
         self.unlocked_inner.block_store.clone()
     }
@@ -679,12 +685,12 @@ impl NetworkManager {
                     peer_info,
                     false,
                 ) {
-                    None => {
+                    Ok(nr) => nr,
+                    Err(e) => {
                         return Ok(NetworkResult::invalid_message(
-                            "unable to register reverse connect peerinfo",
-                        ))
+                            format!("unable to register reverse connect peerinfo: {}", e)
+                        ));
                     }
-                    Some(nr) => nr,
                 };
 
                 // Make a reverse connection to the peer and send the receipt to it
@@ -702,13 +708,12 @@ impl NetworkManager {
                     peer_info,
                     false,
                 ) {
-                    None => {
+                    Ok(nr) => nr,
+                    Err(e) => {
                         return Ok(NetworkResult::invalid_message(
-                            //sender_id,
-                            "unable to register hole punch connect peerinfo",
+                            format!("unable to register hole punch connect peerinfo: {}", e)
                         ));
                     }
-                    Some(nr) => nr,
                 };
 
                 // Get the udp direct dialinfo for the hole punch
@@ -1071,8 +1076,17 @@ impl NetworkManager {
 
         // Dial info filter comes from the target node ref
         let dial_info_filter = target_node_ref.dial_info_filter();
-        let sequencing = target_node_ref.sequencing();
+        let mut sequencing = target_node_ref.sequencing();
+        
+        // If the node has had lost questions or failures to send, prefer sequencing
+        // to improve reliability. The node may be experiencing UDP fragmentation drops
+        // or other firewalling issues and may perform better with TCP.
+        let unreliable = target_node_ref.peer_stats().rpc_stats.failed_to_send > 0 || target_node_ref.peer_stats().rpc_stats.recent_lost_answers > 0;
+        if unreliable && sequencing < Sequencing::PreferOrdered {
+            sequencing = Sequencing::PreferOrdered;
+        }
 
+        // Get the best contact method with these parameters from the routing domain
         let cm = routing_table.get_contact_method(
             routing_domain,
             &peer_a,
@@ -1088,7 +1102,7 @@ impl NetworkManager {
             ContactMethod::Direct(di) => NodeContactMethod::Direct(di),
             ContactMethod::SignalReverse(relay_key, target_key) => {
                 let relay_nr = routing_table
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("target noderef didn't match target key");
@@ -1097,7 +1111,7 @@ impl NetworkManager {
             }
             ContactMethod::SignalHolePunch(relay_key, target_key) => {
                 let relay_nr = routing_table
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if target_node_ref.node_ids().contains(&target_key) {
                     bail!("target noderef didn't match target key");
@@ -1106,13 +1120,13 @@ impl NetworkManager {
             }
             ContactMethod::InboundRelay(relay_key) => {
                 let relay_nr = routing_table
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 NodeContactMethod::InboundRelay(relay_nr)
             }
             ContactMethod::OutboundRelay(relay_key) => {
                 let relay_nr = routing_table
-                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)
+                    .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 NodeContactMethod::OutboundRelay(relay_nr)
             }
@@ -1415,7 +1429,13 @@ impl NetworkManager {
                 // We should, because relays are chosen by nodes that have established connectivity and
                 // should be mutually in each others routing tables. The node needing the relay will be
                 // pinging this node regularly to keep itself in the routing table
-                routing_table.lookup_node_ref(recipient_id)
+                match routing_table.lookup_node_ref(recipient_id) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log_net!(debug "failed to look up recipient node for relay, dropping outbound relayed packet: {}" ,e);
+                        return Ok(false);
+                    }
+                }
             };
 
             if let Some(relay_nr) = some_relay_nr {
@@ -1457,12 +1477,12 @@ impl NetworkManager {
             connection_descriptor,
             ts,
         ) {
-            None => {
+            Ok(v) => v,
+            Err(e) => {
                 // If the node couldn't be registered just skip this envelope,
-                // the error will have already been logged
+                log_net!(debug "failed to register node with existing connection: {}", e);
                 return Ok(false);
             }
-            Some(v) => v,
         };
         source_noderef.add_envelope_version(envelope.get_version());
 
@@ -1559,7 +1579,7 @@ impl NetworkManager {
             peers: {
                 let mut out = Vec::new();
                 for (k, v) in routing_table.get_recent_peers() {
-                    if let Some(nr) = routing_table.lookup_node_ref(k) {
+                    if let Ok(Some(nr)) = routing_table.lookup_node_ref(k) {
                         let peer_stats = nr.peer_stats();
                         let peer = PeerTableData {
                             node_ids: nr.node_ids().iter().copied().collect(),

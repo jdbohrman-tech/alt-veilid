@@ -15,8 +15,11 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes, PartialOrd, Ord, PartialEq, Eq, Hash))]
+#[serde(try_from = "String")]
+#[serde(into = "String")]
 pub struct FourCC(pub [u8; 4]);
 
 impl From<[u8; 4]> for FourCC {
@@ -37,10 +40,23 @@ impl From<FourCC> for u32 {
     }
 }
 
+impl From<FourCC> for String {
+    fn from(u: FourCC) -> Self {
+        String::from_utf8_lossy(&u.0).to_string()
+    }
+}
+
 impl TryFrom<&[u8]> for FourCC {
     type Error = VeilidAPIError;
     fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
         Ok(Self(b.try_into().map_err(VeilidAPIError::generic)?))
+    }
+}
+
+impl TryFrom<String> for FourCC {
+    type Error = VeilidAPIError;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::from_str(s.as_str())
     }
 }
 

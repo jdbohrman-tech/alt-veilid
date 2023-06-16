@@ -13,18 +13,22 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DHTRecordDescriptor {
     /// DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
-    pub key: TypedKey,
+    #[schemars(with = "String")]
+    key: TypedKey,
     /// The public key of the owner
-    pub owner: PublicKey,
+    #[schemars(with = "String")]
+    owner: PublicKey,
     /// If this key is being created: Some(the secret key of the owner)
     /// If this key is just being opened: None
-    pub owner_secret: Option<SecretKey>,
+    #[schemars(with = "Option<String>")]
+    owner_secret: Option<SecretKey>,
     /// The schema in use associated with the key
-    pub schema: DHTSchema,
+    schema: DHTSchema,
 }
 
 impl DHTRecordDescriptor {

@@ -18,10 +18,16 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[repr(C, align(8))]
 #[archive_attr(repr(C, align(8)), derive(CheckBytes))]
-pub struct AlignedU64(u64);
+#[serde(transparent)]
+pub struct AlignedU64(
+    #[serde(with = "json_as_string")]
+    #[schemars(with = "String")]
+    u64,
+);
 
 impl From<u64> for AlignedU64 {
     fn from(v: u64) -> Self {

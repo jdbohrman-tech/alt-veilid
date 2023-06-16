@@ -4,22 +4,29 @@ mod fanout_call;
 mod operation_waiter;
 mod rpc_app_call;
 mod rpc_app_message;
-mod rpc_cancel_tunnel;
-mod rpc_complete_tunnel;
 mod rpc_error;
-mod rpc_find_block;
 mod rpc_find_node;
 mod rpc_get_value;
 mod rpc_return_receipt;
 mod rpc_route;
 mod rpc_set_value;
 mod rpc_signal;
-mod rpc_start_tunnel;
 mod rpc_status;
-mod rpc_supply_block;
 mod rpc_validate_dial_info;
 mod rpc_value_changed;
 mod rpc_watch_value;
+
+#[cfg(feature = "unstable-blockstore")]
+mod rpc_find_block;
+#[cfg(feature = "unstable-blockstore")]
+mod rpc_supply_block;
+
+#[cfg(feature = "unstable-tunnels")]
+mod rpc_cancel_tunnel;
+#[cfg(feature = "unstable-tunnels")]
+mod rpc_complete_tunnel;
+#[cfg(feature = "unstable-tunnels")]
+mod rpc_start_tunnel;
 
 pub use coders::*;
 pub use destination::*;
@@ -473,7 +480,10 @@ impl RPCProcessor {
             let routing_table = this.routing_table();
 
             // First see if we have the node in our routing table already
-            if let Some(nr) = routing_table.lookup_node_ref(node_id) {
+            if let Some(nr) = routing_table
+                .lookup_node_ref(node_id)
+                .map_err(RPCError::internal)?
+            {
                 // ensure we have some dial info for the entry already,
                 // if not, we should do the find_node anyway
                 if nr.has_any_dial_info() {
@@ -837,6 +847,10 @@ impl RPCProcessor {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
             node_ref.stats_failed_to_send(send_ts, wants_answer);
+
+            // Also clear the last_connections for the entry so we make a new connection next time
+            node_ref.clear_last_connections();
+
             return;
         }
 
@@ -865,6 +879,10 @@ impl RPCProcessor {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
             node_ref.stats_question_lost();
+
+            // Also clear the last_connections for the entry so we make a new connection next time
+            node_ref.clear_last_connections();
+
             return;
         }
         // Get route spec store
@@ -1331,20 +1349,26 @@ impl RPCProcessor {
 
                     // Sender PeerInfo was specified, update our routing table with it
                     if !self.filter_node_info(routing_domain, sender_peer_info.signed_node_info()) {
-                        return Err(RPCError::invalid_format(
+                        return Ok(NetworkResult::invalid_message(
                             "sender peerinfo has invalid peer scope",
                         ));
                     }
-                    opt_sender_nr = self.routing_table().register_node_with_peer_info(
+                    opt_sender_nr = match self.routing_table().register_node_with_peer_info(
                         routing_domain,
                         sender_peer_info.clone(),
                         false,
-                    );
+                    ) {
+                        Ok(v) => Some(v),
+                        Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                    }
                 }
 
                 // look up sender node, in case it's different than our peer due to relaying
                 if opt_sender_nr.is_none() {
-                    opt_sender_nr = self.routing_table().lookup_node_ref(sender_node_id)
+                    opt_sender_nr = match self.routing_table().lookup_node_ref(sender_node_id) {
+                        Ok(v) => v,
+                        Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                    }
                 }
 
                 // Update the 'seen our node info' timestamp to determine if this node needs a
@@ -1408,10 +1432,15 @@ impl RPCProcessor {
                 RPCQuestionDetail::GetValueQ(_) => self.process_get_value_q(msg).await,
                 RPCQuestionDetail::SetValueQ(_) => self.process_set_value_q(msg).await,
                 RPCQuestionDetail::WatchValueQ(_) => self.process_watch_value_q(msg).await,
+                #[cfg(feature = "unstable-blockstore")]
                 RPCQuestionDetail::SupplyBlockQ(_) => self.process_supply_block_q(msg).await,
+                #[cfg(feature = "unstable-blockstore")]
                 RPCQuestionDetail::FindBlockQ(_) => self.process_find_block_q(msg).await,
+                #[cfg(feature = "unstable-tunnels")]
                 RPCQuestionDetail::StartTunnelQ(_) => self.process_start_tunnel_q(msg).await,
+                #[cfg(feature = "unstable-tunnels")]
                 RPCQuestionDetail::CompleteTunnelQ(_) => self.process_complete_tunnel_q(msg).await,
+                #[cfg(feature = "unstable-tunnels")]
                 RPCQuestionDetail::CancelTunnelQ(_) => self.process_cancel_tunnel_q(msg).await,
             },
             RPCOperationKind::Statement(s) => match s.detail() {

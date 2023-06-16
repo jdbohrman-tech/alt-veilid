@@ -337,19 +337,13 @@ macro_rules! network_result_value_or_log {
     ($r: expr => $f:tt) => {
         match $r {
             NetworkResult::Timeout => {
-                log_network_result!(
-                    "{} at {}@{}:{}",
-                    "Timeout".cyan(),
-                    file!(),
-                    line!(),
-                    column!()
-                );
+                log_network_result!("{} at {}@{}:{}", "Timeout", file!(), line!(), column!());
                 $f
             }
             NetworkResult::ServiceUnavailable => {
                 log_network_result!(
                     "{} at {}@{}:{}",
-                    "ServiceUnavailable".cyan(),
+                    "ServiceUnavailable",
                     file!(),
                     line!(),
                     column!()
@@ -359,7 +353,7 @@ macro_rules! network_result_value_or_log {
             NetworkResult::NoConnection(e) => {
                 log_network_result!(
                     "{}({}) at {}@{}:{}",
-                    "No connection".cyan(),
+                    "No connection",
                     e.to_string(),
                     file!(),
                     line!(),
@@ -370,7 +364,7 @@ macro_rules! network_result_value_or_log {
             NetworkResult::AlreadyExists(e) => {
                 log_network_result!(
                     "{}({}) at {}@{}:{}",
-                    "Already exists".cyan(),
+                    "Already exists",
                     e.to_string(),
                     file!(),
                     line!(),
@@ -381,7 +375,7 @@ macro_rules! network_result_value_or_log {
             NetworkResult::InvalidMessage(s) => {
                 log_network_result!(
                     "{}({}) at {}@{}:{}",
-                    "Invalid message".cyan(),
+                    "Invalid message",
                     s,
                     file!(),
                     line!(),

@@ -70,6 +70,7 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::not_initialized())
     }
+    #[cfg(feature = "unstable-blockstore")]
     pub fn block_store(&self) -> VeilidAPIResult<BlockStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -257,10 +258,14 @@ impl VeilidAPI {
     // App Calls
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn app_call_reply(&self, id: OperationId, message: Vec<u8>) -> VeilidAPIResult<()> {
+    pub async fn app_call_reply(
+        &self,
+        call_id: OperationId,
+        message: Vec<u8>,
+    ) -> VeilidAPIResult<()> {
         let rpc_processor = self.rpc_processor()?;
         rpc_processor
-            .app_call_reply(id, message)
+            .app_call_reply(call_id, message)
             .await
             .map_err(|e| e.into())
     }
@@ -268,6 +273,7 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Tunnel Building
 
+    #[cfg(feature = "unstable-tunnels")]
     #[instrument(level = "debug", err, skip(self))]
     pub async fn start_tunnel(
         &self,
@@ -277,6 +283,7 @@ impl VeilidAPI {
         panic!("unimplemented");
     }
 
+    #[cfg(feature = "unstable-tunnels")]
     #[instrument(level = "debug", err, skip(self))]
     pub async fn complete_tunnel(
         &self,
@@ -287,6 +294,7 @@ impl VeilidAPI {
         panic!("unimplemented");
     }
 
+    #[cfg(feature = "unstable-tunnels")]
     #[instrument(level = "debug", err, skip(self))]
     pub async fn cancel_tunnel(&self, _tunnel_id: TunnelId) -> VeilidAPIResult<bool> {
         panic!("unimplemented");

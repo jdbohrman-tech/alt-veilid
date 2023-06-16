@@ -133,6 +133,14 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .help("Prints the bootstrap TXT record for this node and then quits")
         )
         .arg(
+            Arg::new("emit-schema")
+                .long("emit-schema")
+                .takes_value(true)
+                .value_name("schema_name")
+                .default_missing_value("")
+                .help("Emits a JSON-Schema for a named type")
+        )
+        .arg(
             Arg::new("bootstrap")
                 .long("bootstrap")
                 .takes_value(true)

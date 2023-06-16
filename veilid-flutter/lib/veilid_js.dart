@@ -368,7 +368,7 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
   }
 
   @override
-  Future<bool> delete(int col, Uint8List key) {
+  Future<void> delete(int col, Uint8List key) {
     final encodedKey = base64UrlNoPadEncode(key);
 
     return _wrapApiPromise(js_util.callMethod(
@@ -580,10 +580,10 @@ class VeilidJS implements Veilid {
   }
 
   @override
-  Future<void> appCallReply(String id, Uint8List message) {
+  Future<void> appCallReply(String callId, Uint8List message) {
     var encodedMessage = base64UrlNoPadEncode(message);
     return _wrapApiPromise(
-        js_util.callMethod(wasm, "app_call_reply", [id, encodedMessage]));
+        js_util.callMethod(wasm, "app_call_reply", [callId, encodedMessage]));
   }
 
   @override

@@ -13,10 +13,12 @@ use super::*;
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DHTSchemaSMPLMember {
     /// Member key
+    #[schemars(with = "String")]
     pub m_key: PublicKey,
     /// Member subkey count
     pub m_cnt: u16,
@@ -35,6 +37,7 @@ pub struct DHTSchemaSMPLMember {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct DHTSchemaSMPL {

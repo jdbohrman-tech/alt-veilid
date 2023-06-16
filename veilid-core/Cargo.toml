@@ -73,6 +73,7 @@ weak-table = "0.3.2"
 range-set-blaze = "0.1.5"
 argon2 = "0.5.0"
 paste = "1.0.12"
+schemars = "0.8.12"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

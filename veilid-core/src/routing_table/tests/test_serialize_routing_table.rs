@@ -1,9 +1,9 @@
 use crate::*;
-
-const SERIALIZED_PEERINFO: &str = r###"{"node_ids":["FAKE:eFOfgm_FNZBsTRi7KAESNwYFAUGgX2uDrTRWAL8ucjM"],"signed_node_info":{"Direct":{"node_info":{"network_class":"InboundCapable","outbound_protocols":1,"address_types":3,"envelope_support":[0],"crypto_support":[[86,76,68,48]],"dial_info_detail_list":[{"class":"Direct","dial_info":{"kind":"UDP","socket_address":{"address":{"IPV4":"1.2.3.4"},"port":5150}}},{"class":"Direct","dial_info":{"kind":"UDP","socket_address":{"address":{"IPV6":"bad:cafe::1"},"port":5150}}},{"class":"Direct","dial_info":{"kind":"TCP","socket_address":{"address":{"IPV4":"5.6.7.8"},"port":5150}}},{"class":"Direct","dial_info":{"kind":"TCP","socket_address":{"address":{"IPV6":"bad:cafe::1"},"port":5150}}},{"class":"Direct","dial_info":{"kind":"WS","socket_address":{"address":{"IPV4":"9.10.11.12"},"port":5150},"request":"bootstrap-1.dev.veilid.net:5150/ws"}},{"class":"Direct","dial_info":{"kind":"WS","socket_address":{"address":{"IPV6":"bad:cafe::1"},"port":5150},"request":"bootstrap-1.dev.veilid.net:5150/ws"}}]},"timestamp":1685058646770389,"signatures":[]}}}"###;
+use routing_table::*;
 
 fn fake_routing_table() -> routing_table::RoutingTable {
     let veilid_config = VeilidConfig::new();
+    #[cfg(feature = "unstable-blockstore")]
     let block_store = BlockStore::new(veilid_config.clone());
     let protected_store = ProtectedStore::new(veilid_config.clone());
     let table_store = TableStore::new(veilid_config.clone(), protected_store.clone());
@@ -11,8 +11,8 @@ fn fake_routing_table() -> routing_table::RoutingTable {
     let storage_manager = storage_manager::StorageManager::new(
         veilid_config.clone(),
         crypto.clone(),
-        protected_store.clone(),
         table_store.clone(),
+        #[cfg(feature = "unstable-blockstore")]
         block_store.clone(),
     );
     let network_manager = network_manager::NetworkManager::new(
@@ -20,10 +20,11 @@ fn fake_routing_table() -> routing_table::RoutingTable {
         storage_manager,
         protected_store.clone(),
         table_store.clone(),
+        #[cfg(feature = "unstable-blockstore")]
         block_store.clone(),
         crypto.clone(),
     );
-    routing_table::RoutingTable::new(network_manager)
+    RoutingTable::new(network_manager)
 }
 
 pub async fn test_routingtable_buckets_round_trip() {
@@ -82,11 +83,35 @@ pub async fn test_routingtable_buckets_round_trip() {
 }
 
 pub async fn test_round_trip_peerinfo() {
-    let pi: routing_table::PeerInfo = deserialize_json(SERIALIZED_PEERINFO).unwrap();
+    let mut tks = TypedKeySet::new();
+    tks.add(TypedKey::new(
+        CRYPTO_KIND_VLD0,
+        CryptoKey::new([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]),
+    ));
+    let pi: PeerInfo = PeerInfo::new(
+        tks,
+        SignedNodeInfo::Direct(SignedDirectNodeInfo::new(
+            NodeInfo::new(
+                NetworkClass::OutboundOnly,
+                ProtocolTypeSet::new(),
+                AddressTypeSet::new(),
+                vec![0],
+                vec![CRYPTO_KIND_VLD0],
+                vec![],
+            ),
+            Timestamp::new(0),
+            Vec::new(),
+        )),
+    );
+    let s = serialize_json(&pi);
+    let pi2 = deserialize_json(&s).expect("Should deserialize");
+    let s2 = serialize_json(&pi2);
 
-    let back = serialize_json(pi);
-
-    assert_eq!(SERIALIZED_PEERINFO, back);
+    assert_eq!(pi, pi2);
+    assert_eq!(s, s2);
 }
 
 pub async fn test_all() {

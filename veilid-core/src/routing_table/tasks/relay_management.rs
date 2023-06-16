@@ -51,14 +51,19 @@ impl RoutingTable {
                 // The outbound relay is the host of the PWA
                 if let Some(outbound_relay_peerinfo) = intf::get_outbound_relay_peer().await {
                     // Register new outbound relay
-                    if let Some(nr) = self.register_node_with_peer_info(
+                    match self.register_node_with_peer_info(
                         RoutingDomain::PublicInternet,
                         outbound_relay_peerinfo,
                         false,
                     ) {
-                        info!("Outbound relay node selected: {}", nr);
-                        editor.set_relay_node(nr);
-                        got_outbound_relay = true;
+                        Ok(nr) => {
+                            log_rtab!("Outbound relay node selected: {}", nr);
+                            editor.set_relay_node(nr);
+                            got_outbound_relay = true;
+                        }
+                        Err(e) => {
+                            log_rtab!(error "failed to register node with peer info: {}", e);
+                        }
                     }
                 }
             }

@@ -14,19 +14,11 @@ mod veilid_logs;
 #[cfg(windows)]
 mod windows;
 
-use cfg_if::*;
-#[allow(unused_imports)]
-use color_eyre::eyre::{bail, ensure, eyre, Result as EyreResult, WrapErr};
 use server::*;
+use std::collections::HashMap;
 use std::str::FromStr;
 use tools::*;
-use tracing::*;
 use veilid_logs::*;
-
-#[allow(clippy::all)]
-pub mod veilid_client_capnp {
-    include!(concat!(env!("OUT_DIR"), "/proto/veilid_client_capnp.rs"));
-}
 
 #[instrument(err)]
 fn main() -> EyreResult<()> {
@@ -69,6 +61,24 @@ fn main() -> EyreResult<()> {
             return Ok(());
         } else {
             bail!("missing crypto kind");
+        }
+    }
+    // -- Emit JSON-Schema --
+    if matches.occurrences_of("emit-schema") != 0 {
+        if let Some(esstr) = matches.value_of("emit-schema") {
+            let mut schemas = HashMap::<String, String>::new();
+            veilid_core::json_api::emit_schemas(&mut schemas);
+
+            if let Some(schema) = schemas.get(esstr) {
+                println!("{}", schema);
+            } else {
+                println!("Valid schemas:");
+                for s in schemas.keys() {
+                    println!("  {}", s);
+                }
+            }
+
+            return Ok(());
         }
     }
 

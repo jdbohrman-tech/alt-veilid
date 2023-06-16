@@ -7,6 +7,7 @@ mod routing_context;
 mod serialize_helpers;
 mod types;
 
+pub mod json_api;
 pub mod tests;
 
 pub use api::*;
@@ -20,6 +21,7 @@ pub use alloc::string::ToString;
 pub use attachment_manager::AttachmentManager;
 pub use core::str::FromStr;
 pub use crypto::*;
+#[cfg(feature = "unstable-blockstore")]
 pub use intf::BlockStore;
 pub use intf::ProtectedStore;
 pub use network_manager::NetworkManager;

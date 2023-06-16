@@ -13,21 +13,18 @@ pub async fn test_alignedu64() {
 // app_messsage_call
 
 pub async fn test_veilidappmessage() {
-    let orig = VeilidAppMessage {
-        sender: Some(fix_typedkey()),
-        message: b"Hi there!".to_vec(),
-    };
+    let orig = VeilidAppMessage::new(Some(fix_typedkey()), b"Hi there!".to_vec());
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
 pub async fn test_veilidappcall() {
-    let orig = VeilidAppCall {
-        sender: Some(fix_typedkey()),
-        message: b"Well, hello!".to_vec(),
-        id: AlignedU64::from(123),
-    };
+    let orig = VeilidAppCall::new(
+        Some(fix_typedkey()),
+        b"Well, hello!".to_vec(),
+        AlignedU64::from(123),
+    );
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
@@ -116,12 +113,15 @@ pub async fn test_peerstats() {
 
 //  tunnel
 
+#[cfg(feature = "unstable-tunnels")]
 pub async fn test_tunnelmode() {
     let orig = TunnelMode::Raw;
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
+
+#[cfg(feature = "unstable-tunnels")]
 pub async fn test_tunnelerror() {
     let orig = TunnelError::NoCapacity;
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
@@ -129,6 +129,7 @@ pub async fn test_tunnelerror() {
     assert_eq!(orig, copy);
 }
 
+#[cfg(feature = "unstable-tunnels")]
 pub async fn test_tunnelendpoint() {
     let orig = TunnelEndpoint {
         mode: TunnelMode::Raw,
@@ -139,6 +140,7 @@ pub async fn test_tunnelendpoint() {
     assert_eq!(orig, copy);
 }
 
+#[cfg(feature = "unstable-tunnels")]
 pub async fn test_fulltunnel() {
     let orig = FullTunnel {
         id: AlignedU64::from(42),
@@ -157,6 +159,7 @@ pub async fn test_fulltunnel() {
     assert_eq!(orig, copy);
 }
 
+#[cfg(feature = "unstable-tunnels")]
 pub async fn test_partialtunnel() {
     let orig = PartialTunnel {
         id: AlignedU64::from(42),

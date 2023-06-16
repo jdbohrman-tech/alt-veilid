@@ -496,13 +496,15 @@ struct Question @0xd8510bc33492ef70 {
         getValueQ           @5  :OperationGetValueQ;
         setValueQ           @6  :OperationSetValueQ;
         watchValueQ         @7  :OperationWatchValueQ;
-        supplyBlockQ        @8  :OperationSupplyBlockQ;
-        findBlockQ          @9  :OperationFindBlockQ;
+        # #[cfg(feature="unstable-blockstore")]
+        # supplyBlockQ        @8  :OperationSupplyBlockQ;
+        # findBlockQ          @9  :OperationFindBlockQ;
         
         # Tunnel operations
-        startTunnelQ        @10 :OperationStartTunnelQ;
-        completeTunnelQ     @11 :OperationCompleteTunnelQ;
-        cancelTunnelQ       @12 :OperationCancelTunnelQ; 
+        # #[cfg(feature="unstable-tunnels")]
+        # startTunnelQ        @10 :OperationStartTunnelQ;
+        # completeTunnelQ     @11 :OperationCompleteTunnelQ;
+        # cancelTunnelQ       @12 :OperationCancelTunnelQ; 
     }
 }
 
@@ -532,14 +534,17 @@ struct Answer @0xacacb8b6988c1058 {
         appCallA            @2  :OperationAppCallA;
         getValueA           @3  :OperationGetValueA;
         setValueA           @4  :OperationSetValueA;
-        watchValueA         @5  :OperationWatchValueA;    
-        supplyBlockA        @6  :OperationSupplyBlockA; 
-        findBlockA          @7  :OperationFindBlockA;
+        watchValueA         @5  :OperationWatchValueA;
+
+        # #[cfg(feature="unstable-blockstore")]
+        #supplyBlockA        @6  :OperationSupplyBlockA; 
+        #findBlockA          @7  :OperationFindBlockA;
     
         # Tunnel operations
-        startTunnelA        @8  :OperationStartTunnelA;
-        completeTunnelA     @9  :OperationCompleteTunnelA;
-        cancelTunnelA       @10  :OperationCancelTunnelA;
+        # #[cfg(feature="unstable-tunnels")]
+        # startTunnelA        @8  :OperationStartTunnelA;
+        # completeTunnelA     @9  :OperationCompleteTunnelA;
+        # cancelTunnelA       @10  :OperationCancelTunnelA;
     }
 }
 

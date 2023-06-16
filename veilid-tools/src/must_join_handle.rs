@@ -16,6 +16,22 @@ impl<T> MustJoinHandle<T> {
         }
     }
 
+    pub fn detach(mut self) {
+        cfg_if! {
+            if #[cfg(feature="rt-async-std")] {
+                self.join_handle = None;
+            } else if #[cfg(feature="rt-tokio")] {
+                self.join_handle = None;
+            } else if #[cfg(target_arch = "wasm32")] {
+                self.join_handle.take().detach();
+                self.completed = true;
+            } else {
+                compile_error!("needs executor implementation")
+            }
+        }
+        self.completed = true;
+    }
+
     #[allow(unused_mut)]
     pub async fn abort(mut self) {
         if !self.completed {

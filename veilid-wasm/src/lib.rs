@@ -641,19 +641,21 @@ pub fn release_private_route(route_id: String) -> Promise {
 }
 
 #[wasm_bindgen()]
-pub fn app_call_reply(id: String, message: String) -> Promise {
+pub fn app_call_reply(call_id: String, message: String) -> Promise {
     let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(message.as_bytes())
         .unwrap();
     wrap_api_future_void(async move {
-        let id = match id.parse() {
+        let call_id = match call_id.parse() {
             Ok(v) => v,
             Err(e) => {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(e, "id", id))
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+                    e, "call_id", call_id,
+                ))
             }
         };
         let veilid_api = get_veilid_api()?;
-        veilid_api.app_call_reply(id, message).await?;
+        veilid_api.app_call_reply(call_id, message).await?;
         APIRESULT_UNDEFINED
     })
 }

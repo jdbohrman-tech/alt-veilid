@@ -22,6 +22,7 @@ mod signed_relayed_node_info;
 mod signed_value_data;
 mod signed_value_descriptor;
 mod socket_address;
+#[cfg(feature = "unstable-tunnels")]
 mod tunnel;
 mod typed_key;
 mod typed_signature;
@@ -50,6 +51,7 @@ pub use signed_relayed_node_info::*;
 pub use signed_value_data::*;
 pub use signed_value_descriptor::*;
 pub use socket_address::*;
+#[cfg(feature = "unstable-tunnels")]
 pub use tunnel::*;
 pub use typed_key::*;
 pub use typed_signature::*;

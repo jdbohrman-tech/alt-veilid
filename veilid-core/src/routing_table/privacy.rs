@@ -37,15 +37,27 @@ impl RouteNode {
         match self {
             RouteNode::NodeId(id) => {
                 //
-                routing_table.lookup_node_ref(TypedKey::new(crypto_kind, *id))
+                match routing_table.lookup_node_ref(TypedKey::new(crypto_kind, *id)) {
+                    Ok(nr) => nr,
+                    Err(e) => {
+                        log_rtab!(debug "failed to look up route node: {}", e);
+                        return None;
+                    }
+                }
             }
             RouteNode::PeerInfo(pi) => {
                 //
-                routing_table.register_node_with_peer_info(
+                match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
                     pi.clone(),
                     false,
-                )
+                ) {
+                    Ok(nr) => Some(nr),
+                    Err(e) => {
+                        log_rtab!(debug "failed to register route node: {}", e);
+                        return None;
+                    }
+                }
             }
         }
     }

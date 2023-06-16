@@ -262,7 +262,9 @@ abstract class VeilidUpdate {
       case "AppCall":
         {
           return VeilidAppCall(
-              sender: json["sender"], message: json["message"], id: json["id"]);
+              sender: json["sender"],
+              message: json["message"],
+              callId: json["call_id"]);
         }
       case "Attachment":
         {
@@ -348,22 +350,22 @@ class VeilidAppMessage implements VeilidUpdate {
 class VeilidAppCall implements VeilidUpdate {
   final String? sender;
   final Uint8List message;
-  final String id;
+  final String callId;
 
   //
   VeilidAppCall({
     required this.sender,
     required this.message,
-    required this.id,
+    required this.callId,
   });
 
   @override
   Map<String, dynamic> toJson() {
     return {
-      'kind': "AppMessage",
+      'kind': "AppCall",
       'sender': sender,
       'message': base64UrlNoPadEncode(message),
-      'id': id,
+      'call_id': callId,
     };
   }
 }
@@ -511,16 +513,17 @@ class VeilidStateNetwork {
 /// VeilidStateConfig
 
 class VeilidStateConfig {
-  final Map<String, dynamic> config;
+  final VeilidConfig config;
 
   VeilidStateConfig({
     required this.config,
   });
 
-  VeilidStateConfig.fromJson(dynamic json) : config = json['config'];
+  VeilidStateConfig.fromJson(dynamic json)
+      : config = VeilidConfig.fromJson(json['config']);
 
   Map<String, dynamic> toJson() {
-    return {'config': config};
+    return {'config': config.toJson()};
   }
 }
 

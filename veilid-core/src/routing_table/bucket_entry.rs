@@ -603,7 +603,7 @@ impl BucketEntryInner {
         }
     }
     pub(super) fn check_dead(&self, cur_ts: Timestamp) -> bool {
-        // If we have failured to send NEVER_REACHED_PING_COUNT times in a row, the node is dead
+        // If we have failed to send NEVER_REACHED_PING_COUNT times in a row, the node is dead
         if self.peer_stats.rpc_stats.failed_to_send >= NEVER_REACHED_PING_COUNT {
             return true;
         }

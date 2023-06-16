@@ -2,6 +2,7 @@
 
 use directories::*;
 
+use crate::tools::*;
 use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::SocketAddr;

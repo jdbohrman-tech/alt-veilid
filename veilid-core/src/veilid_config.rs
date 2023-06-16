@@ -25,6 +25,7 @@ pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sy
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigHTTPS {
     pub enabled: bool,
@@ -54,6 +55,7 @@ pub struct VeilidConfigHTTPS {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigHTTP {
     pub enabled: bool,
@@ -79,6 +81,7 @@ pub struct VeilidConfigHTTP {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigApplication {
     pub https: VeilidConfigHTTPS,
@@ -106,6 +109,7 @@ pub struct VeilidConfigApplication {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigUDP {
     pub enabled: bool,
@@ -135,6 +139,7 @@ pub struct VeilidConfigUDP {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigTCP {
     pub connect: bool,
@@ -166,6 +171,7 @@ pub struct VeilidConfigTCP {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigWS {
     pub connect: bool,
@@ -198,6 +204,7 @@ pub struct VeilidConfigWS {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigWSS {
     pub connect: bool,
@@ -226,6 +233,7 @@ pub struct VeilidConfigWSS {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigProtocol {
     pub udp: VeilidConfigUDP,
@@ -253,6 +261,7 @@ pub struct VeilidConfigProtocol {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigTLS {
     pub certificate_path: String,
@@ -273,6 +282,7 @@ pub struct VeilidConfigTLS {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigDHT {
     pub max_find_node_count: u32,
@@ -309,6 +319,7 @@ pub struct VeilidConfigDHT {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
@@ -333,9 +344,12 @@ pub struct VeilidConfigRPC {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigRoutingTable {
+    #[schemars(with = "Vec<String>")]
     pub node_id: TypedKeySet,
+    #[schemars(with = "Vec<String>")]
     pub node_id_secret: TypedSecretSet,
     pub bootstrap: Vec<String>,
     pub limit_over_attached: u32,
@@ -358,6 +372,7 @@ pub struct VeilidConfigRoutingTable {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigNetwork {
     pub connection_initial_timeout_ms: u32,
@@ -391,6 +406,7 @@ pub struct VeilidConfigNetwork {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigTableStore {
     pub directory: String,
@@ -408,6 +424,7 @@ pub struct VeilidConfigTableStore {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigBlockStore {
     pub directory: String,
@@ -425,6 +442,7 @@ pub struct VeilidConfigBlockStore {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
@@ -446,6 +464,7 @@ pub struct VeilidConfigProtectedStore {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigCapabilities {
     pub protocol_udp: bool,
@@ -468,6 +487,7 @@ pub struct VeilidConfigCapabilities {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub enum VeilidConfigLogLevel {
     Off,
@@ -525,6 +545,35 @@ impl Default for VeilidConfigLogLevel {
         Self::Off
     }
 }
+impl FromStr for VeilidConfigLogLevel {
+    type Err = VeilidAPIError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "Off" => Self::Off,
+            "Error" => Self::Error,
+            "Warn" => Self::Warn,
+            "Info" => Self::Info,
+            "Debug" => Self::Debug,
+            "Trace" => Self::Trace,
+            _ => {
+                apibail_invalid_argument!("Can't convert str", "s", s);
+            }
+        })
+    }
+}
+impl fmt::Display for VeilidConfigLogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        let text = match self {
+            Self::Off => "Off",
+            Self::Error => "Error",
+            Self::Warn => "Warn",
+            Self::Info => "Info",
+            Self::Debug => "Debug",
+            Self::Trace => "Trace",
+        };
+        write!(f, "{}", text)
+    }
+}
 
 #[derive(
     Default,
@@ -537,6 +586,7 @@ impl Default for VeilidConfigLogLevel {
     RkyvArchive,
     RkyvSerialize,
     RkyvDeserialize,
+    JsonSchema,
 )]
 pub struct VeilidConfigInner {
     pub program_name: String,
@@ -729,14 +779,13 @@ impl VeilidConfig {
         self.inner.read()
     }
 
-    fn safe_config(&self) -> VeilidConfigInner {
+    pub fn safe_config(&self) -> VeilidConfigInner {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
         safe_cfg.network.routing_table.node_id_secret = TypedSecretSet::new();
         safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
         safe_cfg.protected_store.new_device_encryption_key_password = None;
-
 
         safe_cfg
     }
@@ -753,6 +802,11 @@ impl VeilidConfig {
             let out = f(&mut editedinner)?;
             // Validate
             Self::validate(&mut editedinner)?;
+            // See if things have changed
+            if *inner == editedinner {
+                // No changes, return early
+                return Ok(out);
+            }
             // Commit changes
             *inner = editedinner.clone();
             out

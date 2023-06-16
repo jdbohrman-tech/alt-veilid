@@ -192,25 +192,24 @@ pub trait NodeRefBase: Sized {
         }
         dif
     }
-    fn relay(&self, routing_domain: RoutingDomain) -> Option<NodeRef> {
+    fn relay(&self, routing_domain: RoutingDomain) -> EyreResult<Option<NodeRef>> {
         self.operate_mut(|rti, e| {
-            e.signed_node_info(routing_domain)
-                .and_then(|n| n.relay_peer_info())
-                .and_then(|rpi| {
-                    // If relay is ourselves, then return None, because we can't relay through ourselves
-                    // and to contact this node we should have had an existing inbound connection
-                    if rti.unlocked_inner.matches_own_node_id(rpi.node_ids()) {
-                        return None;
-                    }
+            let Some(sni) = e.signed_node_info(routing_domain) else {
+                return Ok(None);
+            };
+            let Some(rpi) = sni.relay_peer_info() else {
+                return Ok(None);
+            };
+            // If relay is ourselves, then return None, because we can't relay through ourselves
+            // and to contact this node we should have had an existing inbound connection
+            if rti.unlocked_inner.matches_own_node_id(rpi.node_ids()) {
+                bail!("Can't relay though ourselves");
+            }
 
-                    // Register relay node and return noderef
-                    rti.register_node_with_peer_info(
-                        self.routing_table(),
-                        routing_domain,
-                        rpi,
-                        false,
-                    )
-                })
+            // Register relay node and return noderef
+            let nr =
+                rti.register_node_with_peer_info(self.routing_table(), routing_domain, rpi, false)?;
+            Ok(Some(nr))
         })
     }
 

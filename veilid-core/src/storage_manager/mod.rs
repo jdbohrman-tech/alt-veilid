@@ -28,8 +28,8 @@ const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
 struct StorageManagerUnlockedInner {
     config: VeilidConfig,
     crypto: Crypto,
-    protected_store: ProtectedStore,
     table_store: TableStore,
+    #[cfg(feature = "unstable-blockstore")]
     block_store: BlockStore,
 
     // Background processes
@@ -46,15 +46,14 @@ impl StorageManager {
     fn new_unlocked_inner(
         config: VeilidConfig,
         crypto: Crypto,
-        protected_store: ProtectedStore,
         table_store: TableStore,
-        block_store: BlockStore,
+        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
     ) -> StorageManagerUnlockedInner {
         StorageManagerUnlockedInner {
             config,
             crypto,
-            protected_store,
             table_store,
+            #[cfg(feature = "unstable-blockstore")]
             block_store,
             flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
         }
@@ -66,15 +65,14 @@ impl StorageManager {
     pub fn new(
         config: VeilidConfig,
         crypto: Crypto,
-        protected_store: ProtectedStore,
         table_store: TableStore,
-        block_store: BlockStore,
+        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
     ) -> StorageManager {
         let unlocked_inner = Arc::new(Self::new_unlocked_inner(
             config,
             crypto,
-            protected_store,
             table_store,
+            #[cfg(feature = "unstable-blockstore")]
             block_store,
         ));
         let this = StorageManager {

@@ -212,7 +212,8 @@ impl Network {
         } else {
             // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
             // If the address is specified, only use the specified port and fail otherwise
-            let sockaddrs = listen_address_to_socket_addrs(&listen_address)?;
+            let sockaddrs =
+                listen_address_to_socket_addrs(&listen_address).map_err(|e| eyre!("{}", e))?;
             if sockaddrs.is_empty() {
                 bail!("No valid listen address: {}", listen_address);
             }
@@ -236,7 +237,8 @@ impl Network {
         } else {
             // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
             // If the address is specified, only use the specified port and fail otherwise
-            let sockaddrs = listen_address_to_socket_addrs(&listen_address)?;
+            let sockaddrs =
+                listen_address_to_socket_addrs(&listen_address).map_err(|e| eyre!("{}", e))?;
             if sockaddrs.is_empty() {
                 bail!("No valid listen address: {}", listen_address);
             }

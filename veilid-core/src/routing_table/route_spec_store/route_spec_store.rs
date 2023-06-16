@@ -378,7 +378,14 @@ impl RouteSpecStore {
                     // Already seen this node, should not be in the route twice
                     return None;
                 }
-                if let Some(relay) = node.locked_mut(rti).relay(RoutingDomain::PublicInternet) {
+                let opt_relay = match node.locked_mut(rti).relay(RoutingDomain::PublicInternet) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        log_rtab!(error "failed to get relay for route node: {}", e);
+                        return None;
+                    }
+                };
+                if let Some(relay) = opt_relay {
                     let relay_id = relay.locked(rti).best_node_id();
                     if !seen_nodes.insert(relay_id) {
                         // Already seen this node, should not be in the route twice
@@ -869,13 +876,15 @@ impl RouteSpecStore {
                 };
 
                 let opt_first_hop = match pr_first_hop_node {
-                    RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id)),
-                    RouteNode::PeerInfo(pi) => rti.register_node_with_peer_info(
-                        routing_table.clone(),
-                        RoutingDomain::PublicInternet,
-                        pi,
-                        false,
-                    ),
+                    RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id))?,
+                    RouteNode::PeerInfo(pi) => {
+                        Some(rti.register_node_with_peer_info(
+                            routing_table.clone(),
+                            RoutingDomain::PublicInternet,
+                            pi,
+                            false,
+                        )?)
+                    }
                 };
                 if opt_first_hop.is_none() {
                     // Can't reach this private route any more
@@ -1322,9 +1331,9 @@ impl RouteSpecStore {
             }
 
             // ensure this isn't also an allocated route
-            if inner.content.get_id_by_key(&private_route.public_key.value).is_some() {
-                bail!("should not import allocated route");
-            }
+            // if inner.content.get_id_by_key(&private_route.public_key.value).is_some() {
+            //     bail!("should not import allocated route");
+            // }
         }
 
         inner.cache.cache_remote_private_route(cur_ts, id, private_routes);
