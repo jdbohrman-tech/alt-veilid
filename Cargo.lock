@@ -6236,6 +6236,7 @@ dependencies = [
  "owo-colors",
  "paranoid-android",
  "parking_lot 0.12.1",
+ "paste",
  "range-set-blaze",
  "rkyv",
  "rtnetlink",
