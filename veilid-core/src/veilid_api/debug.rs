@@ -934,7 +934,7 @@ impl VeilidAPI {
         entry <node>
         nodeinfo
         config [key [new value]]
-        purge <buckets|connections>
+        purge <buckets|connections|routes>
         attach
         detach
         restart network

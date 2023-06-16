@@ -29,6 +29,9 @@ async def test_routing_context_app_message_loopback():
     api = await veilid.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, app_message_queue_update_callback)
     async with api:
     
+        # purge routes to ensure we start fresh
+        await api.debug("purge routes")
+        
         # make a routing context that uses a safety route
         rc = await (await api.new_routing_context()).with_privacy()
 
@@ -60,6 +63,9 @@ async def test_routing_context_app_call_loopback():
     api = await veilid.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, app_call_queue_update_callback)
     async with api:
     
+        # purge routes to ensure we start fresh
+        await api.debug("purge routes")
+
         # make a routing context that uses a safety route
         rc = await (await api.new_routing_context()).with_privacy()
 

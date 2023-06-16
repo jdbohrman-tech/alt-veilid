@@ -24,6 +24,10 @@ else:
 async def simple_connect_and_run(func: Callable[[veilid.VeilidAPI], Awaitable]):
     api = await veilid.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, simple_update_callback)
     async with api:
+        
+        # purge routes to ensure we start fresh
+        await api.debug("purge routes")
+        
         await func(api)
 
 async def simple_update_callback(update: veilid.VeilidUpdate):
