@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=21.9
+VERSION=23.3
 
 mkdir /tmp/protoc-install
 pushd /tmp/protoc-install

@@ -1,12 +1,13 @@
 # /etc/systemd/system/veilid-server.service
 
 [Unit]
-Description=The Veilid peer-to-peer network server
+Description=Veilid Headless Node
 Requires=network-online.target
 After=network-online.target
 
 [Service]
 Type=simple
+Environment=RUST_BACKTRACE=1
 ExecStart=/usr/bin/veilid-server
 ExecReload=/bin/kill -s HUP $MAINPID
 KillSignal=SIGQUIT
