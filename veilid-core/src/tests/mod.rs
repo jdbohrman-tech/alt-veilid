@@ -12,6 +12,6 @@ use super::*;
 pub use common::*;
 pub use crypto::tests::*;
 pub use network_manager::tests::*;
-pub use routing_table::tests::test_serialize as test_routing_table_serialize;
+pub use routing_table::tests::*;
 pub use table_store::tests::*;
 pub use veilid_api::tests::*;

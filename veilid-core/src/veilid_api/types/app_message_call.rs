@@ -18,12 +18,12 @@ pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
     #[schemars(with = "Option<String>")]
-    sender: Option<TypedKey>,
+    pub sender: Option<TypedKey>,
 
     /// The content of the message to deliver to the application
     #[serde(with = "json_as_base64")]
     #[schemars(with = "String")]
-    message: Vec<u8>,
+    pub message: Vec<u8>,
 }
 
 impl VeilidAppMessage {
@@ -57,17 +57,17 @@ pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
     #[serde(with = "opt_json_as_string")]
     #[schemars(with = "Option<String>")]
-    sender: Option<TypedKey>,
+    pub sender: Option<TypedKey>,
 
     /// The content of the request to deliver to the application
     #[serde(with = "json_as_base64")]
     #[schemars(with = "String")]
-    message: Vec<u8>,
+    pub message: Vec<u8>,
 
     /// The id to reply to
     #[serde(with = "json_as_string")]
     #[schemars(with = "String")]
-    call_id: OperationId,
+    pub call_id: OperationId,
 }
 
 impl VeilidAppCall {

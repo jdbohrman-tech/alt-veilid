@@ -19,16 +19,16 @@ use super::*;
 pub struct DHTRecordDescriptor {
     /// DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     #[schemars(with = "String")]
-    key: TypedKey,
+    pub key: TypedKey,
     /// The public key of the owner
     #[schemars(with = "String")]
-    owner: PublicKey,
+    pub owner: PublicKey,
     /// If this key is being created: Some(the secret key of the owner)
     /// If this key is just being opened: None
     #[schemars(with = "Option<String>")]
-    owner_secret: Option<SecretKey>,
+    pub owner_secret: Option<SecretKey>,
     /// The schema in use associated with the key
-    schema: DHTSchema,
+    pub schema: DHTSchema,
 }
 
 impl DHTRecordDescriptor {

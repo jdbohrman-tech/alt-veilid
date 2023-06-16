@@ -53,7 +53,16 @@ pub enum TunnelError {
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(
-    Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize, JsonSchema,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    RkyvArchive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    JsonSchema,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct TunnelEndpoint {
@@ -76,6 +85,8 @@ impl Default for TunnelEndpoint {
     Clone,
     Debug,
     Default,
+    PartialEq,
+    Eq,
     Serialize,
     Deserialize,
     RkyvArchive,
@@ -96,6 +107,8 @@ pub struct FullTunnel {
     Clone,
     Debug,
     Default,
+    PartialEq,
+    Eq,
     Serialize,
     Deserialize,
     RkyvArchive,

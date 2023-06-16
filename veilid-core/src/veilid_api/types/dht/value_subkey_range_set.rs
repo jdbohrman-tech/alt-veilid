@@ -23,7 +23,7 @@ pub struct ValueSubkeyRangeSet {
     #[with(RkyvRangeSetBlaze)]
     #[serde(with = "serialize_range_set_blaze")]
     #[schemars(with = "Vec<(u32,u32)>")]
-    data: RangeSetBlaze<ValueSubkey>,
+    pub data: RangeSetBlaze<ValueSubkey>,
 }
 
 impl ValueSubkeyRangeSet {

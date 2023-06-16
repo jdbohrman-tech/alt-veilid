@@ -18,16 +18,16 @@ use super::*;
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct ValueData {
     /// An increasing sequence number to time-order the DHT record changes
-    seq: ValueSeqNum,
+    pub seq: ValueSeqNum,
 
     /// The contents of a DHT Record
     #[serde(with = "json_as_base64")]
     #[schemars(with = "String")]
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 
     /// The public identity key of the writer of the data
     #[schemars(with = "String")]
-    writer: PublicKey,
+    pub writer: PublicKey,
 }
 impl ValueData {
     pub const MAX_LEN: usize = 32768;
