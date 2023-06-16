@@ -83,8 +83,16 @@ pub async fn test_routingtable_buckets_round_trip() {
 }
 
 pub async fn test_round_trip_peerinfo() {
+    let mut tks = TypedKeySet::new();
+    tks.add(TypedKey::new(
+        CRYPTO_KIND_VLD0,
+        CryptoKey::new([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]),
+    ));
     let pi: PeerInfo = PeerInfo::new(
-        TypedKeySet::new(),
+        tks,
         SignedNodeInfo::Direct(SignedDirectNodeInfo::new(
             NodeInfo::new(
                 NetworkClass::OutboundOnly,
