@@ -238,18 +238,10 @@ impl ClientApi {
 
     async fn receive_requests<R: AsyncBufReadExt + Unpin>(
         self,
-        conn_tuple: (SocketAddr, SocketAddr),
         mut reader: R,
         requests_tx: flume::Sender<Option<RequestLine>>,
         responses_tx: flume::Sender<String>,
     ) -> VeilidAPIResult<Option<RequestLine>> {
-        // responses_tx becomes owned by recv_requests_future
-        // Start sending updates
-        self.inner
-            .lock()
-            .update_channels
-            .insert(conn_tuple, responses_tx.clone());
-
         let mut linebuf = String::new();
         while let Ok(size) = reader.read_line(&mut linebuf).await {
             // Eof?
@@ -277,10 +269,6 @@ impl ClientApi {
             }
         }
 
-        // Stop sending updates
-        // Will cause send_responses_future to stop because we drop the responses_tx
-        self.inner.lock().update_channels.remove(&conn_tuple);
-
         VeilidAPIResult::Ok(None)
     }
 
@@ -290,8 +278,8 @@ impl ClientApi {
         mut writer: W,
     ) -> VeilidAPIResult<Option<RequestLine>> {
         while let Ok(resp) = responses_rx.recv_async().await {
-            if let Err(e) = writer.write_all(resp.as_bytes()).await {
-                eprintln!("failed to write response: {}", e)
+            if let Err(_) = writer.write_all(resp.as_bytes()).await {
+                break;
             }
         }
         VeilidAPIResult::Ok(None)
@@ -350,11 +338,16 @@ impl ClientApi {
         let (requests_tx, requests_rx) = flume::unbounded();
         let (responses_tx, responses_rx) = flume::unbounded();
 
+        // Start sending updates
+        self.inner
+            .lock()
+            .update_channels
+            .insert(conn_tuple, responses_tx.clone());
+
         // Request receive processor future
         // Receives from socket and enqueues RequestLines
         // Completes when the connection is closed or there is a failure
         unord.push(system_boxed(self.clone().receive_requests(
-            conn_tuple,
             reader,
             requests_tx,
             responses_tx,
@@ -398,6 +391,9 @@ impl ClientApi {
             ));
         }
 
+        // Stop sending updates
+        self.inner.lock().update_channels.remove(&conn_tuple);
+
         debug!(
             "Closed Client API Connection: {:?} -> {:?}",
             peer_addr, local_addr
@@ -414,8 +410,8 @@ impl ClientApi {
         // Pass other updates to clients
         let inner = self.inner.lock();
         for ch in inner.update_channels.values() {
-            if let Err(e) = ch.send(veilid_update.clone()) {
-                eprintln!("failed to send update: {}", e);
+            if let Err(_) = ch.send(veilid_update.clone()) {
+                // eprintln!("failed to send update: {}", e);
             }
         }
     }

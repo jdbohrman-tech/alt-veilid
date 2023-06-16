@@ -11,8 +11,7 @@ def urlsafe_b64encode_no_pad(b: bytes) -> str:
     """
     Removes any `=` used as padding from the encoded string.
     """
-    encoded = str(base64.urlsafe_b64encode(b))
-    return encoded.rstrip("=")
+    return base64.urlsafe_b64encode(b).decode().rstrip("=")
 
 
 def urlsafe_b64decode_no_pad(s: str) -> bytes:
@@ -20,7 +19,7 @@ def urlsafe_b64decode_no_pad(s: str) -> bytes:
     Adds back in the required padding before decoding.
     """
     padding = 4 - (len(s) % 4)
-    string = string + ("=" * padding)
+    s = s + ("=" * padding)
     return base64.urlsafe_b64decode(s)
 
 class VeilidJSONEncoder(json.JSONEncoder):
@@ -248,7 +247,7 @@ class DHTSchema:
         if DHTSchemaKind(j['kind']) == DHTSchemaKind.SMPL:
             return DHTSchema.smpl(
                 j['o_cnt'],
-                map(lambda x: DHTSchemaSMPLMember.from_json(x), j['members']))
+                list(map(lambda x: DHTSchemaSMPLMember.from_json(x), j['members'])))
         raise Exception("Unknown DHTSchema kind", j['kind'])
 
     def to_json(self) -> dict:

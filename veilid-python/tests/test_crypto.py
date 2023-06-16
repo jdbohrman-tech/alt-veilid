@@ -1,6 +1,6 @@
-# Crypto veilid_python tests
+# Crypto veilid tests
 
-import veilid_python
+import veilid
 import pytest
 from . import *
 
@@ -8,21 +8,35 @@ from . import *
 
 @pytest.mark.asyncio
 async def test_best_crypto_system():
-    async with await veilid_python.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, simple_update_callback) as api:
+    async def func(api: veilid.VeilidAPI):
         bcs = await api.best_crypto_system()
-        # let handle dangle for test
-        # del bcs
+    await simple_connect_and_run(func)
         
 @pytest.mark.asyncio
 async def test_get_crypto_system():
-    async with await veilid_python.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, simple_update_callback) as api:
-        cs = await api.get_crypto_system(veilid_python.CryptoKind.CRYPTO_KIND_VLD0)
+    async def func(api: veilid.VeilidAPI):
+        cs = await api.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_VLD0)
         # clean up handle early
         del cs
+    await simple_connect_and_run(func)
         
 @pytest.mark.asyncio
 async def test_get_crypto_system_invalid():
-    async with await veilid_python.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, simple_update_callback) as api:
-        with pytest.raises(veilid_python.VeilidAPIError):
-            cs = await api.get_crypto_system(veilid_python.CryptoKind.CRYPTO_KIND_NONE)
+    async def func(api: veilid.VeilidAPI):
+        with pytest.raises(veilid.VeilidAPIError):
+            cs = await api.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_NONE)
+    await simple_connect_and_run(func)
 
+@pytest.mark.asyncio
+async def test_hash_and_verify_password():
+    async def func(api: veilid.VeilidAPI):
+        bcs = await api.best_crypto_system()
+        nonce = await bcs.random_nonce()
+        salt = nonce.to_bytes()
+        # Password match
+        phash = await bcs.hash_password(b"abc123", salt)
+        assert await bcs.verify_password(b"abc123", phash)
+        # Password mismatch
+        phash2 = await bcs.hash_password(b"abc1234", salt)
+        assert not await bcs.verify_password(b"abc12345", phash)
+    await simple_connect_and_run(func)

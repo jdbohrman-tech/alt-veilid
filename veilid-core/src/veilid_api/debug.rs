@@ -217,9 +217,9 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
             .unwrap_or((text, None));
 
         let mut nr = if let Some(key) = get_public_key(text) {
-            routing_table.lookup_any_node_ref(key)?
+            routing_table.lookup_any_node_ref(key).ok().flatten()?
         } else if let Some(key) = get_typed_key(text) {
-            routing_table.lookup_node_ref(key)?
+            routing_table.lookup_node_ref(key).ok().flatten()?
         } else {
             return None;
         };

@@ -2,6 +2,8 @@ from typing import Self, Optional
 from enum import StrEnum
 from json import dumps
 
+from .types import *
+
 class VeilidConfigLogLevel(StrEnum):
     OFF = 'Off'
     ERROR = 'Error'
@@ -96,8 +98,8 @@ class VeilidConfigBlockStore:
         return self.__dict__
 
 class VeilidConfigRoutingTable:
-    node_id: list[str]
-    node_id_secret: list[str]
+    node_id: list[TypedKey]
+    node_id_secret: list[TypedSecret]
     bootstrap: list[str]
     limit_over_attached: int
     limit_fully_attached: int
@@ -105,7 +107,7 @@ class VeilidConfigRoutingTable:
     limit_attached_good: int
     limit_attached_weak: int
 
-    def __init__(self, node_id: list[str], node_id_secret: list[str], bootstrap: list[str], limit_over_attached: int,
+    def __init__(self, node_id: list[TypedKey], node_id_secret: list[TypedSecret], bootstrap: list[str], limit_over_attached: int,
         limit_fully_attached: int, limit_attached_strong: int, limit_attached_good: int, limit_attached_weak: int):
 
         self.node_id = node_id
@@ -120,8 +122,8 @@ class VeilidConfigRoutingTable:
     @staticmethod
     def from_json(j: dict) -> Self:
         return VeilidConfigRoutingTable(
-            j['node_id'],
-            j['node_id_secret'],
+            list(map(lambda x: TypedKey(x), j['node_id'])), 
+            list(map(lambda x: TypedSecret(x), j['node_id_secret'])),
             j['bootstrap'],
             j['limit_over_attached'],
             j['limit_fully_attached'],

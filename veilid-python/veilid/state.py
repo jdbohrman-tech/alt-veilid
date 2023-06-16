@@ -181,7 +181,7 @@ class VeilidStateNetwork:
             j['started'],
             ByteCount(j['bps_down']),
             ByteCount(j['bps_up']),
-            map(lambda x: PeerTableData.from_json(x), j['peers']))
+            list(map(lambda x: PeerTableData.from_json(x), j['peers'])))
 
 class VeilidStateConfig:
     config: VeilidConfig
@@ -193,7 +193,8 @@ class VeilidStateConfig:
     def from_json(j: dict) -> Self:
         '''JSON object hook'''
         return VeilidStateConfig(
-            j['config'])
+            VeilidConfig.from_json(j['config'])
+        )
 
 class VeilidState:
     attachment: VeilidStateAttachment
@@ -227,7 +228,7 @@ class VeilidLog:
     def from_json(j: dict) -> Self:
         '''JSON object hook'''
         return VeilidLog(
-            VeilidLogLevel(j['attachment']), 
+            VeilidLogLevel(j['log_level']), 
             j['message'], 
             j['backtrace'])
     
@@ -276,8 +277,8 @@ class VeilidRouteChange:
     def from_json(j: dict) -> Self:
         '''JSON object hook'''
         return VeilidRouteChange(
-            map(lambda x: RouteId(x), j['dead_routes']),
-            map(lambda x: RouteId(x), j['dead_remote_routes']))
+            list(map(lambda x: RouteId(x), j['dead_routes'])),
+            list(map(lambda x: RouteId(x), j['dead_remote_routes'])))
 
 class VeilidValueChange:
     key: TypedKey
@@ -296,7 +297,7 @@ class VeilidValueChange:
         '''JSON object hook'''
         return VeilidValueChange(
             TypedKey(j['key']),
-            map(lambda x: ValueSubkey(x), j['subkeys']),
+            list(map(lambda x: ValueSubkey(x), j['subkeys'])),
             j['count'],
             ValueData.from_json(j['value']))
 
@@ -346,4 +347,4 @@ class VeilidUpdate:
                 detail = None
             case _:
                 raise ValueError("Unknown VeilidUpdateKind")
-                
+        return VeilidUpdate(kind, detail)

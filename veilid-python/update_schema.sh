@@ -11,7 +11,7 @@ if [ ! -f "$VEILID_SERVER" ]; then
 fi
 
 # Produce schema from veilid-server
-$VEILID_SERVER --emit-schema Request > $SCRIPTDIR/veilid_python/schema/Request.json
-$VEILID_SERVER --emit-schema RecvMessage > $SCRIPTDIR/veilid_python/schema/RecvMessage.json
+$VEILID_SERVER --emit-schema Request > $SCRIPTDIR/veilid/schema/Request.json
+$VEILID_SERVER --emit-schema RecvMessage > $SCRIPTDIR/veilid/schema/RecvMessage.json
 
 

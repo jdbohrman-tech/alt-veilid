@@ -312,7 +312,12 @@ impl RPCProcessor {
                     NetworkResult::value(Destination::direct(peer_noderef))
                 } else {
                     // Look up the sender node, we should have added it via senderNodeInfo before getting here.
-                    if let Some(sender_noderef) = self.routing_table.lookup_node_ref(sender_node_id) {
+                    let res = match self.routing_table.lookup_node_ref(sender_node_id) {
+                        Ok(v) => v, 
+                        Err(e) => return NetworkResult::invalid_message(
+                            format!("failed to look up node info for respond to: {}", e)
+                        )};
+                    if let Some(sender_noderef) = res {
                         NetworkResult::value(Destination::relay(peer_noderef, sender_noderef))    
                     } else {
                         return NetworkResult::invalid_message(

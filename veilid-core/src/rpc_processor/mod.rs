@@ -480,7 +480,10 @@ impl RPCProcessor {
             let routing_table = this.routing_table();
 
             // First see if we have the node in our routing table already
-            if let Some(nr) = routing_table.lookup_node_ref(node_id) {
+            if let Some(nr) = routing_table
+                .lookup_node_ref(node_id)
+                .map_err(RPCError::internal)?
+            {
                 // ensure we have some dial info for the entry already,
                 // if not, we should do the find_node anyway
                 if nr.has_any_dial_info() {
@@ -1346,20 +1349,26 @@ impl RPCProcessor {
 
                     // Sender PeerInfo was specified, update our routing table with it
                     if !self.filter_node_info(routing_domain, sender_peer_info.signed_node_info()) {
-                        return Err(RPCError::invalid_format(
+                        return Ok(NetworkResult::invalid_message(
                             "sender peerinfo has invalid peer scope",
                         ));
                     }
-                    opt_sender_nr = self.routing_table().register_node_with_peer_info(
+                    opt_sender_nr = match self.routing_table().register_node_with_peer_info(
                         routing_domain,
                         sender_peer_info.clone(),
                         false,
-                    );
+                    ) {
+                        Ok(v) => Some(v),
+                        Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                    }
                 }
 
                 // look up sender node, in case it's different than our peer due to relaying
                 if opt_sender_nr.is_none() {
-                    opt_sender_nr = self.routing_table().lookup_node_ref(sender_node_id)
+                    opt_sender_nr = match self.routing_table().lookup_node_ref(sender_node_id) {
+                        Ok(v) => v,
+                        Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                    }
                 }
 
                 // Update the 'seen our node info' timestamp to determine if this node needs a

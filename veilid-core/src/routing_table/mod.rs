@@ -628,14 +628,14 @@ impl RoutingTable {
     }
 
     /// Resolve an existing routing table entry using any crypto kind and return a reference to it
-    pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> Option<NodeRef> {
+    pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> EyreResult<Option<NodeRef>> {
         self.inner
             .read()
             .lookup_any_node_ref(self.clone(), node_id_key)
     }
 
     /// Resolve an existing routing table entry and return a reference to it
-    pub fn lookup_node_ref(&self, node_id: TypedKey) -> Option<NodeRef> {
+    pub fn lookup_node_ref(&self, node_id: TypedKey) -> EyreResult<Option<NodeRef>> {
         self.inner.read().lookup_node_ref(self.clone(), node_id)
     }
 
@@ -645,7 +645,7 @@ impl RoutingTable {
         node_id: TypedKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
-    ) -> Option<NodeRef> {
+    ) -> EyreResult<Option<NodeRef>> {
         self.inner.read().lookup_and_filter_noderef(
             self.clone(),
             node_id,
@@ -662,7 +662,7 @@ impl RoutingTable {
         routing_domain: RoutingDomain,
         peer_info: PeerInfo,
         allow_invalid: bool,
-    ) -> Option<NodeRef> {
+    ) -> EyreResult<NodeRef> {
         self.inner.write().register_node_with_peer_info(
             self.clone(),
             routing_domain,
@@ -678,7 +678,7 @@ impl RoutingTable {
         node_id: TypedKey,
         descriptor: ConnectionDescriptor,
         timestamp: Timestamp,
-    ) -> Option<NodeRef> {
+    ) -> EyreResult<NodeRef> {
         self.inner.write().register_node_with_existing_connection(
             self.clone(),
             node_id,
@@ -711,7 +711,7 @@ impl RoutingTable {
         // (uses same logic as send_data, ensuring last_connection works for UDP)
         for e in &recent_peers {
             let mut dead = true;
-            if let Some(nr) = self.lookup_node_ref(*e) {
+            if let Ok(Some(nr)) = self.lookup_node_ref(*e) {
                 if let Some(last_connection) = nr.last_connection() {
                     out.push((*e, RecentPeersEntry { last_connection }));
                     dead = false;
@@ -1017,10 +1017,11 @@ impl RoutingTable {
             }
 
             // Register the node if it's new
-            if let Some(nr) =
-                self.register_node_with_peer_info(RoutingDomain::PublicInternet, p, false)
-            {
-                out.push(nr);
+            match self.register_node_with_peer_info(RoutingDomain::PublicInternet, p, false) {
+                Ok(nr) => out.push(nr),
+                Err(e) => {
+                    log_rtab!(debug "failed to register node with peer info from find node answer: {}", e);
+                }
             }
         }
         out

@@ -2,7 +2,7 @@ import json
 import asyncio
 from jsonschema import validators, exceptions
 
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Mapping
 
 from .api import *
 from .state import *
@@ -42,7 +42,7 @@ class _JsonVeilidAPI(VeilidAPI):
     # Shared Mutable State
     lock: asyncio.Lock
     next_id: int
-    in_flight_requests: dict
+    in_flight_requests: Mapping[str, asyncio.Future]
     
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, update_callback: Callable[[VeilidUpdate], Awaitable], validate_schema: bool = True):
         self.reader = reader
@@ -54,7 +54,7 @@ class _JsonVeilidAPI(VeilidAPI):
         self.next_id = 1
         self.in_flight_requests = dict()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *excinfo):
@@ -67,6 +67,10 @@ class _JsonVeilidAPI(VeilidAPI):
             self.writer.close()
             await self.writer.wait_closed()
             self.writer = None
+
+            for (reqid, reqfuture) in self.in_flight_requests.items():
+                reqfuture.cancel()
+
         finally:
             self.lock.release()
 
@@ -103,7 +107,9 @@ class _JsonVeilidAPI(VeilidAPI):
         finally:
             self.lock.release()
         # Resolve the request's future to the response json
-        reqfuture.set_result(j)
+        if reqfuture is not None:
+            reqfuture.set_result(j)
+
 
     async def handle_recv_messages(self):
         # Read lines until we're done
@@ -124,8 +130,6 @@ class _JsonVeilidAPI(VeilidAPI):
                     await self.handle_recv_message_response(j)
                 elif j['type'] == "Update":
                     await self.update_callback(VeilidUpdate.from_json(j))
-        except:
-            pass
         finally:
             await self._cleanup_close()
             
@@ -263,17 +267,17 @@ class _JsonVeilidAPI(VeilidAPI):
         cs_id = raise_api_result(await self.send_ndjson_request(Operation.BEST_CRYPTO_SYSTEM))
         return _JsonCryptoSystem(self, cs_id)
     async def verify_signatures(self, node_ids: list[TypedKey], data: bytes, signatures: list[TypedSignature]) -> list[TypedKey]:
-        return map(lambda x: TypedKey(x), raise_api_result(await self.send_ndjson_request(Operation.VERIFY_SIGNATURES,
+        return list(map(lambda x: TypedKey(x), raise_api_result(await self.send_ndjson_request(Operation.VERIFY_SIGNATURES,
             node_ids = node_ids,
             data = data,
-            signatures = signatures)))
+            signatures = signatures))))
     async def generate_signatures(self, data: bytes, key_pairs: list[TypedKeyPair]) -> list[TypedSignature]:
-        return map(lambda x: TypedSignature(x), raise_api_result(await self.send_ndjson_request(Operation.GENERATE_SIGNATURES,
+        return list(map(lambda x: TypedSignature(x), raise_api_result(await self.send_ndjson_request(Operation.GENERATE_SIGNATURES,
             data = data,
-            key_pairs = key_pairs)))
+            key_pairs = key_pairs))))
     async def generate_key_pair(self, kind: CryptoKind) -> list[TypedKeyPair]:
-        return map(lambda x: TypedKeyPair(x), raise_api_result(await self.send_ndjson_request(Operation.GENERATE_KEY_PAIR,
-            kind = kind)))
+        return list(map(lambda x: TypedKeyPair(x), raise_api_result(await self.send_ndjson_request(Operation.GENERATE_KEY_PAIR,
+            kind = kind))))
     async def now(self) -> Timestamp:
         return Timestamp(raise_api_result(await self.send_ndjson_request(Operation.NOW)))
     async def debug(self, command: str) -> str:
@@ -456,10 +460,10 @@ class _JsonTableDb(TableDb):
             db_id = self.db_id, 
             db_op = TableDbOperation.GET_COLUMN_COUNT))
     async def get_keys(self, col: int) -> list[bytes]:
-        return map(lambda x: urlsafe_b64decode_no_pad(x), raise_api_result(await self.api.send_ndjson_request(Operation.TABLE_DB, validate=validate_db_op,
+        return list(map(lambda x: urlsafe_b64decode_no_pad(x), raise_api_result(await self.api.send_ndjson_request(Operation.TABLE_DB, validate=validate_db_op,
             db_id = self.db_id, 
             db_op = TableDbOperation.GET_KEYS,
-            col = col)))
+            col = col))))
     async def transact(self) -> TableDbTransaction:
         tx_id = raise_api_result(await self.api.send_ndjson_request(Operation.TABLE_DB, validate=validate_db_op,
             db_id = self.db_id, 
@@ -627,6 +631,6 @@ class _JsonCryptoSystem(CryptoSystem):
 
 ######################################################
 
-def json_api_connect(host:str, port:int, update_callback: Callable[[VeilidUpdate], Awaitable]) -> VeilidAPI:
-    return _JsonVeilidAPI.connect(host, port, update_callback)
+async def json_api_connect(host:str, port:int, update_callback: Callable[[VeilidUpdate], Awaitable]) -> VeilidAPI:
+    return await _JsonVeilidAPI.connect(host, port, update_callback)
 

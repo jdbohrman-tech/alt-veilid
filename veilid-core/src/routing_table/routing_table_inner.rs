@@ -651,14 +651,13 @@ impl RoutingTableInner {
         outer_self: RoutingTable,
         node_ids: &TypedKeySet,
         update_func: F,
-    ) -> Option<NodeRef>
+    ) -> EyreResult<NodeRef>
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner),
     {
         // Ensure someone isn't trying register this node itself
         if self.unlocked_inner.matches_own_node_id(node_ids) {
-            log_rtab!(debug "can't register own node");
-            return None;
+            bail!("can't register own node");
         }
 
         // Look up all bucket entries and make sure we only have zero or one
@@ -688,8 +687,7 @@ impl RoutingTableInner {
         if let Some(best_entry) = best_entry {
             // Update the entry with all of the node ids
             if let Err(e) = self.update_bucket_entries(best_entry.clone(), node_ids) {
-                log_rtab!(debug "Not registering new ids for existing node: {}", e);
-                return None;
+                bail!("Not registering new ids for existing node: {}", e);
             }
 
             // Make a noderef to return
@@ -699,7 +697,7 @@ impl RoutingTableInner {
             best_entry.with_mut_inner(|e| update_func(self, e));
 
             // Return the noderef
-            return Some(nr);
+            return Ok(nr);
         }
 
         // If no entry exists yet, add the first entry to a bucket, possibly evicting a bucket member
@@ -712,8 +710,7 @@ impl RoutingTableInner {
 
         // Update the other bucket entries with the remaining node ids
         if let Err(e) = self.update_bucket_entries(new_entry.clone(), node_ids) {
-            log_rtab!(debug "Not registering new node: {}", e);
-            return None;
+            bail!("Not registering new node: {}", e);
         }
 
         // Make node ref to return
@@ -725,7 +722,7 @@ impl RoutingTableInner {
         // Kick the bucket
         log_rtab!(debug "Routing table now has {} nodes, {} live", self.bucket_entry_count(), self.get_entry_count(RoutingDomainSet::all(), BucketEntryState::Unreliable, &VALID_CRYPTO_KINDS));
 
-        Some(nr)
+        Ok(nr)
     }
 
     /// Resolve an existing routing table entry using any crypto kind and return a reference to it
@@ -733,28 +730,35 @@ impl RoutingTableInner {
         &self,
         outer_self: RoutingTable,
         node_id_key: PublicKey,
-    ) -> Option<NodeRef> {
-        VALID_CRYPTO_KINDS.iter().find_map(|ck| {
-            self.lookup_node_ref(outer_self.clone(), TypedKey::new(*ck, node_id_key))
-        })
+    ) -> EyreResult<Option<NodeRef>> {
+        for ck in VALID_CRYPTO_KINDS {
+            if let Some(nr) =
+                self.lookup_node_ref(outer_self.clone(), TypedKey::new(ck, node_id_key))?
+            {
+                return Ok(Some(nr));
+            }
+        }
+        Ok(None)
     }
 
     /// Resolve an existing routing table entry and return a reference to it
-    pub fn lookup_node_ref(&self, outer_self: RoutingTable, node_id: TypedKey) -> Option<NodeRef> {
+    pub fn lookup_node_ref(
+        &self,
+        outer_self: RoutingTable,
+        node_id: TypedKey,
+    ) -> EyreResult<Option<NodeRef>> {
         if self.unlocked_inner.matches_own_node_id(&[node_id]) {
-            log_rtab!(error "can't look up own node id in routing table");
-            return None;
+            bail!("can't look up own node id in routing table");
         }
         if !VALID_CRYPTO_KINDS.contains(&node_id.kind) {
-            log_rtab!(error "can't look up node id with invalid crypto kind");
-            return None;
+            bail!("can't look up node id with invalid crypto kind");
         }
 
         let bucket_index = self.unlocked_inner.calculate_bucket_index(&node_id);
         let bucket = self.get_bucket(bucket_index);
-        bucket
+        Ok(bucket
             .entry(&node_id.value)
-            .map(|e| NodeRef::new(outer_self, e, None))
+            .map(|e| NodeRef::new(outer_self, e, None)))
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
@@ -764,15 +768,15 @@ impl RoutingTableInner {
         node_id: TypedKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
-    ) -> Option<NodeRef> {
+    ) -> EyreResult<Option<NodeRef>> {
         let nr = self.lookup_node_ref(outer_self, node_id)?;
-        Some(
+        Ok(nr.map(|nr| {
             nr.filtered_clone(
                 NodeRefFilter::new()
                     .with_dial_info_filter(dial_info_filter)
                     .with_routing_domain_set(routing_domain_set),
-            ),
-        )
+            )
+        }))
     }
 
     /// Resolve an existing routing table entry and call a function on its entry without using a noderef
@@ -802,50 +806,53 @@ impl RoutingTableInner {
         routing_domain: RoutingDomain,
         peer_info: PeerInfo,
         allow_invalid: bool,
-    ) -> Option<NodeRef> {
+    ) -> EyreResult<NodeRef> {
         // if our own node is in the list, then ignore it as we don't add ourselves to our own routing table
         if self
             .unlocked_inner
             .matches_own_node_id(peer_info.node_ids())
         {
-            log_rtab!(debug "can't register own node id in routing table");
-            return None;
+            bail!("can't register own node id in routing table");
         }
 
         // node can not be its own relay
         let rids = peer_info.signed_node_info().relay_ids();
         let nids = peer_info.node_ids();
         if nids.contains_any(&rids) {
-            log_rtab!(debug "node can not be its own relay");
-            return None;
+            bail!("node can not be its own relay");
         }
 
         if !allow_invalid {
             // verify signature
             if !peer_info.signed_node_info().has_any_signature() {
-                log_rtab!(debug "signed node info for {:?} has no valid signature", peer_info.node_ids());
-                return None;
+                bail!(
+                    "signed node info for {:?} has no valid signature",
+                    peer_info.node_ids()
+                );
             }
             // verify signed node info is valid in this routing domain
             if !self.signed_node_info_is_valid_in_routing_domain(
                 routing_domain,
                 peer_info.signed_node_info(),
             ) {
-                log_rtab!(debug "signed node info for {:?} not valid in the {:?} routing domain", peer_info.node_ids(), routing_domain);
-                return None;
+                bail!(
+                    "signed node info for {:?} not valid in the {:?} routing domain",
+                    peer_info.node_ids(),
+                    routing_domain
+                );
             }
         }
 
         let (node_ids, signed_node_info) = peer_info.destructure();
-        self.create_node_ref(outer_self, &node_ids, |_rti, e| {
+        let mut nr = self.create_node_ref(outer_self, &node_ids, |_rti, e| {
             e.update_signed_node_info(routing_domain, signed_node_info);
-        })
-        .map(|mut nr| {
-            nr.set_filter(Some(
-                NodeRefFilter::new().with_routing_domain(routing_domain),
-            ));
-            nr
-        })
+        })?;
+
+        nr.set_filter(Some(
+            NodeRefFilter::new().with_routing_domain(routing_domain),
+        ));
+
+        Ok(nr)
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
@@ -856,17 +863,15 @@ impl RoutingTableInner {
         node_id: TypedKey,
         descriptor: ConnectionDescriptor,
         timestamp: Timestamp,
-    ) -> Option<NodeRef> {
-        let out = self.create_node_ref(outer_self, &TypedKeySet::from(node_id), |_rti, e| {
+    ) -> EyreResult<NodeRef> {
+        let nr = self.create_node_ref(outer_self, &TypedKeySet::from(node_id), |_rti, e| {
             // this node is live because it literally just connected to us
             e.touch_last_seen(timestamp);
-        });
-        if let Some(nr) = &out {
-            // set the most recent node address for connection finding and udp replies
-            nr.locked_mut(self)
-                .set_last_connection(descriptor, timestamp);
-        }
-        out
+        })?;
+        // set the most recent node address for connection finding and udp replies
+        nr.locked_mut(self)
+            .set_last_connection(descriptor, timestamp);
+        Ok(nr)
     }
 
     //////////////////////////////////////////////////////////////////////

@@ -1,7 +1,10 @@
+from typing import Callable, Awaitable
+import os
 import pytest
 pytest_plugins = ('pytest_asyncio',)
 
-import os
+import veilid
+
 
 ##################################################################
 VEILID_SERVER = os.getenv("VEILID_SERVER")
@@ -18,5 +21,10 @@ else:
 
 ##################################################################
 
-async def simple_update_callback(update):
+async def simple_connect_and_run(func: Callable[[veilid.VeilidAPI], Awaitable]):
+    api = await veilid.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, simple_update_callback)
+    async with api:
+        await func(api)
+
+async def simple_update_callback(update: veilid.VeilidUpdate):
     print("VeilidUpdate: {}".format(update))
