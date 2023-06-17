@@ -7,12 +7,12 @@ from jsonschema import exceptions, validators
 
 from . import schema
 from .api import (CryptoSystem, RoutingContext, TableDb, TableDbTransaction,
-                  VeilidAPI, VeilidUpdate)
+                  VeilidAPI)
 from .error import raise_api_result
 from .operations import (CryptoSystemOperation, Operation,
                          RoutingContextOperation, TableDbOperation,
                          TableDbTransactionOperation)
-from .state import VeilidState
+from .state import VeilidState, VeilidUpdate
 from .types import (CryptoKey, CryptoKeyDistance, CryptoKind,
                     DHTRecordDescriptor, DHTSchema, HashDigest, KeyPair,
                     NewPrivateRouteResult, Nonce, OperationId, PublicKey,
