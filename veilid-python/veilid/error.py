@@ -1,142 +1,155 @@
-from typing import Self, Any
+import inspect
+from dataclasses import dataclass
+from typing import Any, Self
+
+_ERROR_REGISTRY: dict[str, type] = {}
+
 
 class VeilidAPIError(Exception):
     """Veilid API error exception base class"""
-    pass
-    @staticmethod
-    def from_json(j: dict) -> Self:
-        match j['kind']:
-            case 'NotInitialized':
-                return VeilidAPIErrorNotInitialized()
-            case 'AlreadyInitialized':
-                return VeilidAPIErrorAlreadyInitialized()
-            case 'Timeout':
-                return VeilidAPIErrorTimeout()
-            case 'TryAgain':
-                return VeilidAPIErrorTryAgain()
-            case 'Shutdown':
-                return VeilidAPIErrorShutdown()
-            case 'InvalidTarget':
-                return VeilidAPIErrorInvalidTarget()
-            case 'NoConnection':
-                return VeilidAPIErrorNoConnection(j['message'])
-            case 'KeyNotFound':
-                return VeilidAPIErrorKeyNotFound(j['key'])
-            case 'Internal':
-                return VeilidAPIErrorInternal(j['message'])
-            case 'Unimplemented':
-                return VeilidAPIErrorUnimplemented(j['message'])
-            case 'ParseError':
-                return VeilidAPIErrorParseError(j['message'], j['value'])
-            case 'InvalidArgument':
-                return VeilidAPIErrorInvalidArgument(j['context'], j['argument'], j['value'])
-            case 'MissingArgument':
-                return VeilidAPIErrorMissingArgument(j['context'], j['argument'])
-            case 'Generic':
-                return VeilidAPIErrorGeneric(j['message'])
-            case _:
-                return VeilidAPIError("Unknown exception type: {}".format(j['kind']))
+
+    label = "Base class"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self.label, *args, **kwargs)
+
+    @classmethod
+    def from_json(cls, json: dict) -> Self:
+        kind = json["kind"]
+        try:
+            error_class = _ERROR_REGISTRY[kind]
+        except KeyError:
+            return cls(f"Unknown exception type: {kind}")
+
+        args = {key: value for key, value in json.items() if key != "kind"}
+        return error_class(**args)
 
 
+@dataclass
 class VeilidAPIErrorNotInitialized(VeilidAPIError):
     """Veilid was not initialized"""
-    def __init__(self):
-        super().__init__("Not initialized")
 
+    label = "Not initialized"
+
+
+@dataclass
 class VeilidAPIErrorAlreadyInitialized(VeilidAPIError):
     """Veilid was already initialized"""
-    def __init__(self):
-        super().__init__("Already initialized")
 
+    label = "Already initialized"
+
+
+@dataclass
 class VeilidAPIErrorTimeout(VeilidAPIError):
     """Veilid operation timed out"""
-    def __init__(self):
-        super().__init__("Timeout")
 
+    label = "Timeout"
+
+
+@dataclass
 class VeilidAPIErrorTryAgain(VeilidAPIError):
     """Operation could not be performed at this time, retry again later"""
-    def __init__(self):
-        super().__init__("Try again")
 
+    label = "Try again"
+
+
+@dataclass
 class VeilidAPIErrorShutdown(VeilidAPIError):
     """Veilid was already shut down"""
-    def __init__(self):
-        super().__init__("Shutdown")
 
+    label = "Shutdown"
+
+
+@dataclass
 class VeilidAPIErrorInvalidTarget(VeilidAPIError):
     """Target of operation is not valid"""
-    def __init__(self):
-        super().__init__("Invalid target")
 
+    label = "Invalid target"
+
+
+@dataclass
 class VeilidAPIErrorNoConnection(VeilidAPIError):
     """Connection could not be established"""
-    message: str
-    def __init__(self, message: str):
-        super().__init__("No connection")
-        self.message = message
 
+    label = "No connection"
+    message: str
+
+
+@dataclass
 class VeilidAPIErrorKeyNotFound(VeilidAPIError):
     """Key was not found"""
-    key: str
-    def __init__(self, key: str):
-        super().__init__("Key not found")
-        self.key = key
 
+    label = "Key not found"
+    key: str
+
+
+@dataclass
 class VeilidAPIErrorInternal(VeilidAPIError):
     """Veilid experienced an internal failure"""
-    message: str
-    def __init__(self, message: str):
-        super().__init__("Internal")
-        self.message = message
 
+    label = "Internal"
+    message: str
+
+
+@dataclass
 class VeilidAPIErrorUnimplemented(VeilidAPIError):
     """Functionality is not yet implemented"""
-    message: str
-    def __init__(self, message: str):
-        super().__init__("Unimplemented")
-        self.message = message
 
+    label = "Unimplemented"
+    message: str
+
+
+@dataclass
 class VeilidAPIErrorParseError(VeilidAPIError):
     """Value was not in a parseable format"""
+
+    label = "Parse error"
     message: str
     value: str
-    def __init__(self, message: str, value: str):
-        super().__init__("Parse error")
-        self.message = message
-        self.value = value
 
+
+@dataclass
 class VeilidAPIErrorInvalidArgument(VeilidAPIError):
     """Argument is not valid in this context"""
+
+    label = "Invalid argument"
     context: str
     argument: str
     value: str
-    def __init__(self, context: str, argument: str, value: str):
-        super().__init__("Invalid argument")
-        self.context = context
-        self.argument = argument
-        self.value = value
 
+
+@dataclass
 class VeilidAPIErrorMissingArgument(VeilidAPIError):
     """Required argument was missing"""
+
+    label = "Missing argument"
     context: str
     argument: str
-    def __init__(self, context: str, argument: str):
-        super().__init__("Missing argument")
-        self.context = context
-        self.argument = argument
 
+
+@dataclass
 class VeilidAPIErrorGeneric(VeilidAPIError):
     """Generic error message"""
+
+    label = "Generic"
     message: str
-    def __init__(self, message: str):
-        super().__init__("Generic")
-        self.message = message
+
+
+# Build a mapping of canonicalized labels to their exception classes. Do this in-place to update
+# the object inside the closure so VeilidAPIError.from_json can access the values.
+_ERROR_REGISTRY.clear()
+_ERROR_REGISTRY.update(
+    {
+        obj.label.title().replace(" ", ""): obj
+        for obj in vars().values()
+        if inspect.isclass(obj) and issubclass(obj, VeilidAPIError)
+    }
+)
 
 
 def raise_api_result(api_result: dict) -> Any:
     if "value" in api_result:
         return api_result["value"]
-    elif "error" in api_result:
+    if "error" in api_result:
         raise VeilidAPIError.from_json(api_result["error"])
-    else:
-        raise ValueError("Invalid format for ApiResult")
+    raise ValueError("Invalid format for ApiResult")
