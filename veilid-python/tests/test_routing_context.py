@@ -1,12 +1,11 @@
 # Routing context veilid tests
 
 import asyncio
-import json
 
 import pytest
 import veilid
 
-from . import api_connection, server_info
+from .conftest import server_info
 
 ##################################################################
 

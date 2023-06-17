@@ -4,10 +4,6 @@ import pytest
 import veilid
 from veilid.api import CryptoSystem
 
-from . import api_connection
-
-##################################################################
-
 
 @pytest.mark.asyncio
 async def test_best_crypto_system(api_connection):

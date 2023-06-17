@@ -5,9 +5,7 @@ import socket
 import pytest
 import veilid
 
-from . import api_connection, simple_update_callback
-
-##################################################################
+from .conftest import simple_update_callback
 
 
 @pytest.mark.asyncio
