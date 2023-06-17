@@ -1113,10 +1113,14 @@ impl NetworkManager {
                 let relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
-                if target_node_ref.node_ids().contains(&target_key) {
+                if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("signalholepunch target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
-                NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref)
+                // if any other protocol were possible here we could update this and do_hole_punch
+                // but tcp hole punch is very very unreliable it seems
+                let udp_target_node_ref = target_node_ref.filtered_clone(NodeRefFilter::new().with_protocol_type(ProtocolType::UDP));
+
+                NodeContactMethod::SignalHolePunch(relay_nr, udp_target_node_ref)
             }
             ContactMethod::InboundRelay(relay_key) => {
                 let relay_nr = routing_table
