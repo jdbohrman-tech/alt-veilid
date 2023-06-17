@@ -1,34 +1,37 @@
-from typing import Callable, Awaitable
 import os
-import pytest
-pytest_plugins = ('pytest_asyncio',)
+from functools import cache
+from typing import AsyncGenerator
 
+import pytest_asyncio
 import veilid
+from veilid.json_api import _JsonVeilidAPI
+
+pytest_plugins = ("pytest_asyncio",)
 
 
-##################################################################
-VEILID_SERVER = os.getenv("VEILID_SERVER")
-if VEILID_SERVER is not None:
-    vsparts = VEILID_SERVER.split(":") 
-    VEILID_SERVER = vsparts[0]
-    if len(vsparts) == 2:
-        VEILID_SERVER_PORT = int(vsparts[1])
-    else:
-        VEILID_SERVER_PORT = 5959
-else:
-    VEILID_SERVER = "localhost"
-    VEILID_SERVER_PORT = 5959
+@cache
+def server_info() -> tuple[str, int]:
+    """Return the hostname and port of the test server."""
+    VEILID_SERVER = os.getenv("VEILID_SERVER")
+    if VEILID_SERVER is None:
+        return "localhost", 5959
 
-##################################################################
+    hostname, *rest = VEILID_SERVER.split(":")
+    if rest:
+        return hostname, int(rest[0])
+    return hostname, 5959
 
-async def simple_connect_and_run(func: Callable[[veilid.VeilidAPI], Awaitable]):
-    api = await veilid.json_api_connect(VEILID_SERVER, VEILID_SERVER_PORT, simple_update_callback)
-    async with api:
-        
-        # purge routes to ensure we start fresh
-        await api.debug("purge routes")
-        
-        await func(api)
 
 async def simple_update_callback(update: veilid.VeilidUpdate):
-    print("VeilidUpdate: {}".format(update))
+    print(f"VeilidUpdate: {update}")
+
+
+@pytest_asyncio.fixture
+async def api_connection() -> AsyncGenerator[_JsonVeilidAPI, None]:
+    hostname, port = server_info()
+    api = await veilid.json_api_connect(hostname, port, simple_update_callback)
+    async with api:
+        # purge routes to ensure we start fresh
+        await api.debug("purge routes")
+
+        yield api

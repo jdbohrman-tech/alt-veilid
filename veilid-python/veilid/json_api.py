@@ -1072,5 +1072,5 @@ class _JsonCryptoSystem(CryptoSystem):
 
 async def json_api_connect(
     host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
-) -> VeilidAPI:
+) -> _JsonVeilidAPI:
     return await _JsonVeilidAPI.connect(host, port, update_callback)
