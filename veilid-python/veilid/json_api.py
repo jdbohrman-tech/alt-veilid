@@ -49,8 +49,8 @@ _VALIDATOR_RECV_MESSAGE = _get_schema_validator(
 
 
 class _JsonVeilidAPI(VeilidAPI):
-    reader: asyncio.StreamReader
-    writer: asyncio.StreamWriter
+    reader: Optional[asyncio.StreamReader]
+    writer: Optional[asyncio.StreamWriter]
     update_callback: Callable[[VeilidUpdate], Awaitable]
     handle_recv_messages_task: Optional[asyncio.Task]
     validate_schemas: bool
@@ -85,6 +85,7 @@ class _JsonVeilidAPI(VeilidAPI):
         await self.lock.acquire()
         try:
             self.reader = None
+            assert self.writer is not None
             self.writer.close()
             await self.writer.wait_closed()
             self.writer = None
@@ -138,6 +139,7 @@ class _JsonVeilidAPI(VeilidAPI):
     async def handle_recv_messages(self):
         # Read lines until we're done
         try:
+            assert self.reader is not None
             while True:
                 linebytes = await self.reader.readline()
                 if not linebytes.endswith(b"\n"):
@@ -225,6 +227,7 @@ class _JsonVeilidAPI(VeilidAPI):
 
         # Send to socket
         try:
+            assert writer is not None
             writer.write(reqbytes)
             await writer.drain()
         except Exception:

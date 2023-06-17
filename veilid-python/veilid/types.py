@@ -82,7 +82,7 @@ class ByteCount(int):
     pass
 
 
-class OperationId(int):
+class OperationId(str):
     pass
 
 
