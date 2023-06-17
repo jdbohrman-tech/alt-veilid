@@ -1105,7 +1105,7 @@ impl NetworkManager {
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if !target_node_ref.node_ids().contains(&target_key) {
-                    bail!("target noderef didn't match target key");
+                    bail!("signalreverse target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
                 NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
             }
@@ -1114,7 +1114,7 @@ impl NetworkManager {
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if target_node_ref.node_ids().contains(&target_key) {
-                    bail!("target noderef didn't match target key");
+                    bail!("signalholepunch target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
                 NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref)
             }
