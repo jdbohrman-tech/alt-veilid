@@ -12,6 +12,7 @@ where
 {
     descriptor: SignedValueDescriptor,
     subkey_count: usize,
+    stored_subkeys: ValueSubkeyRangeSet,
     last_touched_ts: Timestamp,
     record_data_size: usize,
     detail: D,
@@ -33,6 +34,7 @@ where
         Ok(Self {
             descriptor,
             subkey_count,
+            stored_subkeys: ValueSubkeyRangeSet::new(),
             last_touched_ts: cur_ts,
             record_data_size: 0,
             detail,
@@ -48,6 +50,13 @@ where
 
     pub fn subkey_count(&self) -> usize {
         self.subkey_count
+    }
+
+    pub fn stored_subkeys(&self) -> &ValueSubkeyRangeSet {
+        &self.stored_subkeys
+    }
+    pub fn store_subkey(&mut self, subkey: ValueSubkey) {
+        self.stored_subkeys.insert(subkey);
     }
 
     pub fn touch(&mut self, cur_ts: Timestamp) {

@@ -3,7 +3,7 @@ from typing import Optional, Self
 
 from .config import VeilidConfig
 from .types import (ByteCount, RouteId, Timestamp, TimestampDuration, TypedKey,
-                    ValueData, ValueSubkey, VeilidLogLevel,
+                    ValueData, ValueSubkey, VeilidLogLevel, OperationId,
                     urlsafe_b64decode_no_pad)
 
 
@@ -309,9 +309,9 @@ class VeilidAppMessage:
 class VeilidAppCall:
     sender: Optional[TypedKey]
     message: bytes
-    call_id: str
+    call_id: OperationId
 
-    def __init__(self, sender: Optional[TypedKey], message: bytes, call_id: str):
+    def __init__(self, sender: Optional[TypedKey], message: bytes, call_id: OperationId):
         self.sender = sender
         self.message = message
         self.call_id = call_id
@@ -322,7 +322,7 @@ class VeilidAppCall:
         return cls(
             None if j["sender"] is None else TypedKey(j["sender"]),
             urlsafe_b64decode_no_pad(j["message"]),
-            j["call_id"],
+            OperationId(j["call_id"]),
         )
 
 

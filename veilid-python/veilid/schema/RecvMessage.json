@@ -1319,6 +1319,30 @@
             },
             {
               "type": "object",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "value"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "$ref": "#/definitions/VeilidAPIError"
+                    }
+                  }
+                }
+              ],
               "required": [
                 "tx_op"
               ],
@@ -1333,6 +1357,30 @@
             },
             {
               "type": "object",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "value"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "$ref": "#/definitions/VeilidAPIError"
+                    }
+                  }
+                }
+              ],
               "required": [
                 "tx_op"
               ],

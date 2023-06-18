@@ -817,7 +817,7 @@ pub fn table_db_transaction_store(id: u32, col: u32, key: String, value: String)
             tdbt.clone()
         };
 
-        tdbt.store(col, &key, &value);
+        tdbt.store(col, &key, &value)?;
         APIRESULT_UNDEFINED
     })
 }
@@ -836,7 +836,7 @@ pub fn table_db_transaction_delete(id: u32, col: u32, key: String) -> Promise {
             tdbt.clone()
         };
 
-        tdbt.delete(col, &key);
+        tdbt.delete(col, &key)?;
         APIRESULT_UNDEFINED
     })
 }

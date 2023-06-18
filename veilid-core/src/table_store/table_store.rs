@@ -428,6 +428,7 @@ impl TableStore {
     }
 
     pub(crate) fn on_table_db_drop(&self, table: String) {
+        log_rtab!(debug "dropping table db: {}", table);
         let mut inner = self.inner.lock();
         if inner.opened.remove(&table).is_none() {
             unreachable!("should have removed an item");
@@ -449,12 +450,21 @@ impl TableStore {
 
         let table_name = self.name_get_or_create(name).await?;
 
-        // See if this table is already opened
+        // See if this table is already opened, if so the column count must be the same
         {
             let mut inner = self.inner.lock();
             if let Some(table_db_weak_inner) = inner.opened.get(&table_name) {
-                match TableDB::try_new_from_weak_inner(table_db_weak_inner.clone()) {
+                match TableDB::try_new_from_weak_inner(table_db_weak_inner.clone(), column_count) {
                     Some(tdb) => {
+                        // Ensure column count isnt bigger
+                        let existing_col_count = tdb.get_column_count()?;
+                        if column_count > existing_col_count {
+                            return Err(VeilidAPIError::generic(format!(
+                                "database must be closed before increasing column count {} -> {}",
+                                existing_col_count, column_count,
+                            )));
+                        }
+
                         return Ok(tdb);
                     }
                     None => {
@@ -465,7 +475,7 @@ impl TableStore {
         }
 
         // Open table db using platform-specific driver
-        let db = match self
+        let mut db = match self
             .table_store_driver
             .open(&table_name, column_count)
             .await
@@ -481,6 +491,24 @@ impl TableStore {
         // Flush table names to disk
         self.flush().await;
 
+        // If more columns are available, open the low level db with the max column count but restrict the tabledb object to the number requested
+        let existing_col_count = db.num_columns().map_err(VeilidAPIError::from)?;
+        if existing_col_count > column_count {
+            drop(db);
+            db = match self
+                .table_store_driver
+                .open(&table_name, existing_col_count)
+                .await
+            {
+                Ok(db) => db,
+                Err(e) => {
+                    self.name_delete(name).await.expect("cleanup failed");
+                    self.flush().await;
+                    return Err(e);
+                }
+            };
+        }
+
         // Wrap low-level Database in TableDB object
         let mut inner = self.inner.lock();
         let table_db = TableDB::new(
@@ -490,6 +518,7 @@ impl TableStore {
             db,
             inner.encryption_key.clone(),
             inner.encryption_key.clone(),
+            column_count,
         );
 
         // Keep track of opened DBs

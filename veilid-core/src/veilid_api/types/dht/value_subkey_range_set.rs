@@ -4,7 +4,6 @@ use range_set_blaze::*;
 
 #[derive(
     Clone,
-    Debug,
     Default,
     PartialOrd,
     PartialEq,
@@ -53,5 +52,17 @@ impl Deref for ValueSubkeyRangeSet {
 impl DerefMut for ValueSubkeyRangeSet {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
+    }
+}
+
+impl fmt::Debug for ValueSubkeyRangeSet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.data)
+    }
+}
+
+impl fmt::Display for ValueSubkeyRangeSet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.data)
     }
 }

@@ -1234,9 +1234,10 @@ impl RoutingTableInner {
         let kind = node_id.kind;
         let mut closest_nodes_locked: Vec<NodeRefLocked> = closest_nodes
             .iter()
-            .filter_map(|x| {
-                if x.node_ids().kinds().contains(&kind) {
-                    Some(x.locked(self))
+            .filter_map(|nr| {
+                let nr_locked = nr.locked(self);
+                if nr_locked.node_ids().kinds().contains(&kind) {
+                    Some(nr_locked)
                 } else {
                     None
                 }

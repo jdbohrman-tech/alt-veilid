@@ -124,6 +124,12 @@ pub enum TableDbTransactionResponseOp {
         result: ApiResult<()>,
     },
     Rollback {},
-    Store {},
-    Delete {},
+    Store {
+        #[serde(flatten)]
+        result: ApiResult<()>,
+    },
+    Delete {
+        #[serde(flatten)]
+        result: ApiResult<()>,
+    },
 }

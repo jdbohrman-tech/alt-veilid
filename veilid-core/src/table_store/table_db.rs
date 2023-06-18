@@ -45,6 +45,7 @@ impl Drop for TableDBUnlockedInner {
 
 #[derive(Debug, Clone)]
 pub struct TableDB {
+    opened_column_count: u32,
     unlocked_inner: Arc<TableDBUnlockedInner>,
 }
 
@@ -56,11 +57,13 @@ impl TableDB {
         database: Database,
         encryption_key: Option<TypedSharedSecret>,
         decryption_key: Option<TypedSharedSecret>,
+        opened_column_count: u32,
     ) -> Self {
         let encrypt_info = encryption_key.map(|ek| CryptInfo::new(crypto.clone(), ek));
         let decrypt_info = decryption_key.map(|dk| CryptInfo::new(crypto.clone(), dk));
 
         Self {
+            opened_column_count,
             unlocked_inner: Arc::new(TableDBUnlockedInner {
                 table,
                 table_store,
@@ -71,8 +74,12 @@ impl TableDB {
         }
     }
 
-    pub(super) fn try_new_from_weak_inner(weak_inner: Weak<TableDBUnlockedInner>) -> Option<Self> {
+    pub(super) fn try_new_from_weak_inner(
+        weak_inner: Weak<TableDBUnlockedInner>,
+        opened_column_count: u32,
+    ) -> Option<Self> {
         weak_inner.upgrade().map(|table_db_unlocked_inner| Self {
+            opened_column_count,
             unlocked_inner: table_db_unlocked_inner,
         })
     }
@@ -82,6 +89,7 @@ impl TableDB {
     }
 
     /// Get the total number of columns in the TableDB
+    /// Not the number of columns that were opened, rather the total number that could be opened
     pub fn get_column_count(&self) -> VeilidAPIResult<u32> {
         let db = &self.unlocked_inner.database;
         db.num_columns().map_err(VeilidAPIError::from)
@@ -144,8 +152,14 @@ impl TableDB {
         }
     }
 
-    /// Get the list of keys in a column of the TableDB
+    /// Get the list of keys in a column of the TableDAB
     pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Vec<u8>>> {
+        if col >= self.opened_column_count {
+            apibail_generic!(format!(
+                "Column exceeds opened column count {} >= {}",
+                col, self.opened_column_count
+            ));
+        }
         let db = self.unlocked_inner.database.clone();
         let mut out = Vec::new();
         db.iter_keys(col, None, |k| {
@@ -165,6 +179,12 @@ impl TableDB {
 
     /// Store a key with a value in a column in the TableDB. Performs a single transaction immediately.
     pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> VeilidAPIResult<()> {
+        if col >= self.opened_column_count {
+            apibail_generic!(format!(
+                "Column exceeds opened column count {} >= {}",
+                col, self.opened_column_count
+            ));
+        }
         let db = self.unlocked_inner.database.clone();
         let mut dbt = db.transaction();
         dbt.put(
@@ -195,6 +215,12 @@ impl TableDB {
 
     /// Read a key from a column in the TableDB immediately.
     pub async fn load(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
+        if col >= self.opened_column_count {
+            apibail_generic!(format!(
+                "Column exceeds opened column count {} >= {}",
+                col, self.opened_column_count
+            ));
+        }
         let db = self.unlocked_inner.database.clone();
         let key = self.maybe_encrypt(key, true);
         Ok(db
@@ -233,6 +259,12 @@ impl TableDB {
 
     /// Delete key with from a column in the TableDB
     pub async fn delete(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
+        if col >= self.opened_column_count {
+            apibail_generic!(format!(
+                "Column exceeds opened column count {} >= {}",
+                col, self.opened_column_count
+            ));
+        }
         let key = self.maybe_encrypt(key, true);
 
         let db = self.unlocked_inner.database.clone();
@@ -330,11 +362,19 @@ impl TableDBTransaction {
     }
 
     /// Store a key with a value in a column in the TableDB
-    pub fn store(&self, col: u32, key: &[u8], value: &[u8]) {
+    pub fn store(&self, col: u32, key: &[u8], value: &[u8]) -> VeilidAPIResult<()> {
+        if col >= self.db.opened_column_count {
+            apibail_generic!(format!(
+                "Column exceeds opened column count {} >= {}",
+                col, self.db.opened_column_count
+            ));
+        }
+
         let key = self.db.maybe_encrypt(key, true);
         let value = self.db.maybe_encrypt(value, false);
         let mut inner = self.inner.lock();
         inner.dbt.as_mut().unwrap().put_owned(col, key, value);
+        Ok(())
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
@@ -343,12 +383,7 @@ impl TableDBTransaction {
         T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
     {
         let value = to_rkyv(value)?;
-        let key = self.db.maybe_encrypt(key, true);
-        let value = self.db.maybe_encrypt(&value, false);
-
-        let mut inner = self.inner.lock();
-        inner.dbt.as_mut().unwrap().put_owned(col, key, value);
-        Ok(())
+        self.store(col, key, &value)
     }
 
     /// Store a key in rkyv format with a value in a column in the TableDB
@@ -357,19 +392,22 @@ impl TableDBTransaction {
         T: serde::Serialize,
     {
         let value = serde_json::to_vec(value).map_err(VeilidAPIError::internal)?;
-        let key = self.db.maybe_encrypt(key, true);
-        let value = self.db.maybe_encrypt(&value, false);
-
-        let mut inner = self.inner.lock();
-        inner.dbt.as_mut().unwrap().put_owned(col, key, value);
-        Ok(())
+        self.store(col, key, &value)
     }
 
     /// Delete key with from a column in the TableDB
-    pub fn delete(&self, col: u32, key: &[u8]) {
+    pub fn delete(&self, col: u32, key: &[u8]) -> VeilidAPIResult<()> {
+        if col >= self.db.opened_column_count {
+            apibail_generic!(format!(
+                "Column exceeds opened column count {} >= {}",
+                col, self.db.opened_column_count
+            ));
+        }
+
         let key = self.db.maybe_encrypt(key, true);
         let mut inner = self.inner.lock();
         inner.dbt.as_mut().unwrap().delete_owned(col, key);
+        Ok(())
     }
 }
 

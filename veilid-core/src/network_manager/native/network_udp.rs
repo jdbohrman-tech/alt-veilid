@@ -44,7 +44,14 @@ impl Network {
                 // Spawn a local async task for each socket
                 let mut protocol_handlers_unordered = FuturesUnordered::new();
                 let network_manager = this.network_manager();
-                let stop_token = this.inner.lock().stop_source.as_ref().unwrap().token();
+                let stop_token = {
+                    let inner = this.inner.lock();
+                    if inner.stop_source.is_none() {
+                        log_net!(debug "exiting UDP listener before it starts because we encountered an error");
+                        return;
+                    }
+                    inner.stop_source.as_ref().unwrap().token()
+                };
 
                 for ph in protocol_handlers {
                     let network_manager = network_manager.clone();

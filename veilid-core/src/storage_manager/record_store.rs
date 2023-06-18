@@ -184,17 +184,22 @@ where
             }
 
             // Delete record
-            rt_xact.delete(0, &k.bytes());
+            if let Err(e) = rt_xact.delete(0, &k.bytes()) {
+                log_stor!(error "record could not be deleted: {}", e);
+            }
 
             // Delete subkeys
-            let subkey_count = v.subkey_count() as u32;
-            for sk in 0..subkey_count {
+            let stored_subkeys = v.stored_subkeys();
+            for sk in stored_subkeys.iter() {
                 // From table
                 let stk = SubkeyTableKey {
                     key: k.key,
                     subkey: sk,
                 };
-                st_xact.delete(0, &stk.bytes());
+                let stkb = stk.bytes();
+                if let Err(e) = st_xact.delete(0, &stkb) {
+                    log_stor!(error "subkey could not be deleted: {}", e);
+                }
 
                 // From cache
                 self.remove_from_subkey_cache(stk);
@@ -355,8 +360,8 @@ where
         want_descriptor: bool,
     ) -> VeilidAPIResult<Option<SubkeyResult>> {
         // record from index
-        let Some((subkey_count, opt_descriptor)) = self.with_record(key, |record| {
-            (record.subkey_count(), if want_descriptor {
+        let Some((subkey_count, has_subkey, opt_descriptor)) = self.with_record(key, |record| {
+            (record.subkey_count(), record.stored_subkeys().contains(subkey), if want_descriptor {
                 Some(record.descriptor().clone())
             } else {
                 None
@@ -369,6 +374,15 @@ where
         // Check if the subkey is in range
         if subkey as usize >= subkey_count {
             apibail_invalid_argument!("subkey out of range", "subkey", subkey);
+        }
+
+        // See if we have this subkey stored
+        if !has_subkey {
+            // If not, return no value but maybe with descriptor
+            return Ok(Some(SubkeyResult {
+                value: None,
+                descriptor: opt_descriptor,
+            }));
         }
 
         // Get subkey table
@@ -386,28 +400,23 @@ where
                 descriptor: opt_descriptor,
             }));
         }
-        // If not in cache, try to pull from table store
-        if let Some(record_data) = subkey_table
+        // If not in cache, try to pull from table store if it is in our stored subkey set
+        let Some(record_data) = subkey_table
             .load_rkyv::<RecordData>(0, &stk.bytes())
             .await
-            .map_err(VeilidAPIError::internal)?
-        {
-            let out = record_data.signed_value_data().clone();
+            .map_err(VeilidAPIError::internal)? else {
+                apibail_internal!("failed to get subkey that was stored");
+            };
 
-            // Add to cache, do nothing with lru out
-            self.add_to_subkey_cache(stk, record_data);
+        let out = record_data.signed_value_data().clone();
 
-            return Ok(Some(SubkeyResult {
-                value: Some(out),
-                descriptor: opt_descriptor,
-            }));
-        };
+        // Add to cache, do nothing with lru out
+        self.add_to_subkey_cache(stk, record_data);
 
-        // Record was available, but subkey was not found, maybe descriptor gets returned
-        Ok(Some(SubkeyResult {
-            value: None,
+        return Ok(Some(SubkeyResult {
+            value: Some(out),
             descriptor: opt_descriptor,
-        }))
+        }));
     }
 
     pub async fn set_subkey(
@@ -492,6 +501,7 @@ where
 
         // Update record
         self.with_record_mut(key, |record| {
+            record.store_subkey(subkey);
             record.set_record_data_size(new_record_data_size);
         })
         .expect("record should still be here");
@@ -522,10 +532,11 @@ where
         out += "Record Index:\n";
         for (rik, rec) in &self.record_index {
             out += &format!(
-                "  {} @ {} len={}\n",
+                "  {} @ {} len={} subkeys={}\n",
                 rik.key.to_string(),
                 rec.last_touched().as_u64(),
-                rec.record_data_size()
+                rec.record_data_size(),
+                rec.stored_subkeys(),
             );
         }
         out += &format!("Subkey Cache Count: {}\n", self.subkey_cache.len());

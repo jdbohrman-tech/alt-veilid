@@ -320,7 +320,7 @@ class _JsonVeilidAPI(VeilidAPI):
         )
         return _JsonTableDb(self, db_id)
 
-    async def delete_table_db(self, name: str):
+    async def delete_table_db(self, name: str) -> bool:
         return raise_api_result(
             await self.send_ndjson_request(Operation.DELETE_TABLE_DB, name=name)
         )
@@ -411,19 +411,44 @@ def validate_rc_op(request: dict, response: dict):
 class _JsonRoutingContext(RoutingContext):
     api: _JsonVeilidAPI
     rc_id: int
+    done: bool
 
     def __init__(self, api: _JsonVeilidAPI, rc_id: int):
         self.api = api
         self.rc_id = rc_id
+        self.done = False
 
     def __del__(self):
-        self.api.send_one_way_ndjson_request(
-            Operation.ROUTING_CONTEXT,
-            rc_id=self.rc_id,
-            rc_op=RoutingContextOperation.RELEASE,
-        )
+        if not self.done:
+            # attempt to clean up server-side anyway
+            self.api.send_one_way_ndjson_request(
+                Operation.ROUTING_CONTEXT,
+                rc_id=self.rc_id,
+                rc_op=RoutingContextOperation.RELEASE
+            )
+            
+            # complain
+            raise AssertionError("Should have released routing context before dropping object")
 
-    async def with_privacy(self) -> Self:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.done:
+            await self.release()
+
+    async def release(self):
+        if self.done:
+            return
+        await self.api.send_ndjson_request(
+            Operation.ROUTING_CONTEXT,
+            validate=validate_rc_op,
+            rc_id=self.rc_id,
+            rc_op=RoutingContextOperation.RELEASE
+        )
+        self.done = True
+
+    async def with_privacy(self, release = True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -432,9 +457,11 @@ class _JsonRoutingContext(RoutingContext):
                 rc_op=RoutingContextOperation.WITH_PRIVACY,
             )
         )
+        if release:
+            await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def with_custom_privacy(self, stability: Stability) -> Self:
+    async def with_custom_privacy(self, stability: Stability, release = True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -444,9 +471,11 @@ class _JsonRoutingContext(RoutingContext):
                 stability=stability,
             )
         )
+        if release:
+            await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def with_sequencing(self, sequencing: Sequencing) -> Self:
+    async def with_sequencing(self, sequencing: Sequencing, release = True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -456,6 +485,8 @@ class _JsonRoutingContext(RoutingContext):
                 sequencing=sequencing,
             )
         )
+        if release:
+            await self.release()
         return self.__class__(self.api, new_rc_id)
 
     async def app_call(self, target: TypedKey | RouteId, request: bytes) -> bytes:
@@ -627,9 +658,27 @@ class _JsonTableDbTransaction(TableDbTransaction):
 
     def __del__(self):
         if not self.done:
-            raise AssertionError("Should have committed or rolled back transaction")
+            # attempt to clean up server-side anyway
+            self.api.send_one_way_ndjson_request(
+                Operation.TABLE_DB_TRANSACTION,
+                tx_id=self.tx_id,
+                tx_op=TableDbTransactionOperation.ROLLBACK,
+            )
+
+            # complain
+            raise AssertionError("Should have committed or rolled back transaction before dropping object")
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.done:
+            await self.rollback()
 
     async def commit(self):
+        if self.done:
+            raise AssertionError("Transaction is already done")
+    
         raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB_TRANSACTION,
@@ -641,17 +690,17 @@ class _JsonTableDbTransaction(TableDbTransaction):
         self.done = True
 
     async def rollback(self):
-        raise_api_result(
-            await self.api.send_ndjson_request(
-                Operation.TABLE_DB_TRANSACTION,
-                validate=validate_tx_op,
-                tx_id=self.tx_id,
-                tx_op=TableDbTransactionOperation.ROLLBACK,
-            )
+        if self.done:
+            raise AssertionError("Transaction is already done")
+        await self.api.send_ndjson_request(
+            Operation.TABLE_DB_TRANSACTION,
+            validate=validate_tx_op,
+            tx_id=self.tx_id,
+            tx_op=TableDbTransactionOperation.ROLLBACK,
         )
         self.done = True
 
-    async def store(self, col: int, key: bytes, value: bytes):
+    async def store(self, key: bytes, value: bytes, col: int = 0):
         await self.api.send_ndjson_request(
             Operation.TABLE_DB_TRANSACTION,
             validate=validate_tx_op,
@@ -662,7 +711,7 @@ class _JsonTableDbTransaction(TableDbTransaction):
             value=value,
         )
 
-    async def delete(self, col: int, key: bytes):
+    async def delete(self, key: bytes, col: int = 0):
         await self.api.send_ndjson_request(
             Operation.TABLE_DB_TRANSACTION,
             validate=validate_tx_op,
@@ -684,15 +733,44 @@ def validate_db_op(request: dict, response: dict):
 class _JsonTableDb(TableDb):
     api: _JsonVeilidAPI
     db_id: int
+    done: bool
 
     def __init__(self, api: _JsonVeilidAPI, db_id: int):
         self.api = api
         self.db_id = db_id
+        self.done = False
 
     def __del__(self):
-        self.api.send_one_way_ndjson_request(
-            Operation.TABLE_DB, db_id=self.db_id, rc_op=TableDbOperation.RELEASE
+        if not self.done:
+
+            # attempt to clean up server-side anyway
+            self.api.send_one_way_ndjson_request(
+                Operation.TABLE_DB,
+                db_id=self.db_id,
+                db_op=TableDbOperation.RELEASE
+            )
+
+            # complain
+            raise AssertionError("Should have released table db before dropping object")
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.done:
+            await self.release()
+
+    async def release(self):
+        if self.done:
+            return
+        await self.api.send_ndjson_request(
+            Operation.TABLE_DB,
+            validate=validate_db_op,
+            db_id=self.db_id,
+            db_op=TableDbOperation.RELEASE
         )
+        self.done = True
+
 
     async def get_column_count(self) -> int:
         return raise_api_result(
@@ -704,7 +782,7 @@ class _JsonTableDb(TableDb):
             )
         )
 
-    async def get_keys(self, col: int) -> list[bytes]:
+    async def get_keys(self, col: int = 0) -> list[bytes]:
         return list(
             map(
                 lambda x: urlsafe_b64decode_no_pad(x),
@@ -731,7 +809,7 @@ class _JsonTableDb(TableDb):
         )
         return _JsonTableDbTransaction(self.api, tx_id)
 
-    async def store(self, col: int, key: bytes, value: bytes):
+    async def store(self, key: bytes, value: bytes, col: int = 0):
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB,
@@ -744,7 +822,7 @@ class _JsonTableDb(TableDb):
             )
         )
 
-    async def load(self, col: int, key: bytes) -> Optional[bytes]:
+    async def load(self, key: bytes, col: int = 0) -> Optional[bytes]:
         res = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB,
@@ -757,7 +835,7 @@ class _JsonTableDb(TableDb):
         )
         return None if res is None else urlsafe_b64decode_no_pad(res)
 
-    async def delete(self, col: int, key: bytes) -> Optional[bytes]:
+    async def delete(self, key: bytes, col: int = 0) -> Optional[bytes]:
         res = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB,
@@ -782,17 +860,43 @@ def validate_cs_op(request: dict, response: dict):
 class _JsonCryptoSystem(CryptoSystem):
     api: _JsonVeilidAPI
     cs_id: int
+    done: bool
 
     def __init__(self, api: _JsonVeilidAPI, cs_id: int):
         self.api = api
         self.cs_id = cs_id
+        self.done = False
 
     def __del__(self):
-        self.api.send_one_way_ndjson_request(
+        if not self.done:
+
+            # attempt to clean up server-side anyway
+            self.api.send_one_way_ndjson_request(
+                Operation.CRYPTO_SYSTEM,
+                cs_id=self.cs_id,
+                cs_op=CryptoSystemOperation.RELEASE
+            )
+
+            # complain
+            raise AssertionError("Should have released crypto system before dropping object")
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.done:
+            await self.release()
+
+    async def release(self):
+        if self.done:
+            return
+        await self.api.send_ndjson_request(
             Operation.CRYPTO_SYSTEM,
+            validate=validate_cs_op,
             cs_id=self.cs_id,
-            cs_op=CryptoSystemOperation.RELEASE,
+            cs_op=CryptoSystemOperation.RELEASE
         )
+        self.done = True
 
     async def cached_dh(self, key: PublicKey, secret: SecretKey) -> SharedSecret:
         return SharedSecret(
