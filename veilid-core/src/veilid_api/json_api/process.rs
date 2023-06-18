@@ -405,12 +405,15 @@ impl JsonRequestProcessor {
                 TableDbTransactionResponseOp::Rollback {}
             }
             TableDbTransactionRequestOp::Store { col, key, value } => {
-                table_db_transaction.store(col, &key, &value);
-                TableDbTransactionResponseOp::Store {}
+                TableDbTransactionResponseOp::Store {
+                    result: to_json_api_result(table_db_transaction.store(col, &key, &value)),
+                }
             }
+
             TableDbTransactionRequestOp::Delete { col, key } => {
-                table_db_transaction.delete(col, &key);
-                TableDbTransactionResponseOp::Delete {}
+                TableDbTransactionResponseOp::Delete {
+                    result: to_json_api_result(table_db_transaction.delete(col, &key)),
+                }
             }
         };
         TableDbTransactionResponse {

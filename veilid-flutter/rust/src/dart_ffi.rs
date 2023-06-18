@@ -884,7 +884,7 @@ pub extern "C" fn table_db_transaction_store(port: i64, id: u32, col: u32, key: 
             tdbt.clone()
         };
         
-        tdbt.store(col, &key, &value);
+        tdbt.store(col, &key, &value)?;
         APIRESULT_VOID
     });
 }
@@ -908,7 +908,7 @@ pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key:
             tdbt.clone()
         };
         
-        tdbt.delete(col, &key);
+        tdbt.delete(col, &key)?;
         APIRESULT_VOID
     });
 }

@@ -7,15 +7,19 @@ from .state import VeilidState
 
 class RoutingContext(ABC):
     @abstractmethod
-    async def with_privacy(self) -> Self:
+    async def release(self):
         pass
 
     @abstractmethod
-    async def with_custom_privacy(self, stability: types.Stability) -> Self:
+    async def with_privacy(self, release = True) -> Self:
         pass
 
     @abstractmethod
-    async def with_sequencing(self, sequencing: types.Sequencing) -> Self:
+    async def with_custom_privacy(self, stability: types.Stability, release = True) -> Self:
+        pass
+
+    @abstractmethod
+    async def with_sequencing(self, sequencing: types.Sequencing, release = True) -> Self:
         pass
 
     @abstractmethod
@@ -89,21 +93,25 @@ class TableDbTransaction(ABC):
         pass
 
     @abstractmethod
-    async def store(self, col: int, key: bytes, value: bytes):
+    async def store(self, key: bytes, value: bytes, col: int = 0):
         pass
 
     @abstractmethod
-    async def delete(self, col: int, key: bytes):
+    async def delete(self, key: bytes, col: int = 0):
         pass
 
 
 class TableDb(ABC):
     @abstractmethod
+    async def release(self):
+        pass
+
+    @abstractmethod
     async def get_column_count(self) -> int:
         pass
 
     @abstractmethod
-    async def get_keys(self, col: int) -> list[bytes]:
+    async def get_keys(self, col: int = 0) -> list[bytes]:
         pass
 
     @abstractmethod
@@ -111,19 +119,23 @@ class TableDb(ABC):
         pass
 
     @abstractmethod
-    async def store(self, col: int, key: bytes, value: bytes):
+    async def store(self, key: bytes, value: bytes, col: int = 0):
         pass
 
     @abstractmethod
-    async def load(self, col: int, key: bytes) -> Optional[bytes]:
+    async def load(self, key: bytes, col: int = 0) -> Optional[bytes]:
         pass
 
     @abstractmethod
-    async def delete(self, col: int, key: bytes) -> Optional[bytes]:
+    async def delete(self, key: bytes, col: int = 0) -> Optional[bytes]:
         pass
 
 
 class CryptoSystem(ABC):
+    @abstractmethod
+    async def release(self):
+        pass
+
     @abstractmethod
     async def cached_dh(
         self, key: types.PublicKey, secret: types.SecretKey
@@ -284,7 +296,7 @@ class VeilidAPI(ABC):
         pass
 
     @abstractmethod
-    async def delete_table_db(self, name: str):
+    async def delete_table_db(self, name: str) -> bool:
         pass
 
     @abstractmethod

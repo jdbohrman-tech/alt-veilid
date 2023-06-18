@@ -132,6 +132,41 @@ pub async fn test_store_delete_load(ts: TableStore) {
     assert_eq!(db.load(2, b"baz").await.unwrap(), Some(b"QWERTY".to_vec()));
 }
 
+pub async fn test_transaction(ts: TableStore) {
+    trace!("test_transaction");
+
+    let _ = ts.delete("test");
+    let db = ts.open("test", 3).await.expect("should have opened");
+    assert!(
+        ts.delete("test").await.is_err(),
+        "should fail because file is opened"
+    );
+
+    let tx = db.transact();
+    assert!(tx.store(0, b"aaa", b"a-value").is_ok());
+    assert!(tx.store_json(1, b"bbb", &"b-value".to_owned()).is_ok());
+    assert!(tx.store_rkyv(2, b"ccc", &"c-value".to_owned()).is_ok());
+    assert!(tx.store(3, b"ddd", b"d-value").is_err());
+    assert!(tx.store(0, b"ddd", b"d-value").is_ok());
+    assert!(tx.delete(0, b"ddd").is_ok());
+    assert!(tx.commit().await.is_ok());
+
+    let tx = db.transact();
+    assert!(tx.delete(2, b"ccc").is_ok());
+    tx.rollback();
+
+    assert_eq!(db.load(0, b"aaa").await, Ok(Some(b"a-value".to_vec())));
+    assert_eq!(
+        db.load_json::<String>(1, b"bbb").await,
+        Ok(Some("b-value".to_owned()))
+    );
+    assert_eq!(
+        db.load_rkyv::<String>(2, b"ccc").await,
+        Ok(Some("c-value".to_owned()))
+    );
+    assert_eq!(db.load(0, b"ddd").await, Ok(None));
+}
+
 pub async fn test_rkyv(vcrypto: CryptoSystemVersion, ts: TableStore) {
     trace!("test_rkyv");
 
@@ -268,6 +303,7 @@ pub async fn test_all() {
         test_protect_unprotect(vcrypto.clone(), ts.clone()).await;
         test_delete_open_delete(ts.clone()).await;
         test_store_delete_load(ts.clone()).await;
+        test_transaction(ts.clone()).await;
         test_rkyv(vcrypto.clone(), ts.clone()).await;
         test_json(vcrypto, ts.clone()).await;
         let _ = ts.delete("test").await;

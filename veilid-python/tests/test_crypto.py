@@ -3,29 +3,26 @@
 import pytest
 import veilid
 from veilid.api import CryptoSystem
+import gc
 
 
 @pytest.mark.asyncio
-async def test_best_crypto_system(api_connection):
-    bcs: CryptoSystem = await api_connection.best_crypto_system()
-
-    assert await bcs.default_salt_length() == 16
-
+async def test_best_crypto_system(api_connection: veilid.VeilidAPI):
+    cs: CryptoSystem = await api_connection.best_crypto_system()
+    async with cs:
+        assert await cs.default_salt_length() == 16
 
 @pytest.mark.asyncio
-async def test_get_crypto_system(api_connection):
+async def test_get_crypto_system(api_connection: veilid.VeilidAPI):
     cs: CryptoSystem = await api_connection.get_crypto_system(
         veilid.CryptoKind.CRYPTO_KIND_VLD0
     )
-
-    assert await cs.default_salt_length() == 16
-
-    # clean up handle early
-    del cs
-
+    async with cs:
+        assert await cs.default_salt_length() == 16
+        
 
 @pytest.mark.asyncio
-async def test_get_crypto_system_invalid(api_connection):
+async def test_get_crypto_system_invalid(api_connection: veilid.VeilidAPI):
     with pytest.raises(veilid.VeilidAPIErrorInvalidArgument) as exc:
         await api_connection.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_NONE)
 
@@ -35,15 +32,17 @@ async def test_get_crypto_system_invalid(api_connection):
 
 
 @pytest.mark.asyncio
-async def test_hash_and_verify_password(api_connection):
-    bcs = await api_connection.best_crypto_system()
-    nonce = await bcs.random_nonce()
-    salt = nonce.to_bytes()
+async def test_hash_and_verify_password(api_connection: veilid.VeilidAPI):
+    cs = await api_connection.best_crypto_system()
+    async with cs:
+        nonce = await cs.random_nonce()
+        salt = nonce.to_bytes()
 
-    # Password match
-    phash = await bcs.hash_password(b"abc123", salt)
-    assert await bcs.verify_password(b"abc123", phash)
+        # Password match
+        phash = await cs.hash_password(b"abc123", salt)
+        assert await cs.verify_password(b"abc123", phash)
 
-    # Password mismatch
-    phash2 = await bcs.hash_password(b"abc1234", salt)
-    assert not await bcs.verify_password(b"abc12345", phash)
+        # Password mismatch
+        phash2 = await cs.hash_password(b"abc1234", salt)
+        assert not await cs.verify_password(b"abc12345", phash)
+
