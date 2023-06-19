@@ -53,7 +53,8 @@ class _JsonVeilidAPI(VeilidAPI):
     writer: Optional[asyncio.StreamWriter]
     update_callback: Callable[[VeilidUpdate], Awaitable]
     handle_recv_messages_task: Optional[asyncio.Task]
-    validate_schemas: bool
+    validate_schema: bool
+    done: bool
     # Shared Mutable State
     lock: asyncio.Lock
     next_id: int
@@ -70,16 +71,11 @@ class _JsonVeilidAPI(VeilidAPI):
         self.writer = writer
         self.update_callback = update_callback
         self.validate_schema = validate_schema
+        self.done = False
         self.handle_recv_messages_task = None
         self.lock = asyncio.Lock()
         self.next_id = 1
         self.in_flight_requests = dict()
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *excinfo):
-        await self.close()
 
     async def _cleanup_close(self):
         await self.lock.acquire()
@@ -96,7 +92,10 @@ class _JsonVeilidAPI(VeilidAPI):
         finally:
             self.lock.release()
 
-    async def close(self):
+    def is_done(self) -> bool:
+        return self.done
+
+    async def release(self):
         # Take the task
         await self.lock.acquire()
         try:
@@ -112,6 +111,7 @@ class _JsonVeilidAPI(VeilidAPI):
             await handle_recv_messages_task
         except asyncio.CancelledError:
             pass
+        self.done = True
 
     @classmethod
     async def connect(
@@ -430,12 +430,8 @@ class _JsonRoutingContext(RoutingContext):
             # complain
             raise AssertionError("Should have released routing context before dropping object")
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *excinfo):
-        if not self.done:
-            await self.release()
+    def is_done(self) -> bool:
+        return self.done
 
     async def release(self):
         if self.done:
@@ -668,12 +664,8 @@ class _JsonTableDbTransaction(TableDbTransaction):
             # complain
             raise AssertionError("Should have committed or rolled back transaction before dropping object")
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *excinfo):
-        if not self.done:
-            await self.rollback()
+    def is_done(self) -> bool:
+        return self.done
 
     async def commit(self):
         if self.done:
@@ -753,12 +745,8 @@ class _JsonTableDb(TableDb):
             # complain
             raise AssertionError("Should have released table db before dropping object")
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *excinfo):
-        if not self.done:
-            await self.release()
+    def is_done(self) -> bool:
+        return self.done
 
     async def release(self):
         if self.done:
@@ -880,13 +868,9 @@ class _JsonCryptoSystem(CryptoSystem):
             # complain
             raise AssertionError("Should have released crypto system before dropping object")
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *excinfo):
-        if not self.done:
-            await self.release()
-
+    def is_done(self) -> bool:
+        return self.done
+    
     async def release(self):
         if self.done:
             return

@@ -428,7 +428,7 @@ impl TableStore {
     }
 
     pub(crate) fn on_table_db_drop(&self, table: String) {
-        log_rtab!(debug "dropping table db: {}", table);
+        log_rtab!("dropping table db: {}", table);
         let mut inner = self.inner.lock();
         if inner.opened.remove(&table).is_none() {
             unreachable!("should have removed an item");
@@ -557,15 +557,15 @@ impl TableStore {
         let deleted = self.table_store_driver.delete(&table_name).await?;
         if !deleted {
             // Table missing? Just remove name
-            self.name_delete(&name)
-                .await
-                .expect("failed to delete name");
             warn!(
                 "table existed in name table but not in storage: {} : {}",
                 name, table_name
             );
-            return Ok(false);
         }
+        self.name_delete(&name)
+            .await
+            .expect("failed to delete name");
+        self.flush().await;
 
         Ok(true)
     }
@@ -581,6 +581,8 @@ impl TableStore {
             }
         }
         trace!("TableStore::rename {} -> {}", old_name, new_name);
-        self.name_rename(old_name, new_name).await
+        self.name_rename(old_name, new_name).await?;
+        self.flush().await;
+        Ok(())
     }
 }

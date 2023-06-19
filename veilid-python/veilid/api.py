@@ -6,6 +6,18 @@ from .state import VeilidState
 
 
 class RoutingContext(ABC):
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.is_done():
+            await self.release()
+
+    @abstractmethod
+    def is_done(self) -> bool:
+        pass
+
     @abstractmethod
     async def release(self):
         pass
@@ -84,6 +96,17 @@ class RoutingContext(ABC):
 
 
 class TableDbTransaction(ABC):
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.is_done():
+            await self.rollback()
+
+    @abstractmethod
+    def is_done(self) -> bool:
+        pass
+
     @abstractmethod
     async def commit(self):
         pass
@@ -102,6 +125,17 @@ class TableDbTransaction(ABC):
 
 
 class TableDb(ABC):
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.is_done():
+            await self.release()
+
+    @abstractmethod
+    def is_done(self) -> bool:
+        pass
+
     @abstractmethod
     async def release(self):
         pass
@@ -132,6 +166,18 @@ class TableDb(ABC):
 
 
 class CryptoSystem(ABC):
+   
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.is_done():
+            await self.release()
+
+    @abstractmethod
+    def is_done(self) -> bool:
+        pass
+
     @abstractmethod
     async def release(self):
         pass
@@ -246,6 +292,21 @@ class CryptoSystem(ABC):
 
 
 class VeilidAPI(ABC):
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *excinfo):
+        if not self.is_done():
+            await self.release()
+
+    @abstractmethod
+    def is_done(self) -> bool:
+        pass
+
+    @abstractmethod
+    async def release(self):
+        pass
+
     @abstractmethod
     async def control(self, args: list[str]) -> str:
         pass
