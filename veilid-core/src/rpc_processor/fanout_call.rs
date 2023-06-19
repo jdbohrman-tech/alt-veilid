@@ -11,6 +11,21 @@ where
 
 pub type FanoutCallReturnType = Result<Option<Vec<PeerInfo>>, RPCError>;
 
+/// Contains the logic for generically searing the Veilid routing table for a set of nodes and applying an
+/// RPC operation that eventually converges on satisfactory result, or times out and returns some
+/// unsatisfactory but acceptable result. Or something.
+///
+/// The algorithm starts by creating a 'closest_nodes' working set of the nodes closest to some node id currently in our routing table
+/// If has pluggable callbacks:
+///  * 'check_done' - for checking for a termination condition
+///  * 'call_routine' - routine to call for each node that performs an operation and may add more nodes to our closest_nodes set
+/// The algorithm is parameterized by:
+///  * 'node_count' - the number of nodes to keep in the closest_nodes set
+///  * 'fanout' - the number of concurrent calls being processed at the same time
+/// The algorithm returns early if 'check_done' returns some value, or if an error is found during the process.
+/// If the algorithm times out, a Timeout result is returned, however operations will still have been performed and a
+/// timeout is not necessarily indicative of an algorithmic 'failure', just that no definitive stopping condition was found
+/// in the given time
 pub struct FanoutCall<R, F, C, D>
 where
     R: Unpin,
@@ -68,6 +83,7 @@ where
         let mut ctx = self.context.lock();
 
         for nn in new_nodes {
+            // Make sure the new node isnt already in the list
             let mut dup = false;
             for cn in &ctx.closest_nodes {
                 if cn.same_entry(&nn) {
@@ -75,7 +91,12 @@ where
                 }
             }
             if !dup {
-                ctx.closest_nodes.push(nn.clone());
+                // Add the new node if we haven't already called it before (only one call per node ever)
+                if let Some(key) = nn.node_ids().get(self.crypto_kind) {
+                    if !ctx.called_nodes.contains(&key) {
+                        ctx.closest_nodes.push(nn.clone());
+                    }
+                }
             }
         }
 
@@ -145,7 +166,7 @@ where
                     self.clone().add_new_nodes(new_nodes);
                 }
                 Ok(None) => {
-                    // Call failed, remove the node so it isn't included in the output
+                    // Call failed, remove the node so it isn't considered as part of the fanout
                     self.clone().remove_node(next_node);
                 }
                 Err(e) => {
