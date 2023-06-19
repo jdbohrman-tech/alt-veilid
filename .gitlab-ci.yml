@@ -6,7 +6,7 @@ variables:
 
 stages:
   - linux-amd64
-  - linux-arm64
+#  - linux-arm64
 
 before_script:
   - earthly bootstrap
@@ -24,15 +24,15 @@ earthly-amd64:
     - echo "disabled for now"
     # - earthly --ci -P +package-linux-amd64
 
-earthly-arm64:
-  stage: linux-arm64
-  only:
-    - main
-    - merge_requests
-  image: earthly/earthly:v0.6.30
-  tags:
-    - linux
-    - amd64
-  script:
-    - echo "disabled for now"
-    # - earthly --ci -P +package-linux-arm64
+#earthly-arm64:
+#  stage: linux-arm64
+#  only:
+#    - main
+#    - merge_requests
+#  image: earthly/earthly:v0.6.30
+#  tags:
+#    - linux
+#    - amd64
+#  script:
+#   - echo "disabled for now"
+#    # - earthly --ci -P +package-linux-arm64
