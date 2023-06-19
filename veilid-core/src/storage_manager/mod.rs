@@ -233,8 +233,11 @@ impl StorageManager {
         force_refresh: bool,
     ) -> VeilidAPIResult<Option<ValueData>> {
         let mut inner = self.lock().await?;
-        let Some(opened_record) = inner.opened_records.remove(&key) else {
-            apibail_generic!("record not open");
+        let safety_selection = {
+            let Some(opened_record) = inner.opened_records.get(&key) else {
+                apibail_generic!("record not open");
+            };
+            opened_record.safety_selection()
         };
 
         // See if the requested subkey is our local record store
@@ -269,7 +272,7 @@ impl StorageManager {
                 rpc_processor,
                 key,
                 subkey,
-                opened_record.safety_selection(),
+                safety_selection,
                 last_subkey_result,
             )
             .await?;
@@ -307,12 +310,18 @@ impl StorageManager {
             apibail_generic!("unsupported cryptosystem");
         };
 
-        let Some(opened_record) = inner.opened_records.remove(&key) else {
-            apibail_generic!("record not open");
+        let (safety_selection, opt_writer) = {
+            let Some(opened_record) = inner.opened_records.get(&key) else {
+                apibail_generic!("record not open");
+            };
+            (
+                opened_record.safety_selection(),
+                opened_record.writer().cloned(),
+            )
         };
 
         // If we don't have a writer then we can't write
-        let Some(writer) = opened_record.writer().cloned() else {
+        let Some(writer) = opt_writer else {
             apibail_generic!("value is not writable");
         };
 
@@ -371,7 +380,7 @@ impl StorageManager {
                 rpc_processor,
                 key,
                 subkey,
-                opened_record.safety_selection(),
+                safety_selection,
                 signed_value_data,
                 descriptor,
             )

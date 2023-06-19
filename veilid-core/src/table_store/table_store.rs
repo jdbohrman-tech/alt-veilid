@@ -428,7 +428,7 @@ impl TableStore {
     }
 
     pub(crate) fn on_table_db_drop(&self, table: String) {
-        log_rtab!(debug "dropping table db: {}", table);
+        log_rtab!("dropping table db: {}", table);
         let mut inner = self.inner.lock();
         if inner.opened.remove(&table).is_none() {
             unreachable!("should have removed an item");

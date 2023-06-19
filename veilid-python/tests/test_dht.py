@@ -1,13 +1,13 @@
-# Routing context veilid tests
+# # Routing context veilid tests
 
-import veilid
-import pytest
-import asyncio
-import json
-from . import *
+# import veilid
+# import pytest
+# import asyncio
+# import json
+# from . import *
 
-##################################################################
-BOGUS_KEY = veilid.TypedKey.from_value(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.PublicKey.from_bytes(b'                                '))
+# ##################################################################
+# BOGUS_KEY = veilid.TypedKey.from_value(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.PublicKey.from_bytes(b'                                '))
 
 # @pytest.mark.asyncio
 # async def test_get_dht_value_unopened(api_connection: veilid.VeilidAPI):
@@ -46,6 +46,29 @@ BOGUS_KEY = veilid.TypedKey.from_value(veilid.CryptoKind.CRYPTO_KIND_VLD0, veili
 #         await rc.close_dht_record(rec.key)
 #         await rc.delete_dht_record(rec.key)
 
-# xxx make tests for tabledb api first
-# xxx then make a test that creates a record, stores it in a table
-# xxx then make another test that gets the keys from the table and closes/deletes them
+# @pytest.mark.asyncio
+# async def test_get_dht_value_nonexistent(api_connection: veilid.VeilidAPI):
+#     rc = await api_connection.new_routing_context()
+#     async with rc:
+#         rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(1))
+#         assert await rc.get_dht_value(rec.key, 0, False) == None
+#         await rc.close_dht_record(rec.key)
+#         await rc.delete_dht_record(rec.key)
+
+# @pytest.mark.asyncio
+# async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
+#     rc = await api_connection.new_routing_context()
+#     async with rc:
+#         rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(1))
+        
+#         vd = await rc.set_dht_value(rec.key, 0, b"BLAH BLAH BLAH")
+#         assert vd != None
+        
+#         vd2 = await rc.get_dht_value(rec.key, 0, False)
+#         assert vd2 != None
+        
+#         assert vd == vd2
+
+#         await rc.close_dht_record(rec.key)
+#         await rc.delete_dht_record(rec.key)
+
