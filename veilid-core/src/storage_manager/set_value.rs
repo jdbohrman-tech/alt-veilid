@@ -71,7 +71,7 @@ impl StorageManager {
                     )
                     .await?;
                 let sva = network_result_value_or_log!(vres => {
-                    // Any other failures, just try the next node
+                    // Any other failures, just try the next node and pretend this one never happened
                     return Ok(None);
                 });
 
@@ -88,8 +88,7 @@ impl StorageManager {
                             subkey,
                             value.value_data(),
                         ) {
-                            // Validation failed, ignore this value
-                            // Move to the next node
+                            // Validation failed, ignore this value and pretend we never saw this node
                             return Ok(None);
                         }
 
@@ -104,7 +103,7 @@ impl StorageManager {
                         } else {
                             // If the sequence number is older, or an equal sequence number, 
                             // node should have not returned a value here.
-                            // Skip this node's closer list because it is misbehaving
+                            // Skip this node and it's closer list because it is misbehaving
                             return Ok(None);
                         }
                     }

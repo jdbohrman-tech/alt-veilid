@@ -21,7 +21,8 @@ earthly-amd64:
     - linux
     - amd64
   script:
-    - earthly --ci -P +package-linux-amd64
+    - echo "disabled for now"
+    # - earthly --ci -P +package-linux-amd64
 
 #earthly-arm64:
 #  stage: linux-arm64
@@ -33,4 +34,5 @@ earthly-amd64:
 #    - linux
 #    - amd64
 #  script:
-#    - earthly --ci -P +package-linux-arm64
+#   - echo "disabled for now"
+#    # - earthly --ci -P +package-linux-arm64

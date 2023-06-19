@@ -2576,7 +2576,7 @@ dependencies = [
 
 [[package]]
 name = "igd"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "attohttpc",
  "bytes 1.4.0",
