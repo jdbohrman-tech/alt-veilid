@@ -88,6 +88,7 @@ where
             for cn in &ctx.closest_nodes {
                 if cn.same_entry(&nn) {
                     dup = true;
+                    break;
                 }
             }
             if !dup {
@@ -125,6 +126,7 @@ where
                     // New fanout call candidate found
                     next_node = Some(cn.clone());
                     ctx.called_nodes.add(key);
+                    break;
                 }
             }
         }

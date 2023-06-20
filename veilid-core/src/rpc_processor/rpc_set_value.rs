@@ -14,7 +14,6 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn rpc_call_set_value(
         self,
         dest: Destination,
@@ -25,18 +24,22 @@ impl RPCProcessor {
         send_descriptor: bool,
     ) -> Result<NetworkResult<Answer<SetValueAnswer>>, RPCError> {
         // Ensure destination never has a private route
-        if matches!(
-            dest,
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_selection: _
-            }
-        ) {
+        // and get the target noderef so we can validate the response
+        let Some(target) = dest.target() else {
             return Err(RPCError::internal(
                 "Never send set value requests over private routes",
             ));
-        }
+        };
 
+        // Get the target node id
+        let Some(vcrypto) = self.crypto.get(key.kind) else {
+            return Err(RPCError::internal("unsupported cryptosystem"));
+        };
+        let Some(target_node_id) = target.node_ids().get(key.kind) else {
+            return Err(RPCError::internal("No node id for crypto kind"));
+        };
+
+        // Send the setvalue question
         let set_value_q = RPCOperationSetValueQ::new(
             key,
             subkey,
@@ -51,17 +54,11 @@ impl RPCProcessor {
             network_result_try!(self.get_destination_respond_to(&dest)?),
             RPCQuestionDetail::SetValueQ(set_value_q),
         );
-        let Some(vcrypto) = self.crypto.get(key.kind) else {
-            return Err(RPCError::internal("unsupported cryptosystem"));
-        };
-
-        // Send the setvalue question
         let question_context = QuestionContext::SetValue(ValidateSetValueContext {
             descriptor,
             subkey,
-            vcrypto,
+            vcrypto: vcrypto.clone(),
         });
-
         let waitable_reply = network_result_try!(
             self.question(dest, question, Some(question_context))
                 .await?
@@ -78,12 +75,28 @@ impl RPCProcessor {
         let set_value_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::SetValueA(a) => a,
-                _ => return Err(RPCError::invalid_format("not a setvalue answer")),
+                _ => return Ok(NetworkResult::invalid_message("not a setvalue answer")),
             },
-            _ => return Err(RPCError::invalid_format("not an answer")),
+            _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
         let (set, value, peers) = set_value_a.destructure();
+
+        // Validate peers returned are, in fact, closer to the key than the node we sent this to
+        let valid = match self.verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+            Ok(v) => v,
+            Err(e) => {
+                if matches!(e, RPCError::Internal(_)) {
+                    return Err(e);
+                }
+                return Ok(NetworkResult::invalid_message(
+                    "missing cryptosystem in peers node ids",
+                ));
+            }
+        };
+        if !valid {
+            return Ok(NetworkResult::invalid_message("non-closer peers returned"));
+        }
 
         Ok(NetworkResult::value(Answer::new(
             latency,

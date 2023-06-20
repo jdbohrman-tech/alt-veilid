@@ -1,7 +1,7 @@
 use super::*;
 
-/// The context of the do_get_value operation
-struct DoSetValueContext {
+/// The context of the outbound_set_value operation
+struct OutboundSetValueContext {
     /// The latest value of the subkey, may be the value passed in
     pub value: SignedValueData,
     /// The consensus count for the value we have received
@@ -37,7 +37,7 @@ impl StorageManager {
 
         // Make do-set-value answer context
         let schema = descriptor.schema()?;
-        let context = Arc::new(Mutex::new(DoSetValueContext {
+        let context = Arc::new(Mutex::new(OutboundSetValueContext {
             value,
             value_count: 0,
             schema,

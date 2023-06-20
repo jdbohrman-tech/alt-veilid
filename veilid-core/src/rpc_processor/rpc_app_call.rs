@@ -29,9 +29,9 @@ impl RPCProcessor {
         let app_call_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::AppCallA(a) => a,
-                _ => return Err(RPCError::invalid_format("not an appcall answer")),
+                _ => return Ok(NetworkResult::invalid_message("not an appcall answer")),
             },
-            _ => return Err(RPCError::invalid_format("not an answer")),
+            _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
         let a_message = app_call_a.destructure();
