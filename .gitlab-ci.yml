@@ -31,7 +31,7 @@ test_amd64:
   needs:
     - job: build_amd64
   only:
-    - TC/CICD-hacking
+    - main
   tags:
     - main
     - amd64
