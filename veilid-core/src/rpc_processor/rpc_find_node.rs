@@ -46,17 +46,17 @@ impl RPCProcessor {
         let find_node_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::FindNodeA(a) => a,
-                _ => return Err(RPCError::invalid_format("not a find_node answer")),
+                _ => return Ok(NetworkResult::invalid_message("not a find_node answer")),
             },
-            _ => return Err(RPCError::invalid_format("not an answer")),
+            _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
         // Verify peers are in the correct peer scope
         let peers = find_node_a.destructure();
 
         for peer_info in &peers {
-            if !self.filter_node_info(RoutingDomain::PublicInternet, peer_info.signed_node_info()) {
-                return Err(RPCError::invalid_format(
+            if !self.verify_node_info(RoutingDomain::PublicInternet, peer_info.signed_node_info()) {
+                return Ok(NetworkResult::invalid_message(
                     "find_node response has invalid peer scope",
                 ));
             }

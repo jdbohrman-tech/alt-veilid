@@ -1,7 +1,7 @@
 use super::*;
 
-/// The context of the do_get_value operation
-struct DoGetValueContext {
+/// The context of the outbound_get_value operation
+struct OutboundGetValueContext {
     /// The latest value of the subkey, may be the value passed in
     pub value: Option<SignedValueData>,
     /// The consensus count for the value we have received
@@ -42,7 +42,7 @@ impl StorageManager {
         } else {
             None
         };
-        let context = Arc::new(Mutex::new(DoGetValueContext {
+        let context = Arc::new(Mutex::new(OutboundGetValueContext {
             value: last_subkey_result.value,
             value_count: 0,
             descriptor: last_subkey_result.descriptor.clone(),

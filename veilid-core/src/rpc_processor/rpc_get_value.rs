@@ -24,32 +24,32 @@ impl RPCProcessor {
         last_descriptor: Option<SignedValueDescriptor>,
     ) -> Result<NetworkResult<Answer<GetValueAnswer>>, RPCError> {
         // Ensure destination never has a private route
-        if matches!(
-            dest,
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_selection: _
-            }
-        ) {
+        // and get the target noderef so we can validate the response
+        let Some(target) = dest.target() else {
             return Err(RPCError::internal(
-                "Never send get value requests over private routes",
+                "Never send set value requests over private routes",
             ));
-        }
+        };
 
+        // Get the target node id
+        let Some(vcrypto) = self.crypto.get(key.kind) else {
+            return Err(RPCError::internal("unsupported cryptosystem"));
+        };
+        let Some(target_node_id) = target.node_ids().get(key.kind) else {
+            return Err(RPCError::internal("No node id for crypto kind"));
+        };
+
+        // Send the getvalue question
         let get_value_q = RPCOperationGetValueQ::new(key, subkey, last_descriptor.is_none());
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             RPCQuestionDetail::GetValueQ(get_value_q),
         );
-        let Some(vcrypto) = self.crypto.get(key.kind) else {
-            return Err(RPCError::internal("unsupported cryptosystem"));
-        };
 
-        // Send the getvalue question
         let question_context = QuestionContext::GetValue(ValidateGetValueContext {
             last_descriptor,
             subkey,
-            vcrypto,
+            vcrypto: vcrypto.clone(),
         });
 
         let waitable_reply = network_result_try!(
@@ -68,12 +68,26 @@ impl RPCProcessor {
         let get_value_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::GetValueA(a) => a,
-                _ => return Err(RPCError::invalid_format("not a getvalue answer")),
+                _ => return Ok(NetworkResult::invalid_message("not a getvalue answer")),
             },
-            _ => return Err(RPCError::invalid_format("not an answer")),
+            _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
         let (value, peers, descriptor) = get_value_a.destructure();
+
+        // Validate peers returned are, in fact, closer to the key than the node we sent this to
+        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+            Ok(v) => v,
+            Err(e) => {
+                return Ok(NetworkResult::invalid_message(format!(
+                    "missing cryptosystem in peers node ids: {}",
+                    e
+                )));
+            }
+        };
+        if !valid {
+            return Ok(NetworkResult::invalid_message("non-closer peers returned"));
+        }
 
         Ok(NetworkResult::value(Answer::new(
             latency,

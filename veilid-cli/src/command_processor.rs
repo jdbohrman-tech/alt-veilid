@@ -105,6 +105,7 @@ impl CommandProcessor {
     pub fn cmd_help(&self, _rest: Option<String>, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_help");
         self.ui_sender().add_node_event(
+            Level::Info,
             r#"Commands:
 exit/quit           - exit the client
 disconnect          - disconnect the client from the Veilid node 
@@ -186,8 +187,14 @@ reply               - reply to an AppCall not handled directly by the server
         let ui = self.ui_sender();
         spawn_detached_local(async move {
             match capi.server_debug(rest.unwrap_or_default()).await {
-                Ok(output) => ui.display_string_dialog("Debug Output", output, callback),
-                Err(e) => ui.display_string_dialog("Debug Error", e.to_string(), callback),
+                Ok(output) => {
+                    ui.add_node_event(Level::Debug, output);
+                    ui.send_callback(callback);
+                }
+                Err(e) => {
+                    ui.add_node_event(Level::Error, e.to_string());
+                    ui.send_callback(callback);
+                }
             }
         });
         Ok(())
@@ -206,7 +213,7 @@ reply               - reply to an AppCall not handled directly by the server
             let log_level = match convert_loglevel(&rest.unwrap_or_default()) {
                 Ok(v) => v,
                 Err(e) => {
-                    ui.add_node_event(format!("Failed to change log level: {}", e));
+                    ui.add_node_event(Level::Error, format!("Failed to change log level: {}", e));
                     ui.send_callback(callback);
                     return;
                 }
@@ -239,7 +246,7 @@ reply               - reply to an AppCall not handled directly by the server
             let (id, msg) = if let Some(second) = second {
                 let id = match u64::from_str(&first) {
                     Err(e) => {
-                        ui.add_node_event(format!("invalid appcall id: {}", e));
+                        ui.add_node_event(Level::Error, format!("invalid appcall id: {}", e));
                         ui.send_callback(callback);
                         return;
                     }
@@ -249,7 +256,7 @@ reply               - reply to an AppCall not handled directly by the server
             } else {
                 let id = match some_last_id {
                     None => {
-                        ui.add_node_event("must specify last call id".to_owned());
+                        ui.add_node_event(Level::Error, "must specify last call id".to_owned());
                         ui.send_callback(callback);
                         return;
                     }
@@ -260,7 +267,7 @@ reply               - reply to an AppCall not handled directly by the server
             let msg = if msg[0..1] == "#".to_owned() {
                 match hex::decode(msg[1..].as_bytes().to_vec()) {
                     Err(e) => {
-                        ui.add_node_event(format!("invalid hex message: {}", e));
+                        ui.add_node_event(Level::Error, format!("invalid hex message: {}", e));
                         ui.send_callback(callback);
                         return;
                     }
@@ -272,7 +279,10 @@ reply               - reply to an AppCall not handled directly by the server
             let msglen = msg.len();
             match capi.server_appcall_reply(id, msg).await {
                 Ok(()) => {
-                    ui.add_node_event(format!("reply sent to {} : {} bytes", id, msglen));
+                    ui.add_node_event(
+                        Level::Info,
+                        format!("reply sent to {} : {} bytes", id, msglen),
+                    );
                     ui.send_callback(callback);
                     return;
                 }
@@ -383,8 +393,8 @@ reply               - reply to an AppCall not handled directly by the server
     // calls into ui
     ////////////////////////////////////////////
 
-    pub fn log_message(&self, message: String) {
-        self.inner().ui_sender.add_node_event(message);
+    pub fn log_message(&self, log_level: Level, message: String) {
+        self.inner().ui_sender.add_node_event(log_level, message);
     }
 
     pub fn update_attachment(&self, attachment: &json::JsonValue) {
@@ -428,25 +438,30 @@ reply               - reply to an AppCall not handled directly by the server
             ));
         }
         if !out.is_empty() {
-            self.inner().ui_sender.add_node_event(out);
+            self.inner().ui_sender.add_node_event(Level::Info, out);
         }
     }
     pub fn update_value_change(&self, value_change: &json::JsonValue) {
         let out = format!("Value change: {:?}", value_change.as_str().unwrap_or("???"));
-        self.inner().ui_sender.add_node_event(out);
+        self.inner().ui_sender.add_node_event(Level::Info, out);
     }
 
     pub fn update_log(&self, log: &json::JsonValue) {
-        self.inner().ui_sender.add_node_event(format!(
-            "{}: {}{}",
-            log["log_level"].as_str().unwrap_or("???"),
-            log["message"].as_str().unwrap_or("???"),
-            if let Some(bt) = log["backtrace"].as_str() {
-                format!("\nBacktrace:\n{}", bt)
-            } else {
-                "".to_owned()
-            }
-        ));
+        let log_level =
+            Level::from_str(log["log_level"].as_str().unwrap_or("error")).unwrap_or(Level::Error);
+        self.inner().ui_sender.add_node_event(
+            log_level,
+            format!(
+                "{}: {}{}",
+                log["log_level"].as_str().unwrap_or("???"),
+                log["message"].as_str().unwrap_or("???"),
+                if let Some(bt) = log["backtrace"].as_str() {
+                    format!("\nBacktrace:\n{}", bt)
+                } else {
+                    "".to_owned()
+                }
+            ),
+        );
     }
 
     pub fn update_app_message(&self, msg: &json::JsonValue) {
@@ -466,9 +481,10 @@ reply               - reply to an AppCall not handled directly by the server
             hex::encode(message)
         };
 
-        self.inner()
-            .ui_sender
-            .add_node_event(format!("AppMessage ({:?}): {}", msg["sender"], strmsg));
+        self.inner().ui_sender.add_node_event(
+            Level::Info,
+            format!("AppMessage ({:?}): {}", msg["sender"], strmsg),
+        );
     }
 
     pub fn update_app_call(&self, call: &json::JsonValue) {
@@ -490,10 +506,13 @@ reply               - reply to an AppCall not handled directly by the server
 
         let id = json_str_u64(&call["call_id"]);
 
-        self.inner().ui_sender.add_node_event(format!(
-            "AppCall ({:?}) id = {:016x} : {}",
-            call["sender"], id, strmsg
-        ));
+        self.inner().ui_sender.add_node_event(
+            Level::Info,
+            format!(
+                "AppCall ({:?}) id = {:016x} : {}",
+                call["sender"], id, strmsg
+            ),
+        );
 
         self.inner_mut().last_call_id = Some(id);
     }

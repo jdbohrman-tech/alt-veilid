@@ -12,10 +12,10 @@ use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
 use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
-//use cursive_multiplex::*;
+// use cursive_multiplex::*;
 use std::collections::{HashMap, VecDeque};
+use std::io::Write;
 use thiserror::Error;
-
 //////////////////////////////////////////////////////////////
 ///
 struct Dirty<T> {
@@ -311,8 +311,7 @@ impl UI {
                 .button("Close", move |s| {
                     s.pop_layer();
                     close_cb(s);
-                }), //.wrap_with(CircularFocus::new)
-                    //.wrap_tab(),
+                }),
         );
         s.set_global_callback(cursive::event::Event::Key(Key::Esc), move |s| {
             s.set_global_callback(cursive::event::Event::Key(Key::Esc), UI::quit_handler);
@@ -346,18 +345,19 @@ impl UI {
             return;
         }
         // run command
-        cursive_flexi_logger_view::push_to_log(StyledString::styled(
+
+        cursive_flexi_logger_view::parse_lines_to_log(
+            ColorStyle::primary().into(),
             format!("> {}", text),
-            ColorStyle::primary(),
-        ));
+        );
         match Self::run_command(s, text) {
             Ok(_) => {}
             Err(e) => {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Error).unwrap();
-                cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                cursive_flexi_logger_view::parse_lines_to_log(
+                    color.into(),
                     format!("  Error: {}", e),
-                    color,
-                ));
+                );
             }
         }
         // save to history unless it's a duplicate
@@ -453,6 +453,55 @@ impl UI {
         };
         Self::command_processor(s).set_server_address(sa);
         Self::command_processor(s).start_connection();
+    }
+
+    fn copy_to_clipboard<S: AsRef<str>>(s: &mut Cursive, text: S) {
+        if let Ok(mut clipboard) = arboard::Clipboard::new() {
+            // X11/Wayland/other system copy
+            if clipboard.set_text(text.as_ref()).is_ok() {
+                let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
+                cursive_flexi_logger_view::parse_lines_to_log(
+                    color.into(),
+                    format!(">> Copied: {}", text.as_ref()),
+                );
+            } else {
+                let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
+                cursive_flexi_logger_view::parse_lines_to_log(
+                    color.into(),
+                    format!(">> Could not copy to clipboard"),
+                );
+            }
+        } else {
+            // OSC52 clipboard copy for terminals
+            if std::io::stdout()
+                .write_all(
+                    format!(
+                        "\x1B]52;c;{}\x07",
+                        data_encoding::BASE64.encode(text.as_ref().as_bytes()),
+                    )
+                    .as_bytes(),
+                )
+                .is_ok()
+            {
+                if std::io::stdout().flush().is_ok() {
+                    let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
+                    cursive_flexi_logger_view::parse_lines_to_log(
+                        color.into(),
+                        format!(">> Copied: {}", text.as_ref()),
+                    );
+                }
+            }
+        }
+    }
+
+    fn on_submit_peers_table_view(s: &mut Cursive, _row: usize, index: usize) {
+        let peers_table_view = UI::peers(s);
+        let node_id = peers_table_view
+            .borrow_item(index)
+            .map(|j| j["node_ids"][0].to_string());
+        if let Some(node_id) = node_id {
+            Self::copy_to_clipboard(s, node_id);
+        }
     }
 
     fn show_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
@@ -644,7 +693,28 @@ impl UI {
     fn refresh_peers(s: &mut Cursive) {
         let mut peers = UI::peers(s);
         let inner = Self::inner_mut(s);
+        let sel_item = peers.item();
+        let sel_item_text = peers
+            .item()
+            .map(|x| peers.borrow_items()[x]["node_ids"][0].clone());
+
         peers.set_items_stable(inner.ui_state.peers_state.get().clone());
+
+        let mut selected = false;
+        if let Some(sel_item_text) = sel_item_text {
+            // First select by name
+            for n in 0..peers.borrow_items().len() {
+                if peers.borrow_items()[n]["node_ids"][0] == sel_item_text {
+                    peers.set_selected_item(n);
+                    selected = true;
+                }
+            }
+        }
+        if !selected {
+            if let Some(sel_item) = sel_item {
+                peers.set_selected_item(sel_item);
+            }
+        }
     }
 
     fn update_cb(s: &mut Cursive) {
@@ -707,9 +777,6 @@ impl UI {
         // Instantiate the cursive runnable
         let runnable = CursiveRunnable::new(
             || -> Result<Box<dyn cursive::backend::Backend>, Box<DumbError>> {
-                #[cfg(feature = "macos")]
-                let backend = cursive::backends::curses::n::Backend::init().unwrap();
-                #[cfg(not(feature = "macos"))]
                 let backend = cursive::backends::crossterm::Backend::init().unwrap();
                 let buffered_backend = cursive_buffered_backend::BufferedBackend::new(backend);
                 Ok(Box::new(buffered_backend))
@@ -737,6 +804,11 @@ impl UI {
             })),
         };
 
+        let ui_sender = UISender {
+            inner: this.inner.clone(),
+            cb_sink,
+        };
+
         let mut inner = this.inner.lock();
 
         // Make the inner object accessible in callbacks easily
@@ -750,12 +822,14 @@ impl UI {
             .with_name("node-events-panel")
             .full_screen();
 
-        let peers_table_view = PeersTableView::new()
+        let mut peers_table_view = PeersTableView::new()
             .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(48))
             .column(PeerTableColumn::Address, "Address", |c| c)
             .column(PeerTableColumn::LatencyAvg, "Ping", |c| c.width(8))
             .column(PeerTableColumn::TransferDownAvg, "Down", |c| c.width(8))
-            .column(PeerTableColumn::TransferUpAvg, "Up", |c| c.width(8))
+            .column(PeerTableColumn::TransferUpAvg, "Up", |c| c.width(8));
+        peers_table_view.set_on_submit(UI::on_submit_peers_table_view);
+        let peers_table_view = peers_table_view
             .with_name("peers")
             .full_width()
             .min_height(8);
@@ -832,8 +906,7 @@ impl UI {
 
         drop(inner);
 
-        let inner = this.inner.clone();
-        (this, UISender { inner, cb_sink })
+        (this, ui_sender)
     }
     pub fn cursive_flexi_logger(&self) -> Box<CursiveLogWriter> {
         let mut flv = cursive_flexi_logger_view::cursive_flexi_logger(self.siv.cb_sink().clone());
@@ -906,7 +979,7 @@ impl UISender {
         started: bool,
         bps_down: u64,
         bps_up: u64,
-        peers: Vec<json::JsonValue>,
+        mut peers: Vec<json::JsonValue>,
     ) {
         {
             let mut inner = self.inner.lock();
@@ -915,6 +988,11 @@ impl UISender {
                 ((bps_down as f64) / 1000.0f64) as f32,
                 ((bps_up as f64) / 1000.0f64) as f32,
             ));
+            peers.sort_by(|a, b| {
+                a["node_ids"][0]
+                    .to_string()
+                    .cmp(&b["node_ids"][0].to_string())
+            });
             inner.ui_state.peers_state.set(peers);
         }
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
@@ -922,10 +1000,18 @@ impl UISender {
     pub fn set_config(&mut self, config: &json::JsonValue) {
         let mut inner = self.inner.lock();
 
-        inner
-            .ui_state
-            .node_id
-            .set(config["network"]["routing_table"]["node_id"].to_string());
+        let node_ids = &config["network"]["routing_table"]["node_id"];
+
+        let mut node_id_str = String::new();
+        for l in 0..node_ids.len() {
+            let nid = &node_ids[l];
+            if !node_id_str.is_empty() {
+                node_id_str.push_str(" ");
+            }
+            node_id_str.push_str(nid.to_string().as_ref());
+        }
+
+        inner.ui_state.node_id.set(node_id_str);
     }
     pub fn set_connection_state(&mut self, state: ConnectionState) {
         {
@@ -935,17 +1021,11 @@ impl UISender {
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }
 
-    pub fn add_node_event(&self, event: String) {
+    pub fn add_node_event(&self, log_color: Level, event: String) {
         {
             let inner = self.inner.lock();
-            let color = *inner.log_colors.get(&Level::Info).unwrap();
-            let mut starting_style: Style = color.into();
-            for line in event.lines() {
-                let (spanned_string, end_style) =
-                    cursive::utils::markup::ansi::parse_with_starting_style(starting_style, line);
-                cursive_flexi_logger_view::push_to_log(spanned_string);
-                starting_style = end_style;
-            }
+            let color = *inner.log_colors.get(&log_color).unwrap();
+            cursive_flexi_logger_view::parse_lines_to_log(color.into(), event);
         }
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }

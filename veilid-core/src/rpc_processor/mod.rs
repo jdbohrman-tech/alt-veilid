@@ -395,7 +395,7 @@ impl RPCProcessor {
     //////////////////////////////////////////////////////////////////////
 
     /// Determine if a SignedNodeInfo can be placed into the specified routing domain
-    fn filter_node_info(
+    fn verify_node_info(
         &self,
         routing_domain: RoutingDomain,
         signed_node_info: &SignedNodeInfo,
@@ -1348,7 +1348,7 @@ impl RPCProcessor {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
 
                     // Sender PeerInfo was specified, update our routing table with it
-                    if !self.filter_node_info(routing_domain, sender_peer_info.signed_node_info()) {
+                    if !self.verify_node_info(routing_domain, sender_peer_info.signed_node_info()) {
                         return Ok(NetworkResult::invalid_message(
                             "sender peerinfo has invalid peer scope",
                         ));

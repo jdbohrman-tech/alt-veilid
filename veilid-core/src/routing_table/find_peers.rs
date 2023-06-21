@@ -51,6 +51,7 @@ impl RoutingTable {
             return NetworkResult::invalid_message("unsupported cryptosystem");
         };
         let own_distance = vcrypto.distance(&own_node_id.value, &key.value);
+        let vcrypto2 = vcrypto.clone();
 
         let filter = Box::new(
             move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
@@ -98,6 +99,46 @@ impl RoutingTable {
             },
         );
 
+        // xxx test
+        // Validate peers returned are, in fact, closer to the key than the node we sent this to
+        let valid = match Self::verify_peers_closer(vcrypto2, own_node_id, key, &closest_nodes) {
+            Ok(v) => v,
+            Err(e) => {
+                panic!("missing cryptosystem in peers node ids: {}", e);
+            }
+        };
+        if !valid {
+            panic!("non-closer peers returned");
+        }
+
         NetworkResult::value(closest_nodes)
+    }
+
+    /// Determine if set of peers is closer to key_near than key_far
+    pub(crate) fn verify_peers_closer(
+        vcrypto: CryptoSystemVersion,
+        key_far: TypedKey,
+        key_near: TypedKey,
+        peers: &[PeerInfo],
+    ) -> EyreResult<bool> {
+        let kind = vcrypto.kind();
+
+        if key_far.kind != kind || key_near.kind != kind {
+            bail!("keys all need the same cryptosystem");
+        }
+
+        let mut closer = true;
+        for peer in peers {
+            let Some(key_peer) = peer.node_ids().get(kind) else {
+                bail!("peers need to have a key with the same cryptosystem");
+            };
+            let d_near = vcrypto.distance(&key_near.value, &key_peer.value);
+            let d_far = vcrypto.distance(&key_far.value, &key_peer.value);
+            if d_far < d_near {
+                closer = false;
+            }
+        }
+
+        Ok(closer)
     }
 }

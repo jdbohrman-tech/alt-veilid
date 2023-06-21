@@ -29,6 +29,13 @@ pub enum Destination {
 }
 
 impl Destination {
+    pub fn target(&self) -> Option<NodeRef> {
+        match self {
+            Destination::Direct { target, safety_selection: _ } => Some(target.clone()),
+            Destination::Relay { relay:_, target, safety_selection: _ } => Some(target.clone()),
+            Destination::PrivateRoute { private_route:_, safety_selection:_ } => None,
+        }
+    }
     pub fn direct(target: NodeRef) -> Self {
         let sequencing = target.sequencing();
         Self::Direct {
