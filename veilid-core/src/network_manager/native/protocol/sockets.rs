@@ -33,7 +33,7 @@ cfg_if! {
     }
 }
 
-#[instrument(level = "trace", ret, err)]
+#[instrument(level = "trace", ret)]
 pub fn new_unbound_shared_udp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
     if domain == Domain::IPV6 {
@@ -49,7 +49,7 @@ pub fn new_unbound_shared_udp_socket(domain: Domain) -> io::Result<Socket> {
     Ok(socket)
 }
 
-#[instrument(level = "trace", ret, err)]
+#[instrument(level = "trace", ret)]
 pub fn new_bound_shared_udp_socket(local_address: SocketAddr) -> io::Result<Socket> {
     let domain = Domain::for_address(local_address);
     let socket = new_unbound_shared_udp_socket(domain)?;
@@ -61,7 +61,7 @@ pub fn new_bound_shared_udp_socket(local_address: SocketAddr) -> io::Result<Sock
     Ok(socket)
 }
 
-#[instrument(level = "trace", ret, err)]
+#[instrument(level = "trace", ret)]
 pub fn new_bound_first_udp_socket(local_address: SocketAddr) -> io::Result<Socket> {
     let domain = Domain::for_address(local_address);
     let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
@@ -95,7 +95,7 @@ pub fn new_bound_first_udp_socket(local_address: SocketAddr) -> io::Result<Socke
     Ok(socket)
 }
 
-#[instrument(level = "trace", ret, err)]
+#[instrument(level = "trace", ret)]
 pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
@@ -117,7 +117,7 @@ pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
     Ok(socket)
 }
 
-#[instrument(level = "trace", ret, err)]
+#[instrument(level = "trace", ret)]
 pub fn new_bound_shared_tcp_socket(local_address: SocketAddr) -> io::Result<Socket> {
     let domain = Domain::for_address(local_address);
     let socket = new_unbound_shared_tcp_socket(domain)?;
@@ -129,7 +129,7 @@ pub fn new_bound_shared_tcp_socket(local_address: SocketAddr) -> io::Result<Sock
     Ok(socket)
 }
 
-#[instrument(level = "trace", ret, err)]
+#[instrument(level = "trace", ret)]
 pub fn new_bound_first_tcp_socket(local_address: SocketAddr) -> io::Result<Socket> {
     let domain = Domain::for_address(local_address);
 

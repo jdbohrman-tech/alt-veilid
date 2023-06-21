@@ -115,6 +115,15 @@ impl Network {
         //     tcp_stream.peer_addr().unwrap(),
         // );
 
+        if let Err(e) = tcp_stream.set_linger(Some(core::time::Duration::from_secs(0))) {
+            log_net!(debug "Couldn't set TCP linger: {}", e);
+            return;
+        }
+        if let Err(e) = tcp_stream.set_nodelay(true) {
+            log_net!(debug "Couldn't set TCP nodelay: {}", e);
+            return;
+        }
+
         let listener_state = listener_state.clone();
         let connection_manager = connection_manager.clone();
 

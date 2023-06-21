@@ -134,6 +134,8 @@ use parking_lot::*;
 use stop_token::*;
 use thiserror::Error as ThisError;
 
+pub use fn_name;
+
 // For iOS tests
 #[no_mangle]
 pub extern "C" fn main_rs() {}

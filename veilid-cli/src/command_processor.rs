@@ -107,14 +107,21 @@ impl CommandProcessor {
         self.ui_sender().add_node_event(
             Level::Info,
             r#"Commands:
-exit/quit           - exit the client
-disconnect          - disconnect the client from the Veilid node 
-shutdown            - shut the server down
-attach              - attach the server to the Veilid network
-detach              - detach the server from the Veilid network
-debug               - send a debugging command to the Veilid server
-change_log_level    - change the log level for a tracing layer
-reply               - reply to an AppCall not handled directly by the server
+exit/quit                           exit the client
+disconnect                          disconnect the client from the Veilid node 
+shutdown                            shut the server down
+attach                              attach the server to the Veilid network
+detach                              detach the server from the Veilid network
+debug [command]                     send a debugging command to the Veilid server
+change_log_level <layer> <level>    change the log level for a tracing layer
+                                    layers include: 
+                                       all, terminal, system, api, file, otlp
+                                    levels include:
+                                       error, warn, info, debug, trace
+reply <call id> <message>           reply to an AppCall not handled directly by the server
+                                    <call id> must be exact call id reported in VeilidUpdate
+                                    <message> can be a string (left trimmed) or
+                                    it can start with a '#' followed by a string of undelimited hex bytes
 "#
             .to_owned(),
         );
@@ -188,7 +195,7 @@ reply               - reply to an AppCall not handled directly by the server
         spawn_detached_local(async move {
             match capi.server_debug(rest.unwrap_or_default()).await {
                 Ok(output) => {
-                    ui.add_node_event(Level::Debug, output);
+                    ui.add_node_event(Level::Info, output);
                     ui.send_callback(callback);
                 }
                 Err(e) => {

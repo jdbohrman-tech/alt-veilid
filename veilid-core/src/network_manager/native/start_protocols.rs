@@ -243,7 +243,24 @@ impl Network {
                 bail!("No valid listen address: {}", listen_address);
             }
             let port = sockaddrs[0].port();
-            if !self.bind_first_tcp_port(port) {
+
+            let mut attempts = 10;
+            let mut success = false;
+            while attempts >= 0 {
+                if self.bind_first_tcp_port(port) {
+                    success = true;
+                    break;
+                }
+                attempts -= 1;
+
+                // Wait 5 seconds before trying again
+                log_net!(debug
+                    "Binding TCP port at {} failed, waiting. Attempts remaining = {}",
+                    port, attempts
+                );
+                sleep(5000).await
+            }
+            if !success {
                 bail!("Could not find free tcp port to listen on");
             }
             Ok((port, sockaddrs.iter().map(|s| s.ip()).collect()))
