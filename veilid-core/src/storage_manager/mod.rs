@@ -341,7 +341,6 @@ impl StorageManager {
         } else {
             ValueData::new(data, writer.key)
         };
-        let seq = value_data.seq();
 
         // Validate with schema
         if !schema.check_subkey_value_data(descriptor.owner(), subkey, &value_data) {
@@ -374,7 +373,6 @@ impl StorageManager {
         drop(inner);
 
         // Use the safety selection we opened the record with
-
         let final_signed_value_data = self
             .outbound_set_value(
                 rpc_processor,
@@ -386,13 +384,12 @@ impl StorageManager {
             )
             .await?;
 
-        // If we got a new value back then write it to the opened record
-        if final_signed_value_data.value_data().seq() != seq {
-            let mut inner = self.lock().await?;
-            inner
-                .handle_set_local_value(key, subkey, final_signed_value_data.clone())
-                .await?;
-        }
+        // Whatever record we got back, store it locally, might be newer than the one we asked to save
+        let mut inner = self.lock().await?;
+        inner
+            .handle_set_local_value(key, subkey, final_signed_value_data.clone())
+            .await?;
+
         Ok(Some(final_signed_value_data.into_value_data()))
     }
 

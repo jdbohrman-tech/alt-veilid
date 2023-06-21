@@ -130,6 +130,7 @@ macro_rules! byte_array_type {
                 Self { bytes }
             }
 
+            // Big endian bit ordering
             pub fn bit(&self, index: usize) -> bool {
                 assert!(index < ($size * 8));
                 let bi = index / 8;
@@ -152,6 +153,7 @@ macro_rules! byte_array_type {
                 None
             }
 
+            // Big endian nibble ordering
             pub fn nibble(&self, index: usize) -> u8 {
                 assert!(index < ($size * 2));
                 let bi = index / 2;

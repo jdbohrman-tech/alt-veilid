@@ -353,9 +353,39 @@ async fn test_operations(vcrypto: CryptoSystemVersion) {
     assert_eq!(d4.first_nonzero_bit(), Some(0));
 }
 
+pub async fn test_crypto_key_ordering() {
+    let k1 = CryptoKey::new([
+        128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]);
+    let k2 = CryptoKey::new([
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]);
+    let k3 = CryptoKey::new([
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 128,
+    ]);
+    let k4 = CryptoKey::new([
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 1,
+    ]);
+    let k5 = CryptoKey::new([
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]);
+
+    assert!(k2 < k1);
+    assert!(k3 < k2);
+    assert!(k4 < k3);
+    assert!(k5 < k4);
+}
+
 pub async fn test_all() {
     let api = crypto_tests_startup().await;
     let crypto = api.crypto().unwrap();
+
+    test_crypto_key_ordering().await;
 
     // Test versions
     for v in VALID_CRYPTO_KINDS {

@@ -14,8 +14,8 @@ use cursive::CursiveRunnable;
 use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
 // use cursive_multiplex::*;
 use std::collections::{HashMap, VecDeque};
+use std::io::Write;
 use thiserror::Error;
-
 //////////////////////////////////////////////////////////////
 ///
 struct Dirty<T> {
@@ -454,20 +454,52 @@ impl UI {
         Self::command_processor(s).start_connection();
     }
 
+    fn copy_to_clipboard<S: AsRef<str>>(s: &mut Cursive, text: S) {
+        if let Ok(mut clipboard) = arboard::Clipboard::new() {
+            // X11/Wayland/other system copy
+            if clipboard.set_text(text.as_ref()).is_ok() {
+                let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
+                cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                    format!(">> Copied: {}", text.as_ref()),
+                    color,
+                ));
+            } else {
+                let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
+                cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                    format!(">> Could not copy to clipboard"),
+                    color,
+                ));
+            }
+        } else {
+            // OSC52 clipboard copy for terminals
+            if std::io::stdout()
+                .write_all(
+                    format!(
+                        "\x1B]52;c;{}\x07",
+                        data_encoding::BASE64.encode(text.as_ref().as_bytes()),
+                    )
+                    .as_bytes(),
+                )
+                .is_ok()
+            {
+                if std::io::stdout().flush().is_ok() {
+                    let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
+                    cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                        format!(">> Copied: {}", text.as_ref()),
+                        color,
+                    ));
+                }
+            }
+        }
+    }
+
     fn on_submit_peers_table_view(s: &mut Cursive, _row: usize, index: usize) {
         let peers_table_view = UI::peers(s);
         let node_id = peers_table_view
             .borrow_item(index)
             .map(|j| j["node_ids"][0].to_string());
         if let Some(node_id) = node_id {
-            let mut clipboard = arboard::Clipboard::new().unwrap();
-            clipboard.set_text(node_id.clone()).unwrap();
-
-            let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-            cursive_flexi_logger_view::push_to_log(StyledString::styled(
-                format!(">> NodeId Copied: {}", node_id),
-                color,
-            ));
+            Self::copy_to_clipboard(s, node_id);
         }
     }
 
@@ -967,10 +999,18 @@ impl UISender {
     pub fn set_config(&mut self, config: &json::JsonValue) {
         let mut inner = self.inner.lock();
 
-        inner
-            .ui_state
-            .node_id
-            .set(config["network"]["routing_table"]["node_id"].to_string());
+        let node_ids = &config["network"]["routing_table"]["node_id"];
+
+        let mut node_id_str = String::new();
+        for l in 0..node_ids.len() {
+            let nid = &node_ids[l];
+            if !node_id_str.is_empty() {
+                node_id_str.push_str(" ");
+            }
+            node_id_str.push_str(nid.to_string().as_ref());
+        }
+
+        inner.ui_state.node_id.set(node_id_str);
     }
     pub fn set_connection_state(&mut self, state: ConnectionState) {
         {

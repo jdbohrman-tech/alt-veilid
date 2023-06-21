@@ -67,6 +67,9 @@ async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
         vd2 = await rc.get_dht_value(rec.key, 0, False)
         assert vd2 != None
         
+        print("vd: {}", vd.__dict__)
+        print("vd2: {}", vd2.__dict__)
+
         assert vd == vd2
 
         await rc.close_dht_record(rec.key)

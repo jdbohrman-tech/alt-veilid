@@ -83,15 +83,13 @@ impl RPCProcessor {
         let (set, value, peers) = set_value_a.destructure();
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match self.verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
             Ok(v) => v,
             Err(e) => {
-                if matches!(e, RPCError::Internal(_)) {
-                    return Err(e);
-                }
-                return Ok(NetworkResult::invalid_message(
-                    "missing cryptosystem in peers node ids",
-                ));
+                return Ok(NetworkResult::invalid_message(format!(
+                    "missing cryptosystem in peers node ids: {}",
+                    e
+                )));
             }
         };
         if !valid {

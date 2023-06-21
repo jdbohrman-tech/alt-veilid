@@ -187,8 +187,14 @@ reply               - reply to an AppCall not handled directly by the server
         let ui = self.ui_sender();
         spawn_detached_local(async move {
             match capi.server_debug(rest.unwrap_or_default()).await {
-                Ok(output) => ui.display_string_dialog("Debug Output", output, callback),
-                Err(e) => ui.display_string_dialog("Debug Error", e.to_string(), callback),
+                Ok(output) => {
+                    ui.add_node_event(Level::Debug, output);
+                    ui.send_callback(callback);
+                }
+                Err(e) => {
+                    ui.add_node_event(Level::Error, e.to_string());
+                    ui.send_callback(callback);
+                }
             }
         });
         Ok(())

@@ -2,6 +2,7 @@ import base64
 import json
 from enum import StrEnum
 from typing import Any, Optional, Self, Tuple
+from functools import total_ordering
 
 ####################################################################
 
@@ -323,6 +324,7 @@ class DHTRecordDescriptor:
         return self.__dict__
 
 
+# @total_ordering
 class ValueData:
     seq: ValueSeqNum
     data: bytes
@@ -332,6 +334,21 @@ class ValueData:
         self.seq = seq
         self.data = data
         self.writer = writer
+
+    # def __lt__(self, other):
+    #     return self.data < other.data
+
+    # def __eq__(self, other):
+    #     return self.cgpa == other.cgpa
+
+    # def __le__(self, other):
+    #     return self.cgpa<= other.cgpa
+
+    # def __ge__(self, other):
+    #     return self.cgpa>= other.cgpa
+
+    # def __ne__(self, other):
+    #     return self.cgpa != other.cgpa
 
     @classmethod
     def from_json(cls, j: dict) -> Self:

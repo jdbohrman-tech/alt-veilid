@@ -404,37 +404,6 @@ impl RPCProcessor {
         routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
     }
 
-    /// Determine if set of peers is closer to key_near than key_far
-    fn verify_peers_closer(
-        &self,
-        vcrypto: CryptoSystemVersion,
-        key_far: TypedKey,
-        key_near: TypedKey,
-        peers: &[PeerInfo],
-    ) -> Result<bool, RPCError> {
-        let kind = vcrypto.kind();
-
-        if key_far.kind != kind || key_near.kind != kind {
-            return Err(RPCError::internal("keys all need the same cryptosystem"));
-        }
-
-        let mut closer = true;
-        for peer in peers {
-            let Some(key_peer) = peer.node_ids().get(kind) else {
-                return Err(RPCError::invalid_format(
-                    "peers need to have a key with the same cryptosystem",
-                ));
-            };
-            let d_near = vcrypto.distance(&key_near.value, &key_peer.value);
-            let d_far = vcrypto.distance(&key_far.value, &key_peer.value);
-            if d_far < d_near {
-                closer = false;
-            }
-        }
-
-        Ok(closer)
-    }
-
     //////////////////////////////////////////////////////////////////////
 
     /// Search the DHT for a single node closest to a key and add it to the routing table and return the node reference
