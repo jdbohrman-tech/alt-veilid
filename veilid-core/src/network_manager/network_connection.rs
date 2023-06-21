@@ -179,7 +179,7 @@ impl NetworkConnection {
         }
     }
 
-    #[instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret, err)]
+    #[instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret)]
     async fn send_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -194,7 +194,7 @@ impl NetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
-    #[instrument(level="trace", skip(stats), fields(ret.len), err)]
+    #[instrument(level="trace", skip(stats), fields(ret.len))]
     async fn recv_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,

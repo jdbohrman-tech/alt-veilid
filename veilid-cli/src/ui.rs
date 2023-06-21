@@ -8,6 +8,7 @@ use cursive::event::*;
 use cursive::theme::*;
 use cursive::traits::*;
 use cursive::utils::markup::StyledString;
+use cursive::view::SizeConstraint;
 use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
@@ -504,6 +505,16 @@ impl UI {
         }
     }
 
+    fn on_focus_peers_table_view<T>(ptv: &mut ResizedView<T>) -> EventResult {
+        ptv.set_height(SizeConstraint::Full);
+        EventResult::Ignored
+    }
+
+    fn on_focus_lost_peers_table_view<T>(ptv: &mut ResizedView<T>) -> EventResult {
+        ptv.set_height(SizeConstraint::AtLeast(8));
+        EventResult::Ignored
+    }
+
     fn show_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
         let mut inner = Self::inner_mut(s);
 
@@ -829,10 +840,13 @@ impl UI {
             .column(PeerTableColumn::TransferDownAvg, "Down", |c| c.width(8))
             .column(PeerTableColumn::TransferUpAvg, "Up", |c| c.width(8));
         peers_table_view.set_on_submit(UI::on_submit_peers_table_view);
-        let peers_table_view = peers_table_view
-            .with_name("peers")
-            .full_width()
-            .min_height(8);
+        let peers_table_view = FocusTracker::new(ResizedView::new(
+            SizeConstraint::Full,
+            SizeConstraint::AtLeast(8),
+            peers_table_view.with_name("peers"),
+        ))
+        .on_focus(UI::on_focus_peers_table_view)
+        .on_focus_lost(UI::on_focus_lost_peers_table_view);
 
         // attempt at using Mux. Mux has bugs, like resizing problems.
         // let mut mux = Mux::new();
