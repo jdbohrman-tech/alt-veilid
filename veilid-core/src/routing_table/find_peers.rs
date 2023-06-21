@@ -5,7 +5,7 @@ impl RoutingTable {
     pub fn find_all_closest_peers(&self, key: TypedKey) -> NetworkResult<Vec<PeerInfo>> {
         let Some(own_peer_info) = self.get_own_peer_info(RoutingDomain::PublicInternet) else {
             // Our own node info is not yet available, drop this request.
-            return NetworkResult::service_unavailable();
+            return NetworkResult::service_unavailable("Not finding closest peers because our peer info is not yet available");
         };
 
         // find N nodes closest to the target node in our routing table

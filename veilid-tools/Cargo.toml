@@ -35,6 +35,7 @@ stop-token = { version = "^0", default-features = false }
 rand = "^0.7"
 rust-fsm = "^0"
 backtrace = "^0"
+fn_name = "^0"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

@@ -906,7 +906,7 @@ impl NetworkManager {
                 return Ok(NetworkResult::timeout());
             }
             ReceiptEvent::Cancelled => {
-                bail!("reverse connect receipt cancelled from {:?}", target_nr);
+                return Ok(NetworkResult::no_connection_other(format!("reverse connect receipt cancelled from {}", target_nr)))
             }
         };
 

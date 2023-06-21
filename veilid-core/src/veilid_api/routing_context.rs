@@ -148,7 +148,10 @@ impl RoutingContext {
         let answer = match rpc_processor.rpc_call_app_call(dest, request).await {
             Ok(NetworkResult::Value(v)) => v,
             Ok(NetworkResult::Timeout) => apibail_timeout!(),
-            Ok(NetworkResult::ServiceUnavailable) => apibail_try_again!(),
+            Ok(NetworkResult::ServiceUnavailable(e)) => {
+                log_network_result!(format!("app_call: ServiceUnavailable({})", e));
+                apibail_try_again!()
+            }
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
                 apibail_no_connection!(e);
             }
@@ -173,7 +176,10 @@ impl RoutingContext {
         match rpc_processor.rpc_call_app_message(dest, message).await {
             Ok(NetworkResult::Value(())) => {}
             Ok(NetworkResult::Timeout) => apibail_timeout!(),
-            Ok(NetworkResult::ServiceUnavailable) => apibail_try_again!(),
+            Ok(NetworkResult::ServiceUnavailable(e)) => {
+                log_network_result!(format!("app_message: ServiceUnavailable({})", e));
+                apibail_try_again!()
+            }
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
                 apibail_no_connection!(e);
             }

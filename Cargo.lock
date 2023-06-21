@@ -2072,6 +2072,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fn_name"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "528a0eb35b41b895aef1afed5ab28659084118e730edc72f033e76fb71666dbb"
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6591,6 +6597,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
  "eyre",
+ "fn_name",
  "futures-util",
  "jni 0.21.1",
  "jni-sys",

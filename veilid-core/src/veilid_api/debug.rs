@@ -591,20 +591,8 @@ impl VeilidAPI {
             .map_err(VeilidAPIError::internal)?
         {
             NetworkResult::Value(v) => v,
-            NetworkResult::Timeout => {
-                return Ok("Timeout".to_owned());
-            }
-            NetworkResult::ServiceUnavailable => {
-                return Ok("ServiceUnavailable".to_owned());
-            }
-            NetworkResult::NoConnection(e) => {
-                return Ok(format!("NoConnection({})", e));
-            }
-            NetworkResult::AlreadyExists(e) => {
-                return Ok(format!("AlreadyExists({})", e));
-            }
-            NetworkResult::InvalidMessage(e) => {
-                return Ok(format!("InvalidMessage({})", e));
+            r => {
+                return Ok(r.to_string());
             }
         };
 
