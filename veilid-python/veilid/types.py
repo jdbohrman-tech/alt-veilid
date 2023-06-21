@@ -207,6 +207,7 @@ class ValueSeqNum(int):
 ####################################################################
 
 
+@total_ordering
 class VeilidVersion:
     _major: int
     _minor: int
@@ -216,6 +217,25 @@ class VeilidVersion:
         self._major = major
         self._minor = minor
         self._patch = patch
+
+    def __lt__(self, other):
+        if other is None:
+            return False
+        if self._major < other._major:
+            return True
+        if self._major > other._major:
+            return False
+        if self._minor < other._minor:
+            return True
+        if self._minor > other._minor:
+            return False
+        if self._patch < other._patch:
+            return True
+        return False
+        
+    def __eq__(self, other):
+        return isinstance(other, VeilidVersion) and self.data == other.data and self.seq == other.seq and self.writer == other.writer
+
 
     @property
     def major(self):
@@ -324,7 +344,7 @@ class DHTRecordDescriptor:
         return self.__dict__
 
 
-# @total_ordering
+@total_ordering
 class ValueData:
     seq: ValueSeqNum
     data: bytes
@@ -335,20 +355,23 @@ class ValueData:
         self.data = data
         self.writer = writer
 
-    # def __lt__(self, other):
-    #     return self.data < other.data
+    def __lt__(self, other):
+        if other is None:
+            return true
+        if self.data < other.data:
+            return True
+        if self.data > other.data:
+            return False
+        if self.seq < other.seq:
+            return True
+        if self.seq > other.seq:
+            return False
+        if self.writer < other.writer:
+            return True
+        return False
 
-    # def __eq__(self, other):
-    #     return self.cgpa == other.cgpa
-
-    # def __le__(self, other):
-    #     return self.cgpa<= other.cgpa
-
-    # def __ge__(self, other):
-    #     return self.cgpa>= other.cgpa
-
-    # def __ne__(self, other):
-    #     return self.cgpa != other.cgpa
+    def __eq__(self, other):
+        return isinstance(other, ValueData) and self.data == other.data and self.seq == other.seq and self.writer == other.writer
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
