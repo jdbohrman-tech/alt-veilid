@@ -33,7 +33,7 @@ test_amd64:
   only:
     - main
   tags:
-    - main
+    - linux
     - amd64
   script:
     - earthly +unit-tests-linux-amd64
