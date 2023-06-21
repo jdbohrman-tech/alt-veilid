@@ -345,18 +345,19 @@ impl UI {
             return;
         }
         // run command
-        cursive_flexi_logger_view::push_to_log(StyledString::styled(
+
+        cursive_flexi_logger_view::parse_lines_to_log(
+            ColorStyle::primary().into(),
             format!("> {}", text),
-            ColorStyle::primary(),
-        ));
+        );
         match Self::run_command(s, text) {
             Ok(_) => {}
             Err(e) => {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Error).unwrap();
-                cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                cursive_flexi_logger_view::parse_lines_to_log(
+                    color.into(),
                     format!("  Error: {}", e),
-                    color,
-                ));
+                );
             }
         }
         // save to history unless it's a duplicate
@@ -459,16 +460,16 @@ impl UI {
             // X11/Wayland/other system copy
             if clipboard.set_text(text.as_ref()).is_ok() {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-                cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                cursive_flexi_logger_view::parse_lines_to_log(
+                    color.into(),
                     format!(">> Copied: {}", text.as_ref()),
-                    color,
-                ));
+                );
             } else {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
-                cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                cursive_flexi_logger_view::parse_lines_to_log(
+                    color.into(),
                     format!(">> Could not copy to clipboard"),
-                    color,
-                ));
+                );
             }
         } else {
             // OSC52 clipboard copy for terminals
@@ -484,10 +485,10 @@ impl UI {
             {
                 if std::io::stdout().flush().is_ok() {
                     let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-                    cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                    cursive_flexi_logger_view::parse_lines_to_log(
+                        color.into(),
                         format!(">> Copied: {}", text.as_ref()),
-                        color,
-                    ));
+                    );
                 }
             }
         }
@@ -1024,13 +1025,7 @@ impl UISender {
         {
             let inner = self.inner.lock();
             let color = *inner.log_colors.get(&log_color).unwrap();
-            let mut starting_style: Style = color.into();
-            for line in event.lines() {
-                let (spanned_string, end_style) =
-                    cursive::utils::markup::ansi::parse_with_starting_style(starting_style, line);
-                cursive_flexi_logger_view::push_to_log(spanned_string);
-                starting_style = end_style;
-            }
+            cursive_flexi_logger_view::parse_lines_to_log(color.into(), event);
         }
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }
