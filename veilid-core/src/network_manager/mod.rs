@@ -1011,7 +1011,7 @@ impl NetworkManager {
                 return Ok(NetworkResult::timeout());
             }
             ReceiptEvent::Cancelled => {
-                bail!("hole punch receipt cancelled from {}", target_nr);
+                return Ok(NetworkResult::no_connection_other(format!("hole punch receipt cancelled from {}", target_nr)))
             }
         };
 
