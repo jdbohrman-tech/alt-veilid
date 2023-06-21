@@ -5,14 +5,16 @@ variables:
   GIT_SUBMODULE_STRATEGY: normal
 
 stages:
-  - linux-amd64
-#  - linux-arm64
+  - build
+  - test
+  - package
+  - distribute
 
 before_script:
   - earthly bootstrap
 
-earthly-amd64:
-  stage: linux-amd64
+build_amd64:
+  stage: build
   only:
     - main
     - merge_requests
@@ -21,8 +23,46 @@ earthly-amd64:
     - linux
     - amd64
   script:
-    - echo "disabled for now"
-    # - earthly --ci -P +package-linux-amd64
+    - earthly +build-linux-amd64
+  when: manual
+
+test_amd64:
+  stage: test
+  needs:
+    - job: build_amd64
+  only:
+    - TC/CICD-hacking
+  tags:
+    - main
+    - amd64
+  script:
+    - earthly +unit-tests-linux-amd64
+
+package_amd64:
+  stage: package
+  needs:
+    - job: test_amd64
+  only:
+    - main
+  tags:
+    - linux
+    - amd64
+  script:
+    - earthly +package-linux-amd64
+
+
+distribute_amd64:
+  stage: distribute
+  needs:
+    - job: package_amd64
+  only:
+    - main
+  tags:
+    - linux
+    - amd64
+  script:
+    - /home/gitlab-runner/distribute-packages.sh
+
 
 #earthly-arm64:
 #  stage: linux-arm64
@@ -34,5 +74,4 @@ earthly-amd64:
 #    - linux
 #    - amd64
 #  script:
-#   - echo "disabled for now"
-#    # - earthly --ci -P +package-linux-arm64
+#    - earthly --ci -P +package-linux-arm64
