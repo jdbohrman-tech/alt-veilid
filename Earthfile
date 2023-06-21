@@ -86,36 +86,36 @@ clippy:
 # Build
 build-linux-amd64:
     FROM +code-linux
-    RUN cargo build --target x86_64-unknown-linux-gnu --release
+    RUN cargo build --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
 
 build-linux-arm64:
     FROM +code-linux
-    RUN cargo build --target aarch64-unknown-linux-gnu --release
+    RUN cargo build --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/aarch64-unknown-linux-gnu AS LOCAL ./target/artifacts/aarch64-unknown-linux-gnu
 
-build-android:
-    FROM +code-android
-    WORKDIR /veilid/veilid-core
-    ENV PATH=$PATH:/Android/Sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/
-    RUN cargo build --target aarch64-linux-android --release
-    RUN cargo build --target armv7-linux-androideabi --release
-    RUN cargo build --target i686-linux-android --release
-    RUN cargo build --target x86_64-linux-android --release
-    WORKDIR /veilid
-    SAVE ARTIFACT ./target/aarch64-linux-android AS LOCAL ./target/artifacts/aarch64-linux-android
-    SAVE ARTIFACT ./target/armv7-linux-androideabi AS LOCAL ./target/artifacts/armv7-linux-androideabi
-    SAVE ARTIFACT ./target/i686-linux-android AS LOCAL ./target/artifacts/i686-linux-android
-    SAVE ARTIFACT ./target/x86_64-linux-android AS LOCAL ./target/artifacts/x86_64-linux-android
+# build-android:
+#     FROM +code-android
+#     WORKDIR /veilid/veilid-core
+#     ENV PATH=$PATH:/Android/Sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/
+#     RUN cargo build --target aarch64-linux-android --release
+#     RUN cargo build --target armv7-linux-androideabi --release
+#     RUN cargo build --target i686-linux-android --release
+#     RUN cargo build --target x86_64-linux-android --release
+#     WORKDIR /veilid
+#     SAVE ARTIFACT ./target/aarch64-linux-android AS LOCAL ./target/artifacts/aarch64-linux-android
+#     SAVE ARTIFACT ./target/armv7-linux-androideabi AS LOCAL ./target/artifacts/armv7-linux-androideabi
+#     SAVE ARTIFACT ./target/i686-linux-android AS LOCAL ./target/artifacts/i686-linux-android
+#     SAVE ARTIFACT ./target/x86_64-linux-android AS LOCAL ./target/artifacts/x86_64-linux-android
 
 # Unit tests
 unit-tests-linux-amd64:
     FROM +code-linux
-    RUN cargo test --target x86_64-unknown-linux-gnu --release
+    RUN cargo test --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 unit-tests-linux-arm64:
     FROM +code-linux
-    RUN cargo test --target aarch64-unknown-linux-gnu --release
+    RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 # Package 
 package-linux-amd64:
