@@ -11,7 +11,6 @@ path = "src/main.rs"
 
 [features]
 default = [ "rt-tokio" ]
-macos = [ "cursive/ncurses-backend" ]
 rt-async-std = [ "async-std", "veilid-tools/rt-async-std", "cursive/rt-async-std" ]
 rt-tokio = [ "tokio", "tokio-util", "veilid-tools/rt-tokio", "cursive/rt-tokio" ]
 
@@ -26,6 +25,7 @@ cursive_buffered_backend = { path = "../external/cursive_buffered_backend" }
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
 cursive_table_view = "0.14.0"
+arboard = "3.2.0"
 # cursive-tabs = "0.5.0"
 clap = "^3"
 directories = "^4"

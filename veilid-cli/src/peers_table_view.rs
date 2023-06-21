@@ -74,8 +74,14 @@ impl TableViewItem<PeerTableColumn> for json::JsonValue {
         Self: Sized,
     {
         match column {
-            PeerTableColumn::NodeId => self.to_column(column).cmp(&other.to_column(column)),
-            PeerTableColumn::Address => self.to_column(column).cmp(&other.to_column(column)),
+            PeerTableColumn::NodeId => self
+                .to_column(column)
+                .to_ascii_lowercase()
+                .cmp(&other.to_column(column).to_ascii_lowercase()),
+            PeerTableColumn::Address => self
+                .to_column(column)
+                .to_ascii_lowercase()
+                .cmp(&other.to_column(column).to_ascii_lowercase()),
             PeerTableColumn::LatencyAvg => json_str_u64(&self["peer_stats"]["latency"]["average"])
                 .cmp(&json_str_u64(&other["peer_stats"]["latency"]["average"])),
             PeerTableColumn::TransferDownAvg => {

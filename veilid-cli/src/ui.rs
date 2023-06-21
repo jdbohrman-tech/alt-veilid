@@ -12,7 +12,7 @@ use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
 use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
-//use cursive_multiplex::*;
+// use cursive_multiplex::*;
 use std::collections::{HashMap, VecDeque};
 use thiserror::Error;
 
@@ -311,8 +311,7 @@ impl UI {
                 .button("Close", move |s| {
                     s.pop_layer();
                     close_cb(s);
-                }), //.wrap_with(CircularFocus::new)
-                    //.wrap_tab(),
+                }),
         );
         s.set_global_callback(cursive::event::Event::Key(Key::Esc), move |s| {
             s.set_global_callback(cursive::event::Event::Key(Key::Esc), UI::quit_handler);
@@ -453,6 +452,23 @@ impl UI {
         };
         Self::command_processor(s).set_server_address(sa);
         Self::command_processor(s).start_connection();
+    }
+
+    fn on_submit_peers_table_view(s: &mut Cursive, _row: usize, index: usize) {
+        let peers_table_view = UI::peers(s);
+        let node_id = peers_table_view
+            .borrow_item(index)
+            .map(|j| j["node_ids"][0].to_string());
+        if let Some(node_id) = node_id {
+            let mut clipboard = arboard::Clipboard::new().unwrap();
+            clipboard.set_text(node_id.clone()).unwrap();
+
+            let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
+            cursive_flexi_logger_view::push_to_log(StyledString::styled(
+                format!(">> NodeId Copied: {}", node_id),
+                color,
+            ));
+        }
     }
 
     fn show_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
@@ -644,7 +660,28 @@ impl UI {
     fn refresh_peers(s: &mut Cursive) {
         let mut peers = UI::peers(s);
         let inner = Self::inner_mut(s);
+        let sel_item = peers.item();
+        let sel_item_text = peers
+            .item()
+            .map(|x| peers.borrow_items()[x]["node_ids"][0].clone());
+
         peers.set_items_stable(inner.ui_state.peers_state.get().clone());
+
+        let mut selected = false;
+        if let Some(sel_item_text) = sel_item_text {
+            // First select by name
+            for n in 0..peers.borrow_items().len() {
+                if peers.borrow_items()[n]["node_ids"][0] == sel_item_text {
+                    peers.set_selected_item(n);
+                    selected = true;
+                }
+            }
+        }
+        if !selected {
+            if let Some(sel_item) = sel_item {
+                peers.set_selected_item(sel_item);
+            }
+        }
     }
 
     fn update_cb(s: &mut Cursive) {
@@ -707,9 +744,6 @@ impl UI {
         // Instantiate the cursive runnable
         let runnable = CursiveRunnable::new(
             || -> Result<Box<dyn cursive::backend::Backend>, Box<DumbError>> {
-                #[cfg(feature = "macos")]
-                let backend = cursive::backends::curses::n::Backend::init().unwrap();
-                #[cfg(not(feature = "macos"))]
                 let backend = cursive::backends::crossterm::Backend::init().unwrap();
                 let buffered_backend = cursive_buffered_backend::BufferedBackend::new(backend);
                 Ok(Box::new(buffered_backend))
@@ -737,6 +771,11 @@ impl UI {
             })),
         };
 
+        let ui_sender = UISender {
+            inner: this.inner.clone(),
+            cb_sink,
+        };
+
         let mut inner = this.inner.lock();
 
         // Make the inner object accessible in callbacks easily
@@ -750,12 +789,14 @@ impl UI {
             .with_name("node-events-panel")
             .full_screen();
 
-        let peers_table_view = PeersTableView::new()
+        let mut peers_table_view = PeersTableView::new()
             .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(48))
             .column(PeerTableColumn::Address, "Address", |c| c)
             .column(PeerTableColumn::LatencyAvg, "Ping", |c| c.width(8))
             .column(PeerTableColumn::TransferDownAvg, "Down", |c| c.width(8))
-            .column(PeerTableColumn::TransferUpAvg, "Up", |c| c.width(8))
+            .column(PeerTableColumn::TransferUpAvg, "Up", |c| c.width(8));
+        peers_table_view.set_on_submit(UI::on_submit_peers_table_view);
+        let peers_table_view = peers_table_view
             .with_name("peers")
             .full_width()
             .min_height(8);
@@ -832,8 +873,7 @@ impl UI {
 
         drop(inner);
 
-        let inner = this.inner.clone();
-        (this, UISender { inner, cb_sink })
+        (this, ui_sender)
     }
     pub fn cursive_flexi_logger(&self) -> Box<CursiveLogWriter> {
         let mut flv = cursive_flexi_logger_view::cursive_flexi_logger(self.siv.cb_sink().clone());
@@ -906,7 +946,7 @@ impl UISender {
         started: bool,
         bps_down: u64,
         bps_up: u64,
-        peers: Vec<json::JsonValue>,
+        mut peers: Vec<json::JsonValue>,
     ) {
         {
             let mut inner = self.inner.lock();
@@ -915,6 +955,11 @@ impl UISender {
                 ((bps_down as f64) / 1000.0f64) as f32,
                 ((bps_up as f64) / 1000.0f64) as f32,
             ));
+            peers.sort_by(|a, b| {
+                a["node_ids"][0]
+                    .to_string()
+                    .cmp(&b["node_ids"][0].to_string())
+            });
             inner.ui_state.peers_state.set(peers);
         }
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
@@ -935,10 +980,10 @@ impl UISender {
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }
 
-    pub fn add_node_event(&self, event: String) {
+    pub fn add_node_event(&self, log_color: Level, event: String) {
         {
             let inner = self.inner.lock();
-            let color = *inner.log_colors.get(&Level::Info).unwrap();
+            let color = *inner.log_colors.get(&log_color).unwrap();
             let mut starting_style: Style = color.into();
             for line in event.lines() {
                 let (spanned_string, end_style) =
