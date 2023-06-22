@@ -1,14 +1,19 @@
 use super::*;
+use assembly_buffer::*;
 use sockets::*;
 
 #[derive(Clone)]
 pub struct RawUdpProtocolHandler {
     socket: Arc<UdpSocket>,
+    assembly_buffer: AssemblyBuffer,
 }
 
 impl RawUdpProtocolHandler {
     pub fn new(socket: Arc<UdpSocket>) -> Self {
-        Self { socket }
+        Self {
+            socket,
+            assembly_buffer: AssemblyBuffer::new(),
+        }
     }
 
     // #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor))]

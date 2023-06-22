@@ -878,6 +878,8 @@ impl RPCProcessor {
     ) {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
+            log_rpc!(debug "RPC Question Lost: {:?}", node_ref);
+
             node_ref.stats_question_lost();
 
             // Also clear the last_connections for the entry so we make a new connection next time
