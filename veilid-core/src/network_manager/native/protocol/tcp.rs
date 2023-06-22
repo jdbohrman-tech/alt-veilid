@@ -56,11 +56,11 @@ impl RawTcpNetworkConnection {
         stream.flush().await.into_network_result()
     }
 
-    #[instrument(level="trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
+    //#[instrument(level="trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         let mut stream = self.stream.clone();
         let out = Self::send_internal(&mut stream, message).await?;
-        tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        //tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 

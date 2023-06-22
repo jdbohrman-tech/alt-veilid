@@ -64,7 +64,7 @@ impl WebsocketNetworkConnection {
     //     self.inner.ws_meta.close().await.map_err(to_io).map(drop)
     // }
 
-    #[instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
+    //#[instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large WS message");
@@ -79,7 +79,7 @@ impl WebsocketNetworkConnection {
         .map_err(to_io)
         .into_network_result()?;
 
-        tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        //tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 

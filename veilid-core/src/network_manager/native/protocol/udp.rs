@@ -18,13 +18,25 @@ impl RawUdpProtocolHandler {
 
     // #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor))]
     pub async fn recv_message(&self, data: &mut [u8]) -> io::Result<(usize, ConnectionDescriptor)> {
-        let (size, descriptor) = loop {
+        let (message_len, descriptor) = loop {
+            // Get a packet
             let (size, remote_addr) = network_result_value_or_log!(self.socket.recv_from(data).await.into_network_result()? => continue);
-            if size > MAX_MESSAGE_SIZE {
+
+            // Insert into assembly buffer
+            let Some(message) = self.assembly_buffer.insert_frame(&data[0..size], remote_addr) else {
+                continue;
+            };
+
+            // Check length of reassembled message (same for all protocols)
+            if message.len() > MAX_MESSAGE_SIZE {
                 log_net!(debug "{}({}) at {}@{}:{}", "Invalid message".green(), "received too large UDP message", file!(), line!(), column!());
                 continue;
             }
 
+            // Copy assemble message out if we got one
+            data[0..message.len()].copy_from_slice(&message);
+
+            // Return a connection descriptor and the amount of data in the message
             let peer_addr = PeerAddress::new(
                 SocketAddress::from_socket_addr(remote_addr),
                 ProtocolType::UDP,
@@ -35,25 +47,46 @@ impl RawUdpProtocolHandler {
                 SocketAddress::from_socket_addr(local_socket_addr),
             );
 
-            break (size, descriptor);
+            break (message.len(), descriptor);
         };
 
-        // tracing::Span::current().record("ret.len", &size);
+        // tracing::Span::current().record("ret.len", &message_len);
         // tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
-        Ok((size, descriptor))
+        Ok((message_len, descriptor))
     }
 
-    #[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor))]
+    //#[instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.descriptor))]
     pub async fn send_message(
         &self,
         data: Vec<u8>,
-        socket_addr: SocketAddr,
+        remote_addr: SocketAddr,
     ) -> io::Result<NetworkResult<ConnectionDescriptor>> {
         if data.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large UDP message");
         }
+
+        // Fragment and send
+        let sender = |framed_chunk: Vec<u8>, remote_addr: SocketAddr| async move {
+            let len = network_result_try!(self
+                .socket
+                .send_to(&framed_chunk, remote_addr)
+                .await
+                .into_network_result()?);
+            if len != framed_chunk.len() {
+                bail_io_error_other!("UDP partial send")
+            }
+            Ok(NetworkResult::value(()))
+        };
+
+        network_result_try!(
+            self.assembly_buffer
+                .split_message(data, remote_addr, sender)
+                .await?
+        );
+
+        // Return a connection descriptor for the sent message
         let peer_addr = PeerAddress::new(
-            SocketAddress::from_socket_addr(socket_addr),
+            SocketAddress::from_socket_addr(remote_addr),
             ProtocolType::UDP,
         );
         let local_socket_addr = self.socket.local_addr()?;
@@ -63,17 +96,7 @@ impl RawUdpProtocolHandler {
             SocketAddress::from_socket_addr(local_socket_addr),
         );
 
-        let len = network_result_try!(self
-            .socket
-            .send_to(&data, socket_addr)
-            .await
-            .into_network_result()?);
-        if len != data.len() {
-            bail_io_error_other!("UDP partial send")
-        }
-
-        tracing::Span::current().record("ret.len", &len);
-        tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
+        // tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
         Ok(NetworkResult::value(descriptor))
     }
 

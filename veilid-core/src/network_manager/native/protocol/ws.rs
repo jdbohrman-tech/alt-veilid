@@ -72,7 +72,7 @@ where
     //         .map_err(to_io_error_other)
     // }
 
-    #[instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
+    //#[instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("received too large WS message");
@@ -89,7 +89,7 @@ where
             Ok(v) => NetworkResult::value(v),
             Err(e) => err_to_network_result(e),
         };
-        tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        //tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 
