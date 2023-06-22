@@ -190,7 +190,7 @@ network:
     hole_punch_receipt_time_ms: 5000 
     node_id: ''
     node_id_secret: ''
-    bootstrap: ['bootstrap.dev.veilid.net']
+    bootstrap: ['bootstrap.veilid.net']
     upnp: true
     detect_address_changes: true
     enable_local_peer_scope: false

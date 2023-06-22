@@ -61,6 +61,7 @@ distribute_amd64:
     - linux
     - amd64
   script:
+    - earthly +package-linux-amd64
     - /home/gitlab-runner/distribute-packages.sh
 
 

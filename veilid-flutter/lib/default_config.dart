@@ -97,8 +97,8 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
         nodeId: [],
         nodeIdSecret: [],
         bootstrap: kIsWeb
-            ? ["ws://bootstrap.dev.veilid.net:5150/ws"]
-            : ["bootstrap.dev.veilid.net"],
+            ? ["ws://bootstrap.veilid.net:5150/ws"]
+            : ["bootstrap.veilid.net"],
         limitOverAttached: 64,
         limitFullyAttached: 32,
         limitAttachedStrong: 16,
