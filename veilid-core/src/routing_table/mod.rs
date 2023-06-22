@@ -346,14 +346,53 @@ impl RoutingTable {
     }
     /// Deserialize routing table from table store
     async fn load_buckets(&self) -> EyreResult<()> {
+        // Make a cache validity key of all our node ids and our bootstrap choice
+        let mut cache_validity_key: Vec<u8> = Vec::new();
+        {
+            let c = self.unlocked_inner.config.get();
+            for ck in VALID_CRYPTO_KINDS {
+                cache_validity_key.append(
+                    &mut c
+                        .network
+                        .routing_table
+                        .node_id
+                        .get(ck)
+                        .unwrap()
+                        .value
+                        .bytes
+                        .to_vec(),
+                );
+            }
+            for b in &c.network.routing_table.bootstrap {
+                cache_validity_key.append(&mut b.as_bytes().to_vec());
+            }
+        };
+
         // Deserialize bucket map and all entries from the table store
-        let tstore = self.unlocked_inner.network_manager().table_store();
-        let tdb = tstore.open("routing_table", 1).await?;
-        let Some(serialized_bucket_map): Option<SerializedBucketMap> = tdb.load_rkyv(0, b"serialized_bucket_map").await? else {
+        let table_store = self.unlocked_inner.network_manager().table_store();
+        let db = table_store.open("routing_table", 1).await?;
+
+        let caches_valid = match db.load(0, b"cache_validity_key").await? {
+            Some(v) => v == cache_validity_key,
+            None => false,
+        };
+        if !caches_valid {
+            // Caches not valid, start over
+            log_rtab!(debug "cache validity key changed, emptying routing table");
+            drop(db);
+            table_store.delete("routing_table").await?;
+            let db = table_store.open("routing_table", 1).await?;
+            db.store(0, b"cache_validity_key", &cache_validity_key)
+                .await?;
+            return Ok(());
+        }
+
+        // Caches valid, load saved routing table
+        let Some(serialized_bucket_map): Option<SerializedBucketMap> = db.load_rkyv(0, b"serialized_bucket_map").await? else {
             log_rtab!(debug "no bucket map in saved routing table");
             return Ok(());
         };
-        let Some(all_entry_bytes): Option<SerializedBuckets> = tdb.load_rkyv(0, b"all_entry_bytes").await? else {
+        let Some(all_entry_bytes): Option<SerializedBuckets> = db.load_rkyv(0, b"all_entry_bytes").await? else {
             log_rtab!(debug "no all_entry_bytes in saved routing table");
             return Ok(());
         };
