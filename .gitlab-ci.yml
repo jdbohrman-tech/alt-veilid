@@ -29,7 +29,7 @@ distribute_amd64:
   needs:
     - job: test_amd64
   only:
-    - main
+    - stable
   tags:
     - linux
     - amd64
