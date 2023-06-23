@@ -15,7 +15,7 @@ test_amd64:
   stage: test
   image: earthly/earthly:v0.6.30
   only:
-    - test-caching
+    - main
     - merge_requests
   tags:
     - linux
@@ -29,10 +29,10 @@ distribute_amd64:
   needs:
     - job: test_amd64
   only:
-    - test-caching
+    - main
   tags:
     - linux
     - amd64
   script:
     - earthly +package-linux-amd64
-    # - /home/gitlab-runner/distribute-packages.sh
+    - /home/gitlab-runner/distribute-packages.sh
