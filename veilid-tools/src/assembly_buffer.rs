@@ -282,7 +282,17 @@ impl AssemblyBuffer {
                 let peer_messages = e.get_mut();
 
                 // Insert the fragment and see what comes out
-                peer_messages.insert_fragment(seq, off, len, chunk)
+                let out = peer_messages.insert_fragment(seq, off, len, chunk);
+
+                // If we are returning a message, see if there are any more assemblies for this peer
+                // If not, remove the peer
+                if out.is_some() {
+                    if peer_messages.assemblies.len() == 0 {
+                        e.remove();
+                    }
+                }
+
+                out
             }
             std::collections::hash_map::Entry::Vacant(v) => {
                 // See if we have room for one more
@@ -331,10 +341,10 @@ impl AssemblyBuffer {
         &self,
         data: Vec<u8>,
         remote_addr: SocketAddr,
-        sender: S,
+        mut sender: S,
     ) -> std::io::Result<NetworkResult<()>>
     where
-        S: Fn(Vec<u8>, SocketAddr) -> F,
+        S: FnMut(Vec<u8>, SocketAddr) -> F,
         F: Future<Output = std::io::Result<NetworkResult<()>>>,
     {
         if data.len() > MAX_LEN {
