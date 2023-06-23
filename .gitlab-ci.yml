@@ -21,7 +21,7 @@ test_amd64:
     - linux
     - amd64
   script:
-    - earthly --ci --remote-cache=veilid/main-branch-cache:cache +unit-tests-linux-amd64
+    - earthly --ci +unit-tests-linux-amd64
   when: manual
 
 distribute_amd64:
@@ -34,5 +34,5 @@ distribute_amd64:
     - linux
     - amd64
   script:
-    - earthly --remote-cache=veilid/main-branch-cache:cache +package-linux-amd64
+    - earthly +package-linux-amd64
     # - /home/gitlab-runner/distribute-packages.sh
