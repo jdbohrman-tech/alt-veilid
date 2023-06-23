@@ -5,74 +5,38 @@ variables:
   GIT_SUBMODULE_STRATEGY: normal
 
 stages:
-  - build
   - test
-  - package
   - distribute
 
 before_script:
   - earthly bootstrap
 
-build_amd64:
-  stage: build
-  only:
-    - main
-    - merge_requests
-  image: earthly/earthly:v0.6.30
-  tags:
-    - linux
-    - amd64
-  script:
-    - earthly +build-linux-amd64
-  when: manual
-
 test_amd64:
   stage: test
-  needs:
-    - job: build_amd64
+  image: earthly/earthly:v0.6.30
   only:
-    - main
+    - test-caching
+    - merge_requests
   tags:
     - linux
     - amd64
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
-    - earthly +unit-tests-linux-amd64
-
-package_amd64:
-  stage: package
-  needs:
-    - job: test_amd64
-  only:
-    - main
-  tags:
-    - linux
-    - amd64
-  script:
-    - earthly +package-linux-amd64
-
+    - earthly --ci --remote-cache=veilid/main-branch-cache:cache +unit-tests-linux-amd64
+  when: manual
 
 distribute_amd64:
   stage: distribute
   needs:
-    - job: package_amd64
+    - job: test_amd64
   only:
-    - main
+    - test-caching
   tags:
     - linux
     - amd64
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
-    - earthly +package-linux-amd64
-    - /home/gitlab-runner/distribute-packages.sh
-
-
-#earthly-arm64:
-#  stage: linux-arm64
-#  only:
-#    - main
-#    - merge_requests
-#  image: earthly/earthly:v0.6.30
-#  tags:
-#    - linux
-#    - amd64
-#  script:
-#    - earthly --ci -P +package-linux-arm64
+    - earthly --remote-cache=veilid/main-branch-cache:cache +package-linux-amd64
+    # - /home/gitlab-runner/distribute-packages.sh
