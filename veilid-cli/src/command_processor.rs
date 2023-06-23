@@ -482,15 +482,26 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
             }
         }
 
+        let (message, truncated) = if message.len() > 64 {
+            (&message[0..64], true)
+        } else {
+            (&message[..], false)
+        };
+
         let strmsg = if printable {
-            String::from_utf8_lossy(&message).to_string()
+            format!("\"{}\"", String::from_utf8_lossy(&message).to_string())
         } else {
             hex::encode(message)
         };
 
         self.inner().ui_sender.add_node_event(
             Level::Info,
-            format!("AppMessage ({:?}): {}", msg["sender"], strmsg),
+            format!(
+                "AppMessage ({:?}): {}{}",
+                msg["sender"],
+                strmsg,
+                if truncated { "..." } else { "" }
+            ),
         );
     }
 
@@ -505,10 +516,16 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
             }
         }
 
-        let strmsg = if printable {
-            String::from_utf8_lossy(&message).to_string()
+        let (message, truncated) = if message.len() > 64 {
+            (&message[0..64], true)
         } else {
-            format!("#{}", hex::encode(&message))
+            (&message[..], false)
+        };
+
+        let strmsg = if printable {
+            format!("\"{}\"", String::from_utf8_lossy(&message).to_string())
+        } else {
+            hex::encode(message)
         };
 
         let id = json_str_u64(&call["call_id"]);
@@ -516,8 +533,11 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
         self.inner().ui_sender.add_node_event(
             Level::Info,
             format!(
-                "AppCall ({:?}) id = {:016x} : {}",
-                call["sender"], id, strmsg
+                "AppCall ({:?}) id = {:016x} : {}{}",
+                call["sender"],
+                id,
+                strmsg,
+                if truncated { "..." } else { "" }
             ),
         );
 

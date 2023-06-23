@@ -287,8 +287,10 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
                 let mut out: Vec<String> = Vec::new();
                 for x in x.split(',') {
                     let x = x.trim().to_string();
-                    println!("    {}", x);
-                    out.push(x);
+                    if !x.is_empty() {
+                        println!("    {}", x);
+                        out.push(x);
+                    }
                 }
                 out
             }

@@ -3,7 +3,7 @@ use super::*;
 impl RPCProcessor {
     // Sends a high level app message
     // Can be sent via all methods including relays and routes
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self, message), ret, err)]
     pub async fn rpc_call_app_message(
         self,
         dest: Destination,
