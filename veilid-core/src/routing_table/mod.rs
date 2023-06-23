@@ -351,17 +351,9 @@ impl RoutingTable {
         {
             let c = self.unlocked_inner.config.get();
             for ck in VALID_CRYPTO_KINDS {
-                cache_validity_key.append(
-                    &mut c
-                        .network
-                        .routing_table
-                        .node_id
-                        .get(ck)
-                        .unwrap()
-                        .value
-                        .bytes
-                        .to_vec(),
-                );
+                if let Some(nid) = c.network.routing_table.node_id.get(ck) {
+                    cache_validity_key.append(&mut nid.value.bytes.to_vec());
+                }
             }
             for b in &c.network.routing_table.bootstrap {
                 cache_validity_key.append(&mut b.as_bytes().to_vec());

@@ -5,74 +5,32 @@ variables:
   GIT_SUBMODULE_STRATEGY: normal
 
 stages:
-  - build
   - test
-  - package
   - distribute
 
 before_script:
   - earthly bootstrap
 
-build_amd64:
-  stage: build
+test_amd64:
+  stage: test
+  image: earthly/earthly:v0.6.30
   only:
     - main
     - merge_requests
-  image: earthly/earthly:v0.6.30
   tags:
     - linux
     - amd64
   script:
-    - earthly +build-linux-amd64
+    - earthly --ci +unit-tests-linux-amd64
   when: manual
-
-test_amd64:
-  stage: test
-  needs:
-    - job: build_amd64
-  only:
-    - main
-  tags:
-    - linux
-    - amd64
-  script:
-    - earthly +unit-tests-linux-amd64
-
-package_amd64:
-  stage: package
-  needs:
-    - job: test_amd64
-  only:
-    - main
-  tags:
-    - linux
-    - amd64
-  script:
-    - earthly +package-linux-amd64
-
 
 distribute_amd64:
   stage: distribute
-  needs:
-    - job: package_amd64
   only:
-    - main
+    - stable
   tags:
     - linux
     - amd64
   script:
     - earthly +package-linux-amd64
     - /home/gitlab-runner/distribute-packages.sh
-
-
-#earthly-arm64:
-#  stage: linux-arm64
-#  only:
-#    - main
-#    - merge_requests
-#  image: earthly/earthly:v0.6.30
-#  tags:
-#    - linux
-#    - amd64
-#  script:
-#    - earthly --ci -P +package-linux-arm64

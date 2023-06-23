@@ -1580,7 +1580,7 @@ mod tests {
         //
         assert_eq!(
             s.core.network.routing_table.bootstrap,
-            vec!["bootstrap.dev.veilid.net".to_owned()]
+            vec!["bootstrap.veilid.net".to_owned()]
         );
         //
         assert_eq!(s.core.network.rpc.concurrency, 0);
