@@ -26,8 +26,6 @@ test_amd64:
 
 distribute_amd64:
   stage: distribute
-  needs:
-    - job: test_amd64
   only:
     - stable
   tags:
