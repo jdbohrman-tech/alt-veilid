@@ -11,7 +11,7 @@ const HEADER_LEN: usize = 8;
 const MAX_LEN: usize = LengthType::MAX as usize;
 
 // XXX: keep statistics on all drops and why we dropped them
-// XXX: move to config
+// XXX: move to config eventually?
 const FRAGMENT_LEN: usize = 1280 - HEADER_LEN;
 const MAX_CONCURRENT_HOSTS: usize = 256;
 const MAX_ASSEMBLIES_PER_HOST: usize = 256;
@@ -27,7 +27,7 @@ struct PeerKey {
 
 #[derive(Clone, Eq, PartialEq)]
 struct MessageAssembly {
-    timestamp: Timestamp,
+    timestamp: u64,
     seq: SequenceType,
     data: Vec<u8>,
     parts: RangeSetBlaze<LengthType>,
@@ -35,13 +35,115 @@ struct MessageAssembly {
 
 #[derive(Clone, Eq, PartialEq)]
 struct PeerMessages {
-    assemblies: LinkedList<MessageAssembly>,
+    total_buffer: usize,
+    assemblies: VecDeque<MessageAssembly>,
 }
 
 impl PeerMessages {
     pub fn new() -> Self {
         Self {
-            assemblies: LinkedList::new(),
+            total_buffer: 0,
+            assemblies: VecDeque::new(),
+        }
+    }
+
+    fn merge_in_data(
+        &mut self,
+        timestamp: u64,
+        ass: usize,
+        off: LengthType,
+        len: LengthType,
+        chunk: &[u8],
+    ) -> bool {
+        let assembly = &mut self.assemblies[ass];
+
+        // Ensure the new fragment hasn't redefined the message length, reusing the same seq
+        if assembly.data.len() != len as usize {
+            // Drop the assembly and just go with the new fragment as starting a new assembly
+            let seq = assembly.seq;
+            drop(assembly);
+            self.remove_assembly(ass);
+            self.new_assembly(timestamp, seq, off, len, chunk);
+            return false;
+        }
+
+        let part_start = off;
+        let part_end = off + chunk.len() as LengthType - 1;
+        let part = RangeSetBlaze::from_iter([part_start..=part_end]);
+
+        // if fragments overlap, drop the old assembly and go with a new one
+        if !assembly.parts.is_disjoint(&part) {
+            let seq = assembly.seq;
+            drop(assembly);
+            self.remove_assembly(ass);
+            self.new_assembly(timestamp, seq, off, len, chunk);
+            return false;
+        }
+
+        // Merge part
+        assembly.parts |= part;
+        assembly.data[part_start as usize..=part_end as usize].copy_from_slice(chunk);
+
+        // Check to see if this part is done
+        if assembly.parts.ranges_len() == 1
+            && assembly.parts.first().unwrap() == 0
+            && assembly.parts.last().unwrap() == len - 1
+        {
+            return true;
+        }
+        false
+    }
+
+    fn new_assembly(
+        &mut self,
+        timestamp: u64,
+        seq: SequenceType,
+        off: LengthType,
+        len: LengthType,
+        chunk: &[u8],
+    ) -> usize {
+        // ensure we have enough space for the new assembly
+        self.reclaim_space(len as usize);
+
+        // make the assembly
+        let part_start = off;
+        let part_end = off + chunk.len() as LengthType - 1;
+
+        let mut assembly = MessageAssembly {
+            timestamp,
+            seq,
+            data: vec![0u8; len as usize],
+            parts: RangeSetBlaze::from_iter([part_start..=part_end]),
+        };
+        assembly.data[part_start as usize..=part_end as usize].copy_from_slice(chunk);
+
+        // Add the buffer length in
+        self.total_buffer += assembly.data.len();
+        self.assemblies.push_front(assembly);
+
+        // Was pushed front, return the front index
+        0
+    }
+
+    fn remove_assembly(&mut self, index: usize) -> MessageAssembly {
+        let assembly = self.assemblies.remove(index).unwrap();
+        self.total_buffer -= assembly.data.len();
+        assembly
+    }
+
+    fn truncate_assemblies(&mut self, new_len: usize) {
+        for an in new_len..self.assemblies.len() {
+            self.total_buffer -= self.assemblies[an].data.len();
+        }
+        self.assemblies.truncate(new_len);
+    }
+
+    fn reclaim_space(&mut self, needed_space: usize) {
+        // If we have too many assemblies or too much buffer rotate some out
+        while self.assemblies.len() > (MAX_ASSEMBLIES_PER_HOST - 1)
+            || self.total_buffer > (MAX_BUFFER_PER_HOST - needed_space)
+        {
+            self.remove_assembly(self.assemblies.len() - 1);
         }
     }
 
@@ -56,7 +158,37 @@ impl PeerMessages {
         let cur_ts = get_timestamp();
 
         // Get the assembly this belongs to by its sequence number
-        for a in self.assemblies {}
+        let mut ass = None;
+        for an in 0..self.assemblies.len() {
+            // If this assembly's timestamp is too old, then everything after it will be too, drop em all
+            let age = cur_ts.saturating_sub(self.assemblies[an].timestamp);
+            if age > MAX_ASSEMBLY_AGE_US {
+                self.truncate_assemblies(an);
+                break;
+            }
+            // If this assembly has a matching seq, then assemble with it
+            if self.assemblies[an].seq == seq {
+                ass = Some(an);
+            }
+        }
+        if ass.is_none() {
+            // Add a new assembly to the front and return the first index
+            self.new_assembly(cur_ts, seq, off, len, chunk);
+            return None;
+        }
+        let ass = ass.unwrap();
+
+        // Now that we have an assembly, merge in the fragment
+        let done = self.merge_in_data(cur_ts, ass, off, len, chunk);
+
+        // If the assembly is now equal to the entire range, then return it
+        if done {
+            let assembly = self.remove_assembly(ass);
+            return Some(assembly.data);
+        }
+
+        // Otherwise, do nothing
+        None
     }
 }
 
@@ -128,7 +260,7 @@ impl AssemblyBuffer {
 
         // See if we have a whole message and not a fragment
         if off == 0 && len as usize == chunk.len() {
-            return Some(frame.to_vec());
+            return Some(chunk.to_vec());
         }
 
         // Drop fragments with offsets greater than or equal to the message length

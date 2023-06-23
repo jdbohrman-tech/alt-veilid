@@ -36,6 +36,8 @@ rand = "^0.7"
 rust-fsm = "^0"
 backtrace = "^0"
 fn_name = "^0"
+range-set-blaze = "0.1.5"
+flume = { version = "^0", features = ["async"] }
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

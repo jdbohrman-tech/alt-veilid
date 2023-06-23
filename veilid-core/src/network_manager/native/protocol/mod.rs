@@ -4,8 +4,6 @@ pub mod udp;
 pub mod wrtc;
 pub mod ws;
 
-mod assembly_buffer;
-
 use super::*;
 use std::io;
 

@@ -1,6 +1,7 @@
 //! Test suite for Native
 #![cfg(not(target_arch = "wasm32"))]
 
+mod test_assembly_buffer;
 mod test_async_peek_stream;
 
 use super::*;
@@ -16,6 +17,8 @@ pub async fn run_all_tests() {
     test_async_peek_stream::test_all().await;
     info!("TEST: exec_test_async_tag_lock");
     test_async_tag_lock::test_all().await;
+    info!("TEST: exec_test_assembly_buffer");
+    test_assembly_buffer::test_all().await;
 
     info!("Finished unit tests");
 }
@@ -94,6 +97,15 @@ cfg_if! {
             setup();
             block_on(async {
                 test_async_tag_lock::test_all().await;
+            });
+        }
+
+        #[test]
+        #[serial]
+        fn run_test_assembly_buffer() {
+            setup();
+            block_on(async {
+                test_assembly_buffer::test_all().await;
             });
         }
     }
