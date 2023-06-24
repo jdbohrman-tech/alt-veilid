@@ -101,6 +101,8 @@ impl RPCProcessor {
             RPCQuestionDetail::StatusQ(status_q),
         );
 
+        let debug_string = format!("Status => {}", dest);
+
         // Send the info request
         let waitable_reply =
             network_result_try!(self.question(dest.clone(), question, None).await?);
@@ -109,7 +111,7 @@ impl RPCProcessor {
         let send_data_kind = waitable_reply.send_data_kind;
 
         // Wait for reply
-        let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
+        let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
             TimeoutOr::Value(v) => v,
         };

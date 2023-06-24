@@ -317,7 +317,6 @@ impl BucketEntryInner {
             rti,
             true,
             NodeRefFilter::from(routing_domain),
-            false,
         );
         !last_connections.is_empty()
     }
@@ -372,7 +371,6 @@ impl BucketEntryInner {
             rti,
             true,
             NodeRefFilter::from(routing_domain_set),
-            false
         );
         for lc in last_connections {
             if let Some(rd) =
@@ -415,7 +413,6 @@ impl BucketEntryInner {
         rti: &RoutingTableInner,
         only_live: bool,
         filter: NodeRefFilter,
-        ordered: bool,
     ) -> Vec<(ConnectionDescriptor, Timestamp)> {
         let connection_manager =
             rti.unlocked_inner.network_manager.connection_manager();
@@ -461,14 +458,8 @@ impl BucketEntryInner {
                 }
             })
             .collect();
-        // Sort with ordering preference first and then sort with newest timestamps
+        // Sort with newest timestamps
         out.sort_by(|a, b| {
-            if ordered {
-                let s = ProtocolType::ordered_sequencing_sort(a.0.protocol_type(), b.0.protocol_type());
-                if s != core::cmp::Ordering::Equal {
-                    return s;
-                }
-            }
             b.1.cmp(&a.1)
         });
         out

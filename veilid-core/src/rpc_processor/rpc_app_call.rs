@@ -9,6 +9,8 @@ impl RPCProcessor {
         dest: Destination,
         message: Vec<u8>,
     ) -> Result<NetworkResult<Answer<Vec<u8>>>, RPCError> {
+        let debug_string = format!("AppCall(message(len)={}) => {}", message.len(), dest);
+
         let app_call_q = RPCOperationAppCallQ::new(message)?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
@@ -19,7 +21,7 @@ impl RPCProcessor {
         let waitable_reply = network_result_try!(self.question(dest, question, None).await?);
 
         // Wait for reply
-        let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
+        let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
             TimeoutOr::Value(v) => v,
         };

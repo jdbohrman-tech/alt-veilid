@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeRefFilter {
     pub routing_domain_set: RoutingDomainSet,
     pub dial_info_filter: DialInfoFilter,

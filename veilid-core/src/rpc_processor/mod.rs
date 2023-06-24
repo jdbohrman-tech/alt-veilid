@@ -529,6 +529,7 @@ impl RPCProcessor {
     async fn wait_for_reply(
         &self,
         waitable_reply: WaitableReply,
+        debug_string: String,
     ) -> Result<TimeoutOr<(RPCMessage, TimestampDuration)>, RPCError> {
         let out = self
             .unlocked_inner
@@ -536,7 +537,20 @@ impl RPCProcessor {
             .wait_for_op(waitable_reply.handle, waitable_reply.timeout_us)
             .await;
         match &out {
-            Err(_) | Ok(TimeoutOr::Timeout) => {
+            Err(e) => {
+                let msg = format!("RPC Lost ({}): {}", debug_string, e);
+                log_rpc!(debug "{}", msg.bright_magenta());
+                self.record_question_lost(
+                    waitable_reply.send_ts,
+                    waitable_reply.node_ref.clone(),
+                    waitable_reply.safety_route,
+                    waitable_reply.remote_private_route,
+                    waitable_reply.reply_private_route,
+                );
+            }
+            Ok(TimeoutOr::Timeout) => {
+                let msg = format!("RPC Lost ({}): Timeout", debug_string);
+                log_rpc!(debug "{}", msg.bright_cyan());
                 self.record_question_lost(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
@@ -878,8 +892,6 @@ impl RPCProcessor {
     ) {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
-            log_rpc!(debug "RPC Question Lost: {:?}", node_ref);
-
             node_ref.stats_question_lost();
 
             // Also clear the last_connections for the entry so we make a new connection next time

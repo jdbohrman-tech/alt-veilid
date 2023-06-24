@@ -39,6 +39,16 @@ impl RPCProcessor {
             return Err(RPCError::internal("No node id for crypto kind"));
         };
 
+        let debug_string = format!(
+            "SetValue(key={} subkey={} value_data(writer)={} value_data(len)={} send_descriptor={}) => {}",
+            key,
+            subkey,
+            value.value_data().writer(),
+            value.value_data().data().len(),
+            send_descriptor,
+            dest
+        );
+
         // Send the setvalue question
         let set_value_q = RPCOperationSetValueQ::new(
             key,
@@ -59,13 +69,14 @@ impl RPCProcessor {
             subkey,
             vcrypto: vcrypto.clone(),
         });
+
         let waitable_reply = network_result_try!(
             self.question(dest, question, Some(question_context))
                 .await?
         );
 
         // Wait for reply
-        let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
+        let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
             TimeoutOr::Value(v) => v,
         };

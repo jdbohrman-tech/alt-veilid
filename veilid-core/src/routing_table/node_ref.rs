@@ -277,15 +277,22 @@ pub trait NodeRefBase: Sized {
         out
     }
 
+    /// Get the most recent 'last connection' to this node
+    /// Filtered first and then sorted by ordering preference and then by most recent
     fn last_connection(&self) -> Option<ConnectionDescriptor> {
-        // Get the last connections and the last time we saw anything with this connection
-        // Filtered first and then sorted by sequencing and then by most recent
         self.operate(|rti, e| {
             // apply sequencing to filter and get sort
             let sequencing = self.common().sequencing;
             let filter = self.common().filter.clone().unwrap_or_default();
             let (ordered, filter) = filter.with_sequencing(sequencing);
-            let last_connections = e.last_connections(rti, true, filter, ordered);
+            let mut last_connections = e.last_connections(rti, true, filter);
+
+            if ordered {
+                last_connections.sort_by(|a, b| {
+                    ProtocolType::ordered_sequencing_sort(a.0.protocol_type(), b.0.protocol_type())
+                });
+            }
+
             last_connections.first().map(|x| x.0)
         })
     }

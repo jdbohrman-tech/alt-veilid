@@ -39,6 +39,18 @@ impl RPCProcessor {
             return Err(RPCError::internal("No node id for crypto kind"));
         };
 
+        let debug_string = format!(
+            "GetValue(key={} subkey={} last_descriptor={}) => {}",
+            key,
+            subkey,
+            if last_descriptor.is_some() {
+                "Some"
+            } else {
+                "None"
+            },
+            dest
+        );
+
         // Send the getvalue question
         let get_value_q = RPCOperationGetValueQ::new(key, subkey, last_descriptor.is_none());
         let question = RPCQuestion::new(
@@ -58,7 +70,7 @@ impl RPCProcessor {
         );
 
         // Wait for reply
-        let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
+        let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
             TimeoutOr::Value(v) => v,
         };
