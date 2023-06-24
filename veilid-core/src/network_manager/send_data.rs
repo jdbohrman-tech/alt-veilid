@@ -66,9 +66,10 @@ impl NetworkManager {
                         )
                     }
                     NodeContactMethod::Unreachable => {
-                        return Ok(NetworkResult::no_connection_other(
-                            "Can't send to this node",
-                        ));
+                        network_result_try!(
+                            this.send_data_ncm_unreachable(target_node_ref, data)
+                                .await?
+                        )
                     }
                 };
 
@@ -91,6 +92,38 @@ impl NetworkManager {
         let Some(connection_descriptor) = target_node_ref.last_connection() else {
             return Ok(NetworkResult::no_connection_other(
                 "should have found an existing connection",
+            ));
+        };
+
+        if self
+            .net()
+            .send_data_to_existing_connection(connection_descriptor, data)
+            .await?
+            .is_some()
+        {
+            return Ok(NetworkResult::no_connection_other(
+                "failed to send to existing connection",
+            ));
+        }
+
+        // Update timestamp for this last connection since we just sent to it
+        target_node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
+
+        Ok(NetworkResult::value(SendDataKind::Existing(
+            connection_descriptor,
+        )))
+    }
+
+    /// Send data using NodeContactMethod::Unreachable
+    async fn send_data_ncm_unreachable(
+        &self,
+        target_node_ref: NodeRef,
+        data: Vec<u8>,
+    ) -> EyreResult<NetworkResult<SendDataKind>> {
+        // Try to send data to the last socket we've seen this peer on
+        let Some(connection_descriptor) = target_node_ref.last_connection() else {
+            return Ok(NetworkResult::no_connection_other(
+                "Node is not reachable and has no existing connection",
             ));
         };
 
