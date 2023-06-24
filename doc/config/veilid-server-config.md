@@ -188,8 +188,9 @@ network:
     client_whitelist_timeout_ms: 300000 
     reverse_connection_receipt_time_ms: 5000 
     hole_punch_receipt_time_ms: 5000 
-    node_id: ''
-    node_id_secret: ''
+    network_key_password: null
+    node_id: null
+    node_id_secret: null
     bootstrap: ['bootstrap.veilid.net']
     upnp: true
     detect_address_changes: true

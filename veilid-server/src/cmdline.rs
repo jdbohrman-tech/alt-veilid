@@ -152,6 +152,11 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
                 .long("panic")
                 .help("panic on ctrl-c instead of graceful shutdown"),
         )
+        .arg(
+            Arg::new("network-key")
+                .long("network-key")
+                .help("password override to use for network isolation"),
+        )
         ;
 
     #[cfg(feature = "rt-tokio")]
@@ -257,6 +262,9 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
     }
     if matches.occurrences_of("new-password") != 0 {
         settingsrw.core.protected_store.new_device_encryption_key_password = Some(matches.value_of("new-password").unwrap().to_owned());
+    }
+    if matches.occurrences_of("network-key") != 0 {
+        settingsrw.core.network.network_key_password = Some(matches.value_of("new-password").unwrap().to_owned());
     }
 
     if matches.occurrences_of("dump-txt-record") != 0 {

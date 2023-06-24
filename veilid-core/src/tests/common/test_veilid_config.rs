@@ -196,6 +196,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.client_whitelist_timeout_ms" => Ok(Box::new(300_000u32)),
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
+        "network.network_key_password" => Ok(Box::new(Option::<String>::None)),
         "network.routing_table.node_id" => Ok(Box::new(TypedKeySet::new())),
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretSet::new())),
         "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
@@ -330,6 +331,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.client_whitelist_timeout_ms, 300_000u32);
     assert_eq!(inner.network.reverse_connection_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
+    assert_eq!(inner.network.network_key_password, Option::<String>::None);
     assert_eq!(inner.network.rpc.concurrency, 2u32);
     assert_eq!(inner.network.rpc.queue_size, 1024u32);
     assert_eq!(inner.network.rpc.timeout_ms, 5_000u32);

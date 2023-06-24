@@ -301,13 +301,13 @@ impl NetworkConnection {
                             match res {
                                 Ok(v) => {
                                     
-                                    let message = network_result_value_or_log!(v => {
+                                    let mut message = network_result_value_or_log!(v => {
                                         return RecvLoopAction::Finish;
                                     });
 
                                     // Pass received messages up to the network manager for processing
                                     if let Err(e) = network_manager
-                                        .on_recv_envelope(message.as_slice(), descriptor)
+                                        .on_recv_envelope(message.as_mut_slice(), descriptor)
                                         .await
                                     {
                                         log_net!(debug "failed to process received envelope: {}", e);

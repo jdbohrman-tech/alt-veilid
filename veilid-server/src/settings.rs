@@ -69,6 +69,7 @@ core:
         client_whitelist_timeout_ms: 300000 
         reverse_connection_receipt_time_ms: 5000 
         hole_punch_receipt_time_ms: 5000 
+        network_key_password: null
         routing_table:
             node_id: null
             node_id_secret: null
@@ -582,6 +583,7 @@ pub struct Network {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
+    pub network_key_password: Option<String>,
     pub routing_table: RoutingTable,
     pub rpc: Rpc,
     pub dht: Dht,
@@ -994,6 +996,7 @@ impl Settings {
         set_config_value!(inner.core.network.client_whitelist_timeout_ms, value);
         set_config_value!(inner.core.network.reverse_connection_receipt_time_ms, value);
         set_config_value!(inner.core.network.hole_punch_receipt_time_ms, value);
+        set_config_value!(inner.core.network.network_key_password, value);
         set_config_value!(inner.core.network.routing_table.node_id, value);
         set_config_value!(inner.core.network.routing_table.node_id_secret, value);
         set_config_value!(inner.core.network.routing_table.bootstrap, value);
@@ -1173,6 +1176,9 @@ impl Settings {
                 )),
                 "network.hole_punch_receipt_time_ms" => {
                     Ok(Box::new(inner.core.network.hole_punch_receipt_time_ms))
+                }
+                "network.network_key_password" => {
+                    Ok(Box::new(inner.core.network.network_key_password.clone()))
                 }
                 "network.routing_table.node_id" => Ok(Box::new(
                     inner
@@ -1575,6 +1581,7 @@ mod tests {
         assert_eq!(s.core.network.client_whitelist_timeout_ms, 300_000u32);
         assert_eq!(s.core.network.reverse_connection_receipt_time_ms, 5_000u32);
         assert_eq!(s.core.network.hole_punch_receipt_time_ms, 5_000u32);
+        assert_eq!(s.core.network.network_key_password, None);
         assert_eq!(s.core.network.routing_table.node_id, None);
         assert_eq!(s.core.network.routing_table.node_id_secret, None);
         //

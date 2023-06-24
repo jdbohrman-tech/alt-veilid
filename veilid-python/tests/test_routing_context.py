@@ -16,11 +16,11 @@ from .conftest import server_info
 async def test_routing_contexts(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
-        rcp = await rc.with_privacy(release = False)
+        rcp = await rc.with_privacy(release=False)
         async with rcp:
-            rcps = await rcp.with_sequencing(veilid.Sequencing.ENSURE_ORDERED, release = False)
+            rcps = await rcp.with_sequencing(veilid.Sequencing.ENSURE_ORDERED, release=False)
             async with rcps:
-                rcpscp = await rcps.with_custom_privacy(veilid.Stability.RELIABLE, release = False)
+                rcpscp = await rcps.with_custom_privacy(veilid.Stability.RELIABLE, release=False)
                 await rcpscp.release()
 
 
@@ -44,7 +44,7 @@ async def test_routing_context_app_message_loopback():
         # make a routing context that uses a safety route
         rc = await (await api.new_routing_context()).with_privacy()
         async with rc:
-        
+
             # make a new local private route
             prl, blob = await api.new_private_route()
 
@@ -81,7 +81,7 @@ async def test_routing_context_app_call_loopback():
         # make a routing context that uses a safety route
         rc = await (await api.new_routing_context()).with_privacy()
         async with rc:
-    
+
             # make a new local private route
             prl, blob = await api.new_private_route()
 
@@ -130,9 +130,10 @@ async def test_routing_context_app_message_loopback_big_packets():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
+        #rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
         rc = await (await api.new_routing_context()).with_privacy()
         async with rc:
-        
+
             # make a new local private route
             prl, blob = await api.new_private_route()
 
@@ -143,7 +144,7 @@ async def test_routing_context_app_message_loopback_big_packets():
             for _ in range(10):
 
                 # send a random sized random app message to our own private route
-                message = random.randbytes(random.randint(0,32768))
+                message = random.randbytes(random.randint(0, 32768))
                 await rc.app_message(prr, message)
 
                 # we should get the same message back

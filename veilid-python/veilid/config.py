@@ -203,6 +203,7 @@ class VeilidConfigNetwork(ConfigBase):
     client_whitelist_timeout_ms: int
     reverse_connection_receipt_time_ms: int
     hole_punch_receipt_time_ms: int
+    network_key_password: Optional[str]
     routing_table: VeilidConfigRoutingTable
     rpc: VeilidConfigRPC
     dht: VeilidConfigDHT

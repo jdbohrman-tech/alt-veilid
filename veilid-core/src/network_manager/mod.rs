@@ -160,6 +160,8 @@ struct NetworkManagerUnlockedInner {
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     public_address_check_task: TickTask<EyreReport>,
+    // Network Key
+    network_key: Option<SharedSecret>,
 }
 
 #[derive(Clone)]
@@ -185,6 +187,7 @@ impl NetworkManager {
         #[cfg(feature="unstable-blockstore")]
         block_store: BlockStore,
         crypto: Crypto,
+        network_key: Option<SharedSecret>,
     ) -> NetworkManagerUnlockedInner {
         NetworkManagerUnlockedInner {
             config,
@@ -199,6 +202,7 @@ impl NetworkManager {
             update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
+            network_key,
         }
     }
 
@@ -211,6 +215,34 @@ impl NetworkManager {
         block_store: BlockStore,
         crypto: Crypto,
     ) -> Self {
+
+        // Make the network key
+        let network_key = {
+            let c = config.get();
+            let network_key_password = if let Some(nkp) = c.network.network_key_password.clone() {
+                Some(nkp)
+            } else {
+                if c.network.routing_table.bootstrap.contains(&"bootstrap.veilid.net".to_owned()) {
+                    None
+                } else {
+                    Some(c.network.routing_table.bootstrap.join(","))
+                }
+            };
+
+            let network_key = if let Some(network_key_password) = network_key_password {
+
+                info!("Using network key");
+
+                let bcs = crypto.best();
+                // Yes the use of the salt this way is generally bad, but this just needs to be hashed
+                Some(bcs.derive_shared_secret(network_key_password.as_bytes(), network_key_password.as_bytes()).expect("failed to derive network key"))
+            } else {
+                None
+            };
+
+            network_key
+        };
+
         let this = Self {
             inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
@@ -221,6 +253,7 @@ impl NetworkManager {
                 #[cfg(feature="unstable-blockstore")]
                 block_store,
                 crypto,
+                network_key,
             )),
         };
 
@@ -819,7 +852,10 @@ impl NetworkManager {
         };
 
         // Build the envelope to send
-        let out = self.build_envelope(best_node_id, envelope_version, body)?;
+        let mut out = self.build_envelope(best_node_id, envelope_version, body)?;
+
+        // Apply network key
+        self.apply_network_key(&mut out);
 
         // Send the envelope via whatever means necessary
         self.send_data(node_ref, out).await
@@ -830,13 +866,16 @@ impl NetworkManager {
     pub async fn send_out_of_band_receipt(
         &self,
         dial_info: DialInfo,
-        rcpt_data: Vec<u8>,
+        mut rcpt_data: Vec<u8>,
     ) -> EyreResult<()> {
         // Do we need to validate the outgoing receipt? Probably not
         // because it is supposed to be opaque and the
         // recipient/originator does the validation
         // Also, in the case of an old 'version', returning the receipt
         // should not be subject to our ability to decode it
+
+        // Apply network key
+        self.apply_network_key(&mut rcpt_data);
 
         // Send receipt directly
         log_net!(debug "send_out_of_band_receipt: dial_info={}", dial_info);
@@ -1081,7 +1120,7 @@ impl NetworkManager {
         // If the node has had lost questions or failures to send, prefer sequencing
         // to improve reliability. The node may be experiencing UDP fragmentation drops
         // or other firewalling issues and may perform better with TCP.
-        let unreliable = target_node_ref.peer_stats().rpc_stats.failed_to_send > 0 || target_node_ref.peer_stats().rpc_stats.recent_lost_answers > 0;
+        let unreliable = target_node_ref.peer_stats().rpc_stats.failed_to_send > 2 || target_node_ref.peer_stats().rpc_stats.recent_lost_answers > 2;
         if unreliable && sequencing < Sequencing::PreferOrdered {
             sequencing = Sequencing::PreferOrdered;
         }
@@ -1258,7 +1297,9 @@ impl NetworkManager {
             .iter()
             .filter_map(|nr| nr.make_peer_info(RoutingDomain::PublicInternet))
             .collect();
-        let json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
+        let mut json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
+
+        self.apply_network_key(&mut json_bytes);
 
         // Reply with a chunk of signed routing table
         match self
@@ -1281,14 +1322,21 @@ impl NetworkManager {
     pub async fn boot_request(&self, dial_info: DialInfo) -> EyreResult<Vec<PeerInfo>> {
         let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
-        let data = BOOT_MAGIC.to_vec();
-        let out_data: Vec<u8> = network_result_value_or_log!(self
+        let mut data = BOOT_MAGIC.to_vec();
+        
+        // Apply network key
+        self.apply_network_key(&mut data);
+
+        let mut out_data: Vec<u8> = network_result_value_or_log!(self
             .net()
             .send_recv_data_unbound_to_dial_info(dial_info, data, timeout_ms)
             .await? =>
         {
             return Ok(Vec::new());
         });
+
+        // Apply network key
+        self.apply_network_key(&mut out_data);
 
         let bootstrap_peerinfo: Vec<PeerInfo> =
             deserialize_json(std::str::from_utf8(&out_data).wrap_err("bad utf8 in boot peerinfo")?)
@@ -1297,13 +1345,28 @@ impl NetworkManager {
         Ok(bootstrap_peerinfo)
     }
 
+    // Network isolation encryption
+    fn apply_network_key(&self, data: &mut [u8]) {
+        if let Some(network_key) = self.unlocked_inner.network_key {
+            let bcs = self.crypto().best();
+            // Nonce abuse, but this is not supposed to be cryptographically sound
+            // it's just here to keep networks from accidentally bridging.
+            // A proper nonce would increase the data length here and change the packet sizes on the wire
+            bcs.crypt_in_place_no_auth(
+                data,
+                &network_key.bytes[0..NONCE_LENGTH].try_into().unwrap(),
+                &network_key,
+            )
+        }
+    }
+
     // Called when a packet potentially containing an RPC envelope is received by a low-level
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
     #[instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len()))]
     async fn on_recv_envelope(
         &self,
-        data: &[u8],
+        mut data: &mut [u8],
         connection_descriptor: ConnectionDescriptor,
     ) -> EyreResult<bool> {
         let root = span!(
@@ -1351,6 +1414,9 @@ impl NetworkManager {
                 return Ok(false);
             }
         };
+
+        // Apply network key
+        self.apply_network_key(&mut data);
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
@@ -1445,6 +1511,10 @@ impl NetworkManager {
             if let Some(relay_nr) = some_relay_nr {
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
+
+                // Apply network key
+                self.apply_network_key(&mut data);
+
                 network_result_value_or_log!(match self.send_data(relay_nr, data.to_vec())
                     .await {
                         Ok(v) => v,

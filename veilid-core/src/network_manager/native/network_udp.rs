@@ -67,7 +67,6 @@ impl Network {
                             {
                                 Ok(Ok((size, descriptor))) => {
                                     // XXX: Limit the number of packets from the same IP address?
-                                    log_net!("UDP packet: {:?}", descriptor);
 
                                     // Network accounting
                                     network_manager.stats_packet_rcvd(
@@ -77,7 +76,7 @@ impl Network {
 
                                     // Pass it up for processing
                                     if let Err(e) = network_manager
-                                        .on_recv_envelope(&data[..size], descriptor)
+                                        .on_recv_envelope(&mut data[..size], descriptor)
                                         .await
                                     {
                                         log_net!(debug "failed to process received udp envelope: {}", e);

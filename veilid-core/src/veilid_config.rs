@@ -384,6 +384,7 @@ pub struct VeilidConfigNetwork {
     pub client_whitelist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
+    pub network_key_password: Option<String>,
     pub routing_table: VeilidConfigRoutingTable,
     pub rpc: VeilidConfigRPC,
     pub dht: VeilidConfigDHT,
@@ -695,6 +696,7 @@ impl VeilidConfig {
             get_config!(inner.network.client_whitelist_timeout_ms);
             get_config!(inner.network.reverse_connection_receipt_time_ms);
             get_config!(inner.network.hole_punch_receipt_time_ms);
+            get_config!(inner.network.network_key_password);
             get_config!(inner.network.routing_table.node_id);
             get_config!(inner.network.routing_table.node_id_secret);
             get_config!(inner.network.routing_table.bootstrap);
