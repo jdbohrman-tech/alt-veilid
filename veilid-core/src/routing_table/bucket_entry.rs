@@ -316,7 +316,8 @@ impl BucketEntryInner {
         let last_connections = self.last_connections(
             rti,
             true,
-            Some(NodeRefFilter::new().with_routing_domain(routing_domain)),
+            NodeRefFilter::from(routing_domain),
+            false,
         );
         !last_connections.is_empty()
     }
@@ -370,7 +371,8 @@ impl BucketEntryInner {
         let last_connections = self.last_connections(
             rti,
             true,
-            Some(NodeRefFilter::new().with_routing_domain_set(routing_domain_set)),
+            NodeRefFilter::from(routing_domain_set),
+            false
         );
         for lc in last_connections {
             if let Some(rd) =
@@ -412,7 +414,8 @@ impl BucketEntryInner {
         &self,
         rti: &RoutingTableInner,
         only_live: bool,
-        filter: Option<NodeRefFilter>,
+        filter: NodeRefFilter,
+        ordered: bool,
     ) -> Vec<(ConnectionDescriptor, Timestamp)> {
         let connection_manager =
             rti.unlocked_inner.network_manager.connection_manager();
@@ -421,26 +424,13 @@ impl BucketEntryInner {
             .last_connections
             .iter()
             .filter_map(|(k, v)| {
-                let include = if let Some(filter) = &filter {
+                let include = {
                     let remote_address = v.0.remote_address().address();
-                    if let Some(routing_domain) = rti.routing_domain_for_address(remote_address) {
-                        if filter.routing_domain_set.contains(routing_domain)
+                    rti.routing_domain_for_address(remote_address).map(|rd| {
+                        filter.routing_domain_set.contains(rd)
                             && filter.dial_info_filter.protocol_type_set.contains(k.0)
                             && filter.dial_info_filter.address_type_set.contains(k.1)
-                        {
-                            // matches filter
-                            true
-                        } else {
-                            // does not match filter
-                            false
-                        }
-                    } else {
-                        // no valid routing domain
-                        false
-                    }
-                } else {
-                    // no filter
-                    true
+                    }).unwrap_or(false)
                 };
 
                 if !include {
@@ -471,8 +461,16 @@ impl BucketEntryInner {
                 }
             })
             .collect();
-        // Sort with newest timestamps first
-        out.sort_by(|a, b| b.1.cmp(&a.1));
+        // Sort with ordering preference first and then sort with newest timestamps
+        out.sort_by(|a, b| {
+            if ordered {
+                let s = ProtocolType::ordered_sequencing_sort(a.0.protocol_type(), b.0.protocol_type());
+                if s != core::cmp::Ordering::Equal {
+                    return s;
+                }
+            }
+            b.1.cmp(&a.1)
+        });
         out
     }
 

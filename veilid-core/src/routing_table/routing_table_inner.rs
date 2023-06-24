@@ -111,6 +111,9 @@ impl RoutingTableInner {
         routing_domain_set: RoutingDomainSet,
         filter: &DialInfoFilter,
     ) -> Option<DialInfoDetail> {
+        if filter.is_dead() || routing_domain_set.is_empty() {
+            return None;
+        }
         for routing_domain in routing_domain_set {
             let did = self.with_routing_domain(routing_domain, |rd| {
                 for did in rd.common().dial_info_details() {
@@ -133,6 +136,9 @@ impl RoutingTableInner {
         filter: &DialInfoFilter,
     ) -> Vec<DialInfoDetail> {
         let mut ret = Vec::new();
+        if filter.is_dead() || routing_domain_set.is_empty() {
+            return ret;
+        }
         for routing_domain in routing_domain_set {
             self.with_routing_domain(routing_domain, |rd| {
                 for did in rd.common().dial_info_details() {

@@ -616,8 +616,8 @@ impl RouteSpecStore {
             let private_route = self.assemble_private_route(&key, None)?;
             // Always test routes with safety routes that are more likely to succeed
             let stability = Stability::Reliable;
-            // Routes can test with whatever sequencing they were allocated with
-            let sequencing = Sequencing::NoPreference;
+            // Routes should test with the most likely to succeed sequencing they are capable of
+            let sequencing = Sequencing::PreferOrdered;
 
             let safety_spec = SafetySpec {
                 preferred_route: Some(private_route_id),
@@ -657,12 +657,17 @@ impl RouteSpecStore {
                 bail!("no best key to test remote route");
             };
 
+            // Always test routes with safety routes that are more likely to succeed
+            let stability = Stability::Reliable;
+            // Routes should test with the most likely to succeed sequencing they are capable of
+            let sequencing = Sequencing::PreferOrdered;
+
             // Get a safety route that is good enough
             let safety_spec = SafetySpec {
                 preferred_route: None,
                 hop_count: self.unlocked_inner.default_route_hop_count,
-                stability: Stability::default(),
-                sequencing: Sequencing::default(),
+                stability,
+                sequencing,
             };
 
             let safety_selection = SafetySelection::Safe(safety_spec);

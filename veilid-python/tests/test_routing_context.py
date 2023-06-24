@@ -121,6 +121,8 @@ async def test_routing_context_app_message_loopback_big_packets():
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
             await app_message_queue.put(update)
 
+    sent_messages: set[bytes] = set()
+
     hostname, port = server_info()
     api = await veilid.json_api_connect(
         hostname, port, app_message_queue_update_callback
@@ -130,8 +132,7 @@ async def test_routing_context_app_message_loopback_big_packets():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
-        #rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
-        rc = await (await api.new_routing_context()).with_privacy()
+        rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
         async with rc:
 
             # make a new local private route
@@ -140,17 +141,21 @@ async def test_routing_context_app_message_loopback_big_packets():
             # import it as a remote route as well so we can send to it
             prr = await api.import_remote_private_route(blob)
 
-            # do this test 10 times
-            for _ in range(10):
+            # do this test 100 times
+            for _ in range(1000):
 
                 # send a random sized random app message to our own private route
                 message = random.randbytes(random.randint(0, 32768))
                 await rc.app_message(prr, message)
 
-                # we should get the same message back
+                sent_messages.add(message)
+
+            # we should get the same messages back
+            for _ in range(len(sent_messages)):
+
                 update: veilid.VeilidUpdate = await asyncio.wait_for(
                     app_message_queue.get(), timeout=10
                 )
-
                 assert isinstance(update.detail, veilid.VeilidAppMessage)
-                assert update.detail.message == message
+
+                assert update.detail.message in sent_messages

@@ -1122,6 +1122,7 @@ impl NetworkManager {
         // or other firewalling issues and may perform better with TCP.
         let unreliable = target_node_ref.peer_stats().rpc_stats.failed_to_send > 2 || target_node_ref.peer_stats().rpc_stats.recent_lost_answers > 2;
         if unreliable && sequencing < Sequencing::PreferOrdered {
+            log_net!(debug "Node contact failing over to Ordered for {}", target_node_ref.to_string().cyan());
             sequencing = Sequencing::PreferOrdered;
         }
 

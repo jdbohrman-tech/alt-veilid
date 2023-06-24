@@ -3516,6 +3516,12 @@
           "format": "uint32",
           "minimum": 0.0
         },
+        "network_key_password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "protocol": {
           "$ref": "#/definitions/VeilidConfigProtocol"
         },

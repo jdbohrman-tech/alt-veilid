@@ -491,13 +491,9 @@ impl DialInfo {
     }
 
     pub fn ordered_sequencing_sort(a: &DialInfo, b: &DialInfo) -> core::cmp::Ordering {
-        let ca = a.protocol_type().sort_order(Sequencing::EnsureOrdered);
-        let cb = b.protocol_type().sort_order(Sequencing::EnsureOrdered);
-        if ca < cb {
-            return core::cmp::Ordering::Less;
-        }
-        if ca > cb {
-            return core::cmp::Ordering::Greater;
+        let s = ProtocolType::ordered_sequencing_sort(a.protocol_type(), b.protocol_type());
+        if s != core::cmp::Ordering::Equal {
+            return s;
         }
         match (a, b) {
             (DialInfo::UDP(a), DialInfo::UDP(b)) => a.cmp(b),
