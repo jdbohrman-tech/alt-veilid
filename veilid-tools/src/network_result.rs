@@ -328,7 +328,7 @@ macro_rules! network_result_try {
 macro_rules! log_network_result {
     ($text:expr) => {
         cfg_if::cfg_if! {
-            if #[cfg(feature="network-result-info")] {
+            if #[cfg(feature="network-result-extra")] {
                 info!(target: "network_result", "{}", format!("{}", $text))
             } else {
                 debug!(target: "network_result", "{}", format!("{}", $text))
@@ -337,7 +337,7 @@ macro_rules! log_network_result {
     };
     ($fmt:literal, $($arg:expr),+) => {
         cfg_if::cfg_if! {
-            if #[cfg(feature="network-result-info")] {
+            if #[cfg(feature="network-result-extra")] {
                 info!(target: "network_result", "{}", format!($fmt, $($arg),+));
             } else {
                 debug!(target: "network_result", "{}", format!($fmt, $($arg),+));

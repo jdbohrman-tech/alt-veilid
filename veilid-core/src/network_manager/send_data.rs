@@ -31,6 +31,11 @@ impl NetworkManager {
                     cm => (cm, target_node_ref.clone(), false),
                 };
 
+                info!(
+                    "ContactMethod: {:?} for {:?}",
+                    contact_method, target_node_ref
+                );
+
                 // Try the contact method
                 let sdk = match contact_method {
                     NodeContactMethod::OutboundRelay(relay_nr)
@@ -242,6 +247,10 @@ impl NetworkManager {
 
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(connection_descriptor) = node_ref.last_connection() {
+            info!(
+                "ExistingConnection: {:?} for {:?}",
+                connection_descriptor, node_ref
+            );
             match self
                 .net()
                 .send_data_to_existing_connection(connection_descriptor, data)
@@ -296,6 +305,7 @@ impl NetworkManager {
             own_node_info_ts: routing_table.get_own_node_info_ts(routing_domain),
             target_node_info_ts: target_node_ref.node_info_ts(routing_domain),
             target_node_ref_filter: target_node_ref.filter_ref().cloned(),
+            target_node_ref_sequencing: target_node_ref.sequencing(),
         };
         if let Some(ncm) = self.inner.lock().node_contact_method_cache.get(&ncm_key) {
             return Ok(ncm.clone());

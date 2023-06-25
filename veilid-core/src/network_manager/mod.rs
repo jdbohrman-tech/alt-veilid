@@ -110,6 +110,7 @@ struct NodeContactMethodCacheKey {
     own_node_info_ts: Option<Timestamp>,
     target_node_info_ts: Timestamp,
     target_node_ref_filter: Option<NodeRefFilter>,
+    target_node_ref_sequencing: Sequencing,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -817,7 +818,7 @@ impl NetworkManager {
         let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
         
         if !node_ref.same_entry(&destination_node_ref) {
-            log_net!(
+            log_net!( 
                 "sending envelope to {:?} via {:?}",
                 destination_node_ref,
                 node_ref

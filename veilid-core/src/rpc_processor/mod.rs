@@ -1228,7 +1228,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_statement(statement, spi);
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        info!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
