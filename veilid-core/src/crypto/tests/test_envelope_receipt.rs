@@ -3,8 +3,16 @@ use super::*;
 pub async fn test_envelope_round_trip(
     envelope_version: EnvelopeVersion,
     vcrypto: CryptoSystemVersion,
+    network_key: Option<SharedSecret>,
 ) {
-    info!("--- test envelope round trip ---");
+    if network_key.is_some() {
+        info!(
+            "--- test envelope round trip {} w/network key ---",
+            vcrypto.kind()
+        );
+    } else {
+        info!("--- test envelope round trip {} ---", vcrypto.kind());
+    }
 
     // Create envelope
     let ts = Timestamp::from(0x12345678ABCDEF69u64);
@@ -25,15 +33,15 @@ pub async fn test_envelope_round_trip(
 
     // Serialize to bytes
     let enc_data = envelope
-        .to_encrypted_data(vcrypto.crypto(), body, &sender_secret)
+        .to_encrypted_data(vcrypto.crypto(), body, &sender_secret, &network_key)
         .expect("failed to encrypt data");
 
     // Deserialize from bytes
-    let envelope2 = Envelope::from_signed_data(vcrypto.crypto(), &enc_data)
+    let envelope2 = Envelope::from_signed_data(vcrypto.crypto(), &enc_data, &network_key)
         .expect("failed to deserialize envelope from data");
 
     let body2 = envelope2
-        .decrypt_body(vcrypto.crypto(), &enc_data, &recipient_secret)
+        .decrypt_body(vcrypto.crypto(), &enc_data, &recipient_secret, &network_key)
         .expect("failed to decrypt envelope body");
 
     // Compare envelope and body
@@ -45,13 +53,13 @@ pub async fn test_envelope_round_trip(
     let mut mod_enc_data = enc_data.clone();
     mod_enc_data[enc_data_len - 1] ^= 0x80u8;
     assert!(
-        Envelope::from_signed_data(vcrypto.crypto(), &mod_enc_data).is_err(),
+        Envelope::from_signed_data(vcrypto.crypto(), &mod_enc_data, &network_key).is_err(),
         "should have failed to decode envelope with modified signature"
     );
     let mut mod_enc_data2 = enc_data.clone();
     mod_enc_data2[enc_data_len - 65] ^= 0x80u8;
     assert!(
-        Envelope::from_signed_data(vcrypto.crypto(), &mod_enc_data2).is_err(),
+        Envelope::from_signed_data(vcrypto.crypto(), &mod_enc_data2, &network_key).is_err(),
         "should have failed to decode envelope with modified data"
     );
 }
@@ -97,7 +105,9 @@ pub async fn test_all() {
         for v in VALID_CRYPTO_KINDS {
             let vcrypto = crypto.get(v).unwrap();
 
-            test_envelope_round_trip(ev, vcrypto.clone()).await;
+            test_envelope_round_trip(ev, vcrypto.clone(), None).await;
+            test_envelope_round_trip(ev, vcrypto.clone(), Some(vcrypto.random_shared_secret()))
+                .await;
             test_receipt_round_trip(ev, vcrypto).await;
         }
     }

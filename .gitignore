@@ -61,3 +61,7 @@ $RECYCLE.BIN/
 ### Rust
 target/
 logs/
+
+flamegraph.svg
+perf.data
+perf.data.old

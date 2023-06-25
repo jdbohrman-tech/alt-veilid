@@ -17,9 +17,7 @@ impl NetworkManager {
             .iter()
             .filter_map(|nr| nr.make_peer_info(RoutingDomain::PublicInternet))
             .collect();
-        let mut json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
-
-        self.apply_network_key(&mut json_bytes);
+        let json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
 
         // Reply with a chunk of signed routing table
         match self
@@ -42,21 +40,15 @@ impl NetworkManager {
     pub async fn boot_request(&self, dial_info: DialInfo) -> EyreResult<Vec<PeerInfo>> {
         let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
-        let mut data = BOOT_MAGIC.to_vec();
+        let data = BOOT_MAGIC.to_vec();
 
-        // Apply network key
-        self.apply_network_key(&mut data);
-
-        let mut out_data: Vec<u8> = network_result_value_or_log!(self
+        let out_data: Vec<u8> = network_result_value_or_log!(self
             .net()
             .send_recv_data_unbound_to_dial_info(dial_info, data, timeout_ms)
             .await? =>
         {
             return Ok(Vec::new());
         });
-
-        // Apply network key
-        self.apply_network_key(&mut out_data);
 
         let bootstrap_peerinfo: Vec<PeerInfo> =
             deserialize_json(std::str::from_utf8(&out_data).wrap_err("bad utf8 in boot peerinfo")?)

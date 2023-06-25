@@ -213,12 +213,15 @@ impl NetworkManager {
             };
 
             let network_key = if let Some(network_key_password) = network_key_password {
+                if !network_key_password.is_empty() {
+                    info!("Using network key");
 
-                info!("Using network key");
-
-                let bcs = crypto.best();
-                // Yes the use of the salt this way is generally bad, but this just needs to be hashed
-                Some(bcs.derive_shared_secret(network_key_password.as_bytes(), network_key_password.as_bytes()).expect("failed to derive network key"))
+                    let bcs = crypto.best();
+                    // Yes the use of the salt this way is generally bad, but this just needs to be hashed
+                    Some(bcs.derive_shared_secret(network_key_password.as_bytes(), network_key_password.as_bytes()).expect("failed to derive network key"))
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -795,7 +798,7 @@ impl NetworkManager {
         // Encode envelope
         let envelope = Envelope::new(version, node_id.kind, ts, nonce, node_id.value, dest_node_id.value);
         envelope
-            .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret)
+            .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret, &self.unlocked_inner.network_key)
             .wrap_err("envelope failed to encode")
     }
 
@@ -835,10 +838,7 @@ impl NetworkManager {
         };
 
         // Build the envelope to send
-        let mut out = self.build_envelope(best_node_id, envelope_version, body)?;
-
-        // Apply network key
-        self.apply_network_key(&mut out);
+        let out = self.build_envelope(best_node_id, envelope_version, body)?;
 
         // Send the envelope via whatever means necessary
         self.send_data(node_ref, out).await
@@ -849,16 +849,13 @@ impl NetworkManager {
     pub async fn send_out_of_band_receipt(
         &self,
         dial_info: DialInfo,
-        mut rcpt_data: Vec<u8>,
+        rcpt_data: Vec<u8>,
     ) -> EyreResult<()> {
         // Do we need to validate the outgoing receipt? Probably not
         // because it is supposed to be opaque and the
         // recipient/originator does the validation
         // Also, in the case of an old 'version', returning the receipt
         // should not be subject to our ability to decode it
-
-        // Apply network key
-        self.apply_network_key(&mut rcpt_data);
 
         // Send receipt directly
         log_net!(debug "send_out_of_band_receipt: dial_info={}", dial_info);
@@ -872,28 +869,13 @@ impl NetworkManager {
         Ok(())
     }
 
-    // Network isolation encryption
-    fn apply_network_key(&self, data: &mut [u8]) {
-        if let Some(network_key) = self.unlocked_inner.network_key {
-            let bcs = self.crypto().best();
-            // Nonce abuse, but this is not supposed to be cryptographically sound
-            // it's just here to keep networks from accidentally bridging.
-            // A proper nonce would increase the data length here and change the packet sizes on the wire
-            bcs.crypt_in_place_no_auth(
-                data,
-                &network_key.bytes[0..NONCE_LENGTH].try_into().unwrap(),
-                &network_key,
-            )
-        }
-    }
-
     // Called when a packet potentially containing an RPC envelope is received by a low-level
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
     #[instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len()))]
     async fn on_recv_envelope(
         &self,
-        mut data: &mut [u8],
+        data: &mut [u8],
         connection_descriptor: ConnectionDescriptor,
     ) -> EyreResult<bool> {
         let root = span!(
@@ -942,9 +924,6 @@ impl NetworkManager {
             }
         };
 
-        // Apply network key
-        self.apply_network_key(&mut data);
-
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
             network_result_value_or_log!(self.handle_boot_request(connection_descriptor).await? => {});
@@ -958,7 +937,7 @@ impl NetworkManager {
         }
 
         // Decode envelope header (may fail signature validation)
-        let envelope = match Envelope::from_signed_data(self.crypto(), data) {
+        let envelope = match Envelope::from_signed_data(self.crypto(), data, &self.unlocked_inner.network_key) {
             Ok(v) => v,
             Err(e) => {
                 log_net!(debug "envelope failed to decode: {}", e);
@@ -1041,9 +1020,6 @@ impl NetworkManager {
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
 
-                // Apply network key
-                self.apply_network_key(&mut data);
-
                 network_result_value_or_log!(match self.send_data(relay_nr, data.to_vec())
                     .await {
                         Ok(v) => v,
@@ -1065,7 +1041,7 @@ impl NetworkManager {
 
         // Decrypt the envelope body
         let body = match envelope
-            .decrypt_body(self.crypto(), data, &node_id_secret) {
+            .decrypt_body(self.crypto(), data, &node_id_secret, &self.unlocked_inner.network_key) {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(debug "failed to decrypt envelope body: {}",e);

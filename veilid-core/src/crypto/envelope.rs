@@ -66,7 +66,11 @@ impl Envelope {
         }
     }
 
-    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> VeilidAPIResult<Envelope> {
+    pub fn from_signed_data(
+        crypto: Crypto,
+        data: &[u8],
+        network_key: &Option<SharedSecret>,
+    ) -> VeilidAPIResult<Envelope> {
         // Ensure we are at least the length of the envelope
         // Silent drop here, as we use zero length packets as part of the protocol for hole punching
         if data.len() < MIN_ENVELOPE_SIZE {
@@ -135,9 +139,22 @@ impl Envelope {
         let recipient_id_slice: [u8; PUBLIC_KEY_LENGTH] = data[0x4A..0x6A]
             .try_into()
             .map_err(VeilidAPIError::internal)?;
-        let nonce: Nonce = Nonce::new(nonce_slice);
-        let sender_id = PublicKey::new(sender_id_slice);
-        let recipient_id = PublicKey::new(recipient_id_slice);
+        let mut nonce: Nonce = Nonce::new(nonce_slice);
+        let mut sender_id = PublicKey::new(sender_id_slice);
+        let mut recipient_id = PublicKey::new(recipient_id_slice);
+
+        // Apply network key (not the best, but it will keep networks from colliding without much overhead)
+        if let Some(nk) = network_key.as_ref() {
+            for n in 0..NONCE_LENGTH {
+                nonce.bytes[n] ^= nk.bytes[n];
+            }
+            for n in 0..CRYPTO_KEY_LENGTH {
+                sender_id.bytes[n] ^= nk.bytes[n];
+            }
+            for n in 0..CRYPTO_KEY_LENGTH {
+                recipient_id.bytes[n] ^= nk.bytes[n];
+            }
+        }
 
         // Ensure sender_id and recipient_id are not the same
         if sender_id == recipient_id {
@@ -175,13 +192,20 @@ impl Envelope {
         crypto: Crypto,
         data: &[u8],
         node_id_secret: &SecretKey,
+        network_key: &Option<SharedSecret>,
     ) -> VeilidAPIResult<Vec<u8>> {
         // Get DH secret
         let vcrypto = crypto
             .get(self.crypto_kind)
             .expect("need to ensure only valid crypto kinds here");
-        let dh_secret = vcrypto.cached_dh(&self.sender_id, node_id_secret)?;
+        let mut dh_secret = vcrypto.cached_dh(&self.sender_id, node_id_secret)?;
 
+        // Apply network key
+        if let Some(nk) = network_key.as_ref() {
+            for n in 0..CRYPTO_KEY_LENGTH {
+                dh_secret.bytes[n] ^= nk.bytes[n];
+            }
+        }
         // Decrypt message without authentication
         let body = vcrypto.crypt_no_auth_aligned_8(
             &data[0x6A..data.len() - 64],
@@ -197,6 +221,7 @@ impl Envelope {
         crypto: Crypto,
         body: &[u8],
         node_id_secret: &SecretKey,
+        network_key: &Option<SharedSecret>,
     ) -> VeilidAPIResult<Vec<u8>> {
         // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;
@@ -207,7 +232,7 @@ impl Envelope {
         let vcrypto = crypto
             .get(self.crypto_kind)
             .expect("need to ensure only valid crypto kinds here");
-        let dh_secret = vcrypto.cached_dh(&self.recipient_id, node_id_secret)?;
+        let mut dh_secret = vcrypto.cached_dh(&self.recipient_id, node_id_secret)?;
 
         // Write envelope body
         let mut data = vec![0u8; envelope_size];
@@ -228,6 +253,22 @@ impl Envelope {
         data[0x2A..0x4A].copy_from_slice(&self.sender_id.bytes);
         // Write recipient node id
         data[0x4A..0x6A].copy_from_slice(&self.recipient_id.bytes);
+
+        // Apply network key (not the best, but it will keep networks from colliding without much overhead)
+        if let Some(nk) = network_key.as_ref() {
+            for n in 0..SECRET_KEY_LENGTH {
+                dh_secret.bytes[n] ^= nk.bytes[n];
+            }
+            for n in 0..NONCE_LENGTH {
+                data[0x12 + n] ^= nk.bytes[n];
+            }
+            for n in 0..CRYPTO_KEY_LENGTH {
+                data[0x2A + n] ^= nk.bytes[n];
+            }
+            for n in 0..CRYPTO_KEY_LENGTH {
+                data[0x4A + n] ^= nk.bytes[n];
+            }
+        }
 
         // Encrypt and authenticate message
         let encrypted_body = vcrypto.crypt_no_auth_unaligned(body, &self.nonce.bytes, &dh_secret);
