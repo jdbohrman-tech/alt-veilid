@@ -980,8 +980,9 @@ impl NetworkManager {
         if let Some(tsbehind) = tsbehind {
             if tsbehind.as_u64() != 0 && (ts > ets && ts.saturating_sub(ets) > tsbehind) {
                 log_net!(debug
-                    "envelope time was too far in the past: {}ms ",
-                    timestamp_to_secs(ts.saturating_sub(ets).as_u64()) * 1000f64
+                    "Timestamp behind: {}ms ({})",
+                    timestamp_to_secs(ts.saturating_sub(ets).as_u64()) * 1000f64,
+                    connection_descriptor.remote()
                 );
                 return Ok(false);
             }
@@ -989,8 +990,9 @@ impl NetworkManager {
         if let Some(tsahead) = tsahead {
             if tsahead.as_u64() != 0 && (ts < ets && ets.saturating_sub(ts) > tsahead) {
                 log_net!(debug
-                    "envelope time was too far in the future: {}ms",
-                    timestamp_to_secs(ets.saturating_sub(ts).as_u64()) * 1000f64
+                    "Timestamp ahead: {}ms ({})",
+                    timestamp_to_secs(ets.saturating_sub(ts).as_u64()) * 1000f64,
+                    connection_descriptor.remote()
                 );
                 return Ok(false);
             }

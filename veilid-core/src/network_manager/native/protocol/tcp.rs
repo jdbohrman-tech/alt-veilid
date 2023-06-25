@@ -143,7 +143,7 @@ impl RawTcpProtocolHandler {
             ps,
         ));
 
-        log_net!(debug "TCP: on_accept_async from: {}", socket_addr);
+        log_net!(debug "Connection accepted from: {} (TCP)", socket_addr);
 
         Ok(Some(conn))
     }

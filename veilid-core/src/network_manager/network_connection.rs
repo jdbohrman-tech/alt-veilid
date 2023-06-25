@@ -300,7 +300,11 @@ impl NetworkConnection {
                         .then(|res| async {
                             match res {
                                 Ok(v) => {
-                                    
+                                    if v.is_no_connection() {
+                                        let peer_address = protocol_connection.descriptor().remote();
+                                        log_net!(debug "Connection closed from: {} ({})", peer_address.socket_address().to_socket_addr(), peer_address.protocol_type());
+                                        return RecvLoopAction::Finish;
+                                    }
                                     let mut message = network_result_value_or_log!(v => {
                                         return RecvLoopAction::Finish;
                                     });
