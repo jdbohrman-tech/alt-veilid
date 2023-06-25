@@ -14,6 +14,17 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
+    #[instrument(level = "trace", skip(self, value, descriptor), 
+        fields(value.data.len = value.value_data().data().len(), 
+            value.data.seq = value.value_data().seq(), 
+            value.data.writer = value.value_data().writer().to_string(), 
+            ret.set,
+            ret.value.data.len, 
+            ret.value.data.seq, 
+            ret.value.data.writer, 
+            ret.peers.len,
+            ret.latency
+        ), err)]
     pub async fn rpc_call_set_value(
         self,
         dest: Destination,
@@ -106,6 +117,15 @@ impl RPCProcessor {
         if !valid {
             return Ok(NetworkResult::invalid_message("non-closer peers returned"));
         }
+
+        tracing::Span::current().record("ret.latency", latency.as_u64());
+        tracing::Span::current().record("ret.set", set);
+        if let Some(value) = &value {
+            tracing::Span::current().record("ret.value.data.len", value.value_data().data().len());
+            tracing::Span::current().record("ret.value.data.seq", value.value_data().seq());
+            tracing::Span::current().record("ret.value.data.writer", value.value_data().writer().to_string());
+        }
+        tracing::Span::current().record("ret.peers.len", peers.len());
 
         Ok(NetworkResult::value(Answer::new(
             latency,
