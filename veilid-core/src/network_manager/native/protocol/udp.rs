@@ -28,7 +28,7 @@ impl RawUdpProtocolHandler {
 
             // Check length of reassembled message (same for all protocols)
             if message.len() > MAX_MESSAGE_SIZE {
-                log_net!(debug "{}({}) at {}@{}:{}", "Invalid message".green(), "received too large UDP message", file!(), line!(), column!());
+                log_net!(debug "{}({}) at {}@{}:{}", "Invalid message", "received too large UDP message", file!(), line!(), column!());
                 continue;
             }
 

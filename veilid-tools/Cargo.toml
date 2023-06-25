@@ -18,6 +18,8 @@ rt-wasm-bindgen = [ "async_executors/bindgen", "async_executors/timer"]
 veilid_tools_android_tests = [ "dep:paranoid-android" ]
 veilid_tools_ios_tests = [ "dep:oslog", "dep:tracing-oslog" ]
 tracing = [ "dep:tracing", "dep:tracing-subscriber" ]
+network-result-extra = []
+network-result-info = []
 
 [dependencies]
 tracing = { version = "^0", features = ["log", "attributes"], optional = true }
@@ -30,7 +32,6 @@ thiserror = "^1"
 futures-util = { version = "^0", default_features = false, features = ["alloc"] }
 parking_lot = "^0"
 once_cell = "^1"
-owo-colors = "^3"
 stop-token = { version = "^0", default-features = false }
 rand = "^0.7"
 rust-fsm = "^0"

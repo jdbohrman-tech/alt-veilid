@@ -845,7 +845,7 @@ impl NetworkManager {
     }
 
     /// Called by the RPC handler when we want to issue an direct receipt
-    #[instrument(level = "trace", skip(self, rcpt_data), err)]
+    #[instrument(level = "debug", skip(self, rcpt_data), err)]
     pub async fn send_out_of_band_receipt(
         &self,
         dial_info: DialInfo,
@@ -858,11 +858,10 @@ impl NetworkManager {
         // should not be subject to our ability to decode it
 
         // Send receipt directly
-        log_net!(debug "send_out_of_band_receipt: dial_info={}", dial_info);
         network_result_value_or_log!(self
             .net()
             .send_data_unbound_to_dial_info(dial_info, rcpt_data)
-            .await? => {
+            .await? => [ format!(": dial_info={}, rcpt_data.len={}", dial_info, rcpt_data.len()) ] {
                 return Ok(());
             }
         );
@@ -928,13 +927,13 @@ impl NetworkManager {
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(self.handle_boot_request(connection_descriptor).await? => {});
+            network_result_value_or_log!(self.handle_boot_request(connection_descriptor).await? => [ format!(": connection_descriptor={:?}", connection_descriptor) ] {});
             return Ok(true);
         }
 
         // Is this an out-of-band receipt instead of an envelope?
         if data[0..3] == *RECEIPT_MAGIC {
-            network_result_value_or_log!(self.handle_out_of_band_receipt(data).await => {});
+            network_result_value_or_log!(self.handle_out_of_band_receipt(data).await => [ format!(": data.len={}", data.len()) ] {});
             return Ok(true);
         }
 
@@ -1040,7 +1039,7 @@ impl NetworkManager {
                             log_net!(debug "failed to forward envelope: {}" ,e);
                             return Ok(false);    
                         }
-                    } => {
+                    } => [ format!(": relay_nr={}, data.len={}", relay_nr, data.len()) ] {
                         return Ok(false);
                     }
                 );

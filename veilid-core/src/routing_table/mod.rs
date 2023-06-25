@@ -1121,7 +1121,7 @@ impl RoutingTable {
                 return;
             }
             Ok(v) => v,
-        } => {
+        } => [ format!(": crypto_kind={} node_ref={} wide={}", crypto_kind, node_ref, wide) ] {
             return;
         });
 
@@ -1137,7 +1137,7 @@ impl RoutingTable {
                         continue;
                     }
                     Ok(v) => v,
-                } => {
+                } => [ format!(": crypto_kind={} closest_nr={} wide={}", crypto_kind, closest_nr, wide) ] {
                     // Do nothing with non-values
                     continue;
                 });

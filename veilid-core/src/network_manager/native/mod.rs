@@ -515,7 +515,8 @@ impl Network {
                 network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
                     .await
-                    .wrap_err("sending data to existing conection")? => { return Ok(Some(data)); } );
+                    .wrap_err("sending data to existing conection")? => [ format!(": data.len={}, descriptor={:?}", data.len(), descriptor) ] 
+                    { return Ok(Some(data)); } );
 
                 // Network accounting
                 self.network_manager()

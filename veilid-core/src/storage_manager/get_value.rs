@@ -58,13 +58,13 @@ impl StorageManager {
                 let vres = rpc_processor
                     .clone()
                     .rpc_call_get_value(
-                        Destination::direct(next_node).with_safety(safety_selection),
+                        Destination::direct(next_node.clone()).with_safety(safety_selection),
                         key,
                         subkey,
                         last_descriptor,
                     )
                     .await?;
-                let gva = network_result_value_or_log!(vres => {
+                let gva = network_result_value_or_log!(vres => [ format!(": next_node={} safety_selection={:?} key={} subkey={}", next_node, safety_selection, key, subkey) ] {
                     // Any other failures, just try the next node
                     return Ok(None);
                 });

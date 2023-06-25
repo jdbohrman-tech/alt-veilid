@@ -23,6 +23,7 @@ rt-wasm-bindgen = ["veilid-tools/rt-wasm-bindgen", "async_executors/bindgen"]
 veilid_core_android_tests = ["dep:paranoid-android"]
 veilid_core_ios_tests = ["dep:tracing-oslog"]
 tracking = []
+network-result-extra = ["veilid-tools/network-result-extra"]
 
 [dependencies]
 veilid-tools = { path = "../veilid-tools", features = [ "tracing" ] }
@@ -53,7 +54,6 @@ owning_ref = "^0"
 flume = { version = "^0", features = ["async"] }
 enumset = { version= "^1", features = ["serde"] }
 backtrace = { version = "^0" }
-owo-colors = "^3"
 stop-token = { version = "^0", default-features = false }
 
 ed25519-dalek = { version = "^1", default_features = false, features = ["alloc", "u64_backend"] }

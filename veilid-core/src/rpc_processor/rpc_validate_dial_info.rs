@@ -26,7 +26,7 @@ impl RPCProcessor {
         // Send the validate_dial_info request
         // This can only be sent directly, as relays can not validate dial info
         network_result_value_or_log!(self.statement(Destination::direct(peer), statement)
-            .await? => {
+            .await? => [ format!(": peer={} statement={:?}", peer, statement) ] {
                 return Ok(false);
             }
         );
@@ -36,7 +36,7 @@ impl RPCProcessor {
             ReceiptEvent::ReturnedPrivate { private_route: _ }
             | ReceiptEvent::ReturnedInBand { inbound_noderef: _ }
             | ReceiptEvent::ReturnedSafety => {
-                log_net!(debug "validate_dial_info receipt should be returned out-of-band".green());
+                log_net!(debug "validate_dial_info receipt should be returned out-of-band");
                 Ok(false)
             }
             ReceiptEvent::ReturnedOutOfBand => {
@@ -44,7 +44,7 @@ impl RPCProcessor {
                 Ok(true)
             }
             ReceiptEvent::Expired => {
-                log_net!(debug "validate_dial_info receipt expired".green());
+                log_net!(debug "validate_dial_info receipt expired");
                 Ok(false)
             }
             ReceiptEvent::Cancelled => {
@@ -141,7 +141,7 @@ impl RPCProcessor {
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info
                 network_result_value_or_log!(self.statement(Destination::direct(peer), statement)
-                    .await? => {
+                    .await? => [ format!(": peer={} statement={:?}", peer, statement) ] {
                         continue;
                     }
                 );

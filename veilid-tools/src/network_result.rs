@@ -272,6 +272,20 @@ impl<T: Debug + Display> Error for NetworkResult<T> {}
 // Non-fallible network result macros
 
 #[macro_export]
+macro_rules! network_result_raise {
+    ($r: expr) => {
+        match $r {
+            NetworkResult::Timeout => return Ok(NetworkResult::Timeout),
+            NetworkResult::ServiceUnavailable(s) => return Ok(NetworkResult::ServiceUnavailable(s)),
+            NetworkResult::NoConnection(e) => return Ok(NetworkResult::NoConnection(e)),
+            NetworkResult::AlreadyExists(e) => return Ok(NetworkResult::AlreadyExists(e)),
+            NetworkResult::InvalidMessage(s) => return Ok(NetworkResult::InvalidMessage(s)),
+            NetworkResult::Value(_) => panic!("Can not raise value"),
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! network_result_try {
     ($r: expr) => {
         match $r {
@@ -313,89 +327,102 @@ macro_rules! network_result_try {
 #[macro_export]
 macro_rules! log_network_result {
     ($text:expr) => {
-        // cfg_if::cfg_if! {
-        //     if #[cfg(debug_assertions)] {
-        //         info!(target: "network_result", "{}", $text)
-        //     } else {
-                debug!(target: "network_result", "{}", $text)
-        //     }
-        // }
+        cfg_if::cfg_if! {
+            if #[cfg(feature="network-result-info")] {
+                info!(target: "network_result", "{}", format!("{}", $text))
+            } else {
+                debug!(target: "network_result", "{}", format!("{}", $text))
+            }
+        }
     };
     ($fmt:literal, $($arg:expr),+) => {
-        // cfg_if::cfg_if! {
-        //     if #[cfg(debug_assertions)] {
-        //         info!(target: "network_result", $fmt, $($arg),+);
-        //     } else {
-                debug!(target: "network_result", $fmt, $($arg),+);
-        //     }
-        // }
+        cfg_if::cfg_if! {
+            if #[cfg(feature="network-result-info")] {
+                info!(target: "network_result", "{}", format!($fmt, $($arg),+));
+            } else {
+                debug!(target: "network_result", "{}", format!($fmt, $($arg),+));
+            }
+        }
     };
 }
 
 #[macro_export]
 macro_rules! network_result_value_or_log {
-    ($r: expr => $f:tt) => {
+    ($r:expr => $f:expr) => {
+        network_result_value_or_log!($r => [ "" ] $f )
+    };
+    ($r:expr => [ $d:expr ] $f:expr) => { {
+        #[cfg(feature="network-result-extra")]
+        let __extra_message = $d;
+        #[cfg(not(feature="network-result-extra"))]
+        let __extra_message = "";
         match $r {
             NetworkResult::Timeout => {
                 log_network_result!(
-                    "{} at {}@{}:{} in {}",
+                    "{} at {}@{}:{} in {}{}",
                     "Timeout",
                     file!(),
                     line!(),
                     column!(),
-                    fn_name::uninstantiated!()
+                    fn_name::uninstantiated!(),
+                    __extra_message
                 );
                 $f
             }
-            NetworkResult::ServiceUnavailable(s) => {
+            NetworkResult::ServiceUnavailable(ref s) => {
                 log_network_result!(
-                    "{}({}) at {}@{}:{} in {}",
+                    "{}({}) at {}@{}:{} in {}{}",
                     "ServiceUnavailable",
                     s,
                     file!(),
                     line!(),
                     column!(),
-                    fn_name::uninstantiated!()
+                    fn_name::uninstantiated!(),
+                    __extra_message
                 );
                 $f
             }
-            NetworkResult::NoConnection(e) => {
+            NetworkResult::NoConnection(ref e) => {
                 log_network_result!(
-                    "{}({}) at {}@{}:{} in {}",
+                    "{}({}) at {}@{}:{} in {}{}",
                     "No connection",
                     e.to_string(),
                     file!(),
                     line!(),
                     column!(),
-                    fn_name::uninstantiated!()
+                    fn_name::uninstantiated!(),
+                    __extra_message
                 );
                 $f
             }
-            NetworkResult::AlreadyExists(e) => {
+            NetworkResult::AlreadyExists(ref e) => {
                 log_network_result!(
-                    "{}({}) at {}@{}:{} in {}",
+                    "{}({}) at {}@{}:{} in {}{}",
                     "Already exists",
                     e.to_string(),
                     file!(),
                     line!(),
                     column!(),
-                    fn_name::uninstantiated!()
+                    fn_name::uninstantiated!(),
+                    __extra_message
                 );
                 $f
             }
-            NetworkResult::InvalidMessage(s) => {
+            NetworkResult::InvalidMessage(ref s) => {
                 log_network_result!(
-                    "{}({}) at {}@{}:{} in {}",
+                    "{}({}) at {}@{}:{} in {}{}",
                     "Invalid message",
                     s,
                     file!(),
                     line!(),
                     column!(),
-                    fn_name::uninstantiated!()
+                    fn_name::uninstantiated!(),
+                    __extra_message
                 );
                 $f
             }
             NetworkResult::Value(v) => v,
         }
-    };
+    } };
+
 }

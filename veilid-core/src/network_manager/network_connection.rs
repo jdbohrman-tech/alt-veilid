@@ -236,7 +236,7 @@ impl NetworkConnection {
         Box::pin(async move {
             log_net!(
                 "== Starting process_connection loop for id={}, {:?}", connection_id,
-                descriptor.green()
+                descriptor
             );
 
             let network_manager = connection_manager.network_manager();
@@ -249,7 +249,7 @@ impl NetworkConnection {
             let new_timer = || {
                 sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
-                    log_net!("== Connection timeout on {:?}", descriptor.green());
+                    log_net!("== Connection timeout on {:?}", descriptor);
                     RecvLoopAction::Timeout
                 })
             };
@@ -306,7 +306,7 @@ impl NetworkConnection {
                                         log_net!(debug "Connection closed from: {} ({})", peer_address.socket_address().to_socket_addr(), peer_address.protocol_type());
                                         return RecvLoopAction::Finish;
                                     }
-                                    let mut message = network_result_value_or_log!(v => {
+                                    let mut message = network_result_value_or_log!(v => [ format!(": protocol_connection={:?}", protocol_connection) ] {
                                         return RecvLoopAction::Finish;
                                     });
 
@@ -366,7 +366,7 @@ impl NetworkConnection {
 
             log_net!(
                 "== Connection loop finished descriptor={:?}",
-                descriptor.green()
+                descriptor
             );
 
             // Let the connection manager know the receive loop exited

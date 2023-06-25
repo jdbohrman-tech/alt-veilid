@@ -360,7 +360,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(route_hop))
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), ret, err))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret, err))]
     pub(crate) async fn process_route(
         &self,
         msg: RPCMessage,

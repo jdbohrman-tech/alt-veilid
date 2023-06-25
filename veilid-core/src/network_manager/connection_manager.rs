@@ -256,8 +256,8 @@ impl ConnectionManager {
 
         log_net!(
             "== get_or_create_connection local_addr={:?} dial_info={:?}",
-            local_addr.green(),
-            dial_info.green()
+            local_addr,
+            dial_info
         );
 
         // Kill off any possibly conflicting connections
@@ -273,8 +273,8 @@ impl ConnectionManager {
         {
             log_net!(
                 "== Returning existing connection local_addr={:?} peer_address={:?}",
-                local_addr.green(),
-                peer_address.green()
+                local_addr,
+                peer_address
             );
 
             return Ok(NetworkResult::Value(conn));
@@ -300,8 +300,8 @@ impl ConnectionManager {
                         {
                             log_net!(
                                     "== Returning existing connection in race local_addr={:?} peer_address={:?}",
-                                    local_addr.green(),
-                                    peer_address.green()
+                                    local_addr,
+                                    peer_address
                                 );
 
                             return Ok(NetworkResult::Value(conn));

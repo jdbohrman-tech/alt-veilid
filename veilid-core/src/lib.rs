@@ -97,7 +97,6 @@ use tracing::*;
 use veilid_tools::*;
 type RkyvDefaultValidator<'t> = rkyv::validation::validators::DefaultValidator<'t>;
 use futures_util::stream::FuturesUnordered;
-use owo_colors::OwoColorize;
 use schemars::{schema_for, JsonSchema};
 use serde::*;
 use stop_token::*;

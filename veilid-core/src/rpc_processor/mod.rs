@@ -182,7 +182,7 @@ impl<T> Answer<T> {
     }
 }
 
-/// An operation that has been fully prepared for envelope r
+/// An operation that has been fully prepared for envelope
 struct RenderedOperation {
     /// The rendered operation bytes
     message: Vec<u8>,
@@ -198,6 +198,20 @@ struct RenderedOperation {
     remote_private_route: Option<PublicKey>,
     /// The private route requested to receive the reply
     reply_private_route: Option<PublicKey>,
+}
+
+impl fmt::Debug for RenderedOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RenderedOperation")
+            .field("message(len)", &self.message.len())
+            .field("destination_node_ref", &self.destination_node_ref)
+            .field("node_ref", &self.node_ref)
+            .field("hop_count", &self.hop_count)
+            .field("safety_route", &self.safety_route)
+            .field("remote_private_route", &self.remote_private_route)
+            .field("reply_private_route", &self.reply_private_route)
+            .finish()
+    }
 }
 
 /// Node information exchanged during every RPC message
@@ -431,7 +445,7 @@ impl RPCProcessor {
                     .await
                 {
                     Ok(v) => {
-                        let v = network_result_value_or_log!(v => {
+                        let v = network_result_value_or_log!(v => [ format!(": node_id={} count={} fanout={} fanout={} safety_selection={:?}", node_id, count, fanout, timeout_us, safety_selection) ] {
                             // Any other failures, just try the next node
                             return Ok(None);
                         });
@@ -541,8 +555,7 @@ impl RPCProcessor {
             .await;
         match &out {
             Err(e) => {
-                let msg = format!("RPC Lost ({}): {}", debug_string, e);
-                log_rpc!(debug "{}", msg.bright_magenta());
+                log_rpc!(debug "RPC Lost ({}): {}", debug_string, e);
                 self.record_question_lost(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
@@ -552,8 +565,7 @@ impl RPCProcessor {
                 );
             }
             Ok(TimeoutOr::Timeout) => {
-                let msg = format!("RPC Lost ({}): Timeout", debug_string);
-                log_rpc!(debug "{}", msg.bright_cyan());
+                log_rpc!(debug "RPC Lost ({}): Timeout", debug_string);
                 self.record_question_lost(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
@@ -1148,17 +1160,31 @@ impl RPCProcessor {
         // Send question
         let bytes: ByteCount = (message.len() as u64).into();
         let send_ts = get_aligned_timestamp();
-        let send_data_kind = network_result_try!(self
+        #[allow(unused_variables)]
+        let message_len = message.len();
+        let res = self
             .network_manager()
-            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
+            .send_envelope(
+                node_ref.clone(),
+                Some(destination_node_ref.clone()),
+                message,
+            )
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                self.record_send_failure(
+                    RPCKind::Question,
+                    send_ts,
+                    node_ref.clone(),
+                    safety_route,
+                    remote_private_route,
+                );
                 RPCError::network(e)
-            })? => {
+            })?;
+        let send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                network_result_raise!(res);
             }
         );
 
@@ -1218,17 +1244,31 @@ impl RPCProcessor {
         // Send statement
         let bytes: ByteCount = (message.len() as u64).into();
         let send_ts = get_aligned_timestamp();
-        let _send_data_kind = network_result_try!(self
+        #[allow(unused_variables)]
+        let message_len = message.len();
+        let res = self
             .network_manager()
-            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
+            .send_envelope(
+                node_ref.clone(),
+                Some(destination_node_ref.clone()),
+                message,
+            )
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                self.record_send_failure(
+                    RPCKind::Statement,
+                    send_ts,
+                    node_ref.clone(),
+                    safety_route,
+                    remote_private_route,
+                );
                 RPCError::network(e)
-            })? => {
+            })?;
+        let _send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                network_result_raise!(res);
             }
         );
 
@@ -1281,16 +1321,31 @@ impl RPCProcessor {
         // Send the reply
         let bytes: ByteCount = (message.len() as u64).into();
         let send_ts = get_aligned_timestamp();
-        network_result_try!(self.network_manager()
-            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
+        #[allow(unused_variables)]
+        let message_len = message.len();
+        let res = self
+            .network_manager()
+            .send_envelope(
+                node_ref.clone(),
+                Some(destination_node_ref.clone()),
+                message,
+            )
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.record_send_failure(RPCKind::Answer, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                self.record_send_failure(
+                    RPCKind::Answer,
+                    send_ts,
+                    node_ref.clone(),
+                    safety_route,
+                    remote_private_route,
+                );
                 RPCError::network(e)
-            })? => {
+            })?;
+        let _send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Answer, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                network_result_raise!(res);
             }
         );
 
@@ -1513,7 +1568,8 @@ impl RPCProcessor {
             let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
             // xxx: causes crash (Missing otel data span extensions)
             // rpc_worker_span.follows_from(span_id);
-            let res = match self
+
+            network_result_value_or_log!(match self
                 .process_rpc_message(msg)
                 .instrument(rpc_worker_span)
                 .await
@@ -1524,9 +1580,7 @@ impl RPCProcessor {
                 }
 
                 Ok(v) => v,
-            };
-
-            network_result_value_or_log!(res => {});
+            } => [ format!(": msg.header={:?}", msg.header) ] {});
         }
     }
 
@@ -1542,19 +1596,22 @@ impl RPCProcessor {
         routing_domain: RoutingDomain,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let header = RPCMessageHeader {
+            detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
+                envelope,
+                peer_noderef,
+                connection_descriptor,
+                routing_domain,
+            }),
+            timestamp: get_aligned_timestamp(),
+            body_len: ByteCount::new(body.len() as u64),
+        };
+
         let msg = RPCMessageEncoded {
-            header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
-                    envelope,
-                    peer_noderef,
-                    connection_descriptor,
-                    routing_domain,
-                }),
-                timestamp: get_aligned_timestamp(),
-                body_len: ByteCount::new(body.len() as u64),
-            },
+            header,
             data: RPCMessageData { contents: body },
         };
+
         let send_channel = {
             let inner = self.inner.lock();
             inner.send_channel.as_ref().unwrap().clone()
@@ -1577,16 +1634,18 @@ impl RPCProcessor {
         sequencing: Sequencing,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let header = RPCMessageHeader {
+            detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
+                direct,
+                remote_safety_route,
+                sequencing,
+            }),
+            timestamp: get_aligned_timestamp(),
+            body_len: (body.len() as u64).into(),
+        };
+
         let msg = RPCMessageEncoded {
-            header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
-                    direct,
-                    remote_safety_route,
-                    sequencing,
-                }),
-                timestamp: get_aligned_timestamp(),
-                body_len: (body.len() as u64).into(),
-            },
+            header,
             data: RPCMessageData { contents: body },
         };
         let send_channel = {
@@ -1612,21 +1671,22 @@ impl RPCProcessor {
         safety_spec: SafetySpec,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let header = RPCMessageHeader {
+            detail: RPCMessageHeaderDetail::PrivateRouted(RPCMessageHeaderDetailPrivateRouted {
+                direct,
+                remote_safety_route,
+                private_route,
+                safety_spec,
+            }),
+            timestamp: get_aligned_timestamp(),
+            body_len: (body.len() as u64).into(),
+        };
+
         let msg = RPCMessageEncoded {
-            header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::PrivateRouted(
-                    RPCMessageHeaderDetailPrivateRouted {
-                        direct,
-                        remote_safety_route,
-                        private_route,
-                        safety_spec,
-                    },
-                ),
-                timestamp: get_aligned_timestamp(),
-                body_len: (body.len() as u64).into(),
-            },
+            header,
             data: RPCMessageData { contents: body },
         };
+
         let send_channel = {
             let inner = self.inner.lock();
             inner.send_channel.as_ref().unwrap().clone()
