@@ -1114,8 +1114,8 @@ impl NetworkManager {
         connection_descriptor: ConnectionDescriptor, // the connection descriptor used
         reporting_peer: NodeRef,       // the peer's noderef reporting the socket address
     ) {
-        // debug code
-        //info!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
+        #[cfg(feature = "verbose-tracing")]
+        debug!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
 
         // Ignore these reports if we are currently detecting public dial info
         let net = self.net();

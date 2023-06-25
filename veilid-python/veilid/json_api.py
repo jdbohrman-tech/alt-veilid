@@ -51,7 +51,7 @@ _VALIDATOR_RECV_MESSAGE = _get_schema_validator(
 class _JsonVeilidAPI(VeilidAPI):
     reader: Optional[asyncio.StreamReader]
     writer: Optional[asyncio.StreamWriter]
-    update_callback: Callable[[VeilidUpdate], Awaitable]
+    update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable]
     handle_recv_messages_task: Optional[asyncio.Task]
     validate_schema: bool
     done: bool
@@ -64,7 +64,7 @@ class _JsonVeilidAPI(VeilidAPI):
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        update_callback: Callable[[VeilidUpdate], Awaitable],
+        update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable],
         validate_schema: bool = True,
     ):
         self.reader = reader
@@ -115,7 +115,7 @@ class _JsonVeilidAPI(VeilidAPI):
 
     @classmethod
     async def connect(
-        cls, host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
+        cls, host: str, port: int, update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable]
     ) -> Self:
         reader, writer = await asyncio.open_connection(host, port)
         veilid_api = cls(reader, writer, update_callback)
@@ -155,7 +155,7 @@ class _JsonVeilidAPI(VeilidAPI):
                 if j["type"] == "Response":
                     await self.handle_recv_message_response(j)
                 elif j["type"] == "Update":
-                    await self.update_callback(VeilidUpdate.from_json(j))
+                    await self.update_callback(self, VeilidUpdate.from_json(j))
         finally:
             await self._cleanup_close()
 
@@ -1162,6 +1162,6 @@ class _JsonCryptoSystem(CryptoSystem):
 
 
 async def json_api_connect(
-    host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
+    host: str, port: int, update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable]
 ) -> _JsonVeilidAPI:
     return await _JsonVeilidAPI.connect(host, port, update_callback)

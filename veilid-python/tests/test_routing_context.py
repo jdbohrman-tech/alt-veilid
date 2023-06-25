@@ -2,6 +2,7 @@
 
 import asyncio
 import random
+import sys
 
 import pytest
 import veilid
@@ -29,7 +30,7 @@ async def test_routing_context_app_message_loopback():
     # Seriously, mypy?
     app_message_queue: asyncio.Queue = asyncio.Queue()
 
-    async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
+    async def app_message_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
             await app_message_queue.put(update)
 
@@ -68,7 +69,7 @@ async def test_routing_context_app_message_loopback():
 async def test_routing_context_app_call_loopback():
     app_call_queue: asyncio.Queue = asyncio.Queue()
 
-    async def app_call_queue_update_callback(update: veilid.VeilidUpdate):
+    async def app_call_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_CALL:
             await app_call_queue.put(update)
 
@@ -119,11 +120,11 @@ async def test_routing_context_app_message_loopback_big_packets():
 
     global got_message
     got_message = 0
-    async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
+    async def app_message_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
             global got_message
             got_message += 1
-            print("got {}".format(got_message))
+            sys.stdout.write("{} ".format(got_message))
             await app_message_queue.put(update)
 
     sent_messages: set[bytes] = set()
@@ -165,3 +166,45 @@ async def test_routing_context_app_message_loopback_big_packets():
                 assert isinstance(update.detail, veilid.VeilidAppMessage)
 
                 assert update.detail.message in sent_messages
+
+@pytest.mark.asyncio
+async def test_routing_context_app_call_loopback_big_packets():
+
+    print("")
+    
+    global got_message
+    got_message = 0
+    async def app_message_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
+        if update.kind == veilid.VeilidUpdateKind.APP_CALL:
+            global got_message
+            got_message += 1
+            sys.stdout.write("{} ".format(got_message))
+            sys.stdout.flush()
+            await api.app_call_reply(update.detail.call_id, update.detail.message)
+
+    hostname, port = server_info()
+    api = await veilid.json_api_connect(
+        hostname, port, app_message_queue_update_callback
+    )
+    async with api:
+        # purge routes to ensure we start fresh
+        await api.debug("purge routes")
+
+        # make a routing context that uses a safety route
+        rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
+        async with rc:
+
+            # make a new local private route
+            prl, blob = await api.new_private_route()
+
+            # import it as a remote route as well so we can send to it
+            prr = await api.import_remote_private_route(blob)
+
+            # do this test 100 times
+            for _ in range(100):
+
+                # send a random sized random app message to our own private route
+                message = random.randbytes(random.randint(0, 32768))
+                out_message = await rc.app_call(prr, message)
+
+                assert message == out_message

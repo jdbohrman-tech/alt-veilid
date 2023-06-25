@@ -1134,7 +1134,8 @@ impl RPCProcessor {
         let op_id = operation.op_id();
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
+        #[cfg(feature = "verbose-tracing")]
+        debug!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1228,7 +1229,8 @@ impl RPCProcessor {
         let operation = RPCOperation::new_statement(statement, spi);
 
         // Log rpc send
-        info!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        #[cfg(feature = "verbose-tracing")]
+        debug!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1305,7 +1307,8 @@ impl RPCProcessor {
         let operation = RPCOperation::new_answer(&request.operation, answer, spi);
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        #[cfg(feature = "verbose-tracing")]
+        debug!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {

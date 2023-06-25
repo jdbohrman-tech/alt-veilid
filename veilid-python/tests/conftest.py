@@ -22,7 +22,7 @@ def server_info() -> tuple[str, int]:
     return hostname, 5959
 
 
-async def simple_update_callback(update: veilid.VeilidUpdate):
+async def simple_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
     print(f"VeilidUpdate: {update}")
 
 

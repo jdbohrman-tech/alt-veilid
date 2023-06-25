@@ -31,7 +31,8 @@ impl NetworkManager {
                     cm => (cm, target_node_ref.clone(), false),
                 };
 
-                info!(
+                #[cfg(feature = "verbose-tracing")]
+                debug!(
                     "ContactMethod: {:?} for {:?}",
                     contact_method, target_node_ref
                 );
@@ -247,10 +248,12 @@ impl NetworkManager {
 
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(connection_descriptor) = node_ref.last_connection() {
-            info!(
+            #[cfg(feature = "verbose-tracing")]
+            debug!(
                 "ExistingConnection: {:?} for {:?}",
                 connection_descriptor, node_ref
             );
+
             match self
                 .net()
                 .send_data_to_existing_connection(connection_descriptor, data)
