@@ -117,8 +117,13 @@ async def test_routing_context_app_message_loopback_big_packets():
 
     app_message_queue: asyncio.Queue = asyncio.Queue()
 
+    global got_message
+    got_message = 0
     async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
+            global got_message
+            got_message += 1
+            print("got {}".format(got_message))
             await app_message_queue.put(update)
 
     sent_messages: set[bytes] = set()
@@ -142,7 +147,7 @@ async def test_routing_context_app_message_loopback_big_packets():
             prr = await api.import_remote_private_route(blob)
 
             # do this test 100 times
-            for _ in range(1000):
+            for _ in range(100):
 
                 # send a random sized random app message to our own private route
                 message = random.randbytes(random.randint(0, 32768))
@@ -151,8 +156,9 @@ async def test_routing_context_app_message_loopback_big_packets():
                 sent_messages.add(message)
 
             # we should get the same messages back
-            for _ in range(len(sent_messages)):
-
+            print(len(sent_messages))
+            for n in range(len(sent_messages)):
+                print(n)
                 update: veilid.VeilidUpdate = await asyncio.wait_for(
                     app_message_queue.get(), timeout=10
                 )

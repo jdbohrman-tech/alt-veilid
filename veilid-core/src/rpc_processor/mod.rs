@@ -728,6 +728,10 @@ impl RPCProcessor {
                         if sequencing > node_ref.sequencing() {
                             node_ref.set_sequencing(sequencing)
                         }
+                        let mut destination_node_ref = destination_node_ref.clone();
+                        if sequencing > destination_node_ref.sequencing() {
+                            destination_node_ref.set_sequencing(sequencing)
+                        }
 
                         // Reply private route should be None here, even for questions
                         assert!(reply_private_route.is_none());

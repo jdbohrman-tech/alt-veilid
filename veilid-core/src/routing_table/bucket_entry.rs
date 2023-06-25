@@ -441,7 +441,7 @@ impl BucketEntryInner {
                 // Check if the connection is still considered live
                 let alive = 
                     // Should we check the connection table?
-                    if v.0.protocol_type().is_connection_oriented() {
+                    if v.0.protocol_type().is_ordered() {
                         // Look the connection up in the connection manager and see if it's still there
                         connection_manager.get_connection(v.0).is_some()
                     } else {

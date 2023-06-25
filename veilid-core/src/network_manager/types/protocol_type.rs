@@ -25,7 +25,7 @@ pub enum ProtocolType {
 }
 
 impl ProtocolType {
-    pub fn is_connection_oriented(&self) -> bool {
+    pub fn is_ordered(&self) -> bool {
         matches!(
             self,
             ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS

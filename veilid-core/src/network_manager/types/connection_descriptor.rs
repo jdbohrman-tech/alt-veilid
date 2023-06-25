@@ -30,9 +30,7 @@ pub struct ConnectionDescriptor {
 
 impl ConnectionDescriptor {
     pub fn new(remote: PeerAddress, local: SocketAddress) -> Self {
-        assert!(
-            !remote.protocol_type().is_connection_oriented() || !local.address().is_unspecified()
-        );
+        assert!(!remote.protocol_type().is_ordered() || !local.address().is_unspecified());
 
         Self {
             remote,

@@ -342,21 +342,24 @@ impl NetworkManager {
             ContactMethod::Existing => NodeContactMethod::Existing,
             ContactMethod::Direct(di) => NodeContactMethod::Direct(di),
             ContactMethod::SignalReverse(relay_key, target_key) => {
-                let relay_nr = routing_table
+                let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("signalreverse target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
+                relay_nr.set_sequencing(sequencing);
                 NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
             }
             ContactMethod::SignalHolePunch(relay_key, target_key) => {
-                let relay_nr = routing_table
+                let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
                 if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("signalholepunch target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
+                relay_nr.set_sequencing(sequencing);
+
                 // if any other protocol were possible here we could update this and do_hole_punch
                 // but tcp hole punch is very very unreliable it seems
                 let udp_target_node_ref = target_node_ref
@@ -365,15 +368,17 @@ impl NetworkManager {
                 NodeContactMethod::SignalHolePunch(relay_nr, udp_target_node_ref)
             }
             ContactMethod::InboundRelay(relay_key) => {
-                let relay_nr = routing_table
+                let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                relay_nr.set_sequencing(sequencing);
                 NodeContactMethod::InboundRelay(relay_nr)
             }
             ContactMethod::OutboundRelay(relay_key) => {
-                let relay_nr = routing_table
+                let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
                     .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                relay_nr.set_sequencing(sequencing);
                 NodeContactMethod::OutboundRelay(relay_nr)
             }
         };

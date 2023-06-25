@@ -878,6 +878,7 @@ impl NetworkManager {
         data: &mut [u8],
         connection_descriptor: ConnectionDescriptor,
     ) -> EyreResult<bool> {
+        #[cfg(feature="verbose-tracing")]
         let root = span!(
             parent: None,
             Level::TRACE,
@@ -885,6 +886,7 @@ impl NetworkManager {
             "data.len" = data.len(),
             "descriptor" = ?connection_descriptor
         );
+        #[cfg(feature="verbose-tracing")]
         let _root_enter = root.enter();
 
         log_net!(
@@ -1017,6 +1019,17 @@ impl NetworkManager {
             };
 
             if let Some(relay_nr) = some_relay_nr {
+                // Force sequencing if this came in sequenced. 
+                // The sender did the prefer/ensure calculation when it did get_contact_method,
+                // so we don't need to do it here.
+                let relay_nr = if connection_descriptor.remote().protocol_type().is_ordered() {
+                    let mut relay_nr = relay_nr.clone();
+                    relay_nr.set_sequencing(Sequencing::EnsureOrdered);
+                    relay_nr
+                } else {
+                    relay_nr
+                };
+
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
 

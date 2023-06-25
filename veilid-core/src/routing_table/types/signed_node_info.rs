@@ -71,7 +71,7 @@ impl SignedNodeInfo {
             match sequencing {
                 Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
                 Sequencing::EnsureOrdered => {
-                    if did.dial_info.protocol_type().is_connection_oriented() {
+                    if did.dial_info.protocol_type().is_ordered() {
                         return true;
                     }
                 }
@@ -85,7 +85,7 @@ impl SignedNodeInfo {
                     match sequencing {
                         Sequencing::NoPreference | Sequencing::PreferOrdered => return true,
                         Sequencing::EnsureOrdered => {
-                            if did.dial_info.protocol_type().is_connection_oriented() {
+                            if did.dial_info.protocol_type().is_ordered() {
                                 return true;
                             }
                         }
