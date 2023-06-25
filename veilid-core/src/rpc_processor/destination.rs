@@ -44,7 +44,7 @@ impl Destination {
         }
     }
     pub fn relay(relay: NodeRef, target: NodeRef) -> Self {
-        let sequencing = relay.sequencing();
+        let sequencing = relay.sequencing().max(target.sequencing());
         Self::Relay {
             relay,
             target,
