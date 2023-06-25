@@ -95,6 +95,7 @@ impl StorageManager {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip_all)]
     pub async fn terminate(&self) {
         debug!("starting storage manager shutdown");
 

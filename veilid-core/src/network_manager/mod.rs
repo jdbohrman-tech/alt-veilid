@@ -775,7 +775,7 @@ impl NetworkManager {
     }
 
     /// Builds an envelope for sending over the network
-    #[instrument(level = "trace", skip(self, body), err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, body), err))]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
         dest_node_id: TypedKey,
@@ -806,7 +806,7 @@ impl NetworkManager {
     /// node_ref is the direct destination to which the envelope will be sent
     /// If 'destination_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
-    #[instrument(level = "trace", skip(self, body), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, body), ret, err))]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
@@ -872,7 +872,7 @@ impl NetworkManager {
     // Called when a packet potentially containing an RPC envelope is received by a low-level
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
-    #[instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len())))]
     async fn on_recv_envelope(
         &self,
         data: &mut [u8],

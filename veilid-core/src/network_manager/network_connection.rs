@@ -179,7 +179,7 @@ impl NetworkConnection {
         }
     }
 
-    #[instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret))]
     async fn send_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -194,7 +194,7 @@ impl NetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
-    #[instrument(level="trace", skip(stats), fields(ret.len))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(stats), fields(ret.len)))]
     async fn recv_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -205,6 +205,7 @@ impl NetworkConnection {
         let mut stats = stats.lock();
         stats.last_message_recv_time.max_assign(Some(ts));
 
+        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.len", out.len());
 
         Ok(NetworkResult::Value(out))

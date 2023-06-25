@@ -15,7 +15,10 @@ impl RPCProcessor {
     // direct -> node status + sender info
     // safety -> node status
     // private -> nothing
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret, err)
+    )]
     pub async fn rpc_call_status(
         self,
         dest: Destination,
@@ -210,7 +213,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(Answer::new(latency, opt_sender_info)))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_status_q(
         &self,
         msg: RPCMessage,

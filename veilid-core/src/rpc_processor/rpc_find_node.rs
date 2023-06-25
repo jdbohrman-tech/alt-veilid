@@ -7,7 +7,10 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    #[instrument(level = "trace", skip(self), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), err)
+    )]
     pub async fn rpc_call_find_node(
         self,
         dest: Destination,
@@ -67,7 +70,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(Answer::new(latency, peers)))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_find_node_q(
         &self,
         msg: RPCMessage,

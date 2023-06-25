@@ -3,7 +3,10 @@ use super::*;
 impl RPCProcessor {
     // Sends a high level app request and wait for response
     // Can be sent via all methods including relays and routes
-    #[instrument(level = "trace", skip(self, message), fields(message.len = message.len(), ret.latency, ret.len), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, message), fields(message.len = message.len(), ret.latency, ret.len), err)
+    )]
     pub async fn rpc_call_app_call(
         self,
         dest: Destination,
@@ -38,12 +41,14 @@ impl RPCProcessor {
 
         let a_message = app_call_a.destructure();
 
+        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.latency", latency.as_u64());
+        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.len", a_message.len());
         Ok(NetworkResult::value(Answer::new(latency, a_message)))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_app_call_q(
         &self,
         msg: RPCMessage,

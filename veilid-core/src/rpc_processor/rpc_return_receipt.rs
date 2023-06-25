@@ -3,7 +3,10 @@ use super::*;
 impl RPCProcessor {
     // Sends a unidirectional in-band return receipt
     // Can be sent via all methods including relays and routes
-    #[instrument(level = "trace", skip(self, receipt), ret, err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, receipt), ret, err)
+    )]
     pub async fn rpc_call_return_receipt<D: AsRef<[u8]>>(
         self,
         dest: Destination,
@@ -20,7 +23,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_return_receipt(
         &self,
         msg: RPCMessage,

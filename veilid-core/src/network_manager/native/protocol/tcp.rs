@@ -56,11 +56,12 @@ impl RawTcpNetworkConnection {
         stream.flush().await.into_network_result()
     }
 
-    //#[instrument(level="trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         let mut stream = self.stream.clone();
         let out = Self::send_internal(&mut stream, message).await?;
-        //tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 
@@ -87,11 +88,15 @@ impl RawTcpNetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
-    // #[instrument(level = "trace", err, skip(self), fields(network_result))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", err, skip(self), fields(network_result))
+    )]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let mut stream = self.stream.clone();
         let out = Self::recv_internal(&mut stream).await?;
-        //tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 }

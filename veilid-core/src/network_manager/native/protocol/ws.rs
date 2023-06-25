@@ -72,7 +72,7 @@ where
     //         .map_err(to_io_error_other)
     // }
 
-    //#[instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("received too large WS message");
@@ -82,6 +82,7 @@ where
             Err(e) => err_to_network_result(e),
         };
         if !out.is_value() {
+            #[cfg(feature = "verbose-tracing")]
             tracing::Span::current().record("network_result", &tracing::field::display(&out));
             return Ok(out);
         }
@@ -89,11 +90,13 @@ where
             Ok(v) => NetworkResult::value(v),
             Err(e) => err_to_network_result(e),
         };
-        //tracing::Span::current().record("network_result", &tracing::field::display(&out));
+
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 
-    // #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self), fields(network_result, ret.len)))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let out = match self.stream.clone().next().await {
             Some(Ok(Message::Binary(v))) => {
@@ -120,7 +123,8 @@ where
             )),
         };
 
-        // tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 }

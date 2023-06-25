@@ -15,13 +15,17 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    #[instrument(level = "trace", skip(self, last_descriptor), 
-        fields(ret.value.data.len, 
-            ret.value.data.seq, 
-            ret.value.data.writer, 
-            ret.peers.len,
-            ret.latency
-        ),err)]
+    
+    #[cfg_attr(
+        feature = "verbose-tracing",        
+        instrument(level = "trace", skip(self, last_descriptor), 
+            fields(ret.value.data.len, 
+                ret.value.data.seq, 
+                ret.value.data.writer, 
+                ret.peers.len,
+                ret.latency
+            ),err)
+    )]
     pub async fn rpc_call_get_value(
         self,
         dest: Destination,
@@ -107,12 +111,15 @@ impl RPCProcessor {
             return Ok(NetworkResult::invalid_message("non-closer peers returned"));
         }
 
+        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.latency", latency.as_u64());
+        #[cfg(feature = "verbose-tracing")]
         if let Some(value) = &value {
             tracing::Span::current().record("ret.value.data.len", value.value_data().data().len());
             tracing::Span::current().record("ret.value.data.seq", value.value_data().seq());
             tracing::Span::current().record("ret.value.data.writer", value.value_data().writer().to_string());
         }
+        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.peers.len", peers.len());
 
         Ok(NetworkResult::value(Answer::new(
@@ -125,7 +132,7 @@ impl RPCProcessor {
         )))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_get_value_q(
         &self,
         msg: RPCMessage,

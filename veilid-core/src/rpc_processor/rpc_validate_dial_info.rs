@@ -2,7 +2,10 @@ use super::*;
 
 impl RPCProcessor {
     // Can only be sent directly, not via relays or routes
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret, err)
+    )]
     pub async fn rpc_call_validate_dial_info(
         self,
         peer: NodeRef,
@@ -50,7 +53,7 @@ impl RPCProcessor {
         }
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_validate_dial_info(
         &self,
         msg: RPCMessage,

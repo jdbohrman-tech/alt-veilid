@@ -76,7 +76,6 @@ impl ClientApi {
         crate::server::shutdown();
     }
 
-    #[instrument(level = "trace", skip_all)]
     fn change_log_level(
         &self,
         layer: String,
@@ -107,7 +106,6 @@ impl ClientApi {
         trace!("ClientApi::stop: stopped");
     }
 
-    #[instrument(level = "trace", skip(self), err)]
     async fn handle_incoming(self, bind_addr: SocketAddr) -> std::io::Result<()> {
         let listener = TcpListener::bind(bind_addr).await?;
         debug!("Client API listening on: {:?}", bind_addr);
@@ -402,7 +400,6 @@ impl ClientApi {
         awg.done();
     }
 
-    #[instrument(level = "trace", skip(self))]
     pub fn handle_update(&self, veilid_update: veilid_core::VeilidUpdate) {
         // serialize update to NDJSON
         let veilid_update = serialize_json(json_api::RecvMessage::Update(veilid_update)) + "\n";

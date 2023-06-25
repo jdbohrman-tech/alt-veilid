@@ -137,7 +137,6 @@ impl RoutingContext {
     ////////////////////////////////////////////////////////////////
     // App-level Messaging
 
-    #[instrument(level = "debug", err, skip(self))]
     pub async fn app_call(&self, target: Target, request: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
         let rpc_processor = self.api.rpc_processor()?;
 
@@ -165,7 +164,6 @@ impl RoutingContext {
         Ok(answer.answer)
     }
 
-    #[instrument(level = "debug", err, skip(self))]
     pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
         let rpc_processor = self.api.rpc_processor()?;
 

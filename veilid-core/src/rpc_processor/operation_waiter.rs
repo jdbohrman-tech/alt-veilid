@@ -114,7 +114,10 @@ where
     }
 
     /// Complete the app call
-    #[instrument(level = "trace", skip(self, message), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, message), err)
+    )]
     pub async fn complete_op_waiter(&self, op_id: OperationId, message: T) -> Result<(), RPCError> {
         let waiting_op = {
             let mut inner = self.inner.lock();

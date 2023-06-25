@@ -1,7 +1,7 @@
 use super::*;
 
 impl RPCProcessor {
-    #[instrument(level = "trace", skip_all, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip_all, err))]
     async fn process_route_safety_route_hop(
         &self,
         routed_operation: RoutedOperation,
@@ -52,7 +52,7 @@ impl RPCProcessor {
             .await
     }
 
-    #[instrument(level = "trace", skip_all, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip_all, err))]
     async fn process_route_private_route_hop(
         &self,
         routed_operation: RoutedOperation,
@@ -99,7 +99,7 @@ impl RPCProcessor {
     /// Note: it is important that we never respond with a safety route to questions that come
     /// in without a private route. Giving away a safety route when the node id is known is
     /// a privacy violation!
-    #[instrument(level = "trace", skip_all, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip_all, err))]
     fn process_safety_routed_operation(
         &self,
         detail: RPCMessageHeaderDetailDirect,
@@ -141,7 +141,7 @@ impl RPCProcessor {
     }
 
     /// Process a routed operation that came in over both a safety route and a private route
-    #[instrument(level = "trace", skip_all, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip_all, err))]
     fn process_private_routed_operation(
         &self,
         detail: RPCMessageHeaderDetailDirect,
@@ -209,7 +209,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(()))
     }
 
-    #[instrument(level = "trace", skip_all, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip_all, err))]
     fn process_routed_operation(
         &self,
         detail: RPCMessageHeaderDetailDirect,
@@ -239,7 +239,7 @@ impl RPCProcessor {
             )
         }
     }
-    #[instrument(level = "trace", skip_all, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip_all, err))]
     pub(crate) async fn process_private_route_first_hop(
         &self,
         mut routed_operation: RoutedOperation,
@@ -360,7 +360,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(route_hop))
     }
 
-    #[instrument(level = "trace", skip(self, msg), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), ret, err))]
     pub(crate) async fn process_route(
         &self,
         msg: RPCMessage,

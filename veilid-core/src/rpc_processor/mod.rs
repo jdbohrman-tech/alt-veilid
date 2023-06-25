@@ -525,7 +525,10 @@ impl RPCProcessor {
         })
     }
 
-    #[instrument(level = "trace", skip(self, waitable_reply), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, waitable_reply), err)
+    )]
     async fn wait_for_reply(
         &self,
         waitable_reply: WaitableReply,
@@ -662,7 +665,10 @@ impl RPCProcessor {
     /// Produce a byte buffer that represents the wire encoding of the entire
     /// unencrypted envelope body for a RPC message. This incorporates
     /// wrapping a private and/or safety route if they are specified.
-    #[instrument(level = "debug", skip(self, operation), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, operation), err)
+    )]
     fn render_operation(
         &self,
         dest: Destination,
@@ -790,7 +796,10 @@ impl RPCProcessor {
     /// routing table caching when it is okay to do so
     /// Also check target's timestamp of our own node info, to see if we should send that
     /// And send our timestamp of the target's node info so they can determine if they should update us on their next rpc
-    #[instrument(level = "trace", skip(self), ret)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret)
+    )]
     fn get_sender_peer_info(&self, dest: &Destination) -> SenderPeerInfo {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
@@ -1091,7 +1100,10 @@ impl RPCProcessor {
 
     /// Issue a question over the network, possibly using an anonymized route
     /// Optionally keeps a context to be passed to the answer processor when an answer is received
-    #[instrument(level = "debug", skip(self, question), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, question), err)
+    )]
     async fn question(
         &self,
         dest: Destination,
@@ -1170,7 +1182,10 @@ impl RPCProcessor {
     }
 
     /// Issue a statement over the network, possibly using an anonymized route
-    #[instrument(level = "debug", skip(self, statement), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, statement), err)
+    )]
     async fn statement(
         &self,
         dest: Destination,
@@ -1227,7 +1242,10 @@ impl RPCProcessor {
     }
     /// Issue a reply over the network, possibly using an anonymized route
     /// The request must want a response, or this routine fails
-    #[instrument(level = "debug", skip(self, request, answer), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, request, answer), err)
+    )]
     async fn answer(
         &self,
         request: RPCMessage,
@@ -1335,7 +1353,10 @@ impl RPCProcessor {
     }
 
     //////////////////////////////////////////////////////////////////////
-    #[instrument(level = "trace", skip(self, encoded_msg), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, encoded_msg), err)
+    )]
     async fn process_rpc_message(
         &self,
         encoded_msg: RPCMessageEncoded,
@@ -1505,7 +1526,10 @@ impl RPCProcessor {
         }
     }
 
-    #[instrument(level = "trace", skip(self, body), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), err)
+    )]
     pub fn enqueue_direct_message(
         &self,
         envelope: Envelope,
@@ -1538,7 +1562,10 @@ impl RPCProcessor {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self, body), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), err)
+    )]
     fn enqueue_safety_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,
@@ -1569,7 +1596,10 @@ impl RPCProcessor {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self, body), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), err)
+    )]
     fn enqueue_private_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,

@@ -264,7 +264,6 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
 }
 
 #[no_mangle]
-#[instrument(level = "debug")]
 pub extern "C" fn change_log_level(layer: FfiStr, log_level: FfiStr) {
     // get layer to change level on
     let layer = layer.into_opt_string().unwrap_or("all".to_owned());
@@ -1502,7 +1501,6 @@ pub struct VeilidVersion {
 }
 
 #[no_mangle]
-#[instrument]
 pub extern "C" fn veilid_version() -> VeilidVersion {
     let (major, minor, patch) = veilid_core::veilid_version();
     VeilidVersion {

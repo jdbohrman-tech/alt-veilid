@@ -389,7 +389,10 @@ impl NetworkManager {
     /// Send a reverse connection signal and wait for the return receipt over it
     /// Then send the data across the new connection
     /// Only usable for PublicInternet routing domain
-    #[instrument(level = "trace", skip(self, data), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, data), err)
+    )]
     async fn do_reverse_connect(
         &self,
         relay_nr: NodeRef,
@@ -475,7 +478,10 @@ impl NetworkManager {
     /// Send a hole punch signal and do a negotiating ping and wait for the return receipt
     /// Then send the data across the new connection
     /// Only usable for PublicInternet routing domain
-    #[instrument(level = "trace", skip(self, data), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, data), err)
+    )]
     async fn do_hole_punch(
         &self,
         relay_nr: NodeRef,
