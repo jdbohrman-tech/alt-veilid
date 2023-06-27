@@ -61,6 +61,9 @@ impl RouteStats {
     pub fn record_sent(&mut self, cur_ts: Timestamp, bytes: ByteCount) {
         self.last_sent_ts = Some(cur_ts);
         self.transfer_stats_accounting.add_up(bytes);
+
+        // If we sent successfully, then reset 'failed_to_send'
+        self.failed_to_send = 0;
     }
 
     /// Mark a route as having been sent to
@@ -101,6 +104,8 @@ impl RouteStats {
         self.last_tested_ts = None;
         self.last_sent_ts = None;
         self.last_received_ts = None;
+        self.failed_to_send = 0;
+        self.questions_lost = 0;
     }
 
     /// Check if a route needs testing

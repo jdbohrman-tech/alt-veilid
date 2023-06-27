@@ -15,6 +15,7 @@ crypto-test = ["enable-crypto-vld0", "enable-crypto-none"]
 crypto-test-none = ["enable-crypto-none"]
 enable-crypto-vld0 = []
 enable-crypto-none = []
+verbose-tracing = []
 rt-async-std = ["async-std", "async-std-resolver", "async_executors/async_std", "rtnetlink/smol_socket", "veilid-tools/rt-async-std"]
 rt-tokio = ["tokio", "tokio-util", "tokio-stream", "trust-dns-resolver/tokio-runtime", "async_executors/tokio_tp", "async_executors/tokio_io", "async_executors/tokio_timer", "rtnetlink/tokio_socket", "veilid-tools/rt-tokio"]
 rt-wasm-bindgen = ["veilid-tools/rt-wasm-bindgen", "async_executors/bindgen"]
@@ -22,6 +23,7 @@ rt-wasm-bindgen = ["veilid-tools/rt-wasm-bindgen", "async_executors/bindgen"]
 veilid_core_android_tests = ["dep:paranoid-android"]
 veilid_core_ios_tests = ["dep:tracing-oslog"]
 tracking = []
+network-result-extra = ["veilid-tools/network-result-extra"]
 
 [dependencies]
 veilid-tools = { path = "../veilid-tools", features = [ "tracing" ] }
@@ -52,8 +54,8 @@ owning_ref = "^0"
 flume = { version = "^0", features = ["async"] }
 enumset = { version= "^1", features = ["serde"] }
 backtrace = { version = "^0" }
-owo-colors = "^3"
 stop-token = { version = "^0", default-features = false }
+num-traits = "0.2.15"
 
 ed25519-dalek = { version = "^1", default_features = false, features = ["alloc", "u64_backend"] }
 x25519-dalek = { version = "^1", default_features = false, features = ["u64_backend"] }

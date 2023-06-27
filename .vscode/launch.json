@@ -106,6 +106,28 @@
     {
       "type": "lldb",
       "request": "launch",
+      "name": "Debug veilid-tools unit test",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--features=rt-tokio",
+          "--manifest-path",
+          "veilid-tools/Cargo.toml"
+        ],
+        "filter": {
+          "kind": "cdylib",
+          "name": "veilid-tools"
+        }
+      },
+      "args": [
+        "${selectedText}"
+      ],
+      "cwd": "${workspaceFolder}/target/debug/"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
       "name": "Debug veilid-server unit test",
       "cargo": {
         "args": [

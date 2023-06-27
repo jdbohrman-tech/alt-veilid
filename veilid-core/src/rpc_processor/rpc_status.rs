@@ -15,7 +15,10 @@ impl RPCProcessor {
     // direct -> node status + sender info
     // safety -> node status
     // private -> nothing
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret, err)
+    )]
     pub async fn rpc_call_status(
         self,
         dest: Destination,
@@ -101,6 +104,8 @@ impl RPCProcessor {
             RPCQuestionDetail::StatusQ(status_q),
         );
 
+        let debug_string = format!("Status => {}", dest);
+
         // Send the info request
         let waitable_reply =
             network_result_try!(self.question(dest.clone(), question, None).await?);
@@ -109,7 +114,7 @@ impl RPCProcessor {
         let send_data_kind = waitable_reply.send_data_kind;
 
         // Wait for reply
-        let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
+        let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
             TimeoutOr::Value(v) => v,
         };
@@ -208,7 +213,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(Answer::new(latency, opt_sender_info)))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_status_q(
         &self,
         msg: RPCMessage,

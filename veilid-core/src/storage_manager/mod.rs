@@ -1,6 +1,7 @@
 mod debug;
 mod get_value;
 mod keys;
+mod limited_size;
 mod record_store;
 mod record_store_limits;
 mod set_value;
@@ -9,6 +10,7 @@ mod tasks;
 mod types;
 
 use keys::*;
+use limited_size::*;
 use record_store::*;
 use record_store_limits::*;
 use storage_manager_inner::*;
@@ -95,6 +97,7 @@ impl StorageManager {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip_all)]
     pub async fn terminate(&self) {
         debug!("starting storage manager shutdown");
 

@@ -79,7 +79,7 @@ impl Network {
 
     /////////////////////////////////////////////////////////////////
 
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_unbound_to_dial_info(
         &self,
         dial_info: DialInfo,
@@ -119,7 +119,7 @@ impl Network {
     // This creates a short-lived connection in the case of connection-oriented protocols
     // for the purpose of sending this one message.
     // This bypasses the connection table as it is not a 'node to node' connection.
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_recv_data_unbound_to_dial_info(
         &self,
         dial_info: DialInfo,
@@ -167,7 +167,7 @@ impl Network {
         }
     }
 
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_to_existing_connection(
         &self,
         descriptor: ConnectionDescriptor,
@@ -212,7 +212,7 @@ impl Network {
         Ok(Some(data))
     }
 
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_to_dial_info(
         &self,
         dial_info: DialInfo,

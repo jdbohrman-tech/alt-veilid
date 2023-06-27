@@ -217,25 +217,24 @@ pub trait NodeRefBase: Sized {
     fn first_filtered_dial_info_detail(&self) -> Option<DialInfoDetail> {
         let routing_domain_set = self.routing_domain_set();
         let dial_info_filter = self.dial_info_filter();
+        let sequencing = self.common().sequencing;
+        let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
 
-        let (sort, dial_info_filter) = match self.common().sequencing {
-            Sequencing::NoPreference => (None, dial_info_filter),
-            Sequencing::PreferOrdered => (
-                Some(DialInfoDetail::ordered_sequencing_sort),
-                dial_info_filter,
-            ),
-            Sequencing::EnsureOrdered => (
-                Some(DialInfoDetail::ordered_sequencing_sort),
-                dial_info_filter.filtered(
-                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
-                ),
-            ),
+        let sort = if ordered {
+            Some(DialInfoDetail::ordered_sequencing_sort)
+        } else {
+            None
         };
+
+        if dial_info_filter.is_dead() {
+            return None;
+        }
+
+        let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
 
         self.operate(|_rt, e| {
             for routing_domain in routing_domain_set {
                 if let Some(ni) = e.node_info(routing_domain) {
-                    let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
                     if let Some(did) = ni.first_filtered_dial_info_detail(sort, filter) {
                         return Some(did);
                     }
@@ -278,11 +277,22 @@ pub trait NodeRefBase: Sized {
         out
     }
 
+    /// Get the most recent 'last connection' to this node
+    /// Filtered first and then sorted by ordering preference and then by most recent
     fn last_connection(&self) -> Option<ConnectionDescriptor> {
-        // Get the last connections and the last time we saw anything with this connection
-        // Filtered first and then sorted by most recent
         self.operate(|rti, e| {
-            let last_connections = e.last_connections(rti, true, self.common().filter.clone());
+            // apply sequencing to filter and get sort
+            let sequencing = self.common().sequencing;
+            let filter = self.common().filter.clone().unwrap_or_default();
+            let (ordered, filter) = filter.with_sequencing(sequencing);
+            let mut last_connections = e.last_connections(rti, true, filter);
+
+            if ordered {
+                last_connections.sort_by(|a, b| {
+                    ProtocolType::ordered_sequencing_sort(a.0.protocol_type(), b.0.protocol_type())
+                });
+            }
+
             last_connections.first().map(|x| x.0)
         })
     }

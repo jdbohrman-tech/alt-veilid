@@ -703,6 +703,7 @@ class VeilidConfigNetwork {
   int clientWhitelistTimeoutMs;
   int reverseConnectionReceiptTimeMs;
   int holePunchReceiptTimeMs;
+  String? networkKeyPassword;
   VeilidConfigRoutingTable routingTable;
   VeilidConfigRPC rpc;
   VeilidConfigDHT dht;
@@ -723,6 +724,7 @@ class VeilidConfigNetwork {
     required this.clientWhitelistTimeoutMs,
     required this.reverseConnectionReceiptTimeMs,
     required this.holePunchReceiptTimeMs,
+    this.networkKeyPassword,
     required this.routingTable,
     required this.rpc,
     required this.dht,
@@ -745,6 +747,7 @@ class VeilidConfigNetwork {
       'client_whitelist_timeout_ms': clientWhitelistTimeoutMs,
       'reverse_connection_receipt_time_ms': reverseConnectionReceiptTimeMs,
       'hole_punch_receipt_time_ms': holePunchReceiptTimeMs,
+      'network_key_password': networkKeyPassword,
       'routing_table': routingTable.toJson(),
       'rpc': rpc.toJson(),
       'dht': dht.toJson(),
@@ -770,6 +773,7 @@ class VeilidConfigNetwork {
         reverseConnectionReceiptTimeMs =
             json['reverse_connection_receipt_time_ms'],
         holePunchReceiptTimeMs = json['hole_punch_receipt_time_ms'],
+        networkKeyPassword = json['network_key_password'],
         routingTable = VeilidConfigRoutingTable.fromJson(json['routing_table']),
         rpc = VeilidConfigRPC.fromJson(json['rpc']),
         dht = VeilidConfigDHT.fromJson(json['dht']),

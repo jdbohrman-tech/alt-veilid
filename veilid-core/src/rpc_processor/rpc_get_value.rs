@@ -15,7 +15,17 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    #[instrument(level = "trace", skip(self), ret, err)]
+    
+    #[cfg_attr(
+        feature = "verbose-tracing",        
+        instrument(level = "trace", skip(self, last_descriptor), 
+            fields(ret.value.data.len, 
+                ret.value.data.seq, 
+                ret.value.data.writer, 
+                ret.peers.len,
+                ret.latency
+            ),err)
+    )]
     pub async fn rpc_call_get_value(
         self,
         dest: Destination,
@@ -39,6 +49,18 @@ impl RPCProcessor {
             return Err(RPCError::internal("No node id for crypto kind"));
         };
 
+        let debug_string = format!(
+            "OUT ==> GetValueQ({} #{}{}) => {}",
+            key,
+            subkey,
+            if last_descriptor.is_some() {
+                " +lastdesc"
+            } else {
+                ""
+            },
+            dest
+        );
+
         // Send the getvalue question
         let get_value_q = RPCOperationGetValueQ::new(key, subkey, last_descriptor.is_none());
         let question = RPCQuestion::new(
@@ -52,13 +74,15 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
+        log_rpc!(debug "{}", debug_string);
+
         let waitable_reply = network_result_try!(
             self.question(dest, question, Some(question_context))
                 .await?
         );
 
         // Wait for reply
-        let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
+        let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
             TimeoutOr::Value(v) => v,
         };
@@ -75,6 +99,28 @@ impl RPCProcessor {
 
         let (value, peers, descriptor) = get_value_a.destructure();
 
+        let debug_string_value = value.as_ref().map(|v| {
+            format!(" len={} writer={}",
+                v.value_data().data().len(),
+                v.value_data().writer(),
+            )
+        }).unwrap_or_default();
+        
+        let debug_string_answer = format!(
+            "OUT <== GetValueA({} #{}{}{} peers={})",
+            key,
+            subkey,
+            debug_string_value,
+            if descriptor.is_some() {
+                " +desc"
+            } else {
+                ""
+            },
+            peers.len(),
+        );
+
+        log_rpc!(debug "{}", debug_string_answer);
+
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
         let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
             Ok(v) => v,
@@ -89,6 +135,17 @@ impl RPCProcessor {
             return Ok(NetworkResult::invalid_message("non-closer peers returned"));
         }
 
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("ret.latency", latency.as_u64());
+        #[cfg(feature = "verbose-tracing")]
+        if let Some(value) = &value {
+            tracing::Span::current().record("ret.value.data.len", value.value_data().data().len());
+            tracing::Span::current().record("ret.value.data.seq", value.value_data().seq());
+            tracing::Span::current().record("ret.value.data.writer", value.value_data().writer().to_string());
+        }
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("ret.peers.len", peers.len());
+
         Ok(NetworkResult::value(Answer::new(
             latency,
             GetValueAnswer {
@@ -99,7 +156,7 @@ impl RPCProcessor {
         )))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_get_value_q(
         &self,
         msg: RPCMessage,
@@ -131,13 +188,50 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key));
 
+        let debug_string = format!(
+            "IN <=== GetValueQ({} #{}{}) <== {}",
+            key,
+            subkey,
+            if want_descriptor {
+                " +wantdesc"
+            } else {
+                ""
+            },
+            msg.header.direct_sender_node_id()
+        );
+
+        log_rpc!(debug "{}", debug_string);
+
         // See if we have this record ourselves
         let storage_manager = self.storage_manager();
         let subkey_result = network_result_try!(storage_manager
             .inbound_get_value(key, subkey, want_descriptor)
             .await
             .map_err(RPCError::internal)?);
+        
+        let debug_string_value = subkey_result.value.as_ref().map(|v| {
+            format!(" len={} writer={}",
+                v.value_data().data().len(),
+                v.value_data().writer(),
+            )
+        }).unwrap_or_default();
 
+        let debug_string_answer = format!(
+            "IN ===> GetValueA({} #{}{}{} peers={}) ==> {}",
+            key,
+            subkey,
+            debug_string_value,
+            if subkey_result.descriptor.is_some() {
+                " +desc"
+            } else {
+                ""
+            },
+            closer_to_key_peers.len(),
+            msg.header.direct_sender_node_id()
+        );
+    
+        log_rpc!(debug "{}", debug_string_answer);
+            
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(
             subkey_result.value,

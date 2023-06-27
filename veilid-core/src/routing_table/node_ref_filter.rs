@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeRefFilter {
     pub routing_domain_set: RoutingDomainSet,
     pub dial_info_filter: DialInfoFilter,
@@ -19,7 +19,6 @@ impl NodeRefFilter {
             dial_info_filter: DialInfoFilter::all(),
         }
     }
-
     pub fn with_routing_domain(mut self, routing_domain: RoutingDomain) -> Self {
         self.routing_domain_set = routing_domain.into();
         self
@@ -57,5 +56,55 @@ impl NodeRefFilter {
     }
     pub fn is_dead(&self) -> bool {
         self.dial_info_filter.is_dead() || self.routing_domain_set.is_empty()
+    }
+    pub fn with_sequencing(mut self, sequencing: Sequencing) -> (bool, Self) {
+        let (ordered, dif) = self.dial_info_filter.with_sequencing(sequencing);
+        self.dial_info_filter = dif;
+        (ordered, self)
+    }
+}
+
+impl From<RoutingDomain> for NodeRefFilter {
+    fn from(other: RoutingDomain) -> Self {
+        Self {
+            routing_domain_set: other.into(),
+            dial_info_filter: DialInfoFilter::all(),
+        }
+    }
+}
+
+impl From<RoutingDomainSet> for NodeRefFilter {
+    fn from(other: RoutingDomainSet) -> Self {
+        Self {
+            routing_domain_set: other,
+            dial_info_filter: DialInfoFilter::all(),
+        }
+    }
+}
+
+impl From<DialInfoFilter> for NodeRefFilter {
+    fn from(other: DialInfoFilter) -> Self {
+        Self {
+            routing_domain_set: RoutingDomainSet::all(),
+            dial_info_filter: other,
+        }
+    }
+}
+
+impl From<ProtocolType> for NodeRefFilter {
+    fn from(other: ProtocolType) -> Self {
+        Self {
+            routing_domain_set: RoutingDomainSet::all(),
+            dial_info_filter: DialInfoFilter::from(other),
+        }
+    }
+}
+
+impl From<AddressType> for NodeRefFilter {
+    fn from(other: AddressType) -> Self {
+        Self {
+            routing_domain_set: RoutingDomainSet::all(),
+            dial_info_filter: DialInfoFilter::from(other),
+        }
     }
 }

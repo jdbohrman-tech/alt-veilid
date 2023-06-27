@@ -223,7 +223,7 @@ impl Default for PublicInternetRoutingDomainDetail {
     }
 }
 
-fn first_filtered_dial_info_detail(
+fn first_filtered_dial_info_detail_between_nodes(
     from_node: &NodeInfo,
     to_node: &NodeInfo,
     dial_info_filter: &DialInfoFilter,
@@ -235,28 +235,21 @@ fn first_filtered_dial_info_detail(
             .with_protocol_type_set(from_node.outbound_protocols()),
     );
 
-    // Get first filtered dialinfo
-    let (sort, dial_info_filter) = match sequencing {
-        Sequencing::NoPreference => (None, dial_info_filter),
-        Sequencing::PreferOrdered => (
-            Some(DialInfoDetail::ordered_sequencing_sort),
-            dial_info_filter,
-        ),
-        Sequencing::EnsureOrdered => (
-            Some(DialInfoDetail::ordered_sequencing_sort),
-            dial_info_filter.filtered(
-                &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
-            ),
-        ),
+    // Apply sequencing and get sort
+    let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
+    let sort = if ordered {
+        Some(DialInfoDetail::ordered_sequencing_sort)
+    } else {
+        None
     };
+
     // If the filter is dead then we won't be able to connect
     if dial_info_filter.is_dead() {
         return None;
     }
 
-    let direct_filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
-
     // Get the best match dial info for node B if we have it
+    let direct_filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
     to_node.first_filtered_dial_info_detail(sort, direct_filter)
 }
 
@@ -294,7 +287,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
         // Get the best match dial info for node B if we have it
         if let Some(target_did) =
-            first_filtered_dial_info_detail(node_a, node_b, &dial_info_filter, sequencing)
+            first_filtered_dial_info_detail_between_nodes(node_a, node_b, &dial_info_filter, sequencing)
         {
             // Do we need to signal before going inbound?
             if !target_did.class.requires_signal() {
@@ -319,7 +312,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 };
 
                 // Can node A reach the inbound relay directly?
-                if first_filtered_dial_info_detail(
+                if first_filtered_dial_info_detail_between_nodes(
                     node_a,
                     node_b_relay,
                     &dial_info_filter,
@@ -332,7 +325,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                         ///////// Reverse connection
 
                         // Get the best match dial info for an reverse inbound connection from node B to node A
-                        if let Some(reverse_did) = first_filtered_dial_info_detail(
+                        if let Some(reverse_did) = first_filtered_dial_info_detail_between_nodes(
                             node_b,
                             node_a,
                             &dial_info_filter,
@@ -358,14 +351,14 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                         let udp_dial_info_filter = dial_info_filter
                             .clone()
                             .filtered(&DialInfoFilter::all().with_protocol_type(ProtocolType::UDP));
-                        if let Some(target_udp_did) = first_filtered_dial_info_detail(
+                        if let Some(target_udp_did) = first_filtered_dial_info_detail_between_nodes(
                             node_a,
                             node_b,
                             &udp_dial_info_filter,
                             sequencing,
                         ) {
                             // Does node A have a direct udp dialinfo that node B can reach?
-                            if let Some(reverse_udp_did) = first_filtered_dial_info_detail(
+                            if let Some(reverse_udp_did) = first_filtered_dial_info_detail_between_nodes(
                                 node_b,
                                 node_a,
                                 &udp_dial_info_filter,
@@ -407,7 +400,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             };
 
             // Can we reach the full relay?
-            if first_filtered_dial_info_detail(
+            if first_filtered_dial_info_detail_between_nodes(
                 node_a,
                 &node_b_relay,
                 &dial_info_filter,

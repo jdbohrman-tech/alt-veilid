@@ -142,7 +142,6 @@ impl VeilidAPI {
     }
 
     /// Connect to the network
-    #[instrument(level = "debug", err, skip_all)]
     pub async fn attach(&self) -> VeilidAPIResult<()> {
         let attachment_manager = self.attachment_manager()?;
         if !attachment_manager.attach().await {
@@ -152,7 +151,6 @@ impl VeilidAPI {
     }
 
     /// Disconnect from the network
-    #[instrument(level = "debug", err, skip_all)]
     pub async fn detach(&self) -> VeilidAPIResult<()> {
         let attachment_manager = self.attachment_manager()?;
         if !attachment_manager.detach().await {
@@ -164,7 +162,6 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Routing Context
 
-    #[instrument(level = "debug", skip(self))]
     pub fn routing_context(&self) -> RoutingContext {
         RoutingContext::new(self.clone())
     }
@@ -175,7 +172,6 @@ impl VeilidAPI {
     /// Allocate a new private route set with default cryptography and network options
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
     /// Those nodes importing the blob will have their choice of which crypto kind to use
-    #[instrument(level = "debug", skip(self))]
     pub async fn new_private_route(&self) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
@@ -186,7 +182,6 @@ impl VeilidAPI {
     }
 
     ///
-    #[instrument(level = "debug", skip(self))]
     pub async fn new_custom_private_route(
         &self,
         crypto_kinds: &[CryptoKind],
@@ -238,14 +233,12 @@ impl VeilidAPI {
         Ok((route_id, blob))
     }
 
-    #[instrument(level = "debug", skip(self))]
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let rss = self.routing_table()?.route_spec_store();
         rss.import_remote_private_route(blob)
             .map_err(|e| VeilidAPIError::invalid_argument(e, "blob", "private route blob"))
     }
 
-    #[instrument(level = "debug", skip(self))]
     pub fn release_private_route(&self, route_id: RouteId) -> VeilidAPIResult<()> {
         let rss = self.routing_table()?.route_spec_store();
         if !rss.release_route(route_id) {
@@ -257,7 +250,6 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // App Calls
 
-    #[instrument(level = "debug", skip(self))]
     pub async fn app_call_reply(
         &self,
         call_id: OperationId,
@@ -274,7 +266,6 @@ impl VeilidAPI {
     // Tunnel Building
 
     #[cfg(feature = "unstable-tunnels")]
-    #[instrument(level = "debug", err, skip(self))]
     pub async fn start_tunnel(
         &self,
         _endpoint_mode: TunnelMode,
@@ -284,7 +275,6 @@ impl VeilidAPI {
     }
 
     #[cfg(feature = "unstable-tunnels")]
-    #[instrument(level = "debug", err, skip(self))]
     pub async fn complete_tunnel(
         &self,
         _endpoint_mode: TunnelMode,
@@ -295,7 +285,6 @@ impl VeilidAPI {
     }
 
     #[cfg(feature = "unstable-tunnels")]
-    #[instrument(level = "debug", err, skip(self))]
     pub async fn cancel_tunnel(&self, _tunnel_id: TunnelId) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }

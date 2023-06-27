@@ -110,6 +110,28 @@ impl RPCMessageHeader {
             RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.envelope.get_crypto_kind(),
         }
     }
+    // pub fn direct_peer_noderef(&self) -> NodeRef {
+    //     match &self.detail {
+    //         RPCMessageHeaderDetail::Direct(d) => d.peer_noderef.clone(),
+    //         RPCMessageHeaderDetail::SafetyRouted(s) => s.direct.peer_noderef.clone(),
+    //         RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.peer_noderef.clone(),
+    //     }
+    // }
+    pub fn direct_sender_node_id(&self) -> TypedKey {
+        match &self.detail {
+            RPCMessageHeaderDetail::Direct(d) => {
+                TypedKey::new(d.envelope.get_crypto_kind(), d.envelope.get_sender_id())
+            }
+            RPCMessageHeaderDetail::SafetyRouted(s) => TypedKey::new(
+                s.direct.envelope.get_crypto_kind(),
+                s.direct.envelope.get_sender_id(),
+            ),
+            RPCMessageHeaderDetail::PrivateRouted(p) => TypedKey::new(
+                p.direct.envelope.get_crypto_kind(),
+                p.direct.envelope.get_sender_id(),
+            ),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -182,7 +204,7 @@ impl<T> Answer<T> {
     }
 }
 
-/// An operation that has been fully prepared for envelope r
+/// An operation that has been fully prepared for envelope
 struct RenderedOperation {
     /// The rendered operation bytes
     message: Vec<u8>,
@@ -198,6 +220,20 @@ struct RenderedOperation {
     remote_private_route: Option<PublicKey>,
     /// The private route requested to receive the reply
     reply_private_route: Option<PublicKey>,
+}
+
+impl fmt::Debug for RenderedOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RenderedOperation")
+            .field("message(len)", &self.message.len())
+            .field("destination_node_ref", &self.destination_node_ref)
+            .field("node_ref", &self.node_ref)
+            .field("hop_count", &self.hop_count)
+            .field("safety_route", &self.safety_route)
+            .field("remote_private_route", &self.remote_private_route)
+            .field("reply_private_route", &self.reply_private_route)
+            .finish()
+    }
 }
 
 /// Node information exchanged during every RPC message
@@ -431,7 +467,7 @@ impl RPCProcessor {
                     .await
                 {
                     Ok(v) => {
-                        let v = network_result_value_or_log!(v => {
+                        let v = network_result_value_or_log!(v => [ format!(": node_id={} count={} fanout={} fanout={} safety_selection={:?}", node_id, count, fanout, timeout_us, safety_selection) ] {
                             // Any other failures, just try the next node
                             return Ok(None);
                         });
@@ -525,10 +561,14 @@ impl RPCProcessor {
         })
     }
 
-    #[instrument(level = "trace", skip(self, waitable_reply), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, waitable_reply), err)
+    )]
     async fn wait_for_reply(
         &self,
         waitable_reply: WaitableReply,
+        debug_string: String,
     ) -> Result<TimeoutOr<(RPCMessage, TimestampDuration)>, RPCError> {
         let out = self
             .unlocked_inner
@@ -536,7 +576,18 @@ impl RPCProcessor {
             .wait_for_op(waitable_reply.handle, waitable_reply.timeout_us)
             .await;
         match &out {
-            Err(_) | Ok(TimeoutOr::Timeout) => {
+            Err(e) => {
+                log_rpc!(debug "RPC Lost ({}): {}", debug_string, e);
+                self.record_question_lost(
+                    waitable_reply.send_ts,
+                    waitable_reply.node_ref.clone(),
+                    waitable_reply.safety_route,
+                    waitable_reply.remote_private_route,
+                    waitable_reply.reply_private_route,
+                );
+            }
+            Ok(TimeoutOr::Timeout) => {
+                log_rpc!(debug "RPC Lost ({}): Timeout", debug_string);
                 self.record_question_lost(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
@@ -648,7 +699,10 @@ impl RPCProcessor {
     /// Produce a byte buffer that represents the wire encoding of the entire
     /// unencrypted envelope body for a RPC message. This incorporates
     /// wrapping a private and/or safety route if they are specified.
-    #[instrument(level = "debug", skip(self, operation), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, operation), err)
+    )]
     fn render_operation(
         &self,
         dest: Destination,
@@ -707,6 +761,10 @@ impl RPCProcessor {
                         let mut node_ref = node_ref.clone();
                         if sequencing > node_ref.sequencing() {
                             node_ref.set_sequencing(sequencing)
+                        }
+                        let mut destination_node_ref = destination_node_ref.clone();
+                        if sequencing > destination_node_ref.sequencing() {
+                            destination_node_ref.set_sequencing(sequencing)
                         }
 
                         // Reply private route should be None here, even for questions
@@ -776,7 +834,10 @@ impl RPCProcessor {
     /// routing table caching when it is okay to do so
     /// Also check target's timestamp of our own node info, to see if we should send that
     /// And send our timestamp of the target's node info so they can determine if they should update us on their next rpc
-    #[instrument(level = "trace", skip(self), ret)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret)
+    )]
     fn get_sender_peer_info(&self, dest: &Destination) -> SenderPeerInfo {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
@@ -1077,7 +1138,10 @@ impl RPCProcessor {
 
     /// Issue a question over the network, possibly using an anonymized route
     /// Optionally keeps a context to be passed to the answer processor when an answer is received
-    #[instrument(level = "debug", skip(self, question), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, question), err)
+    )]
     async fn question(
         &self,
         dest: Destination,
@@ -1092,7 +1156,8 @@ impl RPCProcessor {
         let op_id = operation.op_id();
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
+        #[cfg(feature = "verbose-tracing")]
+        debug!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1118,17 +1183,31 @@ impl RPCProcessor {
         // Send question
         let bytes: ByteCount = (message.len() as u64).into();
         let send_ts = get_aligned_timestamp();
-        let send_data_kind = network_result_try!(self
+        #[allow(unused_variables)]
+        let message_len = message.len();
+        let res = self
             .network_manager()
-            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
+            .send_envelope(
+                node_ref.clone(),
+                Some(destination_node_ref.clone()),
+                message,
+            )
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                self.record_send_failure(
+                    RPCKind::Question,
+                    send_ts,
+                    node_ref.clone(),
+                    safety_route,
+                    remote_private_route,
+                );
                 RPCError::network(e)
-            })? => {
+            })?;
+        let send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                network_result_raise!(res);
             }
         );
 
@@ -1156,7 +1235,10 @@ impl RPCProcessor {
     }
 
     /// Issue a statement over the network, possibly using an anonymized route
-    #[instrument(level = "debug", skip(self, statement), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, statement), err)
+    )]
     async fn statement(
         &self,
         dest: Destination,
@@ -1169,7 +1251,8 @@ impl RPCProcessor {
         let operation = RPCOperation::new_statement(statement, spi);
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        #[cfg(feature = "verbose-tracing")]
+        debug!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1185,17 +1268,31 @@ impl RPCProcessor {
         // Send statement
         let bytes: ByteCount = (message.len() as u64).into();
         let send_ts = get_aligned_timestamp();
-        let _send_data_kind = network_result_try!(self
+        #[allow(unused_variables)]
+        let message_len = message.len();
+        let res = self
             .network_manager()
-            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
+            .send_envelope(
+                node_ref.clone(),
+                Some(destination_node_ref.clone()),
+                message,
+            )
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                self.record_send_failure(
+                    RPCKind::Statement,
+                    send_ts,
+                    node_ref.clone(),
+                    safety_route,
+                    remote_private_route,
+                );
                 RPCError::network(e)
-            })? => {
+            })?;
+        let _send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                network_result_raise!(res);
             }
         );
 
@@ -1213,7 +1310,10 @@ impl RPCProcessor {
     }
     /// Issue a reply over the network, possibly using an anonymized route
     /// The request must want a response, or this routine fails
-    #[instrument(level = "debug", skip(self, request, answer), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "debug", skip(self, request, answer), err)
+    )]
     async fn answer(
         &self,
         request: RPCMessage,
@@ -1229,7 +1329,8 @@ impl RPCProcessor {
         let operation = RPCOperation::new_answer(&request.operation, answer, spi);
 
         // Log rpc send
-        trace!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        #[cfg(feature = "verbose-tracing")]
+        debug!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1245,16 +1346,31 @@ impl RPCProcessor {
         // Send the reply
         let bytes: ByteCount = (message.len() as u64).into();
         let send_ts = get_aligned_timestamp();
-        network_result_try!(self.network_manager()
-            .send_envelope(node_ref.clone(), Some(destination_node_ref), message)
+        #[allow(unused_variables)]
+        let message_len = message.len();
+        let res = self
+            .network_manager()
+            .send_envelope(
+                node_ref.clone(),
+                Some(destination_node_ref.clone()),
+                message,
+            )
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
-                self.record_send_failure(RPCKind::Answer, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                self.record_send_failure(
+                    RPCKind::Answer,
+                    send_ts,
+                    node_ref.clone(),
+                    safety_route,
+                    remote_private_route,
+                );
                 RPCError::network(e)
-            })? => {
+            })?;
+        let _send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Answer, send_ts, node_ref.clone(), safety_route, remote_private_route);
+                network_result_raise!(res);
             }
         );
 
@@ -1321,7 +1437,10 @@ impl RPCProcessor {
     }
 
     //////////////////////////////////////////////////////////////////////
-    #[instrument(level = "trace", skip(self, encoded_msg), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, encoded_msg), err)
+    )]
     async fn process_rpc_message(
         &self,
         encoded_msg: RPCMessageEncoded,
@@ -1474,7 +1593,8 @@ impl RPCProcessor {
             let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
             // xxx: causes crash (Missing otel data span extensions)
             // rpc_worker_span.follows_from(span_id);
-            let res = match self
+
+            network_result_value_or_log!(match self
                 .process_rpc_message(msg)
                 .instrument(rpc_worker_span)
                 .await
@@ -1485,13 +1605,14 @@ impl RPCProcessor {
                 }
 
                 Ok(v) => v,
-            };
-
-            network_result_value_or_log!(res => {});
+            } => [ format!(": msg.header={:?}", msg.header) ] {});
         }
     }
 
-    #[instrument(level = "trace", skip(self, body), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), err)
+    )]
     pub fn enqueue_direct_message(
         &self,
         envelope: Envelope,
@@ -1500,19 +1621,22 @@ impl RPCProcessor {
         routing_domain: RoutingDomain,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let header = RPCMessageHeader {
+            detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
+                envelope,
+                peer_noderef,
+                connection_descriptor,
+                routing_domain,
+            }),
+            timestamp: get_aligned_timestamp(),
+            body_len: ByteCount::new(body.len() as u64),
+        };
+
         let msg = RPCMessageEncoded {
-            header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
-                    envelope,
-                    peer_noderef,
-                    connection_descriptor,
-                    routing_domain,
-                }),
-                timestamp: get_aligned_timestamp(),
-                body_len: ByteCount::new(body.len() as u64),
-            },
+            header,
             data: RPCMessageData { contents: body },
         };
+
         let send_channel = {
             let inner = self.inner.lock();
             inner.send_channel.as_ref().unwrap().clone()
@@ -1524,7 +1648,10 @@ impl RPCProcessor {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self, body), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), err)
+    )]
     fn enqueue_safety_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,
@@ -1532,16 +1659,18 @@ impl RPCProcessor {
         sequencing: Sequencing,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let header = RPCMessageHeader {
+            detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
+                direct,
+                remote_safety_route,
+                sequencing,
+            }),
+            timestamp: get_aligned_timestamp(),
+            body_len: (body.len() as u64).into(),
+        };
+
         let msg = RPCMessageEncoded {
-            header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
-                    direct,
-                    remote_safety_route,
-                    sequencing,
-                }),
-                timestamp: get_aligned_timestamp(),
-                body_len: (body.len() as u64).into(),
-            },
+            header,
             data: RPCMessageData { contents: body },
         };
         let send_channel = {
@@ -1555,7 +1684,10 @@ impl RPCProcessor {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self, body), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), err)
+    )]
     fn enqueue_private_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,
@@ -1564,21 +1696,22 @@ impl RPCProcessor {
         safety_spec: SafetySpec,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let header = RPCMessageHeader {
+            detail: RPCMessageHeaderDetail::PrivateRouted(RPCMessageHeaderDetailPrivateRouted {
+                direct,
+                remote_safety_route,
+                private_route,
+                safety_spec,
+            }),
+            timestamp: get_aligned_timestamp(),
+            body_len: (body.len() as u64).into(),
+        };
+
         let msg = RPCMessageEncoded {
-            header: RPCMessageHeader {
-                detail: RPCMessageHeaderDetail::PrivateRouted(
-                    RPCMessageHeaderDetailPrivateRouted {
-                        direct,
-                        remote_safety_route,
-                        private_route,
-                        safety_spec,
-                    },
-                ),
-                timestamp: get_aligned_timestamp(),
-                body_len: (body.len() as u64).into(),
-            },
+            header,
             data: RPCMessageData { contents: body },
         };
+
         let send_channel = {
             let inner = self.inner.lock();
             inner.send_channel.as_ref().unwrap().clone()

@@ -135,6 +135,8 @@ class _JsonVeilidAPI(VeilidAPI):
         # Resolve the request's future to the response json
         if reqfuture is not None:
             reqfuture.set_result(j)
+        else:
+            print("Missing id: {}", id)
 
     async def handle_recv_messages(self):
         # Read lines until we're done
@@ -485,7 +487,7 @@ class _JsonRoutingContext(RoutingContext):
             await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def app_call(self, target: TypedKey | RouteId, request: bytes) -> bytes:
+    async def app_call(self, target: TypedKey | RouteId, message: bytes) -> bytes:
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -494,7 +496,7 @@ class _JsonRoutingContext(RoutingContext):
                     rc_id=self.rc_id,
                     rc_op=RoutingContextOperation.APP_CALL,
                     target=target,
-                    request=request,
+                    message=message,
                 )
             )
         )

@@ -114,7 +114,10 @@ where
     }
 
     /// Complete the app call
-    #[instrument(level = "trace", skip(self, message), err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, message), err)
+    )]
     pub async fn complete_op_waiter(&self, op_id: OperationId, message: T) -> Result<(), RPCError> {
         let waiting_op = {
             let mut inner = self.inner.lock();
@@ -152,7 +155,7 @@ where
             .into_timeout_or();
         Ok(res
             .on_timeout(|| {
-                log_rpc!(debug "op wait timed out: {}", handle.op_id);
+                // log_rpc!(debug "op wait timed out: {}", handle.op_id);
                 // debug_print_backtrace();
                 self.cancel_op_waiter(handle.op_id);
             })

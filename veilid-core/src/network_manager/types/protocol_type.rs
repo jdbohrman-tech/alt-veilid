@@ -25,7 +25,7 @@ pub enum ProtocolType {
 }
 
 impl ProtocolType {
-    pub fn is_connection_oriented(&self) -> bool {
+    pub fn is_ordered(&self) -> bool {
         matches!(
             self,
             ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS
@@ -71,6 +71,18 @@ impl ProtocolType {
     }
     pub fn all_ordered_set() -> ProtocolTypeSet {
         ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS
+    }
+
+    pub fn ordered_sequencing_sort(a: Self, b: Self) -> core::cmp::Ordering {
+        let ca = a.sort_order(Sequencing::EnsureOrdered);
+        let cb = b.sort_order(Sequencing::EnsureOrdered);
+        if ca < cb {
+            return core::cmp::Ordering::Less;
+        }
+        if ca > cb {
+            return core::cmp::Ordering::Greater;
+        }
+        core::cmp::Ordering::Equal
     }
 }
 

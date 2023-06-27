@@ -196,7 +196,6 @@ impl AttachmentManager {
             if let Err(err) = netman.startup().await {
                 error!("network startup failed: {}", err);
                 netman.shutdown().await;
-                restart = true;
                 break;
             }
 

@@ -7,7 +7,10 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), err)
+    )]
     pub async fn rpc_call_find_node(
         self,
         dest: Destination,
@@ -32,11 +35,13 @@ impl RPCProcessor {
             find_node_q_detail,
         );
 
+        let debug_string = format!("FindNode(node_id={}) => {}", node_id, dest);
+
         // Send the find_node request
         let waitable_reply = network_result_try!(self.question(dest, find_node_q, None).await?);
 
         // Wait for reply
-        let (msg, latency) = match self.wait_for_reply(waitable_reply).await? {
+        let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
             TimeoutOr::Value(v) => v,
         };
@@ -65,7 +70,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(Answer::new(latency, peers)))
     }
 
-    #[instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_find_node_q(
         &self,
         msg: RPCMessage,

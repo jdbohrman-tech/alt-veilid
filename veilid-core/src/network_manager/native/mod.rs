@@ -358,7 +358,7 @@ impl Network {
     // This creates a short-lived connection in the case of connection-oriented protocols
     // for the purpose of sending this one message.
     // This bypasses the connection table as it is not a 'node to node' connection.
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_unbound_to_dial_info(
         &self,
         dial_info: DialInfo,
@@ -416,7 +416,7 @@ impl Network {
     // This creates a short-lived connection in the case of connection-oriented protocols
     // for the purpose of sending this one message.
     // This bypasses the connection table as it is not a 'node to node' connection.
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_recv_data_unbound_to_dial_info(
         &self,
         dial_info: DialInfo,
@@ -496,7 +496,7 @@ impl Network {
         }
     }
 
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_to_existing_connection(
         &self,
         descriptor: ConnectionDescriptor,
@@ -515,7 +515,8 @@ impl Network {
                 network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
                     .await
-                    .wrap_err("sending data to existing conection")? => { return Ok(Some(data)); } );
+                    .wrap_err("sending data to existing conection")? => [ format!(": data.len={}, descriptor={:?}", data.len(), descriptor) ] 
+                    { return Ok(Some(data)); } );
 
                 // Network accounting
                 self.network_manager()
@@ -556,7 +557,7 @@ impl Network {
 
     // Send data directly to a dial info, possibly without knowing which node it is going to
     // Returns a descriptor for the connection used to send the data
-    #[instrument(level="trace", err, skip(self, data), fields(data.len = data.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_to_dial_info(
         &self,
         dial_info: DialInfo,

@@ -62,7 +62,7 @@ impl StorageManager {
                 let vres = rpc_processor
                     .clone()
                     .rpc_call_set_value(
-                        Destination::direct(next_node).with_safety(safety_selection),
+                        Destination::direct(next_node.clone()).with_safety(safety_selection),
                         key,
                         subkey,
                         value,
@@ -70,7 +70,7 @@ impl StorageManager {
                         send_descriptor,
                     )
                     .await?;
-                let sva = network_result_value_or_log!(vres => {
+                let sva = network_result_value_or_log!(vres => [ format!(": next_node={} safety_selection={:?} key={} subkey={} send_descriptor={}", next_node, safety_selection, key, subkey, send_descriptor) ] {
                     // Any other failures, just try the next node and pretend this one never happened
                     return Ok(None);
                 });

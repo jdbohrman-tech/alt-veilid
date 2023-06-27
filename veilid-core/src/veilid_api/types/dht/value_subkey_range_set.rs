@@ -41,6 +41,28 @@ impl ValueSubkeyRangeSet {
     }
 }
 
+impl FromStr for ValueSubkeyRangeSet {
+    type Err = VeilidAPIError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let mut data = RangeSetBlaze::<ValueSubkey>::new();
+
+        for r in value.split(",") {
+            let r = r.trim();
+            let Some((ss, es)) = r.split_once("..=") else {
+                return Err(VeilidAPIError::parse_error("can not parse ValueSubkeyRangeSet", r));
+            };
+            let sn = ValueSubkey::from_str(ss)
+                .map_err(|e| VeilidAPIError::parse_error("could not parse ValueSubkey", e))?;
+            let en = ValueSubkey::from_str(es)
+                .map_err(|e| VeilidAPIError::parse_error("could not parse ValueSubkey", e))?;
+            data.ranges_insert(sn..=en);
+        }
+
+        Ok(ValueSubkeyRangeSet { data })
+    }
+}
+
 impl Deref for ValueSubkeyRangeSet {
     type Target = RangeSetBlaze<ValueSubkey>;
 

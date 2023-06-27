@@ -179,7 +179,7 @@ impl NetworkConnection {
         }
     }
 
-    #[instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret))]
     async fn send_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -194,7 +194,7 @@ impl NetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
-    #[instrument(level="trace", skip(stats), fields(ret.len))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(stats), fields(ret.len)))]
     async fn recv_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -205,6 +205,7 @@ impl NetworkConnection {
         let mut stats = stats.lock();
         stats.last_message_recv_time.max_assign(Some(ts));
 
+        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.len", out.len());
 
         Ok(NetworkResult::Value(out))
@@ -235,7 +236,7 @@ impl NetworkConnection {
         Box::pin(async move {
             log_net!(
                 "== Starting process_connection loop for id={}, {:?}", connection_id,
-                descriptor.green()
+                descriptor
             );
 
             let network_manager = connection_manager.network_manager();
@@ -248,7 +249,7 @@ impl NetworkConnection {
             let new_timer = || {
                 sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
-                    log_net!("== Connection timeout on {:?}", descriptor.green());
+                    log_net!("== Connection timeout on {:?}", descriptor);
                     RecvLoopAction::Timeout
                 })
             };
@@ -300,14 +301,18 @@ impl NetworkConnection {
                         .then(|res| async {
                             match res {
                                 Ok(v) => {
-                                    
-                                    let message = network_result_value_or_log!(v => {
+                                    if v.is_no_connection() {
+                                        let peer_address = protocol_connection.descriptor().remote();
+                                        log_net!(debug "Connection closed from: {} ({})", peer_address.socket_address().to_socket_addr(), peer_address.protocol_type());
+                                        return RecvLoopAction::Finish;
+                                    }
+                                    let mut message = network_result_value_or_log!(v => [ format!(": protocol_connection={:?}", protocol_connection) ] {
                                         return RecvLoopAction::Finish;
                                     });
 
                                     // Pass received messages up to the network manager for processing
                                     if let Err(e) = network_manager
-                                        .on_recv_envelope(message.as_slice(), descriptor)
+                                        .on_recv_envelope(message.as_mut_slice(), descriptor)
                                         .await
                                     {
                                         log_net!(debug "failed to process received envelope: {}", e);
@@ -361,7 +366,7 @@ impl NetworkConnection {
 
             log_net!(
                 "== Connection loop finished descriptor={:?}",
-                descriptor.green()
+                descriptor
             );
 
             // Let the connection manager know the receive loop exited

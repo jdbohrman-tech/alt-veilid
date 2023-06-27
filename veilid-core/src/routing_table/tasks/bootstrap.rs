@@ -377,11 +377,8 @@ impl RoutingTable {
 
                         // Ensure we got the signed peer info
                         if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
-                            log_rtab!(warn
-                                "bootstrap at {:?} did not return valid signed node info",
-                                nr
-                            );
-                            // If this node info is invalid, it will time out after being unpingable
+                            log_rtab!(warn "bootstrap server is not responding");
+                            log_rtab!(debug "bootstrap server is not responding: {}", nr);
                         } else {
                             // otherwise this bootstrap is valid, lets ask it to find ourselves now
                             routing_table.reverse_find_node(crypto_kind, nr, true).await

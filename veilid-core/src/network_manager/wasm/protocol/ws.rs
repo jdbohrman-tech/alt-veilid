@@ -64,7 +64,7 @@ impl WebsocketNetworkConnection {
     //     self.inner.ws_meta.close().await.map_err(to_io).map(drop)
     // }
 
-    #[instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len()))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large WS message");
@@ -79,11 +79,12 @@ impl WebsocketNetworkConnection {
         .map_err(to_io)
         .into_network_result()?;
 
+        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 
-    // #[instrument(level = "trace", err, skip(self), fields(network_result, ret.len))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self), fields(network_result, ret.len)))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let out = match SendWrapper::new(self.inner.ws_stream.clone().next()).await {
             Some(WsMessage::Binary(v)) => {
@@ -103,7 +104,8 @@ impl WebsocketNetworkConnection {
                 )));
             }
         };
-        // tracing::Span::current().record("network_result", &tracing::field::display(&out));
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("network_result", &tracing::field::display(&out));
         Ok(out)
     }
 }

@@ -7,6 +7,7 @@ use super::*;
     Eq,
     PartialOrd,
     Ord,
+    Hash,
     Serialize,
     Deserialize,
     RkyvArchive,
@@ -61,6 +62,20 @@ impl DialInfoFilter {
     pub fn is_dead(&self) -> bool {
         self.protocol_type_set.is_empty() || self.address_type_set.is_empty()
     }
+    pub fn with_sequencing(self, sequencing: Sequencing) -> (bool, DialInfoFilter) {
+        // Get first filtered dialinfo
+        match sequencing {
+            Sequencing::NoPreference => (false, self),
+            Sequencing::PreferOrdered => (true, self),
+            Sequencing::EnsureOrdered => (
+                true,
+                self.filtered(
+                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+                ),
+            ),
+        }
+        // return ordered sort and filter with ensure applied
+    }
 }
 
 impl fmt::Debug for DialInfoFilter {
@@ -80,7 +95,24 @@ impl fmt::Debug for DialInfoFilter {
     }
 }
 
+impl From<ProtocolType> for DialInfoFilter {
+    fn from(other: ProtocolType) -> Self {
+        Self {
+            protocol_type_set: ProtocolTypeSet::from(other),
+            address_type_set: AddressTypeSet::all(),
+        }
+    }
+}
+
+impl From<AddressType> for DialInfoFilter {
+    fn from(other: AddressType) -> Self {
+        Self {
+            protocol_type_set: ProtocolTypeSet::all(),
+            address_type_set: AddressTypeSet::from(other),
+        }
+    }
+}
+
 pub trait MatchesDialInfoFilter {
     fn matches_filter(&self, filter: &DialInfoFilter) -> bool;
 }
-

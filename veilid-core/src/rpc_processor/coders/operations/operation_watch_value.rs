@@ -6,7 +6,7 @@ const MAX_WATCH_VALUE_A_PEERS_LEN: usize = 20;
 #[derive(Debug, Clone)]
 pub struct RPCOperationWatchValueQ {
     key: TypedKey,
-    subkeys: Vec<ValueSubkeyRange>,
+    subkeys: ValueSubkeyRangeSet,
     expiration: u64,
     count: u32,
     watcher: PublicKey,
@@ -16,7 +16,7 @@ pub struct RPCOperationWatchValueQ {
 impl RPCOperationWatchValueQ {
     pub fn new(
         key: TypedKey,
-        subkeys: Vec<ValueSubkeyRange>,
+        subkeys: ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
         watcher: PublicKey,
@@ -41,9 +41,9 @@ impl RPCOperationWatchValueQ {
             Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (self.subkeys.len() * 8) + 8 + 4);
         sig_data.extend_from_slice(&self.key.kind.0);
         sig_data.extend_from_slice(&self.key.value.bytes);
-        for sk in &self.subkeys {
-            sig_data.extend_from_slice(&sk.0.to_le_bytes());
-            sig_data.extend_from_slice(&sk.1.to_le_bytes());
+        for sk in self.subkeys.ranges() {
+            sig_data.extend_from_slice(&sk.start().to_le_bytes());
+            sig_data.extend_from_slice(&sk.end().to_le_bytes());
         }
         sig_data.extend_from_slice(&self.expiration.to_le_bytes());
         sig_data.extend_from_slice(&self.count.to_le_bytes());
@@ -66,7 +66,7 @@ impl RPCOperationWatchValueQ {
     pub fn key(&self) -> &TypedKey {
         &self.key
     }
-    pub fn subkeys(&self) -> &[ValueSubkeyRange] {
+    pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.subkeys
     }
     pub fn expiration(&self) -> u64 {
@@ -86,7 +86,7 @@ impl RPCOperationWatchValueQ {
         self,
     ) -> (
         TypedKey,
-        Vec<ValueSubkeyRange>,
+        ValueSubkeyRangeSet,
         u64,
         u32,
         PublicKey,
@@ -112,25 +112,20 @@ impl RPCOperationWatchValueQ {
         if sk_reader.len() as usize > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
-        let mut subkeys = Vec::<ValueSubkeyRange>::with_capacity(
-            sk_reader
-                .len()
-                .try_into()
-                .map_err(RPCError::map_protocol("too many subkey ranges"))?,
-        );
+        let mut subkeys = ValueSubkeyRangeSet::new();
         for skr in sk_reader.iter() {
             let vskr = (skr.get_start(), skr.get_end());
             if vskr.0 > vskr.1 {
                 return Err(RPCError::protocol("invalid subkey range"));
             }
             if let Some(lvskr) = subkeys.last() {
-                if lvskr.1 >= vskr.0 {
+                if lvskr >= vskr.0 {
                     return Err(RPCError::protocol(
                         "subkey range out of order or not merged",
                     ));
                 }
             }
-            subkeys.push(vskr);
+            subkeys.ranges_insert(vskr.0..=vskr.1);
         }
 
         let expiration = reader.get_expiration();
@@ -165,10 +160,10 @@ impl RPCOperationWatchValueQ {
                 .try_into()
                 .map_err(RPCError::map_internal("invalid subkey range list length"))?,
         );
-        for (i, skr) in self.subkeys.iter().enumerate() {
+        for (i, skr) in self.subkeys.ranges().enumerate() {
             let mut skr_builder = sk_builder.reborrow().get(i as u32);
-            skr_builder.set_start(skr.0);
-            skr_builder.set_end(skr.1);
+            skr_builder.set_start(*skr.start());
+            skr_builder.set_end(*skr.end());
         }
         builder.set_expiration(self.expiration);
         builder.set_count(self.count);

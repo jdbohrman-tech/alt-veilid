@@ -29,13 +29,11 @@ impl MatchesDialInfoFilter for DialInfoDetail {
 
 impl DialInfoDetail {
     pub fn ordered_sequencing_sort(a: &DialInfoDetail, b: &DialInfoDetail) -> core::cmp::Ordering {
-        if a.class < b.class {
-            return core::cmp::Ordering::Less;
+        let c = DialInfo::ordered_sequencing_sort(&a.dial_info, &b.dial_info);
+        if c != core::cmp::Ordering::Equal {
+            return c;
         }
-        if a.class > b.class {
-            return core::cmp::Ordering::Greater;
-        }
-        DialInfo::ordered_sequencing_sort(&a.dial_info, &b.dial_info)
+        a.class.cmp(&b.class)
     }
     pub const NO_SORT: std::option::Option<
         for<'r, 's> fn(&'r DialInfoDetail, &'s DialInfoDetail) -> std::cmp::Ordering,

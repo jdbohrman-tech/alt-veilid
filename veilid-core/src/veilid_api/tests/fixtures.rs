@@ -110,6 +110,7 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
             client_whitelist_timeout_ms: 7000,
             reverse_connection_receipt_time_ms: 8000,
             hole_punch_receipt_time_ms: 9000,
+            network_key_password: None,
             routing_table: VeilidConfigRoutingTable {
                 node_id: TypedKeySet::new(),
                 node_id_secret: TypedSecretSet::new(),

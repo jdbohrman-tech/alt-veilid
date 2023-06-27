@@ -99,8 +99,8 @@ impl RoutingTable {
             },
         );
 
-        // xxx test
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
+        // This same test is used on the other side so we vet things here
         let valid = match Self::verify_peers_closer(vcrypto2, own_node_id, key, &closest_nodes) {
             Ok(v) => v,
             Err(e) => {
@@ -108,13 +108,16 @@ impl RoutingTable {
             }
         };
         if !valid {
-            panic!("non-closer peers returned");
+            error!(
+                "non-closer peers returned: own_node_id={:#?} key={:#?} closest_nodes={:#?}",
+                own_node_id, key, closest_nodes
+            );
         }
 
         NetworkResult::value(closest_nodes)
     }
 
-    /// Determine if set of peers is closer to key_near than key_far
+    /// Determine if set of peers is closer to key_near than key_far is to key_near
     pub(crate) fn verify_peers_closer(
         vcrypto: CryptoSystemVersion,
         key_far: TypedKey,
@@ -128,14 +131,30 @@ impl RoutingTable {
         }
 
         let mut closer = true;
+        let d_far = vcrypto.distance(&key_far.value, &key_near.value);
         for peer in peers {
             let Some(key_peer) = peer.node_ids().get(kind) else {
                 bail!("peers need to have a key with the same cryptosystem");
             };
             let d_near = vcrypto.distance(&key_near.value, &key_peer.value);
-            let d_far = vcrypto.distance(&key_far.value, &key_peer.value);
             if d_far < d_near {
+                let warning = format!(
+                    r#"peer: {}
+near (key): {} 
+far (self): {} 
+    d_near: {}
+     d_far: {}
+       cmp: {:?}"#,
+                    key_peer.value,
+                    key_near.value,
+                    key_far.value,
+                    d_near,
+                    d_far,
+                    d_near.cmp(&d_far)
+                );
+                warn!("{}", warning);
                 closer = false;
+                break;
             }
         }
 

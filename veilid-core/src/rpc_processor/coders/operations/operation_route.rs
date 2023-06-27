@@ -1,11 +1,22 @@
 use super::*;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RoutedOperation {
     sequencing: Sequencing,
     signatures: Vec<Signature>,
     nonce: Nonce,
     data: Vec<u8>,
+}
+
+impl fmt::Debug for RoutedOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RoutedOperation")
+            .field("sequencing", &self.sequencing)
+            .field("signatures.len", &self.signatures.len())
+            .field("nonce", &self.nonce)
+            .field("data(len)", &self.data.len())
+            .finish()
+    }
 }
 
 impl RoutedOperation {

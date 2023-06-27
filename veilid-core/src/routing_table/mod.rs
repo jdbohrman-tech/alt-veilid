@@ -518,7 +518,10 @@ impl RoutingTable {
     }
 
     /// Look up the best way for two nodes to reach each other over a specific routing domain
-    #[instrument(level = "trace", skip(self), ret)]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret)
+    )]
     pub fn get_contact_method(
         &self,
         routing_domain: RoutingDomain,
@@ -1028,7 +1031,7 @@ impl RoutingTable {
             .sort_and_clean_closest_noderefs(node_id, closest_nodes)
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
+    #[instrument(level = "trace", skip(self, peers), ret)]
     pub fn register_find_node_answer(
         &self,
         crypto_kind: CryptoKind,
@@ -1118,7 +1121,7 @@ impl RoutingTable {
                 return;
             }
             Ok(v) => v,
-        } => {
+        } => [ format!(": crypto_kind={} node_ref={} wide={}", crypto_kind, node_ref, wide) ] {
             return;
         });
 
@@ -1134,106 +1137,12 @@ impl RoutingTable {
                         continue;
                     }
                     Ok(v) => v,
-                } => {
+                } => [ format!(": crypto_kind={} closest_nr={} wide={}", crypto_kind, closest_nr, wide) ] {
                     // Do nothing with non-values
                     continue;
                 });
             }
         }
-    }
-
-    pub fn make_public_internet_relay_node_filter(&self) -> impl Fn(&BucketEntryInner) -> bool {
-        // Get all our outbound protocol/address types
-        let outbound_dif = self.get_outbound_dial_info_filter(RoutingDomain::PublicInternet);
-        let mapped_port_info = self.get_low_level_port_info();
-
-        move |e: &BucketEntryInner| {
-            // Ensure this node is not on the local network
-            if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
-                return false;
-            }
-
-            // Disqualify nodes that don't cover all our inbound ports for tcp and udp
-            // as we need to be able to use the relay for keepalives for all nat mappings
-            let mut low_level_protocol_ports = mapped_port_info.low_level_protocol_ports.clone();
-
-            let can_serve_as_relay = e
-                .node_info(RoutingDomain::PublicInternet)
-                .map(|n| {
-                    let dids = n.all_filtered_dial_info_details(
-                        Some(DialInfoDetail::ordered_sequencing_sort), // By default, choose connection-oriented protocol for relay
-                        |did| did.matches_filter(&outbound_dif),
-                    );
-                    for did in &dids {
-                        let pt = did.dial_info.protocol_type();
-                        let at = did.dial_info.address_type();
-                        if let Some((llpt, port)) = mapped_port_info.protocol_to_port.get(&(pt, at))
-                        {
-                            low_level_protocol_ports.remove(&(*llpt, at, *port));
-                        }
-                    }
-                    low_level_protocol_ports.is_empty()
-                })
-                .unwrap_or(false);
-            if !can_serve_as_relay {
-                return false;
-            }
-
-            true
-        }
-    }
-
-    #[instrument(level = "trace", skip(self), ret)]
-    pub fn find_inbound_relay(
-        &self,
-        routing_domain: RoutingDomain,
-        cur_ts: Timestamp,
-    ) -> Option<NodeRef> {
-        // Get relay filter function
-        let relay_node_filter = match routing_domain {
-            RoutingDomain::PublicInternet => self.make_public_internet_relay_node_filter(),
-            RoutingDomain::LocalNetwork => {
-                unimplemented!();
-            }
-        };
-
-        // Go through all entries and find fastest entry that matches filter function
-        let inner = self.inner.read();
-        let inner = &*inner;
-        let mut best_inbound_relay: Option<Arc<BucketEntry>> = None;
-
-        // Iterate all known nodes for candidates
-        inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
-            let entry2 = entry.clone();
-            entry.with(rti, |rti, e| {
-                // Ensure we have the node's status
-                if let Some(node_status) = e.node_status(routing_domain) {
-                    // Ensure the node will relay
-                    if node_status.will_relay() {
-                        // Compare against previous candidate
-                        if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
-                            // Less is faster
-                            let better = best_inbound_relay.with(rti, |_rti, best| {
-                                // choose low latency stability for relays
-                                BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
-                                    == std::cmp::Ordering::Less
-                            });
-                            // Now apply filter function and see if this node should be included
-                            if better && relay_node_filter(e) {
-                                *best_inbound_relay = entry2;
-                            }
-                        } else if relay_node_filter(e) {
-                            // Always store the first candidate
-                            best_inbound_relay = Some(entry2);
-                        }
-                    }
-                }
-            });
-            // Don't end early, iterate through all entries
-            Option::<()>::None
-        });
-        // Return the best inbound relay noderef
-        best_inbound_relay.map(|e| NodeRef::new(self.clone(), e, None))
     }
 }
 

@@ -92,7 +92,7 @@ impl DiscoveryContext {
                     );
                     return None;
                 }
-            } =>  {
+            } => [ format!(": node_ref={}", node_ref) ] {
                 return None;
             }
         );

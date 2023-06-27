@@ -12,7 +12,5 @@ pub use value_subkey_range_set::*;
 
 /// Value subkey
 pub type ValueSubkey = u32;
-/// Value subkey range
-pub type ValueSubkeyRange = (u32, u32);
 /// Value sequence number
 pub type ValueSeqNum = u32;

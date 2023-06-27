@@ -533,7 +533,7 @@ impl RouteSpecStore {
     }
 
     /// validate data using a private route's key and signature chain
-    #[instrument(level = "trace", skip(self, data, callback), ret)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, data, callback), ret))]
     pub fn with_signature_validated_route<F,R>(
         &self,
         public_key: &TypedKey,
@@ -593,7 +593,7 @@ impl RouteSpecStore {
         Some(callback(rssd, rsd))
     }
 
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret, err))]
     async fn test_allocated_route(&self, private_route_id: RouteId) -> EyreResult<bool> {
         // Make loopback route to test with
         let dest = {
@@ -616,8 +616,8 @@ impl RouteSpecStore {
             let private_route = self.assemble_private_route(&key, None)?;
             // Always test routes with safety routes that are more likely to succeed
             let stability = Stability::Reliable;
-            // Routes can test with whatever sequencing they were allocated with
-            let sequencing = Sequencing::NoPreference;
+            // Routes should test with the most likely to succeed sequencing they are capable of
+            let sequencing = Sequencing::PreferOrdered;
 
             let safety_spec = SafetySpec {
                 preferred_route: Some(private_route_id),
@@ -657,12 +657,17 @@ impl RouteSpecStore {
                 bail!("no best key to test remote route");
             };
 
+            // Always test routes with safety routes that are more likely to succeed
+            let stability = Stability::Reliable;
+            // Routes should test with the most likely to succeed sequencing they are capable of
+            let sequencing = Sequencing::PreferOrdered;
+
             // Get a safety route that is good enough
             let safety_spec = SafetySpec {
                 preferred_route: None,
                 hop_count: self.unlocked_inner.default_route_hop_count,
-                stability: Stability::default(),
-                sequencing: Sequencing::default(),
+                stability,
+                sequencing,
             };
 
             let safety_selection = SafetySelection::Safe(safety_spec);
@@ -711,7 +716,7 @@ impl RouteSpecStore {
     }
 
     /// Test an allocated route for continuity
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret, err))]
     pub async fn test_route(&self, id: RouteId) -> EyreResult<bool> {
         let is_remote = self.is_route_id_remote(&id);
         if is_remote {
@@ -1078,7 +1083,7 @@ impl RouteSpecStore {
     }
 
     /// Get an allocated route that matches a particular safety spec
-    #[instrument(level = "trace", skip(self, inner, rti), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, inner, rti), ret, err))]
     fn get_route_for_safety_spec_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
@@ -1149,7 +1154,7 @@ impl RouteSpecStore {
     }
 
     /// Get a private route to use for the answer to question
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret, err))]
     pub fn get_private_route_for_safety_spec(
         &self,
         crypto_kind: CryptoKind,
@@ -1258,7 +1263,7 @@ impl RouteSpecStore {
     
     /// Assemble a single private route for publication
     /// Returns a PrivateRoute object for an allocated private route key
-    #[instrument(level = "trace", skip(self), err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), err))]
     pub fn assemble_private_route(
         &self,
         key: &PublicKey,
@@ -1285,7 +1290,7 @@ impl RouteSpecStore {
 
     /// Assemble private route set for publication
     /// Returns a vec of PrivateRoute objects for an allocated private route
-    #[instrument(level = "trace", skip(self), err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), err))]
     pub fn assemble_private_routes(
         &self,
         id: &RouteId,
@@ -1311,7 +1316,7 @@ impl RouteSpecStore {
     /// Import a remote private route for compilation
     /// It is safe to import the same route more than once and it will return the same route id
     /// Returns a route set id
-    #[instrument(level = "trace", skip(self, blob), ret, err)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, blob), ret, err))]
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<RouteId> { 
         let cur_ts = get_aligned_timestamp();
         
@@ -1342,7 +1347,7 @@ impl RouteSpecStore {
     }
 
     /// Release a remote private route that is no longer in use
-    #[instrument(level = "trace", skip(self), ret)]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret))]
     pub fn release_remote_private_route(&self, id: RouteId) -> bool {
         let inner = &mut *self.inner.lock();
         inner.cache.remove_remote_private_route(id)
