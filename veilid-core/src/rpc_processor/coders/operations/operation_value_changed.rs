@@ -4,7 +4,7 @@ use crate::storage_manager::SignedValueData;
 #[derive(Debug, Clone)]
 pub struct RPCOperationValueChanged {
     key: TypedKey,
-    subkeys: Vec<ValueSubkeyRange>,
+    subkeys: ValueSubkeyRangeSet,
     count: u32,
     value: SignedValueData,
 }
@@ -12,7 +12,7 @@ pub struct RPCOperationValueChanged {
 impl RPCOperationValueChanged {
     pub fn new(
         key: TypedKey,
-        subkeys: Vec<ValueSubkeyRange>,
+        subkeys: ValueSubkeyRangeSet,
         count: u32,
         value: SignedValueData,
     ) -> Self {
@@ -32,7 +32,7 @@ impl RPCOperationValueChanged {
     pub fn key(&self) -> &TypedKey {
         &self.key
     }
-    pub fn subkeys(&self) -> &[ValueSubkeyRange] {
+    pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.subkeys
     }
     pub fn count(&self) -> u32 {
@@ -41,7 +41,7 @@ impl RPCOperationValueChanged {
     pub fn value(&self) -> &SignedValueData {
         &self.value
     }
-    pub fn destructure(self) -> (TypedKey, Vec<ValueSubkeyRange>, u32, SignedValueData) {
+    pub fn destructure(self) -> (TypedKey, ValueSubkeyRangeSet, u32, SignedValueData) {
         (self.key, self.subkeys, self.count, self.value)
     }
 
@@ -52,25 +52,20 @@ impl RPCOperationValueChanged {
         let key = decode_typed_key(&k_reader)?;
 
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
-        let mut subkeys = Vec::<ValueSubkeyRange>::with_capacity(
-            sk_reader
-                .len()
-                .try_into()
-                .map_err(RPCError::map_protocol("too many subkey ranges"))?,
-        );
+        let mut subkeys = ValueSubkeyRangeSet::new();
         for skr in sk_reader.iter() {
             let vskr = (skr.get_start(), skr.get_end());
             if vskr.0 > vskr.1 {
                 return Err(RPCError::protocol("invalid subkey range"));
             }
             if let Some(lvskr) = subkeys.last() {
-                if lvskr.1 >= vskr.0 {
+                if lvskr >= vskr.0 {
                     return Err(RPCError::protocol(
                         "subkey range out of order or not merged",
                     ));
                 }
             }
-            subkeys.push(vskr);
+            subkeys.ranges_insert(vskr.0..=vskr.1);
         }
         let count = reader.get_count();
         let v_reader = reader.get_value().map_err(RPCError::protocol)?;
@@ -91,14 +86,14 @@ impl RPCOperationValueChanged {
 
         let mut sk_builder = builder.reborrow().init_subkeys(
             self.subkeys
-                .len()
+                .ranges_len()
                 .try_into()
                 .map_err(RPCError::map_internal("invalid subkey range list length"))?,
         );
-        for (i, skr) in self.subkeys.iter().enumerate() {
+        for (i, skr) in self.subkeys.ranges().enumerate() {
             let mut skr_builder = sk_builder.reborrow().get(i as u32);
-            skr_builder.set_start(skr.0);
-            skr_builder.set_end(skr.1);
+            skr_builder.set_start(*skr.start());
+            skr_builder.set_end(*skr.end());
         }
 
         builder.set_count(self.count);

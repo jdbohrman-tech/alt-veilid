@@ -31,6 +31,14 @@ fn get_string(text: &str) -> Option<String> {
     Some(text.to_owned())
 }
 
+fn get_subkeys(text: &str) -> Option<ValueSubkeyRangeSet> {
+    if let Some(n) = get_number(text) {
+        Some(ValueSubkeyRangeSet::single(n.try_into().ok()?))
+    } else {
+        ValueSubkeyRangeSet::from_str(text).ok()
+    }
+}
+
 fn get_route_id(
     rss: RouteSpecStore,
     allow_allocated: bool,
@@ -902,7 +910,7 @@ impl VeilidAPI {
     }
 
     async fn debug_record_purge(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        // <local|remote>
+        // <local|remote> [bytes]
         let storage_manager = self.storage_manager()?;
 
         let scope = get_debug_argument_at(&args, 1, "debug_record_purge", "scope", get_string)?;
@@ -914,6 +922,17 @@ impl VeilidAPI {
         };
         return Ok(out);
     }
+    async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let storage_manager = self.storage_manager()?;
+
+        let key = get_debug_argument_at(&args, 1, "debug_record_get", "key", get_typed_key)?;
+        let subkeys =
+            get_debug_argument_at(&args, 2, "debug_record_subkeys", "subkeys", get_string)?;
+
+        // let rc = self.routing_context();
+
+        return Ok("TODO");
+    }
 
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
@@ -924,6 +943,8 @@ impl VeilidAPI {
             self.debug_record_list(args).await
         } else if command == "purge" {
             self.debug_record_purge(args).await
+        } else if command == "get" {
+            self.debug_record_get(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
@@ -954,6 +975,7 @@ impl VeilidAPI {
               test <route>
         record list <local|remote>
                purge <local|remote> [bytes]
+               get <key> <subkeys>
 
         <destination> is:
          * direct:  <node>[+<safety>][<modifiers>]
@@ -966,6 +988,9 @@ impl VeilidAPI {
         <protocoltype> is: udp|tcp|ws|wss
         <addresstype> is: ipv4|ipv6
         <routingdomain> is: public|local
+        <subkeys> is: 
+         * a number: 2
+         * a comma-separated inclusive range list: 1..=3,5..=8
     "#
         .to_owned())
     }

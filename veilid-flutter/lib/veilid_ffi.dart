@@ -710,7 +710,7 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   }
 
   @override
-  Future<Timestamp> watchDHTValues(TypedKey key, ValueSubkeyRange subkeys,
+  Future<Timestamp> watchDHTValues(TypedKey key, List<ValueSubkeyRange> subkeys,
       Timestamp expiration, int count) async {
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeSubkeys = jsonEncode(subkeys).toNativeUtf8();
@@ -726,7 +726,8 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   }
 
   @override
-  Future<bool> cancelDHTWatch(TypedKey key, ValueSubkeyRange subkeys) async {
+  Future<bool> cancelDHTWatch(
+      TypedKey key, List<ValueSubkeyRange> subkeys) async {
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeSubkeys = jsonEncode(subkeys).toNativeUtf8();
 
