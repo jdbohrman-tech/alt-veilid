@@ -176,10 +176,10 @@ impl CryptoSystem for CryptoSystemVLD0 {
     }
     // Distance Metric
     fn distance(&self, key1: &PublicKey, key2: &PublicKey) -> CryptoKeyDistance {
-        let mut bytes = [0u8; PUBLIC_KEY_LENGTH];
+        let mut bytes = [0u8; CRYPTO_KEY_LENGTH];
 
-        for (n, byte) in bytes.iter_mut().enumerate() {
-            *byte = key1.bytes[n] ^ key2.bytes[n];
+        for n in 0..CRYPTO_KEY_LENGTH {
+            bytes[n] = key1.bytes[n] ^ key2.bytes[n];
         }
 
         CryptoKeyDistance::new(bytes)

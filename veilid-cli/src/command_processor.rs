@@ -46,6 +46,7 @@ struct CommandProcessorInner {
     server_addr: Option<SocketAddr>,
     connection_waker: Eventual,
     last_call_id: Option<u64>,
+    enable_app_messages: bool,
 }
 
 #[derive(Clone)]
@@ -66,6 +67,7 @@ impl CommandProcessor {
                 server_addr: None,
                 connection_waker: Eventual::new(),
                 last_call_id: None,
+                enable_app_messages: false,
             })),
         }
     }
@@ -122,6 +124,10 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
                                     <call id> must be exact call id reported in VeilidUpdate
                                     <message> can be a string (left trimmed) or
                                     it can start with a '#' followed by a string of undelimited hex bytes
+enable [flag]                       set a flag
+disable [flag]                      unset a flag
+                                    valid flags in include:
+                                       app_messages
 "#
             .to_owned(),
         );
@@ -305,6 +311,52 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
         Ok(())
     }
 
+    pub fn cmd_enable(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
+        trace!("CommandProcessor::cmd_enable");
+
+        let ui = self.ui_sender();
+        let this = self.clone();
+        spawn_detached_local(async move {
+            let flag = rest.clone().unwrap_or_default();
+            match flag.as_str() {
+                "app_messages" => {
+                    this.inner.lock().enable_app_messages = true;
+                    ui.add_node_event(Level::Info, format!("flag enabled: {}", flag));
+                    ui.send_callback(callback);
+                }
+                _ => {
+                    ui.add_node_event(Level::Error, format!("unknown flag: {}", flag));
+                    ui.send_callback(callback);
+                    return;
+                }
+            }
+        });
+        Ok(())
+    }
+
+    pub fn cmd_disable(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
+        trace!("CommandProcessor::cmd_disable");
+
+        let ui = self.ui_sender();
+        let this = self.clone();
+        spawn_detached_local(async move {
+            let flag = rest.clone().unwrap_or_default();
+            match flag.as_str() {
+                "app_messages" => {
+                    this.inner.lock().enable_app_messages = false;
+                    ui.add_node_event(Level::Info, format!("flag disabled: {}", flag));
+                    ui.send_callback(callback);
+                }
+                _ => {
+                    ui.add_node_event(Level::Error, format!("unknown flag: {}", flag));
+                    ui.send_callback(callback);
+                    return;
+                }
+            }
+        });
+        Ok(())
+    }
+
     pub fn run_command(&self, command_line: &str, callback: UICallback) -> Result<(), String> {
         //
         let (cmd, rest) = Self::word_split(command_line);
@@ -319,6 +371,8 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
             "debug" => self.cmd_debug(rest, callback),
             "change_log_level" => self.cmd_change_log_level(rest, callback),
             "reply" => self.cmd_reply(rest, callback),
+            "enable" => self.cmd_enable(rest, callback),
+            "disable" => self.cmd_disable(rest, callback),
             _ => {
                 let ui = self.ui_sender();
                 ui.send_callback(callback);
@@ -472,6 +526,10 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
     }
 
     pub fn update_app_message(&self, msg: &json::JsonValue) {
+        if !self.inner.lock().enable_app_messages {
+            return;
+        }
+
         let message = json_str_vec_u8(&msg["message"]);
 
         // check is message body is ascii printable
@@ -506,6 +564,10 @@ reply <call id> <message>           reply to an AppCall not handled directly by 
     }
 
     pub fn update_app_call(&self, call: &json::JsonValue) {
+        if !self.inner.lock().enable_app_messages {
+            return;
+        }
+
         let message = json_str_vec_u8(&call["message"]);
 
         // check is message body is ascii printable

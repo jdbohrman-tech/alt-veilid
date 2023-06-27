@@ -54,12 +54,16 @@ impl RPCProcessor {
         };
 
         let debug_string = format!(
-            "SetValue(key={} subkey={} value_data(writer)={} value_data(len)={} send_descriptor={}) => {}",
+            "OUT ==> SetValueQ({} #{} len={} writer={}{}) => {}",
             key,
             subkey,
-            value.value_data().writer(),
             value.value_data().data().len(),
-            send_descriptor,
+            value.value_data().writer(),
+            if send_descriptor {
+                " +senddesc"
+            } else {
+                ""
+            },
             dest
         );
 
@@ -84,10 +88,13 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
+        log_rpc!(debug "{}", debug_string);
+
         let waitable_reply = network_result_try!(
             self.question(dest, question, Some(question_context))
                 .await?
         );
+
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
@@ -106,6 +113,28 @@ impl RPCProcessor {
         };
 
         let (set, value, peers) = set_value_a.destructure();
+        
+        let debug_string_value = value.as_ref().map(|v| {
+            format!(" len={} writer={}",
+                v.value_data().data().len(),
+                v.value_data().writer(),
+            )
+        }).unwrap_or_default();
+        
+        let debug_string_answer = format!(
+            "OUT <== SetValueA({} #{}{}{} peers={})",
+            key,
+            subkey,
+            if set {
+                " +set"
+            } else {
+                ""
+            },
+            debug_string_value,
+            peers.len(),
+        );
+
+        log_rpc!(debug "{}", debug_string_answer);
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
         let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
@@ -172,6 +201,22 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key));
 
+        let debug_string = format!(
+            "IN <=== SetValueQ({} #{} len={} writer={}{}) <== {}",
+            key,
+            subkey,
+            value.value_data().data().len(),
+            value.value_data().writer(),
+            if descriptor.is_some() {
+                " +desc"
+            } else {
+                ""
+            },
+            msg.header.direct_sender_node_id()
+        );
+
+        log_rpc!(debug "{}", debug_string);
+
         // If there are less than 'set_value_count' peers that are closer, then store here too
         let set_value_count = {
             let c = self.config.get();
@@ -192,6 +237,29 @@ impl RPCProcessor {
 
             (true, new_value)
         };
+
+        let debug_string_value = new_value.as_ref().map(|v| {
+            format!(" len={} writer={}",
+                v.value_data().data().len(),
+                v.value_data().writer(),
+            )
+        }).unwrap_or_default();
+
+        let debug_string_answer = format!(
+            "IN ===> SetValueA({} #{}{}{} peers={}) ==> {}",
+            key,
+            subkey,
+            if set {
+                " +set"
+            } else {
+                ""
+            },
+            debug_string_value,
+            closer_to_key_peers.len(),
+            msg.header.direct_sender_node_id()
+        );
+    
+        log_rpc!(debug "{}", debug_string_answer);
 
         // Make SetValue answer
         let set_value_a = RPCOperationSetValueA::new(set, new_value, closer_to_key_peers)?;

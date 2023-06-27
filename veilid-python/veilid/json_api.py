@@ -51,7 +51,7 @@ _VALIDATOR_RECV_MESSAGE = _get_schema_validator(
 class _JsonVeilidAPI(VeilidAPI):
     reader: Optional[asyncio.StreamReader]
     writer: Optional[asyncio.StreamWriter]
-    update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable]
+    update_callback: Callable[[VeilidUpdate], Awaitable]
     handle_recv_messages_task: Optional[asyncio.Task]
     validate_schema: bool
     done: bool
@@ -64,7 +64,7 @@ class _JsonVeilidAPI(VeilidAPI):
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable],
+        update_callback: Callable[[VeilidUpdate], Awaitable],
         validate_schema: bool = True,
     ):
         self.reader = reader
@@ -115,7 +115,7 @@ class _JsonVeilidAPI(VeilidAPI):
 
     @classmethod
     async def connect(
-        cls, host: str, port: int, update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable]
+        cls, host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
     ) -> Self:
         reader, writer = await asyncio.open_connection(host, port)
         veilid_api = cls(reader, writer, update_callback)
@@ -135,6 +135,8 @@ class _JsonVeilidAPI(VeilidAPI):
         # Resolve the request's future to the response json
         if reqfuture is not None:
             reqfuture.set_result(j)
+        else:
+            print("Missing id: {}", id)
 
     async def handle_recv_messages(self):
         # Read lines until we're done
@@ -155,7 +157,7 @@ class _JsonVeilidAPI(VeilidAPI):
                 if j["type"] == "Response":
                     await self.handle_recv_message_response(j)
                 elif j["type"] == "Update":
-                    await self.update_callback(self, VeilidUpdate.from_json(j))
+                    await self.update_callback(VeilidUpdate.from_json(j))
         finally:
             await self._cleanup_close()
 
@@ -485,7 +487,7 @@ class _JsonRoutingContext(RoutingContext):
             await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def app_call(self, target: TypedKey | RouteId, request: bytes) -> bytes:
+    async def app_call(self, target: TypedKey | RouteId, message: bytes) -> bytes:
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -494,7 +496,7 @@ class _JsonRoutingContext(RoutingContext):
                     rc_id=self.rc_id,
                     rc_op=RoutingContextOperation.APP_CALL,
                     target=target,
-                    request=request,
+                    message=message,
                 )
             )
         )
@@ -1162,6 +1164,6 @@ class _JsonCryptoSystem(CryptoSystem):
 
 
 async def json_api_connect(
-    host: str, port: int, update_callback: Callable[[VeilidAPI, VeilidUpdate], Awaitable]
+    host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
 ) -> _JsonVeilidAPI:
     return await _JsonVeilidAPI.connect(host, port, update_callback)

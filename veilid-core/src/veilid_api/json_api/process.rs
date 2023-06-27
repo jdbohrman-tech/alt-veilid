@@ -259,11 +259,11 @@ impl JsonRequestProcessor {
                         .add_routing_context(routing_context.clone().with_sequencing(sequencing)),
                 }
             }
-            RoutingContextRequestOp::AppCall { target, request } => {
+            RoutingContextRequestOp::AppCall { target, message } => {
                 RoutingContextResponseOp::AppCall {
                     result: to_json_api_result_with_vec_u8(
                         self.parse_target(target)
-                            .then(|tr| async { routing_context.app_call(tr?, request).await })
+                            .then(|tr| async { routing_context.app_call(tr?, message).await })
                             .await,
                     ),
                 }

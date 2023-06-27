@@ -166,7 +166,7 @@ class TableDb(ABC):
 
 
 class CryptoSystem(ABC):
-   
+
     async def __aenter__(self) -> Self:
         return self
 

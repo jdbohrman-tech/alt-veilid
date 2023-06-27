@@ -110,6 +110,28 @@ impl RPCMessageHeader {
             RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.envelope.get_crypto_kind(),
         }
     }
+    // pub fn direct_peer_noderef(&self) -> NodeRef {
+    //     match &self.detail {
+    //         RPCMessageHeaderDetail::Direct(d) => d.peer_noderef.clone(),
+    //         RPCMessageHeaderDetail::SafetyRouted(s) => s.direct.peer_noderef.clone(),
+    //         RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.peer_noderef.clone(),
+    //     }
+    // }
+    pub fn direct_sender_node_id(&self) -> TypedKey {
+        match &self.detail {
+            RPCMessageHeaderDetail::Direct(d) => {
+                TypedKey::new(d.envelope.get_crypto_kind(), d.envelope.get_sender_id())
+            }
+            RPCMessageHeaderDetail::SafetyRouted(s) => TypedKey::new(
+                s.direct.envelope.get_crypto_kind(),
+                s.direct.envelope.get_sender_id(),
+            ),
+            RPCMessageHeaderDetail::PrivateRouted(p) => TypedKey::new(
+                p.direct.envelope.get_crypto_kind(),
+                p.direct.envelope.get_sender_id(),
+            ),
+        }
+    }
 }
 
 #[derive(Debug)]

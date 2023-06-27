@@ -29,7 +29,7 @@ pub enum RoutingContextRequestOp {
         target: String,
         #[serde(with = "json_as_base64")]
         #[schemars(with = "String")]
-        request: Vec<u8>,
+        message: Vec<u8>,
     },
     AppMessage {
         target: String,

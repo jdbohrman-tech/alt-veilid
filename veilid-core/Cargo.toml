@@ -55,6 +55,7 @@ flume = { version = "^0", features = ["async"] }
 enumset = { version= "^1", features = ["serde"] }
 backtrace = { version = "^0" }
 stop-token = { version = "^0", default-features = false }
+num-traits = "0.2.15"
 
 ed25519-dalek = { version = "^1", default_features = false, features = ["alloc", "u64_backend"] }
 x25519-dalek = { version = "^1", default_features = false, features = ["u64_backend"] }

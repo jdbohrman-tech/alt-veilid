@@ -198,12 +198,12 @@ impl RoutingTable {
             // Newly allocated routes
             let mut newly_allocated_routes = Vec::new();
             for _n in 0..routes_to_allocate {
-                // Parameters here must be the default safety route spec
+                // Parameters here must be the most inclusive safety route spec
                 // These will be used by test_remote_route as well
                 if let Some(k) = rss.allocate_route(
                     &VALID_CRYPTO_KINDS,
                     Stability::default(),
-                    Sequencing::default(),
+                    Sequencing::EnsureOrdered,
                     default_route_hop_count,
                     DirectionSet::all(),
                     &[],

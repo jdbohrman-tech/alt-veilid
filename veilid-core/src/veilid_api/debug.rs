@@ -901,6 +901,20 @@ impl VeilidAPI {
         return Ok(out);
     }
 
+    async fn debug_record_purge(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        // <local|remote>
+        let storage_manager = self.storage_manager()?;
+
+        let scope = get_debug_argument_at(&args, 1, "debug_record_purge", "scope", get_string)?;
+        let bytes = get_debug_argument_at(&args, 2, "debug_record_purge", "bytes", get_number).ok();
+        let out = match scope.as_str() {
+            "local" => storage_manager.purge_local_records(bytes).await,
+            "remote" => storage_manager.purge_remote_records(bytes).await,
+            _ => "Invalid scope\n".to_owned(),
+        };
+        return Ok(out);
+    }
+
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
@@ -908,6 +922,8 @@ impl VeilidAPI {
 
         if command == "list" {
             self.debug_record_list(args).await
+        } else if command == "purge" {
+            self.debug_record_purge(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
@@ -936,7 +952,8 @@ impl VeilidAPI {
               list
               import <blob>
               test <route>
-        record list <local|remote> 
+        record list <local|remote>
+               purge <local|remote> [bytes]
 
         <destination> is:
          * direct:  <node>[+<safety>][<modifiers>]

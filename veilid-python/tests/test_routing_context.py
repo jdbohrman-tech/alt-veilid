@@ -3,6 +3,7 @@
 import asyncio
 import random
 import sys
+import os
 
 import pytest
 import veilid
@@ -30,7 +31,7 @@ async def test_routing_context_app_message_loopback():
     # Seriously, mypy?
     app_message_queue: asyncio.Queue = asyncio.Queue()
 
-    async def app_message_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
+    async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
             await app_message_queue.put(update)
 
@@ -69,7 +70,7 @@ async def test_routing_context_app_message_loopback():
 async def test_routing_context_app_call_loopback():
     app_call_queue: asyncio.Queue = asyncio.Queue()
 
-    async def app_call_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
+    async def app_call_queue_update_callback(update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_CALL:
             await app_call_queue.put(update)
 
@@ -120,7 +121,7 @@ async def test_routing_context_app_message_loopback_big_packets():
 
     global got_message
     got_message = 0
-    async def app_message_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
+    async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
             global got_message
             got_message += 1
@@ -147,8 +148,8 @@ async def test_routing_context_app_message_loopback_big_packets():
             # import it as a remote route as well so we can send to it
             prr = await api.import_remote_private_route(blob)
 
-            # do this test 100 times
-            for _ in range(100):
+            # do this test 1000 times
+            for _ in range(1000):
 
                 # send a random sized random app message to our own private route
                 message = random.randbytes(random.randint(0, 32768))
@@ -169,26 +170,38 @@ async def test_routing_context_app_message_loopback_big_packets():
 
 @pytest.mark.asyncio
 async def test_routing_context_app_call_loopback_big_packets():
-
-    print("")
-    
     global got_message
     got_message = 0
-    async def app_message_queue_update_callback(api: veilid.VeilidAPI, update: veilid.VeilidUpdate):
+    
+    app_call_queue: asyncio.Queue = asyncio.Queue()
+
+    async def app_call_queue_update_callback(update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_CALL:
+            await app_call_queue.put(update)
+
+    async def app_call_queue_task_handler(api: veilid.VeilidAPI):
+        while True:
+            update = await app_call_queue.get()
+            
             global got_message
             got_message += 1
+            
             sys.stdout.write("{} ".format(got_message))
             sys.stdout.flush()
-            await api.app_call_reply(update.detail.call_id, update.detail.message)
 
+            await api.app_call_reply(update.detail.call_id, update.detail.message)
+        
     hostname, port = server_info()
     api = await veilid.json_api_connect(
-        hostname, port, app_message_queue_update_callback
+        hostname, port, app_call_queue_update_callback
     )
     async with api:
         # purge routes to ensure we start fresh
         await api.debug("purge routes")
+
+        app_call_task = asyncio.create_task(
+            app_call_queue_task_handler(api), name="app call task"
+        )
 
         # make a routing context that uses a safety route
         rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
@@ -200,11 +213,57 @@ async def test_routing_context_app_call_loopback_big_packets():
             # import it as a remote route as well so we can send to it
             prr = await api.import_remote_private_route(blob)
 
-            # do this test 100 times
-            for _ in range(100):
+            # do this test 10 times
+            for _ in range(10):
 
                 # send a random sized random app message to our own private route
                 message = random.randbytes(random.randint(0, 32768))
                 out_message = await rc.app_call(prr, message)
 
                 assert message == out_message
+        
+        app_call_task.cancel()
+
+
+@pytest.mark.skipif(os.getenv("NOSKIP")!="1", reason="unneeded test, only for performance check")
+@pytest.mark.asyncio
+async def test_routing_context_app_message_loopback_bandwidth():
+
+    app_message_queue: asyncio.Queue = asyncio.Queue()
+
+    async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
+        if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
+            await app_message_queue.put(True)
+
+    hostname, port = server_info()
+    api = await veilid.json_api_connect(
+        hostname, port, app_message_queue_update_callback
+    )
+    async with api:
+        # purge routes to ensure we start fresh
+        await api.debug("purge routes")
+
+        # make a routing context that uses a safety route
+        #rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
+        #rc = await (await api.new_routing_context()).with_privacy()
+        rc = await api.new_routing_context()
+        async with rc:
+
+            # make a new local private route
+            prl, blob = await api.new_private_route()
+
+            # import it as a remote route as well so we can send to it
+            prr = await api.import_remote_private_route(blob)
+
+            # do this test 1000 times
+            message = random.randbytes(16384)
+            for _ in range(10000):
+
+                # send a random sized random app message to our own private route
+                await rc.app_message(prr, message)
+
+            # we should get the same number of messages back (not storing all that data)
+            for _ in range(10000):
+                await asyncio.wait_for(
+                    app_message_queue.get(), timeout=10
+                )

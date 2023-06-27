@@ -48,6 +48,7 @@ tokio = { version = "^1", features = ["full"], optional = true}
 tokio-util = { version = "^0", features = ["compat"], optional = true}
 maplit = "^1"
 futures-util = { version = "^0", default-features = false, features = ["async-await", "sink", "std", "io"] }
+chrono = "^0"
 
 libc = "^0"
 nix = "^0"

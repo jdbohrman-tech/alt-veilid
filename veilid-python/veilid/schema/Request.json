@@ -259,19 +259,19 @@
         {
           "type": "object",
           "required": [
+            "message",
             "rc_op",
-            "request",
             "target"
           ],
           "properties": {
+            "message": {
+              "type": "string"
+            },
             "rc_op": {
               "type": "string",
               "enum": [
                 "AppCall"
               ]
-            },
-            "request": {
-              "type": "string"
             },
             "target": {
               "type": "string"
