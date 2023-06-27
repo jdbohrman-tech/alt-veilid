@@ -931,7 +931,7 @@ impl VeilidAPI {
 
         // let rc = self.routing_context();
 
-        return Ok("TODO");
+        return Ok("TODO".to_owned());
     }
 
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
