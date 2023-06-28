@@ -28,7 +28,7 @@ abstract class DHTSchema {
       default:
         {
           throw VeilidAPIExceptionInternal(
-              "Invalid VeilidAPIException type: ${json['kind']}");
+              "Invalid DHTSchema type: ${json['kind']}");
         }
     }
   }
@@ -196,6 +196,7 @@ class ValueData {
   }
 }
 
+//////////////////////////////////////
 /// Stability
 
 enum Stability {
@@ -229,6 +230,80 @@ enum Sequencing {
 }
 
 //////////////////////////////////////
+/// SafetySelection
+
+abstract class SafetySelection {
+  factory SafetySelection.fromJson(dynamic json) {
+    var m = json as Map<String, dynamic>;
+    if (m.containsKey("Unsafe")) {
+      return SafetySelectionUnsafe(
+          sequencing: Sequencing.fromJson(m["Unsafe"]));
+    } else if (m.containsKey("Safe")) {
+      return SafetySelectionSafe(safetySpec: SafetySpec.fromJson(m["Safe"]));
+    } else {
+      throw VeilidAPIExceptionInternal("Invalid SafetySelection");
+    }
+  }
+  Map<String, dynamic> toJson();
+}
+
+class SafetySelectionUnsafe implements SafetySelection {
+  final Sequencing sequencing;
+  //
+  SafetySelectionUnsafe({
+    required this.sequencing,
+  });
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {'Unsafe': sequencing.toJson()};
+  }
+}
+
+class SafetySelectionSafe implements SafetySelection {
+  final SafetySpec safetySpec;
+  //
+  SafetySelectionSafe({
+    required this.safetySpec,
+  });
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {'Safe': safetySpec.toJson()};
+  }
+}
+
+/// Options for safety routes (sender privacy)
+class SafetySpec {
+  final String? preferredRoute;
+  final int hopCount;
+  final Stability stability;
+  final Sequencing sequencing;
+  //
+  SafetySpec({
+    this.preferredRoute,
+    required this.hopCount,
+    required this.stability,
+    required this.sequencing,
+  });
+
+  SafetySpec.fromJson(dynamic json)
+      : preferredRoute = json['preferred_route'],
+        hopCount = json['hop_count'],
+        stability = Stability.fromJson(json['stability']),
+        sequencing = Sequencing.fromJson(json['sequencing']);
+
+  Map<String, dynamic> toJson() {
+    return {
+      'preferred_route': preferredRoute,
+      'hop_count': hopCount,
+      'stability': stability.toJson(),
+      'sequencing': sequencing.toJson()
+    };
+  }
+}
+
+//////////////////////////////////////
 /// RouteBlob
 class RouteBlob {
   final String routeId;
@@ -251,7 +326,7 @@ class RouteBlob {
 abstract class VeilidRoutingContext {
   // Modifiers
   VeilidRoutingContext withPrivacy();
-  VeilidRoutingContext withCustomPrivacy(Stability stability);
+  VeilidRoutingContext withCustomPrivacy(SafetySelection safetySelection);
   VeilidRoutingContext withSequencing(Sequencing sequencing);
 
   // App call/message

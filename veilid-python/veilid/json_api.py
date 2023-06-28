@@ -16,7 +16,7 @@ from .state import VeilidState, VeilidUpdate
 from .types import (CryptoKey, CryptoKeyDistance, CryptoKind,
                     DHTRecordDescriptor, DHTSchema, HashDigest, KeyPair,
                     NewPrivateRouteResult, Nonce, OperationId, PublicKey,
-                    RouteId, SecretKey, Sequencing, SharedSecret, Signature,
+                    RouteId, SafetySelection, SecretKey, Sequencing, SharedSecret, Signature,
                     Stability, Timestamp, TypedKey, TypedKeyPair,
                     TypedSignature, ValueData, ValueSubkey, VeilidJSONEncoder,
                     VeilidVersion, urlsafe_b64decode_no_pad)
@@ -459,14 +459,14 @@ class _JsonRoutingContext(RoutingContext):
             await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def with_custom_privacy(self, stability: Stability, release = True) -> Self:
+    async def with_custom_privacy(self, safety_selection: SafetySelection, release = True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
                 validate=validate_rc_op,
                 rc_id=self.rc_id,
                 rc_op=RoutingContextOperation.WITH_CUSTOM_PRIVACY,
-                stability=stability,
+                safety_selection=safety_selection,
             )
         )
         if release:

@@ -224,7 +224,7 @@
           "type": "object",
           "required": [
             "rc_op",
-            "stability"
+            "safety_selection"
           ],
           "properties": {
             "rc_op": {
@@ -233,8 +233,8 @@
                 "WithCustomPrivacy"
               ]
             },
-            "stability": {
-              "$ref": "#/definitions/Stability"
+            "safety_selection": {
+              "$ref": "#/definitions/SafetySelection"
             }
           }
         },
@@ -1563,6 +1563,77 @@
         "m_key": {
           "description": "Member key",
           "type": "string"
+        }
+      }
+    },
+    "SafetySelection": {
+      "description": "The choice of safety route to include in compiled routes",
+      "oneOf": [
+        {
+          "description": "Don't use a safety route, only specify the sequencing preference",
+          "type": "object",
+          "required": [
+            "Unsafe"
+          ],
+          "properties": {
+            "Unsafe": {
+              "$ref": "#/definitions/Sequencing"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Use a safety route and parameters specified by a SafetySpec",
+          "type": "object",
+          "required": [
+            "Safe"
+          ],
+          "properties": {
+            "Safe": {
+              "$ref": "#/definitions/SafetySpec"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SafetySpec": {
+      "description": "Options for safety routes (sender privacy)",
+      "type": "object",
+      "required": [
+        "hop_count",
+        "sequencing",
+        "stability"
+      ],
+      "properties": {
+        "hop_count": {
+          "description": "must be greater than 0",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "preferred_route": {
+          "description": "preferred safety route set id if it still exists",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sequencing": {
+          "description": "prefer connection-oriented sequenced protocols",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Sequencing"
+            }
+          ]
+        },
+        "stability": {
+          "description": "prefer reliability over speed",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Stability"
+            }
+          ]
         }
       }
     },

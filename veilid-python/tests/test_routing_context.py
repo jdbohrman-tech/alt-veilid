@@ -18,12 +18,26 @@ from .conftest import server_info
 async def test_routing_contexts(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
+        pass
+
+    rc = await api_connection.new_routing_context()
+    async with rc:
         rcp = await rc.with_privacy(release=False)
         async with rcp:
-            rcps = await rcp.with_sequencing(veilid.Sequencing.ENSURE_ORDERED, release=False)
-            async with rcps:
-                rcpscp = await rcps.with_custom_privacy(veilid.Stability.RELIABLE, release=False)
-                await rcpscp.release()
+            pass
+
+    rc = await (await api_connection.new_routing_context()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
+    async with rc:
+        pass
+
+    rc = await (await api_connection.new_routing_context()).with_custom_privacy(
+        veilid.SafetySelection.safe(
+            veilid.SafetySpec(None, 2, veilid.Stability.RELIABLE, veilid.Sequencing.ENSURE_ORDERED)
+        ))
+    await rc.release()
+
+    rc = await (await api_connection.new_routing_context()).with_custom_privacy(veilid.SafetySelection.unsafe(veilid.Sequencing.ENSURE_ORDERED))
+    await rc.release()
 
 
 @pytest.mark.asyncio

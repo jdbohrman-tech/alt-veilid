@@ -235,6 +235,33 @@ fn get_public_key(text: &str) -> Option<PublicKey> {
     PublicKey::from_str(text).ok()
 }
 
+fn get_dht_key(
+    routing_table: RoutingTable,
+) -> impl FnOnce(&str) -> Option<(TypedKey, Option<SafetySelection>)> {
+    move |text| {
+        // Safety selection
+        let (text, ss) = if let Some((first, second)) = text.split_once('+') {
+            let ss = get_safety_selection(second, routing_table.clone())?;
+            (first, Some(ss))
+        } else {
+            (text, None)
+        };
+        if text.len() == 0 {
+            return None;
+        }
+
+        let key = if let Some(key) = get_public_key(text) {
+            TypedKey::new(best_crypto_kind(), key)
+        } else if let Some(key) = get_typed_key(text) {
+            key
+        } else {
+            return None;
+        };
+
+        Some((key, ss))
+    }
+}
+
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
         let (text, mods) = text
@@ -923,14 +950,31 @@ impl VeilidAPI {
         return Ok(out);
     }
     async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        let storage_manager = self.storage_manager()?;
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
 
-        let key = get_debug_argument_at(&args, 1, "debug_record_get", "key", get_typed_key)?;
-        let subkeys =
-            get_debug_argument_at(&args, 2, "debug_record_subkeys", "subkeys", get_string)?;
+        let (key, ss) = get_debug_argument_at(
+            &args,
+            1,
+            "debug_record_get",
+            "key",
+            get_dht_key(routing_table),
+        )?;
+        let subkeys = get_debug_argument_at(&args, 2, "debug_record_get", "subkeys", get_string)?;
 
-        // let rc = self.routing_context();
+        // Get routing context with optional privacy
+        let rc = self.routing_context();
+        let rc = if let Some(ss) = ss {
+            let rcp = match rc.with_custom_privacy(ss) {
+                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
+                Ok(v) => v,
+            };
+            rcp
+        } else {
+            rc
+        };
 
+        // Do a record get
         return Ok("TODO".to_owned());
     }
 
@@ -958,7 +1002,8 @@ impl VeilidAPI {
         entries [dead|reliable]
         entry <node>
         nodeinfo
-        config [key [new value]]
+        config [configkey [new value]]
+        txtrecord
         purge <buckets|connections|routes>
         attach
         detach
@@ -975,8 +1020,9 @@ impl VeilidAPI {
               test <route>
         record list <local|remote>
                purge <local|remote> [bytes]
-               get <key> <subkeys>
+               get <dhtkey> <subkeys>
 
+        <configkey> is: dot path like network.protocol.udp.enabled
         <destination> is:
          * direct:  <node>[+<safety>][<modifiers>]
          * relay:   <relay>@<target>[+<safety>][<modifiers>]
@@ -988,6 +1034,7 @@ impl VeilidAPI {
         <protocoltype> is: udp|tcp|ws|wss
         <addresstype> is: ipv4|ipv6
         <routingdomain> is: public|local
+        <dhtkey> is: <key>[+<safety>]
         <subkeys> is: 
          * a number: 2
          * a comma-separated inclusive range list: 1..=3,5..=8

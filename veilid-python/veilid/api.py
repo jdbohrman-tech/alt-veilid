@@ -27,7 +27,7 @@ class RoutingContext(ABC):
         pass
 
     @abstractmethod
-    async def with_custom_privacy(self, stability: types.Stability, release = True) -> Self:
+    async def with_custom_privacy(self, safety_selection: types.SafetySelection, release = True) -> Self:
         pass
 
     @abstractmethod

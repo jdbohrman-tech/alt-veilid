@@ -410,15 +410,15 @@ pub extern "C" fn routing_context_with_privacy(id: u32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn routing_context_with_custom_privacy(id: u32, stability: FfiStr) -> u32 {
-    let stability: veilid_core::Stability =
-        veilid_core::deserialize_opt_json(stability.into_opt_string()).unwrap();
+pub extern "C" fn routing_context_with_custom_privacy(id: u32, safety_selection: FfiStr) -> u32 {
+    let safety_selection: veilid_core::SafetySelection =
+        veilid_core::deserialize_opt_json(safety_selection.into_opt_string()).unwrap();
 
     let rc = ROUTING_CONTEXTS.lock();
     let Some(routing_context) = rc.get(&id) else {
         return 0;
     };
-    let Ok(routing_context) = routing_context.clone().with_custom_privacy(stability) else {
+    let Ok(routing_context) = routing_context.clone().with_custom_privacy(safety_selection) else {
         return 0;
     };
     let new_id = add_routing_context(routing_context);

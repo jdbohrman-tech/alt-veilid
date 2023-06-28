@@ -595,9 +595,9 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   }
 
   @override
-  VeilidRoutingContextFFI withCustomPrivacy(Stability stability) {
+  VeilidRoutingContextFFI withCustomPrivacy(SafetySelection safetySelection) {
     final newId = _ctx.ffi._routingContextWithCustomPrivacy(
-        _ctx.id, jsonEncode(stability).toNativeUtf8());
+        _ctx.id, jsonEncode(safetySelection).toNativeUtf8());
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
