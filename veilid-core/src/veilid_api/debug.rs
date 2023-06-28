@@ -381,6 +381,41 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     Ok(val)
 }
 
+fn print_data_truncated(data: Vec<u8>) -> String {
+    // check is message body is ascii printable
+    let mut printable = true;
+    for c in &data {
+        if *c < 32 || *c > 126 {
+            printable = false;
+        }
+    }
+
+    let (data, truncated) = if data.len() > 64 {
+        (&data[0..64], true)
+    } else {
+        (&data[..], false)
+    };
+
+    let strdata = if printable {
+        format!("\"{}\"", String::from_utf8_lossy(&data).to_string())
+    } else {
+        hex::encode(data)
+    };
+    if truncated {
+        format!("{}...", strdata)
+    } else {
+        strdata
+    }
+}
+
+fn print_value_data(value_data: ValueData) -> String {
+    format!(
+        "ValueData {{\n  seq: {},\n  writer: {},\n  data: {}\n}}\n",
+        value_data.seq(),
+        value_data.writer(),
+        print_data_truncated(value_data.data())
+    )
+}
 impl VeilidAPI {
     async fn debug_buckets(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
@@ -960,7 +995,18 @@ impl VeilidAPI {
             "key",
             get_dht_key(routing_table),
         )?;
-        let subkeys = get_debug_argument_at(&args, 2, "debug_record_get", "subkeys", get_string)?;
+        let subkey = get_debug_argument_at(&args, 2, "debug_record_get", "subkey", get_number)?;
+        let force_refresh =
+            get_debug_argument_at(&args, 3, "debug_record_get", "force_refresh", get_string);
+        let force_refresh = if let Some(force_refresh) = force_refresh {
+            if &force_refresh == "force" {
+                true
+            } else {
+                return Ok(format!("Unknown force: {}", force_refresh));
+            }
+        } else {
+            false
+        };
 
         // Get routing context with optional privacy
         let rc = self.routing_context();
@@ -975,7 +1021,27 @@ impl VeilidAPI {
         };
 
         // Do a record get
-        return Ok("TODO".to_owned());
+        let record = match rc.open_dht_record(key, None).await {
+            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        let value = match rc
+            .get_dht_value(key, subkey as ValueSubkey, force_refresh)
+            .await
+        {
+            Err(e) => return Ok(format!("Can't get DHT value: {}", e)),
+            Ok(v) => v,
+        };
+        let out = if let Some(value) = value {
+            print_value_data(value)
+        } else {
+            "No value data returned".to_owned()
+        };
+        match rc.close_dht_record(key).await {
+            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        return Ok(out);
     }
 
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
@@ -1020,7 +1086,7 @@ impl VeilidAPI {
               test <route>
         record list <local|remote>
                purge <local|remote> [bytes]
-               get <dhtkey> <subkeys>
+               get <dhtkey> <subkey> [force]
 
         <configkey> is: dot path like network.protocol.udp.enabled
         <destination> is:
@@ -1035,6 +1101,7 @@ impl VeilidAPI {
         <addresstype> is: ipv4|ipv6
         <routingdomain> is: public|local
         <dhtkey> is: <key>[+<safety>]
+        <subkey> is: a number: 2
         <subkeys> is: 
          * a number: 2
          * a comma-separated inclusive range list: 1..=3,5..=8
