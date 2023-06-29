@@ -38,8 +38,8 @@ fn main() -> EyreResult<()> {
     if matches.occurrences_of("generate-key-pair") != 0 {
         if let Some(ckstr) = matches.get_one::<String>("generate-key-pair") {
             if ckstr == "" {
-                let mut tks = veilid_core::TypedKeySet::new();
-                let mut tss = veilid_core::TypedSecretSet::new();
+                let mut tks = veilid_core::TypedKeyGroup::new();
+                let mut tss = veilid_core::TypedSecretGroup::new();
                 for ck in veilid_core::VALID_CRYPTO_KINDS {
                     let tkp = veilid_core::Crypto::generate_keypair(ck)
                         .wrap_err("invalid crypto kind")?;

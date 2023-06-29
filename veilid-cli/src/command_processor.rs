@@ -2,6 +2,7 @@ use crate::client_api_connection::*;
 use crate::settings::Settings;
 use crate::tools::*;
 use crate::ui::*;
+use indent::indent_all_by;
 use std::net::SocketAddr;
 use std::time::SystemTime;
 use veilid_tools::*;
@@ -106,33 +107,44 @@ impl CommandProcessor {
 
     pub fn cmd_help(&self, _rest: Option<String>, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_help");
-        self.ui_sender().add_node_event(
-            Level::Info,
-            r#"Commands:
-exit/quit                           exit the client
-disconnect                          disconnect the client from the Veilid node 
-shutdown                            shut the server down
-attach                              attach the server to the Veilid network
-detach                              detach the server from the Veilid network
-debug [command]                     send a debugging command to the Veilid server
-change_log_level <layer> <level>    change the log level for a tracing layer
-                                    layers include: 
-                                       all, terminal, system, api, file, otlp
-                                    levels include:
-                                       error, warn, info, debug, trace
-reply <call id> <message>           reply to an AppCall not handled directly by the server
-                                    <call id> must be exact call id reported in VeilidUpdate
-                                    <message> can be a string (left trimmed) or
-                                    it can start with a '#' followed by a string of undelimited hex bytes
-enable [flag]                       set a flag
-disable [flag]                      unset a flag
-                                    valid flags in include:
-                                       app_messages
-"#
-            .to_owned(),
-        );
+        let capi = self.capi();
         let ui = self.ui_sender();
-        ui.send_callback(callback);
+        spawn_detached_local(async move {
+            let out = match capi.server_debug("help".to_owned()).await {
+                Err(e) => {
+                    error!("Server command 'debug help' failed: {}", e);
+                    ui.send_callback(callback);
+                    return;
+                }
+                Ok(v) => v,
+            };
+
+            ui.add_node_event(
+                Level::Info,
+                format!(
+                    r#"Client Commands:
+    exit/quit                           exit the client
+    disconnect                          disconnect the client from the Veilid node 
+    shutdown                            shut the server down
+    attach                              attach the server to the Veilid network
+    detach                              detach the server from the Veilid network
+    change_log_level <layer> <level>    change the log level for a tracing layer
+                                        layers include: 
+                                            all, terminal, system, api, file, otlp
+                                        levels include:
+                                            error, warn, info, debug, trace
+    enable [flag]                       set a flag
+    disable [flag]                      unset a flag
+                                        valid flags in include:
+                                            app_messages
+Server Debug Commands:
+{}
+"#,
+                    indent_all_by(4, out)
+                ),
+            );
+            ui.send_callback(callback);
+        });
         Ok(())
     }
 
@@ -194,12 +206,12 @@ disable [flag]                      unset a flag
         Ok(())
     }
 
-    pub fn cmd_debug(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
+    pub fn cmd_debug(&self, command_line: String, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_debug");
         let capi = self.capi();
         let ui = self.ui_sender();
         spawn_detached_local(async move {
-            match capi.server_debug(rest.unwrap_or_default()).await {
+            match capi.server_debug(command_line).await {
                 Ok(output) => {
                     ui.add_node_event(Level::Info, output);
                     ui.send_callback(callback);
@@ -239,69 +251,6 @@ disable [flag]                      unset a flag
                 Err(e) => {
                     ui.display_string_dialog(
                         "Server command 'change_log_level' failed",
-                        e.to_string(),
-                        callback,
-                    );
-                }
-            }
-        });
-        Ok(())
-    }
-
-    pub fn cmd_reply(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
-        trace!("CommandProcessor::cmd_reply");
-
-        let capi = self.capi();
-        let ui = self.ui_sender();
-        let some_last_id = self.inner_mut().last_call_id.take();
-        spawn_detached_local(async move {
-            let (first, second) = Self::word_split(&rest.clone().unwrap_or_default());
-            let (id, msg) = if let Some(second) = second {
-                let id = match u64::from_str(&first) {
-                    Err(e) => {
-                        ui.add_node_event(Level::Error, format!("invalid appcall id: {}", e));
-                        ui.send_callback(callback);
-                        return;
-                    }
-                    Ok(v) => v,
-                };
-                (id, second)
-            } else {
-                let id = match some_last_id {
-                    None => {
-                        ui.add_node_event(Level::Error, "must specify last call id".to_owned());
-                        ui.send_callback(callback);
-                        return;
-                    }
-                    Some(v) => v,
-                };
-                (id, rest.unwrap_or_default())
-            };
-            let msg = if msg[0..1] == "#".to_owned() {
-                match hex::decode(msg[1..].as_bytes().to_vec()) {
-                    Err(e) => {
-                        ui.add_node_event(Level::Error, format!("invalid hex message: {}", e));
-                        ui.send_callback(callback);
-                        return;
-                    }
-                    Ok(v) => v,
-                }
-            } else {
-                msg[1..].as_bytes().to_vec()
-            };
-            let msglen = msg.len();
-            match capi.server_appcall_reply(id, msg).await {
-                Ok(()) => {
-                    ui.add_node_event(
-                        Level::Info,
-                        format!("reply sent to {} : {} bytes", id, msglen),
-                    );
-                    ui.send_callback(callback);
-                    return;
-                }
-                Err(e) => {
-                    ui.display_string_dialog(
-                        "Server command 'appcall_reply' failed",
                         e.to_string(),
                         callback,
                     );
@@ -368,16 +317,10 @@ disable [flag]                      unset a flag
             "shutdown" => self.cmd_shutdown(callback),
             "attach" => self.cmd_attach(callback),
             "detach" => self.cmd_detach(callback),
-            "debug" => self.cmd_debug(rest, callback),
             "change_log_level" => self.cmd_change_log_level(rest, callback),
-            "reply" => self.cmd_reply(rest, callback),
             "enable" => self.cmd_enable(rest, callback),
             "disable" => self.cmd_disable(rest, callback),
-            _ => {
-                let ui = self.ui_sender();
-                ui.send_callback(callback);
-                Err(format!("Invalid command: {}", cmd))
-            }
+            _ => self.cmd_debug(command_line.to_owned(), callback),
         }
     }
 

@@ -112,7 +112,7 @@ impl DiscoveryContext {
         &self,
         protocol_type: ProtocolType,
         address_type: AddressType,
-        ignore_node_ids: Option<TypedKeySet>,
+        ignore_node_ids: Option<TypedKeyGroup>,
     ) -> Option<(SocketAddress, NodeRef)> {
         let node_count = {
             let config = self.routing_table.network_manager().config();

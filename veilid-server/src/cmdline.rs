@@ -4,7 +4,7 @@ use clap::{Arg, ArgMatches, Command};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str::FromStr;
-use veilid_core::{TypedKeySet, TypedSecretSet};
+use veilid_core::{TypedKeyGroup, TypedSecretGroup};
 
 fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap::Error> {
     let matches = Command::new("veilid-server")
@@ -277,12 +277,12 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
 
         // Split or get secret
         let tks =
-            TypedKeySet::from_str(v).wrap_err("failed to decode node id set from command line")?;
+            TypedKeyGroup::from_str(v).wrap_err("failed to decode node id set from command line")?;
 
         let buffer = rpassword::prompt_password("Enter secret key set (will not echo): ")
             .wrap_err("invalid secret key")?;
         let buffer = buffer.trim().to_string();
-        let tss = TypedSecretSet::from_str(&buffer).wrap_err("failed to decode secret set")?;
+        let tss = TypedSecretGroup::from_str(&buffer).wrap_err("failed to decode secret set")?;
 
         settingsrw.core.network.routing_table.node_id = Some(tks);
         settingsrw.core.network.routing_table.node_id_secret = Some(tss);

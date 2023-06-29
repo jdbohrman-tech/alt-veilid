@@ -235,6 +235,14 @@ fn get_public_key(text: &str) -> Option<PublicKey> {
     PublicKey::from_str(text).ok()
 }
 
+fn get_crypto_system_version(crypto: Crypto) -> impl FnOnce(&str) -> Option<CryptoSystemVersion> {
+    move |text| {
+        let kindstr = get_string(text)?;
+        let kind = CryptoKind::from_str(&kindstr).ok()?;
+        crypto.get(kind)
+    }
+}
+
 fn get_dht_key(
     routing_table: RoutingTable,
 ) -> impl FnOnce(&str) -> Option<(TypedKey, Option<SafetySelection>)> {
@@ -381,10 +389,10 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     Ok(val)
 }
 
-fn print_data_truncated(data: Vec<u8>) -> String {
+fn print_data_truncated(data: &[u8]) -> String {
     // check is message body is ascii printable
     let mut printable = true;
-    for c in &data {
+    for c in data {
         if *c < 32 || *c > 126 {
             printable = false;
         }
@@ -443,6 +451,24 @@ impl VeilidAPI {
         // Dump routing table txt record
         let routing_table = self.network_manager()?.routing_table();
         Ok(routing_table.debug_info_txtrecord().await)
+    }
+
+    async fn debug_keypair(&self, args: String) -> VeilidAPIResult<String> {
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+        let crypto = self.crypto()?;
+
+        let vcrypto = get_debug_argument_at(
+            &args,
+            0,
+            "debug_keypair",
+            "kind",
+            get_crypto_system_version(crypto.clone()),
+        )
+        .unwrap_or_else(|_| crypto.best());
+
+        // Generate a keypair
+        let out = TypedKeyPair::new(vcrypto.kind(), vcrypto.generate_keypair()).to_string();
+        Ok(out)
     }
 
     async fn debug_entries(&self, args: String) -> VeilidAPIResult<String> {
@@ -996,8 +1022,18 @@ impl VeilidAPI {
             get_dht_key(routing_table),
         )?;
         let subkey = get_debug_argument_at(&args, 2, "debug_record_get", "subkey", get_number)?;
-        let force_refresh =
-            get_debug_argument_at(&args, 3, "debug_record_get", "force_refresh", get_string);
+        let force_refresh = if args.len() >= 4 {
+            Some(get_debug_argument_at(
+                &args,
+                3,
+                "debug_record_get",
+                "force_refresh",
+                get_string,
+            )?)
+        } else {
+            None
+        };
+
         let force_refresh = if let Some(force_refresh) = force_refresh {
             if &force_refresh == "force" {
                 true
@@ -1021,7 +1057,7 @@ impl VeilidAPI {
         };
 
         // Do a record get
-        let record = match rc.open_dht_record(key, None).await {
+        let _record = match rc.open_dht_record(key, None).await {
             Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
             Ok(v) => v,
         };
@@ -1029,7 +1065,18 @@ impl VeilidAPI {
             .get_dht_value(key, subkey as ValueSubkey, force_refresh)
             .await
         {
-            Err(e) => return Ok(format!("Can't get DHT value: {}", e)),
+            Err(e) => {
+                match rc.close_dht_record(key).await {
+                    Err(e) => {
+                        return Ok(format!(
+                            "Can't get DHT value and can't close DHT record: {}",
+                            e
+                        ))
+                    }
+                    Ok(v) => v,
+                };
+                return Ok(format!("Can't get DHT value: {}", e));
+            }
             Ok(v) => v,
         };
         let out = if let Some(value) = value {
@@ -1037,6 +1084,57 @@ impl VeilidAPI {
         } else {
             "No value data returned".to_owned()
         };
+        match rc.close_dht_record(key).await {
+            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        return Ok(out);
+    }
+
+    async fn debug_record_delete(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let key = get_debug_argument_at(&args, 1, "debug_record_delete", "key", get_typed_key)?;
+
+        // Do a record delete
+        let rc = self.routing_context();
+        match rc.delete_dht_record(key).await {
+            Err(e) => return Ok(format!("Can't delete DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        Ok(format!("DHT record deleted"))
+    }
+
+    async fn debug_record_info(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+
+        let (key, ss) = get_debug_argument_at(
+            &args,
+            1,
+            "debug_record_info",
+            "key",
+            get_dht_key(routing_table),
+        )?;
+
+        // Get routing context with optional privacy
+        let rc = self.routing_context();
+        let rc = if let Some(ss) = ss {
+            let rcp = match rc.with_custom_privacy(ss) {
+                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
+                Ok(v) => v,
+            };
+            rcp
+        } else {
+            rc
+        };
+
+        // Do a record get
+        let record = match rc.open_dht_record(key, None).await {
+            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
+            Ok(v) => v,
+        };
+
+        let out = format!("{:#?}", record);
+
         match rc.close_dht_record(key).await {
             Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
             Ok(v) => v,
@@ -1055,57 +1153,63 @@ impl VeilidAPI {
             self.debug_record_purge(args).await
         } else if command == "get" {
             self.debug_record_get(args).await
+        } else if command == "delete" {
+            self.debug_record_delete(args).await
+        } else if command == "info" {
+            self.debug_record_info(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
     }
 
     pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
-        Ok(r#">>> Debug commands:
-        help
-        buckets [dead|reliable]
-        dialinfo
-        entries [dead|reliable]
-        entry <node>
-        nodeinfo
-        config [configkey [new value]]
-        txtrecord
-        purge <buckets|connections|routes>
-        attach
-        detach
-        restart network
-        ping <destination>
-        contact <node>[<modifiers>]
-        route allocate [ord|*ord] [rel] [<count>] [in|out]
-              release <route>
-              publish <route> [full]
-              unpublish <route>
-              print <route>
-              list
-              import <blob>
-              test <route>
-        record list <local|remote>
-               purge <local|remote> [bytes]
-               get <dhtkey> <subkey> [force]
-
-        <configkey> is: dot path like network.protocol.udp.enabled
-        <destination> is:
-         * direct:  <node>[+<safety>][<modifiers>]
-         * relay:   <relay>@<target>[+<safety>][<modifiers>]
-         * private: #<id>[+<safety>]
-        <safety> is:
-         * unsafe: -[ord|*ord]
-         * safe: [route][,ord|*ord][,rel][,<count>]
-        <modifiers> is: [/<protocoltype>][/<addresstype>][/<routingdomain>]
-        <protocoltype> is: udp|tcp|ws|wss
-        <addresstype> is: ipv4|ipv6
-        <routingdomain> is: public|local
-        <dhtkey> is: <key>[+<safety>]
-        <subkey> is: a number: 2
-        <subkeys> is: 
-         * a number: 2
-         * a comma-separated inclusive range list: 1..=3,5..=8
-    "#
+        Ok(r#"buckets [dead|reliable]
+dialinfo
+entries [dead|reliable]
+entry <node>
+nodeinfo
+config [configkey [new value]]
+txtrecord
+keypair
+purge <buckets|connections|routes>
+attach
+detach
+restart network
+contact <node>[<modifiers>]
+ping <destination>
+route allocate [ord|*ord] [rel] [<count>] [in|out]
+      release <route>
+      publish <route> [full]
+      unpublish <route>
+      print <route>
+      list
+      import <blob>
+      test <route>
+record list <local|remote>
+       purge <local|remote> [bytes]
+       get <key>[+<safety>] <subkey> [force]
+       delete <key>
+       info <key>
+--------------------------------------------------------------------
+<key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
+    * also <node>, <relay>, <target>, <route>
+<configkey> is: dot path like network.protocol.udp.enabled
+<destination> is:
+    * direct:  <node>[+<safety>][<modifiers>]
+    * relay:   <relay>@<target>[+<safety>][<modifiers>]
+    * private: #<id>[+<safety>]
+<safety> is:
+    * unsafe: -[ord|*ord]
+    * safe: [route][,ord|*ord][,rel][,<count>]
+<modifiers> is: [/<protocoltype>][/<addresstype>][/<routingdomain>]
+<protocoltype> is: udp|tcp|ws|wss
+<addresstype> is: ipv4|ipv6
+<routingdomain> is: public|local
+<subkey> is: a number: 2
+<subkeys> is: 
+    * a number: 2
+    * a comma-separated inclusive range list: 1..=3,5..=8
+"#
         .to_owned())
     }
 
@@ -1127,6 +1231,8 @@ impl VeilidAPI {
                 self.debug_dialinfo(rest).await
             } else if arg == "txtrecord" {
                 self.debug_txtrecord(rest).await
+            } else if arg == "keypair" {
+                self.debug_keypair(rest).await
             } else if arg == "entries" {
                 self.debug_entries(rest).await
             } else if arg == "entry" {
@@ -1152,7 +1258,7 @@ impl VeilidAPI {
             } else if arg == "record" {
                 self.debug_record(rest).await
             } else {
-                Err(VeilidAPIError::generic("Unknown debug command"))
+                Err(VeilidAPIError::generic("Unknown server debug command"))
             }
         };
         res

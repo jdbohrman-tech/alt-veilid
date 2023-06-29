@@ -112,8 +112,8 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
             hole_punch_receipt_time_ms: 9000,
             network_key_password: None,
             routing_table: VeilidConfigRoutingTable {
-                node_id: TypedKeySet::new(),
-                node_id_secret: TypedSecretSet::new(),
+                node_id: TypedKeyGroup::new(),
+                node_id_secret: TypedSecretGroup::new(),
                 bootstrap: vec!["boots".to_string()],
                 limit_over_attached: 1,
                 limit_fully_attached: 2,

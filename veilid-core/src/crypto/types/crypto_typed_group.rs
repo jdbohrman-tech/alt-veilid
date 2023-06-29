@@ -17,7 +17,7 @@ use super::*;
 )]
 #[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
 #[serde(from = "Vec<CryptoTyped<K>>", into = "Vec<CryptoTyped<K>>")]
-pub struct CryptoTypedSet<K = PublicKey>
+pub struct CryptoTypedGroup<K = PublicKey>
 where
     K: Clone
         + Copy
@@ -37,7 +37,7 @@ where
     items: Vec<CryptoTyped<K>>,
 }
 
-impl<K> CryptoTypedSet<K>
+impl<K> CryptoTypedGroup<K>
 where
     K: Clone
         + Copy
@@ -151,7 +151,7 @@ where
     }
 }
 
-impl<K> core::ops::Deref for CryptoTypedSet<K>
+impl<K> core::ops::Deref for CryptoTypedGroup<K>
 where
     K: Clone
         + Copy
@@ -175,7 +175,7 @@ where
     }
 }
 
-impl<K> fmt::Display for CryptoTypedSet<K>
+impl<K> fmt::Display for CryptoTypedGroup<K>
 where
     K: Clone
         + Copy
@@ -205,7 +205,7 @@ where
         write!(f, "]")
     }
 }
-impl<K> FromStr for CryptoTypedSet<K>
+impl<K> FromStr for CryptoTypedGroup<K>
 where
     K: Clone
         + Copy
@@ -238,7 +238,7 @@ where
         Ok(Self { items })
     }
 }
-impl<K> From<CryptoTyped<K>> for CryptoTypedSet<K>
+impl<K> From<CryptoTyped<K>> for CryptoTypedGroup<K>
 where
     K: Clone
         + Copy
@@ -255,12 +255,12 @@ where
     <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn from(x: CryptoTyped<K>) -> Self {
-        let mut tks = CryptoTypedSet::<K>::with_capacity(1);
+        let mut tks = CryptoTypedGroup::<K>::with_capacity(1);
         tks.add(x);
         tks
     }
 }
-impl<K> From<Vec<CryptoTyped<K>>> for CryptoTypedSet<K>
+impl<K> From<Vec<CryptoTyped<K>>> for CryptoTypedGroup<K>
 where
     K: Clone
         + Copy
@@ -277,12 +277,12 @@ where
     <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn from(x: Vec<CryptoTyped<K>>) -> Self {
-        let mut tks = CryptoTypedSet::<K>::with_capacity(x.len());
+        let mut tks = CryptoTypedGroup::<K>::with_capacity(x.len());
         tks.add_all(&x);
         tks
     }
 }
-impl<K> From<&[CryptoTyped<K>]> for CryptoTypedSet<K>
+impl<K> From<&[CryptoTyped<K>]> for CryptoTypedGroup<K>
 where
     K: Clone
         + Copy
@@ -299,12 +299,12 @@ where
     <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn from(x: &[CryptoTyped<K>]) -> Self {
-        let mut tks = CryptoTypedSet::<K>::with_capacity(x.len());
+        let mut tks = CryptoTypedGroup::<K>::with_capacity(x.len());
         tks.add_all(x);
         tks
     }
 }
-impl<K> Into<Vec<CryptoTyped<K>>> for CryptoTypedSet<K>
+impl<K> Into<Vec<CryptoTyped<K>>> for CryptoTypedGroup<K>
 where
     K: Clone
         + Copy

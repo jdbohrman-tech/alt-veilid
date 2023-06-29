@@ -7,7 +7,7 @@ pub const BOOTSTRAP_TXT_VERSION_0: u8 = 0;
 
 #[derive(Clone, Debug)]
 pub struct BootstrapRecord {
-    node_ids: TypedKeySet,
+    node_ids: TypedKeyGroup,
     envelope_support: Vec<u8>,
     dial_info_details: Vec<DialInfoDetail>,
 }
@@ -63,7 +63,7 @@ impl RoutingTable {
         envelope_support.sort();
 
         // Node Id
-        let mut node_ids = TypedKeySet::new();
+        let mut node_ids = TypedKeyGroup::new();
         for node_id_str in records[2].split(",") {
             let node_id_str = node_id_str.trim();
             let node_id = match TypedKey::from_str(&node_id_str) {
