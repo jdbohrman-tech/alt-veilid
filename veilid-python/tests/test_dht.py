@@ -59,7 +59,7 @@ async def test_get_dht_value_nonexistent(api_connection: veilid.VeilidAPI):
 async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
-        rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(1))
+        rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(2))
         
         vd = await rc.set_dht_value(rec.key, 0, b"BLAH BLAH BLAH")
         assert vd != None
@@ -70,6 +70,9 @@ async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
         vd3 = await rc.get_dht_value(rec.key, 0, True)
         assert vd3 != None
 
+        vd4 = await rc.get_dht_value(rec.key, 1, False)
+        assert vd4 == None
+
         print("vd: {}", vd.__dict__)
         print("vd2: {}", vd2.__dict__)
         print("vd3: {}", vd3.__dict__)
@@ -79,4 +82,122 @@ async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
 
         await rc.close_dht_record(rec.key)
         await rc.delete_dht_record(rec.key)
+
+@pytest.mark.asyncio
+async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
+    rc = await api_connection.new_routing_context()
+    async with rc:
+        rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(2))
+        key = rec.key
+        owner = rec.owner
+        secret = rec.owner_secret
+
+        cs = await api_connection.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_VLD0)
+        async with cs:
+            assert await cs.validate_key_pair(owner, secret)
+            other_keypair = await cs.generate_key_pair()
+
+        va = b"Qwertyuiop Asdfghjkl Zxcvbnm"
+        vb = b"1234567890"
+        vc = b"!@#$%^&*()"
+
+        vdtemp = await rc.set_dht_value(key, 1, va)
+        assert vdtemp != None
+        assert vdtemp.data == va
+        assert vdtemp.seq == 0
+        assert vdtemp.writer == owner
+
+        # Test subkey writes
+        vdtemp = await rc.get_dht_value(key, 1, False)
+        assert vdtemp == va
+
+        vdtemp = await rc.get_dht_value(key, 0, False)
+        assert vdtemp.data == b""
+        assert vdtemp.seq == 1
+
+        vdtemp = await rc.set_dht_value(key, 0, vb)
+        assert vdtemp == vb
+        assert vdtemp.seq == 2
+
+        vdtemp = await rc.get_dht_value(key, 0, True)
+        assert vdtemp == vb
+
+        vdtemp = await rc.get_dht_value(key, 1, True)
+        assert vdtemp == va
+
+        # Equal value should not trigger sequence number update
+        vdtemp = await rc.set_dht_value(key, 1, va)
+        assert vdtemp != None
+        assert vdtemp.data == va
+        assert vdtemp.seq == 0
+        assert vdtemp.writer == owner
+
+        # Different value should trigger sequence number update
+        vdtemp = await rc.set_dht_value(key, 1, vb)
+        assert vdtemp != None
+        assert vdtemp.data == vb
+        assert vdtemp.seq == 1
+        assert vdtemp.writer == owner
+
+        # Now that we initialized some subkeys
+        # and verified they stored correctly
+        # Delete things locally and reopen and see if we can write
+        # with the same writer key
+
+        await rc.close_dht_record(key)
+        await rc.delete_dht_record(key)
+
+        rec = await rc.open_dht_record(key, veilid.KeyPair.from_parts(owner, secret))
+        assert rec != None
+        assert rec.key == key
+        assert rec.owner == owner
+        assert rec.owner_secret == secret
+        assert rec.schema.kind == veilid.DHTSchemaKind.DFLT
+        assert rec.schema.o_cnt == 2
+
+        # Verify subkey 1 can be set before it is get (should auto-get)
+        vdtemp = await rec.set_dht_value(key, 1, vc)
+        assert vdtemp != None
+        assert vdtemp.data == vc
+        assert vdtemp.seq == 2
+        assert vdtemp.writer == owner
+        
+        # Verify the network got the subkey update
+        vdtemp = await rc.get_dht_value(key, 1, True)
+        assert vdtemp != None
+        assert vdtemp.data == vc
+        assert vdtemp.seq == 2
+        assert vdtemp.writer == owner
+
+        # Delete things locally and reopen and see if we can write
+        # with a different writer key (should fail)
+
+        await rc.close_dht_record(key)
+        await rc.delete_dht_record(key)
+        
+        rec = await rc.open_dht_record(key, other_keypair)
+        assert rec != None
+        assert rec.key == key
+        assert rec.owner == owner
+        assert rec.owner_secret == None
+        assert rec.schema.kind == veilid.DHTSchemaKind.DFLT
+        assert rec.schema.o_cnt == 2
+
+        # Verify subkey 1 can NOT be set because we have the wrong writer
+        vdtemp = await rec.set_dht_value(key, 1, va)
+        assert vdtemp != None
+        assert vdtemp.data == vc
+        assert vdtemp.seq == 2
+        assert vdtemp.writer == owner        
+
+        # Verify subkey 0 can NOT be set because we have the wrong writer
+        vdtemp = await rec.set_dht_value(key, 0, va)
+        assert vdtemp != None
+        assert vdtemp.data == vb
+        assert vdtemp.seq == 2
+        assert vdtemp.writer == owner
+        
+        # Clean up
+        await rc.close_dht_record(key)
+        await rc.delete_dht_record(key)
 
