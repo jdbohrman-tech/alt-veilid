@@ -126,8 +126,6 @@ impl CommandProcessor {
     exit/quit                           exit the client
     disconnect                          disconnect the client from the Veilid node 
     shutdown                            shut the server down
-    attach                              attach the server to the Veilid network
-    detach                              detach the server from the Veilid network
     change_log_level <layer> <level>    change the log level for a tracing layer
                                         layers include: 
                                             all, terminal, system, api, file, otlp
@@ -163,32 +161,6 @@ Server Debug Commands:
         spawn_detached_local(async move {
             if let Err(e) = capi.server_shutdown().await {
                 error!("Server command 'shutdown' failed to execute: {}", e);
-            }
-            ui.send_callback(callback);
-        });
-        Ok(())
-    }
-
-    pub fn cmd_attach(&self, callback: UICallback) -> Result<(), String> {
-        trace!("CommandProcessor::cmd_attach");
-        let capi = self.capi();
-        let ui = self.ui_sender();
-        spawn_detached_local(async move {
-            if let Err(e) = capi.server_attach().await {
-                error!("Server command 'attach' failed: {}", e);
-            }
-            ui.send_callback(callback);
-        });
-        Ok(())
-    }
-
-    pub fn cmd_detach(&self, callback: UICallback) -> Result<(), String> {
-        trace!("CommandProcessor::cmd_detach");
-        let capi = self.capi();
-        let ui = self.ui_sender();
-        spawn_detached_local(async move {
-            if let Err(e) = capi.server_detach().await {
-                error!("Server command 'detach' failed: {}", e);
             }
             ui.send_callback(callback);
         });
@@ -315,8 +287,6 @@ Server Debug Commands:
             "quit" => self.cmd_exit(callback),
             "disconnect" => self.cmd_disconnect(callback),
             "shutdown" => self.cmd_shutdown(callback),
-            "attach" => self.cmd_attach(callback),
-            "detach" => self.cmd_detach(callback),
             "change_log_level" => self.cmd_change_log_level(rest, callback),
             "enable" => self.cmd_enable(rest, callback),
             "disable" => self.cmd_disable(rest, callback),
