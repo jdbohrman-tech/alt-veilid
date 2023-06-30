@@ -41,10 +41,12 @@ pub fn common_crypto_kinds(a: &[CryptoKind], b: &[CryptoKind]) -> Vec<CryptoKind
     out
 }
 
+mod byte_array_types;
 mod crypto_typed;
 mod crypto_typed_group;
 mod keypair;
 
+pub use byte_array_types::*;
 pub use crypto_typed::*;
 pub use crypto_typed_group::*;
 pub use keypair::*;

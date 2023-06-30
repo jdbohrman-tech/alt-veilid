@@ -1,5 +1,4 @@
 mod blake3digest512;
-mod byte_array_types;
 mod dh_cache;
 mod envelope;
 mod receipt;
@@ -13,7 +12,7 @@ pub mod tests;
 pub mod vld0;
 
 pub use blake3digest512::*;
-pub use byte_array_types::*;
+
 pub use crypto_system::*;
 pub use dh_cache::*;
 pub use envelope::*;

@@ -3,8 +3,7 @@ use super::*;
 #[derive(
     Clone,
     Copy,
-    Serialize,
-    Deserialize,
+    Default,
     PartialOrd,
     Ord,
     PartialEq,
@@ -85,5 +84,28 @@ impl TryFrom<&str> for KeyPair {
     type Error = VeilidAPIError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::try_decode(value)
+    }
+}
+
+impl serde::Serialize for KeyPair {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self.encode();
+        serde::Serialize::serialize(&s, serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for KeyPair {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        if s == "" {
+            return Ok(KeyPair::default());
+        }
+        KeyPair::try_decode(s.as_str()).map_err(serde::de::Error::custom)
     }
 }
