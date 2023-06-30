@@ -150,8 +150,6 @@ class _JsonVeilidAPI(VeilidAPI):
                 # Parse line as ndjson
                 j = json.loads(linebytes.strip())
 
-                print(f"linebytes: {linebytes}")
-
                 if self.validate_schema:
                     _schema_validate(_VALIDATOR_RECV_MESSAGE, j)
 

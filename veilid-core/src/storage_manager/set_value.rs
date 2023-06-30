@@ -98,7 +98,7 @@ impl StorageManager {
                         if new_seq > prior_seq {
                             // If the sequence number is greater, keep it
                             ctx.value = value;
-                            // One node has show us this value so far
+                            // One node has shown us this value so far
                             ctx.value_count = 1;
                         } else {
                             // If the sequence number is older, or an equal sequence number, 
@@ -171,8 +171,8 @@ impl StorageManager {
 
         // Make sure this value would actually be newer
         if let Some(last_value) = &last_subkey_result.value {
-            if value.value_data().seq() < last_value.value_data().seq() {
-                // inbound value is older than the one we have, just return the one we have
+            if value.value_data().seq() <= last_value.value_data().seq() {
+                // inbound value is older or equal sequence number than the one we have, just return the one we have
                 return Ok(NetworkResult::value(Some(last_value.clone())));
             }
         }

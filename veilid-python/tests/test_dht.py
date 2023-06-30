@@ -91,6 +91,7 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         key = rec.key
         owner = rec.owner
         secret = rec.owner_secret
+        print(f"key:{key}")
 
         cs = await api_connection.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_VLD0)
         async with cs:
@@ -101,29 +102,30 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         vb = b"1234567890"
         vc = b"!@#$%^&*()"
 
+        # Test subkey writes
         vdtemp = await rc.set_dht_value(key, 1, va)
         assert vdtemp != None
         assert vdtemp.data == va
         assert vdtemp.seq == 0
         assert vdtemp.writer == owner
 
-        # Test subkey writes
         vdtemp = await rc.get_dht_value(key, 1, False)
-        assert vdtemp == va
+        assert vdtemp.data == va
+        assert vdtemp.seq == 0
+        assert vdtemp.writer == owner
 
         vdtemp = await rc.get_dht_value(key, 0, False)
-        assert vdtemp.data == b""
-        assert vdtemp.seq == 1
+        assert vdtemp == None
 
         vdtemp = await rc.set_dht_value(key, 0, vb)
-        assert vdtemp == vb
-        assert vdtemp.seq == 2
+        assert vdtemp.data == vb
+        assert vdtemp.seq == 0
 
         vdtemp = await rc.get_dht_value(key, 0, True)
-        assert vdtemp == vb
+        assert vdtemp.data == vb
 
         vdtemp = await rc.get_dht_value(key, 1, True)
-        assert vdtemp == va
+        assert vdtemp.data == va
 
         # Equal value should not trigger sequence number update
         vdtemp = await rc.set_dht_value(key, 1, va)
@@ -155,14 +157,21 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         assert rec.schema.kind == veilid.DHTSchemaKind.DFLT
         assert rec.schema.o_cnt == 2
 
-        # Verify subkey 1 can be set before it is get (should auto-get)
-        vdtemp = await rec.set_dht_value(key, 1, vc)
+        # Verify subkey 1 can be set before it is get but newer is available online
+        vdtemp = await rc.set_dht_value(key, 1, vc)
+        assert vdtemp != None
+        assert vdtemp.data == vb
+        assert vdtemp.seq == 1
+        assert vdtemp.writer == owner
+
+        # Verify subkey 1 can be set a second time and it updates because seq is newer
+        vdtemp = await rc.set_dht_value(key, 1, vc)
         assert vdtemp != None
         assert vdtemp.data == vc
         assert vdtemp.seq == 2
         assert vdtemp.writer == owner
         
-        # Verify the network got the subkey update
+        # Verify the network got the subkey update with a refresh check
         vdtemp = await rc.get_dht_value(key, 1, True)
         assert vdtemp != None
         assert vdtemp.data == vc
@@ -194,7 +203,7 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         vdtemp = await rec.set_dht_value(key, 0, va)
         assert vdtemp != None
         assert vdtemp.data == vb
-        assert vdtemp.seq == 2
+        assert vdtemp.seq == 1
         assert vdtemp.writer == owner
         
         # Clean up

@@ -338,8 +338,14 @@ impl StorageManager {
         let schema = descriptor.schema()?;
 
         // Make new subkey data
-        let value_data = if let Some(signed_value_data) = last_subkey_result.value {
-            let seq = signed_value_data.value_data().seq();
+        let value_data = if let Some(last_signed_value_data) = last_subkey_result.value {
+            if last_signed_value_data.value_data().data() == &data
+                && last_signed_value_data.value_data().writer() == &writer.key
+            {
+                // Data and writer is the name, nothing is changing, just return the same ValueData
+                return Ok(Some(last_signed_value_data.into_value_data()));
+            }
+            let seq = last_signed_value_data.value_data().seq();
             ValueData::new_with_seq(seq + 1, data, writer.key)
         } else {
             ValueData::new(data, writer.key)
