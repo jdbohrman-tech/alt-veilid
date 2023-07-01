@@ -144,6 +144,7 @@ impl StorageManager {
         // The initial writer is the owner of the record
         inner
             .open_existing_record(key, Some(owner), safety_selection)
+            .await
             .map(|r| r.unwrap())
     }
 
@@ -159,7 +160,10 @@ impl StorageManager {
         let mut inner = self.lock().await?;
 
         // See if we have a local record already or not
-        if let Some(res) = inner.open_existing_record(key, writer, safety_selection)? {
+        if let Some(res) = inner
+            .open_existing_record(key, writer, safety_selection)
+            .await?
+        {
             return Ok(res);
         }
 

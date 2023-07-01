@@ -9,7 +9,7 @@ use hashlink::LruCache;
 
 pub struct RecordStore<D>
 where
-    D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
+    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
     <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
 {
@@ -41,7 +41,7 @@ pub struct SubkeyResult {
 
 impl<D> RecordStore<D>
 where
-    D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
+    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
     <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
 {
@@ -363,6 +363,20 @@ where
         out
     }
 
+    pub(super) fn peek_record<R, F>(&self, key: TypedKey, f: F) -> Option<R>
+    where
+        F: FnOnce(&Record<D>) -> R,
+    {
+        // Get record from index
+        let mut out = None;
+        let rtk = RecordTableKey { key };
+        if let Some(record) = self.record_index.peek(&rtk) {
+            // Callback
+            out = Some(f(record));
+        }
+        out
+    }
+
     pub(super) fn with_record_mut<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&mut Record<D>) -> R,
@@ -447,6 +461,69 @@ where
 
         // Add to cache, do nothing with lru out
         self.add_to_subkey_cache(stk, record_data);
+
+        return Ok(Some(SubkeyResult {
+            value: Some(out),
+            descriptor: opt_descriptor,
+        }));
+    }
+
+    pub(crate) async fn peek_subkey(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        want_descriptor: bool,
+    ) -> VeilidAPIResult<Option<SubkeyResult>> {
+        // record from index
+        let Some((subkey_count, has_subkey, opt_descriptor)) = self.peek_record(key, |record| {
+            (record.subkey_count(), record.stored_subkeys().contains(subkey), if want_descriptor {
+                Some(record.descriptor().clone())
+            } else {
+                None
+            })
+        }) else {
+            // Record not available
+            return Ok(None);
+        };
+
+        // Check if the subkey is in range
+        if subkey as usize >= subkey_count {
+            apibail_invalid_argument!("subkey out of range", "subkey", subkey);
+        }
+
+        // See if we have this subkey stored
+        if !has_subkey {
+            // If not, return no value but maybe with descriptor
+            return Ok(Some(SubkeyResult {
+                value: None,
+                descriptor: opt_descriptor,
+            }));
+        }
+
+        // Get subkey table
+        let Some(subkey_table) = self.subkey_table.clone() else {
+            apibail_internal!("record store not initialized");
+        };
+
+        // If subkey exists in subkey cache, use that
+        let stk = SubkeyTableKey { key, subkey };
+        if let Some(record_data) = self.subkey_cache.peek(&stk) {
+            let out = record_data.signed_value_data().clone();
+
+            return Ok(Some(SubkeyResult {
+                value: Some(out),
+                descriptor: opt_descriptor,
+            }));
+        }
+        // If not in cache, try to pull from table store if it is in our stored subkey set
+        let Some(record_data) = subkey_table
+            .load_rkyv::<RecordData>(0, &stk.bytes())
+            .await
+            .map_err(VeilidAPIError::internal)? else {
+                apibail_internal!("failed to peek subkey that was stored");
+            };
+
+        let out = record_data.signed_value_data().clone();
 
         return Ok(Some(SubkeyResult {
             value: Some(out),
@@ -598,5 +675,24 @@ where
         }
 
         out
+    }
+
+    pub(super) fn debug_record_info(&self, key: TypedKey) -> String {
+        self.peek_record(key, |r| format!("{:#?}", r))
+            .unwrap_or("Not found".to_owned())
+    }
+
+    pub(super) async fn debug_record_subkey_info(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+    ) -> String {
+        match self.peek_subkey(key, subkey, true).await {
+            Ok(Some(v)) => {
+                format!("{:#?}", v)
+            }
+            Ok(None) => "Subkey not available".to_owned(),
+            Err(e) => format!("{}", e),
+        }
     }
 }

@@ -209,7 +209,57 @@ impl StorageManagerInner {
         Ok((dht_key, owner))
     }
 
-    pub fn open_existing_record(
+    async fn move_remote_record_to_local(&mut self, key: TypedKey, safety_selection: SafetySelection) -> VeilidAPIResult<Option<(PublicKey, DHTSchema)>>
+    {
+        // Get local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        
+        // Get remote record store
+        let Some(remote_record_store) = self.remote_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+
+        let rcb = |r: &Record<RemoteRecordDetail>| {
+            // Return record details
+            r.clone()
+        };
+        let Some(remote_record) = remote_record_store.with_record(key, rcb) else {
+            // No local or remote record found, return None
+            return Ok(None);
+        };
+
+        // Make local record
+        let cur_ts = get_aligned_timestamp();
+        let local_record = Record::new(cur_ts, remote_record.descriptor().clone(), LocalRecordDetail {
+            safety_selection
+        })?;
+        local_record_store.new_record(key, local_record).await?;
+
+        // Move copy subkey data from remote to local store
+        for subkey in remote_record.stored_subkeys().iter() {
+            let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, false).await? else {
+                // Subkey was missing
+                warn!("Subkey was missing: {} #{}",key, subkey);
+                continue;
+            };
+            let Some(subkey_data) = subkey_result.value else {
+                // Subkey was missing
+                warn!("Subkey data was missing: {} #{}",key, subkey);
+                continue;
+            };
+            local_record_store.set_subkey(key, subkey, subkey_data).await?;
+        }
+
+        // Delete remote record from store
+        remote_record_store.delete_record(key).await?;
+
+        // Return record information as transferred to local record
+        Ok(Some((remote_record.owner().clone(), remote_record.schema())))
+    }
+
+    pub async fn open_existing_record(
         &mut self,
         key: TypedKey,
         writer: Option<KeyPair>,
@@ -235,8 +285,17 @@ impl StorageManagerInner {
             // Return record details
             (r.owner().clone(), r.schema())
         };
-        let Some((owner, schema)) = local_record_store.with_record_mut(key, cb) else {
-            return Ok(None);
+        let (owner, schema) = match local_record_store.with_record_mut(key, cb){
+            Some(v) => v,
+            None => {
+                // If we don't have a local record yet, check to see if we have a remote record
+                // if so, migrate it to a local record
+                let Some(v) = self.move_remote_record_to_local(key, safety_selection).await? else {
+                    // No remote record either
+                    return Ok(None);
+                };
+                v
+            }
         };
         // Had local record
 
@@ -424,7 +483,7 @@ impl StorageManagerInner {
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
     where
-        D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
+        D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
         for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
         <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
     {

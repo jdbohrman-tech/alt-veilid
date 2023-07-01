@@ -202,10 +202,11 @@ impl RPCProcessor {
         let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key));
 
         let debug_string = format!(
-            "IN <=== SetValueQ({} #{} len={} writer={}{}) <== {}",
+            "IN <=== SetValueQ({} #{} len={} seq={} writer={}{}) <== {}",
             key,
             subkey,
             value.value_data().data().len(),
+            value.value_data().seq(),
             value.value_data().writer(),
             if descriptor.is_some() {
                 " +desc"
@@ -239,8 +240,9 @@ impl RPCProcessor {
         };
 
         let debug_string_value = new_value.as_ref().map(|v| {
-            format!(" len={} writer={}",
+            format!(" len={} seq={} writer={}",
                 v.value_data().data().len(),
+                v.value_data().seq(),
                 v.value_data().writer(),
             )
         }).unwrap_or_default();

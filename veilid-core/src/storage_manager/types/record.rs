@@ -6,7 +6,7 @@ use super::*;
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct Record<D>
 where
-    D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
+    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
     <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
 {
@@ -20,7 +20,7 @@ where
 
 impl<D> Record<D>
 where
-    D: Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
+    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
     for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
     <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
 {

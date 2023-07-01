@@ -193,18 +193,12 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         assert rec.schema.o_cnt == 2
 
         # Verify subkey 1 can NOT be set because we have the wrong writer
-        vdtemp = await rec.set_dht_value(key, 1, va)
-        assert vdtemp != None
-        assert vdtemp.data == vc
-        assert vdtemp.seq == 2
-        assert vdtemp.writer == owner        
-
+        with pytest.raises(veilid.VeilidAPIError):
+            vdtemp = await rc.set_dht_value(key, 1, va)
+    
         # Verify subkey 0 can NOT be set because we have the wrong writer
-        vdtemp = await rec.set_dht_value(key, 0, va)
-        assert vdtemp != None
-        assert vdtemp.data == vb
-        assert vdtemp.seq == 1
-        assert vdtemp.writer == owner
+        with pytest.raises(veilid.VeilidAPIError):
+            vdtemp = await rc.set_dht_value(key, 0, va)
         
         # Clean up
         await rc.close_dht_record(key)

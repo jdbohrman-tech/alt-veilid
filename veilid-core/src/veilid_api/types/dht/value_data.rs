@@ -2,7 +2,6 @@ use super::*;
 
 #[derive(
     Clone,
-    Debug,
     Default,
     PartialOrd,
     PartialEq,
@@ -59,5 +58,15 @@ impl ValueData {
 
     pub fn total_size(&self) -> usize {
         mem::size_of::<Self>() + self.data.len()
+    }
+}
+
+impl fmt::Debug for ValueData {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ValueData")
+            .field("seq", &self.seq)
+            .field("data", &print_data(&self.data, None))
+            .field("writer", &self.writer)
+            .finish()
     }
 }

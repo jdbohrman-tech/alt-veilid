@@ -100,8 +100,9 @@ impl RPCProcessor {
         let (value, peers, descriptor) = get_value_a.destructure();
 
         let debug_string_value = value.as_ref().map(|v| {
-            format!(" len={} writer={}",
+            format!(" len={} seq={} writer={}",
                 v.value_data().data().len(),
+                v.value_data().seq(),
                 v.value_data().writer(),
             )
         }).unwrap_or_default();
@@ -210,8 +211,9 @@ impl RPCProcessor {
             .map_err(RPCError::internal)?);
         
         let debug_string_value = subkey_result.value.as_ref().map(|v| {
-            format!(" len={} writer={}",
+            format!(" len={} seq={} writer={}",
                 v.value_data().data().len(),
+                v.value_data().seq(),
                 v.value_data().writer(),
             )
         }).unwrap_or_default();

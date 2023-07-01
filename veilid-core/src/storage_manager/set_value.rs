@@ -166,8 +166,19 @@ impl StorageManager {
     pub async fn inbound_set_value(&self, key: TypedKey, subkey: ValueSubkey, value: SignedValueData, descriptor: Option<SignedValueDescriptor>) -> VeilidAPIResult<NetworkResult<Option<SignedValueData>>> {
         let mut inner = self.lock().await?;
 
-        // See if the subkey we are modifying has a last known local value
-        let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+        // See if this is a remote or local value
+        let (is_local, last_subkey_result) = {
+            // See if the subkey we are modifying has a last known local value
+            let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+            // If this is local, it must have a descriptor already
+            if last_subkey_result.descriptor.is_some() {
+                (true, last_subkey_result)
+            } else {
+                // See if the subkey we are modifying has a last known remote value
+                let last_subkey_result = inner.handle_get_remote_value(key, subkey, true).await?;
+                (false, last_subkey_result)
+            }
+        };
 
         // Make sure this value would actually be newer
         if let Some(last_value) = &last_subkey_result.value {
@@ -210,7 +221,12 @@ impl StorageManager {
         }
 
         // Do the set and return no new value
-        match inner.handle_set_remote_value(key, subkey, value, actual_descriptor).await {            
+        let res = if is_local {
+            inner.handle_set_local_value(key, subkey, value).await
+        } else {
+            inner.handle_set_remote_value(key, subkey, value, actual_descriptor).await
+        };
+        match res {            
             Ok(()) => {},
             Err(VeilidAPIError::Internal { message }) => {
                 apibail_internal!(message);

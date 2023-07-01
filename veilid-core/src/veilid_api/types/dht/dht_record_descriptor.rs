@@ -46,6 +46,9 @@ impl DHTRecordDescriptor {
         }
     }
 
+    pub fn key(&self) -> &TypedKey {
+        &self.key
+    }
     pub fn owner(&self) -> &PublicKey {
         &self.owner
     }
