@@ -71,9 +71,9 @@ pub struct BucketEntryLocalNetwork {
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct BucketEntryInner {
     /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
-    validated_node_ids: TypedKeySet,
+    validated_node_ids: TypedKeyGroup,
     /// The node ids claimed by the remote node that use cryptography versions we do not support
-    unsupported_node_ids: TypedKeySet,
+    unsupported_node_ids: TypedKeyGroup,
     /// The set of envelope versions supported by the node inclusive of the requirements of any relay the node may be using
     envelope_support: Vec<u8>,
     /// If this node has updated it's SignedNodeInfo since our network
@@ -123,7 +123,7 @@ impl BucketEntryInner {
     }
 
     /// Get all node ids
-    pub fn node_ids(&self) -> TypedKeySet {
+    pub fn node_ids(&self) -> TypedKeyGroup {
         let mut node_ids = self.validated_node_ids.clone();
         node_ids.add_all(&self.unsupported_node_ids);
         node_ids
@@ -786,8 +786,8 @@ impl BucketEntry {
 
         let now = get_aligned_timestamp();
         let inner = BucketEntryInner {
-            validated_node_ids: TypedKeySet::from(first_node_id),
-            unsupported_node_ids: TypedKeySet::new(),
+            validated_node_ids: TypedKeyGroup::from(first_node_id),
+            unsupported_node_ids: TypedKeyGroup::new(),
             envelope_support: Vec::new(),
             updated_since_last_network_change: false,
             last_connections: BTreeMap::new(),

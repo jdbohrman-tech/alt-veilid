@@ -67,6 +67,9 @@ class DHTSchemaKind(StrEnum):
     DFLT = "DFLT"
     SMPL = "SMPL"
 
+class SafetySelectionKind(StrEnum):
+    UNSAFE = "Unsafe"
+    SAFE = "Safe"
 
 ####################################################################
 
@@ -357,7 +360,7 @@ class ValueData:
 
     def __lt__(self, other):
         if other is None:
-            return true
+            return True
         if self.data < other.data:
             return True
         if self.data > other.data:
@@ -383,3 +386,61 @@ class ValueData:
 
     def to_json(self) -> dict:
         return self.__dict__
+
+
+####################################################################
+
+class SafetySpec:
+    preferred_route: Optional[RouteId]
+    hop_count: int
+    stability: Stability
+    sequencing: Sequencing
+
+    def __init__(self, preferred_route: Optional[RouteId], hop_count: int, stability: Stability, sequencing: Sequencing):
+        self.preferred_route = preferred_route
+        self.hop_count = hop_count
+        self.stability = stability
+        self.sequencing = sequencing
+
+    @classmethod
+    def from_json(cls, j: dict) -> Self:
+        return cls(RouteId(j["preferred_route"]) if "preferred_route" in j else None, 
+            j["hop_count"],
+            Stability(j["stability"]),
+            Sequencing(j["sequencing"]))
+
+    def to_json(self) -> dict:
+        return self.__dict__
+
+class SafetySelection:
+    kind: SafetySelectionKind
+
+    def __init__(self, kind: SafetySelectionKind, **kwargs):
+        self.kind = kind
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+    @classmethod
+    def unsafe(cls, sequencing: Sequencing) -> Self:
+        return cls(SafetySelectionKind.UNSAFE, sequencing=sequencing)
+
+    @classmethod
+    def safe(cls, safety_spec: SafetySpec) -> Self:
+        return cls(SafetySelectionKind.SAFE, safety_spec=safety_spec)
+
+    @classmethod
+    def from_json(cls, j: dict) -> Self:
+        if "Safe" in j:
+            return cls.safe(SafetySpec.from_json(j["Safe"]))
+        elif "Unsafe" in j:
+            return cls.unsafe(Sequencing(j["Unsafe"]))
+        raise Exception("Invalid SafetySelection")
+
+    def to_json(self) -> dict:
+        if self.kind == SafetySelectionKind.UNSAFE:
+            return {"Unsafe": self.sequencing }
+        elif self.kind == SafetySelectionKind.SAFE:
+            return {"Safe": self.safety_spec.to_json() }
+        else:
+            raise Exception("Invalid SafetySelection")
+

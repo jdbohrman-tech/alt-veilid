@@ -286,6 +286,7 @@ impl ConnectionManager {
                 local_addr,
                 &dial_info,
                 self.arc.connection_initial_timeout_ms,
+                self.network_manager().address_filter(),
             )
             .await;
             match result_net_res {

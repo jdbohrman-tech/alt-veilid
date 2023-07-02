@@ -243,12 +243,12 @@ impl JsonRequestProcessor {
                         .map(|new_rc| self.add_routing_context(new_rc)),
                 ),
             },
-            RoutingContextRequestOp::WithCustomPrivacy { stability } => {
+            RoutingContextRequestOp::WithCustomPrivacy { safety_selection } => {
                 RoutingContextResponseOp::WithCustomPrivacy {
                     result: to_json_api_result(
                         routing_context
                             .clone()
-                            .with_custom_privacy(stability)
+                            .with_custom_privacy(safety_selection)
                             .map(|new_rc| self.add_routing_context(new_rc)),
                     ),
                 }

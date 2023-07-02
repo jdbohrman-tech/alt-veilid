@@ -46,24 +46,22 @@ impl RoutingContext {
     }
 
     pub fn with_privacy(self) -> VeilidAPIResult<Self> {
-        self.with_custom_privacy(Stability::default())
-    }
-
-    pub fn with_custom_privacy(self, stability: Stability) -> VeilidAPIResult<Self> {
         let config = self.api.config()?;
         let c = config.get();
 
+        self.with_custom_privacy(SafetySelection::Safe(SafetySpec {
+            preferred_route: None,
+            hop_count: c.network.rpc.default_route_hop_count as usize,
+            stability: Stability::default(),
+            sequencing: Sequencing::default(),
+        }))
+    }
+
+    pub fn with_custom_privacy(self, safety_selection: SafetySelection) -> VeilidAPIResult<Self> {
         Ok(Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
-            unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_selection: SafetySelection::Safe(SafetySpec {
-                    preferred_route: None,
-                    hop_count: c.network.rpc.default_route_hop_count as usize,
-                    stability,
-                    sequencing: self.sequencing(),
-                }),
-            }),
+            unlocked_inner: Arc::new(RoutingContextUnlockedInner { safety_selection }),
         })
     }
 

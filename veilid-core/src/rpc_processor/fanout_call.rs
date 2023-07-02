@@ -5,7 +5,7 @@ where
     R: Unpin,
 {
     closest_nodes: Vec<NodeRef>,
-    called_nodes: TypedKeySet,
+    called_nodes: HashSet<TypedKey>,
     result: Option<Result<R, RPCError>>,
 }
 
@@ -62,7 +62,7 @@ where
     ) -> Arc<Self> {
         let context = Mutex::new(FanoutContext {
             closest_nodes: Vec::with_capacity(node_count),
-            called_nodes: TypedKeySet::new(),
+            called_nodes: HashSet::new(),
             result: None,
         });
 
@@ -125,7 +125,7 @@ where
                 if !ctx.called_nodes.contains(&key) {
                     // New fanout call candidate found
                     next_node = Some(cn.clone());
-                    ctx.called_nodes.add(key);
+                    ctx.called_nodes.insert(key);
                     break;
                 }
             }

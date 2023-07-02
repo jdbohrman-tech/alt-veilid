@@ -31,6 +31,19 @@ fn get_string(text: &str) -> Option<String> {
     Some(text.to_owned())
 }
 
+fn get_data(text: &str) -> Option<Vec<u8>> {
+    if text.starts_with("#") {
+        hex::decode(&text[1..]).ok()
+    } else if text.starts_with("\"") || text.starts_with("'") {
+        json::parse(text)
+            .ok()?
+            .as_str()
+            .map(|x| x.to_owned().as_bytes().to_vec())
+    } else {
+        Some(text.as_bytes().to_vec())
+    }
+}
+
 fn get_subkeys(text: &str) -> Option<ValueSubkeyRangeSet> {
     if let Some(n) = get_number(text) {
         Some(ValueSubkeyRangeSet::single(n.try_into().ok()?))
@@ -88,44 +101,50 @@ fn get_route_id(
     };
 }
 
-fn get_safety_selection(text: &str, routing_table: RoutingTable) -> Option<SafetySelection> {
-    let rss = routing_table.route_spec_store();
-    let default_route_hop_count =
-        routing_table.with_config(|c| c.network.rpc.default_route_hop_count as usize);
+fn get_dht_schema(text: &str) -> Option<DHTSchema> {
+    deserialize_json::<DHTSchema>(text).ok()
+}
 
-    if text.len() != 0 && &text[0..1] == "-" {
-        // Unsafe
-        let text = &text[1..];
-        let seq = get_sequencing(text).unwrap_or_default();
-        Some(SafetySelection::Unsafe(seq))
-    } else {
-        // Safe
-        let mut preferred_route = None;
-        let mut hop_count = default_route_hop_count;
-        let mut stability = Stability::default();
-        let mut sequencing = Sequencing::default();
-        for x in text.split(",") {
-            let x = x.trim();
-            if let Some(pr) = get_route_id(rss.clone(), true, false)(x) {
-                preferred_route = Some(pr)
+fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<SafetySelection> {
+    move |text| {
+        let rss = routing_table.route_spec_store();
+        let default_route_hop_count =
+            routing_table.with_config(|c| c.network.rpc.default_route_hop_count as usize);
+
+        if text.len() != 0 && &text[0..1] == "-" {
+            // Unsafe
+            let text = &text[1..];
+            let seq = get_sequencing(text).unwrap_or_default();
+            Some(SafetySelection::Unsafe(seq))
+        } else {
+            // Safe
+            let mut preferred_route = None;
+            let mut hop_count = default_route_hop_count;
+            let mut stability = Stability::default();
+            let mut sequencing = Sequencing::default();
+            for x in text.split(",") {
+                let x = x.trim();
+                if let Some(pr) = get_route_id(rss.clone(), true, false)(x) {
+                    preferred_route = Some(pr)
+                }
+                if let Some(n) = get_number(x) {
+                    hop_count = n;
+                }
+                if let Some(s) = get_stability(x) {
+                    stability = s;
+                }
+                if let Some(s) = get_sequencing(x) {
+                    sequencing = s;
+                }
             }
-            if let Some(n) = get_number(x) {
-                hop_count = n;
-            }
-            if let Some(s) = get_stability(x) {
-                stability = s;
-            }
-            if let Some(s) = get_sequencing(x) {
-                sequencing = s;
-            }
+            let ss = SafetySpec {
+                preferred_route,
+                hop_count,
+                stability,
+                sequencing,
+            };
+            Some(SafetySelection::Safe(ss))
         }
-        let ss = SafetySpec {
-            preferred_route,
-            hop_count,
-            stability,
-            sequencing,
-        };
-        Some(SafetySelection::Safe(ss))
     }
 }
 
@@ -150,7 +169,7 @@ fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<D
     move |text| {
         // Safety selection
         let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-            let ss = get_safety_selection(second, routing_table.clone())?;
+            let ss = get_safety_selection(routing_table.clone())(second)?;
             (first, Some(ss))
         } else {
             (text, None)
@@ -233,6 +252,44 @@ fn get_typed_key(text: &str) -> Option<TypedKey> {
 }
 fn get_public_key(text: &str) -> Option<PublicKey> {
     PublicKey::from_str(text).ok()
+}
+fn get_keypair(text: &str) -> Option<KeyPair> {
+    KeyPair::from_str(text).ok()
+}
+
+fn get_crypto_system_version(crypto: Crypto) -> impl FnOnce(&str) -> Option<CryptoSystemVersion> {
+    move |text| {
+        let kindstr = get_string(text)?;
+        let kind = CryptoKind::from_str(&kindstr).ok()?;
+        crypto.get(kind)
+    }
+}
+
+fn get_dht_key(
+    routing_table: RoutingTable,
+) -> impl FnOnce(&str) -> Option<(TypedKey, Option<SafetySelection>)> {
+    move |text| {
+        // Safety selection
+        let (text, ss) = if let Some((first, second)) = text.split_once('+') {
+            let ss = get_safety_selection(routing_table.clone())(second)?;
+            (first, Some(ss))
+        } else {
+            (text, None)
+        };
+        if text.len() == 0 {
+            return None;
+        }
+
+        let key = if let Some(key) = get_public_key(text) {
+            TypedKey::new(best_crypto_kind(), key)
+        } else if let Some(key) = get_typed_key(text) {
+            key
+        } else {
+            return None;
+        };
+
+        Some((key, ss))
+    }
 }
 
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
@@ -354,6 +411,40 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     Ok(val)
 }
 
+pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
+    // check is message body is ascii printable
+    let mut printable = true;
+    for c in data {
+        if *c < 32 || *c > 126 {
+            printable = false;
+            break;
+        }
+    }
+
+    let (data, truncated) = if truncate_len.is_some() && data.len() > truncate_len.unwrap() {
+        (&data[0..64], true)
+    } else {
+        (&data[..], false)
+    };
+
+    let strdata = if printable {
+        format!("{}", String::from_utf8_lossy(&data).to_string())
+    } else {
+        let sw = shell_words::quote(&String::from_utf8_lossy(&data).to_string()).to_string();
+        let h = hex::encode(data);
+        if h.len() < sw.len() {
+            h
+        } else {
+            sw
+        }
+    };
+    if truncated {
+        format!("{}...", strdata)
+    } else {
+        strdata
+    }
+}
+
 impl VeilidAPI {
     async fn debug_buckets(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
@@ -381,6 +472,24 @@ impl VeilidAPI {
         // Dump routing table txt record
         let routing_table = self.network_manager()?.routing_table();
         Ok(routing_table.debug_info_txtrecord().await)
+    }
+
+    async fn debug_keypair(&self, args: String) -> VeilidAPIResult<String> {
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+        let crypto = self.crypto()?;
+
+        let vcrypto = get_debug_argument_at(
+            &args,
+            0,
+            "debug_keypair",
+            "kind",
+            get_crypto_system_version(crypto.clone()),
+        )
+        .unwrap_or_else(|_| crypto.best());
+
+        // Generate a keypair
+        let out = TypedKeyPair::new(vcrypto.kind(), vcrypto.generate_keypair()).to_string();
+        Ok(out)
     }
 
     async fn debug_entries(&self, args: String) -> VeilidAPIResult<String> {
@@ -922,20 +1031,244 @@ impl VeilidAPI {
         };
         return Ok(out);
     }
+
+    async fn debug_record_create(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let crypto = self.crypto()?;
+
+        let csv = get_debug_argument_at(
+            &args,
+            1,
+            "debug_record_create",
+            "kind",
+            get_crypto_system_version(crypto.clone()),
+        )
+        .unwrap_or_else(|_| crypto.best());
+        let schema = get_debug_argument_at(
+            &args,
+            2,
+            "debug_record_create",
+            "dht_schema",
+            get_dht_schema,
+        )
+        .unwrap_or_else(|_| DHTSchema::dflt(1));
+        let ss = get_debug_argument_at(
+            &args,
+            3,
+            "debug_record_create",
+            "safety_selection",
+            get_safety_selection(routing_table),
+        )
+        .ok();
+
+        // Get routing context with optional privacy
+        let rc = self.routing_context();
+        let rc = if let Some(ss) = ss {
+            let rcp = match rc.with_custom_privacy(ss) {
+                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
+                Ok(v) => v,
+            };
+            rcp
+        } else {
+            rc
+        };
+
+        // Do a record get
+        let record = match rc.create_dht_record(csv.kind(), schema).await {
+            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        match rc.close_dht_record(*record.key()).await {
+            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        debug!("DHT Record Created:\n{:#?}", record);
+        return Ok(format!("{:?}", record));
+    }
+
     async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+
+        let (key, ss) = get_debug_argument_at(
+            &args,
+            1,
+            "debug_record_get",
+            "key",
+            get_dht_key(routing_table),
+        )?;
+        let subkey = get_debug_argument_at(&args, 2, "debug_record_get", "subkey", get_number)?;
+        let force_refresh = if args.len() >= 4 {
+            Some(get_debug_argument_at(
+                &args,
+                3,
+                "debug_record_get",
+                "force_refresh",
+                get_string,
+            )?)
+        } else {
+            None
+        };
+
+        let force_refresh = if let Some(force_refresh) = force_refresh {
+            if &force_refresh == "force" {
+                true
+            } else {
+                return Ok(format!("Unknown force: {}", force_refresh));
+            }
+        } else {
+            false
+        };
+
+        // Get routing context with optional privacy
+        let rc = self.routing_context();
+        let rc = if let Some(ss) = ss {
+            let rcp = match rc.with_custom_privacy(ss) {
+                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
+                Ok(v) => v,
+            };
+            rcp
+        } else {
+            rc
+        };
+
+        // Do a record get
+        let _record = match rc.open_dht_record(key, None).await {
+            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        let value = match rc
+            .get_dht_value(key, subkey as ValueSubkey, force_refresh)
+            .await
+        {
+            Err(e) => {
+                match rc.close_dht_record(key).await {
+                    Err(e) => {
+                        return Ok(format!(
+                            "Can't get DHT value and can't close DHT record: {}",
+                            e
+                        ))
+                    }
+                    Ok(v) => v,
+                };
+                return Ok(format!("Can't get DHT value: {}", e));
+            }
+            Ok(v) => v,
+        };
+        let out = if let Some(value) = value {
+            format!("{:?}", value)
+        } else {
+            "No value data returned".to_owned()
+        };
+        match rc.close_dht_record(key).await {
+            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        return Ok(out);
+    }
+
+    async fn debug_record_set(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+
+        let (key, ss) = get_debug_argument_at(
+            &args,
+            1,
+            "debug_record_set",
+            "key",
+            get_dht_key(routing_table),
+        )?;
+        let subkey = get_debug_argument_at(&args, 2, "debug_record_set", "subkey", get_number)?;
+        let writer = get_debug_argument_at(&args, 3, "debug_record_set", "writer", get_keypair)?;
+        let data = get_debug_argument_at(&args, 4, "debug_record_set", "data", get_data)?;
+
+        // Get routing context with optional privacy
+        let rc = self.routing_context();
+        let rc = if let Some(ss) = ss {
+            let rcp = match rc.with_custom_privacy(ss) {
+                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
+                Ok(v) => v,
+            };
+            rcp
+        } else {
+            rc
+        };
+
+        // Do a record get
+        let _record = match rc.open_dht_record(key, Some(writer)).await {
+            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        let value = match rc.set_dht_value(key, subkey as ValueSubkey, data).await {
+            Err(e) => {
+                match rc.close_dht_record(key).await {
+                    Err(e) => {
+                        return Ok(format!(
+                            "Can't set DHT value and can't close DHT record: {}",
+                            e
+                        ))
+                    }
+                    Ok(v) => v,
+                };
+                return Ok(format!("Can't set DHT value: {}", e));
+            }
+            Ok(v) => v,
+        };
+        let out = if let Some(value) = value {
+            format!("{:?}", value)
+        } else {
+            "No value data returned".to_owned()
+        };
+        match rc.close_dht_record(key).await {
+            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        return Ok(out);
+    }
+
+    async fn debug_record_delete(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let key = get_debug_argument_at(&args, 1, "debug_record_delete", "key", get_typed_key)?;
+
+        // Do a record delete
+        let rc = self.routing_context();
+        match rc.delete_dht_record(key).await {
+            Err(e) => return Ok(format!("Can't delete DHT record: {}", e)),
+            Ok(v) => v,
+        };
+        Ok(format!("DHT record deleted"))
+    }
+
+    async fn debug_record_info(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         let storage_manager = self.storage_manager()?;
 
-        let key = get_debug_argument_at(&args, 1, "debug_record_get", "key", get_typed_key)?;
-        let subkeys =
-            get_debug_argument_at(&args, 2, "debug_record_subkeys", "subkeys", get_string)?;
+        let key = get_debug_argument_at(&args, 1, "debug_record_info", "key", get_typed_key)?;
 
-        // let rc = self.routing_context();
+        let subkey =
+            get_debug_argument_at(&args, 2, "debug_record_info", "subkey", get_number).ok();
 
-        return Ok("TODO".to_owned());
+        let out = if let Some(subkey) = subkey {
+            let li = storage_manager
+                .debug_local_record_subkey_info(key, subkey as ValueSubkey)
+                .await;
+            let ri = storage_manager
+                .debug_remote_record_subkey_info(key, subkey as ValueSubkey)
+                .await;
+            format!(
+                "Local Subkey Info:\n{}\n\nRemote Subkey Info:\n{}\n",
+                li, ri
+            )
+        } else {
+            let li = storage_manager.debug_local_record_info(key).await;
+            let ri = storage_manager.debug_remote_record_info(key).await;
+            format!("Local Info:\n{}\n\nRemote Info:\n{}\n", li, ri)
+        };
+        return Ok(out);
     }
 
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
-        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+        let args: Vec<String> =
+            shell_words::split(&args).map_err(|e| VeilidAPIError::parse_error(e, args))?;
 
         let command = get_debug_argument_at(&args, 0, "debug_record", "command", get_string)?;
 
@@ -943,55 +1276,77 @@ impl VeilidAPI {
             self.debug_record_list(args).await
         } else if command == "purge" {
             self.debug_record_purge(args).await
+        } else if command == "create" {
+            self.debug_record_create(args).await
         } else if command == "get" {
             self.debug_record_get(args).await
+        } else if command == "set" {
+            self.debug_record_set(args).await
+        } else if command == "delete" {
+            self.debug_record_delete(args).await
+        } else if command == "info" {
+            self.debug_record_info(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
     }
 
     pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
-        Ok(r#">>> Debug commands:
-        help
-        buckets [dead|reliable]
-        dialinfo
-        entries [dead|reliable]
-        entry <node>
-        nodeinfo
-        config [key [new value]]
-        purge <buckets|connections|routes>
-        attach
-        detach
-        restart network
-        ping <destination>
-        contact <node>[<modifiers>]
-        route allocate [ord|*ord] [rel] [<count>] [in|out]
-              release <route>
-              publish <route> [full]
-              unpublish <route>
-              print <route>
-              list
-              import <blob>
-              test <route>
-        record list <local|remote>
-               purge <local|remote> [bytes]
-               get <key> <subkeys>
-
-        <destination> is:
-         * direct:  <node>[+<safety>][<modifiers>]
-         * relay:   <relay>@<target>[+<safety>][<modifiers>]
-         * private: #<id>[+<safety>]
-        <safety> is:
-         * unsafe: -[ord|*ord]
-         * safe: [route][,ord|*ord][,rel][,<count>]
-        <modifiers> is: [/<protocoltype>][/<addresstype>][/<routingdomain>]
-        <protocoltype> is: udp|tcp|ws|wss
-        <addresstype> is: ipv4|ipv6
-        <routingdomain> is: public|local
-        <subkeys> is: 
-         * a number: 2
-         * a comma-separated inclusive range list: 1..=3,5..=8
-    "#
+        Ok(r#"buckets [dead|reliable]
+dialinfo
+entries [dead|reliable]
+entry <node>
+nodeinfo
+config [configkey [new value]]
+txtrecord
+keypair
+purge <buckets|connections|routes>
+attach
+detach
+restart network
+contact <node>[<modifiers>]
+ping <destination>
+route allocate [ord|*ord] [rel] [<count>] [in|out]
+      release <route>
+      publish <route> [full]
+      unpublish <route>
+      print <route>
+      list
+      import <blob>
+      test <route>
+record list <local|remote>
+       purge <local|remote> [bytes]
+       create <cryptokind> <dhtschema> <safety>
+       set <key>[+<safety>] <subkey> <writer> <data> 
+       get <key>[+<safety>] <subkey> [force]
+       delete <key>
+       info <key> [subkey]
+--------------------------------------------------------------------
+<key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
+    * also <node>, <relay>, <target>, <route>
+<configkey> is: dot path like network.protocol.udp.enabled
+<destination> is:
+    * direct:  <node>[+<safety>][<modifiers>]
+    * relay:   <relay>@<target>[+<safety>][<modifiers>]
+    * private: #<id>[+<safety>]
+<safety> is:
+    * unsafe: -[ord|*ord]
+    * safe: [route][,ord|*ord][,rel][,<count>]
+<modifiers> is: [/<protocoltype>][/<addresstype>][/<routingdomain>]
+<protocoltype> is: udp|tcp|ws|wss
+<addresstype> is: ipv4|ipv6
+<routingdomain> is: public|local
+<cryptokind> is: VLD0
+<dhtschema> is: a json dht schema, default is '{"kind":"DFLT","o_cnt":1}'
+<subkey> is: a number: 2
+<subkeys> is: 
+    * a number: 2
+    * a comma-separated inclusive range list: 1..=3,5..=8
+<data> is:
+    * a single-word string: foobar
+    * a shell-quoted string: "foo\nbar\n"
+    * a '#' followed by hex data: #12AB34CD...
+"#
         .to_owned())
     }
 
@@ -1013,6 +1368,8 @@ impl VeilidAPI {
                 self.debug_dialinfo(rest).await
             } else if arg == "txtrecord" {
                 self.debug_txtrecord(rest).await
+            } else if arg == "keypair" {
+                self.debug_keypair(rest).await
             } else if arg == "entries" {
                 self.debug_entries(rest).await
             } else if arg == "entry" {
@@ -1038,7 +1395,7 @@ impl VeilidAPI {
             } else if arg == "record" {
                 self.debug_record(rest).await
             } else {
-                Err(VeilidAPIError::generic("Unknown debug command"))
+                Err(VeilidAPIError::generic("Unknown server debug command"))
             }
         };
         res

@@ -91,11 +91,6 @@ impl RPCOperationGetValueA {
         if peers.len() > MAX_GET_VALUE_A_PEERS_LEN {
             return Err(RPCError::protocol("GetValueA peers length too long"));
         }
-        if descriptor.is_some() && !value.is_some() {
-            return Err(RPCError::protocol(
-                "GetValueA should not return descriptor without value",
-            ));
-        }
         Ok(Self {
             value,
             peers,
@@ -144,11 +139,6 @@ impl RPCOperationGetValueA {
                     get_value_context.vcrypto.clone(),
                 )
                 .map_err(RPCError::protocol)?;
-        } else {
-            // No value, should not have descriptor
-            if self.descriptor.is_some() {
-                return Err(RPCError::protocol("descriptor returned without a value"));
-            }
         }
 
         PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());

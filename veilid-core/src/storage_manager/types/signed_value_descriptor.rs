@@ -5,7 +5,6 @@ use super::*;
 
 #[derive(
     Clone,
-    Debug,
     PartialOrd,
     PartialEq,
     Eq,
@@ -77,5 +76,15 @@ impl SignedValueDescriptor {
             return o;
         }
         self.schema_data.cmp(&other.schema_data)
+    }
+}
+
+impl fmt::Debug for SignedValueDescriptor {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("SignedValueDescriptor")
+            .field("owner", &self.owner)
+            .field("schema_data", &format!("{:?}", &self.schema_data))
+            .field("signature", &self.signature)
+            .finish()
     }
 }

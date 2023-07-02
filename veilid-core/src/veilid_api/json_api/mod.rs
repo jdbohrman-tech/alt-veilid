@@ -200,7 +200,7 @@ pub enum ResponseOp {
     VerifySignatures {
         #[serde(flatten)]
         #[schemars(with = "ApiResult<Vec<String>>")]
-        result: ApiResultWithVecString<TypedKeySet>,
+        result: ApiResultWithVecString<TypedKeyGroup>,
     },
     GenerateSignatures {
         #[serde(flatten)]

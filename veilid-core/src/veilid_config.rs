@@ -348,9 +348,9 @@ pub struct VeilidConfigRPC {
 )]
 pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
-    pub node_id: TypedKeySet,
+    pub node_id: TypedKeyGroup,
     #[schemars(with = "Vec<String>")]
-    pub node_id_secret: TypedSecretSet,
+    pub node_id_secret: TypedSecretGroup,
     pub bootstrap: Vec<String>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
@@ -785,7 +785,7 @@ impl VeilidConfig {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
-        safe_cfg.network.routing_table.node_id_secret = TypedSecretSet::new();
+        safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
         safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
@@ -1075,8 +1075,8 @@ impl VeilidConfig {
         crypto: Crypto,
         table_store: TableStore,
     ) -> VeilidAPIResult<()> {
-        let mut out_node_id = TypedKeySet::new();
-        let mut out_node_id_secret = TypedSecretSet::new();
+        let mut out_node_id = TypedKeyGroup::new();
+        let mut out_node_id_secret = TypedSecretGroup::new();
 
         for ck in VALID_CRYPTO_KINDS {
             let vcrypto = crypto

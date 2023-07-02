@@ -82,12 +82,14 @@ impl StorageManager {
 
                 // Keep the value if we got one and it is newer and it passes schema validation
                 if let Some(value) = gva.answer.value {
+                    log_stor!(debug "Got value back: len={}", value.value_data().data().len());
                     let mut ctx = context.lock();
 
                     // Ensure we have a schema and descriptor
                     let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema) else {
                         // Got a value but no descriptor for it
                         // Move to the next node
+                        log_stor!(debug "Got value with no descriptor");
                         return Ok(None);
                     };
 
@@ -99,6 +101,7 @@ impl StorageManager {
                     ) {
                         // Validation failed, ignore this value
                         // Move to the next node
+                        log_stor!(debug "Schema validation failed on subkey {}", subkey);
                         return Ok(None);
                     }
 
@@ -118,15 +121,22 @@ impl StorageManager {
                         } else if new_seq > prior_seq {
                             // If the sequence number is greater, start over with the new value
                             ctx.value = Some(value);
-                            // One node has show us this value so far
+                            // One node has shown us this value so far
                             ctx.value_count = 1;
                         } else {
                             // If the sequence number is older, ignore it
                         }
                     }
+                    else {
+                        // If we have no prior value, keep it
+                        ctx.value = Some(value);
+                        // One node has shown us this value so far
+                        ctx.value_count = 1;
+                    }
                 }
 
                 // Return peers if we have some
+                log_stor!(debug "Fanout call returned peers {}", gva.answer.peers.len());
                 Ok(Some(gva.answer.peers))
             }
         };

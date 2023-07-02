@@ -34,7 +34,7 @@ pub async fn test_signed_node_info() {
             node_info.clone(),
         )
         .unwrap();
-        let tks: TypedKeySet = TypedKey::new(ck, keypair.key).into();
+        let tks: TypedKeyGroup = TypedKey::new(ck, keypair.key).into();
         let oldtkslen = tks.len();
         let sdni = SignedDirectNodeInfo::new(
             node_info.clone(),
@@ -47,7 +47,7 @@ pub async fn test_signed_node_info() {
 
         // Test incorrect validation
         let keypair1 = vcrypto.generate_keypair();
-        let tks1: TypedKeySet = TypedKey::new(ck, keypair1.key).into();
+        let tks1: TypedKeyGroup = TypedKey::new(ck, keypair1.key).into();
         let sdni = SignedDirectNodeInfo::new(
             node_info.clone(),
             sni.timestamp(),
@@ -57,7 +57,8 @@ pub async fn test_signed_node_info() {
 
         // Test unsupported cryptosystem validation
         let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);
-        let mut tksfake: TypedKeySet = TypedKey::new(fake_crypto_kind, PublicKey::default()).into();
+        let mut tksfake: TypedKeyGroup =
+            TypedKey::new(fake_crypto_kind, PublicKey::default()).into();
         let mut sigsfake = sni.signatures().to_vec();
         sigsfake.push(TypedSignature::new(fake_crypto_kind, Signature::default()));
         tksfake.add(TypedKey::new(ck, keypair.key));
@@ -82,7 +83,7 @@ pub async fn test_signed_node_info() {
 
         // Test correct validation
         let keypair2 = vcrypto.generate_keypair();
-        let tks2: TypedKeySet = TypedKey::new(ck, keypair2.key).into();
+        let tks2: TypedKeyGroup = TypedKey::new(ck, keypair2.key).into();
         let oldtks2len = tks2.len();
 
         let sni2 = SignedRelayedNodeInfo::make_signatures(
@@ -107,7 +108,7 @@ pub async fn test_signed_node_info() {
 
         // Test incorrect validation
         let keypair3 = vcrypto.generate_keypair();
-        let tks3: TypedKeySet = TypedKey::new(ck, keypair3.key).into();
+        let tks3: TypedKeyGroup = TypedKey::new(ck, keypair3.key).into();
 
         let srni = SignedRelayedNodeInfo::new(
             node_info2.clone(),
@@ -120,7 +121,7 @@ pub async fn test_signed_node_info() {
 
         // Test unsupported cryptosystem validation
         let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);
-        let mut tksfake3: TypedKeySet =
+        let mut tksfake3: TypedKeyGroup =
             TypedKey::new(fake_crypto_kind, PublicKey::default()).into();
         let mut sigsfake3 = sni2.signatures().to_vec();
         sigsfake3.push(TypedSignature::new(fake_crypto_kind, Signature::default()));

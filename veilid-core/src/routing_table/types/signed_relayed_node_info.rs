@@ -7,7 +7,7 @@ use super::*;
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SignedRelayedNodeInfo {
     node_info: NodeInfo,
-    relay_ids: TypedKeySet,
+    relay_ids: TypedKeyGroup,
     relay_info: SignedDirectNodeInfo,
     timestamp: Timestamp,
     signatures: Vec<TypedSignature>,
@@ -19,7 +19,7 @@ impl SignedRelayedNodeInfo {
     /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
         node_info: NodeInfo,
-        relay_ids: TypedKeySet,
+        relay_ids: TypedKeyGroup,
         relay_info: SignedDirectNodeInfo,
         timestamp: Timestamp,
         signatures: Vec<TypedSignature>,
@@ -33,7 +33,11 @@ impl SignedRelayedNodeInfo {
         }
     }
 
-    pub fn validate(&self, node_ids: &TypedKeySet, crypto: Crypto) -> VeilidAPIResult<TypedKeySet> {
+    pub fn validate(
+        &self,
+        node_ids: &TypedKeyGroup,
+        crypto: Crypto,
+    ) -> VeilidAPIResult<TypedKeyGroup> {
         // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
         if common_crypto_kinds(
             self.node_info.crypto_support(),
@@ -64,7 +68,7 @@ impl SignedRelayedNodeInfo {
         crypto: Crypto,
         typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
-        relay_ids: TypedKeySet,
+        relay_ids: TypedKeyGroup,
         relay_info: SignedDirectNodeInfo,
     ) -> VeilidAPIResult<Self> {
         let timestamp = get_aligned_timestamp();
@@ -128,7 +132,7 @@ impl SignedRelayedNodeInfo {
     pub fn timestamp(&self) -> Timestamp {
         self.timestamp
     }
-    pub fn relay_ids(&self) -> &TypedKeySet {
+    pub fn relay_ids(&self) -> &TypedKeyGroup {
         &self.relay_ids
     }
     pub fn relay_info(&self) -> &SignedDirectNodeInfo {

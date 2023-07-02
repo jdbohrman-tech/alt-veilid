@@ -20,7 +20,7 @@ pub enum RoutingContextRequestOp {
     Release,
     WithPrivacy,
     WithCustomPrivacy {
-        stability: Stability,
+        safety_selection: SafetySelection,
     },
     WithSequencing {
         sequencing: Sequencing,

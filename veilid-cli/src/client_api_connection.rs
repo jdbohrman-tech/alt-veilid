@@ -358,21 +358,6 @@ impl ClientApiConnection {
         Ok(())
     }
 
-    pub async fn server_appcall_reply(&self, id: u64, msg: Vec<u8>) -> Result<(), String> {
-        trace!("ClientApiConnection::appcall_reply");
-        let mut req = json::JsonValue::new_object();
-        req["op"] = "AppCallReply".into();
-        req["call_id"] = id.to_string().into();
-        req["message"] = data_encoding::BASE64URL_NOPAD.encode(&msg).into();
-        let Some(resp) = self.perform_request(req).await else {
-            return Err("Cancelled".to_owned());
-        };
-        if resp.has_key("error") {
-            return Err(resp["error"].to_string());
-        }
-        Ok(())
-    }
-
     // Start Client API connection
     pub async fn connect(&self, connect_addr: SocketAddr) -> Result<(), String> {
         trace!("ClientApiConnection::connect");

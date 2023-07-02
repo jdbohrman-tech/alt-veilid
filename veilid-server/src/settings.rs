@@ -562,8 +562,8 @@ pub struct Dht {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RoutingTable {
-    pub node_id: Option<veilid_core::TypedKeySet>,
-    pub node_id_secret: Option<veilid_core::TypedSecretSet>,
+    pub node_id: Option<veilid_core::TypedKeyGroup>,
+    pub node_id_secret: Option<veilid_core::TypedSecretGroup>,
     pub bootstrap: Vec<String>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,

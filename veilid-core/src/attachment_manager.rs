@@ -180,14 +180,36 @@ impl AttachmentManager {
         }
     }
 
+    fn update_attaching_detaching_state(&self, state: AttachmentState) {
+        let update_callback = {
+            let mut inner = self.inner.lock();
+            inner.last_attachment_state = state;
+            if state == AttachmentState::Attaching {
+                inner.attach_ts = Some(get_aligned_timestamp());
+            } else if state == AttachmentState::Detached {
+                inner.attach_ts = None;
+            } else if state == AttachmentState::Detaching {
+                // ok
+            } else {
+                unreachable!("don't use this for attached states, use update_attachment()");
+            }
+            inner.update_callback.clone()
+        };
+
+        if let Some(update_callback) = update_callback {
+            update_callback(VeilidUpdate::Attachment(VeilidStateAttachment {
+                state,
+                public_internet_ready: false,
+                local_network_ready: false,
+            }))
+        }
+    }
+
     #[instrument(level = "debug", skip(self))]
     async fn attachment_maintainer(self) {
-        {
-            let mut inner = self.inner.lock();
-            inner.last_attachment_state = AttachmentState::Attaching;
-            inner.attach_ts = Some(get_aligned_timestamp());
-            debug!("attachment starting");
-        }
+        debug!("attachment starting");
+        self.update_attaching_detaching_state(AttachmentState::Attaching);
+
         let netman = self.network_manager();
 
         let mut restart;
@@ -226,8 +248,7 @@ impl AttachmentManager {
             debug!("stopped maintaining peers");
 
             if !restart {
-                let mut inner = self.inner.lock();
-                inner.last_attachment_state = AttachmentState::Detaching;
+                self.update_attaching_detaching_state(AttachmentState::Detaching);
                 debug!("attachment stopping");
             }
 
@@ -243,12 +264,8 @@ impl AttachmentManager {
             sleep(1000).await;
         }
 
-        {
-            let mut inner = self.inner.lock();
-            inner.last_attachment_state = AttachmentState::Detached;
-            inner.attach_ts = None;
-            debug!("attachment stopped");
-        }
+        self.update_attaching_detaching_state(AttachmentState::Detached);
+        debug!("attachment stopped");
     }
 
     #[instrument(level = "debug", skip_all, err)]

@@ -5,12 +5,12 @@ use super::*;
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PeerInfo {
-    node_ids: TypedKeySet,
+    node_ids: TypedKeyGroup,
     signed_node_info: SignedNodeInfo,
 }
 
 impl PeerInfo {
-    pub fn new(node_ids: TypedKeySet, signed_node_info: SignedNodeInfo) -> Self {
+    pub fn new(node_ids: TypedKeyGroup, signed_node_info: SignedNodeInfo) -> Self {
         assert!(node_ids.len() > 0 && node_ids.len() <= MAX_CRYPTO_KINDS);
         Self {
             node_ids,
@@ -27,13 +27,13 @@ impl PeerInfo {
         Ok(())
     }
 
-    pub fn node_ids(&self) -> &TypedKeySet {
+    pub fn node_ids(&self) -> &TypedKeyGroup {
         &self.node_ids
     }
     pub fn signed_node_info(&self) -> &SignedNodeInfo {
         &self.signed_node_info
     }
-    pub fn destructure(self) -> (TypedKeySet, SignedNodeInfo) {
+    pub fn destructure(self) -> (TypedKeyGroup, SignedNodeInfo) {
         (self.node_ids, self.signed_node_info)
     }
 

@@ -59,8 +59,8 @@ impl RouteSetSpecDetail {
     pub fn get_route_by_key_mut(&mut self, key: &PublicKey) -> Option<&mut RouteSpecDetail> {
         self.route_set.get_mut(key)
     }
-    pub fn get_route_set_keys(&self) -> TypedKeySet {
-        let mut tks = TypedKeySet::new();
+    pub fn get_route_set_keys(&self) -> TypedKeyGroup {
+        let mut tks = TypedKeyGroup::new();
         for (k, v) in &self.route_set {
             tks.add(TypedKey::new(v.crypto_kind, *k));
         }

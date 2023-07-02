@@ -82,9 +82,9 @@ pub struct RoutingTableUnlockedInner {
     network_manager: NetworkManager,
 
     /// The current node's public DHT keys
-    node_id: TypedKeySet,
+    node_id: TypedKeyGroup,
     /// The current node's public DHT secrets
-    node_id_secret: TypedSecretSet,
+    node_id_secret: TypedSecretGroup,
     /// Buckets to kick on our next kick task
     kick_queue: Mutex<BTreeSet<BucketIndex>>,
     /// Background process for computing statistics
@@ -131,7 +131,7 @@ impl RoutingTableUnlockedInner {
         self.node_id_secret.get(kind).unwrap().value
     }
 
-    pub fn node_ids(&self) -> TypedKeySet {
+    pub fn node_ids(&self) -> TypedKeyGroup {
         self.node_id.clone()
     }
 
@@ -648,7 +648,7 @@ impl RoutingTable {
         inner.get_all_nodes(self.clone(), cur_ts)
     }
 
-    fn queue_bucket_kicks(&self, node_ids: TypedKeySet) {
+    fn queue_bucket_kicks(&self, node_ids: TypedKeyGroup) {
         for node_id in node_ids.iter() {
             // Skip node ids we didn't add to buckets
             if !VALID_CRYPTO_KINDS.contains(&node_id.kind) {

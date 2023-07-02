@@ -41,12 +41,14 @@ pub fn common_crypto_kinds(a: &[CryptoKind], b: &[CryptoKind]) -> Vec<CryptoKind
     out
 }
 
+mod byte_array_types;
 mod crypto_typed;
-mod crypto_typed_set;
+mod crypto_typed_group;
 mod keypair;
 
+pub use byte_array_types::*;
 pub use crypto_typed::*;
-pub use crypto_typed_set::*;
+pub use crypto_typed_group::*;
 pub use keypair::*;
 
 pub type TypedKey = CryptoTyped<PublicKey>;
@@ -55,8 +57,8 @@ pub type TypedKeyPair = CryptoTyped<KeyPair>;
 pub type TypedSignature = CryptoTyped<Signature>;
 pub type TypedSharedSecret = CryptoTyped<SharedSecret>;
 
-pub type TypedKeySet = CryptoTypedSet<PublicKey>;
-pub type TypedSecretSet = CryptoTypedSet<SecretKey>;
-pub type TypedKeyPairSet = CryptoTypedSet<KeyPair>;
-pub type TypedSignatureSet = CryptoTypedSet<Signature>;
-pub type TypedSharedSecretSet = CryptoTypedSet<SharedSecret>;
+pub type TypedKeyGroup = CryptoTypedGroup<PublicKey>;
+pub type TypedSecretGroup = CryptoTypedGroup<SecretKey>;
+pub type TypedKeyPairGroup = CryptoTypedGroup<KeyPair>;
+pub type TypedSignatureGroup = CryptoTypedGroup<Signature>;
+pub type TypedSharedSecretGroup = CryptoTypedGroup<SharedSecret>;

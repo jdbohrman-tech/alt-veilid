@@ -22,7 +22,11 @@ impl SignedDirectNodeInfo {
         }
     }
 
-    pub fn validate(&self, node_ids: &TypedKeySet, crypto: Crypto) -> VeilidAPIResult<TypedKeySet> {
+    pub fn validate(
+        &self,
+        node_ids: &TypedKeyGroup,
+        crypto: Crypto,
+    ) -> VeilidAPIResult<TypedKeyGroup> {
         let node_info_bytes = Self::make_signature_bytes(&self.node_info, self.timestamp)?;
 
         // Verify the signatures that we can

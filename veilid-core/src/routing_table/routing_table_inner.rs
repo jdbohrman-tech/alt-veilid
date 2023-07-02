@@ -658,7 +658,7 @@ impl RoutingTableInner {
     fn create_node_ref<F>(
         &mut self,
         outer_self: RoutingTable,
-        node_ids: &TypedKeySet,
+        node_ids: &TypedKeyGroup,
         update_func: F,
     ) -> EyreResult<NodeRef>
     where
@@ -873,7 +873,7 @@ impl RoutingTableInner {
         descriptor: ConnectionDescriptor,
         timestamp: Timestamp,
     ) -> EyreResult<NodeRef> {
-        let nr = self.create_node_ref(outer_self, &TypedKeySet::from(node_id), |_rti, e| {
+        let nr = self.create_node_ref(outer_self, &TypedKeyGroup::from(node_id), |_rti, e| {
             // this node is live because it literally just connected to us
             e.touch_last_seen(timestamp);
         })?;

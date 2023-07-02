@@ -74,6 +74,7 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
+        #[cfg(feature="debug-dht")]
         log_rpc!(debug "{}", debug_string);
 
         let waitable_reply = network_result_try!(
@@ -100,8 +101,9 @@ impl RPCProcessor {
         let (value, peers, descriptor) = get_value_a.destructure();
 
         let debug_string_value = value.as_ref().map(|v| {
-            format!(" len={} writer={}",
+            format!(" len={} seq={} writer={}",
                 v.value_data().data().len(),
+                v.value_data().seq(),
                 v.value_data().writer(),
             )
         }).unwrap_or_default();
@@ -209,28 +211,32 @@ impl RPCProcessor {
             .await
             .map_err(RPCError::internal)?);
         
-        let debug_string_value = subkey_result.value.as_ref().map(|v| {
-            format!(" len={} writer={}",
-                v.value_data().data().len(),
-                v.value_data().writer(),
-            )
-        }).unwrap_or_default();
+        #[cfg(feature="debug-dht")]
+        {
+            let debug_string_value = subkey_result.value.as_ref().map(|v| {
+                format!(" len={} seq={} writer={}",
+                    v.value_data().data().len(),
+                    v.value_data().seq(),
+                    v.value_data().writer(),
+                )
+            }).unwrap_or_default();
 
-        let debug_string_answer = format!(
-            "IN ===> GetValueA({} #{}{}{} peers={}) ==> {}",
-            key,
-            subkey,
-            debug_string_value,
-            if subkey_result.descriptor.is_some() {
-                " +desc"
-            } else {
-                ""
-            },
-            closer_to_key_peers.len(),
-            msg.header.direct_sender_node_id()
-        );
-    
-        log_rpc!(debug "{}", debug_string_answer);
+            let debug_string_answer = format!(
+                "IN ===> GetValueA({} #{}{}{} peers={}) ==> {}",
+                key,
+                subkey,
+                debug_string_value,
+                if subkey_result.descriptor.is_some() {
+                    " +desc"
+                } else {
+                    ""
+                },
+                closer_to_key_peers.len(),
+                msg.header.direct_sender_node_id()
+            );
+        
+            log_rpc!(debug "{}", debug_string_answer);
+        }
             
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(

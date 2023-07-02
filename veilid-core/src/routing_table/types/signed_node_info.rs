@@ -10,7 +10,11 @@ pub enum SignedNodeInfo {
 }
 
 impl SignedNodeInfo {
-    pub fn validate(&self, node_ids: &TypedKeySet, crypto: Crypto) -> VeilidAPIResult<TypedKeySet> {
+    pub fn validate(
+        &self,
+        node_ids: &TypedKeyGroup,
+        crypto: Crypto,
+    ) -> VeilidAPIResult<TypedKeyGroup> {
         match self {
             SignedNodeInfo::Direct(d) => d.validate(node_ids, crypto),
             SignedNodeInfo::Relayed(r) => r.validate(node_ids, crypto),
@@ -36,9 +40,9 @@ impl SignedNodeInfo {
             SignedNodeInfo::Relayed(r) => &r.node_info(),
         }
     }
-    pub fn relay_ids(&self) -> TypedKeySet {
+    pub fn relay_ids(&self) -> TypedKeyGroup {
         match self {
-            SignedNodeInfo::Direct(_) => TypedKeySet::new(),
+            SignedNodeInfo::Direct(_) => TypedKeyGroup::new(),
             SignedNodeInfo::Relayed(r) => r.relay_ids().clone(),
         }
     }

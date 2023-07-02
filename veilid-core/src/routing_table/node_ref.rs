@@ -106,7 +106,7 @@ pub trait NodeRefBase: Sized {
     fn routing_table(&self) -> RoutingTable {
         self.common().routing_table.clone()
     }
-    fn node_ids(&self) -> TypedKeySet {
+    fn node_ids(&self) -> TypedKeyGroup {
         self.operate(|_rti, e| e.node_ids())
     }
     fn best_node_id(&self) -> TypedKey {

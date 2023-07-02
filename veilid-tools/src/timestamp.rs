@@ -112,7 +112,7 @@ pub fn debug_duration(dur: u64) -> String {
     let msecs = dur / MSEC;
 
     format!(
-        "{}{}{}{}.{:03}",
+        "{}{}{}{}.{:03}s",
         if days != 0 {
             format!("{}d", days)
         } else {
@@ -128,11 +128,7 @@ pub fn debug_duration(dur: u64) -> String {
         } else {
             "".to_owned()
         },
-        if secs != 0 {
-            format!("{}s", secs)
-        } else {
-            "".to_owned()
-        },
+        secs,
         msecs
     )
 }

@@ -45,11 +45,11 @@ class VeilidRoutingContextJS implements VeilidRoutingContext {
   }
 
   @override
-  VeilidRoutingContextJS withCustomPrivacy(Stability stability) {
+  VeilidRoutingContextJS withCustomPrivacy(SafetySelection safetySelection) {
     final newId = js_util.callMethod(
         wasm,
         "routing_context_with_custom_privacy",
-        [_ctx.id, jsonEncode(stability)]);
+        [_ctx.id, jsonEncode(safetySelection)]);
 
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }

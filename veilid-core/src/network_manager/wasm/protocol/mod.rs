@@ -17,7 +17,11 @@ impl ProtocolNetworkConnection {
         _local_address: Option<SocketAddr>,
         dial_info: &DialInfo,
         timeout_ms: u32,
+        address_filter: AddressFiltter,
     ) -> io::Result<NetworkResult<ProtocolNetworkConnection>> {
+        if address_filter.is_punished(dial_info.address().to_ip_addr()) {
+            return Ok(NetworkResult::no_connection_other("punished"));
+        }
         match dial_info.protocol_type() {
             ProtocolType::UDP => {
                 panic!("UDP dial info is not supported on WASM targets");

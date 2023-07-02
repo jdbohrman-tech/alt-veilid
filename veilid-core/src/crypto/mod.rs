@@ -1,5 +1,4 @@
 mod blake3digest512;
-mod byte_array_types;
 mod dh_cache;
 mod envelope;
 mod receipt;
@@ -13,7 +12,7 @@ pub mod tests;
 pub mod vld0;
 
 pub use blake3digest512::*;
-pub use byte_array_types::*;
+
 pub use crypto_system::*;
 pub use dh_cache::*;
 pub use envelope::*;
@@ -248,8 +247,8 @@ impl Crypto {
         node_ids: &[TypedKey],
         data: &[u8],
         typed_signatures: &[TypedSignature],
-    ) -> VeilidAPIResult<TypedKeySet> {
-        let mut out = TypedKeySet::with_capacity(node_ids.len());
+    ) -> VeilidAPIResult<TypedKeyGroup> {
+        let mut out = TypedKeyGroup::with_capacity(node_ids.len());
         for sig in typed_signatures {
             for nid in node_ids {
                 if nid.kind == sig.kind {

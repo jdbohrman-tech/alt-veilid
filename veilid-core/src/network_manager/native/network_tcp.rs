@@ -108,12 +108,29 @@ impl Network {
             }
         };
 
-        // XXX
-        // warn!(
-        //     "DEBUGACCEPT: local={} remote={}",
-        //     tcp_stream.local_addr().unwrap(),
-        //     tcp_stream.peer_addr().unwrap(),
-        // );
+        // Limit the number of connections from the same IP address
+        // and the number of total connections
+        // XXX limiting here instead for connection table? may be faster and avoids tls negotiation
+        let peer_addr = match tcp_stream.peer_addr() {
+            Ok(addr) => addr,
+            Err(e) => {
+                log_net!(debug "failed to get peer address: {}", e);
+                return;
+            }
+        };
+        let address_filter = self.network_manager().address_filter();
+        // Check to see if it is punished
+        if address_filter.is_punished(peer_addr.ip()) {
+            return;
+        }
+
+        let local_addr = match tcp_stream.local_addr() {
+            Ok(addr) => addr,
+            Err(e) => {
+                log_net!(debug "failed to get local address: {}", e);
+                return;
+            }
+        };
 
         if let Err(e) = tcp_stream.set_linger(Some(core::time::Duration::from_secs(0))) {
             log_net!(debug "Couldn't set TCP linger: {}", e);
@@ -126,24 +143,6 @@ impl Network {
 
         let listener_state = listener_state.clone();
         let connection_manager = connection_manager.clone();
-
-        // Limit the number of connections from the same IP address
-        // and the number of total connections
-        let peer_addr = match tcp_stream.peer_addr() {
-            Ok(addr) => addr,
-            Err(e) => {
-                log_net!(debug "failed to get peer address: {}", e);
-                return;
-            }
-        };
-        let local_addr = match tcp_stream.local_addr() {
-            Ok(addr) => addr,
-            Err(e) => {
-                log_net!(debug "failed to get local address: {}", e);
-                return;
-            }
-        };
-        // XXX limiting here instead for connection table? may be faster and avoids tls negotiation
 
         log_net!("TCP connection from: {}", peer_addr);
 
