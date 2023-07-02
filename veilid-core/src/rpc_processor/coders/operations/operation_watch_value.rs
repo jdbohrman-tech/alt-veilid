@@ -22,7 +22,7 @@ impl RPCOperationWatchValueQ {
         watcher: PublicKey,
         signature: Signature,
     ) -> Result<Self, RPCError> {
-        if subkeys.len() > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
+        if subkeys.len() as usize > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
         Ok(Self {
@@ -38,7 +38,7 @@ impl RPCOperationWatchValueQ {
     // signature covers: key, subkeys, expiration, count, using watcher key
     fn make_signature_data(&self) -> Vec<u8> {
         let mut sig_data =
-            Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (self.subkeys.len() * 8) + 8 + 4);
+            Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (self.subkeys.len() as usize * 8) + 8 + 4);
         sig_data.extend_from_slice(&self.key.kind.0);
         sig_data.extend_from_slice(&self.key.value.bytes);
         for sk in self.subkeys.ranges() {

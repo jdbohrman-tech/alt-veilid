@@ -1,6 +1,8 @@
 //! Test suite for the Web and headless browsers.
 #![cfg(target_arch = "wasm32")]
 
+use cfg_if::*;
+use parking_lot::Once;
 use veilid_tools::tests::*;
 use veilid_tools::*;
 

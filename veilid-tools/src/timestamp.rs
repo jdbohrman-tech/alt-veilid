@@ -14,8 +14,9 @@ cfg_if! {
 
         pub fn debug_ts(ts: u64) -> String {
             if is_browser() {
-                let mut now = Date::now();
-                let mut date = Date::new_0();
+                let now = Date::new_0();
+                now.set_time(Date::now());
+                let date = Date::new_0();
                 date.set_time((ts / 1000u64) as f64);
 
                 let show_year = now.get_utc_full_year() != date.get_utc_full_year();
