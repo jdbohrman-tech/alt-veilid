@@ -132,6 +132,8 @@ typedef SharedSecret = CryptoKey;
 typedef CryptoKeyDistance = CryptoKey;
 
 typedef TypedKey = Typed<CryptoKey>;
+typedef TypedSecret = Typed<SecretKey>;
+
 typedef TypedSignature = Typed<Signature>;
 
 //////////////////////////////////////
