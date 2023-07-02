@@ -42,6 +42,20 @@ impl NetworkManager {
                     )
                 });
         }
+
+        // Set address filter task
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .address_filter_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(
+                        this.address_filter()
+                            .address_filter_task_routine(s, Timestamp::new(l), Timestamp::new(t))
+                            .instrument(trace_span!(parent: None, "address filter task routine")),
+                    )
+                });
+        }
     }
 
     pub async fn tick(&self) -> EyreResult<()> {

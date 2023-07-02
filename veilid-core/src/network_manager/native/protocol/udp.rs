@@ -5,13 +5,15 @@ use sockets::*;
 pub struct RawUdpProtocolHandler {
     socket: Arc<UdpSocket>,
     assembly_buffer: AssemblyBuffer,
+    address_filter: Option<AddressFilter>,
 }
 
 impl RawUdpProtocolHandler {
-    pub fn new(socket: Arc<UdpSocket>) -> Self {
+    pub fn new(socket: Arc<UdpSocket>, address_filter: Option<AddressFilter>) -> Self {
         Self {
             socket,
             assembly_buffer: AssemblyBuffer::new(),
+            address_filter,
         }
     }
 
@@ -20,6 +22,13 @@ impl RawUdpProtocolHandler {
         let (message_len, descriptor) = loop {
             // Get a packet
             let (size, remote_addr) = network_result_value_or_log!(self.socket.recv_from(data).await.into_network_result()? => continue);
+
+            // Check to see if it is punished
+            if let Some(af) = self.address_filter.as_ref() {
+                if af.is_punished(remote_addr.ip()) {
+                    continue;
+                }
+            }
 
             // Insert into assembly buffer
             let Some(message) = self.assembly_buffer.insert_frame(&data[0..size], remote_addr) else {
@@ -64,6 +73,13 @@ impl RawUdpProtocolHandler {
     ) -> io::Result<NetworkResult<ConnectionDescriptor>> {
         if data.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large UDP message");
+        }
+
+        // Check to see if it is punished
+        if let Some(af) = self.address_filter.as_ref() {
+            if af.is_punished(remote_addr.ip()) {
+                return Ok(NetworkResult::no_connection_other("punished"));
+            }
         }
 
         // Fragment and send
@@ -111,6 +127,6 @@ impl RawUdpProtocolHandler {
         // get local wildcard address for bind
         let local_socket_addr = compatible_unspecified_socket_addr(&socket_addr);
         let socket = UdpSocket::bind(local_socket_addr).await?;
-        Ok(RawUdpProtocolHandler::new(Arc::new(socket)))
+        Ok(RawUdpProtocolHandler::new(Arc::new(socket), None))
     }
 }

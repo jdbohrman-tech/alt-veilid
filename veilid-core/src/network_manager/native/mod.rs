@@ -370,6 +370,14 @@ impl Network {
             c.network.connection_initial_timeout_ms
         };
 
+        if self
+            .network_manager()
+            .address_filter()
+            .is_punished(dial_info.address().to_ip_addr())
+        {
+            return Ok(NetworkResult::no_connection_other("punished"));
+        }
+
         match dial_info.protocol_type() {
             ProtocolType::UDP => {
                 let peer_socket_addr = dial_info.to_socket_addr();
@@ -428,6 +436,14 @@ impl Network {
             let c = self.config.get();
             c.network.connection_initial_timeout_ms
         };
+
+        if self
+            .network_manager()
+            .address_filter()
+            .is_punished(dial_info.address().to_ip_addr())
+        {
+            return Ok(NetworkResult::no_connection_other("punished"));
+        }
 
         match dial_info.protocol_type() {
             ProtocolType::UDP => {

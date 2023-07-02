@@ -66,8 +66,6 @@ impl Network {
                                 .await
                             {
                                 Ok(Ok((size, descriptor))) => {
-                                    // XXX: Limit the number of packets from the same IP address?
-
                                     // Network accounting
                                     network_manager.stats_packet_rcvd(
                                         descriptor.remote_address().to_ip_addr(),
@@ -143,7 +141,10 @@ impl Network {
             let socket_arc = Arc::new(udp_socket);
 
             // Create protocol handler
-            let udpv4_handler = RawUdpProtocolHandler::new(socket_arc);
+            let udpv4_handler = RawUdpProtocolHandler::new(
+                socket_arc,
+                Some(self.network_manager().address_filter()),
+            );
 
             inner.outbound_udpv4_protocol_handler = Some(udpv4_handler);
         }
@@ -164,7 +165,10 @@ impl Network {
             let socket_arc = Arc::new(udp_socket);
 
             // Create protocol handler
-            let udpv6_handler = RawUdpProtocolHandler::new(socket_arc);
+            let udpv6_handler = RawUdpProtocolHandler::new(
+                socket_arc,
+                Some(self.network_manager().address_filter()),
+            );
 
             inner.outbound_udpv6_protocol_handler = Some(udpv6_handler);
         }
@@ -191,7 +195,8 @@ impl Network {
         let socket_arc = Arc::new(udp_socket);
 
         // Create protocol handler
-        let protocol_handler = RawUdpProtocolHandler::new(socket_arc);
+        let protocol_handler =
+            RawUdpProtocolHandler::new(socket_arc, Some(self.network_manager().address_filter()));
 
         // Create message_handler records
         self.inner

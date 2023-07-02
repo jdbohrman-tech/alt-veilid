@@ -609,7 +609,7 @@ impl Network {
                 ip_addrs,
                 tcp_port,
                 false,
-                Box::new(move |c, _| Box::new(RawTcpProtocolHandler::new(c))),
+                Box::new(|c, _| Box::new(RawTcpProtocolHandler::new(c))),
             )
             .await?;
         trace!("TCP: listener started on {:#?}", socket_addresses);

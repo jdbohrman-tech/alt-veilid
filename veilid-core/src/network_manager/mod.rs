@@ -8,7 +8,7 @@ mod wasm;
 mod direct_boot;
 mod send_data;
 mod connection_handle;
-mod connection_limits;
+mod address_filter;
 mod connection_manager;
 mod connection_table;
 mod network_connection;
@@ -29,7 +29,7 @@ pub use stats::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 use connection_handle::*;
-use connection_limits::*;
+use address_filter::*;
 use crypto::*;
 use futures_util::stream::FuturesUnordered;
 use hashlink::LruCache;
@@ -54,6 +54,7 @@ pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 8;
 pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
 pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration = TimestampDuration::new(300_000_000u64); // 5 minutes
 pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration = TimestampDuration::new(3600_000_000u64); // 60 minutes
+pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -136,6 +137,7 @@ struct NetworkManagerUnlockedInner {
     #[cfg(feature="unstable-blockstore")]
     block_store: BlockStore,
     crypto: Crypto,
+    address_filter: AddressFilter,
     // Accessors
     routing_table: RwLock<Option<RoutingTable>>,
     components: RwLock<Option<NetworkComponents>>,
@@ -143,6 +145,7 @@ struct NetworkManagerUnlockedInner {
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     public_address_check_task: TickTask<EyreReport>,
+    address_filter_task: TickTask<EyreReport>,
     // Network Key
     network_key: Option<SharedSecret>,
 }
@@ -174,18 +177,20 @@ impl NetworkManager {
         network_key: Option<SharedSecret>,
     ) -> NetworkManagerUnlockedInner {
         NetworkManagerUnlockedInner {
-            config,
+            config: config.clone(),
             storage_manager,
             protected_store,
             table_store,
             #[cfg(feature="unstable-blockstore")]
             block_store,
             crypto,
+            address_filter: AddressFilter::new(config),
             routing_table: RwLock::new(None),
             components: RwLock::new(None),
             update_callback: RwLock::new(None),
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
+            address_filter_task: TickTask::new(ADDRESS_FILTER_TASK_INTERVAL_SECS),
             network_key,
         }
     }
@@ -272,6 +277,9 @@ impl NetworkManager {
     }
     pub fn crypto(&self) -> Crypto {
         self.unlocked_inner.crypto.clone()
+    }
+    pub fn address_filter(&self) -> AddressFilter {
+        self.unlocked_inner.address_filter.clone()
     }
     pub fn routing_table(&self) -> RoutingTable {
         self.unlocked_inner
@@ -894,10 +902,11 @@ impl NetworkManager {
             data.len(),
             connection_descriptor
         );
+        let remote_addr = connection_descriptor.remote_address().to_ip_addr();
 
         // Network accounting
         self.stats_packet_rcvd(
-            connection_descriptor.remote_address().to_ip_addr(),
+            remote_addr,
             ByteCount::new(data.len() as u64),
         );
 
@@ -911,6 +920,7 @@ impl NetworkManager {
         // Ensure we can read the magic number
         if data.len() < 4 {
             log_net!(debug "short packet");
+            self.address_filter().punish(remote_addr);
             return Ok(false);
         }
 
@@ -943,6 +953,7 @@ impl NetworkManager {
             Ok(v) => v,
             Err(e) => {
                 log_net!(debug "envelope failed to decode: {}", e);
+                self.address_filter().punish(remote_addr);
                 return Ok(false);
             }
         };
@@ -1058,7 +1069,7 @@ impl NetworkManager {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(debug "failed to decrypt envelope body: {}",e);
-                    // xxx: punish nodes that send messages that fail to decrypt eventually
+                    self.address_filter().punish(remote_addr);
                     return Ok(false);
                 }
             };
@@ -1077,8 +1088,6 @@ impl NetworkManager {
             }
         };
         source_noderef.add_envelope_version(envelope.get_version());
-
-        // xxx: deal with spoofing and flooding here?
 
         // Pass message to RPC system
         rpc.enqueue_direct_message(

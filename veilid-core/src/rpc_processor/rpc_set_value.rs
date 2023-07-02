@@ -88,6 +88,7 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
+        #[cfg(feature="debug-dht")]
         log_rpc!(debug "{}", debug_string);
 
         let waitable_reply = network_result_try!(
@@ -239,29 +240,32 @@ impl RPCProcessor {
             (true, new_value)
         };
 
-        let debug_string_value = new_value.as_ref().map(|v| {
-            format!(" len={} seq={} writer={}",
-                v.value_data().data().len(),
-                v.value_data().seq(),
-                v.value_data().writer(),
-            )
-        }).unwrap_or_default();
+        #[cfg(feature="debug-dht")]
+        {
+            let debug_string_value = new_value.as_ref().map(|v| {
+                format!(" len={} seq={} writer={}",
+                    v.value_data().data().len(),
+                    v.value_data().seq(),
+                    v.value_data().writer(),
+                )
+            }).unwrap_or_default();
 
-        let debug_string_answer = format!(
-            "IN ===> SetValueA({} #{}{}{} peers={}) ==> {}",
-            key,
-            subkey,
-            if set {
-                " +set"
-            } else {
-                ""
-            },
-            debug_string_value,
-            closer_to_key_peers.len(),
-            msg.header.direct_sender_node_id()
-        );
-    
-        log_rpc!(debug "{}", debug_string_answer);
+            let debug_string_answer = format!(
+                "IN ===> SetValueA({} #{}{}{} peers={}) ==> {}",
+                key,
+                subkey,
+                if set {
+                    " +set"
+                } else {
+                    ""
+                },
+                debug_string_value,
+                closer_to_key_peers.len(),
+                msg.header.direct_sender_node_id()
+            );
+
+            log_rpc!(debug "{}", debug_string_answer);
+        }
 
         // Make SetValue answer
         let set_value_a = RPCOperationSetValueA::new(set, new_value, closer_to_key_peers)?;

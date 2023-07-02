@@ -29,7 +29,7 @@ pub struct ConnectionTableInner {
     protocol_index_by_id: BTreeMap<NetworkConnectionId, usize>,
     id_by_descriptor: BTreeMap<ConnectionDescriptor, NetworkConnectionId>,
     ids_by_remote: BTreeMap<PeerAddress, Vec<NetworkConnectionId>>,
-    address_filter: ConnectionLimits,
+    address_filter: AddressFilter,
 }
 
 #[derive(Debug)]
@@ -58,7 +58,7 @@ impl ConnectionTable {
                 protocol_index_by_id: BTreeMap::new(),
                 id_by_descriptor: BTreeMap::new(),
                 ids_by_remote: BTreeMap::new(),
-                address_filter: ConnectionLimits::new(config),
+                address_filter: AddressFilter::new(config),
             })),
         }
     }
@@ -125,7 +125,7 @@ impl ConnectionTable {
 
         // Filter by ip for connection limits
         let ip_addr = descriptor.remote_address().to_ip_addr();
-        match inner.address_filter.add(ip_addr) {
+        match inner.address_filter.add_connection(ip_addr) {
             Ok(()) => {}
             Err(e) => {
                 // Return the connection in the error to be disposed of
@@ -258,7 +258,7 @@ impl ConnectionTable {
         let ip_addr = remote.to_socket_addr().ip();
         inner
             .address_filter
-            .remove(ip_addr)
+            .remove_connection(ip_addr)
             .expect("Inconsistency in connection table");
         conn
     }
