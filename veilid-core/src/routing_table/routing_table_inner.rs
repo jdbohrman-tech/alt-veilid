@@ -852,6 +852,16 @@ impl RoutingTableInner {
             }
         }
 
+        // Register relay info first if we have that
+        if let Some(relay_peer_info) = peer_info.signed_node_info().relay_peer_info() {
+            self.register_node_with_peer_info(
+                outer_self.clone(),
+                routing_domain,
+                relay_peer_info,
+                false,
+            )?;
+        }
+
         let (node_ids, signed_node_info) = peer_info.destructure();
         let mut nr = self.create_node_ref(outer_self, &node_ids, |_rti, e| {
             e.update_signed_node_info(routing_domain, signed_node_info);
