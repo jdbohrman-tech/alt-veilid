@@ -1103,7 +1103,14 @@ impl Settings {
                 } else {
                     format!("subnode{}", inner.testing.subnode_index)
                 })),
-                "capabilities.disable" => Ok(Box::new(Vec::<FourCC>::new())),
+                "capabilities.disable" => {
+                    let mut caps = Vec::<FourCC>::new();
+                    for c in &inner.core.capabilities.disable {
+                        let cap = FourCC::from_str(c.as_str()).map_err(VeilidAPIError::generic)?;
+                        caps.push(cap);
+                    }
+                    Ok(Box::new(caps))
+                }
                 "protected_store.allow_insecure_fallback" => {
                     Ok(Box::new(inner.core.protected_store.allow_insecure_fallback))
                 }
