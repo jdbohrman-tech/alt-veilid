@@ -168,13 +168,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
         "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
         "namespace" => Ok(Box::new(String::from(""))),
-        "capabilities.protocol_udp" => Ok(Box::new(true)),
-        "capabilities.protocol_connect_tcp" => Ok(Box::new(true)),
-        "capabilities.protocol_accept_tcp" => Ok(Box::new(true)),
-        "capabilities.protocol_connect_ws" => Ok(Box::new(true)),
-        "capabilities.protocol_accept_ws" => Ok(Box::new(true)),
-        "capabilities.protocol_connect_wss" => Ok(Box::new(true)),
-        "capabilities.protocol_accept_wss" => Ok(Box::new(true)),
+        "capabilities.disable" => Ok(Box::new(Vec::<FourCC>::new())),
         "table_store.directory" => Ok(Box::new(get_table_store_path())),
         "table_store.delete" => Ok(Box::new(true)),
         "block_store.directory" => Ok(Box::new(get_block_store_path())),
@@ -299,13 +293,7 @@ pub async fn test_config() {
     let inner = vc.get();
     assert_eq!(inner.program_name, String::from("VeilidCoreTests"));
     assert_eq!(inner.namespace, String::from(""));
-    assert_eq!(inner.capabilities.protocol_udp, true);
-    assert_eq!(inner.capabilities.protocol_connect_tcp, true);
-    assert_eq!(inner.capabilities.protocol_accept_tcp, true);
-    assert_eq!(inner.capabilities.protocol_connect_ws, true);
-    assert_eq!(inner.capabilities.protocol_accept_ws, true);
-    assert_eq!(inner.capabilities.protocol_connect_wss, true);
-    assert_eq!(inner.capabilities.protocol_accept_wss, true);
+    assert_eq!(inner.capabilities.disable, Vec::<FourCC>::new());
     assert_eq!(inner.table_store.directory, get_table_store_path());
     assert_eq!(inner.table_store.delete, true);
     assert_eq!(inner.block_store.directory, get_block_store_path());

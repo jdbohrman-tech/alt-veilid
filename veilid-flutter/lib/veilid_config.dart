@@ -867,44 +867,19 @@ class VeilidConfigProtectedStore {
 ////////////
 
 class VeilidConfigCapabilities {
-  bool protocolUDP;
-  bool protocolConnectTCP;
-  bool protocolAcceptTCP;
-  bool protocolConnectWS;
-  bool protocolAcceptWS;
-  bool protocolConnectWSS;
-  bool protocolAcceptWSS;
+  List<String> disable;
 
   VeilidConfigCapabilities({
-    required this.protocolUDP,
-    required this.protocolConnectTCP,
-    required this.protocolAcceptTCP,
-    required this.protocolConnectWS,
-    required this.protocolAcceptWS,
-    required this.protocolConnectWSS,
-    required this.protocolAcceptWSS,
+    required this.disable,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'protocol_udp': protocolUDP,
-      'protocol_connect_tcp': protocolConnectTCP,
-      'protocol_accept_tcp': protocolAcceptTCP,
-      'protocol_connect_ws': protocolConnectWS,
-      'protocol_accept_ws': protocolAcceptWS,
-      'protocol_connect_wss': protocolConnectWSS,
-      'protocol_accept_wss': protocolAcceptWSS,
+      'disable': disable,
     };
   }
 
-  VeilidConfigCapabilities.fromJson(dynamic json)
-      : protocolUDP = json['protocol_udp'],
-        protocolConnectTCP = json['protocol_connect_tcp'],
-        protocolAcceptTCP = json['protocol_accept_tcp'],
-        protocolConnectWS = json['protocol_connect_ws'],
-        protocolAcceptWS = json['protocol_accept_ws'],
-        protocolConnectWSS = json['protocol_connect_wss'],
-        protocolAcceptWSS = json['protocol_accept_wss'];
+  VeilidConfigCapabilities.fromJson(dynamic json) : disable = json['disable'];
 }
 
 ////////////

@@ -76,13 +76,7 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
         program_name: "Bob".to_string(),
         namespace: "Internets".to_string(),
         capabilities: VeilidConfigCapabilities {
-            protocol_udp: false,
-            protocol_connect_tcp: true,
-            protocol_accept_tcp: false,
-            protocol_connect_ws: true,
-            protocol_accept_ws: false,
-            protocol_connect_wss: true,
-            protocol_accept_wss: false,
+            disable: Vec::new(),
         },
         protected_store: VeilidConfigProtectedStore {
             allow_insecure_fallback: true,

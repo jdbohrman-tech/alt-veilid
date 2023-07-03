@@ -265,7 +265,7 @@ impl RouteSpecStore {
                         };
                     let node_status_ok =
                         if let Some(ns) = e.node_status(RoutingDomain::PublicInternet) {
-                            ns.will_route()
+                            ns.has_capability(CAP_WILL_ROUTE)
                         } else {
                             false
                         };

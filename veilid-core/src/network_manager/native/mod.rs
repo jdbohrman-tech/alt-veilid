@@ -686,30 +686,30 @@ impl Network {
                 let c = self.config.get();
                 let mut inbound = ProtocolTypeSet::new();
 
-                if c.network.protocol.udp.enabled && c.capabilities.protocol_udp {
+                if c.network.protocol.udp.enabled {
                     inbound.insert(ProtocolType::UDP);
                 }
-                if c.network.protocol.tcp.listen && c.capabilities.protocol_accept_tcp {
+                if c.network.protocol.tcp.listen {
                     inbound.insert(ProtocolType::TCP);
                 }
-                if c.network.protocol.ws.listen && c.capabilities.protocol_accept_ws {
+                if c.network.protocol.ws.listen {
                     inbound.insert(ProtocolType::WS);
                 }
-                if c.network.protocol.wss.listen && c.capabilities.protocol_accept_wss {
+                if c.network.protocol.wss.listen {
                     inbound.insert(ProtocolType::WSS);
                 }
 
                 let mut outbound = ProtocolTypeSet::new();
-                if c.network.protocol.udp.enabled && c.capabilities.protocol_udp {
+                if c.network.protocol.udp.enabled {
                     outbound.insert(ProtocolType::UDP);
                 }
-                if c.network.protocol.tcp.connect && c.capabilities.protocol_connect_tcp {
+                if c.network.protocol.tcp.connect {
                     outbound.insert(ProtocolType::TCP);
                 }
-                if c.network.protocol.ws.connect && c.capabilities.protocol_connect_ws {
+                if c.network.protocol.ws.connect {
                     outbound.insert(ProtocolType::WS);
                 }
-                if c.network.protocol.wss.connect && c.capabilities.protocol_connect_wss {
+                if c.network.protocol.wss.connect {
                     outbound.insert(ProtocolType::WSS);
                 }
 

@@ -33,13 +33,7 @@ fn init_callbacks() {
     window.configCallback = (configKey) => { 
         switch(configKey) {
             case "namespace": return "";
-            case "capabilities.protocol_udp": return false;
-            case "capabilities.protocol_connect_tcp": return false;
-            case "capabilities.protocol_accept_tcp": return false;
-            case "capabilities.protocol_connect_ws": return true;
-            case "capabilities.protocol_accept_ws": return false;
-            case "capabilities.protocol_connect_wss": return true;
-            case "capabilities.protocol_accept_wss": return false;
+            case "capabilities.disable": return [];
             case "tablestore.directory": return "";
             case "network.routing_table.node_id": return [];
             case "network.routing_table.node_id_secret": return [];

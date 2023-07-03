@@ -495,18 +495,16 @@ impl NetworkManager {
 
     /// Get our node's capabilities in the PublicInternet routing domain
     fn generate_public_internet_node_status(&self) -> PublicInternetNodeStatus {
+
         let Some(own_peer_info) = self
             .routing_table()
             .get_own_peer_info(RoutingDomain::PublicInternet) else {
-                return PublicInternetNodeStatus {
-                    will_route: false,
-                    will_tunnel: false,
-                    will_signal: false,
-                    will_relay: false,
-                    will_validate_dial_info: false,
-                };  
+                return PublicInternetNodeStatus::default();  
             };
         let own_node_info = own_peer_info.signed_node_info().node_info();
+
+        let config = self.config();
+        let c = config.get(); 
 
         let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
         let will_tunnel = own_node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
@@ -514,12 +512,25 @@ impl NetworkManager {
         let will_relay = own_node_info.can_inbound_relay();
         let will_validate_dial_info = own_node_info.can_validate_dial_info();
 
+        let mut capabilities = Vec::new();
+        if will_route && !c.capabilities.disable.contains(&CAP_WILL_ROUTE) {
+            capabilities.push(CAP_WILL_ROUTE);
+        }
+        if will_tunnel && !c.capabilities.disable.contains(&CAP_WILL_TUNNEL) {
+            capabilities.push(CAP_WILL_TUNNEL);
+        }
+        if will_signal && !c.capabilities.disable.contains(&CAP_WILL_SIGNAL) {
+            capabilities.push(CAP_WILL_SIGNAL);
+        }
+        if will_relay && !c.capabilities.disable.contains(&CAP_WILL_RELAY){
+            capabilities.push(CAP_WILL_RELAY);
+        }
+        if will_validate_dial_info && !c.capabilities.disable.contains(&CAP_WILL_VALIDATE_DIAL_INFO) {
+            capabilities.push(CAP_WILL_VALIDATE_DIAL_INFO);
+        }
+
         PublicInternetNodeStatus {
-            will_route,
-            will_tunnel,
-            will_signal,
-            will_relay,
-            will_validate_dial_info,
+            capabilities
         }
     }
     /// Get our node's capabilities in the LocalNetwork routing domain
@@ -527,20 +538,26 @@ impl NetworkManager {
         let Some(own_peer_info) = self
             .routing_table()
             .get_own_peer_info(RoutingDomain::LocalNetwork) else {
-                return LocalNetworkNodeStatus {
-                    will_relay: false,
-                    will_validate_dial_info: false,
-                };  
+                return LocalNetworkNodeStatus::default();  
             };
 
         let own_node_info = own_peer_info.signed_node_info().node_info();
+        
+        let config = self.config();
+        let c = config.get(); 
 
         let will_relay = own_node_info.can_inbound_relay();
         let will_validate_dial_info = own_node_info.can_validate_dial_info();
 
+        let mut capabilities = Vec::new();
+        if will_relay && !c.capabilities.disable.contains(&CAP_WILL_RELAY) {
+            capabilities.push(CAP_WILL_RELAY);
+        }
+        if will_validate_dial_info && !c.capabilities.disable.contains(&CAP_WILL_VALIDATE_DIAL_INFO)  {
+            capabilities.push(CAP_WILL_VALIDATE_DIAL_INFO);
+        }
         LocalNetworkNodeStatus {
-            will_relay,
-            will_validate_dial_info,
+            capabilities
         }
     }
 

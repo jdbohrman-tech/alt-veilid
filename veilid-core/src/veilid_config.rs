@@ -468,13 +468,7 @@ pub struct VeilidConfigProtectedStore {
     JsonSchema,
 )]
 pub struct VeilidConfigCapabilities {
-    pub protocol_udp: bool,
-    pub protocol_connect_tcp: bool,
-    pub protocol_accept_tcp: bool,
-    pub protocol_connect_ws: bool,
-    pub protocol_accept_ws: bool,
-    pub protocol_connect_wss: bool,
-    pub protocol_accept_wss: bool,
+    pub disable: Vec<FourCC>,
 }
 
 #[derive(
@@ -670,13 +664,7 @@ impl VeilidConfig {
 
             get_config!(inner.program_name);
             get_config!(inner.namespace);
-            get_config!(inner.capabilities.protocol_udp);
-            get_config!(inner.capabilities.protocol_connect_tcp);
-            get_config!(inner.capabilities.protocol_accept_tcp);
-            get_config!(inner.capabilities.protocol_connect_ws);
-            get_config!(inner.capabilities.protocol_accept_ws);
-            get_config!(inner.capabilities.protocol_connect_wss);
-            get_config!(inner.capabilities.protocol_accept_wss);
+            get_config!(inner.capabilities.disable);
             get_config!(inner.table_store.directory);
             get_config!(inner.table_store.delete);
             get_config!(inner.block_store.directory);

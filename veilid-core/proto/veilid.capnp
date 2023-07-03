@@ -34,6 +34,7 @@ using TunnelID = UInt64;                                # Id for tunnels
 using CryptoKind = UInt32;                              # FOURCC code for cryptography type
 using ValueSeqNum = UInt32;                             # sequence numbers for values
 using Subkey = UInt32;                                  # subkey index for dht
+using Capability = UInt32;                              # FOURCC code for capability
 
 struct TypedKey @0xe2d567a9f1e61b29 {
     kind                    @0  :CryptoKind;
@@ -190,22 +191,17 @@ struct DialInfoDetail @0x96423aa1d67b74d8 {
 }
 
 struct PublicInternetNodeStatus @0x9c9d7f1f12eb088f {
-    willRoute               @0  :Bool;
-    willTunnel              @1  :Bool;
-    willSignal              @2  :Bool;
-    willRelay               @3  :Bool;
-    willValidateDialInfo    @4  :Bool;
+    capabilities            @0  :List(Capability);      # List of Capability FOURCC codes that this node is advertising it is capable of in the publicinternet routing domain
 }
 
 struct LocalNetworkNodeStatus @0x957f5bfed2d0b5a5 {
-    willRelay               @0  :Bool;
-    willValidateDialInfo    @1  :Bool;
+    capabilities            @0  :List(Capability);      # List of Capability FOURCC codes that this node is advertising it is capable of in the localnetwork routing domain
 }
 
 struct NodeStatus @0xd36b9e7a3bf3330d {
     union {
-        publicInternet          @0  :PublicInternetNodeStatus;
-        localNetwork            @1  :LocalNetworkNodeStatus;
+        publicInternet      @0  :PublicInternetNodeStatus;
+        localNetwork        @1  :LocalNetworkNodeStatus;
     }
 }
 

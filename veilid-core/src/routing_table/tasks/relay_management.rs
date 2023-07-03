@@ -148,7 +148,7 @@ impl RoutingTable {
                 // Ensure we have the node's status
                 if let Some(node_status) = e.node_status(routing_domain) {
                     // Ensure the node will relay
-                    if node_status.will_relay() {
+                    if node_status.has_capability(CAP_WILL_RELAY) {
                         // Compare against previous candidate
                         if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
                             // Less is faster

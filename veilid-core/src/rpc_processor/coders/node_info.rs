@@ -71,13 +71,11 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
             .map_err(RPCError::protocol)?,
     )?;
 
-    let envelope_support = reader
+    let es_reader = reader
         .reborrow()
         .get_envelope_support()
-        .map_err(RPCError::protocol)?
-        .as_slice()
-        .map(|s| s.to_vec())
-        .unwrap_or_default();
+        .map_err(RPCError::protocol)?;
+    let envelope_support = es_reader.as_slice().map(|s| s.to_vec()).unwrap_or_default();
 
     // Ensure envelope versions are not duplicated
     // Unsorted is okay, some nodes may have a different envelope order preference
@@ -94,10 +92,16 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
         return Err(RPCError::protocol("no envelope versions"));
     }
 
-    let crypto_support: Vec<CryptoKind> = reader
+    let cs_reader = reader
         .reborrow()
         .get_crypto_support()
-        .map_err(RPCError::protocol)?
+        .map_err(RPCError::protocol)?;
+
+    if cs_reader.len() as usize > MAX_CRYPTO_KINDS {
+        return Err(RPCError::protocol("too many crypto kinds"));
+    }
+
+    let crypto_support: Vec<CryptoKind> = cs_reader
         .as_slice()
         .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
         .unwrap_or_default();

@@ -3,17 +3,21 @@ use super::*;
 /// RoutingDomain-specific status for each node
 /// is returned by the StatusA call
 
+pub type Capability = FourCC;
+pub const CAP_WILL_ROUTE: Capability = FourCC(*b"ROUT");
+pub const CAP_WILL_TUNNEL: Capability = FourCC(*b"TUNL");
+pub const CAP_WILL_SIGNAL: Capability = FourCC(*b"SGNL");
+pub const CAP_WILL_RELAY: Capability = FourCC(*b"RLAY");
+pub const CAP_WILL_VALIDATE_DIAL_INFO: Capability = FourCC(*b"DIAL");
+pub const MAX_CAPABILITIES: usize = 64;
+
 /// PublicInternet RoutingDomain Status
 #[derive(
     Clone, Debug, Default, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct PublicInternetNodeStatus {
-    pub will_route: bool,
-    pub will_tunnel: bool,
-    pub will_signal: bool,
-    pub will_relay: bool,
-    pub will_validate_dial_info: bool,
+    pub capabilities: Vec<Capability>,
 }
 
 #[derive(
@@ -21,8 +25,7 @@ pub struct PublicInternetNodeStatus {
 )]
 #[archive_attr(repr(C), derive(CheckBytes))]
 pub struct LocalNetworkNodeStatus {
-    pub will_relay: bool,
-    pub will_validate_dial_info: bool,
+    pub capabilities: Vec<Capability>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
@@ -33,34 +36,10 @@ pub enum NodeStatus {
 }
 
 impl NodeStatus {
-    pub fn will_route(&self) -> bool {
+    pub fn has_capability(&self, cap: Capability) -> bool {
         match self {
-            NodeStatus::PublicInternet(pi) => pi.will_route,
-            NodeStatus::LocalNetwork(_) => false,
-        }
-    }
-    pub fn will_tunnel(&self) -> bool {
-        match self {
-            NodeStatus::PublicInternet(pi) => pi.will_tunnel,
-            NodeStatus::LocalNetwork(_) => false,
-        }
-    }
-    pub fn will_signal(&self) -> bool {
-        match self {
-            NodeStatus::PublicInternet(pi) => pi.will_signal,
-            NodeStatus::LocalNetwork(_) => false,
-        }
-    }
-    pub fn will_relay(&self) -> bool {
-        match self {
-            NodeStatus::PublicInternet(pi) => pi.will_relay,
-            NodeStatus::LocalNetwork(ln) => ln.will_relay,
-        }
-    }
-    pub fn will_validate_dial_info(&self) -> bool {
-        match self {
-            NodeStatus::PublicInternet(pi) => pi.will_validate_dial_info,
-            NodeStatus::LocalNetwork(ln) => ln.will_validate_dial_info,
+            NodeStatus::PublicInternet(pi) => pi.capabilities.contains(&cap),
+            NodeStatus::LocalNetwork(ln) => ln.capabilities.contains(&cap),
         }
     }
 }

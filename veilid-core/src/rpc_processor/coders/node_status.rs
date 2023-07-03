@@ -4,44 +4,74 @@ pub fn encode_public_internet_node_status(
     public_internet_node_status: &PublicInternetNodeStatus,
     builder: &mut veilid_capnp::public_internet_node_status::Builder,
 ) -> Result<(), RPCError> {
-    builder.set_will_route(public_internet_node_status.will_route);
-    builder.set_will_tunnel(public_internet_node_status.will_tunnel);
-    builder.set_will_signal(public_internet_node_status.will_signal);
-    builder.set_will_relay(public_internet_node_status.will_relay);
-    builder.set_will_validate_dial_info(public_internet_node_status.will_validate_dial_info);
+    let mut cap_builder = builder
+        .reborrow()
+        .init_capabilities(public_internet_node_status.capabilities.len() as u32);
+    if let Some(s) = cap_builder.as_slice() {
+        let capvec: Vec<u32> = public_internet_node_status
+            .capabilities
+            .iter()
+            .map(|x| u32::from_be_bytes(x.0))
+            .collect();
 
+        s.clone_from_slice(&capvec);
+    }
     Ok(())
 }
 
 pub fn decode_public_internet_node_status(
     reader: &veilid_capnp::public_internet_node_status::Reader,
 ) -> Result<PublicInternetNodeStatus, RPCError> {
-    Ok(PublicInternetNodeStatus {
-        will_route: reader.reborrow().get_will_route(),
-        will_tunnel: reader.reborrow().get_will_tunnel(),
-        will_signal: reader.reborrow().get_will_signal(),
-        will_relay: reader.reborrow().get_will_relay(),
-        will_validate_dial_info: reader.reborrow().get_will_validate_dial_info(),
-    })
+    let cap_reader = reader
+        .reborrow()
+        .get_capabilities()
+        .map_err(RPCError::protocol)?;
+    if cap_reader.len() as usize > MAX_CAPABILITIES {
+        return Err(RPCError::protocol("too many capabilities"));
+    }
+    let capabilities = cap_reader
+        .as_slice()
+        .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+        .unwrap_or_default();
+
+    Ok(PublicInternetNodeStatus { capabilities })
 }
 
 pub fn encode_local_network_node_status(
     local_network_node_status: &LocalNetworkNodeStatus,
     builder: &mut veilid_capnp::local_network_node_status::Builder,
 ) -> Result<(), RPCError> {
-    builder.set_will_relay(local_network_node_status.will_relay);
-    builder.set_will_validate_dial_info(local_network_node_status.will_validate_dial_info);
+    let mut cap_builder = builder
+        .reborrow()
+        .init_capabilities(local_network_node_status.capabilities.len() as u32);
+    if let Some(s) = cap_builder.as_slice() {
+        let capvec: Vec<u32> = local_network_node_status
+            .capabilities
+            .iter()
+            .map(|x| u32::from_be_bytes(x.0))
+            .collect();
 
+        s.clone_from_slice(&capvec);
+    }
     Ok(())
 }
 
 pub fn decode_local_network_node_status(
     reader: &veilid_capnp::local_network_node_status::Reader,
 ) -> Result<LocalNetworkNodeStatus, RPCError> {
-    Ok(LocalNetworkNodeStatus {
-        will_relay: reader.reborrow().get_will_relay(),
-        will_validate_dial_info: reader.reborrow().get_will_validate_dial_info(),
-    })
+    let cap_reader = reader
+        .reborrow()
+        .get_capabilities()
+        .map_err(RPCError::protocol)?;
+    if cap_reader.len() as usize > MAX_CAPABILITIES {
+        return Err(RPCError::protocol("too many capabilities"));
+    }
+    let capabilities = cap_reader
+        .as_slice()
+        .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+        .unwrap_or_default();
+
+    Ok(LocalNetworkNodeStatus { capabilities })
 }
 
 pub fn encode_node_status(

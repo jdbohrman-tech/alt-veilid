@@ -105,7 +105,7 @@ impl RPCProcessor {
                     let entry = v.unwrap();
                     entry.with(rti, move |_rti, e| {
                         if let Some(status) = &e.node_status(routing_domain) {
-                            status.will_validate_dial_info()
+                            status.has_capability(CAP_WILL_VALIDATE_DIAL_INFO)
                         } else {
                             true
                         }

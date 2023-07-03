@@ -46,6 +46,8 @@ logging:
 testing:
     subnode_index: 0
 core:
+    capabilities:
+        disable: []
     protected_store:
         allow_insecure_fallback: true
         always_use_insecure_storage: true
@@ -70,6 +72,7 @@ core:
         reverse_connection_receipt_time_ms: 5000 
         hole_punch_receipt_time_ms: 5000 
         network_key_password: null
+        disable_capabilites: []
         routing_table:
             node_id: null
             node_id_secret: null
@@ -623,7 +626,13 @@ pub struct ProtectedStore {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct Capabilities {
+    pub disable: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Core {
+    pub capabilities: Capabilities,
     pub protected_store: ProtectedStore,
     pub table_store: TableStore,
     pub block_store: BlockStore,
@@ -962,6 +971,7 @@ impl Settings {
         set_config_value!(inner.logging.otlp.grpc_endpoint, value);
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
+        set_config_value!(inner.core.capabilities.disable, value);
         set_config_value!(inner.core.protected_store.allow_insecure_fallback, value);
         set_config_value!(
             inner.core.protected_store.always_use_insecure_storage,
@@ -1093,13 +1103,7 @@ impl Settings {
                 } else {
                     format!("subnode{}", inner.testing.subnode_index)
                 })),
-                "capabilities.protocol_udp" => Ok(Box::new(true)),
-                "capabilities.protocol_connect_tcp" => Ok(Box::new(true)),
-                "capabilities.protocol_accept_tcp" => Ok(Box::new(true)),
-                "capabilities.protocol_connect_ws" => Ok(Box::new(true)),
-                "capabilities.protocol_accept_ws" => Ok(Box::new(true)),
-                "capabilities.protocol_connect_wss" => Ok(Box::new(true)),
-                "capabilities.protocol_accept_wss" => Ok(Box::new(true)),
+                "capabilities.disable" => Ok(Box::new(Vec::<FourCC>::new())),
                 "protected_store.allow_insecure_fallback" => {
                     Ok(Box::new(inner.core.protected_store.allow_insecure_fallback))
                 }
