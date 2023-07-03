@@ -365,6 +365,19 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities
+                .disable
+                .contains(&CAP_WILL_ROUTE)
+            {
+                return Ok(NetworkResult::service_unavailable(
+                    "route is disabled",
+                ));
+            }
+        }
+        
         // Get header detail, must be direct and not inside a route itself
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,

@@ -53,6 +53,14 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities.disable.contains(&CAP_WILL_APPMESSAGE) {
+                return Ok(NetworkResult::service_unavailable("appcall is disabled"));
+            }
+        }
+
         // Get the question
         let (op_id, _, _, kind) = msg.operation.clone().destructure();
         let app_call_q = match kind {

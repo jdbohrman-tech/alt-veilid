@@ -24,6 +24,14 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities.disable.contains(&CAP_WILL_APPMESSAGE) {
+                return Ok(NetworkResult::service_unavailable("appmessage is disabled"));
+            }
+        }
+
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
         let app_message = match kind {

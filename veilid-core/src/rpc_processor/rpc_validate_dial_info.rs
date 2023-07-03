@@ -58,6 +58,19 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities
+                .disable
+                .contains(&CAP_WILL_VALIDATE_DIAL_INFO)
+            {
+                return Ok(NetworkResult::service_unavailable(
+                    "validate dial info is disabled",
+                ));
+            }
+        }
+
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {

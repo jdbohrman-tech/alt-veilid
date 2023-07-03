@@ -37,6 +37,14 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities.disable.contains(&CAP_WILL_SIGNAL) {
+                return Ok(NetworkResult::service_unavailable("signal is disabled"));
+            }
+        }
+
         // Can't allow anything other than direct packets here, as handling reverse connections
         // or anything like via signals over private routes would deanonymize the route
         match &msg.header.detail {

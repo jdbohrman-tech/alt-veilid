@@ -6,6 +6,16 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities.disable.contains(&CAP_WILL_DHT) {
+                return Ok(NetworkResult::service_unavailable(
+                    "watch value is disabled",
+                ));
+            }
+        }
+
         Err(RPCError::unimplemented("process_watch_value_q"))
     }
 }

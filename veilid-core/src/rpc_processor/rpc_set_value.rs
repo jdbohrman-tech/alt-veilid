@@ -175,6 +175,13 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities.disable.contains(&CAP_WILL_DHT) {
+                return Ok(NetworkResult::service_unavailable("set value is disabled"));
+            }
+        }
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}

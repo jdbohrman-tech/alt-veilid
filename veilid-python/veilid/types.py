@@ -58,6 +58,8 @@ class Capability(StrEnum):
     CAP_WILL_SIGNAL = "SGNL"
     CAP_WILL_RELAY = "RLAY"
     CAP_WILL_VALIDATE_DIAL_INFO = "DIAL"
+    CAP_WILL_DHT = "DHTV"
+    CAP_WILL_APPMESSAGE = "APPM"
 
 
 class Stability(StrEnum):

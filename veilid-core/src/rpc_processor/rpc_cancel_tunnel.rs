@@ -6,6 +6,16 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities.disable.contains(&CAP_WILL_TUNNEL) {
+                return Ok(NetworkResult::service_unavailable(
+                    "cancel tunnel is disabled",
+                ));
+            }
+        }
+
         Err(RPCError::unimplemented("process_cancel_tunnel_q"))
     }
 }

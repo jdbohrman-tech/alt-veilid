@@ -528,6 +528,12 @@ impl NetworkManager {
         if will_validate_dial_info && !c.capabilities.disable.contains(&CAP_WILL_VALIDATE_DIAL_INFO) {
             capabilities.push(CAP_WILL_VALIDATE_DIAL_INFO);
         }
+        if !c.capabilities.disable.contains(&CAP_WILL_DHT) {
+            capabilities.push(CAP_WILL_DHT);
+        }
+        if !c.capabilities.disable.contains(&CAP_WILL_APPMESSAGE) {
+            capabilities.push(CAP_WILL_APPMESSAGE);
+        }
 
         PublicInternetNodeStatus {
             capabilities
@@ -555,6 +561,12 @@ impl NetworkManager {
         }
         if will_validate_dial_info && !c.capabilities.disable.contains(&CAP_WILL_VALIDATE_DIAL_INFO)  {
             capabilities.push(CAP_WILL_VALIDATE_DIAL_INFO);
+        }
+        if !c.capabilities.disable.contains(&CAP_WILL_DHT) {
+            capabilities.push(CAP_WILL_DHT);
+        }
+        if !c.capabilities.disable.contains(&CAP_WILL_APPMESSAGE) {
+            capabilities.push(CAP_WILL_APPMESSAGE);
         }
         LocalNetworkNodeStatus {
             capabilities

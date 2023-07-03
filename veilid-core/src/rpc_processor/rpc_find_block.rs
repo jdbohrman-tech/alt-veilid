@@ -6,6 +6,13 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        {
+            let c = self.config.get();
+            if c.capabilities.disable.contains(&CAP_WILL_BLOCKSTORE) {
+                return Ok(NetworkResult::service_unavailable("find block is disabled"));
+            }
+        }
         Err(RPCError::unimplemented("process_find_block_q"))
     }
 }

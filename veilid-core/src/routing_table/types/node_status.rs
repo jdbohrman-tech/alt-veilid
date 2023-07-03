@@ -9,6 +9,8 @@ pub const CAP_WILL_TUNNEL: Capability = FourCC(*b"TUNL");
 pub const CAP_WILL_SIGNAL: Capability = FourCC(*b"SGNL");
 pub const CAP_WILL_RELAY: Capability = FourCC(*b"RLAY");
 pub const CAP_WILL_VALIDATE_DIAL_INFO: Capability = FourCC(*b"DIAL");
+pub const CAP_WILL_DHT: Capability = FourCC(*b"DHTV");
+pub const CAP_WILL_APPMESSAGE: Capability = FourCC(*b"APPM");
 pub const MAX_CAPABILITIES: usize = 64;
 
 /// PublicInternet RoutingDomain Status
