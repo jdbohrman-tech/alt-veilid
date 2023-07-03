@@ -5,8 +5,8 @@ use crate::tests::common::test_veilid_config::*;
 
 pub async fn test_add_get_remove() {
     let config = get_config();
-
-    let table = ConnectionTable::new(config);
+    let address_filter = AddressFilter::new(config.clone());
+    let table = ConnectionTable::new(config, address_filter);
 
     let a1 = ConnectionDescriptor::new_no_local(PeerAddress::new(
         SocketAddress::new(Address::IPV4(Ipv4Addr::new(192, 168, 0, 1)), 8080),

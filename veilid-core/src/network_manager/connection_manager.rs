@@ -63,12 +63,13 @@ impl ConnectionManager {
                 c.network.connection_inactivity_timeout_ms,
             )
         };
+        let address_filter = network_manager.address_filter();
 
         ConnectionManagerArc {
             network_manager,
             connection_initial_timeout_ms,
             connection_inactivity_timeout_ms,
-            connection_table: ConnectionTable::new(config),
+            connection_table: ConnectionTable::new(config, address_filter),
             address_lock_table: AsyncTagLockTable::new(),
             inner: Mutex::new(None),
         }

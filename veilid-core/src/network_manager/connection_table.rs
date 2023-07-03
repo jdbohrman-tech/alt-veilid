@@ -38,7 +38,7 @@ pub struct ConnectionTable {
 }
 
 impl ConnectionTable {
-    pub fn new(config: VeilidConfig) -> Self {
+    pub fn new(config: VeilidConfig, address_filter: AddressFilter) -> Self {
         let max_connections = {
             let c = config.get();
             vec![
@@ -58,7 +58,7 @@ impl ConnectionTable {
                 protocol_index_by_id: BTreeMap::new(),
                 id_by_descriptor: BTreeMap::new(),
                 ids_by_remote: BTreeMap::new(),
-                address_filter: AddressFilter::new(config),
+                address_filter,
             })),
         }
     }
