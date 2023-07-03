@@ -115,6 +115,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
+                log_net!(debug ">>> FORGIVING: {}", key);
                 inner.punishments_by_ip4.remove(&key);
             }
         }
@@ -130,6 +131,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
+                log_net!(debug ">>> FORGIVING: {}", key);
                 inner.punishments_by_ip6_prefix.remove(&key);
             }
         }

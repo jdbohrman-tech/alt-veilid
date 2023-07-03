@@ -240,6 +240,7 @@ impl NetworkConnection {
             );
 
             let network_manager = connection_manager.network_manager();
+            let address_filter = network_manager.address_filter();
             let mut unord = FuturesUnordered::new();
             let mut need_receiver = true;
             let mut need_sender = true;
@@ -301,11 +302,20 @@ impl NetworkConnection {
                         .then(|res| async {
                             match res {
                                 Ok(v) => {
-                                    if v.is_no_connection() {
-                                        let peer_address = protocol_connection.descriptor().remote();
-                                        log_net!(debug "Connection closed from: {} ({})", peer_address.socket_address().to_socket_addr(), peer_address.protocol_type());
+                                    let peer_address = protocol_connection.descriptor().remote();
+
+                                    // Check to see if it is punished
+                                    if address_filter.is_punished(peer_address.to_socket_addr().ip()) {
                                         return RecvLoopAction::Finish;
                                     }
+
+                                    // Check for connection close
+                                    if v.is_no_connection() {
+                                        log_net!(debug "Connection closed from: {} ({})", peer_address.to_socket_addr(), peer_address.protocol_type());
+                                        return RecvLoopAction::Finish;
+                                    }
+
+                                    // Log other network results
                                     let mut message = network_result_value_or_log!(v => [ format!(": protocol_connection={:?}", protocol_connection) ] {
                                         return RecvLoopAction::Finish;
                                     });
