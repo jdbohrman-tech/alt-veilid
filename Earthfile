@@ -118,7 +118,7 @@ unit-tests-linux-arm64:
     RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 # Package 
-package-linux-amd64:
+package-linux-amd64-deb:
     FROM +build-linux-amd64
     #################################
     ### DEBIAN DPKG .DEB FILES
@@ -131,8 +131,27 @@ package-linux-amd64:
     RUN /veilid/package/debian/earthly_make_veilid_cli_deb.sh amd64 x86_64-unknown-linux-gnu
     # save artifacts
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
+
+package-linux-amd64-rpm:
+    FROM --platform amd64 rockylinux:8
+    RUN yum install -y createrepo rpm-build rpm-sign yum-utils rpmdevtools
+    RUN rpmdev-setuptree
+    #################################
+    ### RPMBUILD .RPM FILES
+    #################################
+    RUN mkdir -p /veilid/target
+    COPY --dir .cargo external files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml package /veilid
+    COPY +build-linux-amd64/x86_64-unknown-linux-gnu /veilid/target/x86_64-unknown-linux-gnu
+    RUN mkdir -p /rpm-work-dir/veilid-server
+    # veilid-server
+    RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh x86_64 x86_64-unknown-linux-gnu
+    #SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/x86_64/*.rpm AS LOCAL ./target/packages/
+    # veilid-cli
+    RUN veilid/package/rpm/veilid-cli/earthly_make_veilid_cli_rpm.sh x86_64 x86_64-unknown-linux-gnu
+    # save artifacts
+    SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/x86_64/*.rpm AS LOCAL ./target/packages/
     
-package-linux-arm64:
+package-linux-arm64-deb:
     FROM +build-linux-arm64
     #################################
     ### DEBIAN DPKG .DEB FILES
