@@ -323,7 +323,7 @@ impl NetworkConnection {
                                 }
                                 Err(e) => {
                                     // Connection unable to receive, closed
-                                    log_net!(error e);
+                                    log_net!(error "connection unable to receive: {}", e);
                                     RecvLoopAction::Finish
                                 }
                             }

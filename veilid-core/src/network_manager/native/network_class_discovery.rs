@@ -704,7 +704,7 @@ impl Network {
             }
         }
 
-        // Do TCPv4 + WSv4 in series because they may use the same connection 5-tuple
+        // Do TCPv4. Possibly do WSv4 if it is on a different port
         if protocol_config.family_global.contains(AddressType::IPV4) {
             if protocol_config.inbound.contains(ProtocolType::TCP) {
                 futures.push(
@@ -747,7 +747,7 @@ impl Network {
             }
         }
 
-        // Do TCPv6 + WSv6 in series because they may use the same connection 5-tuple
+        // Do TCPv6. Possibly do WSv6 if it is on a different port
         if protocol_config.family_global.contains(AddressType::IPV6) {
             if protocol_config.inbound.contains(ProtocolType::TCP) {
                 futures.push(

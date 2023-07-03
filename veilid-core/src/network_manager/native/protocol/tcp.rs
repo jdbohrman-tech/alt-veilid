@@ -162,7 +162,7 @@ impl RawTcpProtocolHandler {
         // Make a shared socket
         let socket = match local_address {
             Some(a) => new_bound_shared_tcp_socket(a)?,
-            None => new_unbound_shared_tcp_socket(socket2::Domain::for_address(socket_addr))?,
+            None => new_unbound_tcp_socket(socket2::Domain::for_address(socket_addr))?,
         };
 
         // Non-blocking connect to remote address

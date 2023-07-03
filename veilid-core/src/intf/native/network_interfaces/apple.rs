@@ -468,7 +468,7 @@ impl PlatformSupportApple {
                     ) {
                         Ok(v) => v,
                         Err(e) => {
-                            log_net!(error "{}", e);
+                            log_net!(error "failed to get address flags: {}", e);
                             continue;
                         }
                     };

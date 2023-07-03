@@ -96,6 +96,18 @@ pub fn new_bound_first_udp_socket(local_address: SocketAddr) -> io::Result<Socke
 }
 
 #[instrument(level = "trace", ret)]
+pub fn new_unbound_tcp_socket(domain: Domain) -> io::Result<Socket> {
+    let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
+    if let Err(e) = socket.set_nodelay(true) {
+        log_net!(error "Couldn't set TCP nodelay: {}", e);
+    }
+    if domain == Domain::IPV6 {
+        socket.set_only_v6(true)?;
+    }
+    Ok(socket)
+}
+
+#[instrument(level = "trace", ret)]
 pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
