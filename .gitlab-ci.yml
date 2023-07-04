@@ -58,4 +58,4 @@ deploy_repos:
   tags: 
     - repo-setup
   script: 
-    - /home/gitlab-runner/deploy.sh
+    - /home/gitlab-runner/deploy-repo.sh
