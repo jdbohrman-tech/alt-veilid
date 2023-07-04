@@ -41,8 +41,8 @@ init_repos:
   stage: distribute
   only:
     - stable
-  needs:
-    - package_amd64
+  #needs:
+  #  - package_amd64
   tags:
     - linux
     - amd64
@@ -53,8 +53,8 @@ deploy_repos:
   stage: distribute
   only:
     - stable
-  needs:
-    - init_repos
+  #needs:
+  #  - init_repos
   tags: 
     - repo-setup
   script: 
