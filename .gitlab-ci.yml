@@ -8,8 +8,8 @@ stages:
   - test
   - distribute
 
-before_script:
-  - earthly bootstrap
+#before_script:
+#  - earthly bootstrap
 
 test_amd64:
   stage: test
@@ -21,10 +21,11 @@ test_amd64:
     - linux
     - amd64
   script:
+    - earthly bootstrap
     - earthly --ci +unit-tests-linux-amd64
   when: manual
 
-distribute_amd64:
+package_amd64:
   stage: distribute
   only:
     - stable
@@ -32,16 +33,28 @@ distribute_amd64:
     - linux
     - amd64
   script:
+    - earthly bootstrap
     - earthly +package-linux-amd64-deb
     - earthly +package-linux-amd64-rpm
-    - /home/gitlab-runner/distribute-packages.sh
 
-repo_deployment:
+init_repos:
   stage: distribute
   only:
     - stable
   needs:
-    - distribute_amd64
+    - package_amd64
+  tags:
+    - linux
+    - amd64
+  script:
+    - /home/gitlab-runner/distribute-packages.sh
+
+deploy_repos:
+  stage: distribute
+  only:
+    - stable
+  needs:
+    - init_repos
   tags: 
     - repo-setup
   script: 
