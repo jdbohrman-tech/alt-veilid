@@ -38,7 +38,11 @@ distribute_amd64:
 
 repo_deployment:
   stage: distribute
-  only: stable
-  needs: distribute_amd64
-  tags: repo-setup
-  script: /home/gitlab-runner/deploy.sh
+  only:
+    - stable
+  needs:
+    - distribute_amd64
+  tags: 
+    - repo-setup
+  script: 
+    - /home/gitlab-runner/deploy.sh
