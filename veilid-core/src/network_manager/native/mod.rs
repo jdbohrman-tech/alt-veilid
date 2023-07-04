@@ -686,30 +686,30 @@ impl Network {
                 let c = self.config.get();
                 let mut inbound = ProtocolTypeSet::new();
 
-                if c.network.protocol.udp.enabled && c.capabilities.protocol_udp {
+                if c.network.protocol.udp.enabled {
                     inbound.insert(ProtocolType::UDP);
                 }
-                if c.network.protocol.tcp.listen && c.capabilities.protocol_accept_tcp {
+                if c.network.protocol.tcp.listen {
                     inbound.insert(ProtocolType::TCP);
                 }
-                if c.network.protocol.ws.listen && c.capabilities.protocol_accept_ws {
+                if c.network.protocol.ws.listen {
                     inbound.insert(ProtocolType::WS);
                 }
-                if c.network.protocol.wss.listen && c.capabilities.protocol_accept_wss {
+                if c.network.protocol.wss.listen {
                     inbound.insert(ProtocolType::WSS);
                 }
 
                 let mut outbound = ProtocolTypeSet::new();
-                if c.network.protocol.udp.enabled && c.capabilities.protocol_udp {
+                if c.network.protocol.udp.enabled {
                     outbound.insert(ProtocolType::UDP);
                 }
-                if c.network.protocol.tcp.connect && c.capabilities.protocol_connect_tcp {
+                if c.network.protocol.tcp.connect {
                     outbound.insert(ProtocolType::TCP);
                 }
-                if c.network.protocol.ws.connect && c.capabilities.protocol_connect_ws {
+                if c.network.protocol.ws.connect {
                     outbound.insert(ProtocolType::WS);
                 }
-                if c.network.protocol.wss.connect && c.capabilities.protocol_connect_wss {
+                if c.network.protocol.wss.connect {
                     outbound.insert(ProtocolType::WSS);
                 }
 
@@ -773,16 +773,34 @@ impl Network {
 
         // set up the routing table's network config
         // if we have static public dialinfo, upgrade our network class
+        let public_internet_capabilities = {
+            let c = self.config.get();
+            PUBLIC_INTERNET_CAPABILITIES
+                .iter()
+                .copied()
+                .filter(|cap| !c.capabilities.disable.contains(cap))
+                .collect::<Vec<Capability>>()
+        };
+        let local_network_capabilities = {
+            let c = self.config.get();
+            LOCAL_NETWORK_CAPABILITIES
+                .iter()
+                .copied()
+                .filter(|cap| !c.capabilities.disable.contains(cap))
+                .collect::<Vec<Capability>>()
+        };
 
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
+            public_internet_capabilities,
         );
         editor_local_network.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_local,
+            local_network_capabilities,
         );
         let detect_address_changes = {
             let c = self.config.get();

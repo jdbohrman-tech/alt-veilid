@@ -67,6 +67,19 @@ impl RPCProcessor {
             }
         };
 
+        // Ignore if disabled
+        let routing_table = self.routing_table();
+        {
+            if let Some(opi) = routing_table.get_own_peer_info(detail.routing_domain) {
+                let ni = opi.signed_node_info().node_info();
+                if !ni.has_capability(CAP_VALIDATE_DIAL_INFO) || !ni.is_signal_capable() {
+                    return Ok(NetworkResult::service_unavailable(
+                        "validate dial info is not available",
+                    ));
+                }
+            }
+        }
+
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
         let (dial_info, receipt, redirect) = match kind {
@@ -83,7 +96,6 @@ impl RPCProcessor {
             // We filter on the -outgoing- protocol capability status not the node's dial info
             // Use the address type though, to ensure we reach an ipv6 capable node if this is
             // an ipv6 address
-            let routing_table = self.routing_table();
             let sender_node_id = TypedKey::new(
                 detail.envelope.get_crypto_kind(),
                 detail.envelope.get_sender_id(),
@@ -104,11 +116,11 @@ impl RPCProcessor {
                 move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                     let entry = v.unwrap();
                     entry.with(rti, move |_rti, e| {
-                        if let Some(status) = &e.node_status(routing_domain) {
-                            status.will_validate_dial_info()
-                        } else {
-                            true
-                        }
+                        e.node_info(routing_domain)
+                            .map(|ni| {
+                                ni.has_capability(CAP_VALIDATE_DIAL_INFO) && ni.is_signal_capable()
+                            })
+                            .unwrap_or(false)
                     })
                 },
             ) as RoutingTableEntryFilter;

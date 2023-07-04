@@ -2,7 +2,7 @@ from dataclasses import dataclass, fields
 from enum import StrEnum
 from typing import Optional, Self
 
-from .types import TypedKey, TypedSecret
+from .types import TypedKey, TypedSecret, Capability
 
 
 class VeilidConfigLogLevel(StrEnum):
@@ -41,13 +41,7 @@ class ConfigBase:
 
 @dataclass
 class VeilidConfigCapabilities(ConfigBase):
-    protocol_udp: bool
-    protocol_connect_tcp: bool
-    protocol_accept_tcp: bool
-    protocol_connect_ws: bool
-    protocol_accept_ws: bool
-    protocol_connect_wss: bool
-    protocol_accept_wss: bool
+    disable: list[Capability]
 
 
 @dataclass

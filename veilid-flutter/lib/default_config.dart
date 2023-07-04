@@ -52,15 +52,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
   return VeilidConfig(
     programName: programName,
     namespace: "",
-    capabilities: VeilidConfigCapabilities(
-      protocolUDP: !kIsWeb,
-      protocolConnectTCP: !kIsWeb,
-      protocolAcceptTCP: !kIsWeb,
-      protocolConnectWS: true,
-      protocolAcceptWS: !kIsWeb,
-      protocolConnectWSS: true,
-      protocolAcceptWSS: false,
-    ),
+    capabilities: VeilidConfigCapabilities(disable: []),
     protectedStore: VeilidConfigProtectedStore(
       allowInsecureFallback: false,
       alwaysUseInsecureStorage: false,

@@ -163,6 +163,7 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
@@ -172,7 +173,17 @@ impl RPCProcessor {
                 ))
             }
         }
-
+        // Ignore if disabled
+        let routing_table = self.routing_table();
+        {
+            if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
+                if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
+                    return Ok(NetworkResult::service_unavailable(
+                        "dht is not available",
+                    ));
+                }
+            }
+        }
         // Get the question
         let kind = msg.operation.kind().clone();
         let get_value_q = match kind {
@@ -188,7 +199,7 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key));
+        let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key, vec![CAP_DHT]));
 
         let debug_string = format!(
             "IN <=== GetValueQ({} #{}{}) <== {}",

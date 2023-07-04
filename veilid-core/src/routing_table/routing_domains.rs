@@ -27,6 +27,7 @@ pub struct RoutingDomainDetailCommon {
     inbound_protocols: ProtocolTypeSet,
     address_types: AddressTypeSet,
     relay_node: Option<NodeRef>,
+    capabilities: Vec<Capability>,
     dial_info_details: Vec<DialInfoDetail>,
     // caches
     cached_peer_info: Mutex<Option<PeerInfo>>,
@@ -41,6 +42,7 @@ impl RoutingDomainDetailCommon {
             inbound_protocols: Default::default(),
             address_types: Default::default(),
             relay_node: Default::default(),
+            capabilities: Default::default(),
             dial_info_details: Default::default(),
             cached_peer_info: Mutex::new(Default::default()),
         }
@@ -52,10 +54,12 @@ impl RoutingDomainDetailCommon {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
+        capabilities: Vec<Capability>,
     ) {
         self.outbound_protocols = outbound_protocols;
         self.inbound_protocols = inbound_protocols;
         self.address_types = address_types;
+        self.capabilities = capabilities;
         self.clear_cache();
     }
 
@@ -74,6 +78,9 @@ impl RoutingDomainDetailCommon {
     }
     pub fn address_types(&self) -> AddressTypeSet {
         self.address_types
+    }
+    pub fn capabilities(&self) -> Vec<Capability> {
+        self.capabilities.clone()
     }
     pub fn relay_node(&self) -> Option<NodeRef> {
         self.relay_node.clone()
@@ -108,6 +115,7 @@ impl RoutingDomainDetailCommon {
             self.address_types,
             VALID_ENVELOPE_VERSIONS.to_vec(),
             VALID_CRYPTO_KINDS.to_vec(),
+            self.capabilities.clone(),
             self.dial_info_details.clone()
         );
 

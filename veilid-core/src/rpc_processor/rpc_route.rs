@@ -365,6 +365,18 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        // Ignore if disabled
+        let routing_table = self.routing_table();
+        {
+            if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
+                if !opi.signed_node_info().node_info().has_capability(CAP_ROUTE) {
+                    return Ok(NetworkResult::service_unavailable(
+                        "route is not available",
+                    ));
+                }
+            }
+        }
+        
         // Get header detail, must be direct and not inside a route itself
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,

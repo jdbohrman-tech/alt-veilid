@@ -52,6 +52,17 @@ class CryptoKind(StrEnum):
     CRYPTO_KIND_VLD0 = "VLD0"
 
 
+class Capability(StrEnum):
+    CAP_WILL_ROUTE = "ROUT"
+    CAP_TUNNEL = "TUNL"
+    CAP_WILL_SIGNAL = "SGNL"
+    CAP_WILL_RELAY = "RLAY"
+    CAP_WILL_VALIDATE_DIAL_INFO = "DIAL"
+    CAP_WILL_DHT = "DHTV"
+    CAP_WILL_APPMESSAGE = "APPM"
+    CAP_BLOCKSTORE = "BLOC"
+
+
 class Stability(StrEnum):
     LOW_LATENCY = "LowLatency"
     RELIABLE = "Reliable"
@@ -66,6 +77,7 @@ class Sequencing(StrEnum):
 class DHTSchemaKind(StrEnum):
     DFLT = "DFLT"
     SMPL = "SMPL"
+
 
 class SafetySelectionKind(StrEnum):
     UNSAFE = "Unsafe"
@@ -235,10 +247,9 @@ class VeilidVersion:
         if self._patch < other._patch:
             return True
         return False
-        
+
     def __eq__(self, other):
         return isinstance(other, VeilidVersion) and self.data == other.data and self.seq == other.seq and self.writer == other.writer
-
 
     @property
     def major(self):
@@ -308,7 +319,8 @@ class DHTSchema:
         if DHTSchemaKind(j["kind"]) == DHTSchemaKind.SMPL:
             return cls.smpl(
                 j["o_cnt"],
-                [DHTSchemaSMPLMember.from_json(member) for member in j["members"]],
+                [DHTSchemaSMPLMember.from_json(member)
+                 for member in j["members"]],
             )
         raise Exception("Unknown DHTSchema kind", j["kind"])
 
@@ -339,7 +351,8 @@ class DHTRecordDescriptor:
         return cls(
             TypedKey(j["key"]),
             PublicKey(j["owner"]),
-            None if j["owner_secret"] is None else SecretKey(j["owner_secret"]),
+            None if j["owner_secret"] is None else SecretKey(
+                j["owner_secret"]),
             DHTSchema.from_json(j["schema"]),
         )
 
@@ -404,13 +417,14 @@ class SafetySpec:
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
-        return cls(RouteId(j["preferred_route"]) if "preferred_route" in j else None, 
-            j["hop_count"],
-            Stability(j["stability"]),
-            Sequencing(j["sequencing"]))
+        return cls(RouteId(j["preferred_route"]) if "preferred_route" in j else None,
+                   j["hop_count"],
+                   Stability(j["stability"]),
+                   Sequencing(j["sequencing"]))
 
     def to_json(self) -> dict:
         return self.__dict__
+
 
 class SafetySelection:
     kind: SafetySelectionKind
@@ -438,9 +452,8 @@ class SafetySelection:
 
     def to_json(self) -> dict:
         if self.kind == SafetySelectionKind.UNSAFE:
-            return {"Unsafe": self.sequencing }
+            return {"Unsafe": self.sequencing}
         elif self.kind == SafetySelectionKind.SAFE:
-            return {"Safe": self.safety_spec.to_json() }
+            return {"Safe": self.safety_spec.to_json()}
         else:
             raise Exception("Invalid SafetySelection")
-

@@ -13,6 +13,7 @@ enum RoutingDomainChange {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
+        capabilities: Vec<Capability>,
     },
     SetNetworkClass {
         network_class: Option<NetworkClass>,
@@ -79,11 +80,13 @@ impl RoutingDomainEditor {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
+        capabilities: Vec<Capability>,
     ) {
         self.changes.push(RoutingDomainChange::SetupNetwork {
             outbound_protocols,
             inbound_protocols,
             address_types,
+            capabilities,
         })
     }
 
@@ -142,27 +145,32 @@ impl RoutingDomainEditor {
                             outbound_protocols,
                             inbound_protocols,
                             address_types,
+                            capabilities,
                         } => {
                             let old_outbound_protocols = detail.common().outbound_protocols();
                             let old_inbound_protocols = detail.common().inbound_protocols();
                             let old_address_types = detail.common().address_types();
+                            let old_capabilities = detail.common().capabilities();
 
                             let this_changed = old_outbound_protocols != outbound_protocols
                                 || old_inbound_protocols != inbound_protocols
-                                || old_address_types != address_types;
+                                || old_address_types != address_types
+                                || old_capabilities != capabilities;
 
                             debug!(
-                                "[{:?}] setup network: {:?} {:?} {:?}",
+                                "[{:?}] setup network: {:?} {:?} {:?} {:?}",
                                 self.routing_domain,
                                 outbound_protocols,
                                 inbound_protocols,
-                                address_types
+                                address_types,
+                                capabilities
                             );
 
                             detail.common_mut().setup_network(
                                 outbound_protocols,
                                 inbound_protocols,
                                 address_types,
+                                capabilities,
                             );
                             if this_changed {
                                 changed = true;

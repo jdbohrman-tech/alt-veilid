@@ -189,6 +189,7 @@ network:
     reverse_connection_receipt_time_ms: 5000 
     hole_punch_receipt_time_ms: 5000 
     network_key_password: null
+    disable_capabilites: []
     node_id: null
     node_id_secret: null
     bootstrap: ['bootstrap.veilid.net']

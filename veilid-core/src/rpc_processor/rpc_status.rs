@@ -133,25 +133,8 @@ impl RPCProcessor {
         // Ensure the returned node status is the kind for the routing domain we asked for
         if let Some(target_nr) = opt_target_nr {
             if let Some(a_node_status) = a_node_status {
-                match routing_domain {
-                    RoutingDomain::PublicInternet => {
-                        if !matches!(a_node_status, NodeStatus::PublicInternet(_)) {
-                            return Ok(NetworkResult::invalid_message(
-                                "node status doesn't match PublicInternet routing domain",
-                            ));
-                        }
-                    }
-                    RoutingDomain::LocalNetwork => {
-                        if !matches!(a_node_status, NodeStatus::LocalNetwork(_)) {
-                            return Ok(NetworkResult::invalid_message(
-                                "node status doesn't match LocalNetwork routing domain",
-                            ));
-                        }
-                    }
-                }
-
                 // Update latest node status in routing table
-                target_nr.update_node_status(a_node_status.clone());
+                target_nr.update_node_status(routing_domain, a_node_status.clone());
             }
         }
 
@@ -236,27 +219,10 @@ impl RPCProcessor {
 
                 // Ensure the node status from the question is the kind for the routing domain we received the request in
                 if let Some(q_node_status) = q_node_status {
-                    match routing_domain {
-                        RoutingDomain::PublicInternet => {
-                            if !matches!(q_node_status, NodeStatus::PublicInternet(_)) {
-                                return Ok(NetworkResult::invalid_message(
-                                    "node status doesn't match PublicInternet routing domain",
-                                ));
-                            }
-                        }
-                        RoutingDomain::LocalNetwork => {
-                            if !matches!(q_node_status, NodeStatus::LocalNetwork(_)) {
-                                return Ok(NetworkResult::invalid_message(
-                                    "node status doesn't match LocalNetwork routing domain",
-                                ));
-                            }
-                        }
-                    }
-
                     // update node status for the requesting node to our routing table
                     if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                         // Update latest node status in routing table for the statusq sender
-                        sender_nr.update_node_status(q_node_status.clone());
+                        sender_nr.update_node_status(routing_domain, q_node_status.clone());
                     }
                 }
 

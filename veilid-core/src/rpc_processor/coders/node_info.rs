@@ -31,6 +31,18 @@ pub fn encode_node_info(
         s.clone_from_slice(&csvec);
     }
 
+    let mut cap_builder = builder
+        .reborrow()
+        .init_capabilities(node_info.capabilities().len() as u32);
+    if let Some(s) = cap_builder.as_slice() {
+        let capvec: Vec<u32> = node_info
+            .capabilities()
+            .iter()
+            .map(|x| u32::from_be_bytes(x.0))
+            .collect();
+
+        s.clone_from_slice(&capvec);
+    }
     let mut didl_builder = builder.reborrow().init_dial_info_detail_list(
         node_info
             .dial_info_detail_list()
@@ -71,13 +83,11 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
             .map_err(RPCError::protocol)?,
     )?;
 
-    let envelope_support = reader
+    let es_reader = reader
         .reborrow()
         .get_envelope_support()
-        .map_err(RPCError::protocol)?
-        .as_slice()
-        .map(|s| s.to_vec())
-        .unwrap_or_default();
+        .map_err(RPCError::protocol)?;
+    let envelope_support = es_reader.as_slice().map(|s| s.to_vec()).unwrap_or_default();
 
     // Ensure envelope versions are not duplicated
     // Unsorted is okay, some nodes may have a different envelope order preference
@@ -94,10 +104,16 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
         return Err(RPCError::protocol("no envelope versions"));
     }
 
-    let crypto_support: Vec<CryptoKind> = reader
+    let cs_reader = reader
         .reborrow()
         .get_crypto_support()
-        .map_err(RPCError::protocol)?
+        .map_err(RPCError::protocol)?;
+
+    if cs_reader.len() as usize > MAX_CRYPTO_KINDS {
+        return Err(RPCError::protocol("too many crypto kinds"));
+    }
+
+    let crypto_support: Vec<CryptoKind> = cs_reader
         .as_slice()
         .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
         .unwrap_or_default();
@@ -116,6 +132,18 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
     if crypto_support.len() == 0 {
         return Err(RPCError::protocol("no crypto kinds"));
     }
+
+    let cap_reader = reader
+        .reborrow()
+        .get_capabilities()
+        .map_err(RPCError::protocol)?;
+    if cap_reader.len() as usize > MAX_CAPABILITIES {
+        return Err(RPCError::protocol("too many capabilities"));
+    }
+    let capabilities = cap_reader
+        .as_slice()
+        .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+        .unwrap_or_default();
 
     let didl_reader = reader
         .reborrow()
@@ -137,6 +165,7 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
         address_types,
         envelope_support,
         crypto_support,
+        capabilities,
         dial_info_detail_list,
     ))
 }

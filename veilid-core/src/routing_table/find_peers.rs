@@ -2,7 +2,11 @@ use super::*;
 
 impl RoutingTable {
     /// Utility to find all closest nodes to a particular key, including possibly our own node and nodes further away from the key than our own, returning their peer info
-    pub fn find_all_closest_peers(&self, key: TypedKey) -> NetworkResult<Vec<PeerInfo>> {
+    pub fn find_all_closest_peers(
+        &self,
+        key: TypedKey,
+        capabilities: &[Capability],
+    ) -> NetworkResult<Vec<PeerInfo>> {
         let Some(own_peer_info) = self.get_own_peer_info(RoutingDomain::PublicInternet) else {
             // Our own node info is not yet available, drop this request.
             return NetworkResult::service_unavailable("Not finding closest peers because our peer info is not yet available");
@@ -12,11 +16,27 @@ impl RoutingTable {
         let filter = Box::new(
             move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
                 // Ensure only things that are valid/signed in the PublicInternet domain are returned
-                rti.filter_has_valid_signed_node_info(
+                if !rti.filter_has_valid_signed_node_info(
                     RoutingDomain::PublicInternet,
                     true,
-                    opt_entry,
-                )
+                    opt_entry.clone(),
+                ) {
+                    return false;
+                }
+                // Ensure capabilities are met
+                match opt_entry {
+                    Some(entry) => entry.with(rti, |_rti, e| {
+                        e.has_capabilities(RoutingDomain::PublicInternet, capabilities)
+                    }),
+                    None => rti
+                        .get_own_peer_info(RoutingDomain::PublicInternet)
+                        .map(|pi| {
+                            pi.signed_node_info()
+                                .node_info()
+                                .has_capabilities(capabilities)
+                        })
+                        .unwrap_or(false),
+                }
             },
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
@@ -40,7 +60,12 @@ impl RoutingTable {
     }
 
     /// Utility to find nodes that are closer to a key than our own node, returning their peer info
-    pub fn find_peers_closer_to_key(&self, key: TypedKey) -> NetworkResult<Vec<PeerInfo>> {
+    /// Can filter based on a particular set of capabiltiies
+    pub fn find_peers_closer_to_key(
+        &self,
+        key: TypedKey,
+        required_capabilities: Vec<Capability>,
+    ) -> NetworkResult<Vec<PeerInfo>> {
         // add node information for the requesting node to our routing table
         let crypto_kind = key.kind;
         let own_node_id = self.node_id(crypto_kind);
@@ -59,24 +84,29 @@ impl RoutingTable {
                 let Some(entry) = opt_entry else {
                     return false;
                 };
-                // Ensure only things that are valid/signed in the PublicInternet domain are returned
-                if !rti.filter_has_valid_signed_node_info(
-                    RoutingDomain::PublicInternet,
-                    true,
-                    Some(entry.clone()),
-                ) {
-                    return false;
-                }
-                // Ensure things further from the key than our own node are not included
-                let Some(entry_node_id) = entry.with(rti, |_rti, e| e.node_ids().get(crypto_kind)) else {
-                    return false;
-                };
-                let entry_distance = vcrypto.distance(&entry_node_id.value, &key.value);
-                if entry_distance >= own_distance {
-                    return false;
-                }
-
-                true
+                // Ensure only things that have a minimum set of capabilities are returned
+                entry.with(rti, |rti, e| {
+                    if !e.has_capabilities(RoutingDomain::PublicInternet, &required_capabilities) {
+                        return false;
+                    }
+                    // Ensure only things that are valid/signed in the PublicInternet domain are returned
+                    if !rti.filter_has_valid_signed_node_info(
+                        RoutingDomain::PublicInternet,
+                        true,
+                        Some(entry.clone()),
+                    ) {
+                        return false;
+                    }
+                    // Ensure things further from the key than our own node are not included
+                    let Some(entry_node_id) = e.node_ids().get(crypto_kind) else {
+                        return false;
+                    };
+                    let entry_distance = vcrypto.distance(&entry_node_id.value, &key.value);
+                    if entry_distance >= own_distance {
+                        return false;
+                    }
+                    true
+                })
             },
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);

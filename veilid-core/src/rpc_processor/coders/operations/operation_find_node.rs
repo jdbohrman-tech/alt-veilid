@@ -5,11 +5,15 @@ const MAX_FIND_NODE_A_PEERS_LEN: usize = 20;
 #[derive(Debug, Clone)]
 pub struct RPCOperationFindNodeQ {
     node_id: TypedKey,
+    capabilities: Vec<Capability>,
 }
 
 impl RPCOperationFindNodeQ {
-    pub fn new(node_id: TypedKey) -> Self {
-        Self { node_id }
+    pub fn new(node_id: TypedKey, capabilities: Vec<Capability>) -> Self {
+        Self {
+            node_id,
+            capabilities,
+        }
     }
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
@@ -18,15 +22,33 @@ impl RPCOperationFindNodeQ {
     // pub fn node_id(&self) -> &TypedKey {
     //     &self.node_id
     // }
+    // pub fn capabilities(&self) -> &[Capability] {
+    //     &self.capabilities
+    // }
 
-    pub fn destructure(self) -> TypedKey {
-        self.node_id
+    pub fn destructure(self) -> (TypedKey, Vec<Capability>) {
+        (self.node_id, self.capabilities)
     }
 
     pub fn decode(reader: &veilid_capnp::operation_find_node_q::Reader) -> Result<Self, RPCError> {
         let ni_reader = reader.get_node_id().map_err(RPCError::protocol)?;
         let node_id = decode_typed_key(&ni_reader)?;
-        Ok(Self { node_id })
+        let cap_reader = reader
+            .reborrow()
+            .get_capabilities()
+            .map_err(RPCError::protocol)?;
+        if cap_reader.len() as usize > MAX_CAPABILITIES {
+            return Err(RPCError::protocol("too many capabilities"));
+        }
+        let capabilities = cap_reader
+            .as_slice()
+            .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+            .unwrap_or_default();
+
+        Ok(Self {
+            node_id,
+            capabilities,
+        })
     }
     pub fn encode(
         &self,
@@ -34,6 +56,19 @@ impl RPCOperationFindNodeQ {
     ) -> Result<(), RPCError> {
         let mut ni_builder = builder.reborrow().init_node_id();
         encode_typed_key(&self.node_id, &mut ni_builder);
+
+        let mut cap_builder = builder
+            .reborrow()
+            .init_capabilities(self.capabilities.len() as u32);
+        if let Some(s) = cap_builder.as_slice() {
+            let capvec: Vec<u32> = self
+                .capabilities
+                .iter()
+                .map(|x| u32::from_be_bytes(x.0))
+                .collect();
+
+            s.clone_from_slice(&capvec);
+        }
         Ok(())
     }
 }

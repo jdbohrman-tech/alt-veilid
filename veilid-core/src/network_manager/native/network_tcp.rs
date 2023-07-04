@@ -118,8 +118,8 @@ impl Network {
                 return;
             }
         };
-        let address_filter = self.network_manager().address_filter();
         // Check to see if it is punished
+        let address_filter = self.network_manager().address_filter();
         if address_filter.is_punished(peer_addr.ip()) {
             return;
         }

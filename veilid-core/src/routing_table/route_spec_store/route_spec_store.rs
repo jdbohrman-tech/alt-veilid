@@ -257,20 +257,9 @@ impl RouteSpecStore {
 
                 // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
                 entry.with_inner(|e| {
-                    let node_info_ok =
-                        if let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) {
-                            sni.has_sequencing_matched_dial_info(sequencing)
-                        } else {
-                            false
-                        };
-                    let node_status_ok =
-                        if let Some(ns) = e.node_status(RoutingDomain::PublicInternet) {
-                            ns.will_route()
-                        } else {
-                            false
-                        };
-
-                    node_info_ok && node_status_ok
+                    e.signed_node_info(RoutingDomain::PublicInternet).map(|sni| 
+                        sni.has_sequencing_matched_dial_info(sequencing) && sni.node_info().has_capability(CAP_ROUTE)
+                    ).unwrap_or(false)
                 })
             },
         ) as RoutingTableEntryFilter;

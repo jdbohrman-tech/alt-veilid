@@ -7,6 +7,14 @@ use stop_token::future::FutureExt as StopFutureExt;
 const BACKGROUND_SAFETY_ROUTE_COUNT: usize = 2;
 
 impl RoutingTable {
+    fn get_background_safety_route_count(&self) -> usize {
+        let c = self.config.get();
+        if c.capabilities.disable.contains(&CAP_ROUTE) {
+            0
+        } else {
+            BACKGROUND_SAFETY_ROUTE_COUNT
+        }
+    }
     /// Fastest routes sort
     fn route_sort_latency_fn(a: &(RouteId, u64), b: &(RouteId, u64)) -> cmp::Ordering {
         let mut al = a.1;
@@ -69,13 +77,14 @@ impl RoutingTable {
         unpublished_routes.sort_by(Self::route_sort_latency_fn);
 
         // Save up to N unpublished routes and test them
-        for x in 0..(usize::min(BACKGROUND_SAFETY_ROUTE_COUNT, unpublished_routes.len())) {
+        let background_safety_route_count = self.get_background_safety_route_count();
+        for x in 0..(usize::min(background_safety_route_count, unpublished_routes.len())) {
             must_test_routes.push(unpublished_routes[x].0);
         }
 
         // Kill off all but N unpublished routes rather than testing them
-        if unpublished_routes.len() > BACKGROUND_SAFETY_ROUTE_COUNT {
-            for x in &unpublished_routes[BACKGROUND_SAFETY_ROUTE_COUNT..] {
+        if unpublished_routes.len() > background_safety_route_count {
+            for x in &unpublished_routes[background_safety_route_count..] {
                 expired_routes.push(x.0);
             }
         }
@@ -192,8 +201,11 @@ impl RoutingTable {
             }
             Option::<()>::None
         });
-        if local_unpublished_route_count < BACKGROUND_SAFETY_ROUTE_COUNT {
-            let routes_to_allocate = BACKGROUND_SAFETY_ROUTE_COUNT - local_unpublished_route_count;
+
+        let background_safety_route_count = self.get_background_safety_route_count();
+
+        if local_unpublished_route_count < background_safety_route_count {
+            let routes_to_allocate = background_safety_route_count - local_unpublished_route_count;
 
             // Newly allocated routes
             let mut newly_allocated_routes = Vec::new();

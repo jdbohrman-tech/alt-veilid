@@ -5,31 +5,31 @@ mod native;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
-mod direct_boot;
-mod send_data;
-mod connection_handle;
 mod address_filter;
+mod connection_handle;
 mod connection_manager;
 mod connection_table;
+mod direct_boot;
 mod network_connection;
+mod send_data;
+mod stats;
 mod tasks;
 mod types;
-mod stats;
 
 pub mod tests;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
 pub use connection_manager::*;
-pub use network_connection::*;
-pub use types::*;
-pub use send_data::*;
 pub use direct_boot::*;
+pub use network_connection::*;
+pub use send_data::*;
 pub use stats::*;
+pub use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-use connection_handle::*;
 use address_filter::*;
+use connection_handle::*;
 use crypto::*;
 use futures_util::stream::FuturesUnordered;
 use hashlink::LruCache;
@@ -47,13 +47,16 @@ use wasm::*;
 
 pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
-pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration = TimestampDuration::new(300_000_000u64); // 5 minutes
+pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration =
+    TimestampDuration::new(300_000_000u64); // 5 minutes
 pub const NODE_CONTACT_METHOD_CACHE_SIZE: usize = 1024;
 pub const PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT: usize = 3;
 pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 8;
 pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
-pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration = TimestampDuration::new(300_000_000u64); // 5 minutes
-pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration = TimestampDuration::new(3600_000_000u64); // 60 minutes
+pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration =
+    TimestampDuration::new(300_000_000u64); // 5 minutes
+pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration =
+    TimestampDuration::new(3600_000_000u64); // 60 minutes
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 
@@ -74,7 +77,6 @@ struct NetworkComponents {
     rpc_processor: RPCProcessor,
     receipt_manager: ReceiptManager,
 }
-
 
 #[derive(Debug)]
 struct ClientWhitelistEntry {
@@ -134,7 +136,7 @@ struct NetworkManagerUnlockedInner {
     storage_manager: StorageManager,
     protected_store: ProtectedStore,
     table_store: TableStore,
-    #[cfg(feature="unstable-blockstore")]
+    #[cfg(feature = "unstable-blockstore")]
     block_store: BlockStore,
     crypto: Crypto,
     address_filter: AddressFilter,
@@ -171,8 +173,7 @@ impl NetworkManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
-        #[cfg(feature="unstable-blockstore")]
-        block_store: BlockStore,
+        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
         network_key: Option<SharedSecret>,
     ) -> NetworkManagerUnlockedInner {
@@ -181,7 +182,7 @@ impl NetworkManager {
             storage_manager,
             protected_store,
             table_store,
-            #[cfg(feature="unstable-blockstore")]
+            #[cfg(feature = "unstable-blockstore")]
             block_store,
             crypto,
             address_filter: AddressFilter::new(config),
@@ -200,18 +201,20 @@ impl NetworkManager {
         storage_manager: StorageManager,
         protected_store: ProtectedStore,
         table_store: TableStore,
-        #[cfg(feature="unstable-blockstore")]
-        block_store: BlockStore,
+        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
     ) -> Self {
-
         // Make the network key
         let network_key = {
             let c = config.get();
             let network_key_password = if let Some(nkp) = c.network.network_key_password.clone() {
                 Some(nkp)
             } else {
-                if c.network.routing_table.bootstrap.contains(&"bootstrap.veilid.net".to_owned()) {
+                if c.network
+                    .routing_table
+                    .bootstrap
+                    .contains(&"bootstrap.veilid.net".to_owned())
+                {
                     None
                 } else {
                     Some(c.network.routing_table.bootstrap.join(","))
@@ -224,7 +227,13 @@ impl NetworkManager {
 
                     let bcs = crypto.best();
                     // Yes the use of the salt this way is generally bad, but this just needs to be hashed
-                    Some(bcs.derive_shared_secret(network_key_password.as_bytes(), network_key_password.as_bytes()).expect("failed to derive network key"))
+                    Some(
+                        bcs.derive_shared_secret(
+                            network_key_password.as_bytes(),
+                            network_key_password.as_bytes(),
+                        )
+                        .expect("failed to derive network key"),
+                    )
                 } else {
                     None
                 }
@@ -242,7 +251,7 @@ impl NetworkManager {
                 storage_manager,
                 protected_store,
                 table_store,
-                #[cfg(feature="unstable-blockstore")]
+                #[cfg(feature = "unstable-blockstore")]
                 block_store,
                 crypto,
                 network_key,
@@ -271,7 +280,7 @@ impl NetworkManager {
     pub fn table_store(&self) -> TableStore {
         self.unlocked_inner.table_store.clone()
     }
-    #[cfg(feature="unstable-blockstore")]
+    #[cfg(feature = "unstable-blockstore")]
     pub fn block_store(&self) -> BlockStore {
         self.unlocked_inner.block_store.clone()
     }
@@ -443,7 +452,7 @@ impl NetworkManager {
 
     pub fn update_client_whitelist(&self, client: TypedKey) {
         let mut inner = self.inner.lock();
-        match inner.client_whitelist.entry(client, |_k,_v| {
+        match inner.client_whitelist.entry(client, |_k, _v| {
             // do nothing on LRU evict
         }) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
@@ -461,7 +470,7 @@ impl NetworkManager {
     pub fn check_client_whitelist(&self, client: TypedKey) -> bool {
         let mut inner = self.inner.lock();
 
-        match inner.client_whitelist.entry(client, |_k,_v| {
+        match inner.client_whitelist.entry(client, |_k, _v| {
             // do nothing on LRU evict
         }) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
@@ -475,7 +484,8 @@ impl NetworkManager {
     pub fn purge_client_whitelist(&self) {
         let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
         let mut inner = self.inner.lock();
-        let cutoff_timestamp = get_aligned_timestamp() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
+        let cutoff_timestamp =
+            get_aligned_timestamp() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
         // Remove clients from the whitelist that haven't been since since our whitelist timeout
         while inner
             .client_whitelist
@@ -493,66 +503,8 @@ impl NetworkManager {
         net.needs_restart()
     }
 
-    /// Get our node's capabilities in the PublicInternet routing domain
-    fn generate_public_internet_node_status(&self) -> PublicInternetNodeStatus {
-        let Some(own_peer_info) = self
-            .routing_table()
-            .get_own_peer_info(RoutingDomain::PublicInternet) else {
-                return PublicInternetNodeStatus {
-                    will_route: false,
-                    will_tunnel: false,
-                    will_signal: false,
-                    will_relay: false,
-                    will_validate_dial_info: false,
-                };  
-            };
-        let own_node_info = own_peer_info.signed_node_info().node_info();
-
-        let will_route = own_node_info.can_inbound_relay(); // xxx: eventually this may have more criteria added
-        let will_tunnel = own_node_info.can_inbound_relay(); // xxx: we may want to restrict by battery life and network bandwidth at some point
-        let will_signal = own_node_info.can_signal();
-        let will_relay = own_node_info.can_inbound_relay();
-        let will_validate_dial_info = own_node_info.can_validate_dial_info();
-
-        PublicInternetNodeStatus {
-            will_route,
-            will_tunnel,
-            will_signal,
-            will_relay,
-            will_validate_dial_info,
-        }
-    }
-    /// Get our node's capabilities in the LocalNetwork routing domain
-    fn generate_local_network_node_status(&self) -> LocalNetworkNodeStatus {
-        let Some(own_peer_info) = self
-            .routing_table()
-            .get_own_peer_info(RoutingDomain::LocalNetwork) else {
-                return LocalNetworkNodeStatus {
-                    will_relay: false,
-                    will_validate_dial_info: false,
-                };  
-            };
-
-        let own_node_info = own_peer_info.signed_node_info().node_info();
-
-        let will_relay = own_node_info.can_inbound_relay();
-        let will_validate_dial_info = own_node_info.can_validate_dial_info();
-
-        LocalNetworkNodeStatus {
-            will_relay,
-            will_validate_dial_info,
-        }
-    }
-
-    pub fn generate_node_status(&self, routing_domain: RoutingDomain) -> NodeStatus {
-        match routing_domain {
-            RoutingDomain::PublicInternet => {
-                NodeStatus::PublicInternet(self.generate_public_internet_node_status())
-            }
-            RoutingDomain::LocalNetwork => {
-                NodeStatus::LocalNetwork(self.generate_local_network_node_status())
-            }
-        }
+    pub fn generate_node_status(&self, _routing_domain: RoutingDomain) -> NodeStatus {
+        NodeStatus {}
     }
 
     /// Generates a multi-shot/normal receipt
@@ -569,12 +521,18 @@ impl NetworkManager {
 
         // Generate receipt and serialized form to return
         let vcrypto = self.crypto().best();
-        
+
         let nonce = vcrypto.random_nonce();
         let node_id = routing_table.node_id(vcrypto.kind());
         let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
-        
-        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
+
+        let receipt = Receipt::try_new(
+            best_envelope_version(),
+            node_id.kind,
+            nonce,
+            node_id.value,
+            extra_data,
+        )?;
         let out = receipt
             .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
@@ -598,12 +556,18 @@ impl NetworkManager {
 
         // Generate receipt and serialized form to return
         let vcrypto = self.crypto().best();
-        
+
         let nonce = vcrypto.random_nonce();
         let node_id = routing_table.node_id(vcrypto.kind());
         let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
-        
-        let receipt = Receipt::try_new(best_envelope_version(), node_id.kind, nonce, node_id.value, extra_data)?;
+
+        let receipt = Receipt::try_new(
+            best_envelope_version(),
+            node_id.kind,
+            nonce,
+            node_id.value,
+            extra_data,
+        )?;
         let out = receipt
             .to_signed_data(self.crypto(), &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
@@ -715,9 +679,10 @@ impl NetworkManager {
                 ) {
                     Ok(nr) => nr,
                     Err(e) => {
-                        return Ok(NetworkResult::invalid_message(
-                            format!("unable to register reverse connect peerinfo: {}", e)
-                        ));
+                        return Ok(NetworkResult::invalid_message(format!(
+                            "unable to register reverse connect peerinfo: {}",
+                            e
+                        )));
                     }
                 };
 
@@ -738,9 +703,10 @@ impl NetworkManager {
                 ) {
                     Ok(nr) => nr,
                     Err(e) => {
-                        return Ok(NetworkResult::invalid_message(
-                            format!("unable to register hole punch connect peerinfo: {}", e)
-                        ));
+                        return Ok(NetworkResult::invalid_message(format!(
+                            "unable to register hole punch connect peerinfo: {}",
+                            e
+                        )));
                     }
                 };
 
@@ -784,7 +750,10 @@ impl NetworkManager {
     }
 
     /// Builds an envelope for sending over the network
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, body), err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), err)
+    )]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
         dest_node_id: TypedKey,
@@ -805,9 +774,21 @@ impl NetworkManager {
         let nonce = vcrypto.random_nonce();
 
         // Encode envelope
-        let envelope = Envelope::new(version, node_id.kind, ts, nonce, node_id.value, dest_node_id.value);
+        let envelope = Envelope::new(
+            version,
+            node_id.kind,
+            ts,
+            nonce,
+            node_id.value,
+            dest_node_id.value,
+        );
         envelope
-            .to_encrypted_data(self.crypto(), body.as_ref(), &node_id_secret, &self.unlocked_inner.network_key)
+            .to_encrypted_data(
+                self.crypto(),
+                body.as_ref(),
+                &node_id_secret,
+                &self.unlocked_inner.network_key,
+            )
             .wrap_err("envelope failed to encode")
     }
 
@@ -815,18 +796,20 @@ impl NetworkManager {
     /// node_ref is the direct destination to which the envelope will be sent
     /// If 'destination_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, body), ret, err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, body), ret, err)
+    )]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
         destination_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataKind>> {
-
         let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
-        
+
         if !node_ref.same_entry(&destination_node_ref) {
-            log_net!( 
+            log_net!(
                 "sending envelope to {:?} via {:?}",
                 destination_node_ref,
                 node_ref
@@ -886,7 +869,7 @@ impl NetworkManager {
         data: &mut [u8],
         connection_descriptor: ConnectionDescriptor,
     ) -> EyreResult<bool> {
-        #[cfg(feature="verbose-tracing")]
+        #[cfg(feature = "verbose-tracing")]
         let root = span!(
             parent: None,
             Level::TRACE,
@@ -894,7 +877,7 @@ impl NetworkManager {
             "data.len" = data.len(),
             "descriptor" = ?connection_descriptor
         );
-        #[cfg(feature="verbose-tracing")]
+        #[cfg(feature = "verbose-tracing")]
         let _root_enter = root.enter();
 
         log_net!(
@@ -905,10 +888,7 @@ impl NetworkManager {
         let remote_addr = connection_descriptor.remote_address().to_ip_addr();
 
         // Network accounting
-        self.stats_packet_rcvd(
-            remote_addr,
-            ByteCount::new(data.len() as u64),
-        );
+        self.stats_packet_rcvd(remote_addr, ByteCount::new(data.len() as u64));
 
         // If this is a zero length packet, just drop it, because these are used for hole punching
         // and possibly other low-level network connectivity tasks and will never require
@@ -949,20 +929,30 @@ impl NetworkManager {
         }
 
         // Decode envelope header (may fail signature validation)
-        let envelope = match Envelope::from_signed_data(self.crypto(), data, &self.unlocked_inner.network_key) {
-            Ok(v) => v,
-            Err(e) => {
-                log_net!(debug "envelope failed to decode: {}", e);
-                self.address_filter().punish(remote_addr);
-                return Ok(false);
-            }
-        };
+        let envelope =
+            match Envelope::from_signed_data(self.crypto(), data, &self.unlocked_inner.network_key)
+            {
+                Ok(v) => v,
+                Err(e) => {
+                    log_net!(debug "envelope failed to decode: {}", e);
+                    self.address_filter().punish(remote_addr);
+                    return Ok(false);
+                }
+            };
 
         // Get timestamp range
         let (tsbehind, tsahead) = self.with_config(|c| {
             (
-                c.network.rpc.max_timestamp_behind_ms.map(ms_to_us).map(TimestampDuration::new),
-                c.network.rpc.max_timestamp_ahead_ms.map(ms_to_us).map(TimestampDuration::new),
+                c.network
+                    .rpc
+                    .max_timestamp_behind_ms
+                    .map(ms_to_us)
+                    .map(TimestampDuration::new),
+                c.network
+                    .rpc
+                    .max_timestamp_ahead_ms
+                    .map(ms_to_us)
+                    .map(TimestampDuration::new),
             )
         });
 
@@ -1005,7 +995,10 @@ impl NetworkManager {
 
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
-                match rpc.resolve_node(recipient_id, SafetySelection::Unsafe(Sequencing::default())).await {
+                match rpc
+                    .resolve_node(recipient_id, SafetySelection::Unsafe(Sequencing::default()))
+                    .await
+                {
                     Ok(v) => v,
                     Err(e) => {
                         log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);
@@ -1030,7 +1023,7 @@ impl NetworkManager {
             };
 
             if let Some(relay_nr) = some_relay_nr {
-                // Force sequencing if this came in sequenced. 
+                // Force sequencing if this came in sequenced.
                 // The sender did the prefer/ensure calculation when it did get_contact_method,
                 // so we don't need to do it here.
                 let relay_nr = if connection_descriptor.remote().protocol_type().is_ordered() {
@@ -1049,7 +1042,7 @@ impl NetworkManager {
                         Ok(v) => v,
                         Err(e) => {
                             log_net!(debug "failed to forward envelope: {}" ,e);
-                            return Ok(false);    
+                            return Ok(false);
                         }
                     } => [ format!(": relay_nr={}, data.len={}", relay_nr, data.len()) ] {
                         return Ok(false);
@@ -1064,15 +1057,19 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret_key(envelope.get_crypto_kind());
 
         // Decrypt the envelope body
-        let body = match envelope
-            .decrypt_body(self.crypto(), data, &node_id_secret, &self.unlocked_inner.network_key) {
-                Ok(v) => v,
-                Err(e) => {
-                    log_net!(debug "failed to decrypt envelope body: {}",e);
-                    self.address_filter().punish(remote_addr);
-                    return Ok(false);
-                }
-            };
+        let body = match envelope.decrypt_body(
+            self.crypto(),
+            data,
+            &node_id_secret,
+            &self.unlocked_inner.network_key,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                log_net!(debug "failed to decrypt envelope body: {}",e);
+                self.address_filter().punish(remote_addr);
+                return Ok(false);
+            }
+        };
 
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
@@ -1166,7 +1163,7 @@ impl NetworkManager {
         if pait.contains_key(&ipblock) {
             return;
         }
-        pacc.insert(ipblock, socket_address, |_k,_v| {
+        pacc.insert(ipblock, socket_address, |_k, _v| {
             // do nothing on LRU evict
         });
 
@@ -1224,8 +1221,8 @@ impl NetworkManager {
                             .public_address_inconsistencies_table
                             .entry(key)
                             .or_insert_with(|| HashMap::new());
-                        let exp_ts =
-                            get_aligned_timestamp() + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
+                        let exp_ts = get_aligned_timestamp()
+                            + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
                         for i in inconsistencies {
                             pait.insert(i, exp_ts);
                         }
@@ -1296,5 +1293,4 @@ impl NetworkManager {
             }
         }
     }
-
 }
