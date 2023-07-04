@@ -35,3 +35,10 @@ distribute_amd64:
     - earthly +package-linux-amd64-deb
     - earthly +package-linux-amd64-rpm
     - /home/gitlab-runner/distribute-packages.sh
+
+repo_deployment:
+  stage: distribute
+  only: stable
+  needs: distribute_amd64
+  tags: repo-setup
+  script: /home/gitlab-runner/deploy.sh
