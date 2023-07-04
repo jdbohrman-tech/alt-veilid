@@ -43,7 +43,7 @@ deploy_repos:
   only:
     - stable
   needs:
-    - init_repos
+    - package_amd64
   tags: 
     - repo-setup
   script: 
