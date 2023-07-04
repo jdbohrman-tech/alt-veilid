@@ -32,7 +32,8 @@ async def test_routing_contexts(api_connection: veilid.VeilidAPI):
 
     rc = await (await api_connection.new_routing_context()).with_custom_privacy(
         veilid.SafetySelection.safe(
-            veilid.SafetySpec(None, 2, veilid.Stability.RELIABLE, veilid.Sequencing.ENSURE_ORDERED)
+            veilid.SafetySpec(None, 2, veilid.Stability.RELIABLE,
+                              veilid.Sequencing.ENSURE_ORDERED)
         ))
     await rc.release()
 
@@ -135,6 +136,7 @@ async def test_routing_context_app_message_loopback_big_packets():
 
     global got_message
     got_message = 0
+
     async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
             global got_message
@@ -182,11 +184,12 @@ async def test_routing_context_app_message_loopback_big_packets():
 
                 assert update.detail.message in sent_messages
 
+
 @pytest.mark.asyncio
 async def test_routing_context_app_call_loopback_big_packets():
     global got_message
     got_message = 0
-    
+
     app_call_queue: asyncio.Queue = asyncio.Queue()
 
     async def app_call_queue_update_callback(update: veilid.VeilidUpdate):
@@ -196,15 +199,15 @@ async def test_routing_context_app_call_loopback_big_packets():
     async def app_call_queue_task_handler(api: veilid.VeilidAPI):
         while True:
             update = await app_call_queue.get()
-            
+
             global got_message
             got_message += 1
-            
+
             sys.stdout.write("{} ".format(got_message))
             sys.stdout.flush()
 
             await api.app_call_reply(update.detail.call_id, update.detail.message)
-        
+
     hostname, port = server_info()
     api = await veilid.json_api_connect(
         hostname, port, app_call_queue_update_callback
@@ -235,11 +238,11 @@ async def test_routing_context_app_call_loopback_big_packets():
                 out_message = await rc.app_call(prr, message)
 
                 assert message == out_message
-        
+
         app_call_task.cancel()
 
 
-@pytest.mark.skipif(os.getenv("NOSKIP")!="1", reason="unneeded test, only for performance check")
+@pytest.mark.skipif(os.getenv("NOSKIP") != "1", reason="unneeded test, only for performance check")
 @pytest.mark.asyncio
 async def test_routing_context_app_message_loopback_bandwidth():
 
@@ -258,8 +261,8 @@ async def test_routing_context_app_message_loopback_bandwidth():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
-        #rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
-        #rc = await (await api.new_routing_context()).with_privacy()
+        # rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
+        # rc = await (await api.new_routing_context()).with_privacy()
         rc = await api.new_routing_context()
         async with rc:
 
