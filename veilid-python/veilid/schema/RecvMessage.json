@@ -2719,6 +2719,17 @@
         }
       }
     },
+    "FourCC": {
+      "description": "FOURCC code",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
+      },
+      "maxItems": 4,
+      "minItems": 4
+    },
     "LatencyStats": {
       "type": "object",
       "required": [
@@ -3203,35 +3214,14 @@
     "VeilidConfigCapabilities": {
       "type": "object",
       "required": [
-        "protocol_accept_tcp",
-        "protocol_accept_ws",
-        "protocol_accept_wss",
-        "protocol_connect_tcp",
-        "protocol_connect_ws",
-        "protocol_connect_wss",
-        "protocol_udp"
+        "disable"
       ],
       "properties": {
-        "protocol_accept_tcp": {
-          "type": "boolean"
-        },
-        "protocol_accept_ws": {
-          "type": "boolean"
-        },
-        "protocol_accept_wss": {
-          "type": "boolean"
-        },
-        "protocol_connect_tcp": {
-          "type": "boolean"
-        },
-        "protocol_connect_ws": {
-          "type": "boolean"
-        },
-        "protocol_connect_wss": {
-          "type": "boolean"
-        },
-        "protocol_udp": {
-          "type": "boolean"
+        "disable": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FourCC"
+          }
         }
       }
     },
