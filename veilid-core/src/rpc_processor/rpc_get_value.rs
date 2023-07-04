@@ -163,13 +163,7 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
-        // Ignore if disabled
-        {
-            let c = self.config.get();
-            if c.capabilities.disable.contains(&CAP_WILL_DHT) {
-                return Ok(NetworkResult::service_unavailable("get value is disabled"));
-            }
-        }
+
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
@@ -179,7 +173,17 @@ impl RPCProcessor {
                 ))
             }
         }
-
+        // Ignore if disabled
+        let routing_table = self.routing_table();
+        {
+            if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
+                if !opi.signed_node_info().node_info().can_dht() {
+                    return Ok(NetworkResult::service_unavailable(
+                        "dht is not available",
+                    ));
+                }
+            }
+        }
         // Get the question
         let kind = msg.operation.kind().clone();
         let get_value_q = match kind {

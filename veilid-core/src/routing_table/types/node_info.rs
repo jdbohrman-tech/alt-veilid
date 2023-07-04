@@ -1,5 +1,54 @@
 use super::*;
 
+pub type Capability = FourCC;
+pub const CAP_WILL_ROUTE: Capability = FourCC(*b"ROUT");
+#[cfg(feature = "unstable-tunnels")]
+pub const CAP_WILL_TUNNEL: Capability = FourCC(*b"TUNL");
+pub const CAP_WILL_SIGNAL: Capability = FourCC(*b"SGNL");
+pub const CAP_WILL_RELAY: Capability = FourCC(*b"RLAY");
+pub const CAP_WILL_VALIDATE_DIAL_INFO: Capability = FourCC(*b"DIAL");
+pub const CAP_WILL_DHT: Capability = FourCC(*b"DHTV");
+pub const CAP_WILL_APPMESSAGE: Capability = FourCC(*b"APPM");
+#[cfg(feature = "unstable-blockstore")]
+pub const CAP_WILL_BLOCKSTORE: Capability = FourCC(*b"BLOC");
+
+cfg_if! {
+    if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 8;
+    } else if #[cfg(any(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
+    } else  {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
+    }
+}
+pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
+    CAP_WILL_ROUTE,
+    #[cfg(feature = "unstable-tunnels")]
+    CAP_WILL_TUNNEL,
+    CAP_WILL_SIGNAL,
+    CAP_WILL_RELAY,
+    CAP_WILL_VALIDATE_DIAL_INFO,
+    CAP_WILL_DHT,
+    CAP_WILL_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_WILL_BLOCKSTORE,
+];
+
+#[cfg(feature = "unstable-blockstore")]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
+#[cfg(not(feature = "unstable-blockstore"))]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
+
+pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
+    CAP_WILL_RELAY,
+    CAP_WILL_DHT,
+    CAP_WILL_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_WILL_BLOCKSTORE,
+];
+
+pub const MAX_CAPABILITIES: usize = 64;
+
 #[derive(
     Clone,
     Default,
@@ -21,6 +70,7 @@ pub struct NodeInfo {
     address_types: AddressTypeSet,
     envelope_support: Vec<u8>,
     crypto_support: Vec<CryptoKind>,
+    capabilities: Vec<Capability>,
     dial_info_detail_list: Vec<DialInfoDetail>,
 }
 
@@ -31,6 +81,7 @@ impl NodeInfo {
         address_types: AddressTypeSet,
         envelope_support: Vec<u8>,
         crypto_support: Vec<CryptoKind>,
+        capabilities: Vec<Capability>,
         dial_info_detail_list: Vec<DialInfoDetail>,
     ) -> Self {
         Self {
@@ -39,6 +90,7 @@ impl NodeInfo {
             address_types,
             envelope_support,
             crypto_support,
+            capabilities,
             dial_info_detail_list,
         }
     }
@@ -57,6 +109,9 @@ impl NodeInfo {
     }
     pub fn crypto_support(&self) -> &[CryptoKind] {
         &self.crypto_support
+    }
+    pub fn capabilities(&self) -> &[Capability] {
+        &self.capabilities
     }
     pub fn dial_info_detail_list(&self) -> &[DialInfoDetail] {
         &self.dial_info_detail_list
@@ -144,8 +199,17 @@ impl NodeInfo {
         false
     }
 
+    fn has_capability(&self, cap: Capability) -> bool {
+        self.capabilities.contains(&cap)
+    }
+
     /// Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
     pub fn can_signal(&self) -> bool {
+        // Has capability?
+        if !self.has_capability(CAP_WILL_SIGNAL) {
+            return false;
+        }
+
         // Must be inbound capable
         if !matches!(self.network_class, NetworkClass::InboundCapable) {
             return false;
@@ -161,13 +225,44 @@ impl NodeInfo {
 
     /// Can this node relay be an inbound relay?
     pub fn can_inbound_relay(&self) -> bool {
+        // Has capability?
+        if !self.has_capability(CAP_WILL_RELAY) {
+            return false;
+        }
+
         // For now this is the same
         self.can_signal()
     }
 
     /// Is this node capable of validating dial info
     pub fn can_validate_dial_info(&self) -> bool {
+        // Has capability?
+        if !self.has_capability(CAP_WILL_VALIDATE_DIAL_INFO) {
+            return false;
+        }
         // For now this is the same
         self.can_signal()
+    }
+    /// Is this node capable of private routing
+    pub fn can_route(&self) -> bool {
+        self.has_capability(CAP_WILL_ROUTE)
+    }
+    /// Is this node capable of dht operations
+    pub fn can_dht(&self) -> bool {
+        self.has_capability(CAP_WILL_DHT)
+    }
+    /// Is this node capable of app_message and app_call
+    pub fn can_appmessage(&self) -> bool {
+        self.has_capability(CAP_WILL_APPMESSAGE)
+    }
+    /// Is this node capable of tunneling
+    #[cfg(feature = "unstable-tunnels")]
+    pub fn can_tunnel(&self) -> bool {
+        self.has_capability(CAP_WILL_TUNNEL)
+    }
+    /// Is this node capable of block storage
+    #[cfg(feature = "unstable-blockstore")]
+    pub fn can_blockstore(&self) -> bool {
+        self.has_capability(CAP_WILL_BLOCKSTORE)
     }
 }

@@ -7,12 +7,17 @@ impl RPCProcessor {
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Ignore if disabled
+        #[cfg(feature = "unstable-tunnels")]
         {
-            let c = self.config.get();
-            if c.capabilities.disable.contains(&CAP_WILL_TUNNEL) {
-                return Ok(NetworkResult::service_unavailable(
-                    "cancel tunnel is disabled",
-                ));
+            let routing_table = self.routing_table();
+            {
+                if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
+                    if !opi.signed_node_info().node_info().can_tunnel() {
+                        return Ok(NetworkResult::service_unavailable(
+                            "tunnel is not available",
+                        ));
+                    }
+                }
             }
         }
 

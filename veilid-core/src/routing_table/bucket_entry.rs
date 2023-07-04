@@ -51,7 +51,7 @@ pub struct BucketEntryPublicInternet {
     /// The last node info timestamp of ours that this entry has seen
     last_seen_our_node_info_ts: Timestamp,
     /// Last known node status
-    node_status: Option<PublicInternetNodeStatus>,
+    node_status: Option<NodeStatus>,
 }
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
@@ -63,7 +63,7 @@ pub struct BucketEntryLocalNetwork {
     /// The last node info timestamp of ours that this entry has seen
     last_seen_our_node_info_ts: Timestamp,
     /// Last known node status
-    node_status: Option<LocalNetworkNodeStatus>,
+    node_status: Option<NodeStatus>,
 }
 
 /// The data associated with each bucket entry
@@ -502,13 +502,13 @@ impl BucketEntryInner {
         &self.peer_stats
     }
 
-    pub fn update_node_status(&mut self, status: NodeStatus) {
-        match status {
-            NodeStatus::LocalNetwork(ln) => {
-                self.local_network.node_status = Some(ln);
+    pub fn update_node_status(&mut self, routing_domain: RoutingDomain, status: NodeStatus) {
+        match routing_domain {
+            RoutingDomain::LocalNetwork => {
+                self.local_network.node_status = Some(status);
             }
-            NodeStatus::PublicInternet(pi) => {
-                self.public_internet.node_status = Some(pi);
+            RoutingDomain::PublicInternet => {
+                self.public_internet.node_status = Some(status);
             }
         }
     }
@@ -518,12 +518,12 @@ impl BucketEntryInner {
                 .local_network
                 .node_status
                 .as_ref()
-                .map(|ln| NodeStatus::LocalNetwork(ln.clone())),
+                .map(|ns| ns.clone()),
             RoutingDomain::PublicInternet => self
                 .public_internet
                 .node_status
                 .as_ref()
-                .map(|pi| NodeStatus::PublicInternet(pi.clone())),
+                .map(|ns| ns.clone()),
         }
     }
 

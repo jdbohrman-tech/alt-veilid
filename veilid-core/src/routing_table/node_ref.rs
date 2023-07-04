@@ -118,9 +118,9 @@ pub trait NodeRefBase: Sized {
     fn set_updated_since_last_network_change(&self) {
         self.operate_mut(|_rti, e| e.set_updated_since_last_network_change(true));
     }
-    fn update_node_status(&self, node_status: NodeStatus) {
+    fn update_node_status(&self, routing_domain: RoutingDomain, node_status: NodeStatus) {
         self.operate_mut(|_rti, e| {
-            e.update_node_status(node_status);
+            e.update_node_status(routing_domain, node_status);
         });
     }
     fn envelope_support(&self) -> Vec<u8> {

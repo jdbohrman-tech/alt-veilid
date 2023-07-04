@@ -117,6 +117,13 @@ impl RPCMessageHeader {
     //         RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.peer_noderef.clone(),
     //     }
     // }
+    pub fn routing_domain(&self) -> RoutingDomain {
+        match &self.detail {
+            RPCMessageHeaderDetail::Direct(d) => d.routing_domain,
+            RPCMessageHeaderDetail::SafetyRouted(s) => s.direct.routing_domain,
+            RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.routing_domain,
+        }
+    }
     pub fn direct_sender_node_id(&self) -> TypedKey {
         match &self.detail {
             RPCMessageHeaderDetail::Direct(d) => {

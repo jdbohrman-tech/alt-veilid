@@ -146,9 +146,9 @@ impl RoutingTable {
             let entry2 = entry.clone();
             entry.with(rti, |rti, e| {
                 // Ensure we have the node's status
-                if let Some(node_status) = e.node_status(routing_domain) {
+                if let Some(node_info) = e.node_info(routing_domain) {
                     // Ensure the node will relay
-                    if node_status.has_capability(CAP_WILL_RELAY) {
+                    if node_info.can_inbound_relay() {
                         // Compare against previous candidate
                         if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
                             // Less is faster

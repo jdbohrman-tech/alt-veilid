@@ -773,16 +773,34 @@ impl Network {
 
         // set up the routing table's network config
         // if we have static public dialinfo, upgrade our network class
+        let public_internet_capabilities = {
+            let c = self.config.get();
+            PUBLIC_INTERNET_CAPABILITIES
+                .iter()
+                .copied()
+                .filter(|cap| !c.capabilities.disable.contains(cap))
+                .collect::<Vec<Capability>>()
+        };
+        let local_network_capabilities = {
+            let c = self.config.get();
+            LOCAL_NETWORK_CAPABILITIES
+                .iter()
+                .copied()
+                .filter(|cap| !c.capabilities.disable.contains(cap))
+                .collect::<Vec<Capability>>()
+        };
 
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
+            public_internet_capabilities,
         );
         editor_local_network.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_local,
+            local_network_capabilities,
         );
         let detect_address_changes = {
             let c = self.config.get();

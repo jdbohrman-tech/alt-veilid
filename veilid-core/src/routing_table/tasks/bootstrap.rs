@@ -344,6 +344,7 @@ impl RoutingTable {
                     AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
                     bsrec.envelope_support, // Envelope support is as specified in the bootstrap list
                     crypto_support,         // Crypto support is derived from list of node ids
+                    vec![],                 // Bootstrap needs no capabilities
                     bsrec.dial_info_details, // Dial info is as specified in the bootstrap list
                 )));
 

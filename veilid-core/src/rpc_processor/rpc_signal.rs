@@ -38,10 +38,14 @@ impl RPCProcessor {
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Ignore if disabled
+        let routing_table = self.routing_table();
         {
-            let c = self.config.get();
-            if c.capabilities.disable.contains(&CAP_WILL_SIGNAL) {
-                return Ok(NetworkResult::service_unavailable("signal is disabled"));
+            if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
+                if !opi.signed_node_info().node_info().can_signal() {
+                    return Ok(NetworkResult::service_unavailable(
+                        "signal is not available",
+                    ));
+                }
             }
         }
 

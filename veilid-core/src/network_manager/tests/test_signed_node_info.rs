@@ -20,6 +20,7 @@ pub async fn test_signed_node_info() {
             AddressTypeSet::all(),
             VALID_ENVELOPE_VERSIONS.to_vec(),
             VALID_CRYPTO_KINDS.to_vec(),
+            PUBLIC_INTERNET_CAPABILITIES.to_vec(),
             vec![DialInfoDetail {
                 class: DialInfoClass::Mapped,
                 dial_info: DialInfo::udp(SocketAddress::default()),
@@ -75,6 +76,7 @@ pub async fn test_signed_node_info() {
             AddressTypeSet::all(),
             VALID_ENVELOPE_VERSIONS.to_vec(),
             VALID_CRYPTO_KINDS.to_vec(),
+            PUBLIC_INTERNET_CAPABILITIES.to_vec(),
             vec![DialInfoDetail {
                 class: DialInfoClass::Blocked,
                 dial_info: DialInfo::udp(SocketAddress::default()),

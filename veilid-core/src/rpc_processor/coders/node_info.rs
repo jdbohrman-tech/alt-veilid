@@ -31,6 +31,18 @@ pub fn encode_node_info(
         s.clone_from_slice(&csvec);
     }
 
+    let mut cap_builder = builder
+        .reborrow()
+        .init_capabilities(node_info.capabilities().len() as u32);
+    if let Some(s) = cap_builder.as_slice() {
+        let capvec: Vec<u32> = node_info
+            .capabilities()
+            .iter()
+            .map(|x| u32::from_be_bytes(x.0))
+            .collect();
+
+        s.clone_from_slice(&capvec);
+    }
     let mut didl_builder = builder.reborrow().init_dial_info_detail_list(
         node_info
             .dial_info_detail_list()
@@ -121,6 +133,18 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
         return Err(RPCError::protocol("no crypto kinds"));
     }
 
+    let cap_reader = reader
+        .reborrow()
+        .get_capabilities()
+        .map_err(RPCError::protocol)?;
+    if cap_reader.len() as usize > MAX_CAPABILITIES {
+        return Err(RPCError::protocol("too many capabilities"));
+    }
+    let capabilities = cap_reader
+        .as_slice()
+        .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+        .unwrap_or_default();
+
     let didl_reader = reader
         .reborrow()
         .get_dial_info_detail_list()
@@ -141,6 +165,7 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
         address_types,
         envelope_support,
         crypto_support,
+        capabilities,
         dial_info_detail_list,
     ))
 }

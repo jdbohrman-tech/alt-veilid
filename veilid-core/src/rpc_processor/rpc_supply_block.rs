@@ -7,12 +7,17 @@ impl RPCProcessor {
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
         // Ignore if disabled
+        #[cfg(feature = "unstable-blockstore")]
         {
-            let c = self.config.get();
-            if c.capabilities.disable.contains(&CAP_WILL_BLOCKSTORE) {
-                return Ok(NetworkResult::service_unavailable(
-                    "supply block is disabled",
-                ));
+            let routing_table = self.routing_table();
+            {
+                if let Some(opi) = routing_table.get_own_peer_info(detail.routing_domain) {
+                    if !opi.signed_node_info().node_info().can_blockstore() {
+                        return Ok(NetworkResult::service_unavailable(
+                            "block store is not available",
+                        ));
+                    }
+                }
             }
         }
         Err(RPCError::unimplemented("process_supply_block_q"))

@@ -190,19 +190,8 @@ struct DialInfoDetail @0x96423aa1d67b74d8 {
     class                   @1  :DialInfoClass;
 }
 
-struct PublicInternetNodeStatus @0x9c9d7f1f12eb088f {
-    capabilities            @0  :List(Capability);      # List of Capability FOURCC codes that this node is advertising it is capable of in the publicinternet routing domain
-}
-
-struct LocalNetworkNodeStatus @0x957f5bfed2d0b5a5 {
-    capabilities            @0  :List(Capability);      # List of Capability FOURCC codes that this node is advertising it is capable of in the localnetwork routing domain
-}
-
 struct NodeStatus @0xd36b9e7a3bf3330d {
-    union {
-        publicInternet      @0  :PublicInternetNodeStatus;
-        localNetwork        @1  :LocalNetworkNodeStatus;
-    }
+    # Reserved for non-nodeinfo status
 }
 
 struct ProtocolTypeSet @0x82f12f55a1b73326 {
@@ -227,7 +216,8 @@ struct NodeInfo @0xe125d847e3f9f419 {
     addressTypes            @2  :AddressTypeSet;        # address types supported
     envelopeSupport         @3  :List(UInt8);           # supported rpc envelope/receipt versions
     cryptoSupport           @4  :List(CryptoKind);      # cryptography systems supported
-    dialInfoDetailList      @5  :List(DialInfoDetail);  # inbound dial info details for this node
+    capabilities            @5  :List(Capability);      # capabilities supported by the node
+    dialInfoDetailList      @6  :List(DialInfoDetail);  # inbound dial info details for this node
 }
 
 struct SignedDirectNodeInfo @0xe0e7ea3e893a3dd7 {
@@ -283,7 +273,7 @@ struct OperationReturnReceipt @0xeb0fb5b5a9160eeb {
 }
 
 struct OperationFindNodeQ @0xfdef788fe9623bcd {    
-    nodeId                  @0  :TypedKey;             # node id to locate 
+    nodeId                  @0  :TypedKey;             # node id to locate
 }
 
 struct OperationFindNodeA @0xa84cf2fb40c77089 {

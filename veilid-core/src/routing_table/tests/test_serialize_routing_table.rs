@@ -100,6 +100,7 @@ pub async fn test_round_trip_peerinfo() {
                 AddressTypeSet::new(),
                 vec![0],
                 vec![CRYPTO_KIND_VLD0],
+                PUBLIC_INTERNET_CAPABILITIES.to_vec(),
                 vec![],
             ),
             Timestamp::new(0),

@@ -58,19 +58,6 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
-        // Ignore if disabled
-        {
-            let c = self.config.get();
-            if c.capabilities
-                .disable
-                .contains(&CAP_WILL_VALIDATE_DIAL_INFO)
-            {
-                return Ok(NetworkResult::service_unavailable(
-                    "validate dial info is disabled",
-                ));
-            }
-        }
-
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
@@ -79,6 +66,18 @@ impl RPCProcessor {
                 ));
             }
         };
+
+        // Ignore if disabled
+        let routing_table = self.routing_table();
+        {
+            if let Some(opi) = routing_table.get_own_peer_info(detail.routing_domain) {
+                if !opi.signed_node_info().node_info().can_validate_dial_info() {
+                    return Ok(NetworkResult::service_unavailable(
+                        "validate dial info is not available",
+                    ));
+                }
+            }
+        }
 
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
@@ -96,7 +95,6 @@ impl RPCProcessor {
             // We filter on the -outgoing- protocol capability status not the node's dial info
             // Use the address type though, to ensure we reach an ipv6 capable node if this is
             // an ipv6 address
-            let routing_table = self.routing_table();
             let sender_node_id = TypedKey::new(
                 detail.envelope.get_crypto_kind(),
                 detail.envelope.get_sender_id(),
@@ -117,11 +115,9 @@ impl RPCProcessor {
                 move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                     let entry = v.unwrap();
                     entry.with(rti, move |_rti, e| {
-                        if let Some(status) = &e.node_status(routing_domain) {
-                            status.has_capability(CAP_WILL_VALIDATE_DIAL_INFO)
-                        } else {
-                            true
-                        }
+                        e.node_info(routing_domain)
+                            .map(|ni| ni.can_validate_dial_info())
+                            .unwrap_or(false)
                     })
                 },
             ) as RoutingTableEntryFilter;
