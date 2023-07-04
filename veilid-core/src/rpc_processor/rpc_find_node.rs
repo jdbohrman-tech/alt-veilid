@@ -15,6 +15,7 @@ impl RPCProcessor {
         self,
         dest: Destination,
         node_id: TypedKey,
+        capabilities: Vec<Capability>,
     ) -> Result<NetworkResult<Answer<Vec<PeerInfo>>>, RPCError> {
         // Ensure destination never has a private route
         if matches!(
@@ -29,7 +30,8 @@ impl RPCProcessor {
             ));
         }
 
-        let find_node_q_detail = RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ::new(node_id));
+        let find_node_q_detail =
+            RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ::new(node_id, capabilities.clone()));
         let find_node_q = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             find_node_q_detail,
@@ -60,9 +62,13 @@ impl RPCProcessor {
         let peers = find_node_a.destructure();
 
         for peer_info in &peers {
-            if !self.verify_node_info(RoutingDomain::PublicInternet, peer_info.signed_node_info()) {
+            if !self.verify_node_info(
+                RoutingDomain::PublicInternet,
+                peer_info.signed_node_info(),
+                &capabilities,
+            ) {
                 return Ok(NetworkResult::invalid_message(
-                    "find_node response has invalid peer scope",
+                    "find_node response does not meet peer criteria",
                 ));
             }
         }
@@ -94,11 +100,12 @@ impl RPCProcessor {
             },
             _ => panic!("not a question"),
         };
-        let node_id = find_node_q.destructure();
+        let (node_id, capabilities) = find_node_q.destructure();
 
         // Get a chunk of the routing table near the requested node id
         let routing_table = self.routing_table();
-        let closest_nodes = network_result_try!(routing_table.find_all_closest_peers(node_id));
+        let closest_nodes =
+            network_result_try!(routing_table.find_all_closest_peers(node_id, &capabilities));
 
         // Make FindNode answer
         let find_node_a = RPCOperationFindNodeA::new(closest_nodes)?;

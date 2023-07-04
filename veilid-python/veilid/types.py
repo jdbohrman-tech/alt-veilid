@@ -54,13 +54,13 @@ class CryptoKind(StrEnum):
 
 class Capability(StrEnum):
     CAP_WILL_ROUTE = "ROUT"
-    CAP_WILL_TUNNEL = "TUNL"
+    CAP_TUNNEL = "TUNL"
     CAP_WILL_SIGNAL = "SGNL"
     CAP_WILL_RELAY = "RLAY"
     CAP_WILL_VALIDATE_DIAL_INFO = "DIAL"
     CAP_WILL_DHT = "DHTV"
     CAP_WILL_APPMESSAGE = "APPM"
-    CAP_WILL_BLOCKSTORE = "BLOC"
+    CAP_BLOCKSTORE = "BLOC"
 
 
 class Stability(StrEnum):

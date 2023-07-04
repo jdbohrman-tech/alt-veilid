@@ -273,7 +273,8 @@ struct OperationReturnReceipt @0xeb0fb5b5a9160eeb {
 }
 
 struct OperationFindNodeQ @0xfdef788fe9623bcd {    
-    nodeId                  @0  :TypedKey;             # node id to locate
+    nodeId                  @0  :TypedKey;              # node id to locate
+    capabilities            @1  :List(Capability);      # required capabilities returned peers must have
 }
 
 struct OperationFindNodeA @0xa84cf2fb40c77089 {

@@ -100,6 +100,11 @@ impl RoutingTable {
             let can_serve_as_relay = e
                 .node_info(RoutingDomain::PublicInternet)
                 .map(|n| {
+                    if !(n.has_capability(CAP_RELAY) && n.is_signal_capable()) {
+                        // Needs to be able to signal and relay
+                        return false;
+                    }
+
                     let dids = n.all_filtered_dial_info_details(DialInfoDetail::NO_SORT, |did| {
                         did.matches_filter(&outbound_dif)
                     });
@@ -145,26 +150,23 @@ impl RoutingTable {
         inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
             let entry2 = entry.clone();
             entry.with(rti, |rti, e| {
-                // Ensure we have the node's status
-                if let Some(node_info) = e.node_info(routing_domain) {
-                    // Ensure the node will relay
-                    if node_info.can_inbound_relay() {
-                        // Compare against previous candidate
-                        if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
-                            // Less is faster
-                            let better = best_inbound_relay.with(rti, |_rti, best| {
-                                // choose low latency stability for relays
-                                BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
-                                    == std::cmp::Ordering::Less
-                            });
-                            // Now apply filter function and see if this node should be included
-                            if better && relay_node_filter(e) {
-                                *best_inbound_relay = entry2;
-                            }
-                        } else if relay_node_filter(e) {
-                            // Always store the first candidate
-                            best_inbound_relay = Some(entry2);
+                // Filter this node
+                if relay_node_filter(e) {
+                    // Compare against previous candidate
+                    if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
+                        // Less is faster
+                        let better = best_inbound_relay.with(rti, |_rti, best| {
+                            // choose low latency stability for relays
+                            BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
+                                == std::cmp::Ordering::Less
+                        });
+                        // Now apply filter function and see if this node should be included
+                        if better {
+                            *best_inbound_relay = entry2;
                         }
+                    } else {
+                        // Always store the first candidate
+                        best_inbound_relay = Some(entry2);
                     }
                 }
             });

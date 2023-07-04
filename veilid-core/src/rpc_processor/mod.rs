@@ -442,9 +442,11 @@ impl RPCProcessor {
         &self,
         routing_domain: RoutingDomain,
         signed_node_info: &SignedNodeInfo,
+        capabilities: &[Capability],
     ) -> bool {
         let routing_table = self.routing_table();
         routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
+            && signed_node_info.node_info().has_capabilities(capabilities)
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -470,6 +472,7 @@ impl RPCProcessor {
                     .rpc_call_find_node(
                         Destination::direct(next_node).with_safety(safety_selection),
                         node_id,
+                        vec![],
                     )
                     .await
                 {
@@ -1474,7 +1477,11 @@ impl RPCProcessor {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
 
                     // Sender PeerInfo was specified, update our routing table with it
-                    if !self.verify_node_info(routing_domain, sender_peer_info.signed_node_info()) {
+                    if !self.verify_node_info(
+                        routing_domain,
+                        sender_peer_info.signed_node_info(),
+                        &[],
+                    ) {
                         return Ok(NetworkResult::invalid_message(
                             "sender peerinfo has invalid peer scope",
                         ));

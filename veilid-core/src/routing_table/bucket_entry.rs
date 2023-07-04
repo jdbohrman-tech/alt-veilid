@@ -170,6 +170,13 @@ impl BucketEntryInner {
         common_crypto_kinds(&self.validated_node_ids.kinds(), other)
     }
 
+    /// Capability check
+    pub fn has_capabilities(&self, routing_domain: RoutingDomain, capabilities: &[Capability]) -> bool {
+        let Some(ni) = self.node_info(routing_domain) else {
+            return false;
+        };
+        ni.has_capabilities(capabilities)
+    }
 
     // Less is faster
     pub fn cmp_fastest(e1: &Self, e2: &Self) -> std::cmp::Ordering {

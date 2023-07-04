@@ -1072,7 +1072,7 @@ impl RoutingTable {
         let res = network_result_try!(
             rpc_processor
                 .clone()
-                .rpc_call_find_node(Destination::direct(node_ref), node_id)
+                .rpc_call_find_node(Destination::direct(node_ref), node_id, vec![])
                 .await?
         );
 

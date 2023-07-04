@@ -177,7 +177,7 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         {
             if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
-                if !opi.signed_node_info().node_info().can_dht() {
+                if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
                     return Ok(NetworkResult::service_unavailable(
                         "dht is not available",
                     ));
@@ -199,7 +199,7 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key));
+        let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key, vec![CAP_DHT]));
 
         let debug_string = format!(
             "IN <=== GetValueQ({} #{}{}) <== {}",

@@ -1,16 +1,16 @@
 use super::*;
 
 pub type Capability = FourCC;
-pub const CAP_WILL_ROUTE: Capability = FourCC(*b"ROUT");
+pub const CAP_ROUTE: Capability = FourCC(*b"ROUT");
 #[cfg(feature = "unstable-tunnels")]
-pub const CAP_WILL_TUNNEL: Capability = FourCC(*b"TUNL");
-pub const CAP_WILL_SIGNAL: Capability = FourCC(*b"SGNL");
-pub const CAP_WILL_RELAY: Capability = FourCC(*b"RLAY");
-pub const CAP_WILL_VALIDATE_DIAL_INFO: Capability = FourCC(*b"DIAL");
-pub const CAP_WILL_DHT: Capability = FourCC(*b"DHTV");
-pub const CAP_WILL_APPMESSAGE: Capability = FourCC(*b"APPM");
+pub const CAP_TUNNEL: Capability = FourCC(*b"TUNL");
+pub const CAP_SIGNAL: Capability = FourCC(*b"SGNL");
+pub const CAP_RELAY: Capability = FourCC(*b"RLAY");
+pub const CAP_VALIDATE_DIAL_INFO: Capability = FourCC(*b"DIAL");
+pub const CAP_DHT: Capability = FourCC(*b"DHTV");
+pub const CAP_APPMESSAGE: Capability = FourCC(*b"APPM");
 #[cfg(feature = "unstable-blockstore")]
-pub const CAP_WILL_BLOCKSTORE: Capability = FourCC(*b"BLOC");
+pub const CAP_BLOCKSTORE: Capability = FourCC(*b"BLOC");
 
 cfg_if! {
     if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
@@ -22,16 +22,16 @@ cfg_if! {
     }
 }
 pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
-    CAP_WILL_ROUTE,
+    CAP_ROUTE,
     #[cfg(feature = "unstable-tunnels")]
-    CAP_WILL_TUNNEL,
-    CAP_WILL_SIGNAL,
-    CAP_WILL_RELAY,
-    CAP_WILL_VALIDATE_DIAL_INFO,
-    CAP_WILL_DHT,
-    CAP_WILL_APPMESSAGE,
+    CAP_TUNNEL,
+    CAP_SIGNAL,
+    CAP_RELAY,
+    CAP_VALIDATE_DIAL_INFO,
+    CAP_DHT,
+    CAP_APPMESSAGE,
     #[cfg(feature = "unstable-blockstore")]
-    CAP_WILL_BLOCKSTORE,
+    CAP_BLOCKSTORE,
 ];
 
 #[cfg(feature = "unstable-blockstore")]
@@ -40,11 +40,11 @@ const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
 const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
 
 pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
-    CAP_WILL_RELAY,
-    CAP_WILL_DHT,
-    CAP_WILL_APPMESSAGE,
+    CAP_RELAY,
+    CAP_DHT,
+    CAP_APPMESSAGE,
     #[cfg(feature = "unstable-blockstore")]
-    CAP_WILL_BLOCKSTORE,
+    CAP_BLOCKSTORE,
 ];
 
 pub const MAX_CAPABILITIES: usize = 64;
@@ -199,14 +199,24 @@ impl NodeInfo {
         false
     }
 
-    fn has_capability(&self, cap: Capability) -> bool {
+    pub fn has_capability(&self, cap: Capability) -> bool {
         self.capabilities.contains(&cap)
+    }
+    pub fn has_capabilities(&self, capabilities: &[Capability]) -> bool {
+        for cap in capabilities {
+            if !self.has_capability(*cap) {
+                return false;
+            }
+        }
+        true
     }
 
     /// Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
-    pub fn can_signal(&self) -> bool {
+    /// Also used to determine if nodes are capable of validation of dial info, as that operation
+    /// has the same requirements, inbound capability and a dial info that requires no assistance
+    pub fn is_signal_capable(&self) -> bool {
         // Has capability?
-        if !self.has_capability(CAP_WILL_SIGNAL) {
+        if !self.has_capability(CAP_SIGNAL) {
             return false;
         }
 
@@ -221,48 +231,5 @@ impl NodeInfo {
             }
         }
         true
-    }
-
-    /// Can this node relay be an inbound relay?
-    pub fn can_inbound_relay(&self) -> bool {
-        // Has capability?
-        if !self.has_capability(CAP_WILL_RELAY) {
-            return false;
-        }
-
-        // For now this is the same
-        self.can_signal()
-    }
-
-    /// Is this node capable of validating dial info
-    pub fn can_validate_dial_info(&self) -> bool {
-        // Has capability?
-        if !self.has_capability(CAP_WILL_VALIDATE_DIAL_INFO) {
-            return false;
-        }
-        // For now this is the same
-        self.can_signal()
-    }
-    /// Is this node capable of private routing
-    pub fn can_route(&self) -> bool {
-        self.has_capability(CAP_WILL_ROUTE)
-    }
-    /// Is this node capable of dht operations
-    pub fn can_dht(&self) -> bool {
-        self.has_capability(CAP_WILL_DHT)
-    }
-    /// Is this node capable of app_message and app_call
-    pub fn can_appmessage(&self) -> bool {
-        self.has_capability(CAP_WILL_APPMESSAGE)
-    }
-    /// Is this node capable of tunneling
-    #[cfg(feature = "unstable-tunnels")]
-    pub fn can_tunnel(&self) -> bool {
-        self.has_capability(CAP_WILL_TUNNEL)
-    }
-    /// Is this node capable of block storage
-    #[cfg(feature = "unstable-blockstore")]
-    pub fn can_blockstore(&self) -> bool {
-        self.has_capability(CAP_WILL_BLOCKSTORE)
     }
 }

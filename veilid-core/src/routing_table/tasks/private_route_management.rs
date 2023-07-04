@@ -9,7 +9,7 @@ const BACKGROUND_SAFETY_ROUTE_COUNT: usize = 2;
 impl RoutingTable {
     fn get_background_safety_route_count(&self) -> usize {
         let c = self.config.get();
-        if c.capabilities.disable.contains(&CAP_WILL_ROUTE) {
+        if c.capabilities.disable.contains(&CAP_ROUTE) {
             0
         } else {
             BACKGROUND_SAFETY_ROUTE_COUNT

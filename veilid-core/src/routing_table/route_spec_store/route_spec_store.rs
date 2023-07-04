@@ -258,7 +258,7 @@ impl RouteSpecStore {
                 // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
                 entry.with_inner(|e| {
                     e.signed_node_info(RoutingDomain::PublicInternet).map(|sni| 
-                        sni.has_sequencing_matched_dial_info(sequencing) && sni.node_info().can_route()
+                        sni.has_sequencing_matched_dial_info(sequencing) && sni.node_info().has_capability(CAP_ROUTE)
                     ).unwrap_or(false)
                 })
             },
