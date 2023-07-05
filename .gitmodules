@@ -3,7 +3,7 @@
 	url = ../cursive.git
 [submodule "external/cursive_buffered_backend"]
 	path = external/cursive_buffered_backend
-	url = ../cursive_buffered_backend.git
+	url = ../cursive-buffered-backend.git
 [submodule "external/cursive-flexi-logger-view"]
 	path = external/cursive-flexi-logger-view
 	url = ../cursive-flexi-logger-view.git
