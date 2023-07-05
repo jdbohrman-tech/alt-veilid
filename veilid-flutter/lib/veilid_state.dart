@@ -1,9 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:change_case/change_case.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'veilid_encoding.dart';
 import 'veilid.dart';
+
+part 'veilid_state.freezed.dart';
+part 'veilid_state.g.dart';
 
 //////////////////////////////////////
 /// AttachmentState
@@ -18,13 +22,9 @@ enum AttachmentState {
   overAttached,
   detaching;
 
-  String toJson() {
-    return name.toPascalCase();
-  }
-
-  factory AttachmentState.fromJson(String j) {
-    return AttachmentState.values.byName(j.toCamelCase());
-  }
+  String toJson() => name.toPascalCase();
+  factory AttachmentState.fromJson(String j) =>
+      AttachmentState.values.byName(j.toCamelCase());
 }
 
 //////////////////////////////////////
@@ -37,208 +37,99 @@ enum VeilidLogLevel {
   debug,
   trace;
 
-  String toJson() {
-    return name.toPascalCase();
-  }
-
-  factory VeilidLogLevel.fromJson(String j) {
-    return VeilidLogLevel.values.byName(j.toCamelCase());
-  }
+  String toJson() => name.toPascalCase();
+  factory VeilidLogLevel.fromJson(String j) =>
+      VeilidLogLevel.values.byName(j.toCamelCase());
 }
 
 ////////////
 
-class LatencyStats {
-  TimestampDuration fastest;
-  TimestampDuration average;
-  TimestampDuration slowest;
+@freezed
+class LatencyStats with _$LatencyStats {
+  const factory LatencyStats({
+    required TimestampDuration fastest,
+    required TimestampDuration average,
+    required TimestampDuration slowest,
+  }) = _LatencyStats;
 
-  LatencyStats({
-    required this.fastest,
-    required this.average,
-    required this.slowest,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'fastest': fastest.toJson(),
-      'average': average.toJson(),
-      'slowest': slowest.toJson(),
-    };
-  }
-
-  LatencyStats.fromJson(dynamic json)
-      : fastest = TimestampDuration.fromJson(json['fastest']),
-        average = TimestampDuration.fromJson(json['average']),
-        slowest = TimestampDuration.fromJson(json['slowest']);
+  factory LatencyStats.fromJson(Map<String, Object?> json) =>
+      _$LatencyStatsFromJson(json);
 }
 
 ////////////
 
-class TransferStats {
-  BigInt total;
-  BigInt maximum;
-  BigInt average;
-  BigInt minimum;
+@freezed
+class TransferStats with _$TransferStats {
+  const factory TransferStats({
+    required BigInt total,
+    required BigInt maximum,
+    required BigInt average,
+    required BigInt minimum,
+  }) = _TransferStats;
 
-  TransferStats({
-    required this.total,
-    required this.maximum,
-    required this.average,
-    required this.minimum,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'total': total.toString(),
-      'maximum': maximum.toString(),
-      'average': average.toString(),
-      'minimum': minimum.toString(),
-    };
-  }
-
-  TransferStats.fromJson(dynamic json)
-      : total = BigInt.parse(json['total']),
-        maximum = BigInt.parse(json['maximum']),
-        average = BigInt.parse(json['average']),
-        minimum = BigInt.parse(json['minimum']);
+  factory TransferStats.fromJson(Map<String, Object?> json) =>
+      _$TransferStatsFromJson(json);
 }
 
 ////////////
 
-class TransferStatsDownUp {
-  TransferStats down;
-  TransferStats up;
+@freezed
+class TransferStatsDownUp with _$TransferStatsDownUp {
+  const factory TransferStatsDownUp({
+    required TransferStats down,
+    required TransferStats up,
+  }) = _TransferStatsDownUp;
 
-  TransferStatsDownUp({
-    required this.down,
-    required this.up,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'down': down.toJson(),
-      'up': up.toJson(),
-    };
-  }
-
-  TransferStatsDownUp.fromJson(dynamic json)
-      : down = TransferStats.fromJson(json['down']),
-        up = TransferStats.fromJson(json['up']);
+  factory TransferStatsDownUp.fromJson(Map<String, Object?> json) =>
+      _$TransferStatsDownUpFromJson(json);
 }
 
 ////////////
 
-class RPCStats {
-  int messagesSent;
-  int messagesRcvd;
-  int questionsInFlight;
-  Timestamp? lastQuestion;
-  Timestamp? lastSeenTs;
-  Timestamp? firstConsecutiveSeenTs;
-  int recentLostAnswers;
-  int failedToSend;
+@freezed
+class RPCStats with _$RPCStats {
+  const factory RPCStats({
+    required int messagesSent,
+    required int messagesRcvd,
+    required int questionsInFlight,
+    required Timestamp? lastQuestion,
+    required Timestamp? lastSeenTs,
+    required Timestamp? firstConsecutiveSeenTs,
+    required int recentLostAnswers,
+    required int failedToSend,
+  }) = _RPCStats;
 
-  RPCStats({
-    required this.messagesSent,
-    required this.messagesRcvd,
-    required this.questionsInFlight,
-    required this.lastQuestion,
-    required this.lastSeenTs,
-    required this.firstConsecutiveSeenTs,
-    required this.recentLostAnswers,
-    required this.failedToSend,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'messages_sent': messagesSent,
-      'messages_rcvd': messagesRcvd,
-      'questions_in_flight': questionsInFlight,
-      'last_question': lastQuestion?.toJson(),
-      'last_seen_ts': lastSeenTs?.toJson(),
-      'first_consecutive_seen_ts': firstConsecutiveSeenTs?.toJson(),
-      'recent_lost_answers': recentLostAnswers,
-      'failed_to_send': failedToSend,
-    };
-  }
-
-  RPCStats.fromJson(dynamic json)
-      : messagesSent = json['messages_sent'],
-        messagesRcvd = json['messages_rcvd'],
-        questionsInFlight = json['questions_in_flight'],
-        lastQuestion = json['last_question'] != null
-            ? Timestamp.fromJson(json['last_question'])
-            : null,
-        lastSeenTs = json['last_seen_ts'] != null
-            ? Timestamp.fromJson(json['last_seen_ts'])
-            : null,
-        firstConsecutiveSeenTs = json['first_consecutive_seen_ts'] != null
-            ? Timestamp.fromJson(json['first_consecutive_seen_ts'])
-            : null,
-        recentLostAnswers = json['recent_lost_answers'],
-        failedToSend = json['failed_to_send'];
+  factory RPCStats.fromJson(Map<String, Object?> json) =>
+      _$RPCStatsFromJson(json);
 }
 
 ////////////
 
-class PeerStats {
-  Timestamp timeAdded;
-  RPCStats rpcStats;
-  LatencyStats? latency;
-  TransferStatsDownUp transfer;
+@freezed
+class PeerStats with _$PeerStats {
+  const factory PeerStats({
+    required Timestamp timeAdded,
+    required RPCStats rpcStats,
+    LatencyStats? latency,
+    required TransferStatsDownUp transfer,
+  }) = _PeerStats;
 
-  PeerStats({
-    required this.timeAdded,
-    required this.rpcStats,
-    required this.latency,
-    required this.transfer,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'time_added': timeAdded.toJson(),
-      'rpc_stats': rpcStats.toJson(),
-      'latency': latency?.toJson(),
-      'transfer': transfer.toJson(),
-    };
-  }
-
-  PeerStats.fromJson(dynamic json)
-      : timeAdded = Timestamp.fromJson(json['time_added']),
-        rpcStats = RPCStats.fromJson(json['rpc_stats']),
-        latency = json['latency'] != null
-            ? LatencyStats.fromJson(json['latency'])
-            : null,
-        transfer = TransferStatsDownUp.fromJson(json['transfer']);
+  factory PeerStats.fromJson(Map<String, Object?> json) =>
+      _$PeerStatsFromJson(json);
 }
 
 ////////////
 
-class PeerTableData {
-  List<TypedKey> nodeIds;
-  String peerAddress;
-  PeerStats peerStats;
+@freezed
+class PeerTableData with _$PeerTableData {
+  const factory PeerTableData({
+    required List<TypedKey> nodeIds,
+    required String peerAddress,
+    required PeerStats peerStats,
+  }) = _PeerTableData;
 
-  PeerTableData({
-    required this.nodeIds,
-    required this.peerAddress,
-    required this.peerStats,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'node_ids': nodeIds.map((p) => p.toJson()).toList(),
-      'peer_address': peerAddress,
-      'peer_stats': peerStats.toJson(),
-    };
-  }
-
-  PeerTableData.fromJson(dynamic json)
-      : nodeIds = List<TypedKey>.from(
-            json['node_ids'].map((j) => TypedKey.fromJson(j))),
-        peerAddress = json['peer_address'],
-        peerStats = PeerStats.fromJson(json['peer_stats']);
+  factory PeerTableData.fromJson(Map<String, Object?> json) =>
+      _$PeerTableDataFromJson(json);
 }
 
 //////////////////////////////////////

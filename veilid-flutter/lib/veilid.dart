@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'veilid_stub.dart'
     if (dart.library.io) 'veilid_ffi.dart'
     if (dart.library.js) 'veilid_js.dart';
@@ -56,64 +59,61 @@ List<T> Function(dynamic) jsonListConstructor<T>(
 //////////////////////////////////////
 /// VeilidVersion
 
-class VeilidVersion {
+@immutable
+class VeilidVersion extends Equatable {
   final int major;
   final int minor;
   final int patch;
+  @override
+  List<Object> get props => [major, minor, patch];
 
-  VeilidVersion(this.major, this.minor, this.patch);
+  const VeilidVersion(this.major, this.minor, this.patch);
 }
 
 //////////////////////////////////////
 /// Timestamp
-class Timestamp {
+@immutable
+class Timestamp extends Equatable {
   final BigInt value;
-  Timestamp({required this.value});
+  @override
+  List<Object> get props => [value];
+
+  const Timestamp({required this.value});
 
   @override
-  String toString() {
-    return value.toString();
-  }
+  String toString() => value.toString();
+  factory Timestamp.fromString(String s) => Timestamp(value: BigInt.parse(s));
 
-  Timestamp.fromString(String s) : value = BigInt.parse(s);
+  String toJson() => toString();
+  factory Timestamp.fromJson(dynamic json) =>
+      Timestamp.fromString(json as String);
 
-  Timestamp.fromJson(dynamic json) : this.fromString(json as String);
-  String toJson() {
-    return toString();
-  }
+  TimestampDuration diff(Timestamp other) =>
+      TimestampDuration(value: value - other.value);
 
-  TimestampDuration diff(Timestamp other) {
-    return TimestampDuration(value: value - other.value);
-  }
-
-  Timestamp offset(TimestampDuration dur) {
-    return Timestamp(value: value + dur.value);
-  }
+  Timestamp offset(TimestampDuration dur) =>
+      Timestamp(value: value + dur.value);
 }
 
-class TimestampDuration {
+@immutable
+class TimestampDuration extends Equatable {
   final BigInt value;
-  TimestampDuration({required this.value});
+  @override
+  List<Object> get props => [value];
+
+  const TimestampDuration({required this.value});
 
   @override
-  String toString() {
-    return value.toString();
-  }
+  String toString() => value.toString();
+  factory TimestampDuration.fromString(String s) =>
+      TimestampDuration(value: BigInt.parse(s));
 
-  TimestampDuration.fromString(String s) : value = BigInt.parse(s);
+  String toJson() => toString();
+  factory TimestampDuration.fromJson(dynamic json) =>
+      TimestampDuration.fromString(json as String);
 
-  TimestampDuration.fromJson(dynamic json) : this.fromString(json as String);
-  String toJson() {
-    return toString();
-  }
-
-  int toMillis() {
-    return (value ~/ BigInt.from(1000)).toInt();
-  }
-
-  BigInt toMicros(Timestamp other) {
-    return value;
-  }
+  int toMillis() => (value ~/ BigInt.from(1000)).toInt();
+  BigInt toMicros() => value;
 }
 
 //////////////////////////////////////

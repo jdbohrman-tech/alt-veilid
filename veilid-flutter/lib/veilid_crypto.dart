@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:charcode/charcode.dart';
+import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'veilid_encoding.dart';
 import 'veilid.dart';
@@ -33,92 +35,96 @@ CryptoKind cryptoKindFromString(String s) {
 //////////////////////////////////////
 /// Types
 
-class Typed<V extends EncodedString> {
-  late CryptoKind kind;
-  late V value;
-  Typed({required this.kind, required this.value});
+@immutable
+class Typed<V extends EncodedString> extends Equatable {
+  final CryptoKind kind;
+  final V value;
+  @override
+  List<Object> get props => [kind, value];
+
+  const Typed({required this.kind, required this.value});
 
   @override
   String toString() {
     return "${cryptoKindToString(kind)}:$value";
   }
 
-  Typed.fromString(String s) {
-    var parts = s.split(":");
+  factory Typed.fromString(String s) {
+    final parts = s.split(":");
     if (parts.length < 2 || parts[0].codeUnits.length != 4) {
       throw const FormatException("malformed string");
     }
-    kind = parts[0].codeUnits[0] |
-        parts[0].codeUnits[1] << 8 |
-        parts[0].codeUnits[2] << 16 |
-        parts[0].codeUnits[3] << 24;
-    value = EncodedString.fromString<V>(parts.sublist(1).join(":"));
+    final kind = cryptoKindFromString(parts[0]);
+    final value = EncodedString.fromString<V>(parts.sublist(1).join(":"));
+    return Typed(kind: kind, value: value);
   }
 
-  String toJson() {
-    return toString();
-  }
-
-  Typed.fromJson(dynamic json) : this.fromString(json as String);
+  String toJson() => toString();
+  factory Typed.fromJson(dynamic json) => Typed.fromString(json as String);
 }
 
-class KeyPair {
-  late PublicKey key;
-  late PublicKey secret;
-  KeyPair({required this.key, required this.secret});
+@immutable
+class KeyPair extends Equatable {
+  final PublicKey key;
+  final PublicKey secret;
+  @override
+  List<Object> get props => [key, secret];
+
+  const KeyPair({required this.key, required this.secret});
 
   @override
   String toString() {
     return "${key.toString()}:${secret.toString()}";
   }
 
-  KeyPair.fromString(String s) {
-    var parts = s.split(":");
+  factory KeyPair.fromString(String s) {
+    final parts = s.split(":");
     if (parts.length != 2 ||
         parts[0].codeUnits.length != 43 ||
         parts[1].codeUnits.length != 43) {
       throw const FormatException("malformed string");
     }
-    key = PublicKey(parts[0]);
-    secret = PublicKey(parts[1]);
+    final key = PublicKey.fromString(parts[0]);
+    final secret = PublicKey.fromString(parts[1]);
+    return KeyPair(key: key, secret: secret);
   }
 
-  String toJson() {
-    return toString();
-  }
-
-  KeyPair.fromJson(dynamic json) : this.fromString(json as String);
+  String toJson() => toString();
+  factory KeyPair.fromJson(dynamic json) => KeyPair.fromString(json as String);
 }
 
-class TypedKeyPair {
-  late CryptoKind kind;
-  late PublicKey key;
-  late PublicKey secret;
-  TypedKeyPair({required this.kind, required this.key, required this.secret});
+@immutable
+class TypedKeyPair extends Equatable {
+  final CryptoKind kind;
+  final PublicKey key;
+  final PublicKey secret;
+  @override
+  List<Object> get props => [kind, key, secret];
+
+  const TypedKeyPair(
+      {required this.kind, required this.key, required this.secret});
 
   @override
-  String toString() {
-    return "${cryptoKindToString(kind)}:${key.toString()}:${secret.toString()}";
-  }
+  String toString() =>
+      "${cryptoKindToString(kind)}:${key.toString()}:${secret.toString()}";
 
-  TypedKeyPair.fromString(String s) {
-    var parts = s.split(":");
+  factory TypedKeyPair.fromString(String s) {
+    final parts = s.split(":");
     if (parts.length != 3 ||
         parts[0].codeUnits.length != 4 ||
         parts[1].codeUnits.length != 43 ||
         parts[2].codeUnits.length != 43) {
       throw VeilidAPIExceptionInvalidArgument("malformed string", "s", s);
     }
-    kind = cryptoKindFromString(parts[0]);
-    key = PublicKey(parts[1]);
-    secret = PublicKey(parts[2]);
+    final kind = cryptoKindFromString(parts[0]);
+    final key = PublicKey.fromString(parts[1]);
+    final secret = PublicKey.fromString(parts[2]);
+    return TypedKeyPair(kind: kind, key: key, secret: secret);
   }
 
-  String toJson() {
-    return toString();
-  }
-
-  TypedKeyPair.fromJson(dynamic json) : this.fromString(json as String);
+  String toJson() => toString();
+  factory TypedKeyPair.fromJson(dynamic json) =>
+      TypedKeyPair.fromString(json as String);
 }
 
 typedef CryptoKey = FixedEncodedString43;
