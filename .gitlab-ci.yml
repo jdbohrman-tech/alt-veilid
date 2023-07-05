@@ -18,8 +18,7 @@ test_amd64:
     - main
     - merge_requests
   tags:
-    - linux
-    - amd64
+    - build-server
   script:
     - earthly bootstrap
     - earthly --ci +unit-tests-linux-amd64
@@ -30,8 +29,7 @@ package_amd64:
   only:
     - stable
   tags:
-    - linux
-    - amd64
+    - build-server
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
@@ -45,6 +43,6 @@ deploy_repos:
   needs:
     - package_amd64
   tags: 
-    - repo-setup
+    - repo-server
   script: 
     - /home/gitlab-runner/deploy-repo.sh
