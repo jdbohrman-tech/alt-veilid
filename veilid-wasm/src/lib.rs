@@ -9,6 +9,7 @@ use alloc::sync::Arc;
 use alloc::*;
 use core::cell::RefCell;
 use core::fmt::Debug;
+use core::sync::atomic::{AtomicBool, Ordering};
 use futures_util::FutureExt;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::*;
@@ -185,54 +186,52 @@ pub fn initialize_veilid_wasm() {
     console_error_panic_hook::set_once();
 }
 
-static SETUP_ONCE: Once = Once::new();
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 #[wasm_bindgen()]
 pub fn initialize_veilid_core(platform_config: String) {
-    SETUP_ONCE.call_once(|| {
-        let platform_config: VeilidWASMConfig = veilid_core::deserialize_json(&platform_config)
-            .expect("failed to deserialize platform config json");
+    if INITIALIZED.swap(true, Ordering::Relaxed) {
+        return;
+    }
+    let platform_config: VeilidWASMConfig = veilid_core::deserialize_json(&platform_config)
+        .expect("failed to deserialize platform config json");
 
-        // Set up subscriber and layers
-        let subscriber = Registry::default();
-        let mut layers = Vec::new();
-        let mut filters = (*FILTERS).borrow_mut();
+    // Set up subscriber and layers
+    let subscriber = Registry::default();
+    let mut layers = Vec::new();
+    let mut filters = (*FILTERS).borrow_mut();
 
-        // Performance logger
-        if platform_config.logging.performance.enabled {
-            let filter = veilid_core::VeilidLayerFilter::new(
-                platform_config.logging.performance.level,
-                None,
-            );
-            let layer = WASMLayer::new(
-                WASMLayerConfigBuilder::new()
-                    .set_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
-                    .set_console_config(if platform_config.logging.performance.logs_in_console {
-                        ConsoleConfig::ReportWithConsoleColor
-                    } else {
-                        ConsoleConfig::NoReporting
-                    })
-                    .build(),
-            )
-            .with_filter(filter.clone());
-            filters.insert("performance", filter);
-            layers.push(layer.boxed());
-        };
+    // Performance logger
+    if platform_config.logging.performance.enabled {
+        let filter =
+            veilid_core::VeilidLayerFilter::new(platform_config.logging.performance.level, None);
+        let layer = WASMLayer::new(
+            WASMLayerConfigBuilder::new()
+                .set_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
+                .set_console_config(if platform_config.logging.performance.logs_in_console {
+                    ConsoleConfig::ReportWithConsoleColor
+                } else {
+                    ConsoleConfig::NoReporting
+                })
+                .build(),
+        )
+        .with_filter(filter.clone());
+        filters.insert("performance", filter);
+        layers.push(layer.boxed());
+    };
 
-        // API logger
-        if platform_config.logging.api.enabled {
-            let filter =
-                veilid_core::VeilidLayerFilter::new(platform_config.logging.api.level, None);
-            let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
-            filters.insert("api", filter);
-            layers.push(layer.boxed());
-        }
+    // API logger
+    if platform_config.logging.api.enabled {
+        let filter = veilid_core::VeilidLayerFilter::new(platform_config.logging.api.level, None);
+        let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
+        filters.insert("api", filter);
+        layers.push(layer.boxed());
+    }
 
-        let subscriber = subscriber.with(layers);
-        subscriber
-            .try_init()
-            .map_err(|e| format!("failed to initialize logging: {}", e))
-            .expect("failed to initalize WASM platform");
-    });
+    let subscriber = subscriber.with(layers);
+    subscriber
+        .try_init()
+        .map_err(|e| format!("failed to initialize logging: {}", e))
+        .expect("failed to initalize WASM platform");
 }
 
 #[wasm_bindgen()]
@@ -356,14 +355,15 @@ pub fn routing_context_with_privacy(id: u32) -> u32 {
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_with_custom_privacy(id: u32, stability: String) -> u32 {
-    let stability: veilid_core::Stability = veilid_core::deserialize_json(&stability).unwrap();
+pub fn routing_context_with_custom_privacy(id: u32, safety_selection: String) -> u32 {
+    let safety_selection: veilid_core::SafetySelection =
+        veilid_core::deserialize_json(&safety_selection).unwrap();
 
     let rc = (*ROUTING_CONTEXTS).borrow();
     let Some(routing_context) = rc.get(&id) else {
         return 0;
     };
-    let Ok(routing_context) = routing_context.clone().with_custom_privacy(stability) else {
+    let Ok(routing_context) = routing_context.clone().with_custom_privacy(safety_selection) else {
         return 0;
     };
     let new_id = add_routing_context(routing_context);

@@ -357,7 +357,13 @@ impl NetworkManager {
             ContactMethod::SignalReverse(relay_key, target_key) => {
                 let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
-                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                    .ok_or_else(|| {
+                        eyre!(
+                            "couldn't look up relay for signal reverse: {} with filter {:?}",
+                            relay_key,
+                            dial_info_filter
+                        )
+                    })?;
                 if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("signalreverse target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
@@ -367,7 +373,13 @@ impl NetworkManager {
             ContactMethod::SignalHolePunch(relay_key, target_key) => {
                 let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
-                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                    .ok_or_else(|| {
+                        eyre!(
+                            "couldn't look up relay for hole punch: {} with filter {:?}",
+                            relay_key,
+                            dial_info_filter
+                        )
+                    })?;
                 if !target_node_ref.node_ids().contains(&target_key) {
                     bail!("signalholepunch target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
@@ -383,14 +395,26 @@ impl NetworkManager {
             ContactMethod::InboundRelay(relay_key) => {
                 let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
-                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                    .ok_or_else(|| {
+                        eyre!(
+                            "couldn't look up relay for inbound relay: {} with filter {:?}",
+                            relay_key,
+                            dial_info_filter
+                        )
+                    })?;
                 relay_nr.set_sequencing(sequencing);
                 NodeContactMethod::InboundRelay(relay_nr)
             }
             ContactMethod::OutboundRelay(relay_key) => {
                 let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
-                    .ok_or_else(|| eyre!("couldn't look up relay"))?;
+                    .ok_or_else(|| {
+                        eyre!(
+                            "couldn't look up relay for outbound relay: {} with filter {:?}",
+                            relay_key,
+                            dial_info_filter
+                        )
+                    })?;
                 relay_nr.set_sequencing(sequencing);
                 NodeContactMethod::OutboundRelay(relay_nr)
             }

@@ -875,11 +875,12 @@ class VeilidConfigCapabilities {
 
   Map<String, dynamic> toJson() {
     return {
-      'disable': disable,
+      'disable': disable.map((p) => p).toList(),
     };
   }
 
-  VeilidConfigCapabilities.fromJson(dynamic json) : disable = json['disable'];
+  VeilidConfigCapabilities.fromJson(dynamic json)
+      : disable = List<String>.from(json['disable'].map((j) => j));
 }
 
 ////////////

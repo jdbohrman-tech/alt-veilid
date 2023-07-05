@@ -23,8 +23,9 @@ impl<T> MustJoinHandle<T> {
             } else if #[cfg(feature="rt-tokio")] {
                 self.join_handle = None;
             } else if #[cfg(target_arch = "wasm32")] {
-                self.join_handle.take().detach();
-                self.completed = true;
+                if let Some(jh) = self.join_handle.take() {
+                    jh.detach();
+                }
             } else {
                 compile_error!("needs executor implementation")
             }
