@@ -5,7 +5,7 @@ import 'package:veilid/veilid.dart';
 // Call only once.
 void veilidInit() {
   if (kIsWeb) {
-    var platformConfig = VeilidWASMConfig(
+    var platformConfig = const VeilidWASMConfig(
         logging: VeilidWASMConfigLogging(
             performance: VeilidWASMConfigLoggingPerformance(
                 enabled: true,
@@ -16,7 +16,7 @@ void veilidInit() {
                 enabled: true, level: VeilidConfigLogLevel.info)));
     Veilid.instance.initializeVeilidCore(platformConfig.toJson());
   } else {
-    var platformConfig = VeilidFFIConfig(
+    var platformConfig = const VeilidFFIConfig(
         logging: VeilidFFIConfigLogging(
             terminal: VeilidFFIConfigLoggingTerminal(
               enabled: false,

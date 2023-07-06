@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:veilid/veilid.dart';
 import 'package:loggy/loggy.dart';
 import 'package:veilid_example/veilid_theme.dart';
