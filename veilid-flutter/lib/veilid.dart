@@ -39,7 +39,8 @@ Object? veilidApiToEncodable(Object? value) {
   throw UnsupportedError('Cannot convert to JSON: $value');
 }
 
-T? Function(dynamic) optFromJson<T>(T Function(dynamic) jsonConstructor) {
+T? Function(dynamic) optFromJson<T>(
+    T Function(Map<String, dynamic>) jsonConstructor) {
   return (dynamic j) {
     if (j == null) {
       return null;
@@ -50,9 +51,11 @@ T? Function(dynamic) optFromJson<T>(T Function(dynamic) jsonConstructor) {
 }
 
 List<T> Function(dynamic) jsonListConstructor<T>(
-    T Function(dynamic) jsonConstructor) {
+    T Function(Map<String, dynamic>) jsonConstructor) {
   return (dynamic j) {
-    return (j as List<dynamic>).map((e) => jsonConstructor(e)).toList();
+    return (j as List<Map<String, dynamic>>)
+        .map((e) => jsonConstructor(e))
+        .toList();
   };
 }
 

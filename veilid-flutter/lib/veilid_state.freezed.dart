@@ -3266,6 +3266,8 @@ abstract class _$$VeilidUpdateValueChangeCopyWith<$Res> {
       List<ValueSubkeyRange> subkeys,
       int count,
       ValueData valueData});
+
+  $ValueDataCopyWith<$Res> get valueData;
 }
 
 /// @nodoc
@@ -3302,6 +3304,14 @@ class __$$VeilidUpdateValueChangeCopyWithImpl<$Res>
           : valueData // ignore: cast_nullable_to_non_nullable
               as ValueData,
     ));
+  }
+
+  @override
+  @pragma('vm:prefer-inline')
+  $ValueDataCopyWith<$Res> get valueData {
+    return $ValueDataCopyWith<$Res>(_value.valueData, (value) {
+      return _then(_value.copyWith(valueData: value));
+    });
   }
 }
 

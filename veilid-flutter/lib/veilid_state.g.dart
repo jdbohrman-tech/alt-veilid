@@ -242,10 +242,10 @@ _$VeilidUpdateValueChange _$$VeilidUpdateValueChangeFromJson(
     _$VeilidUpdateValueChange(
       key: Typed<FixedEncodedString43>.fromJson(json['key']),
       subkeys: (json['subkeys'] as List<dynamic>)
-          .map(ValueSubkeyRange.fromJson)
+          .map((e) => ValueSubkeyRange.fromJson(e as Map<String, dynamic>))
           .toList(),
       count: json['count'] as int,
-      valueData: ValueData.fromJson(json['value_data']),
+      valueData: ValueData.fromJson(json['value_data'] as Map<String, dynamic>),
       $type: json['kind'] as String?,
     );
 

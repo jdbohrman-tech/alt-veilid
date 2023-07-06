@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:change_case/change_case.dart';
+import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'veilid_encoding.dart';
@@ -12,57 +13,51 @@ part 'routing_context.g.dart';
 
 //////////////////////////////////////
 
+extension ValidateDFLT on DHTSchemaDFLT {
+  bool validate() {
+    if (oCnt > 65535) {
+      return false;
+    }
+    if (oCnt <= 0) {
+      return false;
+    }
+    return true;
+  }
+}
+
+extension ValidateSMPL on DHTSchemaSMPL {
+  bool validate() {
+    final totalsv = members.fold(0, (acc, v) => (acc + v.mCnt)) + oCnt;
+    if (totalsv > 65535) {
+      return false;
+    }
+    if (totalsv <= 0) {
+      return false;
+    }
+    return true;
+  }
+}
+
 //////////////////////////////////////
 /// DHT Schema
 
-abstract class DHTSchema {
-  factory DHTSchema.fromJson(dynamic json) {
-    switch (json["kind"]) {
-      case "DFLT":
-        {
-          return DHTSchemaDFLT(oCnt: json["o_cnt"]);
-        }
-      case "SMPL":
-        {
-          return DHTSchemaSMPL(
-              oCnt: json["o_cnt"],
-              members: List<DHTSchemaMember>.from(
-                  json['members'].map((j) => DHTSchemaMember.fromJson(j))));
-        }
-      default:
-        {
-          throw VeilidAPIExceptionInternal(
-              "Invalid DHTSchema type: ${json['kind']}");
-        }
-    }
-  }
-  Map<String, dynamic> toJson();
-}
+@Freezed(unionKey: 'kind', unionValueCase: FreezedUnionCase.pascal)
+sealed class DHTSchema with _$DHTSchema {
+  @FreezedUnionValue('DFLT')
+  const factory DHTSchema.dflt({required int oCnt}) = DHTSchemaDFLT;
 
-class DHTSchemaDFLT implements DHTSchema {
-  final int oCnt;
-  //
-  DHTSchemaDFLT({
-    required this.oCnt,
-  }) {
-    if (oCnt < 0 || oCnt > 65535) {
-      throw VeilidAPIExceptionInvalidArgument(
-          "value out of range", "oCnt", oCnt.toString());
-    }
-  }
+  @FreezedUnionValue('SMPL')
+  const factory DHTSchema.smpl(
+      {required int oCnt,
+      required List<DHTSchemaMember> members}) = DHTSchemaSMPL;
 
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'kind': "DFLT",
-      'o_cnt': oCnt,
-    };
-  }
+  factory DHTSchema.fromJson(Map<String, dynamic> json) =>
+      _$DHTSchemaFromJson(json);
 }
 
 @freezed
 class DHTSchemaMember with _$DHTSchemaMember {
-  @Assert('mCnt >= 0 && mCnt <= 65535', 'value out of range')
+  @Assert('mCnt > 0 && mCnt <= 65535', 'value out of range')
   const factory DHTSchemaMember({
     required PublicKey mKey,
     required int mCnt,
@@ -72,118 +67,51 @@ class DHTSchemaMember with _$DHTSchemaMember {
       _$DHTSchemaMemberFromJson(json);
 }
 
-class DHTSchemaSMPL implements DHTSchema {
-  final int oCnt;
-  final List<DHTSchemaMember> members;
-  //
-  DHTSchemaSMPL({
-    required this.oCnt,
-    required this.members,
-  }) {
-    if (oCnt < 0 || oCnt > 65535) {
-      throw VeilidAPIExceptionInvalidArgument(
-          "value out of range", "oCnt", oCnt.toString());
-    }
-  }
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'kind': "SMPL",
-      'o_cnt': oCnt,
-      'members': members.map((p) => p.toJson()).toList(),
-    };
-  }
-}
-
 //////////////////////////////////////
 /// DHTRecordDescriptor
 
-class DHTRecordDescriptor {
-  TypedKey key;
-  PublicKey owner;
-  PublicKey? ownerSecret;
-  DHTSchema schema;
-
-  DHTRecordDescriptor({
-    required this.key,
-    required this.owner,
-    this.ownerSecret,
-    required this.schema,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'key': key.toString(),
-      'owner': owner,
-      'owner_secret': ownerSecret,
-      'schema': schema.toJson(),
-    };
-  }
-
-  DHTRecordDescriptor.fromJson(dynamic json)
-      : key = TypedKey.fromString(json['key']),
-        owner = json['owner'],
-        ownerSecret = json['owner_secret'],
-        schema = DHTSchema.fromJson(json['schema']);
+@freezed
+class DHTRecordDescriptor with _$DHTRecordDescriptor {
+  const factory DHTRecordDescriptor({
+    required TypedKey key,
+    required PublicKey owner,
+    PublicKey? ownerSecret,
+    required DHTSchema schema,
+  }) = _DHTRecordDescriptor;
+  factory DHTRecordDescriptor.fromJson(Map<String, dynamic> json) =>
+      _$DHTRecordDescriptorFromJson(json);
 }
 
 //////////////////////////////////////
 /// ValueSubkeyRange
 
-class ValueSubkeyRange {
-  final int low;
-  final int high;
+@freezed
+class ValueSubkeyRange with _$ValueSubkeyRange {
+  @Assert('low < 0 || low > high', 'low out of range')
+  @Assert('high < 0', 'high out of range')
+  const factory ValueSubkeyRange({
+    required int low,
+    required int high,
+  }) = _ValueSubkeyRange;
 
-  ValueSubkeyRange({
-    required this.low,
-    required this.high,
-  }) {
-    if (low < 0 || low > high) {
-      throw VeilidAPIExceptionInvalidArgument(
-          "invalid range", "low", low.toString());
-    }
-    if (high < 0) {
-      throw VeilidAPIExceptionInvalidArgument(
-          "invalid range", "high", high.toString());
-    }
-  }
-
-  ValueSubkeyRange.fromJson(dynamic json)
-      : low = json[0],
-        high = json[1] {
-    if ((json as List<int>).length != 2) {
-      throw VeilidAPIExceptionInvalidArgument(
-          "not a pair of integers", "json", json.toString());
-    }
-  }
-
-  List<dynamic> toJson() {
-    return [low, high];
-  }
+  factory ValueSubkeyRange.fromJson(Map<String, dynamic> json) =>
+      _$ValueSubkeyRangeFromJson(json);
 }
 
 //////////////////////////////////////
 /// ValueData
 
-class ValueData {
-  final int seq;
-  final Uint8List data;
-  final PublicKey writer;
+@freezed
+class ValueData with _$ValueData {
+  @Assert('seq >= 0', 'seq out of range')
+  const factory ValueData({
+    required int seq,
+    @Uint8ListJsonConverter() required Uint8List data,
+    required PublicKey writer,
+  }) = _ValueData;
 
-  ValueData({
-    required this.seq,
-    required this.data,
-    required this.writer,
-  });
-
-  ValueData.fromJson(dynamic json)
-      : seq = json['seq'],
-        data = base64UrlNoPadDecode(json['data']),
-        writer = json['writer'];
-
-  Map<String, dynamic> toJson() {
-    return {'seq': seq, 'data': base64UrlNoPadEncode(data), 'writer': writer};
-  }
+  factory ValueData.fromJson(Map<String, dynamic> json) =>
+      _$ValueDataFromJson(json);
 }
 
 //////////////////////////////////////
@@ -193,13 +121,9 @@ enum Stability {
   lowLatency,
   reliable;
 
-  String toJson() {
-    return name.toPascalCase();
-  }
-
-  factory Stability.fromJson(String j) {
-    return Stability.values.byName(j.toCamelCase());
-  }
+  String toJson() => name.toPascalCase();
+  factory Stability.fromJson(String j) =>
+      Stability.values.byName(j.toCamelCase());
 }
 
 //////////////////////////////////////
@@ -210,37 +134,39 @@ enum Sequencing {
   preferOrdered,
   ensureOrdered;
 
-  String toJson() {
-    return name.toPascalCase();
-  }
-
-  factory Sequencing.fromJson(String j) {
-    return Sequencing.values.byName(j.toCamelCase());
-  }
+  String toJson() => name.toPascalCase();
+  factory Sequencing.fromJson(String j) =>
+      Sequencing.values.byName(j.toCamelCase());
 }
 
 //////////////////////////////////////
 /// SafetySelection
 
-abstract class SafetySelection {
-  factory SafetySelection.fromJson(dynamic json) {
-    var m = json as Map<String, dynamic>;
-    if (m.containsKey("Unsafe")) {
+@immutable
+abstract class SafetySelection extends Equatable {
+  factory SafetySelection.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey("Unsafe")) {
       return SafetySelectionUnsafe(
-          sequencing: Sequencing.fromJson(m["Unsafe"]));
-    } else if (m.containsKey("Safe")) {
-      return SafetySelectionSafe(safetySpec: SafetySpec.fromJson(m["Safe"]));
+          sequencing: Sequencing.fromJson(json["Unsafe"]));
+    } else if (json.containsKey("Safe")) {
+      return SafetySelectionSafe(safetySpec: SafetySpec.fromJson(json["Safe"]));
     } else {
-      throw VeilidAPIExceptionInternal("Invalid SafetySelection");
+      throw const VeilidAPIExceptionInternal("Invalid SafetySelection");
     }
   }
   Map<String, dynamic> toJson();
 }
 
+@immutable
 class SafetySelectionUnsafe implements SafetySelection {
   final Sequencing sequencing;
+  @override
+  List<Object> get props => [sequencing];
+  @override
+  bool? get stringify => null;
+
   //
-  SafetySelectionUnsafe({
+  const SafetySelectionUnsafe({
     required this.sequencing,
   });
 
@@ -250,10 +176,16 @@ class SafetySelectionUnsafe implements SafetySelection {
   }
 }
 
+@immutable
 class SafetySelectionSafe implements SafetySelection {
   final SafetySpec safetySpec;
+  @override
+  List<Object> get props => [safetySpec];
+  @override
+  bool? get stringify => null;
+
   //
-  SafetySelectionSafe({
+  const SafetySelectionSafe({
     required this.safetySpec,
   });
 
@@ -264,50 +196,28 @@ class SafetySelectionSafe implements SafetySelection {
 }
 
 /// Options for safety routes (sender privacy)
-class SafetySpec {
-  final String? preferredRoute;
-  final int hopCount;
-  final Stability stability;
-  final Sequencing sequencing;
-  //
-  SafetySpec({
-    this.preferredRoute,
-    required this.hopCount,
-    required this.stability,
-    required this.sequencing,
-  });
+@freezed
+class SafetySpec with _$SafetySpec {
+  const factory SafetySpec({
+    String? preferredRoute,
+    required int hopCount,
+    required Stability stability,
+    required Sequencing sequencing,
+  }) = _SafetySpec;
 
-  SafetySpec.fromJson(dynamic json)
-      : preferredRoute = json['preferred_route'],
-        hopCount = json['hop_count'],
-        stability = Stability.fromJson(json['stability']),
-        sequencing = Sequencing.fromJson(json['sequencing']);
-
-  Map<String, dynamic> toJson() {
-    return {
-      'preferred_route': preferredRoute,
-      'hop_count': hopCount,
-      'stability': stability.toJson(),
-      'sequencing': sequencing.toJson()
-    };
-  }
+  factory SafetySpec.fromJson(Map<String, dynamic> json) =>
+      _$SafetySpecFromJson(json);
 }
 
 //////////////////////////////////////
 /// RouteBlob
-class RouteBlob {
-  final String routeId;
-  final Uint8List blob;
-
-  RouteBlob(this.routeId, this.blob);
-
-  RouteBlob.fromJson(dynamic json)
-      : routeId = json['route_id'],
-        blob = base64UrlNoPadDecode(json['blob']);
-
-  Map<String, dynamic> toJson() {
-    return {'route_id': routeId, 'blob': base64UrlNoPadEncode(blob)};
-  }
+@freezed
+class RouteBlob with _$RouteBlob {
+  const factory RouteBlob(
+      {required String routeId,
+      @Uint8ListJsonConverter() required Uint8List blob}) = _RouteBlob;
+  factory RouteBlob.fromJson(Map<String, dynamic> json) =>
+      _$RouteBlobFromJson(json);
 }
 
 //////////////////////////////////////
