@@ -367,7 +367,7 @@ Future<T> processFuturePlain<T>(Future<dynamic> future) {
 }
 
 Future<T> processFutureJson<T>(
-    T Function(dynamic) jsonConstructor, Future<dynamic> future) {
+    T Function(Map<String, dynamic>) jsonConstructor, Future<dynamic> future) {
   return future.then((value) {
     final list = value as List<dynamic>;
     switch (list[0] as int) {

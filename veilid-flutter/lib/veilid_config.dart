@@ -30,7 +30,7 @@ class VeilidFFIConfigLoggingOtlp with _$VeilidFFIConfigLoggingOtlp {
     required String serviceName,
   }) = _VeilidFFIConfigLoggingOtlp;
 
-  factory VeilidFFIConfigLoggingOtlp.fromJson(Map<String, Object?> json) =>
+  factory VeilidFFIConfigLoggingOtlp.fromJson(Map<String, dynamic> json) =>
       _$VeilidFFIConfigLoggingOtlpFromJson(json);
 }
 
@@ -41,7 +41,7 @@ class VeilidFFIConfigLoggingApi with _$VeilidFFIConfigLoggingApi {
     required VeilidConfigLogLevel level,
   }) = _VeilidFFIConfigLoggingApi;
 
-  factory VeilidFFIConfigLoggingApi.fromJson(Map<String, Object?> json) =>
+  factory VeilidFFIConfigLoggingApi.fromJson(Map<String, dynamic> json) =>
       _$VeilidFFIConfigLoggingApiFromJson(json);
 }
 
@@ -52,7 +52,7 @@ class VeilidFFIConfigLogging with _$VeilidFFIConfigLogging {
       required VeilidFFIConfigLoggingOtlp otlp,
       required VeilidFFIConfigLoggingApi api}) = _VeilidFFIConfigLogging;
 
-  factory VeilidFFIConfigLogging.fromJson(Map<String, Object?> json) =>
+  factory VeilidFFIConfigLogging.fromJson(Map<String, dynamic> json) =>
       _$VeilidFFIConfigLoggingFromJson(json);
 }
 
@@ -62,7 +62,7 @@ class VeilidFFIConfig with _$VeilidFFIConfig {
     required VeilidFFIConfigLogging logging,
   }) = _VeilidFFIConfig;
 
-  factory VeilidFFIConfig.fromJson(Map<String, Object?> json) =>
+  factory VeilidFFIConfig.fromJson(Map<String, dynamic> json) =>
       _$VeilidFFIConfigFromJson(json);
 }
 
@@ -80,7 +80,7 @@ class VeilidWASMConfigLoggingPerformance
   }) = _VeilidWASMConfigLoggingPerformance;
 
   factory VeilidWASMConfigLoggingPerformance.fromJson(
-          Map<String, Object?> json) =>
+          Map<String, dynamic> json) =>
       _$VeilidWASMConfigLoggingPerformanceFromJson(json);
 }
 
@@ -91,7 +91,7 @@ class VeilidWASMConfigLoggingApi with _$VeilidWASMConfigLoggingApi {
     required VeilidConfigLogLevel level,
   }) = _VeilidWASMConfigLoggingApi;
 
-  factory VeilidWASMConfigLoggingApi.fromJson(Map<String, Object?> json) =>
+  factory VeilidWASMConfigLoggingApi.fromJson(Map<String, dynamic> json) =>
       _$VeilidWASMConfigLoggingApiFromJson(json);
 }
 
@@ -101,7 +101,7 @@ class VeilidWASMConfigLogging with _$VeilidWASMConfigLogging {
       {required VeilidWASMConfigLoggingPerformance performance,
       required VeilidWASMConfigLoggingApi api}) = _VeilidWASMConfigLogging;
 
-  factory VeilidWASMConfigLogging.fromJson(Map<String, Object?> json) =>
+  factory VeilidWASMConfigLogging.fromJson(Map<String, dynamic> json) =>
       _$VeilidWASMConfigLoggingFromJson(json);
 }
 
@@ -111,7 +111,7 @@ class VeilidWASMConfig with _$VeilidWASMConfig {
     required VeilidWASMConfigLogging logging,
   }) = _VeilidWASMConfig;
 
-  factory VeilidWASMConfig.fromJson(Map<String, Object?> json) =>
+  factory VeilidWASMConfig.fromJson(Map<String, dynamic> json) =>
       _$VeilidWASMConfigFromJson(json);
 }
 
@@ -147,7 +147,7 @@ class VeilidConfigHTTPS with _$VeilidConfigHTTPS {
     String? url,
   }) = _VeilidConfigHTTPS;
 
-  factory VeilidConfigHTTPS.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigHTTPS.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigHTTPSFromJson(json);
 }
 
@@ -162,7 +162,7 @@ class VeilidConfigHTTP with _$VeilidConfigHTTP {
     String? url,
   }) = _VeilidConfigHTTP;
 
-  factory VeilidConfigHTTP.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigHTTP.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigHTTPFromJson(json);
 }
 
@@ -175,7 +175,7 @@ class VeilidConfigApplication with _$VeilidConfigApplication {
     required VeilidConfigHTTP http,
   }) = _VeilidConfigApplication;
 
-  factory VeilidConfigApplication.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigApplication.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigApplicationFromJson(json);
 }
 
@@ -188,7 +188,7 @@ class VeilidConfigUDP with _$VeilidConfigUDP {
       required String listenAddress,
       String? publicAddress}) = _VeilidConfigUDP;
 
-  factory VeilidConfigUDP.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigUDP.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigUDPFromJson(json);
 }
 
@@ -202,7 +202,7 @@ class VeilidConfigTCP with _$VeilidConfigTCP {
       required String listenAddress,
       String? publicAddress}) = _VeilidConfigTCP;
 
-  factory VeilidConfigTCP.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigTCP.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigTCPFromJson(json);
 }
 
@@ -217,7 +217,7 @@ class VeilidConfigWS with _$VeilidConfigWS {
       required String path,
       String? url}) = _VeilidConfigWS;
 
-  factory VeilidConfigWS.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigWS.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigWSFromJson(json);
 }
 
@@ -232,7 +232,7 @@ class VeilidConfigWSS with _$VeilidConfigWSS {
       required String path,
       String? url}) = _VeilidConfigWSS;
 
-  factory VeilidConfigWSS.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigWSS.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigWSSFromJson(json);
 }
 
@@ -247,7 +247,7 @@ class VeilidConfigProtocol with _$VeilidConfigProtocol {
     required VeilidConfigWSS wss,
   }) = _VeilidConfigProtocol;
 
-  factory VeilidConfigProtocol.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigProtocol.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigProtocolFromJson(json);
 }
 
@@ -261,7 +261,7 @@ class VeilidConfigTLS with _$VeilidConfigTLS {
     required int connectionInitialTimeoutMs,
   }) = _VeilidConfigTLS;
 
-  factory VeilidConfigTLS.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigTLS.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigTLSFromJson(json);
 }
 
@@ -289,7 +289,7 @@ class VeilidConfigDHT with _$VeilidConfigDHT {
       required int remoteMaxSubkeyCacheMemoryMb,
       required int remoteMaxStorageSpaceMb}) = _VeilidConfigDHT;
 
-  factory VeilidConfigDHT.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigDHT.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigDHTFromJson(json);
 }
 
@@ -306,7 +306,7 @@ class VeilidConfigRPC with _$VeilidConfigRPC {
       required int maxRouteHopCount,
       required int defaultRouteHopCount}) = _VeilidConfigRPC;
 
-  factory VeilidConfigRPC.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigRPC.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigRPCFromJson(json);
 }
 
@@ -325,7 +325,7 @@ class VeilidConfigRoutingTable with _$VeilidConfigRoutingTable {
     required int limitAttachedWeak,
   }) = _VeilidConfigRoutingTable;
 
-  factory VeilidConfigRoutingTable.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigRoutingTable.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigRoutingTableFromJson(json);
 }
 
@@ -355,7 +355,7 @@ class VeilidConfigNetwork with _$VeilidConfigNetwork {
     required VeilidConfigProtocol protocol,
   }) = _VeilidConfigNetwork;
 
-  factory VeilidConfigNetwork.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigNetwork.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigNetworkFromJson(json);
 }
 
@@ -368,7 +368,7 @@ class VeilidConfigTableStore with _$VeilidConfigTableStore {
     required bool delete,
   }) = _VeilidConfigTableStore;
 
-  factory VeilidConfigTableStore.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigTableStore.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigTableStoreFromJson(json);
 }
 
@@ -381,7 +381,7 @@ class VeilidConfigBlockStore with _$VeilidConfigBlockStore {
     required bool delete,
   }) = _VeilidConfigBlockStore;
 
-  factory VeilidConfigBlockStore.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigBlockStore.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigBlockStoreFromJson(json);
 }
 
@@ -397,7 +397,7 @@ class VeilidConfigProtectedStore with _$VeilidConfigProtectedStore {
       required String deviceEncryptionKeyPassword,
       String? newDeviceEncryptionKeyPassword}) = _VeilidConfigProtectedStore;
 
-  factory VeilidConfigProtectedStore.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigProtectedStore.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigProtectedStoreFromJson(json);
 }
 
@@ -409,7 +409,7 @@ class VeilidConfigCapabilities with _$VeilidConfigCapabilities {
     required List<String> disable,
   }) = _VeilidConfigCapabilities;
 
-  factory VeilidConfigCapabilities.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfigCapabilities.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigCapabilitiesFromJson(json);
 }
 
@@ -427,6 +427,6 @@ class VeilidConfig with _$VeilidConfig {
     required VeilidConfigNetwork network,
   }) = _VeilidConfig;
 
-  factory VeilidConfig.fromJson(Map<String, Object?> json) =>
+  factory VeilidConfig.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigFromJson(json);
 }

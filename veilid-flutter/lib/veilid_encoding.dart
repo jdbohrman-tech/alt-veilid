@@ -23,6 +23,15 @@ Uint8List base64UrlNoPadDecodeDynamic(dynamic source) {
   return base64.decode(source);
 }
 
+class Uint8ListJsonConverter implements JsonConverter<Uint8List, String> {
+  const Uint8ListJsonConverter();
+
+  @override
+  Uint8List fromJson(String json) => base64UrlNoPadDecode(json);
+  @override
+  String toJson(Uint8List data) => base64UrlNoPadEncode(data);
+}
+
 @immutable
 abstract class EncodedString extends Equatable {
   final String contents;

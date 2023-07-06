@@ -2,9 +2,13 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:change_case/change_case.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'veilid_encoding.dart';
 import 'veilid.dart';
+
+part 'routing_context.freezed.dart';
+part 'routing_context.g.dart';
 
 //////////////////////////////////////
 
@@ -56,30 +60,16 @@ class DHTSchemaDFLT implements DHTSchema {
   }
 }
 
-class DHTSchemaMember {
-  PublicKey mKey;
-  int mCnt;
+@freezed
+class DHTSchemaMember with _$DHTSchemaMember {
+  @Assert('mCnt >= 0 && mCnt <= 65535', 'value out of range')
+  const factory DHTSchemaMember({
+    required PublicKey mKey,
+    required int mCnt,
+  }) = _DHTSchemaMember;
 
-  DHTSchemaMember({
-    required this.mKey,
-    required this.mCnt,
-  }) {
-    if (mCnt < 0 || mCnt > 65535) {
-      throw VeilidAPIExceptionInvalidArgument(
-          "value out of range", "mCnt", mCnt.toString());
-    }
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'm_key': mKey,
-      'm_cnt': mCnt,
-    };
-  }
-
-  DHTSchemaMember.fromJson(dynamic json)
-      : mKey = json['m_key'],
-        mCnt = json['m_cnt'];
+  factory DHTSchemaMember.fromJson(Map<String, dynamic> json) =>
+      _$DHTSchemaMemberFromJson(json);
 }
 
 class DHTSchemaSMPL implements DHTSchema {
