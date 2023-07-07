@@ -139,6 +139,7 @@ typedef CryptoKeyDistance = CryptoKey;
 
 typedef TypedKey = Typed<CryptoKey>;
 typedef TypedSecret = Typed<SecretKey>;
+typedef TypedHashDigest = Typed<HashDigest>;
 
 typedef TypedSignature = Typed<Signature>;
 

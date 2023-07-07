@@ -18,6 +18,8 @@ import 'veilid_state.dart';
 
 export 'default_config.dart';
 export 'routing_context.dart';
+
+export 'veilid_encoding.dart';
 export 'veilid_config.dart';
 export 'veilid_crypto.dart';
 export 'veilid_table_db.dart';

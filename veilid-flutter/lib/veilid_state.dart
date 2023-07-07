@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:change_case/change_case.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'veilid_encoding.dart';
 import 'veilid.dart';
 
 part 'veilid_state.freezed.dart';
