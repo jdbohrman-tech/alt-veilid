@@ -195,9 +195,10 @@ impl RoutingContext {
     /// Returns the newly allocated DHT record's key if successful. The records is considered 'open' after the create operation succeeds.
     pub async fn create_dht_record(
         &self,
-        kind: CryptoKind,
         schema: DHTSchema,
+        kind: Option<CryptoKind>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        let kind = kind.unwrap_or(best_crypto_kind());
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .create_record(kind, schema, self.unlocked_inner.safety_selection)

@@ -1068,22 +1068,24 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let crypto = self.crypto()?;
 
-        let csv = get_debug_argument_at(
-            &args,
-            1,
-            "debug_record_create",
-            "kind",
-            get_crypto_system_version(crypto.clone()),
-        )
-        .unwrap_or_else(|_| crypto.best());
         let schema = get_debug_argument_at(
             &args,
-            2,
+            1,
             "debug_record_create",
             "dht_schema",
             get_dht_schema,
         )
         .unwrap_or_else(|_| DHTSchema::dflt(1));
+
+        let csv = get_debug_argument_at(
+            &args,
+            2,
+            "debug_record_create",
+            "kind",
+            get_crypto_system_version(crypto.clone()),
+        )
+        .unwrap_or_else(|_| crypto.best());
+
         let ss = get_debug_argument_at(
             &args,
             3,
@@ -1106,7 +1108,7 @@ impl VeilidAPI {
         };
 
         // Do a record get
-        let record = match rc.create_dht_record(csv.kind(), schema).await {
+        let record = match rc.create_dht_record(schema, Some(csv.kind())).await {
             Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
             Ok(v) => v,
         };
@@ -1348,7 +1350,7 @@ route allocate [ord|*ord] [rel] [<count>] [in|out]
       test <route>
 record list <local|remote>
        purge <local|remote> [bytes]
-       create <cryptokind> <dhtschema> <safety>
+       create <dhtschema> [<cryptokind> [<safety>]]
        set <key>[+<safety>] <subkey> <writer> <data> 
        get <key>[+<safety>] <subkey> [force]
        delete <key>

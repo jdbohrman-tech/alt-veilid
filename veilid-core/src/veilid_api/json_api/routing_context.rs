@@ -38,9 +38,9 @@ pub enum RoutingContextRequestOp {
         message: Vec<u8>,
     },
     CreateDhtRecord {
-        #[schemars(with = "String")]
-        kind: CryptoKind,
         schema: DHTSchema,
+        #[schemars(with = "Option<String>")]
+        kind: Option<CryptoKind>,
     },
     OpenDhtRecord {
         #[schemars(with = "String")]

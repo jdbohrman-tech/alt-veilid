@@ -234,8 +234,8 @@ abstract class VeilidRoutingContext {
   Future<void> appMessage(String target, Uint8List message);
 
   // DHT Operations
-  Future<DHTRecordDescriptor> createDHTRecord(
-      CryptoKind kind, DHTSchema schema);
+  Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
+      {CryptoKind kind = 0});
   Future<DHTRecordDescriptor> openDHTRecord(TypedKey key, KeyPair? writer);
   Future<void> closeDHTRecord(TypedKey key);
   Future<void> deleteDHTRecord(TypedKey key);

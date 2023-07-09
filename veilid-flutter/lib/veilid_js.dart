@@ -78,11 +78,11 @@ class VeilidRoutingContextJS implements VeilidRoutingContext {
   }
 
   @override
-  Future<DHTRecordDescriptor> createDHTRecord(
-      CryptoKind kind, DHTSchema schema) async {
+  Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
+      {CryptoKind kind = 0}) async {
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, "routing_context_create_dht_record",
-            [_ctx.id, kind, jsonEncode(schema)]))));
+            [_ctx.id, jsonEncode(schema), kind]))));
   }
 
   @override
