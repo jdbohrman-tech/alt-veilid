@@ -21,6 +21,15 @@ String cryptoKindToString(CryptoKind kind) {
   return "${String.fromCharCode(kind & 0xFF)}${String.fromCharCode((kind >> 8) & 0xFF)}${String.fromCharCode((kind >> 16) & 0xFF)}${String.fromCharCode((kind >> 24) & 0xFF)}";
 }
 
+Uint8List cryptoKindToBytes(CryptoKind kind) {
+  var b = Uint8List(4);
+  b[0] = kind & 0xFF;
+  b[1] = (kind >> 8) & 0xFF;
+  b[2] = (kind >> 16) & 0xFF;
+  b[3] = (kind >> 24) & 0xFF;
+  return b;
+}
+
 CryptoKind cryptoKindFromString(String s) {
   if (s.codeUnits.length != 4) {
     throw const FormatException("malformed string");
@@ -57,6 +66,12 @@ class Typed<V extends EncodedString> extends Equatable {
     final kind = cryptoKindFromString(parts[0]);
     final value = EncodedString.fromString<V>(parts.sublist(1).join(":"));
     return Typed(kind: kind, value: value);
+  }
+
+  Uint8List decode() {
+    var b = cryptoKindToBytes(kind);
+    b.addAll(value.decode());
+    return b;
   }
 
   String toJson() => toString();
