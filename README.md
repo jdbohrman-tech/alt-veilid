@@ -5,7 +5,7 @@
 ## Obtaining the source code
 
 ```shell
-git clone --recurse-submodules git@gitlab.hackers.town:veilid/veilid.git
+git clone --recurse-submodules git@gitlab.com:veilid/veilid.git
 ```
 
 ## Dependencies
