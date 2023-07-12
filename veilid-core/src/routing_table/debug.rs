@@ -114,6 +114,13 @@ impl RoutingTable {
         let mut out = String::new();
 
         out += &format!("Entries: {}\n", inner.bucket_entry_count());
+        out += &format!("   Live:\n");
+        for ec in inner.cached_entry_counts() {
+            let routing_domain = ec.0 .0;
+            let crypto_kind = ec.0 .1;
+            let count = ec.1;
+            out += &format!("  {:?}:{}: {}\n", routing_domain, crypto_kind, count);
+        }
         for ck in &VALID_CRYPTO_KINDS {
             let mut b = 0;
             let blen = inner.buckets[ck].len();
