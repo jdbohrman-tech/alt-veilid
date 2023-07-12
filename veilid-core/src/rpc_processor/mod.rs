@@ -1658,7 +1658,7 @@ impl RPCProcessor {
         let span_id = Span::current().id();
         send_channel
             .try_send((span_id, msg))
-            .wrap_err("failed to enqueue received RPC message")?;
+            .map_err(|e| eyre!("failed to enqueue direct RPC message: {}", e))?;
         Ok(())
     }
 
@@ -1694,7 +1694,7 @@ impl RPCProcessor {
         let span_id = Span::current().id();
         send_channel
             .try_send((span_id, msg))
-            .wrap_err("failed to enqueue received RPC message")?;
+            .map_err(|e| eyre!("failed to enqueue safety routed RPC message: {}", e))?;
         Ok(())
     }
 
@@ -1733,7 +1733,7 @@ impl RPCProcessor {
         let span_id = Span::current().id();
         send_channel
             .try_send((span_id, msg))
-            .wrap_err("failed to enqueue received RPC message")?;
+            .map_err(|e| eyre!("failed to enqueue private routed RPC message: {}", e))?;
         Ok(())
     }
 }

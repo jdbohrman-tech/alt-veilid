@@ -852,14 +852,19 @@ impl RoutingTableInner {
             }
         }
 
-        // Register relay info first if we have that
+        // Register relay info first if we have that and the relay isn't us
         if let Some(relay_peer_info) = peer_info.signed_node_info().relay_peer_info() {
-            self.register_node_with_peer_info(
-                outer_self.clone(),
-                routing_domain,
-                relay_peer_info,
-                false,
-            )?;
+            if !self
+                .unlocked_inner
+                .matches_own_node_id(relay_peer_info.node_ids())
+            {
+                self.register_node_with_peer_info(
+                    outer_self.clone(),
+                    routing_domain,
+                    relay_peer_info,
+                    false,
+                )?;
+            }
         }
 
         let (node_ids, signed_node_info) = peer_info.destructure();
