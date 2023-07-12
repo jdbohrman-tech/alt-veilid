@@ -369,8 +369,8 @@ impl RouteSpecStore {
                 }
                 let opt_relay = match node.locked_mut(rti).relay(RoutingDomain::PublicInternet) {
                     Ok(r) => r,
-                    Err(e) => {
-                        log_rtab!(error "failed to get relay for route node: {}", e);
+                    Err(_) => {
+                        // Not selecting a relay through ourselves
                         return None;
                     }
                 };

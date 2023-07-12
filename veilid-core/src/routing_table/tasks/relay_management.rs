@@ -15,6 +15,7 @@ impl RoutingTable {
         };
         let own_node_info = own_peer_info.signed_node_info().node_info();
         let network_class = own_node_info.network_class();
+        let relay_node_filter = self.make_public_internet_relay_node_filter();
 
         // Get routing domain editor
         let mut editor = self.edit_routing_domain(RoutingDomain::PublicInternet);
@@ -28,7 +29,18 @@ impl RoutingTable {
                     info!("Relay node died, dropping relay {}", relay_node);
                     editor.clear_relay_node();
                     false
-                } else if !own_node_info.requires_relay() {
+                }
+                // Relay node no longer can relay
+                else if relay_node.operate(|_rti, e| !relay_node_filter(e)) {
+                    info!(
+                        "Relay node can no longer relay, dropping relay {}",
+                        relay_node
+                    );
+                    editor.clear_relay_node();
+                    false
+                }
+                // Relay node is no longer required
+                else if !own_node_info.requires_relay() {
                     info!(
                         "Relay node no longer required, dropping relay {}",
                         relay_node
