@@ -31,8 +31,24 @@ impl RawUdpProtocolHandler {
             }
 
             // Insert into assembly buffer
-            let Some(message) = self.assembly_buffer.insert_frame(&data[0..size], remote_addr) else {
-                continue;
+            let message = match self
+                .assembly_buffer
+                .insert_frame(&data[0..size], remote_addr)
+            {
+                NetworkResult::Value(Some(v)) => v,
+                NetworkResult::Value(None) => {
+                    continue;
+                }
+                nres => {
+                    #[cfg(feature = "network-result-extra")]
+                    log_network_result!(
+                        "UDP::recv_message insert_frame failed: {:?} <= size={} remote_addr={}",
+                        nres,
+                        size,
+                        remote_addr
+                    );
+                    continue;
+                }
             };
 
             // Check length of reassembled message (same for all protocols)
