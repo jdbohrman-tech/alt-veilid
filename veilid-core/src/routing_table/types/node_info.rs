@@ -211,15 +211,8 @@ impl NodeInfo {
         true
     }
 
-    /// Can this node assist with signalling? Yes but only if it doesn't require signalling, itself.
-    /// Also used to determine if nodes are capable of validation of dial info, as that operation
-    /// has the same requirements, inbound capability and a dial info that requires no assistance
-    pub fn is_signal_capable(&self) -> bool {
-        // Has capability?
-        if !self.has_capability(CAP_SIGNAL) {
-            return false;
-        }
-
+    /// Can direct connections be made
+    pub fn is_fully_direct_inbound(&self) -> bool {
         // Must be inbound capable
         if !matches!(self.network_class, NetworkClass::InboundCapable) {
             return false;

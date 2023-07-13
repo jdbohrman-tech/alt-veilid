@@ -72,7 +72,7 @@ impl RPCProcessor {
         {
             if let Some(opi) = routing_table.get_own_peer_info(detail.routing_domain) {
                 let ni = opi.signed_node_info().node_info();
-                if !ni.has_capability(CAP_VALIDATE_DIAL_INFO) || !ni.is_signal_capable() {
+                if !ni.has_capability(CAP_VALIDATE_DIAL_INFO) || !ni.is_fully_direct_inbound() {
                     return Ok(NetworkResult::service_unavailable(
                         "validate dial info is not available",
                     ));
@@ -118,7 +118,8 @@ impl RPCProcessor {
                     entry.with(rti, move |_rti, e| {
                         e.node_info(routing_domain)
                             .map(|ni| {
-                                ni.has_capability(CAP_VALIDATE_DIAL_INFO) && ni.is_signal_capable()
+                                ni.has_capability(CAP_VALIDATE_DIAL_INFO)
+                                    && ni.is_fully_direct_inbound()
                             })
                             .unwrap_or(false)
                     })

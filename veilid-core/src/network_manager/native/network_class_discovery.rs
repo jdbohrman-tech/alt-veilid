@@ -119,6 +119,7 @@ impl DiscoveryContext {
             let c = config.get();
             c.network.dht.max_find_node_count as usize
         };
+        let routing_domain = RoutingDomain::PublicInternet;
 
         // Build an filter that matches our protocol and address type
         // and excludes relayed nodes so we can get an accurate external address
@@ -126,14 +127,14 @@ impl DiscoveryContext {
             .with_protocol_type(protocol_type)
             .with_address_type(address_type);
         let inbound_dial_info_entry_filter = RoutingTable::make_inbound_dial_info_entry_filter(
-            RoutingDomain::PublicInternet,
+            routing_domain,
             dial_info_filter.clone(),
         );
         let disallow_relays_filter = Box::new(
             move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                 let v = v.unwrap();
                 v.with(rti, |_rti, e| {
-                    if let Some(n) = e.signed_node_info(RoutingDomain::PublicInternet) {
+                    if let Some(n) = e.signed_node_info(routing_domain) {
                         n.relay_ids().is_empty()
                     } else {
                         false
@@ -141,7 +142,34 @@ impl DiscoveryContext {
                 })
             },
         ) as RoutingTableEntryFilter;
-        let filters = VecDeque::from([inbound_dial_info_entry_filter, disallow_relays_filter]);
+        let will_validate_dial_info_filter = Box::new(
+            move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
+                let entry = v.unwrap();
+                entry.with(rti, move |_rti, e| {
+                    e.node_info(routing_domain)
+                        .map(|ni| {
+                            ni.has_capability(CAP_VALIDATE_DIAL_INFO)
+                                && ni.is_fully_direct_inbound()
+                        })
+                        .unwrap_or(false)
+                })
+            },
+        ) as RoutingTableEntryFilter;
+
+        let mut filters = VecDeque::from([
+            inbound_dial_info_entry_filter,
+            disallow_relays_filter,
+            will_validate_dial_info_filter,
+        ]);
+        if let Some(ignore_node_ids) = ignore_node_ids {
+            let ignore_nodes_filter = Box::new(
+                move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
+                    let v = v.unwrap();
+                    v.with(rti, |_rti, e| !e.node_ids().contains_any(&ignore_node_ids))
+                },
+            ) as RoutingTableEntryFilter;
+            filters.push_back(ignore_nodes_filter);
+        }
 
         // Find public nodes matching this filter
         let peers = self
@@ -156,16 +184,11 @@ impl DiscoveryContext {
             return None;
         }
 
-        // For each peer, if it's not our ignore-node, ask them for our public address, filtering on desired dial info
+        // For each peer, ask them for our public address, filtering on desired dial info
         for mut peer in peers {
-            if let Some(ignore_node_ids) = &ignore_node_ids {
-                if peer.node_ids().contains_any(ignore_node_ids) {
-                    continue;
-                }
-            }
             peer.set_filter(Some(
                 NodeRefFilter::new()
-                    .with_routing_domain(RoutingDomain::PublicInternet)
+                    .with_routing_domain(routing_domain)
                     .with_dial_info_filter(dial_info_filter.clone()),
             ));
             if let Some(sa) = self.request_public_address(peer.clone()).await {
