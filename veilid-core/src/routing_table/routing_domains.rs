@@ -422,7 +422,10 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
         // If node A can't reach the node by other means, it may need to use its own relay
         if let Some(node_a_relay_id) = peer_a.signed_node_info().relay_ids().get(best_ck) {
-            return ContactMethod::OutboundRelay(node_a_relay_id);
+            // Ensure it's not our relay we're trying to reach
+            if node_a_relay_id != node_b_id {
+                return ContactMethod::OutboundRelay(node_a_relay_id);
+            }
         }
 
         ContactMethod::Unreachable

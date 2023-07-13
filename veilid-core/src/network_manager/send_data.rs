@@ -39,14 +39,23 @@ impl NetworkManager {
 
                 // Try the contact method
                 let sdk = match contact_method {
-                    NodeContactMethod::OutboundRelay(relay_nr)
+                    NodeContactMethod::OutboundRelay(relay_nr) => {
+                        // Relay loop or multiple relays
+                        bail!(
+                            "Outbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
+                            destination_node_ref,
+                            target_node_ref,
+                            relay_nr,
+                        );
+                
+                    }
                     | NodeContactMethod::InboundRelay(relay_nr) => {
                         // Relay loop or multiple relays
                         bail!(
-                            "Relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
+                            "Inbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
                             destination_node_ref,
                             target_node_ref,
-                            relay_nr
+                            relay_nr,
                         );
                     }
                     NodeContactMethod::Direct(dial_info) => {
