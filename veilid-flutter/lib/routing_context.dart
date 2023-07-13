@@ -55,6 +55,8 @@ sealed class DHTSchema with _$DHTSchema {
       _$DHTSchemaFromJson(json);
 }
 
+const DHTSchema defaultDHTSchema = DHTSchema.dflt(oCnt: 1);
+
 @freezed
 class DHTSchemaMember with _$DHTSchemaMember {
   @Assert('mCnt > 0 && mCnt <= 65535', 'value out of range')

@@ -47,6 +47,19 @@ abstract class EncodedString extends Equatable {
   @override
   String toString() => contents;
 
+  static T fromBytes<T extends EncodedString>(Uint8List bytes) {
+    switch (T) {
+      case FixedEncodedString32:
+        return FixedEncodedString32.fromBytes(bytes) as T;
+      case FixedEncodedString43:
+        return FixedEncodedString43.fromBytes(bytes) as T;
+      case FixedEncodedString86:
+        return FixedEncodedString86.fromBytes(bytes) as T;
+      default:
+        throw UnimplementedError();
+    }
+  }
+
   static T fromString<T extends EncodedString>(String s) {
     switch (T) {
       case FixedEncodedString32:
@@ -72,6 +85,13 @@ class FixedEncodedString32 extends EncodedString {
     return 24;
   }
 
+  factory FixedEncodedString32.fromBytes(Uint8List bytes) {
+    if (bytes.length != decodedLength()) {
+      throw Exception("length ${bytes.length} should be ${decodedLength()}");
+    }
+    return FixedEncodedString32._(base64UrlNoPadEncode(bytes));
+  }
+
   factory FixedEncodedString32.fromString(String s) {
     var d = base64UrlNoPadDecode(s);
     if (d.length != decodedLength()) {
@@ -94,6 +114,13 @@ class FixedEncodedString43 extends EncodedString {
 
   static int decodedLength() {
     return 32;
+  }
+
+  factory FixedEncodedString43.fromBytes(Uint8List bytes) {
+    if (bytes.length != decodedLength()) {
+      throw Exception("length ${bytes.length} should be ${decodedLength()}");
+    }
+    return FixedEncodedString43._(base64UrlNoPadEncode(bytes));
   }
 
   factory FixedEncodedString43.fromString(String s) {
@@ -122,6 +149,13 @@ class FixedEncodedString86 extends EncodedString {
 
   String toJson() {
     return toString();
+  }
+
+  factory FixedEncodedString86.fromBytes(Uint8List bytes) {
+    if (bytes.length != decodedLength()) {
+      throw Exception("length ${bytes.length} should be ${decodedLength()}");
+    }
+    return FixedEncodedString86._(base64UrlNoPadEncode(bytes));
   }
 
   factory FixedEncodedString86.fromString(String s) {
