@@ -112,8 +112,8 @@ impl RoutingTable {
             let can_serve_as_relay = e
                 .node_info(RoutingDomain::PublicInternet)
                 .map(|n| {
-                    if !(n.has_capability(CAP_RELAY) && n.is_signal_capable()) {
-                        // Needs to be able to signal and relay
+                    if !(n.has_capability(CAP_RELAY) && n.is_fully_direct_inbound()) {
+                        // Needs to be able to accept packets to relay directly
                         return false;
                     }
 

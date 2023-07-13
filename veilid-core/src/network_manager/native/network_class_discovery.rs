@@ -148,7 +148,8 @@ impl DiscoveryContext {
                 entry.with(rti, move |_rti, e| {
                     e.node_info(routing_domain)
                         .map(|ni| {
-                            ni.has_capability(CAP_VALIDATE_DIAL_INFO) && ni.is_signal_capable()
+                            ni.has_capability(CAP_VALIDATE_DIAL_INFO)
+                                && ni.is_fully_direct_inbound()
                         })
                         .unwrap_or(false)
                 })

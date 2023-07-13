@@ -41,7 +41,8 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         {
             if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
-                if !opi.signed_node_info().node_info().is_signal_capable() {
+                let ni = opi.signed_node_info().node_info();
+                if !ni.has_capability(CAP_SIGNAL) {
                     return Ok(NetworkResult::service_unavailable(
                         "signal is not available",
                     ));
