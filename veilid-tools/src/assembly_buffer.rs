@@ -61,7 +61,6 @@ impl PeerMessages {
         if assembly.data.len() != len as usize {
             // Drop the assembly and just go with the new fragment as starting a new assembly
             let seq = assembly.seq;
-            drop(assembly);
             self.remove_assembly(ass);
             self.new_assembly(timestamp, seq, off, len, chunk);
             return false;
@@ -74,7 +73,6 @@ impl PeerMessages {
         // if fragments overlap, drop the old assembly and go with a new one
         if !assembly.parts.is_disjoint(&part) {
             let seq = assembly.seq;
-            drop(assembly);
             self.remove_assembly(ass);
             self.new_assembly(timestamp, seq, off, len, chunk);
             return false;

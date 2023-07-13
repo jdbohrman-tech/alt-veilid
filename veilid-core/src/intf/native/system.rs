@@ -19,7 +19,7 @@ cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 use async_std_resolver::{config, resolver, resolver_from_system_conf, AsyncStdResolver as AsyncResolver};
             } else if #[cfg(feature="rt-tokio")] {
-                use trust_dns_resolver::{config, TokioAsyncResolver as AsyncResolver, error::ResolveError};
+                use trust_dns_resolver::{config, TokioAsyncResolver as AsyncResolver, error::ResolveError, error::ResolveErrorKind};
 
                 pub async fn resolver(
                     config: config::ResolverConfig,
@@ -66,6 +66,12 @@ cfg_if! {
                 Ok(resolver)
             }
         }
+
+        async fn reset_resolver() {
+            let mut resolver_lock = RESOLVER.lock().await;
+            *resolver_lock = None;
+        }
+
     }
 }
 
@@ -107,9 +113,17 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
 
         } else {
             let resolver = get_resolver().await?;
-            let txt_result = resolver
+            let txt_result = match resolver
                 .txt_lookup(host.as_ref())
-                .await?;
+                .await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        if matches!(e.kind(), ResolveErrorKind::NoConnections) {
+                            reset_resolver().await;
+                        }
+                        bail!("txt_lookup error: {}", e);
+                    }
+                };
             let mut out = Vec::new();
             for x in txt_result.iter() {
                 for s in x.txt_data() {

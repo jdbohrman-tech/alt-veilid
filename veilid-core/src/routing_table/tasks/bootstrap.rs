@@ -124,7 +124,16 @@ impl RoutingTable {
         let mut bsnames = Vec::<String>::new();
         for bh in bootstrap {
             // Get TXT record for bootstrap (bootstrap.veilid.net, or similar)
-            let records = intf::txt_lookup(&bh).await?;
+            let records = match intf::txt_lookup(&bh).await {
+                Ok(v) => v,
+                Err(e) => {
+                    warn!(
+                        "Network may be down. No bootstrap resolution for '{}': {}",
+                        bh, e
+                    );
+                    continue;
+                }
+            };
             for record in records {
                 // Split the bootstrap name record by commas
                 for rec in record.split(',') {
@@ -152,7 +161,10 @@ impl RoutingTable {
                     // look up boostrap node txt records
                     let bsnirecords = match intf::txt_lookup(&bsname).await {
                         Err(e) => {
-                            warn!("bootstrap node txt lookup failed for {}: {}", bsname, e);
+                            warn!(
+                                "Network may be down. Bootstrap node txt lookup failed for {}: {}",
+                                bsname, e
+                            );
                             return None;
                         }
                         Ok(v) => v,
@@ -171,7 +183,7 @@ impl RoutingTable {
                         let txt_version: u8 = match records[0].parse::<u8>() {
                             Ok(v) => v,
                             Err(e) => {
-                                warn!(
+                                log_rtab!(warn
                                 "invalid txt_version specified in bootstrap node txt record: {}",
                                 e
                             );
@@ -182,7 +194,7 @@ impl RoutingTable {
                             BOOTSTRAP_TXT_VERSION_0 => {
                                 match self.process_bootstrap_records_v0(records).await {
                                     Err(e) => {
-                                        warn!(
+                                        log_rtab!(error
                                             "couldn't process v0 bootstrap records from {}: {}",
                                             bsname, e
                                         );
@@ -196,7 +208,7 @@ impl RoutingTable {
                                 }
                             }
                             _ => {
-                                warn!("unsupported bootstrap txt record version");
+                                log_rtab!(warn "unsupported bootstrap txt record version");
                                 continue;
                             }
                         };

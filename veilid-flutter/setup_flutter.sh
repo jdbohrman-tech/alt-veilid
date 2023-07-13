@@ -80,6 +80,10 @@ elif [ "$OS" == "macos" ]; then
     # sudo arch -x86_64 gem install ffi
     sudo arch -x86_64 gem install cocoapods
 
+    if [ "$(uname -p)" == "arm" ]; then
+        sudo softwareupdate --install-rosetta --agree-to-license
+    fi
+
     # ensure platforms are enabled in flutter
     flutter config --enable-macos-desktop --enable-ios --enable-android
 fi

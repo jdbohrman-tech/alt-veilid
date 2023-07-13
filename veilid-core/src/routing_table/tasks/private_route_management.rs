@@ -179,6 +179,14 @@ impl RoutingTable {
             return Ok(());
         }
 
+        // If we don't have our own peer info then don't do this yet
+        if self
+            .get_own_peer_info(RoutingDomain::PublicInternet)
+            .is_none()
+        {
+            return Ok(());
+        };
+
         // Test locally allocated routes first
         // This may remove dead routes
         let routes_needing_testing = self.get_allocated_routes_to_test(cur_ts);

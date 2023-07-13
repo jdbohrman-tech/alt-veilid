@@ -86,5 +86,11 @@ impl NetworkManager {
         if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
             warn!("rolling_transfers_task not stopped: {}", e);
         }
+
+        debug!("stopping routing table tasks");
+        let routing_table = self.routing_table();
+        routing_table.cancel_tasks().await;
+
+        // other tasks will get cancelled via the 'shutdown' mechanism
     }
 }

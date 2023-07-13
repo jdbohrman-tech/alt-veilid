@@ -188,7 +188,8 @@ impl RouteSpecStore {
         }
 
         let Some(our_peer_info) = rti.get_own_peer_info(RoutingDomain::PublicInternet) else {
-            bail!("Can't allocate route until we have our own peer info");
+            log_rtab!(debug "unable to allocate route until we have our own peer info");
+            return Ok(None);
         };
 
         // Get relay node if we have one

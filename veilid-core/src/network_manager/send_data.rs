@@ -12,29 +12,29 @@ impl NetworkManager {
     /// Sending to a node requires determining a NetworkClass compatible mechanism
     pub fn send_data(
         &self,
-        target_node_ref: NodeRef,
+        destination_node_ref: NodeRef,
         data: Vec<u8>,
     ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataKind>>> {
         let this = self.clone();
         Box::pin(
             async move {
                 // Get the best way to contact this node
-                let contact_method = this.get_node_contact_method(target_node_ref.clone())?;
+                let contact_method = this.get_node_contact_method(destination_node_ref.clone())?;
 
                 // If we need to relay, do it
-                let (contact_method, node_ref, relayed) = match contact_method {
+                let (contact_method, target_node_ref, relayed) = match contact_method {
                     NodeContactMethod::OutboundRelay(relay_nr)
                     | NodeContactMethod::InboundRelay(relay_nr) => {
                         let cm = this.get_node_contact_method(relay_nr.clone())?;
                         (cm, relay_nr, true)
                     }
-                    cm => (cm, target_node_ref.clone(), false),
+                    cm => (cm, destination_node_ref.clone(), false),
                 };
-
+                
                 #[cfg(feature = "verbose-tracing")]
                 debug!(
                     "ContactMethod: {:?} for {:?}",
-                    contact_method, target_node_ref
+                    contact_method, destination_node_ref
                 );
 
                 // Try the contact method
@@ -43,15 +43,15 @@ impl NetworkManager {
                     | NodeContactMethod::InboundRelay(relay_nr) => {
                         // Relay loop or multiple relays
                         bail!(
-                            "Relay loop or multiple relays detected: {} -> {} -> {}",
+                            "Relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
+                            destination_node_ref,
                             target_node_ref,
-                            node_ref,
                             relay_nr
                         );
                     }
                     NodeContactMethod::Direct(dial_info) => {
                         network_result_try!(
-                            this.send_data_ncm_direct(node_ref, dial_info, data).await?
+                            this.send_data_ncm_direct(target_node_ref, dial_info, data).await?
                         )
                     }
                     NodeContactMethod::SignalReverse(relay_nr, target_node_ref) => {
