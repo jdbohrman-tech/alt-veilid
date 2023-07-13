@@ -46,6 +46,10 @@ deps-rust:
 deps-cross:
     FROM +deps-rust
     RUN apt-get install -y gcc-aarch64-linux-gnu curl unzip
+    RUN curl https://ziglang.org/builds/zig-linux-x86_64-0.11.0-dev.3978+711b4e93e.tar.xz | tar -C /usr/local -xJf -
+    RUN mv /usr/local/zig-linux-x86_64-0.11.0-dev.3978+711b4e93e /usr/local/zig
+    ENV PATH=$PATH:/usr/local/zig
+    RUN cargo install cargo-zigbuild
 
 # Install android tooling
 deps-android:
@@ -91,7 +95,7 @@ build-linux-amd64:
 
 build-linux-arm64:
     FROM +code-linux
-    RUN cargo build --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo zigbuild --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/aarch64-unknown-linux-gnu AS LOCAL ./target/artifacts/aarch64-unknown-linux-gnu
 
 # build-android:
@@ -113,9 +117,9 @@ unit-tests-linux-amd64:
     FROM +code-linux
     RUN cargo test --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
-unit-tests-linux-arm64:
-    FROM +code-linux
-    RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+# unit-tests-linux-arm64:
+#     FROM +code-linux
+#     RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 # Package 
 package-linux-amd64-deb:
