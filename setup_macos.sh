@@ -96,18 +96,11 @@ else
     exit 1
 fi
 
-
-# Ensure android sdk packages are installed
-$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
-
-# install targets
-rustup target add aarch64-apple-darwin aarch64-apple-ios x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-
-# install cargo packages
-cargo install wasm-bindgen-cli wasm-pack
-
 # ensure we have command line tools
-xcode-select --install
+xcode-select --install 2> /dev/null || true 
+until [ -d /Library/Developer/CommandLineTools/usr/bin ]; do
+  sleep 5;
+done
 
 # ensure packages are installed
 if [ "$BREW_USER" == "" ]; then
@@ -123,4 +116,14 @@ if [ "$BREW_USER" == "" ]; then
     fi
 fi
 sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@11 jq
+
+# Ensure android sdk packages are installed
+$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
+
+# install targets
+rustup target add aarch64-apple-darwin aarch64-apple-ios x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+
+# install cargo packages
+cargo install wasm-bindgen-cli wasm-pack
+
 sudo gem install cocoapods
