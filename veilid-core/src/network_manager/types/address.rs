@@ -1,5 +1,7 @@
 use super::*;
 
+// Ordering here matters, IPV6 is preferred to IPV4 in dial info sorts
+// See issue #236 for eventual resolution of this unfortunate implementation
 #[derive(
     Copy,
     Clone,
@@ -17,8 +19,8 @@ use super::*;
 )]
 #[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Address {
-    IPV4(Ipv4Addr),
     IPV6(Ipv6Addr),
+    IPV4(Ipv4Addr),
 }
 
 impl Default for Address {
