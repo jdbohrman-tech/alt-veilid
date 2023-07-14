@@ -118,7 +118,7 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
                 .await {
                     Ok(v) => v,
                     Err(e) => {
-                        if matches!(e.kind(), ResolveErrorKind::NoConnections) {
+                        if !matches!(e.kind(), ResolveErrorKind::NoRecordsFound { query:_, soa:_, negative_ttl:_, response_code:_, trusted:_ }) {
                             reset_resolver().await;
                         }
                         bail!("txt_lookup error: {}", e);
