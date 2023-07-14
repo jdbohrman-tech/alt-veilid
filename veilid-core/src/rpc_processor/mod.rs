@@ -888,10 +888,9 @@ impl RPCProcessor {
         // Get the target's node info timestamp
         let target_node_info_ts = target.node_info_ts(routing_domain);
 
-        // Don't return our node info if it's not valid yet
-        let Some(own_peer_info) = routing_table.get_own_peer_info(routing_domain) else {
-            return SenderPeerInfo::new_no_peer_info(target_node_info_ts);
-        };
+        // Return whatever peer info we have even if the network class is not yet valid
+        // That away we overwrite any prior existing valid-network-class nodeinfo in the remote routing table
+        let own_peer_info = routing_table.get_own_peer_info(routing_domain);
 
         // Get our node info timestamp
         let our_node_info_ts = own_peer_info.signed_node_info().timestamp();
@@ -1475,6 +1474,12 @@ impl RPCProcessor {
                 let mut opt_sender_nr: Option<NodeRef> = None;
                 if let Some(sender_peer_info) = operation.sender_peer_info() {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
+                    if !sender_peer_info.node_ids().contains(&sender_node_id) {
+                        // Attempted to update peer info for the wrong node id
+                        return Ok(NetworkResult::invalid_message(
+                            "attempt to update peer info for non-sender node id",
+                        ));
+                    }
 
                     // Sender PeerInfo was specified, update our routing table with it
                     if !self.verify_node_info(

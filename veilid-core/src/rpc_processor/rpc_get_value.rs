@@ -175,15 +175,17 @@ impl RPCProcessor {
         }
         // Ignore if disabled
         let routing_table = self.routing_table();
+        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
+        if !opi
+            .signed_node_info()
+            .node_info()
+            .has_capability(CAP_DHT)
         {
-            if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
-                if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
-                    return Ok(NetworkResult::service_unavailable(
-                        "dht is not available",
-                    ));
-                }
-            }
+            return Ok(NetworkResult::service_unavailable(
+                "dht is not available",
+            ));
         }
+
         // Get the question
         let kind = msg.operation.kind().clone();
         let get_value_q = match kind {

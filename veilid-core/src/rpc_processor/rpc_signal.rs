@@ -39,15 +39,15 @@ impl RPCProcessor {
     ) -> Result<NetworkResult<()>, RPCError> {
         // Ignore if disabled
         let routing_table = self.routing_table();
+        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
+        if !opi
+            .signed_node_info()
+            .node_info()
+            .has_capability(CAP_SIGNAL)
         {
-            if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
-                let ni = opi.signed_node_info().node_info();
-                if !ni.has_capability(CAP_SIGNAL) {
-                    return Ok(NetworkResult::service_unavailable(
-                        "signal is not available",
-                    ));
-                }
-            }
+            return Ok(NetworkResult::service_unavailable(
+                "signal is not available",
+            ));
         }
 
         // Can't allow anything other than direct packets here, as handling reverse connections

@@ -113,7 +113,7 @@ impl RoutingDomainDetailCommon {
         self.clear_cache();
     }
 
-    pub fn has_valid_own_node_info(&self) -> bool {
+    pub fn has_valid_network_class(&self) -> bool {
         self.network_class.unwrap_or(NetworkClass::Invalid) != NetworkClass::Invalid
     }
 

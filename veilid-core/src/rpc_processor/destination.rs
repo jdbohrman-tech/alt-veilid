@@ -31,9 +31,19 @@ pub enum Destination {
 impl Destination {
     pub fn target(&self) -> Option<NodeRef> {
         match self {
-            Destination::Direct { target, safety_selection: _ } => Some(target.clone()),
-            Destination::Relay { relay:_, target, safety_selection: _ } => Some(target.clone()),
-            Destination::PrivateRoute { private_route:_, safety_selection:_ } => None,
+            Destination::Direct {
+                target,
+                safety_selection: _,
+            } => Some(target.clone()),
+            Destination::Relay {
+                relay: _,
+                target,
+                safety_selection: _,
+            } => Some(target.clone()),
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _,
+            } => None,
         }
     }
     pub fn direct(target: NodeRef) -> Self {
@@ -217,7 +227,6 @@ impl RPCProcessor {
                 private_route,
                 safety_selection,
             } => {
-
                 let Some(avoid_node_id) = private_route.first_hop_node_id() else {
                     return Err(RPCError::internal("destination private route must have first hop"));
                 };
@@ -227,21 +236,21 @@ impl RPCProcessor {
                 match safety_selection {
                     SafetySelection::Unsafe(_) => {
                         // Sent to a private route with no safety route, use a stub safety route for the response
+                        if !routing_table.has_valid_network_class(RoutingDomain::PublicInternet) {
+                            return Ok(NetworkResult::no_connection_other(
+                                "Own node info must be valid to use private route",
+                            ));
+                        }
 
                         // Determine if we can use optimized nodeinfo
-                        let route_node = if rss
-                            .has_remote_private_route_seen_our_node_info(&private_route.public_key.value)
-                        {
-                                if !routing_table.has_valid_own_node_info(RoutingDomain::PublicInternet) {
-                                    return Ok(NetworkResult::no_connection_other("Own node info must be valid to use private route"));
-                                }
-                                RouteNode::NodeId(routing_table.node_id(crypto_kind).value)
-                            } else {
-                                let Some(own_peer_info) = 
-                                    routing_table.get_own_peer_info(RoutingDomain::PublicInternet) else {
-                                        return Ok(NetworkResult::no_connection_other("Own peer info must be valid to use private route"));
-                                    };
-                                RouteNode::PeerInfo(own_peer_info)
+                        let route_node = if rss.has_remote_private_route_seen_our_node_info(
+                            &private_route.public_key.value,
+                        ) {
+                            RouteNode::NodeId(routing_table.node_id(crypto_kind).value)
+                        } else {
+                            let own_peer_info =
+                                routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
+                            RouteNode::PeerInfo(own_peer_info)
                         };
 
                         Ok(NetworkResult::value(RespondTo::PrivateRoute(
@@ -250,10 +259,12 @@ impl RPCProcessor {
                     }
                     SafetySelection::Safe(safety_spec) => {
                         // Sent to a private route via a safety route, respond to private route
-                        
+
                         // Check for loopback test
-                        let opt_private_route_id = rss.get_route_id_for_key(&private_route.public_key.value);
-                        let pr_key = if opt_private_route_id.is_some() && safety_spec.preferred_route == opt_private_route_id
+                        let opt_private_route_id =
+                            rss.get_route_id_for_key(&private_route.public_key.value);
+                        let pr_key = if opt_private_route_id.is_some()
+                            && safety_spec.preferred_route == opt_private_route_id
                         {
                             // Private route is also safety route during loopback test
                             private_route.public_key.value
@@ -308,7 +319,10 @@ impl RPCProcessor {
                 };
 
                 // Reply directly to the request's source
-                let sender_node_id = TypedKey::new(detail.envelope.get_crypto_kind(), detail.envelope.get_sender_id());
+                let sender_node_id = TypedKey::new(
+                    detail.envelope.get_crypto_kind(),
+                    detail.envelope.get_sender_id(),
+                );
 
                 // This may be a different node's reference than the 'sender' in the case of a relay
                 let peer_noderef = detail.peer_noderef.clone();
@@ -320,18 +334,21 @@ impl RPCProcessor {
                 } else {
                     // Look up the sender node, we should have added it via senderNodeInfo before getting here.
                     let res = match self.routing_table.lookup_node_ref(sender_node_id) {
-                        Ok(v) => v, 
-                        Err(e) => return NetworkResult::invalid_message(
-                            format!("failed to look up node info for respond to: {}", e)
-                        )};
+                        Ok(v) => v,
+                        Err(e) => {
+                            return NetworkResult::invalid_message(format!(
+                                "failed to look up node info for respond to: {}",
+                                e
+                            ))
+                        }
+                    };
                     if let Some(sender_noderef) = res {
-                        NetworkResult::value(Destination::relay(peer_noderef, sender_noderef))    
+                        NetworkResult::value(Destination::relay(peer_noderef, sender_noderef))
                     } else {
                         return NetworkResult::invalid_message(
                             "not responding to sender that has no node info",
                         );
                     }
-                    
                 }
             }
             RespondTo::PrivateRoute(pr) => {

@@ -180,10 +180,6 @@ impl RoutingTableInner {
         routing_domain: RoutingDomain,
         node_info: &NodeInfo,
     ) -> bool {
-        // Should not be passing around nodeinfo with an invalid network class
-        if matches!(node_info.network_class(), NetworkClass::Invalid) {
-            return false;
-        }
         // Ensure all of the dial info works in this routing domain
         for did in node_info.dial_info_detail_list() {
             if !self.ensure_dial_info_is_valid(routing_domain, &did.dial_info) {
@@ -204,6 +200,14 @@ impl RoutingTableInner {
         }
         // Ensure the relay is also valid in this routing domain if it is provided
         if let Some(relay_ni) = signed_node_info.relay_info() {
+            // If there is a relay, the relay should have inbound capable network class and the node's network class should be valid
+            if relay_ni.network_class() != NetworkClass::InboundCapable {
+                return false;
+            }
+            if signed_node_info.node_info().network_class() == NetworkClass::Invalid {
+                return false;
+            }
+
             if !self.node_info_is_valid_in_routing_domain(routing_domain, relay_ni) {
                 return false;
             }
@@ -238,42 +242,23 @@ impl RoutingTableInner {
         });
     }
 
-    /// Return if our node info is valid yet, which is only true if we have a valid network class
-    pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
-        self.with_routing_domain(routing_domain, |rdd| rdd.common().has_valid_own_node_info())
+    /// Return if this routing domain has a valid network class
+    pub fn has_valid_network_class(&self, routing_domain: RoutingDomain) -> bool {
+        self.with_routing_domain(routing_domain, |rdd| rdd.common().has_valid_network_class())
     }
 
     /// Return a copy of our node's peerinfo
-    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
-        self.with_routing_domain(routing_domain, |rdd| {
-            if !rdd.common().has_valid_own_node_info() {
-                None
-            } else {
-                Some(rdd.common().with_peer_info(self, |pi| pi.clone()))
-            }
-        })
-    }
-
-    /// Return the best effort copy of our node's peerinfo
-    /// This may be invalid and should not be passed to other nodes,
-    /// but may be used for contact method calculation
-    pub fn get_best_effort_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
+    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common().with_peer_info(self, |pi| pi.clone())
         })
     }
 
     /// Return our current node info timestamp
-    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<Timestamp> {
+    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Timestamp {
         self.with_routing_domain(routing_domain, |rdd| {
-            if !rdd.common().has_valid_own_node_info() {
-                None
-            } else {
-                Some(
-                    rdd.common()
-                        .with_peer_info(self, |pi| pi.signed_node_info().timestamp()),
-                )
-            }
+            rdd.common()
+                .with_peer_info(self, |pi| pi.signed_node_info().timestamp())
         })
     }
 
@@ -557,19 +542,17 @@ impl RoutingTableInner {
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count());
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
             if entry.with_inner(|e| {
-                // If this isn't in the routing domain we are checking, don't include it
+                // If this entry isn't in the routing domain we are checking, don't include it
                 if !e.exists_in_routing_domain(rti, routing_domain) {
                     return false;
                 }
-                // If we need a ping then do it
+                // If this entry needs need a ping then do it
                 if e.needs_ping(cur_ts) {
                     return true;
                 }
-                // If we need a ping because this node hasn't seen our latest node info, then do it
-                if let Some(own_node_info_ts) = own_node_info_ts {
-                    if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
-                        return true;
-                    }
+                // If this entry needs a ping because this node hasn't seen our latest node info, then do it
+                if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
+                    return true;
                 }
                 false
             }) {

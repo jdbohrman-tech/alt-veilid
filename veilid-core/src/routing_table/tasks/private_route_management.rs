@@ -169,23 +169,10 @@ impl RoutingTable {
         _last_ts: Timestamp,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        // Get our node's current node info and network class and do the right thing
-        let network_class = self
-            .get_network_class(RoutingDomain::PublicInternet)
-            .unwrap_or(NetworkClass::Invalid);
-
         // If we don't know our network class then don't do this yet
-        if network_class == NetworkClass::Invalid {
+        if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
             return Ok(());
         }
-
-        // If we don't have our own peer info then don't do this yet
-        if self
-            .get_own_peer_info(RoutingDomain::PublicInternet)
-            .is_none()
-        {
-            return Ok(());
-        };
 
         // Test locally allocated routes first
         // This may remove dead routes

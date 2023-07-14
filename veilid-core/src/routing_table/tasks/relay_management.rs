@@ -10,9 +10,10 @@ impl RoutingTable {
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
         // Get our node's current node info and network class and do the right thing
-        let Some(own_peer_info) = self.get_own_peer_info(RoutingDomain::PublicInternet) else {
+        if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
             return Ok(());
-        };
+        }
+        let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let own_node_info = own_peer_info.signed_node_info().node_info();
         let network_class = own_node_info.network_class();
         let relay_node_filter = self.make_public_internet_relay_node_filter();

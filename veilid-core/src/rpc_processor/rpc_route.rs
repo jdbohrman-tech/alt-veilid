@@ -367,14 +367,21 @@ impl RPCProcessor {
     ) -> Result<NetworkResult<()>, RPCError> {
         // Ignore if disabled
         let routing_table = self.routing_table();
+        if !routing_table.has_valid_network_class(msg.header.routing_domain()) {
+            return Ok(NetworkResult::service_unavailable(
+                "can't route without valid network class",
+            ));
+        }
+
+        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
+        if !opi
+            .signed_node_info()
+            .node_info()
+            .has_capability(CAP_ROUTE)
         {
-            if let Some(opi) = routing_table.get_own_peer_info(msg.header.routing_domain()) {
-                if !opi.signed_node_info().node_info().has_capability(CAP_ROUTE) {
-                    return Ok(NetworkResult::service_unavailable(
-                        "route is not available",
-                    ));
-                }
-            }
+            return Ok(NetworkResult::service_unavailable(
+                "route is not available",
+            ));
         }
         
         // Get header detail, must be direct and not inside a route itself

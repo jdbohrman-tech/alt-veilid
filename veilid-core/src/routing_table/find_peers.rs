@@ -7,12 +7,15 @@ impl RoutingTable {
         key: TypedKey,
         capabilities: &[Capability],
     ) -> NetworkResult<Vec<PeerInfo>> {
-        let Some(own_peer_info) = self.get_own_peer_info(RoutingDomain::PublicInternet) else {
+        if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
             // Our own node info is not yet available, drop this request.
-            return NetworkResult::service_unavailable("Not finding closest peers because our peer info is not yet available");
-        };
+            return NetworkResult::service_unavailable(
+                "Not finding closest peers because our network class is still invalid",
+            );
+        }
 
         // find N nodes closest to the target node in our routing table
+        let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let filter = Box::new(
             move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
                 // Ensure only things that are valid/signed in the PublicInternet domain are returned
@@ -28,14 +31,10 @@ impl RoutingTable {
                     Some(entry) => entry.with(rti, |_rti, e| {
                         e.has_capabilities(RoutingDomain::PublicInternet, capabilities)
                     }),
-                    None => rti
-                        .get_own_peer_info(RoutingDomain::PublicInternet)
-                        .map(|pi| {
-                            pi.signed_node_info()
-                                .node_info()
-                                .has_capabilities(capabilities)
-                        })
-                        .unwrap_or(false),
+                    None => own_peer_info
+                        .signed_node_info()
+                        .node_info()
+                        .has_capabilities(capabilities),
                 }
             },
         ) as RoutingTableEntryFilter;
@@ -46,6 +45,7 @@ impl RoutingTable {
             c.network.dht.max_find_node_count as usize
         };
 
+        let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let closest_nodes = self.find_closest_nodes(
             node_count,
             key,

@@ -549,27 +549,18 @@ impl RoutingTable {
     }
 
     /// Return a copy of our node's peerinfo
-    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
         self.inner.read().get_own_peer_info(routing_domain)
-    }
-
-    /// Return the best effort copy of our node's peerinfo
-    /// This may be invalid and should not be passed to other nodes,
-    /// but may be used for contact method calculation
-    pub fn get_best_effort_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
-        self.inner
-            .read()
-            .get_best_effort_own_peer_info(routing_domain)
     }
 
     /// If we have a valid network class in this routing domain, then our 'NodeInfo' is valid
     /// If this is true, we can get our final peer info, otherwise we only have a 'best effort' peer info
-    pub fn has_valid_own_node_info(&self, routing_domain: RoutingDomain) -> bool {
-        self.inner.read().has_valid_own_node_info(routing_domain)
+    pub fn has_valid_network_class(&self, routing_domain: RoutingDomain) -> bool {
+        self.inner.read().has_valid_network_class(routing_domain)
     }
 
     /// Return our current node info timestamp
-    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Option<Timestamp> {
+    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Timestamp {
         self.inner.read().get_own_node_info_ts(routing_domain)
     }
 

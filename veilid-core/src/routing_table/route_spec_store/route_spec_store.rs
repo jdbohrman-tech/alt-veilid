@@ -186,11 +186,15 @@ impl RouteSpecStore {
         if hop_count > self.unlocked_inner.max_route_hop_count {
             bail!("Not allocating route longer than max route hop count");
         }
-
-        let Some(our_peer_info) = rti.get_own_peer_info(RoutingDomain::PublicInternet) else {
-            log_rtab!(debug "unable to allocate route until we have our own peer info");
+        
+        // Ensure we have a valid network class so our peer info is useful
+        if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
+            log_rtab!(debug "unable to allocate route until we have a valid PublicInternet network class");
             return Ok(None);
         };
+
+        // Get our peer info
+        let our_peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
 
         // Get relay node if we have one
         let opt_own_relay_nr = rti.relay_node(RoutingDomain::PublicInternet).map(|nr| nr.locked(rti));
@@ -1176,20 +1180,20 @@ impl RouteSpecStore {
             bail!("crypto not supported for route");
         };
 
+        // Ensure our network class is valid before attempting to assemble any routes
+        if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
+            bail!("can't make private routes until our node info is valid");
+        }
+
         // Make innermost route hop to our own node
         let mut route_hop = RouteHop {
             node: if optimized {
-                if !rti.has_valid_own_node_info(RoutingDomain::PublicInternet) {
-                    bail!("can't make private routes until our node info is valid");
-                }
                 let Some(node_id) = routing_table.node_ids().get(rsd.crypto_kind) else {
                     bail!("missing node id for crypto kind");
                 };
                 RouteNode::NodeId(node_id.value)
             } else {
-                let Some(pi) = rti.get_own_peer_info(RoutingDomain::PublicInternet) else {
-                    bail!("can't make private routes until our node info is valid");
-                };
+                let pi = rti.get_own_peer_info(RoutingDomain::PublicInternet);
                 RouteNode::PeerInfo(pi)
             },
             next_hop: None,
@@ -1377,15 +1381,7 @@ impl RouteSpecStore {
             let cur_ts = get_aligned_timestamp();
             if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid)
             {
-                let our_node_info_ts = {
-                    let rti = &*self.unlocked_inner.routing_table.inner.read();
-                    let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
-                        // Node info is invalid, skip this
-                        return false;
-                    };
-                    ts
-                };
-        
+                let our_node_info_ts = self.unlocked_inner.routing_table.get_own_node_info_ts(RoutingDomain::PublicInternet);        
                 return rpri.has_seen_our_node_info_ts(our_node_info_ts);
             }
         }
@@ -1404,14 +1400,7 @@ impl RouteSpecStore {
         key: &PublicKey,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        let our_node_info_ts = {
-            let rti = &*self.unlocked_inner.routing_table.inner.read();
-            let Some(ts) = rti.get_own_node_info_ts(RoutingDomain::PublicInternet) else {
-                // Node info is invalid, skipping this
-                return Ok(());
-            };
-            ts
-        };
+        let our_node_info_ts = self.unlocked_inner.routing_table.get_own_node_info_ts(RoutingDomain::PublicInternet);        
 
         let inner = &mut *self.inner.lock();
 

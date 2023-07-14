@@ -309,7 +309,7 @@ pub trait NodeRefBase: Sized {
     }
 
     fn clear_last_connection(&self, connection_descriptor: ConnectionDescriptor) {
-        self.operate_mut(|rti, e| {
+        self.operate_mut(|_rti, e| {
             e.clear_last_connection(connection_descriptor);
         })
     }

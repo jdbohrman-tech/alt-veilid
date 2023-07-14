@@ -110,7 +110,7 @@ pub(crate) enum NodeContactMethod {
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct NodeContactMethodCacheKey {
-    own_node_info_ts: Option<Timestamp>,
+    own_node_info_ts: Timestamp,
     target_node_info_ts: Timestamp,
     target_node_ref_filter: Option<NodeRefFilter>,
     target_node_ref_sequencing: Sequencing,

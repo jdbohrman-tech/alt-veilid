@@ -329,7 +329,7 @@ impl NetworkManager {
 
         // Node A is our own node
         // Use whatever node info we've calculated so far
-        let peer_a = routing_table.get_best_effort_own_peer_info(routing_domain);
+        let peer_a = routing_table.get_own_peer_info(routing_domain);
 
         // Node B is the target node
         let peer_b = match target_node_ref.make_peer_info(routing_domain) {
@@ -466,15 +466,18 @@ impl NetworkManager {
 
         // Get target routing domain
         let Some(routing_domain) = target_nr.best_routing_domain() else {
-            return Ok(NetworkResult::no_connection_other("No routing domain for target"));
+            return Ok(NetworkResult::no_connection_other("No routing domain for target for reverse connect"));
+        };
+
+        // Ensure we have a valid network class so our peer info is useful
+        if !self.routing_table().has_valid_network_class(routing_domain){
+            return Ok(NetworkResult::no_connection_other("Network class not yet valid for reverse connect"));
         };
 
         // Get our peer info
-        let Some(peer_info) = self
+        let peer_info = self
             .routing_table()
-            .get_own_peer_info(routing_domain) else {
-            return Ok(NetworkResult::no_connection_other("Own peer info not available"));
-        };
+            .get_own_peer_info(routing_domain);
 
         // Issue the signal
         let rpc = self.rpc_processor();
@@ -562,15 +565,18 @@ impl NetworkManager {
 
         // Get target routing domain
         let Some(routing_domain) = target_nr.best_routing_domain() else {
-            return Ok(NetworkResult::no_connection_other("No routing domain for target"));
+            return Ok(NetworkResult::no_connection_other("No routing domain for target for hole punch"));
+        };
+
+        // Ensure we have a valid network class so our peer info is useful
+        if !self.routing_table().has_valid_network_class(routing_domain){
+            return Ok(NetworkResult::no_connection_other("Network class not yet valid for hole punch"));
         };
 
         // Get our peer info
-        let Some(peer_info) = self
+        let peer_info = self
             .routing_table()
-            .get_own_peer_info(routing_domain) else {
-                return Ok(NetworkResult::no_connection_other("Own peer info not available"));
-            };
+            .get_own_peer_info(routing_domain);
 
         // Get the udp direct dialinfo for the hole punch
         let hole_punch_did = target_nr

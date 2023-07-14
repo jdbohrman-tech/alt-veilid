@@ -58,6 +58,14 @@ impl RPCProcessor {
         &self,
         msg: RPCMessage,
     ) -> Result<NetworkResult<()>, RPCError> {
+        let routing_table = self.routing_table();
+        if !routing_table.has_valid_network_class(msg.header.routing_domain()) {
+            return Ok(NetworkResult::service_unavailable(
+                "can't validate dial info without valid network class",
+            ));
+        }
+        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
+
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
@@ -68,16 +76,16 @@ impl RPCProcessor {
         };
 
         // Ignore if disabled
-        let routing_table = self.routing_table();
+        let ni = opi.signed_node_info().node_info();
+        if !opi
+            .signed_node_info()
+            .node_info()
+            .has_capability(CAP_VALIDATE_DIAL_INFO)
+            || !ni.is_fully_direct_inbound()
         {
-            if let Some(opi) = routing_table.get_own_peer_info(detail.routing_domain) {
-                let ni = opi.signed_node_info().node_info();
-                if !ni.has_capability(CAP_VALIDATE_DIAL_INFO) || !ni.is_fully_direct_inbound() {
-                    return Ok(NetworkResult::service_unavailable(
-                        "validate dial info is not available",
-                    ));
-                }
-            }
+            return Ok(NetworkResult::service_unavailable(
+                "validate dial info is not available",
+            ));
         }
 
         // Get the statement
