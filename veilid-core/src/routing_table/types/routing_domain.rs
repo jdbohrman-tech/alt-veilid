@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use super::*;
 
 // Routing domain here is listed in order of preference, keep in order

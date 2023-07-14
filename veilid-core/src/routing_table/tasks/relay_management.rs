@@ -69,7 +69,7 @@ impl RoutingTable {
                         false,
                     ) {
                         Ok(nr) => {
-                            log_rtab!("Outbound relay node selected: {}", nr);
+                            info!("Outbound relay node selected: {}", nr);
                             editor.set_relay_node(nr);
                             got_outbound_relay = true;
                         }
@@ -77,6 +77,8 @@ impl RoutingTable {
                             log_rtab!(error "failed to register node with peer info: {}", e);
                         }
                     }
+                } else {
+                    info!("Outbound relay desired but not available");
                 }
             }
             if !got_outbound_relay {
@@ -89,7 +91,7 @@ impl RoutingTable {
         }
 
         // Commit the changes
-        editor.commit().await;
+        editor.commit();
 
         Ok(())
     }

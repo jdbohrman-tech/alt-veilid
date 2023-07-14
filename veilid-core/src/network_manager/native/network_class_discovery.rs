@@ -176,7 +176,7 @@ impl DiscoveryContext {
             .routing_table
             .find_fast_public_nodes_filtered(node_count, filters);
         if peers.is_empty() {
-            log_net!(
+            log_net!(debug
                 "no external address detection peers of type {:?}:{:?}",
                 protocol_type,
                 address_type
@@ -195,7 +195,7 @@ impl DiscoveryContext {
                 return Some((sa, peer));
             }
         }
-        log_net!("no peers responded with an external address");
+        log_net!(debug "no peers responded with an external address");
         None
     }
 
@@ -943,8 +943,8 @@ impl Network {
                 punish();
             }
         } else {
-            // Send updates to everyone
-            editor.commit().await;
+            // Commit updates
+            editor.commit();
         }
 
         Ok(())

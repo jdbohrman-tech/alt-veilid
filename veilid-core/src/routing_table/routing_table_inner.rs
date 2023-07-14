@@ -98,6 +98,10 @@ impl RoutingTableInner {
         self.with_routing_domain(domain, |rd| rd.common().relay_node())
     }
 
+    pub fn relay_node_last_keepalive(&self, domain: RoutingDomain) -> Option<Timestamp> {
+        self.with_routing_domain(domain, |rd| rd.common().relay_node_last_keepalive())
+    }
+
     pub fn has_dial_info(&self, domain: RoutingDomain) -> bool {
         self.with_routing_domain(domain, |rd| !rd.common().dial_info_details().is_empty())
     }
@@ -547,8 +551,6 @@ impl RoutingTableInner {
         routing_domain: RoutingDomain,
         cur_ts: Timestamp,
     ) -> Vec<NodeRef> {
-        // Collect relay nodes
-        let opt_relay = self.with_routing_domain(routing_domain, |rd| rd.common().relay_node());
         let own_node_info_ts = self.get_own_node_info_ts(routing_domain);
 
         // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
@@ -559,13 +561,8 @@ impl RoutingTableInner {
                 if !e.exists_in_routing_domain(rti, routing_domain) {
                     return false;
                 }
-                // If we need a ping via the normal timing mechanism, then do it
-                // or if this node is our own relay, then we keep it alive
-                let is_our_relay = opt_relay
-                    .as_ref()
-                    .map(|nr| nr.same_bucket_entry(&entry))
-                    .unwrap_or(false);
-                if e.needs_ping(cur_ts, is_our_relay) {
+                // If we need a ping then do it
+                if e.needs_ping(cur_ts) {
                     return true;
                 }
                 // If we need a ping because this node hasn't seen our latest node info, then do it

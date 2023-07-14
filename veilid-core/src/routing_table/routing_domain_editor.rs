@@ -6,6 +6,9 @@ enum RoutingDomainChange {
     SetRelayNode {
         relay_node: NodeRef,
     },
+    SetRelayNodeKeepalive {
+        ts: Option<Timestamp>,
+    },
     AddDialInfoDetail {
         dial_info_detail: DialInfoDetail,
     },
@@ -36,24 +39,33 @@ impl RoutingDomainEditor {
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn clear_dial_info_details(&mut self) {
+    pub fn clear_dial_info_details(&mut self) -> &mut Self {
         self.changes.push(RoutingDomainChange::ClearDialInfoDetails);
+        self
     }
     #[instrument(level = "debug", skip(self))]
-    pub fn clear_relay_node(&mut self) {
+    pub fn clear_relay_node(&mut self) -> &mut Self {
         self.changes.push(RoutingDomainChange::ClearRelayNode);
+        self
     }
     #[instrument(level = "debug", skip(self))]
-    pub fn set_relay_node(&mut self, relay_node: NodeRef) {
+    pub fn set_relay_node(&mut self, relay_node: NodeRef) -> &mut Self {
         self.changes
-            .push(RoutingDomainChange::SetRelayNode { relay_node })
+            .push(RoutingDomainChange::SetRelayNode { relay_node });
+        self
     }
-    #[instrument(level = "debug", skip(self), err)]
+    #[instrument(level = "debug", skip(self))]
+    pub fn set_relay_node_keepalive(&mut self, ts: Option<Timestamp>) -> &mut Self {
+        self.changes
+            .push(RoutingDomainChange::SetRelayNodeKeepalive { ts });
+        self
+    }
+    #[instrument(level = "debug", skip(self))]
     pub fn register_dial_info(
         &mut self,
         dial_info: DialInfo,
         class: DialInfoClass,
-    ) -> EyreResult<()> {
+    ) -> EyreResult<&mut Self> {
         if !self
             .routing_table
             .ensure_dial_info_is_valid(self.routing_domain, &dial_info)
@@ -72,7 +84,7 @@ impl RoutingDomainEditor {
             },
         });
 
-        Ok(())
+        Ok(self)
     }
     #[instrument(level = "debug", skip(self))]
     pub fn setup_network(
@@ -81,23 +93,25 @@ impl RoutingDomainEditor {
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
         capabilities: Vec<Capability>,
-    ) {
+    ) -> &mut Self {
         self.changes.push(RoutingDomainChange::SetupNetwork {
             outbound_protocols,
             inbound_protocols,
             address_types,
             capabilities,
-        })
+        });
+        self
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn set_network_class(&mut self, network_class: Option<NetworkClass>) {
+    pub fn set_network_class(&mut self, network_class: Option<NetworkClass>) -> &mut Self {
         self.changes
-            .push(RoutingDomainChange::SetNetworkClass { network_class })
+            .push(RoutingDomainChange::SetNetworkClass { network_class });
+        self
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn commit(self) {
+    pub fn commit(&mut self) {
         // No locking if we have nothing to do
         if self.changes.is_empty() {
             return;
@@ -109,7 +123,7 @@ impl RoutingDomainEditor {
 
             let mut inner = self.routing_table.inner.write();
             inner.with_routing_domain_mut(self.routing_domain, |detail| {
-                for change in self.changes {
+                for change in self.changes.drain(..) {
                     match change {
                         RoutingDomainChange::ClearDialInfoDetails => {
                             debug!("[{:?}] cleared dial info details", self.routing_domain);
@@ -123,7 +137,12 @@ impl RoutingDomainEditor {
                         }
                         RoutingDomainChange::SetRelayNode { relay_node } => {
                             debug!("[{:?}] set relay node: {}", self.routing_domain, relay_node);
-                            detail.common_mut().set_relay_node(Some(relay_node));
+                            detail.common_mut().set_relay_node(Some(relay_node.clone()));
+                            changed = true;
+                        }
+                        RoutingDomainChange::SetRelayNodeKeepalive { ts } => {
+                            debug!("[{:?}] relay node keepalive: {:?}", self.routing_domain, ts);
+                            detail.common_mut().set_relay_node_last_keepalive(ts);
                             changed = true;
                         }
                         RoutingDomainChange::AddDialInfoDetail { dial_info_detail } => {
@@ -155,7 +174,7 @@ impl RoutingDomainEditor {
                             let this_changed = old_outbound_protocols != outbound_protocols
                                 || old_inbound_protocols != inbound_protocols
                                 || old_address_types != address_types
-                                || old_capabilities != capabilities;
+                                || old_capabilities != *capabilities;
 
                             debug!(
                                 "[{:?}] setup network: {:?} {:?} {:?} {:?}",
@@ -170,7 +189,7 @@ impl RoutingDomainEditor {
                                 outbound_protocols,
                                 inbound_protocols,
                                 address_types,
-                                capabilities,
+                                capabilities.clone(),
                             );
                             if this_changed {
                                 changed = true;

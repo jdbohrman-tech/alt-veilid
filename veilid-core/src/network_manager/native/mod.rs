@@ -814,8 +814,8 @@ impl Network {
         }
 
         // commit routing table edits
-        editor_public_internet.commit().await;
-        editor_local_network.commit().await;
+        editor_public_internet.commit();
+        editor_local_network.commit();
 
         info!("network started");
         self.inner.lock().network_started = true;
@@ -868,12 +868,12 @@ impl Network {
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
         editor.clear_dial_info_details();
         editor.set_network_class(None);
-        editor.commit().await;
+        editor.commit();
 
         let mut editor = routing_table.edit_routing_domain(RoutingDomain::LocalNetwork);
         editor.clear_dial_info_details();
         editor.set_network_class(None);
-        editor.commit().await;
+        editor.commit();
 
         // Reset state including network class
         *self.inner.lock() = Self::new_inner();

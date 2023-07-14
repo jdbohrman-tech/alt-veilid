@@ -463,6 +463,10 @@ impl RoutingTable {
         self.inner.read().relay_node(domain)
     }
 
+    pub fn relay_node_last_keepalive(&self, domain: RoutingDomain) -> Option<Timestamp> {
+        self.inner.read().relay_node_last_keepalive(domain)
+    }
+
     pub fn has_dial_info(&self, domain: RoutingDomain) -> bool {
         self.inner.read().has_dial_info(domain)
     }

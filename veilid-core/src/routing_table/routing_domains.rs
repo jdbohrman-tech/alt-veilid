@@ -27,6 +27,7 @@ pub struct RoutingDomainDetailCommon {
     inbound_protocols: ProtocolTypeSet,
     address_types: AddressTypeSet,
     relay_node: Option<NodeRef>,
+    relay_node_last_keepalive: Option<Timestamp>,
     capabilities: Vec<Capability>,
     dial_info_details: Vec<DialInfoDetail>,
     // caches
@@ -42,6 +43,7 @@ impl RoutingDomainDetailCommon {
             inbound_protocols: Default::default(),
             address_types: Default::default(),
             relay_node: Default::default(),
+            relay_node_last_keepalive: Default::default(),
             capabilities: Default::default(),
             dial_info_details: Default::default(),
             cached_peer_info: Mutex::new(Default::default()),
@@ -85,11 +87,18 @@ impl RoutingDomainDetailCommon {
     pub fn relay_node(&self) -> Option<NodeRef> {
         self.relay_node.clone()
     }
+    pub fn relay_node_last_keepalive(&self) -> Option<Timestamp> {
+        self.relay_node_last_keepalive
+    }
     pub(super) fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
         self.relay_node = opt_relay_node.map(|nr| {
             nr.filtered_clone(NodeRefFilter::new().with_routing_domain(self.routing_domain))
         });
+        self.relay_node_last_keepalive = None;
         self.clear_cache();
+    }
+    pub(super) fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>) {
+        self.relay_node_last_keepalive = ts;
     }
     pub fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details

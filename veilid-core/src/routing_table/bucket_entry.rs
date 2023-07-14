@@ -23,10 +23,6 @@ const UNRELIABLE_PING_SPAN_SECS: u32 = 60;
 /// - Interval is the number of seconds between each ping
 const UNRELIABLE_PING_INTERVAL_SECS: u32 = 5;
 
-/// Keepalive pings are done occasionally to ensure holepunched public dialinfo
-/// remains valid, as well as to make sure we remain in any relay node's routing table
-const KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
-
 /// How many times do we try to ping a never-reached node before we call it dead
 const NEVER_REACHED_PING_COUNT: u32 = 3;
 
@@ -636,15 +632,9 @@ impl BucketEntryInner {
     }
 
     // Check if this node needs a ping right now to validate it is still reachable
-    pub(super) fn needs_ping(&self, cur_ts: Timestamp, needs_keepalive: bool) -> bool {
+    pub(super) fn needs_ping(&self, cur_ts: Timestamp) -> bool {
         // See which ping pattern we are to use
         let state = self.state(cur_ts);
-
-        // If this entry needs a keepalive (like a relay node),
-        // then we should ping it regularly to keep our association alive
-        if needs_keepalive {
-            return self.needs_constant_ping(cur_ts, TimestampDuration::new(KEEPALIVE_PING_INTERVAL_SECS as u64 * 1000000u64));
-        }
 
         // If we don't have node status for this node, then we should ping it to get some node status
         for routing_domain in RoutingDomainSet::all() {
