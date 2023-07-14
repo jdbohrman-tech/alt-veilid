@@ -933,6 +933,7 @@ impl Network {
             // Network class could not be determined
             editor.clear_dial_info_details();
             editor.set_network_class(None);
+            editor.clear_relay_node();
             changed = true;
             log_net!(debug "PublicInternet network class cleared");
         }

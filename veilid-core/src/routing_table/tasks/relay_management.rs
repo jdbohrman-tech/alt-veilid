@@ -9,10 +9,6 @@ impl RoutingTable {
         _last_ts: Timestamp,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        // Get our node's current node info and network class and do the right thing
-        if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
-            return Ok(());
-        }
         let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let own_node_info = own_peer_info.signed_node_info().node_info();
         let network_class = own_node_info.network_class();
@@ -44,6 +40,15 @@ impl RoutingTable {
                 else if !own_node_info.requires_relay() {
                     info!(
                         "Relay node no longer required, dropping relay {}",
+                        relay_node
+                    );
+                    editor.clear_relay_node();
+                    false
+                }
+                // Should not have relay for invalid network class
+                else if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
+                    info!(
+                        "Invalid network class does not get a relay, dropping relay {}",
                         relay_node
                     );
                     editor.clear_relay_node();

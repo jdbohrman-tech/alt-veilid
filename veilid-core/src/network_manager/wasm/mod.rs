@@ -334,10 +334,13 @@ impl Network {
         let routing_table = self.routing_table();
 
         // Drop all dial info
-        let mut editor = routing_table.edit_routing_domain(RoutingDomain::PublicInternet);
-        editor.clear_dial_info_details();
-        editor.set_network_class(None);
-        editor.commit().await;
+        routing_table
+            .edit_routing_domain(RoutingDomain::PublicInternet)
+            .clear_dial_info_details()
+            .set_network_class(None)
+            .clear_relay_node()
+            .commit()
+            .await;
 
         // Cancels all async background tasks by dropping join handles
         *self.inner.lock() = Self::new_inner();

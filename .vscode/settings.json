@@ -3,4 +3,9 @@
     "python.analysis.extraPaths": [
         "veilid-python/.venv/lib/python3.11/site-packages"
     ],
+    "rust-analyzer.linkedProjects": [
+        "./veilid-core/Cargo.toml",
+        "./veilid-core/Cargo.toml",
+        "./veilid-core/Cargo.toml"
+    ],
 }
