@@ -307,6 +307,22 @@ impl Network {
         local_port
     }
 
+    fn get_preferred_local_address(&self, dial_info: &DialInfo) -> SocketAddr {
+        let inner = self.inner.lock();
+
+        let local_port = match dial_info.protocol_type() {
+            ProtocolType::UDP => inner.udp_port,
+            ProtocolType::TCP => inner.tcp_port,
+            ProtocolType::WS => inner.ws_port,
+            ProtocolType::WSS => inner.wss_port,
+        };
+
+        match dial_info.address_type() {
+            AddressType::IPV4 => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), local_port),
+            AddressType::IPV6 => SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), local_port),
+        }
+    }
+
     pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
         let usable_addrs = self.get_usable_interface_addresses();
         usable_addrs.contains(&addr)
@@ -578,9 +594,10 @@ impl Network {
                 .wrap_err("failed to send data to dial info")?);
         } else {
             // Handle connection-oriented protocols
+            let local_addr = self.get_preferred_local_address(&dial_info);
             let conn = network_result_try!(
                 self.connection_manager()
-                    .get_or_create_connection(None, dial_info.clone())
+                    .get_or_create_connection(Some(local_addr), dial_info.clone())
                     .await?
             );
 
