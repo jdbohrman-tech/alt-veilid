@@ -1031,7 +1031,7 @@ impl RoutingTable {
             .sort_and_clean_closest_noderefs(node_id, closest_nodes)
     }
 
-    #[instrument(level = "trace", skip(self, peers), ret)]
+    #[instrument(level = "trace", skip(self, peers))]
     pub fn register_find_node_answer(
         &self,
         crypto_kind: CryptoKind,
@@ -1061,7 +1061,7 @@ impl RoutingTable {
         out
     }
 
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn find_node(
         &self,
         node_ref: NodeRef,
@@ -1083,7 +1083,7 @@ impl RoutingTable {
     }
 
     /// Ask a remote node to list the nodes it has around the current node
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn find_self(
         &self,
         crypto_kind: CryptoKind,
@@ -1094,7 +1094,7 @@ impl RoutingTable {
     }
 
     /// Ask a remote node to list the nodes it has around itself
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn find_target(
         &self,
         crypto_kind: CryptoKind,
