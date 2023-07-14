@@ -247,7 +247,6 @@ impl BucketEntryInner {
         *opt_current_sni = None;
     }
 
-    // Retuns true if the node info changed
     pub fn update_signed_node_info(
         &mut self,
         routing_domain: RoutingDomain,
@@ -289,6 +288,13 @@ impl BucketEntryInner {
         self.set_envelope_support(envelope_support);
         self.updated_since_last_network_change = true;
         self.touch_last_seen(get_aligned_timestamp());
+
+        // If we're updating an entry's node info, purge all 
+        // but the last connection in our last connections list
+        // because the dial info could have changed and its safer to just reconnect.
+        // The latest connection would have been the once we got the new node info
+        // over so that connection is still valid.
+        self.clear_last_connections_except_latest();
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
@@ -408,6 +414,35 @@ impl BucketEntryInner {
     // Clears the table of last connections to ensure we create new ones and drop any existing ones
     pub fn clear_last_connections(&mut self) {
         self.last_connections.clear();
+    }
+
+    // Clears the table of last connections except the most recent one
+    pub fn clear_last_connections_except_latest(&mut self) {
+        if self.last_connections.len() == 0 {
+            // No last_connections
+            return;
+        }
+        let mut dead_keys = Vec::with_capacity(self.last_connections.len()-1);
+        let mut most_recent_connection = None;
+        let mut most_recent_connection_time = 0u64;
+        for (k, v) in &self.last_connections {
+            let lct = v.1.as_u64();
+            if lct > most_recent_connection_time {
+                most_recent_connection = Some(k);
+                most_recent_connection_time = lct;
+            }
+        }
+        let Some(most_recent_connection) = most_recent_connection else {
+            return;
+        };
+        for (k, _) in &self.last_connections {
+            if k != most_recent_connection {
+                dead_keys.push(k.clone());
+            }
+        }
+        for dk in dead_keys {
+            self.last_connections.remove(&dk);
+        }
     }
 
     // Gets all the 'last connections' that match a particular filter, and their accompanying timestamps of last use

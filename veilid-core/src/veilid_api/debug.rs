@@ -526,6 +526,37 @@ impl VeilidAPI {
         Ok(routing_table.debug_info_entry(node_ref))
     }
 
+    async fn debug_relay(&self, args: String) -> VeilidAPIResult<String> {
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+        let routing_table = self.network_manager()?.routing_table();
+
+        let relay_node = get_debug_argument_at(
+            &args,
+            0,
+            "debug_relay",
+            "node_id",
+            get_node_ref(routing_table),
+        )?;
+
+        let routing_domain = get_debug_argument_at(
+            &args,
+            0,
+            "debug_relay",
+            "routing_domain",
+            get_routing_domain,
+        )
+        .ok()
+        .unwrap_or(RoutingDomain::PublicInternet);
+
+        // Dump routing table entry
+        let routing_table = self.network_manager()?.routing_table();
+        routing_table
+            .edit_routing_domain(routing_domain)
+            .set_relay_node(relay_node)
+            .commit();
+        Ok("Relay changed".to_owned())
+    }
+
     async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
@@ -1306,6 +1337,7 @@ detach
 restart network
 contact <node>[<modifiers>]
 ping <destination>
+relay <relay> [public|local]
 route allocate [ord|*ord] [rel] [<count>] [in|out]
       release <route>
       publish <route> [full]
@@ -1374,6 +1406,8 @@ record list <local|remote>
                 self.debug_entries(rest).await
             } else if arg == "entry" {
                 self.debug_entry(rest).await
+            } else if arg == "relay" {
+                self.debug_relay(rest).await
             } else if arg == "ping" {
                 self.debug_ping(rest).await
             } else if arg == "contact" {

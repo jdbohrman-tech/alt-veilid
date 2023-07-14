@@ -71,8 +71,8 @@ impl RoutingTable {
             let relay_nr_filtered =
                 relay_nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
 
-            #[cfg(feature = "network-result-extra")]
-            log_rtab!(debug "--> Keepalive ping to {:?}", relay_nr_filtered);
+            //#[cfg(feature = "network-result-extra")]
+            log_rtab!("--> Keepalive ping to {:?}", relay_nr_filtered);
 
             unord.push(
                 async move {
@@ -111,6 +111,7 @@ impl RoutingTable {
         // Just do a single ping with the best protocol for all the other nodes to check for liveness
         for nr in node_refs {
             let rpc = rpc.clone();
+            log_rtab!("--> Validator ping to {:?}", nr);
             unord.push(
                 async move { rpc.rpc_call_status(Destination::direct(nr)).await }
                     .instrument(Span::current())
