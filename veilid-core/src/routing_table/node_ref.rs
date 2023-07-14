@@ -308,6 +308,12 @@ pub trait NodeRefBase: Sized {
         })
     }
 
+    fn clear_last_connection(&self, connection_descriptor: ConnectionDescriptor) {
+        self.operate_mut(|rti, e| {
+            e.clear_last_connection(connection_descriptor);
+        })
+    }
+
     fn has_any_dial_info(&self) -> bool {
         self.operate(|_rti, e| {
             for rtd in RoutingDomain::all() {

@@ -411,6 +411,13 @@ impl BucketEntryInner {
             .insert(key, (last_connection, timestamp));
     }
 
+     // Removes a connection descriptor in this entry's table of last connections
+     pub fn clear_last_connection(&mut self, last_connection: ConnectionDescriptor) {
+        let key = self.descriptor_to_key(last_connection);
+        self.last_connections
+            .remove(&key);
+    }
+
     // Clears the table of last connections to ensure we create new ones and drop any existing ones
     pub fn clear_last_connections(&mut self) {
         self.last_connections.clear();

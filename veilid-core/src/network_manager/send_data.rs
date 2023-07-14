@@ -276,7 +276,11 @@ impl NetworkManager {
                         connection_descriptor,
                     )));
                 }
-                Some(d) => d,
+                Some(d) => {
+                    // Connection couldn't send, kill it
+                    node_ref.clear_last_connection(connection_descriptor);
+                    d
+                }
             }
         } else {
             data
