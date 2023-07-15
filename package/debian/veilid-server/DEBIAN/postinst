@@ -26,6 +26,6 @@ if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-decon
 
     if [ -d /run/systemd/system ]; then
         systemctl --system daemon-reload >/dev/null || true
-        echo "\nVeilid headless node is now installed. To start the service run: systemctl enable --now veilid-server.service\n"
+        echo "Veilid headless node is now installed. To start the service run: systemctl enable --now veilid-server.service"
     fi
 fi
