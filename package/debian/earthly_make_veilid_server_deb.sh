@@ -22,4 +22,4 @@ mkdir -p /dpkg/veilid-server/usr/bin
 cp -f /veilid/target/$CARGO_ARCH/release/veilid-server /dpkg/veilid-server/usr/bin
 # pack it up
 dpkg-deb -b /dpkg/veilid-server/
-mv /dpkg/veilid-server.deb /dpkg/out/veilid-server-$CARGO_VERSION_$ARCH.deb
+mv /dpkg/veilid-server.deb /dpkg/out/veilid-server-$CARGO_VERSION\_$ARCH.deb
