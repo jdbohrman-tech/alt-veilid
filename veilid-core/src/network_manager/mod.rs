@@ -143,9 +143,9 @@ struct NetworkManagerUnlockedInner {
     #[cfg(feature = "unstable-blockstore")]
     block_store: BlockStore,
     crypto: Crypto,
-    address_filter: AddressFilter,
     // Accessors
     routing_table: RwLock<Option<RoutingTable>>,
+    address_filter: RwLock<Option<AddressFilter>>,
     components: RwLock<Option<NetworkComponents>>,
     update_callback: RwLock<Option<UpdateCallback>>,
     // Background processes
@@ -189,7 +189,7 @@ impl NetworkManager {
             #[cfg(feature = "unstable-blockstore")]
             block_store,
             crypto,
-            address_filter: AddressFilter::new(config),
+            address_filter: RwLock::new(None),
             routing_table: RwLock::new(None),
             components: RwLock::new(None),
             update_callback: RwLock::new(None),
@@ -292,7 +292,12 @@ impl NetworkManager {
         self.unlocked_inner.crypto.clone()
     }
     pub fn address_filter(&self) -> AddressFilter {
-        self.unlocked_inner.address_filter.clone()
+        self.unlocked_inner
+            .address_filter
+            .read()
+            .as_ref()
+            .unwrap()
+            .clone()
     }
     pub fn routing_table(&self) -> RoutingTable {
         self.unlocked_inner
@@ -351,7 +356,9 @@ impl NetworkManager {
     pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
         let routing_table = RoutingTable::new(self.clone());
         routing_table.init().await?;
+        let address_filter = AddressFilter::new(self.config(), routing_table.clone());
         *self.unlocked_inner.routing_table.write() = Some(routing_table.clone());
+        *self.unlocked_inner.address_filter.write() = Some(address_filter);
         *self.unlocked_inner.update_callback.write() = Some(update_callback);
         Ok(())
     }
@@ -904,7 +911,7 @@ impl NetworkManager {
         // Ensure we can read the magic number
         if data.len() < 4 {
             log_net!(debug "short packet");
-            self.address_filter().punish(remote_addr);
+            self.address_filter().punish_ip_addr(remote_addr);
             return Ok(false);
         }
 
@@ -939,7 +946,7 @@ impl NetworkManager {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(debug "envelope failed to decode: {}", e);
-                    self.address_filter().punish(remote_addr);
+                    self.address_filter().punish_ip_addr(remote_addr);
                     return Ok(false);
                 }
             };
@@ -991,6 +998,10 @@ impl NetworkManager {
         // Peek at header and see if we need to relay this
         // If the recipient id is not our node id, then it needs relaying
         let sender_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id());
+        if self.address_filter().is_node_id_punished(sender_id) {
+            return Ok(false);
+        }
+
         let recipient_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_recipient_id());
         if !routing_table.matches_own_node_id(&[recipient_id]) {
             // See if the source node is allowed to resolve nodes
@@ -1070,7 +1081,7 @@ impl NetworkManager {
             Ok(v) => v,
             Err(e) => {
                 log_net!(debug "failed to decrypt envelope body: {}",e);
-                self.address_filter().punish(remote_addr);
+                self.address_filter().punish_ip_addr(remote_addr);
                 return Ok(false);
             }
         };

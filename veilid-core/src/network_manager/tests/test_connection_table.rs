@@ -2,10 +2,11 @@ use super::*;
 
 use super::connection_table::*;
 use crate::tests::common::test_veilid_config::*;
+use crate::tests::mock_routing_table;
 
 pub async fn test_add_get_remove() {
     let config = get_config();
-    let address_filter = AddressFilter::new(config.clone());
+    let address_filter = AddressFilter::new(config.clone(), mock_routing_table());
     let table = ConnectionTable::new(config, address_filter);
 
     let a1 = ConnectionDescriptor::new_no_local(PeerAddress::new(

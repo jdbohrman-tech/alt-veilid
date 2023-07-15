@@ -3,6 +3,7 @@ use alloc::collections::btree_map::Entry;
 
 // XXX: Move to config eventually?
 const PUNISHMENT_DURATION_MIN: usize = 60;
+const MAX_PUNISHMENTS_BY_NODE_ID: usize = 65536;
 
 #[derive(ThisError, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AddressFilterError {
@@ -26,15 +27,37 @@ struct AddressFilterInner {
     conn_timestamps_by_ip6_prefix: BTreeMap<Ipv6Addr, Vec<Timestamp>>,
     punishments_by_ip4: BTreeMap<Ipv4Addr, Timestamp>,
     punishments_by_ip6_prefix: BTreeMap<Ipv6Addr, Timestamp>,
+    punishments_by_node_id: BTreeMap<TypedKey, Timestamp>,
 }
 
-#[derive(Debug)]
 struct AddressFilterUnlockedInner {
     max_connections_per_ip4: usize,
     max_connections_per_ip6_prefix: usize,
     max_connections_per_ip6_prefix_size: usize,
     max_connection_frequency_per_min: usize,
     punishment_duration_min: usize,
+    routing_table: RoutingTable,
+}
+
+impl fmt::Debug for AddressFilterUnlockedInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AddressFilterUnlockedInner")
+            .field("max_connections_per_ip4", &self.max_connections_per_ip4)
+            .field(
+                "max_connections_per_ip6_prefix",
+                &self.max_connections_per_ip6_prefix,
+            )
+            .field(
+                "max_connections_per_ip6_prefix_size",
+                &self.max_connections_per_ip6_prefix_size,
+            )
+            .field(
+                "max_connection_frequency_per_min",
+                &self.max_connection_frequency_per_min,
+            )
+            .field("punishment_duration_min", &self.punishment_duration_min)
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -44,7 +67,7 @@ pub struct AddressFilter {
 }
 
 impl AddressFilter {
-    pub fn new(config: VeilidConfig) -> Self {
+    pub fn new(config: VeilidConfig, routing_table: RoutingTable) -> Self {
         let c = config.get();
         Self {
             unlocked_inner: Arc::new(AddressFilterUnlockedInner {
@@ -55,6 +78,7 @@ impl AddressFilter {
                 max_connection_frequency_per_min: c.network.max_connection_frequency_per_min
                     as usize,
                 punishment_duration_min: PUNISHMENT_DURATION_MIN,
+                routing_table,
             }),
             inner: Arc::new(Mutex::new(AddressFilterInner {
                 conn_count_by_ip4: BTreeMap::new(),
@@ -63,6 +87,7 @@ impl AddressFilter {
                 conn_timestamps_by_ip6_prefix: BTreeMap::new(),
                 punishments_by_ip4: BTreeMap::new(),
                 punishments_by_ip6_prefix: BTreeMap::new(),
+                punishments_by_node_id: BTreeMap::new(),
             })),
         }
     }
@@ -135,9 +160,29 @@ impl AddressFilter {
                 inner.punishments_by_ip6_prefix.remove(&key);
             }
         }
+        // node id
+        {
+            let mut dead_keys = Vec::<TypedKey>::new();
+            for (key, value) in &mut inner.punishments_by_node_id {
+                // Drop punishments older than the punishment duration
+                if cur_ts.as_u64().saturating_sub(value.as_u64())
+                    > self.unlocked_inner.punishment_duration_min as u64 * 60_000_000u64
+                {
+                    dead_keys.push(*key);
+                }
+            }
+            for key in dead_keys {
+                log_net!(debug ">>> FORGIVING: {}", key);
+                inner.punishments_by_node_id.remove(&key);
+                // make the entry alive again if it's still here
+                if let Ok(Some(nr)) = self.unlocked_inner.routing_table.lookup_node_ref(key) {
+                    nr.operate_mut(|_rti, e| e.set_punished(false));
+                }
+            }
+        }
     }
 
-    fn is_punished_inner(&self, inner: &AddressFilterInner, ipblock: IpAddr) -> bool {
+    fn is_ip_addr_punished_inner(&self, inner: &AddressFilterInner, ipblock: IpAddr) -> bool {
         match ipblock {
             IpAddr::V4(v4) => {
                 if inner.punishments_by_ip4.contains_key(&v4) {
@@ -153,16 +198,16 @@ impl AddressFilter {
         false
     }
 
-    pub fn is_punished(&self, addr: IpAddr) -> bool {
+    pub fn is_ip_addr_punished(&self, addr: IpAddr) -> bool {
         let inner = self.inner.lock();
         let ipblock = ip_to_ipblock(
             self.unlocked_inner.max_connections_per_ip6_prefix_size,
             addr,
         );
-        self.is_punished_inner(&*inner, ipblock)
+        self.is_ip_addr_punished_inner(&*inner, ipblock)
     }
 
-    pub fn punish(&self, addr: IpAddr) {
+    pub fn punish_ip_addr(&self, addr: IpAddr) {
         log_net!(debug ">>> PUNISHED: {}", addr);
         let ts = get_aligned_timestamp();
 
@@ -186,6 +231,39 @@ impl AddressFilter {
         };
     }
 
+    fn is_node_id_punished_inner(&self, inner: &AddressFilterInner, node_id: TypedKey) -> bool {
+        if inner.punishments_by_node_id.contains_key(&node_id) {
+            return true;
+        }
+        false
+    }
+
+    pub fn is_node_id_punished(&self, node_id: TypedKey) -> bool {
+        let inner = self.inner.lock();
+        self.is_node_id_punished_inner(&*inner, node_id)
+    }
+
+    pub fn punish_node_id(&self, node_id: TypedKey) {
+        if let Ok(Some(nr)) = self.unlocked_inner.routing_table.lookup_node_ref(node_id) {
+            // make the entry dead if it's punished
+            nr.operate_mut(|_rti, e| e.set_punished(true));
+        }
+
+        let ts = get_aligned_timestamp();
+
+        let mut inner = self.inner.lock();
+        if inner.punishments_by_node_id.len() >= MAX_PUNISHMENTS_BY_NODE_ID {
+            log_net!(debug ">>> PUNISHMENT TABLE FULL: {}", node_id);
+            return;
+        }
+        log_net!(debug ">>> PUNISHED: {}", node_id);
+        inner
+            .punishments_by_node_id
+            .entry(node_id)
+            .and_modify(|v| *v = ts)
+            .or_insert(ts);
+    }
+
     pub async fn address_filter_task_routine(
         self,
         _stop_token: StopToken,
@@ -207,7 +285,7 @@ impl AddressFilter {
             self.unlocked_inner.max_connections_per_ip6_prefix_size,
             addr,
         );
-        if self.is_punished_inner(inner, ipblock) {
+        if self.is_ip_addr_punished_inner(inner, ipblock) {
             return Err(AddressFilterError::Punished);
         }
 

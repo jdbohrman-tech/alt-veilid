@@ -90,6 +90,9 @@ pub struct BucketEntryInner {
     /// The accounting for the transfer statistics
     #[serde(skip)]
     transfer_stats_accounting: TransferStatsAccounting,
+    /// If the entry is being punished and should be considered dead
+    #[serde(skip)]
+    is_punished: bool,
     /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
     #[serde(skip)]
@@ -403,6 +406,10 @@ impl BucketEntryInner {
 
     // Stores a connection descriptor in this entry's table of last connections
     pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: Timestamp) {
+        if self.is_punished {
+            // Don't record connection if this entry is currently punished
+            return;
+        }
         let key = self.descriptor_to_key(last_connection);
         self.last_connections
             .insert(key, (last_connection, timestamp));
@@ -531,12 +538,21 @@ impl BucketEntryInner {
     }
 
     pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
+        if self.is_punished {
+            return BucketEntryState::Dead;
+        }
         if self.check_reliable(cur_ts) {
             BucketEntryState::Reliable
         } else if self.check_dead(cur_ts) {
             BucketEntryState::Dead
         } else {
             BucketEntryState::Unreliable
+        }
+    }
+    pub fn set_punished(&mut self, punished: bool) {
+        self.is_punished = punished;
+        if punished {
+            self.clear_last_connections();
         }
     }
 
@@ -845,6 +861,7 @@ impl BucketEntry {
             },
             latency_stats_accounting: LatencyStatsAccounting::new(),
             transfer_stats_accounting: TransferStatsAccounting::new(),
+            is_punished: false,
             #[cfg(feature = "tracking")]
             next_track_id: 0,
             #[cfg(feature = "tracking")]

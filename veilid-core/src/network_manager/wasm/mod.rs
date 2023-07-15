@@ -133,7 +133,7 @@ impl Network {
         if self
             .network_manager()
             .address_filter()
-            .is_punished(dial_info.address().to_ip_addr())
+            .is_ip_addr_punished(dial_info.address().to_ip_addr())
         {
             return Ok(NetworkResult::no_connection_other("punished"));
         }
@@ -182,7 +182,7 @@ impl Network {
         if self
             .network_manager()
             .address_filter()
-            .is_punished(dial_info.address().to_ip_addr())
+            .is_ip_addr_punished(dial_info.address().to_ip_addr())
         {
             return Ok(NetworkResult::no_connection_other("punished"));
         }
