@@ -12,61 +12,10 @@ pub const CAP_APPMESSAGE: Capability = FourCC(*b"APPM");
 #[cfg(feature = "unstable-blockstore")]
 pub const CAP_BLOCKSTORE: Capability = FourCC(*b"BLOC");
 
-cfg_if! {
-    if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 8;
-    } else if #[cfg(any(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
-    } else  {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
-    }
-}
-pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
-    CAP_ROUTE,
-    #[cfg(feature = "unstable-tunnels")]
-    CAP_TUNNEL,
-    CAP_SIGNAL,
-    CAP_RELAY,
-    CAP_VALIDATE_DIAL_INFO,
-    CAP_DHT,
-    CAP_APPMESSAGE,
-    #[cfg(feature = "unstable-blockstore")]
-    CAP_BLOCKSTORE,
-];
-
-#[cfg(feature = "unstable-blockstore")]
-const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
-#[cfg(not(feature = "unstable-blockstore"))]
-const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
-
-pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
-    CAP_RELAY,
-    CAP_DHT,
-    CAP_APPMESSAGE,
-    #[cfg(feature = "unstable-blockstore")]
-    CAP_BLOCKSTORE,
-];
-
-pub const MAX_CAPABILITIES: usize = 64;
-
-#[derive(
-    Clone,
-    Default,
-    PartialEq,
-    Eq,
-    Debug,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct NodeInfo {
     network_class: NetworkClass,
-    #[with(RkyvEnumSet)]
     outbound_protocols: ProtocolTypeSet,
-    #[with(RkyvEnumSet)]
     address_types: AddressTypeSet,
     envelope_support: Vec<u8>,
     crypto_support: Vec<CryptoKind>,

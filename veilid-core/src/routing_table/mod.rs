@@ -48,6 +48,12 @@ pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 // We should ping them with some frequency and 30 seconds is typical timeout
 pub const CONNECTIONLESS_TIMEOUT_SECS: u32 = 29;
 
+// Table store keys
+const ALL_ENTRY_BYTES: &[u8] = b"all_entry_bytes";
+const ROUTING_TABLE: &str = "routing_table";
+const SERIALIZED_BUCKET_MAP: &[u8] = b"serialized_bucket_map";
+const CACHE_VALIDITY_KEY: &[u8] = b"cache_validity_key";
+
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
@@ -295,7 +301,7 @@ impl RoutingTable {
     }
 
     /// Serialize the routing table.
-    fn serialized_buckets(&self) -> EyreResult<(SerializedBucketMap, SerializedBuckets)> {
+    fn serialized_buckets(&self) -> (SerializedBucketMap, SerializedBuckets) {
         // Since entries are shared by multiple buckets per cryptokind
         // we need to get the list of all unique entries when serializing
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::new();
@@ -309,7 +315,7 @@ impl RoutingTable {
                 let buckets = inner.buckets.get(&ck).unwrap();
                 let mut serialized_buckets = Vec::new();
                 for bucket in buckets.iter() {
-                    serialized_buckets.push(bucket.save_bucket(&mut all_entries, &mut entry_map)?)
+                    serialized_buckets.push(bucket.save_bucket(&mut all_entries, &mut entry_map))
                 }
                 serialized_bucket_map.insert(ck, serialized_buckets);
             }
@@ -319,25 +325,25 @@ impl RoutingTable {
         let mut all_entry_bytes = Vec::with_capacity(all_entries.len());
         for entry in all_entries {
             // Serialize entry
-            let entry_bytes = entry.with_inner(|e| to_rkyv(e))?;
+            let entry_bytes = entry.with_inner(|e| serialize_json_bytes(e));
             all_entry_bytes.push(entry_bytes);
         }
 
-        Ok((serialized_bucket_map, all_entry_bytes))
+        (serialized_bucket_map, all_entry_bytes)
     }
 
     /// Write the serialized routing table to the table store.
     async fn save_buckets(&self) -> EyreResult<()> {
-        let (serialized_bucket_map, all_entry_bytes) = self.serialized_buckets()?;
+        let (serialized_bucket_map, all_entry_bytes) = self.serialized_buckets();
 
         let table_store = self.unlocked_inner.network_manager().table_store();
-        let tdb = table_store.open("routing_table", 1).await?;
+        let tdb = table_store.open(ROUTING_TABLE, 1).await?;
         let dbx = tdb.transact();
-        if let Err(e) = dbx.store_rkyv(0, b"serialized_bucket_map", &serialized_bucket_map) {
+        if let Err(e) = dbx.store_json(0, SERIALIZED_BUCKET_MAP, &serialized_bucket_map) {
             dbx.rollback();
             return Err(e.into());
         }
-        if let Err(e) = dbx.store_rkyv(0, b"all_entry_bytes", &all_entry_bytes) {
+        if let Err(e) = dbx.store_json(0, ALL_ENTRY_BYTES, &all_entry_bytes) {
             dbx.rollback();
             return Err(e.into());
         }
@@ -362,9 +368,9 @@ impl RoutingTable {
 
         // Deserialize bucket map and all entries from the table store
         let table_store = self.unlocked_inner.network_manager().table_store();
-        let db = table_store.open("routing_table", 1).await?;
+        let db = table_store.open(ROUTING_TABLE, 1).await?;
 
-        let caches_valid = match db.load(0, b"cache_validity_key").await? {
+        let caches_valid = match db.load(0, CACHE_VALIDITY_KEY).await? {
             Some(v) => v == cache_validity_key,
             None => false,
         };
@@ -372,19 +378,18 @@ impl RoutingTable {
             // Caches not valid, start over
             log_rtab!(debug "cache validity key changed, emptying routing table");
             drop(db);
-            table_store.delete("routing_table").await?;
-            let db = table_store.open("routing_table", 1).await?;
-            db.store(0, b"cache_validity_key", &cache_validity_key)
-                .await?;
+            table_store.delete(ROUTING_TABLE).await?;
+            let db = table_store.open(ROUTING_TABLE, 1).await?;
+            db.store(0, CACHE_VALIDITY_KEY, &cache_validity_key).await?;
             return Ok(());
         }
 
         // Caches valid, load saved routing table
-        let Some(serialized_bucket_map): Option<SerializedBucketMap> = db.load_rkyv(0, b"serialized_bucket_map").await? else {
+        let Some(serialized_bucket_map): Option<SerializedBucketMap> = db.load_json(0, SERIALIZED_BUCKET_MAP).await? else {
             log_rtab!(debug "no bucket map in saved routing table");
             return Ok(());
         };
-        let Some(all_entry_bytes): Option<SerializedBuckets> = db.load_rkyv(0, b"all_entry_bytes").await? else {
+        let Some(all_entry_bytes): Option<SerializedBuckets> = db.load_json(0, ALL_ENTRY_BYTES).await? else {
             log_rtab!(debug "no all_entry_bytes in saved routing table");
             return Ok(());
         };
@@ -405,8 +410,8 @@ impl RoutingTable {
     ) -> EyreResult<()> {
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::with_capacity(all_entry_bytes.len());
         for entry_bytes in all_entry_bytes {
-            let entryinner =
-                from_rkyv(entry_bytes).wrap_err("failed to deserialize bucket entry")?;
+            let entryinner = deserialize_json_bytes(&entry_bytes)
+                .wrap_err("failed to deserialize bucket entry")?;
             let entry = Arc::new(BucketEntry::new_with_inner(entryinner));
 
             // Keep strong reference in table

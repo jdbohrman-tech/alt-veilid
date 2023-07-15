@@ -1,21 +1,6 @@
 use super::*;
 
-#[derive(
-    Clone,
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    Default,
-)]
-#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Hash, Default)]
 #[serde(from = "Vec<CryptoTyped<K>>", into = "Vec<CryptoTyped<K>>")]
 pub struct CryptoTypedGroup<K = PublicKey>
 where
@@ -29,10 +14,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
-    <Vec<CryptoTyped<K>> as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     items: Vec<CryptoTyped<K>>,
 }
@@ -49,9 +31,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     pub fn new() -> Self {
         Self { items: Vec::new() }
@@ -163,9 +143,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     type Target = [CryptoTyped<K>];
 
@@ -187,9 +165,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "[")?;
@@ -217,9 +193,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     type Err = VeilidAPIError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -250,9 +224,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn from(x: CryptoTyped<K>) -> Self {
         let mut tks = CryptoTypedGroup::<K>::with_capacity(1);
@@ -272,9 +244,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn from(x: Vec<CryptoTyped<K>>) -> Self {
         let mut tks = CryptoTypedGroup::<K>::with_capacity(x.len());
@@ -294,9 +264,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn from(x: &[CryptoTyped<K>]) -> Self {
         let mut tks = CryptoTypedGroup::<K>::with_capacity(x.len());
@@ -316,9 +284,7 @@ where
         + PartialOrd
         + Ord
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn into(self) -> Vec<CryptoTyped<K>> {
         self.items

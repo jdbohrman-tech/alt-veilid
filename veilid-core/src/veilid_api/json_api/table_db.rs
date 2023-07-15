@@ -25,22 +25,22 @@ pub enum TableDbRequestOp {
     Transact,
     Store {
         col: u32,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         key: Vec<u8>,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         value: Vec<u8>,
     },
     Load {
         col: u32,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         key: Vec<u8>,
     },
     Delete {
         col: u32,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         key: Vec<u8>,
     },
@@ -101,16 +101,16 @@ pub enum TableDbTransactionRequestOp {
     Rollback,
     Store {
         col: u32,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         key: Vec<u8>,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         value: Vec<u8>,
     },
     Delete {
         col: u32,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         key: Vec<u8>,
     },

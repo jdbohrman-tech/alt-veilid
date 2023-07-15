@@ -1,8 +1,7 @@
 use super::*;
 
 /// The core representation of the RouteSpecStore that can be serialized
-#[derive(Debug, Clone, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C, align(8)), derive(CheckBytes))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RouteSpecStoreContent {
     /// All of the route sets we have allocated so far indexed by key
     id_by_key: HashMap<PublicKey, RouteId>,
@@ -23,7 +22,7 @@ impl RouteSpecStoreContent {
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
         let mut content: RouteSpecStoreContent =
-            rsstdb.load_rkyv(0, b"content").await?.unwrap_or_default();
+            rsstdb.load_json(0, b"content").await?.unwrap_or_default();
 
         // Look up all route hop noderefs since we can't serialize those
         let mut dead_ids = Vec::new();
@@ -63,7 +62,7 @@ impl RouteSpecStoreContent {
         // This skips #[with(Skip)] saving the secret keys, we save them in the protected store instead
         let table_store = routing_table.network_manager().table_store();
         let rsstdb = table_store.open("RouteSpecStore", 1).await?;
-        rsstdb.store_rkyv(0, b"content", self).await?;
+        rsstdb.store_json(0, b"content", self).await?;
 
         Ok(())
     }
@@ -96,9 +95,9 @@ impl RouteSpecStoreContent {
     pub fn get_id_by_key(&self, key: &PublicKey) -> Option<RouteId> {
         self.id_by_key.get(key).cloned()
     }
-    pub fn iter_ids(&self) -> std::collections::hash_map::Keys<RouteId, RouteSetSpecDetail> {
-        self.details.keys()
-    }
+    // pub fn iter_ids(&self) -> std::collections::hash_map::Keys<RouteId, RouteSetSpecDetail> {
+    //     self.details.keys()
+    // }
     pub fn iter_details(&self) -> std::collections::hash_map::Iter<RouteId, RouteSetSpecDetail> {
         self.details.iter()
     }

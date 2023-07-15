@@ -4,20 +4,8 @@ use super::*;
 
 // Routing domain here is listed in order of preference, keep in order
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(
-    Debug,
-    Ord,
-    PartialOrd,
-    Hash,
-    EnumSetType,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
+#[derive(Debug, Ord, PartialOrd, Hash, EnumSetType, Serialize, Deserialize)]
 #[enumset(repr = "u8")]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum RoutingDomain {
     LocalNetwork = 0,
     PublicInternet = 1,

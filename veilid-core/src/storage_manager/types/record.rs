@@ -1,14 +1,9 @@
 use super::*;
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record<D>
 where
-    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
-    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-    <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
+    D: fmt::Debug + Clone + Serialize,
 {
     descriptor: SignedValueDescriptor,
     subkey_count: usize,
@@ -20,9 +15,7 @@ where
 
 impl<D> Record<D>
 where
-    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
-    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-    <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
+    D: fmt::Debug + Clone + Serialize,
 {
     pub fn new(
         cur_ts: Timestamp,
@@ -84,9 +77,9 @@ where
         mem::size_of::<Record<D>>() + self.descriptor.total_size() + self.record_data_size
     }
 
-    pub fn detail(&self) -> &D {
-        &self.detail
-    }
+    // pub fn detail(&self) -> &D {
+    //     &self.detail
+    // }
     pub fn detail_mut(&mut self) -> &mut D {
         &mut self.detail
     }

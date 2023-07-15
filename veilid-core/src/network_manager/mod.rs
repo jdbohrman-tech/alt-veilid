@@ -36,12 +36,16 @@ use hashlink::LruCache;
 use intf::*;
 #[cfg(not(target_arch = "wasm32"))]
 use native::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub use native::{LOCAL_NETWORK_CAPABILITIES, MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
 use receipt_manager::*;
 use routing_table::*;
 use rpc_processor::*;
 use storage_manager::*;
 #[cfg(target_arch = "wasm32")]
 use wasm::*;
+#[cfg(target_arch = "wasm32")]
+pub use wasm::{LOCAL_NETWORK_CAPABILITIES, MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
 
 ////////////////////////////////////////////////////////////////////////////////////////
 

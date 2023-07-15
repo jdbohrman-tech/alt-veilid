@@ -142,16 +142,6 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value))]
-    pub async fn save_user_secret_rkyv<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
-    where
-        K: AsRef<str> + fmt::Debug,
-        T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
-    {
-        let v = to_rkyv(value)?;
-        self.save_user_secret(key, &v).await
-    }
-
-    #[instrument(level = "trace", skip(self, value))]
     pub async fn save_user_secret_json<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
     where
         K: AsRef<str> + fmt::Debug,
@@ -159,27 +149,6 @@ impl ProtectedStore {
     {
         let v = serde_json::to_vec(value)?;
         self.save_user_secret(&key, &v).await
-    }
-
-    #[instrument(level = "trace", skip(self))]
-    pub async fn load_user_secret_rkyv<K, T>(&self, key: K) -> EyreResult<Option<T>>
-    where
-        K: AsRef<str> + fmt::Debug,
-        T: RkyvArchive,
-        <T as RkyvArchive>::Archived:
-            for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
-        <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
-    {
-        let out = self.load_user_secret(key).await?;
-        let b = match out {
-            Some(v) => v,
-            None => {
-                return Ok(None);
-            }
-        };
-
-        let obj = from_rkyv(b)?;
-        Ok(Some(obj))
     }
 
     #[instrument(level = "trace", skip(self))]

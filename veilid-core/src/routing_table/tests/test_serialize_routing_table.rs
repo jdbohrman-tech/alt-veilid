@@ -35,7 +35,7 @@ pub async fn test_routingtable_buckets_round_trip() {
 
     // Add lots of routes to `original` here to exercise all various types.
 
-    let (serialized_bucket_map, all_entry_bytes) = original.serialized_buckets().unwrap();
+    let (serialized_bucket_map, all_entry_bytes) = original.serialized_buckets();
 
     copy.populate_routing_table(
         &mut copy.inner.write(),

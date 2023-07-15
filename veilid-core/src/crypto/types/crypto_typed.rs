@@ -1,7 +1,6 @@
 use super::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CryptoTyped<K>
 where
     K: Clone
@@ -14,9 +13,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     pub kind: CryptoKind,
     pub value: K,
@@ -34,9 +31,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     pub fn new(kind: CryptoKind, value: K) -> Self {
         Self { kind, value }
@@ -54,9 +49,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         Some(self.cmp(other))
@@ -75,9 +68,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         let x = compare_crypto_kind(&self.kind, &other.kind);
@@ -100,9 +91,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}:{}", self.kind, self.value)
@@ -120,9 +109,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     type Err = VeilidAPIError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -152,9 +139,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -176,9 +161,7 @@ where
         + Ord
         + PartialOrd
         + Hash
-        + RkyvArchive
         + Encodable,
-    <K as RkyvArchive>::Archived: Hash + PartialEq + Eq,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

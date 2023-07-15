@@ -1,6 +1,5 @@
 use super::*;
 use core::sync::atomic::Ordering;
-use rkyv::{Archive as RkyvArchive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 /// Routing Table Bucket
 /// Stores map of public keys to entries, which may be in multiple routing tables per crypto kind
@@ -16,15 +15,13 @@ pub struct Bucket {
 pub(super) type EntriesIter<'a> =
     alloc::collections::btree_map::Iter<'a, PublicKey, Arc<BucketEntry>>;
 
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 struct SerializedBucketEntryData {
     key: PublicKey,
     value: u32, // index into serialized entries list
 }
 
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 struct SerializedBucketData {
     entries: Vec<SerializedBucketEntryData>,
 }
@@ -50,7 +47,7 @@ impl Bucket {
         data: Vec<u8>,
         all_entries: &[Arc<BucketEntry>],
     ) -> EyreResult<()> {
-        let bucket_data: SerializedBucketData = from_rkyv(data)?;
+        let bucket_data: SerializedBucketData = deserialize_json_bytes(&data)?;
 
         for e in bucket_data.entries {
             self.entries
@@ -64,7 +61,7 @@ impl Bucket {
         &self,
         all_entries: &mut Vec<Arc<BucketEntry>>,
         entry_map: &mut HashMap<*const BucketEntry, u32>,
-    ) -> EyreResult<Vec<u8>> {
+    ) -> Vec<u8> {
         let mut entries = Vec::new();
         for (k, v) in &self.entries {
             let entry_index = entry_map.entry(Arc::as_ptr(v)).or_insert_with(|| {
@@ -78,8 +75,8 @@ impl Bucket {
             });
         }
         let bucket_data = SerializedBucketData { entries };
-        let out = to_rkyv(&bucket_data)?;
-        Ok(out)
+        let out = serialize_json_bytes(&bucket_data);
+        out
     }
 
     /// Create a new entry with a node_id of this crypto kind and return it

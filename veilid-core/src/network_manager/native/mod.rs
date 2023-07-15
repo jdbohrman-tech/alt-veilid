@@ -30,6 +30,43 @@ use std::path::{Path, PathBuf};
 
 pub const PEEK_DETECT_LEN: usize = 64;
 
+cfg_if! {
+    if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 8;
+    } else if #[cfg(any(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
+    } else  {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
+    }
+}
+pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
+    CAP_ROUTE,
+    #[cfg(feature = "unstable-tunnels")]
+    CAP_TUNNEL,
+    CAP_SIGNAL,
+    CAP_RELAY,
+    CAP_VALIDATE_DIAL_INFO,
+    CAP_DHT,
+    CAP_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_BLOCKSTORE,
+];
+
+#[cfg(feature = "unstable-blockstore")]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
+#[cfg(not(feature = "unstable-blockstore"))]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
+
+pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
+    CAP_RELAY,
+    CAP_DHT,
+    CAP_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_BLOCKSTORE,
+];
+
+pub const MAX_CAPABILITIES: usize = 64;
+
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {

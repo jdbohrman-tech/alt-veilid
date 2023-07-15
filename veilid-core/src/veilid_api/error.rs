@@ -105,21 +105,8 @@ macro_rules! apibail_already_initialized {
 }
 
 #[derive(
-    ThisError,
-    Clone,
-    Debug,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
+    ThisError, Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema,
 )]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 #[serde(tag = "kind")]
 pub enum VeilidAPIError {
     #[error("Not initialized")]
@@ -137,9 +124,9 @@ pub enum VeilidAPIError {
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("Key not found: {key}")]
-    KeyNotFound { 
-        #[schemars(with="String")]
-        key: TypedKey 
+    KeyNotFound {
+        #[schemars(with = "String")]
+        key: TypedKey,
     },
     #[error("Internal: {message}")]
     Internal { message: String },

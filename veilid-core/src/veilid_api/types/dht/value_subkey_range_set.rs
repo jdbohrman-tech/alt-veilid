@@ -2,24 +2,9 @@ use super::*;
 use core::ops::{Deref, DerefMut};
 use range_set_blaze::*;
 
-#[derive(
-    Clone,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 pub struct ValueSubkeyRangeSet {
-    #[with(RkyvRangeSetBlaze)]
     #[serde(with = "serialize_range_set_blaze")]
     #[schemars(with = "Vec<(u32,u32)>")]
     data: RangeSetBlaze<ValueSubkey>,

@@ -1,24 +1,8 @@
 use super::*;
 
-#[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DialInfoFilter {
-    #[with(RkyvEnumSet)]
     pub protocol_type_set: ProtocolTypeSet,
-    #[with(RkyvEnumSet)]
     pub address_type_set: AddressTypeSet,
 }
 

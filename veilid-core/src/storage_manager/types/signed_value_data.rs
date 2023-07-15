@@ -3,20 +3,7 @@ use super::*;
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
 
-#[derive(
-    Clone,
-    Debug,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
 pub struct SignedValueData {
     value_data: ValueData,
     signature: Signature,

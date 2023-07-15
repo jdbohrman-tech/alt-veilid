@@ -39,8 +39,7 @@ pub enum BucketEntryState {
 pub struct LastConnectionKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -51,8 +50,7 @@ pub struct BucketEntryPublicInternet {
 }
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -63,8 +61,7 @@ pub struct BucketEntryLocalNetwork {
 }
 
 /// The data associated with each bucket entry
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryInner {
     /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
     validated_node_ids: TypedKeyGroup,
@@ -79,7 +76,7 @@ pub struct BucketEntryInner {
     /// unreachable may now be reachable with the same SignedNodeInfo/DialInfo
     updated_since_last_network_change: bool,
     /// The last connection descriptors used to contact this node, per protocol type
-    #[with(Skip)]
+    #[serde(skip)]
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, Timestamp)>,
     /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
@@ -88,18 +85,18 @@ pub struct BucketEntryInner {
     /// Statistics gathered for the peer
     peer_stats: PeerStats,
     /// The accounting for the latency statistics
-    #[with(Skip)]
+    #[serde(skip)]
     latency_stats_accounting: LatencyStatsAccounting,
     /// The accounting for the transfer statistics
-    #[with(Skip)]
+    #[serde(skip)]
     transfer_stats_accounting: TransferStatsAccounting,
     /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
-    #[with(Skip)]
+    #[serde(skip)]
     next_track_id: usize,
     /// Backtraces for NodeRef debugging
     #[cfg(feature = "tracking")]
-    #[with(Skip)]
+    #[serde(skip)]
     node_ref_tracks: HashMap<usize, backtrace::Backtrace>,
 }
 

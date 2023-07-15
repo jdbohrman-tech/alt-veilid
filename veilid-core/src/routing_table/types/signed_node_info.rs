@@ -1,9 +1,6 @@
 use super::*;
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize,
-)]
-#[archive_attr(repr(u8), derive(CheckBytes))]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignedNodeInfo {
     Direct(SignedDirectNodeInfo),
     Relayed(SignedRelayedNodeInfo),

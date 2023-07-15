@@ -1,27 +1,16 @@
+#![allow(non_snake_case)]
 use super::*;
 
 // Keep member order appropriate for sorting < preference
 // Must match DialInfo order
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(
-    Debug,
-    PartialOrd,
-    Ord,
-    Hash,
-    EnumSetType,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
+#[derive(Debug, PartialOrd, Ord, Hash, EnumSetType, Serialize, Deserialize)]
 #[enumset(repr = "u8")]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum ProtocolType {
-    UDP,
-    TCP,
-    WS,
-    WSS,
+    UDP = 0,
+    TCP = 1,
+    WS = 2,
+    WSS = 3,
 }
 
 impl ProtocolType {

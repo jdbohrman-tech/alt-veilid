@@ -35,24 +35,24 @@ pub enum CryptoSystemRequestOp {
     },
     DefaultSaltLength,
     HashPassword {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         password: Vec<u8>,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         salt: Vec<u8>,
     },
     VerifyPassword {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         password: Vec<u8>,
         password_hash: String,
     },
     DeriveSharedSecret {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         password: Vec<u8>,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         salt: Vec<u8>,
     },
@@ -60,7 +60,7 @@ pub enum CryptoSystemRequestOp {
     RandomSharedSecret,
     GenerateKeyPair,
     GenerateHash {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
     },
@@ -71,7 +71,7 @@ pub enum CryptoSystemRequestOp {
         secret: SecretKey,
     },
     ValidateHash {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
         #[schemars(with = "String")]
@@ -88,14 +88,14 @@ pub enum CryptoSystemRequestOp {
         key: PublicKey,
         #[schemars(with = "String")]
         secret: SecretKey,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
     },
     Verify {
         #[schemars(with = "String")]
         key: PublicKey,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
         #[schemars(with = "String")]
@@ -103,31 +103,31 @@ pub enum CryptoSystemRequestOp {
     },
     AeadOverhead,
     DecryptAead {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         body: Vec<u8>,
         #[schemars(with = "String")]
         nonce: Nonce,
         #[schemars(with = "String")]
         shared_secret: SharedSecret,
-        #[serde(with = "opt_json_as_base64")]
+        #[serde(with = "as_human_opt_base64")]
         #[schemars(with = "Option<String>")]
         associated_data: Option<Vec<u8>>,
     },
     EncryptAead {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         body: Vec<u8>,
         #[schemars(with = "String")]
         nonce: Nonce,
         #[schemars(with = "String")]
         shared_secret: SharedSecret,
-        #[serde(with = "opt_json_as_base64")]
+        #[serde(with = "as_human_opt_base64")]
         #[schemars(with = "Option<String>")]
         associated_data: Option<Vec<u8>>,
     },
     CryptNoAuth {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         body: Vec<u8>,
         #[schemars(with = "String")]
@@ -152,7 +152,7 @@ pub enum CryptoSystemResponseOp {
         result: ApiResultWithString<SharedSecret>,
     },
     RandomBytes {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         value: Vec<u8>,
     },
@@ -221,7 +221,7 @@ pub enum CryptoSystemResponseOp {
         result: ApiResultWithVecU8,
     },
     CryptNoAuth {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         value: Vec<u8>,
     },

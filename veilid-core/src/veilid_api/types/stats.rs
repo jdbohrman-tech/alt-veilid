@@ -1,39 +1,13 @@
 use super::*;
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LatencyStats {
     pub fastest: TimestampDuration, // fastest latency in the ROLLING_LATENCIES_SIZE last latencies
     pub average: TimestampDuration, // average latency over the ROLLING_LATENCIES_SIZE last latencies
     pub slowest: TimestampDuration, // slowest latency in the ROLLING_LATENCIES_SIZE last latencies
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct TransferStats {
     pub total: ByteCount,   // total amount transferred ever
     pub maximum: ByteCount, // maximum rate over the ROLLING_TRANSFERS_SIZE last amounts
@@ -41,39 +15,13 @@ pub struct TransferStats {
     pub minimum: ByteCount, // minimum rate over the ROLLING_TRANSFERS_SIZE last amounts
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct TransferStatsDownUp {
     pub down: TransferStats,
     pub up: TransferStats,
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RPCStats {
     pub messages_sent: u32, // number of rpcs that have been sent in the total_time range
     pub messages_rcvd: u32, // number of rpcs that have been received in the total_time range
@@ -85,20 +33,7 @@ pub struct RPCStats {
     pub failed_to_send: u32, // number of messages that have failed to send since we last successfully sent one
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PeerStats {
     pub time_added: Timestamp, // when the peer was added to the routing table
     pub rpc_stats: RPCStats,   // information about RPCs

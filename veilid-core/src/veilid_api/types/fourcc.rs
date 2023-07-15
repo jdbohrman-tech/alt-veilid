@@ -2,22 +2,8 @@ use super::*;
 
 /// FOURCC code
 #[derive(
-    Copy,
-    Default,
-    Clone,
-    Hash,
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
+    Copy, Default, Clone, Hash, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
 )]
-#[archive_attr(repr(C), derive(CheckBytes, PartialOrd, Ord, PartialEq, Eq, Hash))]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub struct FourCC(pub [u8; 4]);

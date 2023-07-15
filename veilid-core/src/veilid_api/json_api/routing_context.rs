@@ -27,13 +27,13 @@ pub enum RoutingContextRequestOp {
     },
     AppCall {
         target: String,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         message: Vec<u8>,
     },
     AppMessage {
         target: String,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         message: Vec<u8>,
     },
@@ -66,7 +66,7 @@ pub enum RoutingContextRequestOp {
         #[schemars(with = "String")]
         key: TypedKey,
         subkey: ValueSubkey,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
     },

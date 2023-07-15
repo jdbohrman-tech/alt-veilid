@@ -2,22 +2,7 @@ use super::*;
 
 // Ordering here matters, IPV6 is preferred to IPV4 in dial info sorts
 // See issue #236 for eventual resolution of this unfortunate implementation
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    PartialOrd,
-    Ord,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(u8), derive(CheckBytes))]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Address {
     IPV6(Ipv6Addr),
     IPV4(Ipv4Addr),

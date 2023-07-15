@@ -119,7 +119,7 @@ pub struct VeilidFFIConfig {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidFFIRouteBlob {
     pub route_id: veilid_core::RouteId,
-    #[serde(with = "veilid_core::json_as_base64")]
+    #[serde(with = "veilid_core::as_human_base64")]
     pub blob: Vec<u8>,
 }
 

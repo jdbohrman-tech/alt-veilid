@@ -46,7 +46,6 @@ flume = { version = "^0", features = ["async"] }
 async-std = { version = "^1", features = ["unstable"], optional = true}
 tokio = { version = "^1", features = ["full"], optional = true}
 tokio-util = { version = "^0", features = ["compat"], optional = true}
-maplit = "^1"
 futures-util = { version = "^0", default-features = false, features = ["async-await", "sink", "std", "io"] }
 chrono = "^0"
 

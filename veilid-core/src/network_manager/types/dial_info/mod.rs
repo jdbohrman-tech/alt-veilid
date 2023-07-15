@@ -12,21 +12,7 @@ pub use wss::*;
 
 // Keep member order appropriate for sorting < preference
 // Must match ProtocolType order
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    PartialOrd,
-    Ord,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(u8), derive(CheckBytes))]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum DialInfo {
     UDP(DialInfoUDP),

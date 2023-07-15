@@ -1,21 +1,7 @@
 use super::*;
 
 /// Simple DHT Schema (SMPL) Member
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct DHTSchemaSMPLMember {
     /// Member key
     #[schemars(with = "String")]
@@ -25,21 +11,7 @@ pub struct DHTSchemaSMPLMember {
 }
 
 /// Simple DHT Schema (SMPL)
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Ord,
-    PartialOrd,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
 pub struct DHTSchemaSMPL {
     /// Owner subkey count
     pub o_cnt: u16,

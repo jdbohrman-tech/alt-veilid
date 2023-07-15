@@ -195,15 +195,6 @@ impl TableDB {
         db.write(dbt).await.map_err(VeilidAPIError::generic)
     }
 
-    /// Store a key in rkyv format with a value in a column in the TableDB. Performs a single transaction immediately.
-    pub async fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
-    where
-        T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
-    {
-        let value = to_rkyv(value)?;
-        self.store(col, key, &value).await
-    }
-
     /// Store a key in json format with a value in a column in the TableDB. Performs a single transaction immediately.
     pub async fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
@@ -228,21 +219,6 @@ impl TableDB {
             .await
             .map_err(VeilidAPIError::from)?
             .map(|v| self.maybe_decrypt(&v)))
-    }
-
-    /// Read an rkyv key from a column in the TableDB immediately
-    pub async fn load_rkyv<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
-    where
-        T: RkyvArchive,
-        <T as RkyvArchive>::Archived:
-            for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
-        <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
-    {
-        let out = match self.load(col, key).await? {
-            Some(v) => Some(from_rkyv(v)?),
-            None => None,
-        };
-        Ok(out)
     }
 
     /// Read an serde-json key from a column in the TableDB immediately
@@ -273,21 +249,6 @@ impl TableDB {
             .await
             .map_err(VeilidAPIError::from)?
             .map(|v| self.maybe_decrypt(&v));
-        Ok(old_value)
-    }
-
-    /// Delete rkyv key with from a column in the TableDB
-    pub async fn delete_rkyv<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
-    where
-        T: RkyvArchive,
-        <T as RkyvArchive>::Archived:
-            for<'t> CheckBytes<rkyv::validation::validators::DefaultValidator<'t>>,
-        <T as RkyvArchive>::Archived: RkyvDeserialize<T, VeilidSharedDeserializeMap>,
-    {
-        let old_value = match self.delete(col, key).await? {
-            Some(v) => Some(from_rkyv(v)?),
-            None => None,
-        };
         Ok(old_value)
     }
 
@@ -377,16 +338,7 @@ impl TableDBTransaction {
         Ok(())
     }
 
-    /// Store a key in rkyv format with a value in a column in the TableDB
-    pub fn store_rkyv<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
-    where
-        T: RkyvSerialize<DefaultVeilidRkyvSerializer>,
-    {
-        let value = to_rkyv(value)?;
-        self.store(col, key, &value)
-    }
-
-    /// Store a key in rkyv format with a value in a column in the TableDB
+    /// Store a key in json format with a value in a column in the TableDB
     pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
         T: serde::Serialize,

@@ -1,22 +1,7 @@
 use super::*;
 
 // Keep member order appropriate for sorting < preference
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(u8), derive(CheckBytes))]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum DialInfoClass {
     Direct = 0, // D = Directly reachable with public IP and no firewall, with statically configured port
     Mapped = 1, // M = Directly reachable with via portmap behind any NAT or firewalled with dynamically negotiated port

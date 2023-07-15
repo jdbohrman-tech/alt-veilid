@@ -3,19 +3,7 @@ use super::*;
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
 
-#[derive(
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
 pub struct SignedValueDescriptor {
     owner: PublicKey,
     schema_data: Vec<u8>,

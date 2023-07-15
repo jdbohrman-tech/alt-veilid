@@ -1,21 +1,7 @@
 use super::*;
 
 /// Default DHT Schema (DFLT)
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Ord,
-    PartialOrd,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
 pub struct DHTSchemaDFLT {
     /// Owner subkey count
     pub o_cnt: u16,

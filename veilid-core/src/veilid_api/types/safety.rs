@@ -2,26 +2,12 @@ use super::*;
 
 // Ordering here matters, >= is used to check strength of sequencing requirement
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Sequencing {
-    NoPreference,
-    PreferOrdered,
-    EnsureOrdered,
+    NoPreference = 0,
+    PreferOrdered = 1,
+    EnsureOrdered = 2,
 }
 
 impl Default for Sequencing {
@@ -32,25 +18,11 @@ impl Default for Sequencing {
 
 // Ordering here matters, >= is used to check strength of stability requirement
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Stability {
-    LowLatency,
-    Reliable,
+    LowLatency = 0,
+    Reliable = 1,
 }
 
 impl Default for Stability {
@@ -61,22 +33,8 @@ impl Default for Stability {
 
 /// The choice of safety route to include in compiled routes
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum SafetySelection {
     /// Don't use a safety route, only specify the sequencing preference
     Unsafe(Sequencing),
@@ -101,22 +59,8 @@ impl Default for SafetySelection {
 
 /// Options for safety routes (sender privacy)
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SafetySpec {
     /// preferred safety route set id if it still exists
     #[schemars(with = "Option<String>")]
