@@ -24,7 +24,7 @@ test_amd64:
     - earthly --ci +unit-tests-linux-amd64
   when: manual
 
-package_amd64:
+package:
   stage: distribute
   only:
     - stable
@@ -33,6 +33,7 @@ package_amd64:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
+    - earthly +package-linux-arm64-deb
     - earthly +package-linux-amd64-rpm
     - /home/gitlab-runner/distribute-packages.sh
 
@@ -41,7 +42,7 @@ deploy_repos:
   only:
     - stable
   needs:
-    - package_amd64
+    - package
   tags: 
     - repo-server
   script: 
