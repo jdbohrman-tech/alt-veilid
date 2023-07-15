@@ -16,4 +16,4 @@ mkdir -p /dpkg/veilid-cli/usr/bin
 cp -f /veilid/target/$CARGO_ARCH/release/veilid-cli /dpkg/veilid-cli/usr/bin
 # pack it up
 dpkg-deb -b /dpkg/veilid-cli/
-mv /dpkg/veilid-cli.deb /dpkg/out/veilid-cli-$CARGO_VERSION-$ARCH.deb
+mv /dpkg/veilid-cli.deb /dpkg/out/veilid-cli-$CARGO_VERSION\_$ARCH.deb
