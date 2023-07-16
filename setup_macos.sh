@@ -96,10 +96,18 @@ else
     exit 1
 fi
 
+# ensure pip3 is installed
+if command -v pip3 &> /dev/null; then 
+    echo '[X] pip3 is available in the path'
+else
+    echo 'pip3 is not available in the path'
+    exit 1
+fi
+
 # ensure we have command line tools
 xcode-select --install 2> /dev/null || true 
 until [ -d /Library/Developer/CommandLineTools/usr/bin ]; do
-  sleep 5;
+    sleep 5;
 done
 
 # ensure packages are installed
@@ -124,6 +132,9 @@ $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;2
 rustup target add aarch64-apple-darwin aarch64-apple-ios x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
 # install cargo packages
-cargo install wasm-bindgen-cli wasm-pack
+cargo install wasm-bindgen-cli wasm-pack cargo-edit
+
+# install pip packages
+pip3 install --upgrade bumpversion
 
 sudo gem install cocoapods
