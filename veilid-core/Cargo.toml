@@ -92,6 +92,7 @@ serde-big-array = "^0"
 json = "^0"
 data-encoding = { version = "^2" }
 schemars = "0.8.12"
+lz4_flex = { version = "0.11.1", default-features = false, features = ["safe-encode", "safe-decode"] }
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android

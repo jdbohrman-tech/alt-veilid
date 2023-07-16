@@ -213,6 +213,10 @@ impl Envelope {
             &dh_secret,
         );
 
+        // Decompress body
+        let body = decompress_size_prepended(&body)
+            .map_err(|e| VeilidAPIError::parse_error("failed to decompress", e))?;
+
         Ok(body)
     }
 
@@ -224,9 +228,24 @@ impl Envelope {
         network_key: &Option<SharedSecret>,
     ) -> VeilidAPIResult<Vec<u8>> {
         // Ensure body isn't too long
+        let uncompressed_body_size: usize = body.len() + MIN_ENVELOPE_SIZE;
+        if uncompressed_body_size > MAX_ENVELOPE_SIZE {
+            apibail_parse_error!(
+                "envelope size before compression is too large",
+                uncompressed_body_size
+            );
+        }
+
+        // Compress body
+        let body = compress_prepend_size(&body);
+
+        // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;
         if envelope_size > MAX_ENVELOPE_SIZE {
-            apibail_parse_error!("envelope size is too large", envelope_size);
+            apibail_parse_error!(
+                "envelope size after compression is too large",
+                envelope_size
+            );
         }
         // Generate dh secret
         let vcrypto = crypto
@@ -271,7 +290,7 @@ impl Envelope {
         }
 
         // Encrypt and authenticate message
-        let encrypted_body = vcrypto.crypt_no_auth_unaligned(body, &self.nonce.bytes, &dh_secret);
+        let encrypted_body = vcrypto.crypt_no_auth_unaligned(&body, &self.nonce.bytes, &dh_secret);
 
         // Write body
         if !encrypted_body.is_empty() {

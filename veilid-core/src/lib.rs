@@ -89,6 +89,7 @@ use cfg_if::*;
 use enumset::*;
 use eyre::{bail, eyre, Report as EyreReport, Result as EyreResult, WrapErr};
 use futures_util::stream::FuturesUnordered;
+use lz4_flex::block::{compress_prepend_size, decompress_size_prepended};
 use parking_lot::*;
 use schemars::{schema_for, JsonSchema};
 use serde::*;

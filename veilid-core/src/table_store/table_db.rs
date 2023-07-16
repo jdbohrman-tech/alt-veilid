@@ -102,13 +102,14 @@ impl TableDB {
     /// but if the contents are guaranteed to be unique, then a nonce
     /// can be generated from the hash of the contents and the encryption key itself
     fn maybe_encrypt(&self, data: &[u8], keyed_nonce: bool) -> Vec<u8> {
+        let data = compress_prepend_size(data);
         if let Some(ei) = &self.unlocked_inner.encrypt_info {
             let mut out = unsafe { unaligned_u8_vec_uninit(NONCE_LENGTH + data.len()) };
 
             if keyed_nonce {
                 // Key content nonce
                 let mut noncedata = Vec::with_capacity(data.len() + PUBLIC_KEY_LENGTH);
-                noncedata.extend_from_slice(data);
+                noncedata.extend_from_slice(&data);
                 noncedata.extend_from_slice(&ei.key.bytes);
                 let noncehash = ei.vcrypto.generate_hash(&noncedata);
                 out[0..NONCE_LENGTH].copy_from_slice(&noncehash[0..NONCE_LENGTH])
@@ -119,23 +120,23 @@ impl TableDB {
 
             let (nonce, encout) = out.split_at_mut(NONCE_LENGTH);
             ei.vcrypto.crypt_b2b_no_auth(
-                data,
+                &data,
                 encout,
                 (nonce as &[u8]).try_into().unwrap(),
                 &ei.key,
             );
             out
         } else {
-            data.to_vec()
+            data
         }
     }
 
     /// Decrypt buffer using decrypt key with nonce prepended to input
-    fn maybe_decrypt(&self, data: &[u8]) -> Vec<u8> {
+    fn maybe_decrypt(&self, data: &[u8]) -> std::io::Result<Vec<u8>> {
         if let Some(di) = &self.unlocked_inner.decrypt_info {
             assert!(data.len() >= NONCE_LENGTH);
             if data.len() == NONCE_LENGTH {
-                return Vec::new();
+                return Ok(Vec::new());
             }
 
             let mut out = unsafe { unaligned_u8_vec_uninit(data.len() - NONCE_LENGTH) };
@@ -146,9 +147,11 @@ impl TableDB {
                 (&data[0..NONCE_LENGTH]).try_into().unwrap(),
                 &di.key,
             );
-            out
+            decompress_size_prepended(&out)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
         } else {
-            data.to_vec()
+            decompress_size_prepended(data)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
         }
     }
 
@@ -163,7 +166,8 @@ impl TableDB {
         let db = self.unlocked_inner.database.clone();
         let mut out = Vec::new();
         db.iter_keys(col, None, |k| {
-            out.push(self.maybe_decrypt(k));
+            let key = self.maybe_decrypt(k)?;
+            out.push(key);
             Ok(Option::<()>::None)
         })
         .await
@@ -214,11 +218,10 @@ impl TableDB {
         }
         let db = self.unlocked_inner.database.clone();
         let key = self.maybe_encrypt(key, true);
-        Ok(db
-            .get(col, &key)
-            .await
-            .map_err(VeilidAPIError::from)?
-            .map(|v| self.maybe_decrypt(&v)))
+        match db.get(col, &key).await.map_err(VeilidAPIError::from)? {
+            Some(v) => Ok(Some(self.maybe_decrypt(&v).map_err(VeilidAPIError::from)?)),
+            None => Ok(None),
+        }
     }
 
     /// Read an serde-json key from a column in the TableDB immediately
@@ -244,12 +247,11 @@ impl TableDB {
         let key = self.maybe_encrypt(key, true);
 
         let db = self.unlocked_inner.database.clone();
-        let old_value = db
-            .delete(col, &key)
-            .await
-            .map_err(VeilidAPIError::from)?
-            .map(|v| self.maybe_decrypt(&v));
-        Ok(old_value)
+
+        match db.delete(col, &key).await.map_err(VeilidAPIError::from)? {
+            Some(v) => Ok(Some(self.maybe_decrypt(&v).map_err(VeilidAPIError::from)?)),
+            None => Ok(None),
+        }
     }
 
     /// Delete serde-json key with from a column in the TableDB
