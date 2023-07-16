@@ -259,6 +259,7 @@ impl BucketEntryInner {
         };
 
         // See if we have an existing signed_node_info to update or not
+        let mut node_info_changed = false;
         if let Some(current_sni) = opt_current_sni {
             // Always allow overwriting invalid/unsigned node
             if current_sni.has_any_signature() {
@@ -277,6 +278,11 @@ impl BucketEntryInner {
                     }
                     return;
                 }
+
+                // See if anything has changed in this update beside the timestamp
+                if signed_node_info.node_info() != current_sni.node_info() {
+                    node_info_changed = true;
+                }
             }
         }
 
@@ -294,7 +300,9 @@ impl BucketEntryInner {
         // because the dial info could have changed and its safer to just reconnect.
         // The latest connection would have been the once we got the new node info
         // over so that connection is still valid.
-        self.clear_last_connections_except_latest();
+        if node_info_changed {
+            self.clear_last_connections_except_latest();
+        }
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
