@@ -676,7 +676,11 @@ impl NetworkManager {
 
     // Process a received signal
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn handle_signal(&self, signal_info: SignalInfo) -> EyreResult<NetworkResult<()>> {
+    pub async fn handle_signal(
+        &self,
+        connection_descriptor: ConnectionDescriptor,
+        signal_info: SignalInfo,
+    ) -> EyreResult<NetworkResult<()>> {
         match signal_info {
             SignalInfo::ReverseConnect { receipt, peer_info } => {
                 let routing_table = self.routing_table();
@@ -696,6 +700,10 @@ impl NetworkManager {
                         )));
                     }
                 };
+
+                // Restrict reverse connection to same protocol as inbound signal
+                let peer_nr = peer_nr
+                    .filtered_clone(NodeRefFilter::from(connection_descriptor.protocol_type()));
 
                 // Make a reverse connection to the peer and send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -1038,16 +1046,11 @@ impl NetworkManager {
             };
 
             if let Some(relay_nr) = some_relay_nr {
-                // Force sequencing if this came in sequenced.
-                // The sender did the prefer/ensure calculation when it did get_contact_method,
-                // so we don't need to do it here.
-                let relay_nr = if connection_descriptor.remote().protocol_type().is_ordered() {
-                    let mut relay_nr = relay_nr.clone();
-                    relay_nr.set_sequencing(Sequencing::EnsureOrdered);
-                    relay_nr
-                } else {
-                    relay_nr
-                };
+                // Ensure the protocol is forwarded exactly as is
+                // Address type is allowed to change if connectivity is better
+                let relay_nr = relay_nr.filtered_clone(
+                    NodeRefFilter::new().with_protocol_type(connection_descriptor.protocol_type()),
+                );
 
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
