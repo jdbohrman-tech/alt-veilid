@@ -57,7 +57,7 @@ package_amd64_rpm:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
     - /home/gitlab-runner/scp-to-orchestrator.sh
-# just a note so there's a change
+
 build_repositories:
   stage: distribute
   only:
