@@ -4,3 +4,4 @@ set -e
 if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
     deb-systemd-invoke stop 'veilid-server.service' >/dev/null || true
 fi
+
