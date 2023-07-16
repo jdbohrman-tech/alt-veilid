@@ -77,5 +77,3 @@ deploy_repos:
     - repo-server
   script: 
     - /home/gitlab-runner/deploy-repo.sh
-
-#note so merge happens
