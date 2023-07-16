@@ -181,9 +181,9 @@ ifstructs = "^0"
 
 # Dependencies for Linux or Android
 [target.'cfg(any(target_os = "android", target_os = "linux"))'.dependencies]
-rtnetlink = { version = "^0", default-features = false}
-netlink-sys = { version = "0.8" }
-netlink-packet-route = { version = "0.15" }
+rtnetlink = { version = "=0.13.0", default-features = false}
+netlink-sys = { version = "=0.8.5" }
+netlink-packet-route = { version = "=0.17.0" }
 
 # Dependencies for Windows
 [target.'cfg(target_os = "windows")'.dependencies]
