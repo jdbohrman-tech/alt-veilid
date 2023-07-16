@@ -284,7 +284,7 @@ impl Network {
         // Handle connection-oriented protocols
         let conn = network_result_try!(
             self.connection_manager()
-                .get_or_create_connection(None, dial_info.clone())
+                .get_or_create_connection(dial_info.clone())
                 .await?
         );
 
@@ -403,6 +403,14 @@ impl Network {
 
     pub fn get_usable_interface_addresses(&self) -> Vec<IpAddr> {
         Vec::new()
+    }
+
+    pub fn get_local_port(&self, protocol_type: ProtocolType) -> Option<u16> {
+        None
+    }
+
+    pub fn get_preferred_local_address(&self, dial_info: &DialInfo) -> Option<SocketAddr> {
+        None
     }
 
     //////////////////////////////////////////

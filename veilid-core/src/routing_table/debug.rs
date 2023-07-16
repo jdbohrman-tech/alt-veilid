@@ -90,19 +90,16 @@ impl RoutingTable {
         for (n, gdi) in gdis.iter().enumerate() {
             out += &format!("  {:>2}: {:?}\n", n, gdi);
         }
+        out
+    }
 
-        out += "LocalNetwork PeerInfo:\n";
+    pub(crate) fn debug_info_peerinfo(&self, routing_domain: RoutingDomain) -> String {
+        let mut out = String::new();
         out += &format!(
-            "  {:#?}\n",
-            self.get_own_peer_info(RoutingDomain::LocalNetwork)
+            "{:?} PeerInfo:\n  {:#?}\n",
+            routing_domain,
+            self.get_own_peer_info(routing_domain)
         );
-
-        out += "PublicInternet PeerInfo:\n";
-        out += &format!(
-            "  {:#?}\n",
-            self.get_own_peer_info(RoutingDomain::PublicInternet)
-        );
-
         out
     }
 

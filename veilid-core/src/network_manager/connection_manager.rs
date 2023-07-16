@@ -173,6 +173,7 @@ impl ConnectionManager {
             Ok(Some(conn)) => {
                 // Connection added and a different one LRU'd out
                 // Send it to be terminated
+                log_net!(debug "== LRU kill connection due to limit: {:?}", conn);
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
             }
             Err(ConnectionTableAddError::AddressFilter(conn, e)) => {
@@ -205,40 +206,6 @@ impl ConnectionManager {
             .get_connection_by_descriptor(descriptor)
     }
 
-    // Terminate any connections that would collide with a new connection
-    // using different protocols to the same remote address and port. Used to ensure
-    // that we can switch quickly between TCP and WS if necessary to the same node
-    // Returns true if we killed off colliding connections
-    async fn kill_off_colliding_connections(&self, dial_info: &DialInfo) -> bool {
-        let protocol_type = dial_info.protocol_type();
-        let socket_address = dial_info.socket_address();
-
-        let killed = self.arc.connection_table.drain_filter(|prior_descriptor| {
-            // If the protocol types aren't the same, then this is a candidate to be killed off
-            // If they are the same, then we would just return the exact same connection from get_or_create_connection()
-            if prior_descriptor.protocol_type() == protocol_type {
-                return false;
-            }
-            // If the prior remote is not the same address, then we're not going to collide
-            if *prior_descriptor.remote().socket_address() != socket_address {
-                return false;
-            }
-
-            log_net!(debug
-                ">< Terminating connection prior_descriptor={:?}",
-                prior_descriptor
-            );
-            true
-        });
-        // Wait for the killed connections to end their recv loops
-        let did_kill = !killed.is_empty();
-        for mut k in killed {
-            k.close();
-            k.await;
-        }
-        did_kill
-    }
-
     /// Called when we want to create a new connection or get the current one that already exists
     /// This will kill off any connections that are in conflict with the new connection to be made
     /// in order to make room for the new connection in the system's connection table
@@ -246,45 +213,53 @@ impl ConnectionManager {
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn get_or_create_connection(
         &self,
-        local_addr: Option<SocketAddr>,
         dial_info: DialInfo,
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
-        // Async lock on the remote address for atomicity per remote
         let peer_address = dial_info.to_peer_address();
         let remote_addr = peer_address.to_socket_addr();
+        let mut preferred_local_address = self
+            .network_manager()
+            .net()
+            .get_preferred_local_address(&dial_info);
+        let best_port = preferred_local_address.map(|pla| pla.port());
 
+        // Async lock on the remote address for atomicity per remote
         let _lock_guard = self.arc.address_lock_table.lock_tag(remote_addr).await;
 
-        log_net!(
-            "== get_or_create_connection local_addr={:?} dial_info={:?}",
-            local_addr,
-            dial_info
-        );
-
-        // Kill off any possibly conflicting connections
-        let did_kill = self.kill_off_colliding_connections(&dial_info).await;
-        let mut retry_count = if did_kill { 2 } else { 0 };
+        log_net!("== get_or_create_connection dial_info={:?}", dial_info);
 
         // If any connection to this remote exists that has the same protocol, return it
-        // Any connection will do, we don't have to match the local address
-        if let Some(conn) = self
+        // Any connection will do, we don't have to match the local address but if we can
+        // match the preferred port do it
+        if let Some(best_existing_conn) = self
             .arc
             .connection_table
-            .get_last_connection_by_remote(peer_address)
+            .get_best_connection_by_remote(best_port, peer_address)
         {
             log_net!(
-                "== Returning existing connection local_addr={:?} peer_address={:?}",
-                local_addr,
-                peer_address
+                "== Returning best existing connection {:?}",
+                best_existing_conn
             );
 
-            return Ok(NetworkResult::Value(conn));
+            return Ok(NetworkResult::Value(best_existing_conn));
+        }
+
+        // If there is a low-level connection collision here, then we release the 'preferred local address'
+        // so we can make a second connection with an ephemeral port
+        if self
+            .arc
+            .connection_table
+            .check_for_colliding_connection(&dial_info)
+        {
+            preferred_local_address = None;
         }
 
         // Attempt new connection
+        let mut retry_count = 0; // Someday, if we need this
+
         let prot_conn = network_result_try!(loop {
             let result_net_res = ProtocolNetworkConnection::connect(
-                local_addr,
+                preferred_local_address,
                 &dial_info,
                 self.arc.connection_initial_timeout_ms,
                 self.network_manager().address_filter(),
@@ -292,24 +267,28 @@ impl ConnectionManager {
             .await;
             match result_net_res {
                 Ok(net_res) => {
-                    // If the connection 'already exists', then try one last time to return a connection from the table, in case
-                    // an 'accept' happened at literally the same time as our connect
-                    if net_res.is_already_exists() {
-                        if let Some(conn) = self
-                            .arc
-                            .connection_table
-                            .get_last_connection_by_remote(peer_address)
-                        {
-                            log_net!(
-                                    "== Returning existing connection in race local_addr={:?} peer_address={:?}",
-                                    local_addr,
-                                    peer_address
-                                );
-
-                            return Ok(NetworkResult::Value(conn));
-                        }
-                    }
+                    // // If the connection 'already exists', then try one last time to return a connection from the table, in case
+                    // // an 'accept' happened at literally the same time as our connect. A preferred local address must have been
+                    // // specified otherwise we would have picked a different ephemeral port and this could not have happened
+                    // if net_res.is_already_exists() && preferred_local_address.is_some() {
+                    //     // Make 'already existing' connection descriptor
+                    //     let conn_desc = ConnectionDescriptor::new(
+                    //         dial_info.to_peer_address(),
+                    //         SocketAddress::from_socket_addr(preferred_local_address.unwrap()),
+                    //     );
+                    //     // Return the connection for this if we have it
+                    //     if let Some(conn) = self
+                    //         .arc
+                    //         .connection_table
+                    //         .get_connection_by_descriptor(conn_desc)
+                    //     {
+                    //         // Should not really happen, lets make sure we see this if it does
+                    //         log_net!(warn "== Returning existing connection in race: {:?}", conn_desc);
+                    //         return Ok(NetworkResult::Value(conn));
+                    //     }
+                    // }
                     if net_res.is_value() || retry_count == 0 {
+                        // Successful new connection, return it
                         break net_res;
                     }
                 }

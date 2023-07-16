@@ -467,6 +467,23 @@ impl VeilidAPI {
         let routing_table = self.network_manager()?.routing_table();
         Ok(routing_table.debug_info_dialinfo())
     }
+    async fn debug_peerinfo(&self, args: String) -> VeilidAPIResult<String> {
+        // Dump routing table peerinfo
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+        let routing_table = self.network_manager()?.routing_table();
+
+        let routing_domain = get_debug_argument_at(
+            &args,
+            0,
+            "debug_peerinfo",
+            "routing_domain",
+            get_routing_domain,
+        )
+        .ok()
+        .unwrap_or(RoutingDomain::PublicInternet);
+
+        Ok(routing_table.debug_info_peerinfo(routing_domain))
+    }
 
     async fn debug_txtrecord(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table txt record
@@ -1327,6 +1344,7 @@ impl VeilidAPI {
     pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
         Ok(r#"buckets [dead|reliable]
 dialinfo
+peerinfo [routingdomain]
 entries [dead|reliable]
 entry <node>
 nodeinfo
@@ -1400,6 +1418,8 @@ record list <local|remote>
                 self.debug_buckets(rest).await
             } else if arg == "dialinfo" {
                 self.debug_dialinfo(rest).await
+            } else if arg == "peerinfo" {
+                self.debug_peerinfo(rest).await
             } else if arg == "txtrecord" {
                 self.debug_txtrecord(rest).await
             } else if arg == "keypair" {

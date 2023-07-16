@@ -92,6 +92,37 @@ impl ConnectionTable {
         while unord.next().await.is_some() {}
     }
 
+    // Return true if there is another connection in the table using a different protocol type
+    // to the same address and port with the same low level protocol type.
+    // Specifically right now this checks for a TCP connection that exists to the same
+    // low level TCP remote as a WS or WSS connection, since they are all low-level TCP
+    #[instrument(level = "trace", skip(self), ret)]
+    pub fn check_for_colliding_connection(&self, dial_info: &DialInfo) -> bool {
+        let inner = self.inner.lock();
+
+        let protocol_type = dial_info.protocol_type();
+        let low_level_protocol_type = protocol_type.low_level_protocol_type();
+
+        // check protocol types
+        let mut check_protocol_types = ProtocolTypeSet::empty();
+        for check_pt in ProtocolTypeSet::all().iter() {
+            if check_pt != protocol_type
+                && check_pt.low_level_protocol_type() == low_level_protocol_type
+            {
+                check_protocol_types.insert(check_pt);
+            }
+        }
+        let socket_address = dial_info.socket_address();
+
+        for check_pt in check_protocol_types {
+            let check_pa = PeerAddress::new(socket_address, check_pt);
+            if inner.ids_by_remote.contains_key(&check_pa) {
+                return true;
+            }
+        }
+        false
+    }
+
     #[instrument(level = "trace", skip(self), ret, err)]
     pub fn add_connection(
         &self,
@@ -183,14 +214,42 @@ impl ConnectionTable {
         Some(out.get_handle())
     }
 
-    //#[instrument(level = "trace", skip(self), ret)]
-    pub fn get_last_connection_by_remote(&self, remote: PeerAddress) -> Option<ConnectionHandle> {
+    // #[instrument(level = "trace", skip(self), ret)]
+    pub fn get_best_connection_by_remote(
+        &self,
+        best_port: Option<u16>,
+        remote: PeerAddress,
+    ) -> Option<ConnectionHandle> {
         let mut inner = self.inner.lock();
 
-        let id = inner.ids_by_remote.get(&remote).map(|v| v[v.len() - 1])?;
+        let all_ids_by_remote = inner.ids_by_remote.get(&remote)?;
         let protocol_index = Self::protocol_to_index(remote.protocol_type());
-        let out = inner.conn_by_id[protocol_index].get(&id).unwrap();
-        Some(out.get_handle())
+        if all_ids_by_remote.len() == 0 {
+            // no connections
+            return None;
+        }
+        if all_ids_by_remote.len() == 1 {
+            // only one connection
+            let id = all_ids_by_remote[0];
+            let nc = inner.conn_by_id[protocol_index].get(&id).unwrap();
+            return Some(nc.get_handle());
+        }
+        // multiple connections, find the one that matches the best port, or the most recent
+        if let Some(best_port) = best_port {
+            for id in all_ids_by_remote.iter().copied() {
+                let nc = inner.conn_by_id[protocol_index].peek(&id).unwrap();
+                if let Some(local_addr) = nc.connection_descriptor().local() {
+                    if local_addr.port() == best_port {
+                        let nc = inner.conn_by_id[protocol_index].get(&id).unwrap();
+                        return Some(nc.get_handle());
+                    }
+                }
+            }
+        }
+        // just return most recent network connection if a best port match can not be found
+        let best_id = *all_ids_by_remote.last().unwrap();
+        let nc = inner.conn_by_id[protocol_index].get(&best_id).unwrap();
+        Some(nc.get_handle())
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
@@ -204,26 +263,26 @@ impl ConnectionTable {
             .unwrap_or_default()
     }
 
-    pub fn drain_filter<F>(&self, mut filter: F) -> Vec<NetworkConnection>
-    where
-        F: FnMut(ConnectionDescriptor) -> bool,
-    {
-        let mut inner = self.inner.lock();
-        let mut filtered_ids = Vec::new();
-        for cbi in &mut inner.conn_by_id {
-            for (id, conn) in cbi {
-                if filter(conn.connection_descriptor()) {
-                    filtered_ids.push(*id);
-                }
-            }
-        }
-        let mut filtered_connections = Vec::new();
-        for id in filtered_ids {
-            let conn = Self::remove_connection_records(&mut *inner, id);
-            filtered_connections.push(conn)
-        }
-        filtered_connections
-    }
+    // pub fn drain_filter<F>(&self, mut filter: F) -> Vec<NetworkConnection>
+    // where
+    //     F: FnMut(ConnectionDescriptor) -> bool,
+    // {
+    //     let mut inner = self.inner.lock();
+    //     let mut filtered_ids = Vec::new();
+    //     for cbi in &mut inner.conn_by_id {
+    //         for (id, conn) in cbi {
+    //             if filter(conn.connection_descriptor()) {
+    //                 filtered_ids.push(*id);
+    //             }
+    //         }
+    //     }
+    //     let mut filtered_connections = Vec::new();
+    //     for id in filtered_ids {
+    //         let conn = Self::remove_connection_records(&mut *inner, id);
+    //         filtered_connections.push(conn)
+    //     }
+    //     filtered_connections
+    // }
 
     pub fn connection_count(&self) -> usize {
         let inner = self.inner.lock();

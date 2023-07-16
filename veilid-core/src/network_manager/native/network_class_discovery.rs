@@ -256,7 +256,7 @@ impl DiscoveryContext {
             let at = inner.address_type.unwrap();
             let external_address_1 = inner.external_1_address.unwrap();
             let node_1 = inner.node_1.as_ref().unwrap().clone();
-            let local_port = self.net.get_local_port(pt);
+            let local_port = self.net.get_local_port(pt).unwrap();
             (pt, llpt, at, external_address_1, node_1, local_port)
         };
 
