@@ -1,34 +1,33 @@
 use super::*;
 
-#[derive(Clone, Debug, Default, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RouteStats {
     /// Consecutive failed to send count
-    #[with(Skip)]
+    #[serde(skip)]
     pub failed_to_send: u32,
     /// Questions lost
-    #[with(Skip)]
+    #[serde(skip)]
     pub questions_lost: u32,
     /// Timestamp of when the route was created
     pub created_ts: Timestamp,
     /// Timestamp of when the route was last checked for validity
-    #[with(Skip)]
+    #[serde(skip)]
     pub last_tested_ts: Option<Timestamp>,
     /// Timestamp of when the route was last sent to
-    #[with(Skip)]
+    #[serde(skip)]
     pub last_sent_ts: Option<Timestamp>,
     /// Timestamp of when the route was last received over
-    #[with(Skip)]
+    #[serde(skip)]
     pub last_received_ts: Option<Timestamp>,
     /// Transfers up and down
     pub transfer_stats_down_up: TransferStatsDownUp,
     /// Latency stats
     pub latency_stats: LatencyStats,
     /// Accounting mechanism for this route's RPC latency
-    #[with(Skip)]
+    #[serde(skip)]
     latency_stats_accounting: LatencyStatsAccounting,
     /// Accounting mechanism for the bandwidth across this route
-    #[with(Skip)]
+    #[serde(skip)]
     transfer_stats_accounting: TransferStatsAccounting,
 }
 

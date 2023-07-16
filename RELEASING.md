@@ -68,3 +68,13 @@ Occasionally a release will happen that needs to be reverted. This is done manua
   >  * Standalone RedHat/CentOS RPM file as a 'release file' on the `veilid` GitLab repository
   >  * Pushed to Yum repository at https://packages.veilid.com
 
+### Version Numbering:
+
+All versions of Veilid Rust crates as well as `veilid-python` and `veilid-flutter` packages are versioned using Semver. Versions can differ per crate and package, and it is important for the Semver rules to be followed (https://semver.org/):
+
+* MAJOR version when you make incompatible API changes
+* MINOR version when you add functionality in a backward compatible manner
+* PATCH version when you make backward compatible bug fixes
+
+The `version_bump.sh` script should be run on every release to stable. All of the Rust crates are versioned together and should have the same version, as well as the `veilid-python` Python package and `veilid-flutter` Flutter plugin.
+

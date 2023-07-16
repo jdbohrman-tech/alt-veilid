@@ -425,8 +425,12 @@ pub fn routing_context_app_message(id: u32, target: String, message: String) -> 
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_create_dht_record(id: u32, kind: u32, schema: String) -> Promise {
-    let crypto_kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+pub fn routing_context_create_dht_record(id: u32, schema: String, kind: u32) -> Promise {
+    let crypto_kind = if kind == 0 {
+        None
+    } else {
+        Some(veilid_core::FourCC::from(kind))
+    };
     let schema: veilid_core::DHTSchema = veilid_core::deserialize_json(&schema).unwrap();
 
     wrap_api_future_json(async move {

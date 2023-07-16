@@ -1454,28 +1454,39 @@ impl RPCProcessor {
         &self,
         encoded_msg: RPCMessageEncoded,
     ) -> Result<NetworkResult<()>, RPCError> {
+        let address_filter = self.network_manager.address_filter();
+
         // Decode operation appropriately based on header detail
         let msg = match &encoded_msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
+                // Get sender node id
+                let sender_node_id = TypedKey::new(
+                    detail.envelope.get_crypto_kind(),
+                    detail.envelope.get_sender_id(),
+                );
+
                 // Decode and validate the RPC operation
                 let operation = match self.decode_rpc_operation(&encoded_msg) {
                     Ok(v) => v,
-                    Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                    Err(e) => {
+                        // Punish nodes that send direct undecodable crap
+                        if matches!(e, RPCError::Protocol(_) | RPCError::InvalidFormat(_)) {
+                            address_filter.punish_node_id(sender_node_id);
+                        }
+                        return Ok(NetworkResult::invalid_message(e));
+                    }
                 };
 
                 // Get the routing domain this message came over
                 let routing_domain = detail.routing_domain;
 
                 // Get the sender noderef, incorporating sender's peer info
-                let sender_node_id = TypedKey::new(
-                    detail.envelope.get_crypto_kind(),
-                    detail.envelope.get_sender_id(),
-                );
                 let mut opt_sender_nr: Option<NodeRef> = None;
                 if let Some(sender_peer_info) = operation.sender_peer_info() {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
                     if !sender_peer_info.node_ids().contains(&sender_node_id) {
                         // Attempted to update peer info for the wrong node id
+                        address_filter.punish_node_id(sender_node_id);
                         return Ok(NetworkResult::invalid_message(
                             "attempt to update peer info for non-sender node id",
                         ));
@@ -1487,6 +1498,7 @@ impl RPCProcessor {
                         sender_peer_info.signed_node_info(),
                         &[],
                     ) {
+                        address_filter.punish_node_id(sender_node_id);
                         return Ok(NetworkResult::invalid_message(
                             "sender peerinfo has invalid peer scope",
                         ));
@@ -1497,7 +1509,10 @@ impl RPCProcessor {
                         false,
                     ) {
                         Ok(v) => Some(v),
-                        Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                        Err(e) => {
+                            address_filter.punish_node_id(sender_node_id);
+                            return Ok(NetworkResult::invalid_message(e));
+                        } 
                     }
                 }
 
@@ -1505,7 +1520,10 @@ impl RPCProcessor {
                 if opt_sender_nr.is_none() {
                     opt_sender_nr = match self.routing_table().lookup_node_ref(sender_node_id) {
                         Ok(v) => v,
-                        Err(e) => return Ok(NetworkResult::invalid_message(e)),
+                        Err(e) => {
+                            address_filter.punish_node_id(sender_node_id);
+                            return Ok(NetworkResult::invalid_message(e));
+                        }
                     }
                 }
 
@@ -1525,7 +1543,14 @@ impl RPCProcessor {
             }
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
                 // Decode and validate the RPC operation
-                let operation = self.decode_rpc_operation(&encoded_msg)?;
+                let operation = match self.decode_rpc_operation(&encoded_msg) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        // Punish routes that send routed undecodable crap
+                        // address_filter.punish_route_id(xxx);
+                        return Ok(NetworkResult::invalid_message(e));
+                    }
+                };
 
                 // Make the RPC message
                 RPCMessage {
@@ -1612,7 +1637,7 @@ impl RPCProcessor {
             let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
             // xxx: causes crash (Missing otel data span extensions)
             // rpc_worker_span.follows_from(span_id);
-
+                    
             network_result_value_or_log!(match self
                 .process_rpc_message(msg)
                 .instrument(rpc_worker_span)
@@ -1623,7 +1648,9 @@ impl RPCProcessor {
                     continue;
                 }
 
-                Ok(v) => v,
+                Ok(v) => { 
+                    v
+                }
             } => [ format!(": msg.header={:?}", msg.header) ] {});
         }
     }

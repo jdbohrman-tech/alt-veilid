@@ -120,7 +120,7 @@ impl Network {
         };
         // Check to see if it is punished
         let address_filter = self.network_manager().address_filter();
-        if address_filter.is_punished(peer_addr.ip()) {
+        if address_filter.is_ip_addr_punished(peer_addr.ip()) {
             return;
         }
 

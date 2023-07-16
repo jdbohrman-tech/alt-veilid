@@ -1,5 +1,8 @@
 use super::*;
 
+const STORAGE_MANAGER_METADATA: &str = "storage_manager_metadata";
+const OFFLINE_SUBKEY_WRITES: &[u8] = b"offline_subkey_writes";
+
 /// Locked structure for storage manager
 pub(super) struct StorageManagerInner {
     unlocked_inner: Arc<StorageManagerUnlockedInner>,
@@ -68,7 +71,7 @@ impl StorageManagerInner {
 
         let metadata_db = self.unlocked_inner
             .table_store
-            .open(&format!("storage_manager_metadata"), 1)
+            .open(STORAGE_MANAGER_METADATA, 1)
             .await?;
 
         let local_limits = local_limits_from_config(self.unlocked_inner.config.clone());
@@ -146,7 +149,7 @@ impl StorageManagerInner {
     async fn save_metadata(&mut self) -> EyreResult<()>{
         if let Some(metadata_db) = &self.metadata_db {
             let tx = metadata_db.transact();
-            tx.store_rkyv(0, b"offline_subkey_writes", &self.offline_subkey_writes)?;
+            tx.store_json(0, OFFLINE_SUBKEY_WRITES, &self.offline_subkey_writes)?;
             tx.commit().await.wrap_err("failed to commit")?
         }
         Ok(())
@@ -154,10 +157,10 @@ impl StorageManagerInner {
 
     async fn load_metadata(&mut self) -> EyreResult<()> {
         if let Some(metadata_db) = &self.metadata_db {
-            self.offline_subkey_writes = match metadata_db.load_rkyv(0, b"offline_subkey_writes").await {
+            self.offline_subkey_writes = match metadata_db.load_json(0, OFFLINE_SUBKEY_WRITES).await {
                 Ok(v) => v.unwrap_or_default(),
                 Err(_) => {
-                    if let Err(e) = metadata_db.delete(0,b"offline_subkey_writes").await {
+                    if let Err(e) = metadata_db.delete(0, OFFLINE_SUBKEY_WRITES).await {
                         debug!("offline_subkey_writes format changed, clearing: {}", e);
                     }
                     Default::default()
@@ -483,9 +486,7 @@ impl StorageManagerInner {
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
     where
-        D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
-        for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-        <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
+        D: fmt::Debug + Clone + Serialize,
     {
         let compiled = record.descriptor().schema_data();
         let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());

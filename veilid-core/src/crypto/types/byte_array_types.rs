@@ -77,8 +77,7 @@ where
 
 macro_rules! byte_array_type {
     ($name:ident, $size:expr, $encoded_size:expr) => {
-        #[derive(Clone, Copy, Hash, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-        #[archive_attr(repr(C), derive(CheckBytes, Hash, Eq, PartialEq, PartialOrd, Ord))]
+        #[derive(Clone, Copy, Hash)]
         pub struct $name {
             pub bytes: [u8; $size],
         }

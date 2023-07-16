@@ -1,22 +1,8 @@
 use super::*;
 
 #[derive(
-    Copy,
-    Default,
-    Clone,
-    Debug,
-    PartialEq,
-    PartialOrd,
-    Ord,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
+    Copy, Default, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
 )]
-#[archive_attr(repr(C), derive(CheckBytes))]
 pub struct SocketAddress {
     address: Address,
     port: u16,

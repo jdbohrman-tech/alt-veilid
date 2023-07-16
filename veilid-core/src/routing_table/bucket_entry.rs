@@ -39,8 +39,7 @@ pub enum BucketEntryState {
 pub struct LastConnectionKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -51,8 +50,7 @@ pub struct BucketEntryPublicInternet {
 }
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
@@ -63,8 +61,7 @@ pub struct BucketEntryLocalNetwork {
 }
 
 /// The data associated with each bucket entry
-#[derive(Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BucketEntryInner {
     /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
     validated_node_ids: TypedKeyGroup,
@@ -79,7 +76,7 @@ pub struct BucketEntryInner {
     /// unreachable may now be reachable with the same SignedNodeInfo/DialInfo
     updated_since_last_network_change: bool,
     /// The last connection descriptors used to contact this node, per protocol type
-    #[with(Skip)]
+    #[serde(skip)]
     last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, Timestamp)>,
     /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
@@ -88,18 +85,21 @@ pub struct BucketEntryInner {
     /// Statistics gathered for the peer
     peer_stats: PeerStats,
     /// The accounting for the latency statistics
-    #[with(Skip)]
+    #[serde(skip)]
     latency_stats_accounting: LatencyStatsAccounting,
     /// The accounting for the transfer statistics
-    #[with(Skip)]
+    #[serde(skip)]
     transfer_stats_accounting: TransferStatsAccounting,
+    /// If the entry is being punished and should be considered dead
+    #[serde(skip)]
+    is_punished: bool,
     /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
-    #[with(Skip)]
+    #[serde(skip)]
     next_track_id: usize,
     /// Backtraces for NodeRef debugging
     #[cfg(feature = "tracking")]
-    #[with(Skip)]
+    #[serde(skip)]
     node_ref_tracks: HashMap<usize, backtrace::Backtrace>,
 }
 
@@ -259,6 +259,7 @@ impl BucketEntryInner {
         };
 
         // See if we have an existing signed_node_info to update or not
+        let mut node_info_changed = false;
         if let Some(current_sni) = opt_current_sni {
             // Always allow overwriting invalid/unsigned node
             if current_sni.has_any_signature() {
@@ -277,6 +278,11 @@ impl BucketEntryInner {
                     }
                     return;
                 }
+
+                // See if anything has changed in this update beside the timestamp
+                if signed_node_info.node_info() != current_sni.node_info() {
+                    node_info_changed = true;
+                }
             }
         }
 
@@ -294,7 +300,9 @@ impl BucketEntryInner {
         // because the dial info could have changed and its safer to just reconnect.
         // The latest connection would have been the once we got the new node info
         // over so that connection is still valid.
-        self.clear_last_connections_except_latest();
+        if node_info_changed {
+            self.clear_last_connections_except_latest();
+        }
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
@@ -406,6 +414,10 @@ impl BucketEntryInner {
 
     // Stores a connection descriptor in this entry's table of last connections
     pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: Timestamp) {
+        if self.is_punished {
+            // Don't record connection if this entry is currently punished
+            return;
+        }
         let key = self.descriptor_to_key(last_connection);
         self.last_connections
             .insert(key, (last_connection, timestamp));
@@ -534,12 +546,21 @@ impl BucketEntryInner {
     }
 
     pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
+        if self.is_punished {
+            return BucketEntryState::Dead;
+        }
         if self.check_reliable(cur_ts) {
             BucketEntryState::Reliable
         } else if self.check_dead(cur_ts) {
             BucketEntryState::Dead
         } else {
             BucketEntryState::Unreliable
+        }
+    }
+    pub fn set_punished(&mut self, punished: bool) {
+        self.is_punished = punished;
+        if punished {
+            self.clear_last_connections();
         }
     }
 
@@ -848,6 +869,7 @@ impl BucketEntry {
             },
             latency_stats_accounting: LatencyStatsAccounting::new(),
             transfer_stats_accounting: TransferStatsAccounting::new(),
+            is_punished: false,
             #[cfg(feature = "tracking")]
             next_track_id: 0,
             #[cfg(feature = "tracking")]

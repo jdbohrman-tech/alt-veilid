@@ -1,22 +1,12 @@
+#![allow(non_snake_case)]
+
 use super::*;
 
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(
-    Debug,
-    PartialOrd,
-    Ord,
-    Hash,
-    EnumSetType,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
+#[derive(Debug, PartialOrd, Ord, Hash, EnumSetType, Serialize, Deserialize)]
 #[enumset(repr = "u8")]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum Direction {
-    Inbound,
-    Outbound,
+    Inbound = 0,
+    Outbound = 1,
 }
 pub type DirectionSet = EnumSet<Direction>;

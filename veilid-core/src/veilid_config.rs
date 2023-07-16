@@ -14,19 +14,7 @@ pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sy
 ///     url: 'https://localhost:5150'
 /// ```
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigHTTPS {
     pub enabled: bool,
     pub listen_address: String,
@@ -44,19 +32,7 @@ pub struct VeilidConfigHTTPS {
 ///     url: 'https://localhost:5150'
 /// ```
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigHTTP {
     pub enabled: bool,
     pub listen_address: String,
@@ -70,19 +46,7 @@ pub struct VeilidConfigHTTP {
 ///
 /// To be implemented...
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigApplication {
     pub https: VeilidConfigHTTPS,
     pub http: VeilidConfigHTTP,
@@ -98,19 +62,7 @@ pub struct VeilidConfigApplication {
 ///     public_address: ''
 /// ```
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigUDP {
     pub enabled: bool,
     pub socket_pool_size: u32,
@@ -128,19 +80,7 @@ pub struct VeilidConfigUDP {
 ///     listen_address: ':5150'
 ///     public_address: ''
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigTCP {
     pub connect: bool,
     pub listen: bool,
@@ -160,19 +100,8 @@ pub struct VeilidConfigTCP {
 ///     path: 'ws'
 ///     url: 'ws://localhost:5150/ws'
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+
 pub struct VeilidConfigWS {
     pub connect: bool,
     pub listen: bool,
@@ -193,19 +122,8 @@ pub struct VeilidConfigWS {
 ///     path: 'ws'
 ///     url: ''
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+
 pub struct VeilidConfigWSS {
     pub connect: bool,
     pub listen: bool,
@@ -222,19 +140,8 @@ pub struct VeilidConfigWSS {
 /// All protocols are available by default, and the Veilid node will
 /// sort out which protocol is used for each peer connection.
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+
 pub struct VeilidConfigProtocol {
     pub udp: VeilidConfigUDP,
     pub tcp: VeilidConfigTCP,
@@ -250,19 +157,7 @@ pub struct VeilidConfigProtocol {
 ///     private_key_path: /path/to/private/key
 ///     connection_initial_timeout_ms: 2000
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigTLS {
     pub certificate_path: String,
     pub private_key_path: String,
@@ -271,19 +166,7 @@ pub struct VeilidConfigTLS {
 
 /// Configure the Distributed Hash Table (DHT)
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigDHT {
     pub max_find_node_count: u32,
     pub resolve_node_timeout_ms: u32,
@@ -308,19 +191,7 @@ pub struct VeilidConfigDHT {
 
 /// Configure RPC
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
     pub queue_size: u32,
@@ -333,19 +204,7 @@ pub struct VeilidConfigRPC {
 
 /// Configure the network routing table
 ///
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
     pub node_id: TypedKeyGroup,
@@ -361,19 +220,7 @@ pub struct VeilidConfigRoutingTable {
     // xxx pub enable_local_network: bool,
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigNetwork {
     pub connection_initial_timeout_ms: u32,
     pub connection_inactivity_timeout_ms: u32,
@@ -396,55 +243,19 @@ pub struct VeilidConfigNetwork {
     pub protocol: VeilidConfigProtocol,
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigTableStore {
     pub directory: String,
     pub delete: bool,
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigBlockStore {
     pub directory: String,
     pub delete: bool,
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
@@ -454,36 +265,12 @@ pub struct VeilidConfigProtectedStore {
     pub new_device_encryption_key_password: Option<String>,
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigCapabilities {
     pub disable: Vec<FourCC>,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum VeilidConfigLogLevel {
     Off,
     Error,
@@ -570,19 +357,7 @@ impl fmt::Display for VeilidConfigLogLevel {
     }
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidConfigInner {
     pub program_name: String,
     pub namespace: String,

@@ -85,11 +85,22 @@ else
     exit 1
 fi
 
+# ensure pip3 is installed
+if command -v pip3 &> /dev/null; then 
+    echo '[X] pip3 is available in the path'
+else
+    echo 'pip3 is not available in the path'
+    exit 1
+fi
+
 # install targets
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android wasm32-unknown-unknown
 
 # install cargo packages
 cargo install wasm-bindgen-cli wasm-pack
+
+# install pip packages
+pip3 install --upgrade bumpversion
 
 # Install capnproto using the same mechanism as our earthly build
 $SCRIPTDIR/scripts/earthly/install_capnproto.sh

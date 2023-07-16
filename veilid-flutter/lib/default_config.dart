@@ -52,8 +52,8 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
   return VeilidConfig(
     programName: programName,
     namespace: "",
-    capabilities: VeilidConfigCapabilities(disable: []),
-    protectedStore: VeilidConfigProtectedStore(
+    capabilities: const VeilidConfigCapabilities(disable: []),
+    protectedStore: const VeilidConfigProtectedStore(
       allowInsecureFallback: false,
       alwaysUseInsecureStorage: false,
       directory: "",
@@ -85,7 +85,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
       clientWhitelistTimeoutMs: 300000,
       reverseConnectionReceiptTimeMs: 5000,
       holePunchReceiptTimeMs: 5000,
-      routingTable: VeilidConfigRoutingTable(
+      routingTable: const VeilidConfigRoutingTable(
         nodeId: [],
         nodeIdSecret: [],
         bootstrap: kIsWeb
@@ -97,7 +97,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
         limitAttachedGood: 8,
         limitAttachedWeak: 4,
       ),
-      rpc: VeilidConfigRPC(
+      rpc: const VeilidConfigRPC(
         concurrency: 0,
         queueSize: 1024,
         maxTimestampBehindMs: 10000,
@@ -129,12 +129,12 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
       upnp: true,
       detectAddressChanges: true,
       restrictedNatRetries: 0,
-      tls: VeilidConfigTLS(
+      tls: const VeilidConfigTLS(
         certificatePath: "",
         privateKeyPath: "",
         connectionInitialTimeoutMs: 2000,
       ),
-      application: VeilidConfigApplication(
+      application: const VeilidConfigApplication(
           https: VeilidConfigHTTPS(
             enabled: false,
             listenAddress: "",
@@ -147,7 +147,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
             path: "",
             url: null,
           )),
-      protocol: VeilidConfigProtocol(
+      protocol: const VeilidConfigProtocol(
         udp: VeilidConfigUDP(
           enabled: !kIsWeb,
           socketPoolSize: 0,

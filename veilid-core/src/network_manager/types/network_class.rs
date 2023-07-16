@@ -1,21 +1,6 @@
 use super::*;
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(u8), derive(CheckBytes))]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum NetworkClass {
     InboundCapable = 0, // I = Inbound capable without relay, may require signal
     OutboundOnly = 1, // O = Outbound only, inbound relay required except with reverse connect signal

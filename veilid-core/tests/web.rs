@@ -98,12 +98,6 @@ async fn wasm_test_serialize_json() {
 }
 
 #[wasm_bindgen_test]
-async fn wasm_test_serialize_rkyv() {
-    setup();
-    test_serialize_rkyv::test_all().await;
-}
-
-#[wasm_bindgen_test]
 async fn wasm_test_serialize_routing_table() {
     setup();
     test_serialize_routing_table::test_all().await;

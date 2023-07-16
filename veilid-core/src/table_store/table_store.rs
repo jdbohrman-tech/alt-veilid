@@ -1,6 +1,8 @@
 use super::*;
 use keyvaluedb::*;
 
+const ALL_TABLE_NAMES: &[u8] = b"all_table_names";
+
 struct TableStoreInner {
     opened: BTreeMap<String, Weak<TableDBUnlockedInner>>,
     encryption_key: Option<TypedSharedSecret>,
@@ -52,12 +54,11 @@ impl TableStore {
     async fn flush(&self) {
         let (all_table_names_value, all_tables_db) = {
             let inner = self.inner.lock();
-            let all_table_names_value =
-                to_rkyv(&inner.all_table_names).expect("failed to archive all_table_names");
+            let all_table_names_value = serialize_json_bytes(&inner.all_table_names);
             (all_table_names_value, inner.all_tables_db.clone().unwrap())
         };
         let mut dbt = DBTransaction::new();
-        dbt.put(0, b"all_table_names", &all_table_names_value);
+        dbt.put(0, ALL_TABLE_NAMES, &all_table_names_value);
         if let Err(e) = all_tables_db.write(dbt).await {
             error!("failed to write all tables db: {}", e);
         }
@@ -373,8 +374,8 @@ impl TableStore {
             .open("__veilid_all_tables", 1)
             .await
             .wrap_err("failed to create all tables table")?;
-        match all_tables_db.get(0, b"all_table_names").await {
-            Ok(Some(v)) => match from_rkyv::<HashMap<String, String>>(v) {
+        match all_tables_db.get(0, ALL_TABLE_NAMES).await {
+            Ok(Some(v)) => match deserialize_json_bytes::<HashMap<String, String>>(&v) {
                 Ok(all_table_names) => {
                     let mut inner = self.inner.lock();
                     inner.all_table_names = all_table_names;

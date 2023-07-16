@@ -1,7 +1,6 @@
 use super::*;
 
-#[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C, align(8)), derive(CheckBytes))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RouteSpecDetail {
     /// Crypto kind
     pub crypto_kind: CryptoKind,
@@ -11,20 +10,18 @@ pub struct RouteSpecDetail {
     pub hops: Vec<PublicKey>,
 }
 
-#[derive(Clone, Debug, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(C, align(8)), derive(CheckBytes))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RouteSetSpecDetail {
     /// Route set per crypto kind
     route_set: BTreeMap<PublicKey, RouteSpecDetail>,
     /// Route noderefs
-    #[with(Skip)]
+    #[serde(skip)]
     hop_node_refs: Vec<NodeRef>,
     /// Published private route, do not reuse for ephemeral routes
     /// Not serialized because all routes should be re-published when restarting
-    #[with(Skip)]
+    #[serde(skip)]
     published: bool,
     /// Directions this route is guaranteed to work in
-    #[with(RkyvEnumSet)]
     directions: DirectionSet,
     /// Stability preference (prefer reliable nodes over faster)
     stability: Stability,

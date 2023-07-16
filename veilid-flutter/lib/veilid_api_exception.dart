@@ -1,6 +1,9 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 //////////////////////////////////////
 /// VeilidAPIException
 
+@immutable
 abstract class VeilidAPIException implements Exception {
   factory VeilidAPIException.fromJson(dynamic json) {
     switch (json["kind"]) {
@@ -73,6 +76,7 @@ abstract class VeilidAPIException implements Exception {
   String toDisplayError();
 }
 
+@immutable
 class VeilidAPIExceptionNotInitialized implements VeilidAPIException {
   @override
   String toString() {
@@ -85,6 +89,7 @@ class VeilidAPIExceptionNotInitialized implements VeilidAPIException {
   }
 }
 
+@immutable
 class VeilidAPIExceptionAlreadyInitialized implements VeilidAPIException {
   @override
   String toString() {
@@ -97,6 +102,7 @@ class VeilidAPIExceptionAlreadyInitialized implements VeilidAPIException {
   }
 }
 
+@immutable
 class VeilidAPIExceptionTimeout implements VeilidAPIException {
   @override
   String toString() {
@@ -109,6 +115,7 @@ class VeilidAPIExceptionTimeout implements VeilidAPIException {
   }
 }
 
+@immutable
 class VeilidAPIExceptionTryAgain implements VeilidAPIException {
   @override
   String toString() {
@@ -121,6 +128,7 @@ class VeilidAPIExceptionTryAgain implements VeilidAPIException {
   }
 }
 
+@immutable
 class VeilidAPIExceptionShutdown implements VeilidAPIException {
   @override
   String toString() {
@@ -133,6 +141,7 @@ class VeilidAPIExceptionShutdown implements VeilidAPIException {
   }
 }
 
+@immutable
 class VeilidAPIExceptionInvalidTarget implements VeilidAPIException {
   @override
   String toString() {
@@ -145,9 +154,9 @@ class VeilidAPIExceptionInvalidTarget implements VeilidAPIException {
   }
 }
 
+@immutable
 class VeilidAPIExceptionNoConnection implements VeilidAPIException {
   final String message;
-
   @override
   String toString() {
     return "VeilidAPIException: NoConnection (message: $message)";
@@ -159,12 +168,12 @@ class VeilidAPIExceptionNoConnection implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionNoConnection(this.message);
+  const VeilidAPIExceptionNoConnection(this.message);
 }
 
+@immutable
 class VeilidAPIExceptionKeyNotFound implements VeilidAPIException {
   final String key;
-
   @override
   String toString() {
     return "VeilidAPIException: KeyNotFound (key: $key)";
@@ -176,9 +185,10 @@ class VeilidAPIExceptionKeyNotFound implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionKeyNotFound(this.key);
+  const VeilidAPIExceptionKeyNotFound(this.key);
 }
 
+@immutable
 class VeilidAPIExceptionInternal implements VeilidAPIException {
   final String message;
 
@@ -193,9 +203,10 @@ class VeilidAPIExceptionInternal implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionInternal(this.message);
+  const VeilidAPIExceptionInternal(this.message);
 }
 
+@immutable
 class VeilidAPIExceptionUnimplemented implements VeilidAPIException {
   final String message;
 
@@ -210,9 +221,10 @@ class VeilidAPIExceptionUnimplemented implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionUnimplemented(this.message);
+  const VeilidAPIExceptionUnimplemented(this.message);
 }
 
+@immutable
 class VeilidAPIExceptionParseError implements VeilidAPIException {
   final String message;
   final String value;
@@ -228,9 +240,10 @@ class VeilidAPIExceptionParseError implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionParseError(this.message, this.value);
+  const VeilidAPIExceptionParseError(this.message, this.value);
 }
 
+@immutable
 class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
   final String context;
   final String argument;
@@ -247,9 +260,11 @@ class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionInvalidArgument(this.context, this.argument, this.value);
+  const VeilidAPIExceptionInvalidArgument(
+      this.context, this.argument, this.value);
 }
 
+@immutable
 class VeilidAPIExceptionMissingArgument implements VeilidAPIException {
   final String context;
   final String argument;
@@ -265,9 +280,10 @@ class VeilidAPIExceptionMissingArgument implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionMissingArgument(this.context, this.argument);
+  const VeilidAPIExceptionMissingArgument(this.context, this.argument);
 }
 
+@immutable
 class VeilidAPIExceptionGeneric implements VeilidAPIException {
   final String message;
 
@@ -282,5 +298,5 @@ class VeilidAPIExceptionGeneric implements VeilidAPIException {
   }
 
   //
-  VeilidAPIExceptionGeneric(this.message);
+  const VeilidAPIExceptionGeneric(this.message);
 }

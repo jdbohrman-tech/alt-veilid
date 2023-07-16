@@ -7,22 +7,7 @@ use super::*;
 /// If the medium does not allow local addresses, None should have been used or 'new_no_local'
 /// If we are specifying only a port, then the socket's 'local_address()' should have been used, since an
 /// established connection is always from a real address to another real address.
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ConnectionDescriptor {
     remote: PeerAddress,
     local: Option<SocketAddress>,

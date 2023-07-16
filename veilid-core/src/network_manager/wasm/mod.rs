@@ -10,6 +10,45 @@ use std::io;
 
 /////////////////////////////////////////////////////////////////
 
+cfg_if! {
+    if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
+    } else if #[cfg(any(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 5;
+    } else  {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 4;
+    }
+}
+pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
+    CAP_ROUTE,
+    #[cfg(feature = "unstable-tunnels")]
+    CAP_TUNNEL,
+    CAP_SIGNAL,
+    //CAP_RELAY,
+    //CAP_VALIDATE_DIAL_INFO,
+    CAP_DHT,
+    CAP_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_BLOCKSTORE,
+];
+
+#[cfg(feature = "unstable-blockstore")]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
+#[cfg(not(feature = "unstable-blockstore"))]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 2;
+
+pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
+    //CAP_RELAY,
+    CAP_DHT,
+    CAP_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_BLOCKSTORE,
+];
+
+pub const MAX_CAPABILITIES: usize = 64;
+
+/////////////////////////////////////////////////////////////////
+
 struct NetworkInner {
     network_started: bool,
     network_needs_restart: bool,
@@ -94,7 +133,7 @@ impl Network {
         if self
             .network_manager()
             .address_filter()
-            .is_punished(dial_info.address().to_ip_addr())
+            .is_ip_addr_punished(dial_info.address().to_ip_addr())
         {
             return Ok(NetworkResult::no_connection_other("punished"));
         }
@@ -143,7 +182,7 @@ impl Network {
         if self
             .network_manager()
             .address_filter()
-            .is_punished(dial_info.address().to_ip_addr())
+            .is_ip_addr_punished(dial_info.address().to_ip_addr())
         {
             return Ok(NetworkResult::no_connection_other("punished"));
         }
@@ -245,7 +284,7 @@ impl Network {
         // Handle connection-oriented protocols
         let conn = network_result_try!(
             self.connection_manager()
-                .get_or_create_connection(None, dial_info.clone())
+                .get_or_create_connection(dial_info.clone())
                 .await?
         );
 
@@ -273,10 +312,10 @@ impl Network {
             let inbound = ProtocolTypeSet::new();
             let mut outbound = ProtocolTypeSet::new();
 
-            if c.network.protocol.ws.connect && c.capabilities.protocol_connect_ws {
+            if c.network.protocol.ws.connect {
                 outbound.insert(ProtocolType::WS);
             }
-            if c.network.protocol.wss.connect && c.capabilities.protocol_connect_wss {
+            if c.network.protocol.wss.connect {
                 outbound.insert(ProtocolType::WSS);
             }
 
@@ -301,15 +340,26 @@ impl Network {
 
         // set up the routing table's network config
         // if we have static public dialinfo, upgrade our network class
+
+        let public_internet_capabilities = {
+            let c = self.config.get();
+            PUBLIC_INTERNET_CAPABILITIES
+                .iter()
+                .copied()
+                .filter(|cap| !c.capabilities.disable.contains(cap))
+                .collect::<Vec<Capability>>()
+        };
+
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
+            public_internet_capabilities,
         );
         editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
 
         // commit routing table edits
-        editor_public_internet.commit().await;
+        editor_public_internet.commit();
 
         self.inner.lock().network_started = true;
         Ok(())
@@ -339,8 +389,7 @@ impl Network {
             .clear_dial_info_details()
             .set_network_class(None)
             .clear_relay_node()
-            .commit()
-            .await;
+            .commit();
 
         // Cancels all async background tasks by dropping join handles
         *self.inner.lock() = Self::new_inner();
@@ -354,6 +403,14 @@ impl Network {
 
     pub fn get_usable_interface_addresses(&self) -> Vec<IpAddr> {
         Vec::new()
+    }
+
+    pub fn get_local_port(&self, protocol_type: ProtocolType) -> Option<u16> {
+        None
+    }
+
+    pub fn get_preferred_local_address(&self, dial_info: &DialInfo) -> Option<SocketAddr> {
+        None
     }
 
     //////////////////////////////////////////

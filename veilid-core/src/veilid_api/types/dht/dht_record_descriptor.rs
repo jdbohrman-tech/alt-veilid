@@ -1,21 +1,7 @@
 use super::*;
 
 /// DHT Record Descriptor
-#[derive(
-    Debug,
-    Clone,
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DHTRecordDescriptor {
     /// DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     #[schemars(with = "String")]

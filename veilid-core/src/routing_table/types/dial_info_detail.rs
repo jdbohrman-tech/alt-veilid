@@ -1,21 +1,7 @@
 use super::*;
 
 // Keep member order appropriate for sorting < preference
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    PartialOrd,
-    Ord,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub struct DialInfoDetail {
     pub class: DialInfoClass,
     pub dial_info: DialInfo,

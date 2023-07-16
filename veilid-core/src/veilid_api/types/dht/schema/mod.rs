@@ -7,21 +7,7 @@ pub use dflt::*;
 pub use smpl::*;
 
 /// Enum over all the supported DHT Schemas
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Ord,
-    PartialOrd,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(u8), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind")]
 pub enum DHTSchema {
     DFLT(DHTSchemaDFLT),

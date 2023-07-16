@@ -1,19 +1,6 @@
 use super::*;
 
-#[derive(
-    Clone,
-    Copy,
-    Default,
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes, Hash, PartialEq, Eq))]
+#[derive(Clone, Copy, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct KeyPair {
     pub key: PublicKey,
     pub secret: SecretKey,

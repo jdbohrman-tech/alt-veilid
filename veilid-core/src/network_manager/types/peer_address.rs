@@ -1,24 +1,9 @@
 use super::*;
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    PartialOrd,
-    Eq,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub struct PeerAddress {
     protocol_type: ProtocolType,
-    #[serde(with = "json_as_string")]
+    #[serde(with = "as_human_string")]
     socket_address: SocketAddress,
 }
 

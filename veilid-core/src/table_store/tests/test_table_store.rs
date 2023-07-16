@@ -145,7 +145,6 @@ pub async fn test_transaction(ts: TableStore) {
     let tx = db.transact();
     assert!(tx.store(0, b"aaa", b"a-value").is_ok());
     assert!(tx.store_json(1, b"bbb", &"b-value".to_owned()).is_ok());
-    assert!(tx.store_rkyv(2, b"ccc", &"c-value".to_owned()).is_ok());
     assert!(tx.store(3, b"ddd", b"d-value").is_err());
     assert!(tx.store(0, b"ddd", b"d-value").is_ok());
     assert!(tx.delete(0, b"ddd").is_ok());
@@ -160,49 +159,7 @@ pub async fn test_transaction(ts: TableStore) {
         db.load_json::<String>(1, b"bbb").await,
         Ok(Some("b-value".to_owned()))
     );
-    assert_eq!(
-        db.load_rkyv::<String>(2, b"ccc").await,
-        Ok(Some("c-value".to_owned()))
-    );
     assert_eq!(db.load(0, b"ddd").await, Ok(None));
-}
-
-pub async fn test_rkyv(vcrypto: CryptoSystemVersion, ts: TableStore) {
-    trace!("test_rkyv");
-
-    let _ = ts.delete("test");
-    let db = ts.open("test", 3).await.expect("should have opened");
-    let keypair = vcrypto.generate_keypair();
-
-    assert!(db.store_rkyv(0, b"asdf", &keypair).await.is_ok());
-
-    assert_eq!(db.load_rkyv::<KeyPair>(0, b"qwer").await.unwrap(), None);
-
-    let d = match db.load_rkyv::<KeyPair>(0, b"asdf").await {
-        Ok(x) => x,
-        Err(e) => {
-            panic!("couldn't decode: {}", e);
-        }
-    };
-    assert_eq!(d, Some(keypair), "keys should be equal");
-
-    let d = match db.delete_rkyv::<KeyPair>(0, b"asdf").await {
-        Ok(x) => x,
-        Err(e) => {
-            panic!("couldn't decode: {}", e);
-        }
-    };
-    assert_eq!(d, Some(keypair), "keys should be equal");
-
-    assert!(
-        db.store(1, b"foo", b"1234567890").await.is_ok(),
-        "should store new key"
-    );
-
-    assert!(
-        db.load_rkyv::<TypedKey>(1, b"foo").await.is_err(),
-        "should fail to unfreeze"
-    );
 }
 
 pub async fn test_json(vcrypto: CryptoSystemVersion, ts: TableStore) {
@@ -304,7 +261,6 @@ pub async fn test_all() {
         test_delete_open_delete(ts.clone()).await;
         test_store_delete_load(ts.clone()).await;
         test_transaction(ts.clone()).await;
-        test_rkyv(vcrypto.clone(), ts.clone()).await;
         test_json(vcrypto, ts.clone()).await;
         let _ = ts.delete("test").await;
     }

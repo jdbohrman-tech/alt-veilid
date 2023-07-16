@@ -1,27 +1,15 @@
 use super::*;
 
 /// Direct statement blob passed to hosting application for processing
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidAppMessage {
     /// Some(sender) if the message was sent directly, None if received via a private/safety route
-    #[serde(with = "opt_json_as_string")]
+    #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
     pub sender: Option<TypedKey>,
 
     /// The content of the message to deliver to the application
-    #[serde(with = "json_as_base64")]
+    #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
     pub message: Vec<u8>,
 }
@@ -40,32 +28,20 @@ impl VeilidAppMessage {
 }
 
 /// Direct question blob passed to hosting application for processing to send an eventual AppReply
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidAppCall {
     /// Some(sender) if the request was sent directly, None if received via a private/safety route
-    #[serde(with = "opt_json_as_string")]
+    #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
     sender: Option<TypedKey>,
 
     /// The content of the request to deliver to the application
-    #[serde(with = "json_as_base64")]
+    #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
     message: Vec<u8>,
 
     /// The id to reply to
-    #[serde(with = "json_as_string")]
+    #[serde(with = "as_human_string")]
     #[schemars(with = "String")]
     call_id: OperationId,
 }

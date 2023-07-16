@@ -1,8 +1,7 @@
 use super::*;
 
 /// Parameter for Signal operation
-#[derive(Clone, Debug, Serialize, Deserialize, RkyvArchive, RkyvSerialize, RkyvDeserialize)]
-#[archive_attr(repr(u8), derive(CheckBytes))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SignalInfo {
     /// UDP Hole Punch Request
     HolePunch {

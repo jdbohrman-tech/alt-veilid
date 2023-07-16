@@ -58,7 +58,7 @@ pub enum RequestOp {
         sequencing: Sequencing,
     },
     ImportRemotePrivateRoute {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         blob: Vec<u8>,
     },
@@ -69,7 +69,7 @@ pub enum RequestOp {
     AppCallReply {
         #[schemars(with = "String")]
         call_id: OperationId,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         message: Vec<u8>,
     },
@@ -96,14 +96,14 @@ pub enum RequestOp {
     VerifySignatures {
         #[schemars(with = "Vec<String>")]
         node_ids: Vec<TypedKey>,
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
         #[schemars(with = "Vec<String>")]
         signatures: Vec<TypedSignature>,
     },
     GenerateSignatures {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
         #[schemars(with = "Vec<String>")]
@@ -126,7 +126,7 @@ pub enum RequestOp {
 pub struct NewPrivateRouteResult {
     #[schemars(with = "String")]
     route_id: RouteId,
-    #[serde(with = "json_as_base64")]
+    #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
     blob: Vec<u8>,
 }
@@ -260,7 +260,7 @@ where
 #[serde(untagged)]
 pub enum ApiResultWithVecU8 {
     Ok {
-        #[serde(with = "json_as_base64")]
+        #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         value: Vec<u8>,
     },
@@ -271,7 +271,7 @@ pub enum ApiResultWithVecU8 {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 pub struct VecU8 {
-    #[serde(with = "json_as_base64")]
+    #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
     value: Vec<u8>,
 }

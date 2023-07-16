@@ -467,6 +467,23 @@ impl VeilidAPI {
         let routing_table = self.network_manager()?.routing_table();
         Ok(routing_table.debug_info_dialinfo())
     }
+    async fn debug_peerinfo(&self, args: String) -> VeilidAPIResult<String> {
+        // Dump routing table peerinfo
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+        let routing_table = self.network_manager()?.routing_table();
+
+        let routing_domain = get_debug_argument_at(
+            &args,
+            0,
+            "debug_peerinfo",
+            "routing_domain",
+            get_routing_domain,
+        )
+        .ok()
+        .unwrap_or(RoutingDomain::PublicInternet);
+
+        Ok(routing_table.debug_info_peerinfo(routing_domain))
+    }
 
     async fn debug_txtrecord(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table txt record
@@ -1068,22 +1085,24 @@ impl VeilidAPI {
         let routing_table = netman.routing_table();
         let crypto = self.crypto()?;
 
-        let csv = get_debug_argument_at(
-            &args,
-            1,
-            "debug_record_create",
-            "kind",
-            get_crypto_system_version(crypto.clone()),
-        )
-        .unwrap_or_else(|_| crypto.best());
         let schema = get_debug_argument_at(
             &args,
-            2,
+            1,
             "debug_record_create",
             "dht_schema",
             get_dht_schema,
         )
         .unwrap_or_else(|_| DHTSchema::dflt(1));
+
+        let csv = get_debug_argument_at(
+            &args,
+            2,
+            "debug_record_create",
+            "kind",
+            get_crypto_system_version(crypto.clone()),
+        )
+        .unwrap_or_else(|_| crypto.best());
+
         let ss = get_debug_argument_at(
             &args,
             3,
@@ -1106,7 +1125,7 @@ impl VeilidAPI {
         };
 
         // Do a record get
-        let record = match rc.create_dht_record(csv.kind(), schema).await {
+        let record = match rc.create_dht_record(schema, Some(csv.kind())).await {
             Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
             Ok(v) => v,
         };
@@ -1325,6 +1344,7 @@ impl VeilidAPI {
     pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
         Ok(r#"buckets [dead|reliable]
 dialinfo
+peerinfo [routingdomain]
 entries [dead|reliable]
 entry <node>
 nodeinfo
@@ -1348,7 +1368,7 @@ route allocate [ord|*ord] [rel] [<count>] [in|out]
       test <route>
 record list <local|remote>
        purge <local|remote> [bytes]
-       create <cryptokind> <dhtschema> <safety>
+       create <dhtschema> [<cryptokind> [<safety>]]
        set <key>[+<safety>] <subkey> <writer> <data> 
        get <key>[+<safety>] <subkey> [force]
        delete <key>
@@ -1398,6 +1418,8 @@ record list <local|remote>
                 self.debug_buckets(rest).await
             } else if arg == "dialinfo" {
                 self.debug_dialinfo(rest).await
+            } else if arg == "peerinfo" {
+                self.debug_peerinfo(rest).await
             } else if arg == "txtrecord" {
                 self.debug_txtrecord(rest).await
             } else if arg == "keypair" {

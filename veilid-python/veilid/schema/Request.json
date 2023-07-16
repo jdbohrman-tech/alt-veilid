@@ -303,13 +303,15 @@
         {
           "type": "object",
           "required": [
-            "kind",
             "rc_op",
             "schema"
           ],
           "properties": {
             "kind": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "rc_op": {
               "type": "string",

@@ -305,7 +305,7 @@ impl NetworkConnection {
                                     let peer_address = protocol_connection.descriptor().remote();
 
                                     // Check to see if it is punished
-                                    if address_filter.is_punished(peer_address.to_socket_addr().ip()) {
+                                    if address_filter.is_ip_addr_punished(peer_address.to_socket_addr().ip()) {
                                         return RecvLoopAction::Finish;
                                     }
 

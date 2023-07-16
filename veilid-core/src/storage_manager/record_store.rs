@@ -9,9 +9,7 @@ use hashlink::LruCache;
 
 pub struct RecordStore<D>
 where
-    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
-    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-    <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
+    D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
     table_store: TableStore,
     name: String,
@@ -41,9 +39,7 @@ pub struct SubkeyResult {
 
 impl<D> RecordStore<D>
 where
-    D: fmt::Debug + Clone + RkyvArchive + RkyvSerialize<DefaultVeilidRkyvSerializer>,
-    for<'t> <D as RkyvArchive>::Archived: CheckBytes<RkyvDefaultValidator<'t>>,
-    <D as RkyvArchive>::Archived: RkyvDeserialize<D, VeilidSharedDeserializeMap>,
+    D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
     pub fn new(table_store: TableStore, name: &str, limits: RecordStoreLimits) -> Self {
         let subkey_cache_size = limits.subkey_cache_size as usize;
@@ -93,7 +89,7 @@ where
         let mut record_index_saved: Vec<(RecordTableKey, Record<D>)> =
             Vec::with_capacity(record_table_keys.len());
         for rtk in record_table_keys {
-            if let Some(vr) = record_table.load_rkyv::<Record<D>>(0, &rtk).await? {
+            if let Some(vr) = record_table.load_json::<Record<D>>(0, &rtk).await? {
                 let rik = RecordTableKey::try_from(rtk.as_ref())?;
                 record_index_saved.push((rik, vr));
             }
@@ -265,7 +261,7 @@ where
         for rtk in changed_records {
             // Get the changed record and save it to the table
             if let Some(r) = self.record_index.peek(&rtk) {
-                if let Err(e) = rt_xact.store_rkyv(0, &rtk.bytes(), r) {
+                if let Err(e) = rt_xact.store_json(0, &rtk.bytes(), r) {
                     log_stor!(error "failed to save record: {}", e);
                 }
             }
@@ -303,7 +299,7 @@ where
 
         // Save to record table
         record_table
-            .store_rkyv(0, &rtk.bytes(), &record)
+            .store_json(0, &rtk.bytes(), &record)
             .await
             .map_err(VeilidAPIError::internal)?;
 
@@ -451,7 +447,7 @@ where
         }
         // If not in cache, try to pull from table store if it is in our stored subkey set
         let Some(record_data) = subkey_table
-            .load_rkyv::<RecordData>(0, &stk.bytes())
+            .load_json::<RecordData>(0, &stk.bytes())
             .await
             .map_err(VeilidAPIError::internal)? else {
                 apibail_internal!("failed to get subkey that was stored");
@@ -517,7 +513,7 @@ where
         }
         // If not in cache, try to pull from table store if it is in our stored subkey set
         let Some(record_data) = subkey_table
-            .load_rkyv::<RecordData>(0, &stk.bytes())
+            .load_json::<RecordData>(0, &stk.bytes())
             .await
             .map_err(VeilidAPIError::internal)? else {
                 apibail_internal!("failed to peek subkey that was stored");
@@ -575,7 +571,7 @@ where
         } else {
             // If not in cache, try to pull from table store
             if let Some(record_data) = subkey_table
-                .load_rkyv::<RecordData>(0, &stk_bytes)
+                .load_json::<RecordData>(0, &stk_bytes)
                 .await
                 .map_err(VeilidAPIError::internal)?
             {
@@ -606,7 +602,7 @@ where
 
         // Write subkey
         subkey_table
-            .store_rkyv(0, &stk_bytes, &record_data)
+            .store_json(0, &stk_bytes, &record_data)
             .await
             .map_err(VeilidAPIError::internal)?;
 

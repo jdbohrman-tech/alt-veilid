@@ -307,6 +307,11 @@ impl NetworkManager {
     ) -> EyreResult<NodeContactMethod> {
         let routing_table = self.routing_table();
 
+        // If a node is punished, then don't try to contact it
+        if target_node_ref.node_ids().iter().find(|nid| self.address_filter().is_node_id_punished(**nid)).is_some() {
+            return Ok(NodeContactMethod::Unreachable);
+        }
+
         // Figure out the best routing domain to get the contact method over
         let routing_domain = match target_node_ref.best_routing_domain() {
             Some(rd) => rd,

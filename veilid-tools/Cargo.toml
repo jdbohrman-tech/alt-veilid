@@ -1,6 +1,6 @@
 [package]
 name = "veilid-tools"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["John Smith <nobody@example.com>"]
 edition = "2021"
 license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
@@ -46,7 +46,6 @@ flume = { version = "^0", features = ["async"] }
 async-std = { version = "^1", features = ["unstable"], optional = true}
 tokio = { version = "^1", features = ["full"], optional = true}
 tokio-util = { version = "^0", features = ["compat"], optional = true}
-maplit = "^1"
 futures-util = { version = "^0", default-features = false, features = ["async-await", "sink", "std", "io"] }
 chrono = "^0"
 

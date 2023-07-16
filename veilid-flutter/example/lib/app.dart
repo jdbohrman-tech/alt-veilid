@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:veilid/veilid.dart';
 import 'package:loggy/loggy.dart';
 import 'package:veilid_example/veilid_theme.dart';
@@ -112,13 +111,16 @@ class _MyAppState extends State<MyApp> with UiLoggy {
     if (startup && !_startedUp) {
       var config = await getDefaultVeilidConfig("Veilid Plugin Example");
       if (const String.fromEnvironment("DELETE_TABLE_STORE") == "1") {
-        config.tableStore.delete = true;
+        config = config.copyWith(
+            tableStore: config.tableStore.copyWith(delete: true));
       }
       if (const String.fromEnvironment("DELETE_PROTECTED_STORE") == "1") {
-        config.protectedStore.delete = true;
+        config = config.copyWith(
+            protectedStore: config.protectedStore.copyWith(delete: true));
       }
       if (const String.fromEnvironment("DELETE_BLOCK_STORE") == "1") {
-        config.blockStore.delete = true;
+        config = config.copyWith(
+            blockStore: config.blockStore.copyWith(delete: true));
       }
 
       var updateStream = await Veilid.instance.startupVeilidCore(config);

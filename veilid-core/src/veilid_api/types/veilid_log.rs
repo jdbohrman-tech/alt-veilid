@@ -2,27 +2,14 @@ use super::*;
 
 /// Log level for VeilidCore
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Copy,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy, Serialize, Deserialize, JsonSchema,
 )]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum VeilidLogLevel {
     Error = 1,
-    Warn,
-    Info,
-    Debug,
-    Trace,
+    Warn = 2,
+    Info = 3,
+    Debug = 4,
+    Trace = 5,
 }
 
 impl VeilidLogLevel {
@@ -92,19 +79,7 @@ impl fmt::Display for VeilidLogLevel {
     }
 }
 /// A VeilidCore log message with optional backtrace
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VeilidLog {
     pub log_level: VeilidLogLevel,
     pub message: String,

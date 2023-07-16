@@ -30,6 +30,43 @@ use std::path::{Path, PathBuf};
 
 pub const PEEK_DETECT_LEN: usize = 64;
 
+cfg_if! {
+    if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 8;
+    } else if #[cfg(any(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
+    } else  {
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
+    }
+}
+pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
+    CAP_ROUTE,
+    #[cfg(feature = "unstable-tunnels")]
+    CAP_TUNNEL,
+    CAP_SIGNAL,
+    CAP_RELAY,
+    CAP_VALIDATE_DIAL_INFO,
+    CAP_DHT,
+    CAP_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_BLOCKSTORE,
+];
+
+#[cfg(feature = "unstable-blockstore")]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
+#[cfg(not(feature = "unstable-blockstore"))]
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
+
+pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
+    CAP_RELAY,
+    CAP_DHT,
+    CAP_APPMESSAGE,
+    #[cfg(feature = "unstable-blockstore")]
+    CAP_BLOCKSTORE,
+];
+
+pub const MAX_CAPABILITIES: usize = 64;
+
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {
@@ -296,7 +333,7 @@ impl Network {
         }
     }
 
-    pub fn get_local_port(&self, protocol_type: ProtocolType) -> u16 {
+    pub fn get_local_port(&self, protocol_type: ProtocolType) -> Option<u16> {
         let inner = self.inner.lock();
         let local_port = match protocol_type {
             ProtocolType::UDP => inner.udp_port,
@@ -304,10 +341,10 @@ impl Network {
             ProtocolType::WS => inner.ws_port,
             ProtocolType::WSS => inner.wss_port,
         };
-        local_port
+        Some(local_port)
     }
 
-    fn get_preferred_local_address(&self, dial_info: &DialInfo) -> SocketAddr {
+    pub fn get_preferred_local_address(&self, dial_info: &DialInfo) -> Option<SocketAddr> {
         let inner = self.inner.lock();
 
         let local_port = match dial_info.protocol_type() {
@@ -317,10 +354,10 @@ impl Network {
             ProtocolType::WSS => inner.wss_port,
         };
 
-        match dial_info.address_type() {
+        Some(match dial_info.address_type() {
             AddressType::IPV4 => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), local_port),
             AddressType::IPV6 => SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), local_port),
-        }
+        })
     }
 
     pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
@@ -373,7 +410,7 @@ impl Network {
         if self
             .network_manager()
             .address_filter()
-            .is_punished(dial_info.address().to_ip_addr())
+            .is_ip_addr_punished(dial_info.address().to_ip_addr())
         {
             return Ok(NetworkResult::no_connection_other("punished"));
         }
@@ -440,7 +477,7 @@ impl Network {
         if self
             .network_manager()
             .address_filter()
-            .is_punished(dial_info.address().to_ip_addr())
+            .is_ip_addr_punished(dial_info.address().to_ip_addr())
         {
             return Ok(NetworkResult::no_connection_other("punished"));
         }
@@ -594,10 +631,9 @@ impl Network {
                 .wrap_err("failed to send data to dial info")?);
         } else {
             // Handle connection-oriented protocols
-            let local_addr = self.get_preferred_local_address(&dial_info);
             let conn = network_result_try!(
                 self.connection_manager()
-                    .get_or_create_connection(Some(local_addr), dial_info.clone())
+                    .get_or_create_connection(dial_info.clone())
                     .await?
             );
 

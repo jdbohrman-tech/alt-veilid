@@ -1,22 +1,11 @@
+#![allow(non_snake_case)]
 use super::*;
 
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(
-    Debug,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    EnumSetType,
-)]
+#[derive(Debug, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumSetType)]
 #[enumset(repr = "u8")]
-#[archive_attr(repr(u8), derive(CheckBytes))]
 pub enum AddressType {
-    IPV4,
-    IPV6,
+    IPV6 = 0,
+    IPV4 = 1,
 }
 pub type AddressTypeSet = EnumSet<AddressType>;

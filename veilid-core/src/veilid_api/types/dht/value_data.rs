@@ -1,26 +1,12 @@
 use super::*;
 
-#[derive(
-    Clone,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    RkyvArchive,
-    RkyvSerialize,
-    RkyvDeserialize,
-    JsonSchema,
-)]
-#[archive_attr(repr(C), derive(CheckBytes))]
+#[derive(Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct ValueData {
     /// An increasing sequence number to time-order the DHT record changes
     seq: ValueSeqNum,
 
     /// The contents of a DHT Record
-    #[serde(with = "json_as_base64")]
+    #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
     data: Vec<u8>,
 

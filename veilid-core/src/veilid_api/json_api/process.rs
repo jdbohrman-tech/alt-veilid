@@ -277,10 +277,10 @@ impl JsonRequestProcessor {
                     ),
                 }
             }
-            RoutingContextRequestOp::CreateDhtRecord { kind, schema } => {
+            RoutingContextRequestOp::CreateDhtRecord { schema, kind } => {
                 RoutingContextResponseOp::CreateDhtRecord {
                     result: to_json_api_result(
-                        routing_context.create_dht_record(kind, schema).await,
+                        routing_context.create_dht_record(schema, kind).await,
                     ),
                 }
             }

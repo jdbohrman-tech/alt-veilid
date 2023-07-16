@@ -42,7 +42,7 @@ async def test_delete_dht_record_nonexistent(api_connection: veilid.VeilidAPI):
 async def test_create_delete_dht_record_simple(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
-        rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(1))
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(1), veilid.CryptoKind.CRYPTO_KIND_VLD0)
         await rc.close_dht_record(rec.key)
         await rc.delete_dht_record(rec.key)
 
@@ -50,7 +50,7 @@ async def test_create_delete_dht_record_simple(api_connection: veilid.VeilidAPI)
 async def test_get_dht_value_nonexistent(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
-        rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(1))
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(1))
         assert await rc.get_dht_value(rec.key, 0, False) == None
         await rc.close_dht_record(rec.key)
         await rc.delete_dht_record(rec.key)
@@ -59,7 +59,7 @@ async def test_get_dht_value_nonexistent(api_connection: veilid.VeilidAPI):
 async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
-        rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(2))
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
         
         vd = await rc.set_dht_value(rec.key, 0, b"BLAH BLAH BLAH")
         assert vd != None
@@ -87,13 +87,13 @@ async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
 async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
-        rec = await rc.create_dht_record(veilid.CryptoKind.CRYPTO_KIND_VLD0, veilid.DHTSchema.dflt(2))
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
         key = rec.key
         owner = rec.owner
         secret = rec.owner_secret
         print(f"key:{key}")
 
-        cs = await api_connection.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_VLD0)
+        cs = await api_connection.get_crypto_system(rec.key.kind())
         async with cs:
             assert await cs.validate_key_pair(owner, secret)
             other_keypair = await cs.generate_key_pair()

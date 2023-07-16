@@ -25,7 +25,7 @@ impl RawUdpProtocolHandler {
 
             // Check to see if it is punished
             if let Some(af) = self.address_filter.as_ref() {
-                if af.is_punished(remote_addr.ip()) {
+                if af.is_ip_addr_punished(remote_addr.ip()) {
                     continue;
                 }
             }
@@ -97,7 +97,7 @@ impl RawUdpProtocolHandler {
 
         // Check to see if it is punished
         if let Some(af) = self.address_filter.as_ref() {
-            if af.is_punished(remote_addr.ip()) {
+            if af.is_ip_addr_punished(remote_addr.ip()) {
                 return Ok(NetworkResult::no_connection_other("punished"));
             }
         }

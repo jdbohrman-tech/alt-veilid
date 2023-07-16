@@ -78,9 +78,9 @@ typedef _RoutingContextAppMessageDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
 // fn routing_context_create_dht_record(port: i64, id: u32, kind: u32, schema: FfiStr)
 typedef _RoutingContextCreateDHTRecordC = Void Function(
-    Int64, Uint32, Uint32, Pointer<Utf8>);
+    Int64, Uint32, Pointer<Utf8>, Uint32);
 typedef _RoutingContextCreateDHTRecordDart = void Function(
-    int, int, int, Pointer<Utf8>);
+    int, int, Pointer<Utf8>, int);
 // fn routing_context_open_dht_record(port: i64, id: u32, key: FfiStr, writer: FfiStr)
 typedef _RoutingContextOpenDHTRecordC = Void Function(
     Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>);
@@ -367,7 +367,7 @@ Future<T> processFuturePlain<T>(Future<dynamic> future) {
 }
 
 Future<T> processFutureJson<T>(
-    T Function(dynamic) jsonConstructor, Future<dynamic> future) {
+    T Function(Map<String, dynamic>) jsonConstructor, Future<dynamic> future) {
   return future.then((value) {
     final list = value as List<dynamic>;
     switch (list[0] as int) {
@@ -634,13 +634,13 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   }
 
   @override
-  Future<DHTRecordDescriptor> createDHTRecord(
-      CryptoKind kind, DHTSchema schema) async {
+  Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
+      {CryptoKind kind = 0}) async {
     final nativeSchema = jsonEncode(schema).toNativeUtf8();
     final recvPort = ReceivePort("routing_context_create_dht_record");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextCreateDHTRecord(
-        sendPort.nativePort, _ctx.id, kind, nativeSchema);
+        sendPort.nativePort, _ctx.id, nativeSchema, kind);
     final dhtRecordDescriptor =
         await processFutureJson(DHTRecordDescriptor.fromJson, recvPort.first);
     return dhtRecordDescriptor;

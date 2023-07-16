@@ -1,9 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:change_case/change_case.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'veilid_encoding.dart';
 import 'veilid.dart';
+
+part 'veilid_state.freezed.dart';
+part 'veilid_state.g.dart';
 
 //////////////////////////////////////
 /// AttachmentState
@@ -18,13 +21,9 @@ enum AttachmentState {
   overAttached,
   detaching;
 
-  String toJson() {
-    return name.toPascalCase();
-  }
-
-  factory AttachmentState.fromJson(String j) {
-    return AttachmentState.values.byName(j.toCamelCase());
-  }
+  String toJson() => name.toPascalCase();
+  factory AttachmentState.fromJson(String j) =>
+      AttachmentState.values.byName(j.toCamelCase());
 }
 
 //////////////////////////////////////
@@ -37,514 +36,200 @@ enum VeilidLogLevel {
   debug,
   trace;
 
-  String toJson() {
-    return name.toPascalCase();
-  }
-
-  factory VeilidLogLevel.fromJson(String j) {
-    return VeilidLogLevel.values.byName(j.toCamelCase());
-  }
+  String toJson() => name.toPascalCase();
+  factory VeilidLogLevel.fromJson(String j) =>
+      VeilidLogLevel.values.byName(j.toCamelCase());
 }
 
 ////////////
 
-class LatencyStats {
-  TimestampDuration fastest;
-  TimestampDuration average;
-  TimestampDuration slowest;
+@freezed
+class LatencyStats with _$LatencyStats {
+  const factory LatencyStats({
+    required TimestampDuration fastest,
+    required TimestampDuration average,
+    required TimestampDuration slowest,
+  }) = _LatencyStats;
 
-  LatencyStats({
-    required this.fastest,
-    required this.average,
-    required this.slowest,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'fastest': fastest.toJson(),
-      'average': average.toJson(),
-      'slowest': slowest.toJson(),
-    };
-  }
-
-  LatencyStats.fromJson(dynamic json)
-      : fastest = TimestampDuration.fromJson(json['fastest']),
-        average = TimestampDuration.fromJson(json['average']),
-        slowest = TimestampDuration.fromJson(json['slowest']);
+  factory LatencyStats.fromJson(Map<String, dynamic> json) =>
+      _$LatencyStatsFromJson(json);
 }
 
 ////////////
 
-class TransferStats {
-  BigInt total;
-  BigInt maximum;
-  BigInt average;
-  BigInt minimum;
+@freezed
+class TransferStats with _$TransferStats {
+  const factory TransferStats({
+    required BigInt total,
+    required BigInt maximum,
+    required BigInt average,
+    required BigInt minimum,
+  }) = _TransferStats;
 
-  TransferStats({
-    required this.total,
-    required this.maximum,
-    required this.average,
-    required this.minimum,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'total': total.toString(),
-      'maximum': maximum.toString(),
-      'average': average.toString(),
-      'minimum': minimum.toString(),
-    };
-  }
-
-  TransferStats.fromJson(dynamic json)
-      : total = BigInt.parse(json['total']),
-        maximum = BigInt.parse(json['maximum']),
-        average = BigInt.parse(json['average']),
-        minimum = BigInt.parse(json['minimum']);
+  factory TransferStats.fromJson(Map<String, dynamic> json) =>
+      _$TransferStatsFromJson(json);
 }
 
 ////////////
 
-class TransferStatsDownUp {
-  TransferStats down;
-  TransferStats up;
+@freezed
+class TransferStatsDownUp with _$TransferStatsDownUp {
+  const factory TransferStatsDownUp({
+    required TransferStats down,
+    required TransferStats up,
+  }) = _TransferStatsDownUp;
 
-  TransferStatsDownUp({
-    required this.down,
-    required this.up,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'down': down.toJson(),
-      'up': up.toJson(),
-    };
-  }
-
-  TransferStatsDownUp.fromJson(dynamic json)
-      : down = TransferStats.fromJson(json['down']),
-        up = TransferStats.fromJson(json['up']);
+  factory TransferStatsDownUp.fromJson(Map<String, dynamic> json) =>
+      _$TransferStatsDownUpFromJson(json);
 }
 
 ////////////
 
-class RPCStats {
-  int messagesSent;
-  int messagesRcvd;
-  int questionsInFlight;
-  Timestamp? lastQuestion;
-  Timestamp? lastSeenTs;
-  Timestamp? firstConsecutiveSeenTs;
-  int recentLostAnswers;
-  int failedToSend;
+@freezed
+class RPCStats with _$RPCStats {
+  const factory RPCStats({
+    required int messagesSent,
+    required int messagesRcvd,
+    required int questionsInFlight,
+    required Timestamp? lastQuestion,
+    required Timestamp? lastSeenTs,
+    required Timestamp? firstConsecutiveSeenTs,
+    required int recentLostAnswers,
+    required int failedToSend,
+  }) = _RPCStats;
 
-  RPCStats({
-    required this.messagesSent,
-    required this.messagesRcvd,
-    required this.questionsInFlight,
-    required this.lastQuestion,
-    required this.lastSeenTs,
-    required this.firstConsecutiveSeenTs,
-    required this.recentLostAnswers,
-    required this.failedToSend,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'messages_sent': messagesSent,
-      'messages_rcvd': messagesRcvd,
-      'questions_in_flight': questionsInFlight,
-      'last_question': lastQuestion?.toJson(),
-      'last_seen_ts': lastSeenTs?.toJson(),
-      'first_consecutive_seen_ts': firstConsecutiveSeenTs?.toJson(),
-      'recent_lost_answers': recentLostAnswers,
-      'failed_to_send': failedToSend,
-    };
-  }
-
-  RPCStats.fromJson(dynamic json)
-      : messagesSent = json['messages_sent'],
-        messagesRcvd = json['messages_rcvd'],
-        questionsInFlight = json['questions_in_flight'],
-        lastQuestion = json['last_question'] != null
-            ? Timestamp.fromJson(json['last_question'])
-            : null,
-        lastSeenTs = json['last_seen_ts'] != null
-            ? Timestamp.fromJson(json['last_seen_ts'])
-            : null,
-        firstConsecutiveSeenTs = json['first_consecutive_seen_ts'] != null
-            ? Timestamp.fromJson(json['first_consecutive_seen_ts'])
-            : null,
-        recentLostAnswers = json['recent_lost_answers'],
-        failedToSend = json['failed_to_send'];
+  factory RPCStats.fromJson(Map<String, dynamic> json) =>
+      _$RPCStatsFromJson(json);
 }
 
 ////////////
 
-class PeerStats {
-  Timestamp timeAdded;
-  RPCStats rpcStats;
-  LatencyStats? latency;
-  TransferStatsDownUp transfer;
+@freezed
+class PeerStats with _$PeerStats {
+  const factory PeerStats({
+    required Timestamp timeAdded,
+    required RPCStats rpcStats,
+    LatencyStats? latency,
+    required TransferStatsDownUp transfer,
+  }) = _PeerStats;
 
-  PeerStats({
-    required this.timeAdded,
-    required this.rpcStats,
-    required this.latency,
-    required this.transfer,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'time_added': timeAdded.toJson(),
-      'rpc_stats': rpcStats.toJson(),
-      'latency': latency?.toJson(),
-      'transfer': transfer.toJson(),
-    };
-  }
-
-  PeerStats.fromJson(dynamic json)
-      : timeAdded = Timestamp.fromJson(json['time_added']),
-        rpcStats = RPCStats.fromJson(json['rpc_stats']),
-        latency = json['latency'] != null
-            ? LatencyStats.fromJson(json['latency'])
-            : null,
-        transfer = TransferStatsDownUp.fromJson(json['transfer']);
+  factory PeerStats.fromJson(Map<String, dynamic> json) =>
+      _$PeerStatsFromJson(json);
 }
 
 ////////////
 
-class PeerTableData {
-  List<TypedKey> nodeIds;
-  String peerAddress;
-  PeerStats peerStats;
+@freezed
+class PeerTableData with _$PeerTableData {
+  const factory PeerTableData({
+    required List<TypedKey> nodeIds,
+    required String peerAddress,
+    required PeerStats peerStats,
+  }) = _PeerTableData;
 
-  PeerTableData({
-    required this.nodeIds,
-    required this.peerAddress,
-    required this.peerStats,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'node_ids': nodeIds.map((p) => p.toJson()).toList(),
-      'peer_address': peerAddress,
-      'peer_stats': peerStats.toJson(),
-    };
-  }
-
-  PeerTableData.fromJson(dynamic json)
-      : nodeIds = List<TypedKey>.from(
-            json['node_ids'].map((j) => TypedKey.fromJson(j))),
-        peerAddress = json['peer_address'],
-        peerStats = PeerStats.fromJson(json['peer_stats']);
+  factory PeerTableData.fromJson(Map<String, dynamic> json) =>
+      _$PeerTableDataFromJson(json);
 }
 
 //////////////////////////////////////
 /// VeilidUpdate
 
-abstract class VeilidUpdate {
-  factory VeilidUpdate.fromJson(dynamic json) {
-    switch (json["kind"]) {
-      case "Log":
-        {
-          return VeilidLog(
-              logLevel: VeilidLogLevel.fromJson(json["log_level"]),
-              message: json["message"],
-              backtrace: json["backtrace"]);
-        }
-      case "AppMessage":
-        {
-          return VeilidAppMessage(
-              sender: json["sender"], message: json["message"]);
-        }
-      case "AppCall":
-        {
-          return VeilidAppCall(
-              sender: json["sender"],
-              message: json["message"],
-              callId: json["call_id"]);
-        }
-      case "Attachment":
-        {
-          return VeilidUpdateAttachment(
-              state: VeilidStateAttachment.fromJson(json));
-        }
-      case "Network":
-        {
-          return VeilidUpdateNetwork(state: VeilidStateNetwork.fromJson(json));
-        }
-      case "Config":
-        {
-          return VeilidUpdateConfig(state: VeilidStateConfig.fromJson(json));
-        }
-      case "RouteChange":
-        {
-          return VeilidUpdateRouteChange(
-              deadRoutes: List<String>.from(json['dead_routes'].map((j) => j)),
-              deadRemoteRoutes:
-                  List<String>.from(json['dead_remote_routes'].map((j) => j)));
-        }
-      case "ValueChange":
-        {
-          return VeilidUpdateValueChange(
-              key: TypedKey.fromJson(json['key']),
-              subkeys: List<ValueSubkeyRange>.from(
-                  json['subkeys'].map((j) => ValueSubkeyRange.fromJson(j))),
-              count: json['count'],
-              valueData: ValueData.fromJson(json['value_data']));
-        }
-      default:
-        {
-          throw VeilidAPIExceptionInternal(
-              "Invalid VeilidAPIException type: ${json['kind']}");
-        }
-    }
-  }
-  Map<String, dynamic> toJson();
-}
+@Freezed(unionKey: 'kind', unionValueCase: FreezedUnionCase.pascal)
+sealed class VeilidUpdate with _$VeilidUpdate {
+  const factory VeilidUpdate.log({
+    required VeilidLogLevel logLevel,
+    required String message,
+    String? backtrace,
+  }) = VeilidLog;
+  const factory VeilidUpdate.appMessage({
+    TypedKey? sender,
+    @Uint8ListJsonConverter() required Uint8List message,
+  }) = VeilidAppMessage;
+  const factory VeilidUpdate.appCall({
+    TypedKey? sender,
+    @Uint8ListJsonConverter() required Uint8List message,
+    required String callId,
+  }) = VeilidAppCall;
+  const factory VeilidUpdate.attachment(
+      {required AttachmentState state,
+      required bool publicInternetReady,
+      required bool localNetworkReady}) = VeilidUpdateAttachment;
+  const factory VeilidUpdate.network(
+      {required bool started,
+      required BigInt bpsDown,
+      required BigInt bpsUp,
+      required List<PeerTableData> peers}) = VeilidUpdateNetwork;
+  const factory VeilidUpdate.config({
+    required VeilidConfig config,
+  }) = VeilidUpdateConfig;
+  const factory VeilidUpdate.routeChange({
+    required List<String> deadRoutes,
+    required List<String> deadRemoteRoutes,
+  }) = VeilidUpdateRouteChange;
+  const factory VeilidUpdate.valueChange({
+    required TypedKey key,
+    required List<ValueSubkeyRange> subkeys,
+    required int count,
+    required ValueData valueData,
+  }) = VeilidUpdateValueChange;
 
-class VeilidLog implements VeilidUpdate {
-  final VeilidLogLevel logLevel;
-  final String message;
-  final String? backtrace;
-  //
-  VeilidLog({
-    required this.logLevel,
-    required this.message,
-    required this.backtrace,
-  });
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'kind': "Log",
-      'log_level': logLevel.toJson(),
-      'message': message,
-      'backtrace': backtrace
-    };
-  }
-}
-
-class VeilidAppMessage implements VeilidUpdate {
-  final TypedKey? sender;
-  final Uint8List message;
-
-  //
-  VeilidAppMessage({
-    required this.sender,
-    required this.message,
-  });
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'kind': "AppMessage",
-      'sender': sender,
-      'message': base64UrlNoPadEncode(message)
-    };
-  }
-}
-
-class VeilidAppCall implements VeilidUpdate {
-  final String? sender;
-  final Uint8List message;
-  final String callId;
-
-  //
-  VeilidAppCall({
-    required this.sender,
-    required this.message,
-    required this.callId,
-  });
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'kind': "AppCall",
-      'sender': sender,
-      'message': base64UrlNoPadEncode(message),
-      'call_id': callId,
-    };
-  }
-}
-
-class VeilidUpdateAttachment implements VeilidUpdate {
-  final VeilidStateAttachment state;
-  //
-  VeilidUpdateAttachment({required this.state});
-
-  @override
-  Map<String, dynamic> toJson() {
-    var jsonRep = state.toJson();
-    jsonRep['kind'] = "Attachment";
-    return jsonRep;
-  }
-}
-
-class VeilidUpdateNetwork implements VeilidUpdate {
-  final VeilidStateNetwork state;
-  //
-  VeilidUpdateNetwork({required this.state});
-
-  @override
-  Map<String, dynamic> toJson() {
-    var jsonRep = state.toJson();
-    jsonRep['kind'] = "Network";
-    return jsonRep;
-  }
-}
-
-class VeilidUpdateConfig implements VeilidUpdate {
-  final VeilidStateConfig state;
-  //
-  VeilidUpdateConfig({required this.state});
-
-  @override
-  Map<String, dynamic> toJson() {
-    var jsonRep = state.toJson();
-    jsonRep['kind'] = "Config";
-    return jsonRep;
-  }
-}
-
-class VeilidUpdateRouteChange implements VeilidUpdate {
-  final List<String> deadRoutes;
-  final List<String> deadRemoteRoutes;
-  //
-  VeilidUpdateRouteChange({
-    required this.deadRoutes,
-    required this.deadRemoteRoutes,
-  });
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'dead_routes': deadRoutes.map((p) => p).toList(),
-      'dead_remote_routes': deadRemoteRoutes.map((p) => p).toList()
-    };
-  }
-}
-
-class VeilidUpdateValueChange implements VeilidUpdate {
-  final TypedKey key;
-  final List<ValueSubkeyRange> subkeys;
-  final int count;
-  final ValueData valueData;
-
-  //
-  VeilidUpdateValueChange({
-    required this.key,
-    required this.subkeys,
-    required this.count,
-    required this.valueData,
-  });
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'key': key.toJson(),
-      'subkeys': subkeys.map((p) => p.toJson()).toList(),
-      'count': count,
-      'value_data': valueData.toJson(),
-    };
-  }
+  factory VeilidUpdate.fromJson(Map<String, dynamic> json) =>
+      _$VeilidUpdateFromJson(json);
 }
 
 //////////////////////////////////////
 /// VeilidStateAttachment
 
-class VeilidStateAttachment {
-  final AttachmentState state;
-  final bool publicInternetReady;
-  final bool localNetworkReady;
+@freezed
+class VeilidStateAttachment with _$VeilidStateAttachment {
+  const factory VeilidStateAttachment(
+      {required AttachmentState state,
+      required bool publicInternetReady,
+      required bool localNetworkReady}) = _VeilidStateAttachment;
 
-  VeilidStateAttachment(
-      this.state, this.publicInternetReady, this.localNetworkReady);
-
-  VeilidStateAttachment.fromJson(dynamic json)
-      : state = AttachmentState.fromJson(json['state']),
-        publicInternetReady = json['public_internet_ready'],
-        localNetworkReady = json['local_network_ready'];
-
-  Map<String, dynamic> toJson() {
-    return {
-      'state': state.toJson(),
-      'public_internet_ready': publicInternetReady,
-      'local_network_ready': localNetworkReady,
-    };
-  }
+  factory VeilidStateAttachment.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateAttachmentFromJson(json);
 }
 
 //////////////////////////////////////
 /// VeilidStateNetwork
 
-class VeilidStateNetwork {
-  final bool started;
-  final BigInt bpsDown;
-  final BigInt bpsUp;
-  final List<PeerTableData> peers;
+@freezed
+class VeilidStateNetwork with _$VeilidStateNetwork {
+  const factory VeilidStateNetwork(
+      {required bool started,
+      required BigInt bpsDown,
+      required BigInt bpsUp,
+      required List<PeerTableData> peers}) = _VeilidStateNetwork;
 
-  VeilidStateNetwork(
-      {required this.started,
-      required this.bpsDown,
-      required this.bpsUp,
-      required this.peers});
-
-  VeilidStateNetwork.fromJson(dynamic json)
-      : started = json['started'],
-        bpsDown = BigInt.parse(json['bps_down']),
-        bpsUp = BigInt.parse(json['bps_up']),
-        peers = List<PeerTableData>.from(
-            json['peers'].map((j) => PeerTableData.fromJson(j)));
-
-  Map<String, dynamic> toJson() {
-    return {
-      'started': started,
-      'bps_down': bpsDown.toString(),
-      'bps_up': bpsUp.toString(),
-      'peers': peers.map((p) => p.toJson()).toList(),
-    };
-  }
+  factory VeilidStateNetwork.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateNetworkFromJson(json);
 }
 
 //////////////////////////////////////
 /// VeilidStateConfig
 
-class VeilidStateConfig {
-  final VeilidConfig config;
+@freezed
+class VeilidStateConfig with _$VeilidStateConfig {
+  const factory VeilidStateConfig({
+    required VeilidConfig config,
+  }) = _VeilidStateConfig;
 
-  VeilidStateConfig({
-    required this.config,
-  });
-
-  VeilidStateConfig.fromJson(dynamic json)
-      : config = VeilidConfig.fromJson(json['config']);
-
-  Map<String, dynamic> toJson() {
-    return {'config': config.toJson()};
-  }
+  factory VeilidStateConfig.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateConfigFromJson(json);
 }
 
 //////////////////////////////////////
 /// VeilidState
 
-class VeilidState {
-  final VeilidStateAttachment attachment;
-  final VeilidStateNetwork network;
-  final VeilidStateConfig config;
+@freezed
+class VeilidState with _$VeilidState {
+  const factory VeilidState({
+    required VeilidStateAttachment attachment,
+    required VeilidStateNetwork network,
+    required VeilidStateConfig config,
+  }) = _VeilidState;
 
-  VeilidState.fromJson(dynamic json)
-      : attachment = VeilidStateAttachment.fromJson(json['attachment']),
-        network = VeilidStateNetwork.fromJson(json['network']),
-        config = VeilidStateConfig.fromJson(json['config']);
-
-  Map<String, dynamic> toJson() {
-    return {
-      'attachment': attachment.toJson(),
-      'network': network.toJson(),
-      'config': config.toJson()
-    };
-  }
+  factory VeilidState.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateFromJson(json);
 }
