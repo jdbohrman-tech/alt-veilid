@@ -1470,7 +1470,9 @@ impl RPCProcessor {
                     Ok(v) => v,
                     Err(e) => {
                         // Punish nodes that send direct undecodable crap
-                        address_filter.punish_node_id(sender_node_id);
+                        if matches!(e, RPCError::Protocol(_) | RPCError::InvalidFormat(_)) {
+                            address_filter.punish_node_id(sender_node_id);
+                        }
                         return Ok(NetworkResult::invalid_message(e));
                     }
                 };
