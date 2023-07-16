@@ -6,6 +6,7 @@ variables:
 
 stages:
   - test
+  - build_packages
   - distribute
 
 #before_script:
@@ -24,26 +25,46 @@ test_amd64:
     - earthly --ci +unit-tests-linux-amd64
   when: manual
 
-package:
-  stage: distribute
+package_amd64_deb:
+  stage: build_packages
   only:
     - stable
   tags:
-    - build-server
+    - build-amd64-deb
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
-    - earthly +package-linux-arm64-deb
-    - earthly +package-linux-amd64-rpm
-    - /home/gitlab-runner/distribute-packages.sh
+    #- /home/gitlab-runner/distribute-packages.sh
 
-deploy_repos:
-  stage: distribute
+package_arm64_deb:
+  stage: build_packages
   only:
     - stable
-  needs:
-    - package
-  tags: 
-    - repo-server
-  script: 
-    - /home/gitlab-runner/deploy-repo.sh
+  tags:
+    - build-arm64-deb
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-arm64-deb
+    #- /home/gitlab-runner/distribute-packages.sh
+
+package_amd64_rpm:
+  stage: build_packages
+  only:
+    - stable
+  tags:
+    - build-amd64-rpm
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-amd64-rpm
+    #- /home/gitlab-runner/distribute-packages.sh
+
+#deploy_repos:
+#  stage: distribute
+#  only:
+#    - stable
+#  needs:
+#    - package
+#  tags: 
+#    - repo-server
+#  script: 
+#    - /home/gitlab-runner/deploy-repo.sh
