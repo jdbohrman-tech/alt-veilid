@@ -21,9 +21,10 @@ fn err_to_network_result<T>(err: async_tungstenite::tungstenite::Error) -> Netwo
     match err {
         async_tungstenite::tungstenite::Error::ConnectionClosed
         | async_tungstenite::tungstenite::Error::AlreadyClosed
-        | async_tungstenite::tungstenite::Error::Io(_) => {
-            NetworkResult::NoConnection(to_io_error_other(err))
-        }
+        | async_tungstenite::tungstenite::Error::Io(_)
+        | async_tungstenite::tungstenite::Error::Protocol(
+            async_tungstenite::tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
+        ) => NetworkResult::NoConnection(to_io_error_other(err)),
         _ => NetworkResult::InvalidMessage(err.to_string()),
     }
 }
