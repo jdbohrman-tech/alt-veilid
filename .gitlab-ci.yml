@@ -34,7 +34,7 @@ package_amd64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
-    #- /home/gitlab-runner/distribute-packages.sh
+    - /home/gitlab-runner/scp-to-orchestrator.sh
 
 package_arm64_deb:
   stage: build_packages
@@ -45,7 +45,7 @@ package_arm64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-arm64-deb
-    #- /home/gitlab-runner/distribute-packages.sh
+    - /home/gitlab-runner/scp-to-orchestrator.sh
 
 package_amd64_rpm:
   stage: build_packages
@@ -56,15 +56,24 @@ package_amd64_rpm:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
-    #- /home/gitlab-runner/distribute-packages.sh
+    - /home/gitlab-runner/scp-to-orchestrator.sh
 
-#deploy_repos:
-#  stage: distribute
-#  only:
-#    - stable
-#  needs:
-#    - package
-#  tags: 
-#    - repo-server
-#  script: 
-#    - /home/gitlab-runner/deploy-repo.sh
+build_repositories:
+  stage: distribute
+  only:
+    - stable
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/distribute-packages.sh
+
+deploy_repos:
+  stage: distribute
+  only:
+    - stable
+  needs:
+    - build_repositories
+  tags: 
+    - repo-server
+  script: 
+    - /home/gitlab-runner/deploy-repo.sh
