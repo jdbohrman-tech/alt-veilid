@@ -1,6 +1,6 @@
 [package]
 name = "veilid-tools"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["John Smith <nobody@example.com>"]
 edition = "2021"
 license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"

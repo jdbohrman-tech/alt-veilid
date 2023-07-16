@@ -76,5 +76,5 @@ All versions of Veilid Rust crates as well as `veilid-python` and `veilid-flutte
 * MINOR version when you add functionality in a backward compatible manner
 * PATCH version when you make backward compatible bug fixes
 
-The default 'version_bump.sh' script should be run on every release to stable. All of the Rust crates are versioned together and should have the same version, as well as the `veilid-python` Python package and `veilid-flutter` Flutter plugin.
+The `version_bump.sh` script should be run on every release to stable. All of the Rust crates are versioned together and should have the same version, as well as the `veilid-python` Python package and `veilid-flutter` Flutter plugin.
 

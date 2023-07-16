@@ -15,7 +15,5 @@ else
     exit 1
 fi
 
-CARGO_TOMLS=$(find . -name Cargo.toml -not -path ./external/\* -not -path ./Cargo.toml | xargs)
-
-bumpversion --dry-run $PART $CARGO_TOMLS ./veilid-python/pyproject.toml ./veilid-flutter/pubspec.yaml
+bumpversion $PART
 
