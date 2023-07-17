@@ -66,6 +66,9 @@ impl NetworkManager {
         // Run the rolling transfers task
         self.unlocked_inner.rolling_transfers_task.tick().await?;
 
+        // Run the address filter task
+        self.unlocked_inner.address_filter_task.tick().await?;
+
         // Run the routing table tick
         routing_table.tick().await?;
 

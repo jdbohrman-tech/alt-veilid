@@ -202,6 +202,9 @@ impl<T> NetworkResult<T> {
     pub fn is_already_exists(&self) -> bool {
         matches!(self, Self::AlreadyExists(_))
     }
+    pub fn is_invalid_message(&self) -> bool {
+        matches!(self, Self::InvalidMessage(_))
+    }
     pub fn is_value(&self) -> bool {
         matches!(self, Self::Value(_))
     }

@@ -315,6 +315,12 @@ impl NetworkConnection {
                                         return RecvLoopAction::Finish;
                                     }
 
+                                    // Punish invalid messages
+                                    if v.is_invalid_message() {
+                                        address_filter.punish_ip_addr(peer_address.to_socket_addr().ip());
+                                        return RecvLoopAction::Finish;
+                                    }
+
                                     // Log other network results
                                     let mut message = network_result_value_or_log!(v => [ format!(": protocol_connection={:?}", protocol_connection) ] {
                                         return RecvLoopAction::Finish;
