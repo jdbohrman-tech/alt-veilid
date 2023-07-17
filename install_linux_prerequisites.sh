@@ -14,6 +14,12 @@ sudo apt install -y openjdk-11-jdk-headless iproute2 curl build-essential cmake 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y -c clippy --profile default
 source "$HOME/.cargo/env"
 
+#ask if they want to install optional android sdk (and install if yes)
+while true; do
+read -p "Do you want to install Android SDK (optional) Y/N) " response
+
+case $response in
+[yY] ) echo Installing Android SDK...;
 # Install Android SDK
 mkdir $HOME/Android; mkdir $HOME/Android/Sdk
 curl -o $HOME/Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
@@ -29,5 +35,15 @@ export PATH=\$PATH:\$HOME/Android/Sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/
 export ANDROID_NDK_HOME=\$HOME/Android/Sdk/ndk/25.1.8937393
 export ANDROID_SDK_ROOT=\$HOME/Android/Sdk
 END
+break ;;
+[nN] ) echo Skipping Android SDK;
+cat >> $HOME/.profile <<END
+source "\$HOME/.cargo/env"
+END
+break;;
 
-echo Exit and reopen the shell and continue with ./setup_linux.sh
+* ) echo invalid response;;
+esac
+done
+
+echo Complete! Exit and reopen the shell and continue with ./setup_linux.sh
