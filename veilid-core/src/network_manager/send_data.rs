@@ -106,7 +106,7 @@ impl NetworkManager {
         // First try to send data to the last socket we've seen this peer on
         let Some(connection_descriptor) = target_node_ref.last_connection() else {
             return Ok(NetworkResult::no_connection_other(
-                "should have found an existing connection",
+                format!("should have found an existing connection: {}", target_node_ref)
             ));
         };
 
@@ -138,7 +138,7 @@ impl NetworkManager {
         // Try to send data to the last socket we've seen this peer on
         let Some(connection_descriptor) = target_node_ref.last_connection() else {
             return Ok(NetworkResult::no_connection_other(
-                "Node is not reachable and has no existing connection",
+                format!("Node is not reachable and has no existing connection: {}", target_node_ref)
             ));
         };
 
@@ -149,7 +149,7 @@ impl NetworkManager {
             .is_some()
         {
             return Ok(NetworkResult::no_connection_other(
-                "failed to send to existing connection",
+                format!("failed to send to existing connection: {:?}", connection_descriptor)
             ));
         }
 
