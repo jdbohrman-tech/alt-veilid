@@ -47,6 +47,13 @@ echo "Congratulations! To start your Veilid node and set it to start at boot, ru
 %postun
 systemctl daemon-reload
 
+%posttrans
+if systemctl is-active --quiet veilid-server.service; then
+    systemctl restart veilid-server.service
+else
+    echo "Veilid-Server is installed but not currently running. Configure the service to start immediatly and at boot time by running the following command: systemctl enable --now veilid-server.service"
+fi
+
 %changelog
 * Sun Jul 2 2023 TC <tc@veilid.org>
 - experimental RPM building
