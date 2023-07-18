@@ -12,8 +12,9 @@ if [ "$(lsb_release -d | grep -qEi 'debian|buntu|mint')" ]; then
     echo Not a supported Linux
     exit 1
 fi
-read -p "Did you install Android SDK? Y/N " response
 while true; do
+read -p "Did you install Android SDK? Y/N " response
+
 case $response in
 	[yY] ) echo Checking android setup...;
 
