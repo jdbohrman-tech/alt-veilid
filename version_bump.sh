@@ -16,4 +16,4 @@ else
 fi
 
 bumpversion $PART
-
+cargo update
