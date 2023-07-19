@@ -208,7 +208,7 @@ impl RoutingTable {
             rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
             kick_buckets_task: TickTask::new(1),
             bootstrap_task: TickTask::new(1),
-            peer_minimum_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
+            peer_minimum_refresh_task: TickTask::new(1),
             ping_validator_task: TickTask::new(1),
             relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
             private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),

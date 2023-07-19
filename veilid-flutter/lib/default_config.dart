@@ -118,7 +118,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
           setValueCount: 20,
           setValueFanout: 5,
           minPeerCount: 20,
-          minPeerRefreshTimeMs: 2000,
+          minPeerRefreshTimeMs: 60000,
           validateDialInfoReceiptTimeMs: 2000,
           localSubkeyCacheSize: getLocalSubkeyCacheSize(),
           localMaxSubkeyCacheMemoryMb: getLocalMaxSubkeyCacheMemoryMb(),

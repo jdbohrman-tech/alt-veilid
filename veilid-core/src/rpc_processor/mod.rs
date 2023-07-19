@@ -324,10 +324,13 @@ impl RPCProcessor {
         let timeout_us = TimestampDuration::new(ms_to_us(c.network.rpc.timeout_ms));
         let max_route_hop_count = c.network.rpc.max_route_hop_count as usize;
         if concurrency == 0 {
-            concurrency = get_concurrency() / 2;
+            concurrency = get_concurrency();
             if concurrency == 0 {
                 concurrency = 1;
             }
+
+            // Default RPC concurrency is the number of CPUs * 16 rpc workers per core, as a single worker takes about 1% CPU when relaying and 16% is reasonable for baseline plus relay
+            concurrency *= 16;
         }
         let validate_dial_info_receipt_time_ms = c.network.dht.validate_dial_info_receipt_time_ms;
 

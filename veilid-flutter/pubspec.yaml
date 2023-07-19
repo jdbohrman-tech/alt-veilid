@@ -1,5 +1,5 @@
 name: veilid
-version: 0.1.2
+version: 0.1.3
 description: Veilid Framework
 homepage: https://veilid.com
 publish_to: "none" # Remove this line if you wish to publish to pub.dev

@@ -1,13 +1,12 @@
 [package]
 name = "veilid-wasm"
-version = "0.1.2"
-authors = ["John Smith <jsmith@example.com>"]
+version = "0.1.3"
+authors = ["Veilid Team <contact@veilid.com>"]
+license = "MPL-2.0"
 edition = "2021"
-license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-
 
 [features]
 default = [ "veilid-core/rt-wasm-bindgen", "veilid-core/default" ]

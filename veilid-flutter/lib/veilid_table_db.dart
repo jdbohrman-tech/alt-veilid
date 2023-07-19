@@ -5,6 +5,7 @@ import 'dart:convert';
 /////////////////////////////////////
 /// VeilidTableDB
 abstract class VeilidTableDBTransaction {
+  bool isDone();
   Future<void> commit();
   Future<void> rollback();
   Future<void> store(int col, Uint8List key, Uint8List value);
@@ -24,6 +25,7 @@ abstract class VeilidTableDBTransaction {
 }
 
 abstract class VeilidTableDB {
+  void close();
   int getColumnCount();
   Future<List<Uint8List>> getKeys(int col);
   VeilidTableDBTransaction transact();

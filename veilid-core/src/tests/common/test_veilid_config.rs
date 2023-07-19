@@ -217,7 +217,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.dht.set_value_count" => Ok(Box::new(5u32)),
         "network.dht.set_value_fanout" => Ok(Box::new(4u32)),
         "network.dht.min_peer_count" => Ok(Box::new(20u32)),
-        "network.dht.min_peer_refresh_time_ms" => Ok(Box::new(2_000u32)),
+        "network.dht.min_peer_refresh_time_ms" => Ok(Box::new(60_000u32)),
         "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.dht.local_subkey_cache_size" => Ok(Box::new(128u32)),
         "network.dht.local_max_subkey_cache_memory_mb" => Ok(Box::new(256u32)),
@@ -345,7 +345,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.dht.set_value_count, 5u32);
     assert_eq!(inner.network.dht.set_value_fanout, 4u32);
     assert_eq!(inner.network.dht.min_peer_count, 20u32);
-    assert_eq!(inner.network.dht.min_peer_refresh_time_ms, 2_000u32);
+    assert_eq!(inner.network.dht.min_peer_refresh_time_ms, 60_000u32);
     assert_eq!(
         inner.network.dht.validate_dial_info_receipt_time_ms,
         5_000u32

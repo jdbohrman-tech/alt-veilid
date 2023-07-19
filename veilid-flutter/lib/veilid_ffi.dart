@@ -536,7 +536,7 @@ Stream<T> processStreamJson<T>(
         case messageStreamItemJson:
           {
             if (list[1] == null) {
-              throw VeilidAPIExceptionInternal(
+              throw const VeilidAPIExceptionInternal(
                   "Null MESSAGE_STREAM_ITEM_JSON value");
             }
             var ret = jsonDecode(list[1] as String);
@@ -573,49 +573,70 @@ Stream<T> processStreamJson<T>(
 }
 
 class _Ctx {
-  final int id;
+  int? id;
   final VeilidFFI ffi;
-  _Ctx(this.id, this.ffi);
+  _Ctx(int this.id, this.ffi);
+
+  void ensureValid() {
+    if (id == null) {
+      throw VeilidAPIExceptionNotInitialized();
+    }
+  }
+
+  void close() {
+    if (id != null) {
+      ffi._releaseRoutingContext(id!);
+      id = null;
+    }
+  }
 }
 
 // FFI implementation of VeilidRoutingContext
-class VeilidRoutingContextFFI implements VeilidRoutingContext {
+class VeilidRoutingContextFFI extends VeilidRoutingContext {
   final _Ctx _ctx;
-  static final Finalizer<_Ctx> _finalizer =
-      Finalizer((ctx) => ctx.ffi._releaseRoutingContext(ctx.id));
+  static final Finalizer<_Ctx> _finalizer = Finalizer((ctx) => ctx.close());
 
   VeilidRoutingContextFFI._(this._ctx) {
     _finalizer.attach(this, _ctx, detach: this);
   }
 
   @override
+  void close() {
+    _ctx.close();
+  }
+
+  @override
   VeilidRoutingContextFFI withPrivacy() {
-    final newId = _ctx.ffi._routingContextWithPrivacy(_ctx.id);
+    _ctx.ensureValid();
+    final newId = _ctx.ffi._routingContextWithPrivacy(_ctx.id!);
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
   VeilidRoutingContextFFI withCustomPrivacy(SafetySelection safetySelection) {
+    _ctx.ensureValid();
     final newId = _ctx.ffi._routingContextWithCustomPrivacy(
-        _ctx.id, jsonEncode(safetySelection).toNativeUtf8());
+        _ctx.id!, jsonEncode(safetySelection).toNativeUtf8());
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
   VeilidRoutingContextFFI withSequencing(Sequencing sequencing) {
+    _ctx.ensureValid();
     final newId = _ctx.ffi._routingContextWithSequencing(
-        _ctx.id, jsonEncode(sequencing).toNativeUtf8());
+        _ctx.id!, jsonEncode(sequencing).toNativeUtf8());
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
   Future<Uint8List> appCall(String target, Uint8List request) async {
+    _ctx.ensureValid();
     var nativeEncodedTarget = target.toNativeUtf8();
     var nativeEncodedRequest = base64UrlNoPadEncode(request).toNativeUtf8();
 
     final recvPort = ReceivePort("routing_context_app_call");
     final sendPort = recvPort.sendPort;
-    _ctx.ffi._routingContextAppCall(sendPort.nativePort, _ctx.id,
+    _ctx.ffi._routingContextAppCall(sendPort.nativePort, _ctx.id!,
         nativeEncodedTarget, nativeEncodedRequest);
     final out = await processFuturePlain(recvPort.first);
     return base64UrlNoPadDecode(out);
@@ -623,12 +644,13 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
 
   @override
   Future<void> appMessage(String target, Uint8List message) {
+    _ctx.ensureValid();
     final nativeEncodedTarget = target.toNativeUtf8();
     final nativeEncodedMessage = base64UrlNoPadEncode(message).toNativeUtf8();
 
     final recvPort = ReceivePort("routing_context_app_message");
     final sendPort = recvPort.sendPort;
-    _ctx.ffi._routingContextAppMessage(sendPort.nativePort, _ctx.id,
+    _ctx.ffi._routingContextAppMessage(sendPort.nativePort, _ctx.id!,
         nativeEncodedTarget, nativeEncodedMessage);
     return processFutureVoid(recvPort.first);
   }
@@ -636,11 +658,12 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   @override
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
       {CryptoKind kind = 0}) async {
+    _ctx.ensureValid();
     final nativeSchema = jsonEncode(schema).toNativeUtf8();
     final recvPort = ReceivePort("routing_context_create_dht_record");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextCreateDHTRecord(
-        sendPort.nativePort, _ctx.id, nativeSchema, kind);
+        sendPort.nativePort, _ctx.id!, nativeSchema, kind);
     final dhtRecordDescriptor =
         await processFutureJson(DHTRecordDescriptor.fromJson, recvPort.first);
     return dhtRecordDescriptor;
@@ -649,13 +672,14 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   @override
   Future<DHTRecordDescriptor> openDHTRecord(
       TypedKey key, KeyPair? writer) async {
+    _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeWriter =
         writer != null ? jsonEncode(key).toNativeUtf8() : nullptr;
     final recvPort = ReceivePort("routing_context_open_dht_record");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextOpenDHTRecord(
-        sendPort.nativePort, _ctx.id, nativeKey, nativeWriter);
+        sendPort.nativePort, _ctx.id!, nativeKey, nativeWriter);
     final dhtRecordDescriptor =
         await processFutureJson(DHTRecordDescriptor.fromJson, recvPort.first);
     return dhtRecordDescriptor;
@@ -663,32 +687,35 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
 
   @override
   Future<void> closeDHTRecord(TypedKey key) {
+    _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final recvPort = ReceivePort("routing_context_close_dht_record");
     final sendPort = recvPort.sendPort;
-    _ctx.ffi
-        ._routingContextCloseDHTRecord(sendPort.nativePort, _ctx.id, nativeKey);
+    _ctx.ffi._routingContextCloseDHTRecord(
+        sendPort.nativePort, _ctx.id!, nativeKey);
     return processFutureVoid(recvPort.first);
   }
 
   @override
   Future<void> deleteDHTRecord(TypedKey key) {
+    _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final recvPort = ReceivePort("routing_context_delete_dht_record");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextDeleteDHTRecord(
-        sendPort.nativePort, _ctx.id, nativeKey);
+        sendPort.nativePort, _ctx.id!, nativeKey);
     return processFutureVoid(recvPort.first);
   }
 
   @override
   Future<ValueData?> getDHTValue(
       TypedKey key, int subkey, bool forceRefresh) async {
+    _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final recvPort = ReceivePort("routing_context_get_dht_value");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextGetDHTValue(
-        sendPort.nativePort, _ctx.id, nativeKey, subkey, forceRefresh);
+        sendPort.nativePort, _ctx.id!, nativeKey, subkey, forceRefresh);
     final valueData = await processFutureJson(
         optFromJson(ValueData.fromJson), recvPort.first);
     return valueData;
@@ -697,13 +724,14 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   @override
   Future<ValueData?> setDHTValue(
       TypedKey key, int subkey, Uint8List data) async {
+    _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
 
     final recvPort = ReceivePort("routing_context_set_dht_value");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextSetDHTValue(
-        sendPort.nativePort, _ctx.id, nativeKey, subkey, nativeData);
+        sendPort.nativePort, _ctx.id!, nativeKey, subkey, nativeData);
     final valueData = await processFutureJson(
         optFromJson(ValueData.fromJson), recvPort.first);
     return valueData;
@@ -712,13 +740,14 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   @override
   Future<Timestamp> watchDHTValues(TypedKey key, List<ValueSubkeyRange> subkeys,
       Timestamp expiration, int count) async {
+    _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeSubkeys = jsonEncode(subkeys).toNativeUtf8();
     final nativeExpiration = expiration.value.toInt();
 
     final recvPort = ReceivePort("routing_context_watch_dht_values");
     final sendPort = recvPort.sendPort;
-    _ctx.ffi._routingContextWatchDHTValues(sendPort.nativePort, _ctx.id,
+    _ctx.ffi._routingContextWatchDHTValues(sendPort.nativePort, _ctx.id!,
         nativeKey, nativeSubkeys, nativeExpiration, count);
     final actualExpiration = Timestamp(
         value: BigInt.from(await processFuturePlain<int>(recvPort.first)));
@@ -728,60 +757,82 @@ class VeilidRoutingContextFFI implements VeilidRoutingContext {
   @override
   Future<bool> cancelDHTWatch(
       TypedKey key, List<ValueSubkeyRange> subkeys) async {
+    _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeSubkeys = jsonEncode(subkeys).toNativeUtf8();
 
     final recvPort = ReceivePort("routing_context_cancel_dht_watch");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextCancelDHTWatch(
-        sendPort.nativePort, _ctx.id, nativeKey, nativeSubkeys);
+        sendPort.nativePort, _ctx.id!, nativeKey, nativeSubkeys);
     final cancelled = await processFuturePlain<bool>(recvPort.first);
     return cancelled;
   }
 }
 
 class _TDBT {
-  final int id;
-  VeilidTableDBFFI tdbffi;
-  VeilidFFI ffi;
+  int? id;
+  final VeilidTableDBFFI tdbffi;
+  final VeilidFFI ffi;
 
-  _TDBT(this.id, this.tdbffi, this.ffi);
+  _TDBT(int this.id, this.tdbffi, this.ffi);
+  void ensureValid() {
+    if (id == null) {
+      throw VeilidAPIExceptionNotInitialized();
+    }
+  }
+
+  void close() {
+    if (id != null) {
+      ffi._releaseTableDbTransaction(id!);
+      id = null;
+    }
+  }
 }
 
 // FFI implementation of VeilidTableDBTransaction
 class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
   final _TDBT _tdbt;
-  static final Finalizer<_TDBT> _finalizer =
-      Finalizer((tdbt) => tdbt.ffi._releaseTableDbTransaction(tdbt.id));
+  static final Finalizer<_TDBT> _finalizer = Finalizer((tdbt) => tdbt.close());
 
   VeilidTableDBTransactionFFI._(this._tdbt) {
     _finalizer.attach(this, _tdbt, detach: this);
   }
 
   @override
-  Future<void> commit() {
+  bool isDone() {
+    return _tdbt.id == null;
+  }
+
+  @override
+  Future<void> commit() async {
+    _tdbt.ensureValid();
     final recvPort = ReceivePort("veilid_table_db_transaction_commit");
     final sendPort = recvPort.sendPort;
     _tdbt.ffi._tableDbTransactionCommit(
       sendPort.nativePort,
-      _tdbt.id,
+      _tdbt.id!,
     );
-    return processFutureVoid(recvPort.first);
+    await processFutureVoid(recvPort.first);
+    _tdbt.close();
   }
 
   @override
-  Future<void> rollback() {
+  Future<void> rollback() async {
+    _tdbt.ensureValid();
     final recvPort = ReceivePort("veilid_table_db_transaction_rollback");
     final sendPort = recvPort.sendPort;
     _tdbt.ffi._tableDbTransactionRollback(
       sendPort.nativePort,
-      _tdbt.id,
+      _tdbt.id!,
     );
-    return processFutureVoid(recvPort.first);
+    await processFutureVoid(recvPort.first);
+    _tdbt.close();
   }
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
+    _tdbt.ensureValid();
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
     final nativeEncodedValue = base64UrlNoPadEncode(value).toNativeUtf8();
 
@@ -789,7 +840,7 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
     final sendPort = recvPort.sendPort;
     _tdbt.ffi._tableDbTransactionStore(
       sendPort.nativePort,
-      _tdbt.id,
+      _tdbt.id!,
       col,
       nativeEncodedKey,
       nativeEncodedValue,
@@ -799,13 +850,14 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
 
   @override
   Future<void> delete(int col, Uint8List key) {
+    _tdbt.ensureValid();
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_transaction_delete");
     final sendPort = recvPort.sendPort;
     _tdbt.ffi._tableDbTransactionDelete(
       sendPort.nativePort,
-      _tdbt.id,
+      _tdbt.id!,
       col,
       nativeEncodedKey,
     );
@@ -814,32 +866,51 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
 }
 
 class _TDB {
-  final int id;
-  VeilidFFI ffi;
-  _TDB(this.id, this.ffi);
+  int? id;
+  final VeilidFFI ffi;
+  _TDB(int this.id, this.ffi);
+  void ensureValid() {
+    if (id == null) {
+      throw VeilidAPIExceptionNotInitialized();
+    }
+  }
+
+  void close() {
+    if (id != null) {
+      ffi._releaseTableDb(id!);
+      id = null;
+    }
+  }
 }
 
 // FFI implementation of VeilidTableDB
 class VeilidTableDBFFI extends VeilidTableDB {
   final _TDB _tdb;
-  static final Finalizer<_TDB> _finalizer =
-      Finalizer((tdb) => tdb.ffi._releaseTableDb(tdb.id));
+  static final Finalizer<_TDB> _finalizer = Finalizer((tdb) => tdb.close());
 
   VeilidTableDBFFI._(this._tdb) {
     _finalizer.attach(this, _tdb, detach: this);
   }
 
   @override
+  void close() {
+    _tdb.close();
+  }
+
+  @override
   int getColumnCount() {
-    return _tdb.ffi._tableDbGetColumnCount(_tdb.id);
+    _tdb.ensureValid();
+    return _tdb.ffi._tableDbGetColumnCount(_tdb.id!);
   }
 
   @override
   Future<List<Uint8List>> getKeys(int col) {
+    _tdb.ensureValid();
+
     final recvPort = ReceivePort("veilid_table_db_get_keys");
     final sendPort = recvPort.sendPort;
 
-    _tdb.ffi._tableDbGetKeys(sendPort.nativePort, _tdb.id, col);
+    _tdb.ffi._tableDbGetKeys(sendPort.nativePort, _tdb.id!, col);
 
     return processFutureJson(
         jsonListConstructor<Uint8List>(base64UrlNoPadDecodeDynamic),
@@ -848,12 +919,16 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
   @override
   VeilidTableDBTransaction transact() {
-    final id = _tdb.ffi._tableDbTransact(_tdb.id);
+    _tdb.ensureValid();
+
+    final id = _tdb.ffi._tableDbTransact(_tdb.id!);
     return VeilidTableDBTransactionFFI._(_TDBT(id, this, _tdb.ffi));
   }
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
+    _tdb.ensureValid();
+
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
     final nativeEncodedValue = base64UrlNoPadEncode(value).toNativeUtf8();
 
@@ -861,7 +936,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
     final sendPort = recvPort.sendPort;
     _tdb.ffi._tableDbStore(
       sendPort.nativePort,
-      _tdb.id,
+      _tdb.id!,
       col,
       nativeEncodedKey,
       nativeEncodedValue,
@@ -871,13 +946,14 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
   @override
   Future<Uint8List?> load(int col, Uint8List key) async {
+    _tdb.ensureValid();
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_load");
     final sendPort = recvPort.sendPort;
     _tdb.ffi._tableDbLoad(
       sendPort.nativePort,
-      _tdb.id,
+      _tdb.id!,
       col,
       nativeEncodedKey,
     );
@@ -890,13 +966,14 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
   @override
   Future<Uint8List?> delete(int col, Uint8List key) async {
+    _tdb.ensureValid();
     final nativeEncodedKey = base64UrlNoPadEncode(key).toNativeUtf8();
 
     final recvPort = ReceivePort("veilid_table_db_delete");
     final sendPort = recvPort.sendPort;
     _tdb.ffi._tableDbDelete(
       sendPort.nativePort,
-      _tdb.id,
+      _tdb.id!,
       col,
       nativeEncodedKey,
     );
@@ -909,7 +986,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
 }
 
 // FFI implementation of VeilidCryptoSystem
-class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
+class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
   final CryptoKind _kind;
   final VeilidFFI _ffi;
 
@@ -1154,7 +1231,7 @@ class VeilidCryptoSystemFFI implements VeilidCryptoSystem {
 }
 
 // FFI implementation of high level Veilid API
-class VeilidFFI implements Veilid {
+class VeilidFFI extends Veilid {
   // veilid_core shared library
   final DynamicLibrary _dylib;
 

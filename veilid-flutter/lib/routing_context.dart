@@ -226,6 +226,8 @@ class RouteBlob with _$RouteBlob {
 /// VeilidRoutingContext
 
 abstract class VeilidRoutingContext {
+  void close();
+
   // Modifiers
   VeilidRoutingContext withPrivacy();
   VeilidRoutingContext withCustomPrivacy(SafetySelection safetySelection);

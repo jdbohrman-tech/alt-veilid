@@ -261,7 +261,7 @@ impl BucketEntryInner {
         // See if we have an existing signed_node_info to update or not
         let mut node_info_changed = false;
         if let Some(current_sni) = opt_current_sni {
-            // Always allow overwriting invalid/unsigned node
+            // Always allow overwriting unsigned node (bootstrap)
             if current_sni.has_any_signature() {
                 // If the timestamp hasn't changed or is less, ignore this update
                 if signed_node_info.timestamp() <= current_sni.timestamp() {
@@ -424,7 +424,7 @@ impl BucketEntryInner {
     }
 
      // Removes a connection descriptor in this entry's table of last connections
-     pub fn clear_last_connection(&mut self, last_connection: ConnectionDescriptor) {
+    pub fn clear_last_connection(&mut self, last_connection: ConnectionDescriptor) {
         let key = self.descriptor_to_key(last_connection);
         self.last_connections
             .remove(&key);
@@ -698,16 +698,7 @@ impl BucketEntryInner {
     pub(super) fn needs_ping(&self, cur_ts: Timestamp) -> bool {
         // See which ping pattern we are to use
         let state = self.state(cur_ts);
-
-        // If we don't have node status for this node, then we should ping it to get some node status
-        for routing_domain in RoutingDomainSet::all() {
-            if self.has_node_info(routing_domain.into()) {
-                if self.node_status(routing_domain).is_none() {
-                    return true;
-                }
-            }
-        }
-
+    
         match state {
             BucketEntryState::Reliable => {
                 // If we are in a reliable state, we need a ping on an exponential scale
@@ -742,7 +733,10 @@ impl BucketEntryInner {
                 // If we are in an unreliable state, we need a ping every UNRELIABLE_PING_INTERVAL_SECS seconds
                 self.needs_constant_ping(cur_ts, TimestampDuration::new(UNRELIABLE_PING_INTERVAL_SECS as u64 * 1000000u64))
             }
-            BucketEntryState::Dead => false,
+            BucketEntryState::Dead => {
+                error!("Should not be asking this for dead nodes");
+                false
+            }
         }
     }
 
