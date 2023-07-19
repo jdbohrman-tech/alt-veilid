@@ -546,14 +546,24 @@ impl RoutingTableInner {
                 if !e.exists_in_routing_domain(rti, routing_domain) {
                     return false;
                 }
-                // If this entry needs need a ping then do it
-                if e.needs_ping(cur_ts) {
-                    return true;
+
+                // If we don't have node status for this node, then we should ping it to get some node status
+                if e.has_node_info(routing_domain.into()) {
+                    if e.node_status(routing_domain).is_none() {
+                        return true;
+                    }
                 }
+
                 // If this entry needs a ping because this node hasn't seen our latest node info, then do it
                 if !e.has_seen_our_node_info_ts(routing_domain, own_node_info_ts) {
                     return true;
                 }
+
+                // If this entry needs need a ping by non-routing-domain-specific metrics then do it
+                if e.needs_ping(cur_ts) {
+                    return true;
+                }
+
                 false
             }) {
                 node_refs.push(NodeRef::new(
