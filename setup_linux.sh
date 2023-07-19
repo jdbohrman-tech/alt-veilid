@@ -12,6 +12,11 @@ if [ "$(lsb_release -d | grep -qEi 'debian|buntu|mint')" ]; then
     echo Not a supported Linux
     exit 1
 fi
+while true; do
+read -p "Did you install Android SDK? Y/N " response
+
+case $response in
+	[yY] ) echo Checking android setup...;
 
 # ensure ANDROID_SDK_ROOT is defined and exists
 if [ -d "$ANDROID_SDK_ROOT" ]; then
@@ -68,7 +73,14 @@ else
     echo 'adb is not available in the path'
     exit 1
 fi
+break;;
+[nN] ) echo Skipping android SDK config check...;
+break;;
 
+* ) echo invalid response;;
+
+esac
+done
 # ensure rustup is installed
 if command -v rustup &> /dev/null; then 
     echo '[X] rustup is available in the path'
