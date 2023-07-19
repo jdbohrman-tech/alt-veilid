@@ -404,7 +404,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         else if let Some(node_b_relay) = peer_b.signed_node_info().relay_info() {
 
             // Note that relay_peer_info could be node_a, in which case a connection already exists
-            // and we only get here if the connection had dropped, in which case node_a is unreachable until
+            // and we only get here if the connection had dropped, in which case node_b is unreachable until
             // it gets a new relay connection up
             if peer_b.signed_node_info().relay_ids().contains_any(peer_a.node_ids()) {
                 return ContactMethod::Existing;
@@ -430,10 +430,12 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         }
 
         // If node A can't reach the node by other means, it may need to use its own relay
-        if let Some(node_a_relay_id) = peer_a.signed_node_info().relay_ids().get(best_ck) {
-            // Ensure it's not our relay we're trying to reach
-            if node_a_relay_id != node_b_id {
-                return ContactMethod::OutboundRelay(node_a_relay_id);
+        if peer_a.signed_node_info().node_info().network_class().outbound_wants_relay() {
+            if let Some(node_a_relay_id) = peer_a.signed_node_info().relay_ids().get(best_ck) {
+                // Ensure it's not our relay we're trying to reach
+                if node_a_relay_id != node_b_id {
+                    return ContactMethod::OutboundRelay(node_a_relay_id);
+                }
             }
         }
 
