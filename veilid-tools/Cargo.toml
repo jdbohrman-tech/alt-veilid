@@ -1,9 +1,9 @@
 [package]
 name = "veilid-tools"
-version = "0.1.2"
-authors = ["John Smith <nobody@example.com>"]
+version = "0.1.3"
+authors = ["Veilid Team <contact@veilid.com>"]
+license = "MPL-2.0"
 edition = "2021"
-license = "LGPL-2.0-or-later OR MPL-2.0 OR (MIT AND BSD-3-Clause)"
 
 [lib]
 # staticlib for iOS tests, cydlib for android tests, rlib for everything else
