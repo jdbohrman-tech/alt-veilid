@@ -261,7 +261,7 @@ impl BucketEntryInner {
         // See if we have an existing signed_node_info to update or not
         let mut node_info_changed = false;
         if let Some(current_sni) = opt_current_sni {
-            // Always allow overwriting invalid/unsigned node
+            // Always allow overwriting unsigned node (bootstrap)
             if current_sni.has_any_signature() {
                 // If the timestamp hasn't changed or is less, ignore this update
                 if signed_node_info.timestamp() <= current_sni.timestamp() {
@@ -424,7 +424,7 @@ impl BucketEntryInner {
     }
 
      // Removes a connection descriptor in this entry's table of last connections
-     pub fn clear_last_connection(&mut self, last_connection: ConnectionDescriptor) {
+    pub fn clear_last_connection(&mut self, last_connection: ConnectionDescriptor) {
         let key = self.descriptor_to_key(last_connection);
         self.last_connections
             .remove(&key);

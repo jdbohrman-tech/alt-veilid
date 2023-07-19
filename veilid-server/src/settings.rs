@@ -102,7 +102,7 @@ core:
             set_value_count: 5
             set_value_fanout: 4
             min_peer_count: 20
-            min_peer_refresh_time_ms: 2000
+            min_peer_refresh_time_ms: 60000
             validate_dial_info_receipt_time_ms: 2000
             local_subkey_cache_size: 128
             local_max_subkey_cache_memory_mb: 256
@@ -1620,7 +1620,7 @@ mod tests {
         assert_eq!(s.core.network.dht.set_value_count, 5u32);
         assert_eq!(s.core.network.dht.set_value_fanout, 4u32);
         assert_eq!(s.core.network.dht.min_peer_count, 20u32);
-        assert_eq!(s.core.network.dht.min_peer_refresh_time_ms, 2_000u32);
+        assert_eq!(s.core.network.dht.min_peer_refresh_time_ms, 60_000u32);
         assert_eq!(
             s.core.network.dht.validate_dial_info_receipt_time_ms,
             2_000u32

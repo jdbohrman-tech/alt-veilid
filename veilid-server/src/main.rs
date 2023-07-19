@@ -126,19 +126,21 @@ fn main() -> EyreResult<()> {
     }
 
     // --- Normal Startup ---
+    let orig_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        // invoke the default handler and exit the process
+        orig_hook(panic_info);
+
+        let backtrace = backtrace::Backtrace::new();
+        eprintln!("Backtrace:\n{:?}", backtrace);
+
+        eprintln!("exiting!");
+        std::process::exit(1);
+    }));
+
     let panic_on_shutdown = matches.occurrences_of("panic") != 0;
     ctrlc::set_handler(move || {
         if panic_on_shutdown {
-            let orig_hook = std::panic::take_hook();
-            std::panic::set_hook(Box::new(move |panic_info| {
-                // invoke the default handler and exit the process
-                orig_hook(panic_info);
-
-                let backtrace = backtrace::Backtrace::new();
-                eprintln!("Backtrace:\n{:?}", backtrace);
-
-                std::process::exit(1);
-            }));
             panic!("panic requested");
         } else {
             shutdown();

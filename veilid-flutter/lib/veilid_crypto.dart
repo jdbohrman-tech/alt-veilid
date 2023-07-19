@@ -176,10 +176,18 @@ abstract class VeilidCryptoSystem {
   Future<HashDigest> generateHash(Uint8List data);
   //Future<HashDigest> generateHashReader(Stream<List<int>> reader);
   Future<bool> validateKeyPair(PublicKey key, SecretKey secret);
+  Future<bool> validateKeyPairWithKeyPair(KeyPair keyPair) {
+    return validateKeyPair(keyPair.key, keyPair.secret);
+  }
+
   Future<bool> validateHash(Uint8List data, HashDigest hash);
   //Future<bool> validateHashReader(Stream<List<int>> reader, HashDigest hash);
   Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2);
   Future<Signature> sign(PublicKey key, SecretKey secret, Uint8List data);
+  Future<Signature> signWithKeyPair(KeyPair keyPair, Uint8List data) {
+    return sign(keyPair.key, keyPair.secret, data);
+  }
+
   Future<void> verify(PublicKey key, Uint8List data, Signature signature);
   Future<int> aeadOverhead();
   Future<Uint8List> decryptAead(Uint8List body, Nonce nonce,

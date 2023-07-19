@@ -22,75 +22,98 @@ Future<T> _wrapApiPromise<T>(Object p) {
 }
 
 class _Ctx {
-  final int id;
+  int? id;
   final VeilidJS js;
-  _Ctx(this.id, this.js);
+  _Ctx(int this.id, this.js);
+  void ensureValid() {
+    if (id == null) {
+      throw VeilidAPIExceptionNotInitialized();
+    }
+  }
+
+  void close() {
+    if (id != null) {
+      js_util.callMethod(wasm, "release_routing_context", [id!]);
+      id = null;
+    }
+  }
 }
 
 // JS implementation of VeilidRoutingContext
-class VeilidRoutingContextJS implements VeilidRoutingContext {
+class VeilidRoutingContextJS extends VeilidRoutingContext {
   final _Ctx _ctx;
-  static final Finalizer<_Ctx> _finalizer = Finalizer(
-      (ctx) => js_util.callMethod(wasm, "release_routing_context", [ctx.id]));
+  static final Finalizer<_Ctx> _finalizer = Finalizer((ctx) => ctx.close());
 
   VeilidRoutingContextJS._(this._ctx) {
     _finalizer.attach(this, _ctx, detach: this);
   }
 
   @override
+  void close() {
+    _ctx.close();
+  }
+
+  @override
   VeilidRoutingContextJS withPrivacy() {
+    _ctx.ensureValid();
     int newId =
-        js_util.callMethod(wasm, "routing_context_with_privacy", [_ctx.id]);
+        js_util.callMethod(wasm, "routing_context_with_privacy", [_ctx.id!]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
   @override
   VeilidRoutingContextJS withCustomPrivacy(SafetySelection safetySelection) {
+    _ctx.ensureValid();
     final newId = js_util.callMethod(
         wasm,
         "routing_context_with_custom_privacy",
-        [_ctx.id, jsonEncode(safetySelection)]);
+        [_ctx.id!, jsonEncode(safetySelection)]);
 
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
   @override
   VeilidRoutingContextJS withSequencing(Sequencing sequencing) {
+    _ctx.ensureValid();
     final newId = js_util.callMethod(wasm, "routing_context_with_sequencing",
-        [_ctx.id, jsonEncode(sequencing)]);
+        [_ctx.id!, jsonEncode(sequencing)]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
   @override
   Future<Uint8List> appCall(String target, Uint8List request) async {
+    _ctx.ensureValid();
     var encodedRequest = base64UrlNoPadEncode(request);
 
     return base64UrlNoPadDecode(await _wrapApiPromise(js_util.callMethod(
-        wasm, "routing_context_app_call", [_ctx.id, target, encodedRequest])));
+        wasm, "routing_context_app_call", [_ctx.id!, target, encodedRequest])));
   }
 
   @override
   Future<void> appMessage(String target, Uint8List message) {
+    _ctx.ensureValid();
     var encodedMessage = base64UrlNoPadEncode(message);
 
     return _wrapApiPromise(js_util.callMethod(wasm,
-        "routing_context_app_message", [_ctx.id, target, encodedMessage]));
+        "routing_context_app_message", [_ctx.id!, target, encodedMessage]));
   }
 
   @override
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
       {CryptoKind kind = 0}) async {
+    _ctx.ensureValid();
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, "routing_context_create_dht_record",
-            [_ctx.id, jsonEncode(schema), kind]))));
+            [_ctx.id!, jsonEncode(schema), kind]))));
   }
 
   @override
   Future<DHTRecordDescriptor> openDHTRecord(
       TypedKey key, KeyPair? writer) async {
+    _ctx.ensureValid();
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, "routing_context_open_dht_record", [
-      _ctx.id,
+      _ctx.id!,
       jsonEncode(key),
       writer != null ? jsonEncode(writer) : null
     ]))));
@@ -98,42 +121,47 @@ class VeilidRoutingContextJS implements VeilidRoutingContext {
 
   @override
   Future<void> closeDHTRecord(TypedKey key) {
+    _ctx.ensureValid();
     return _wrapApiPromise(js_util.callMethod(
-        wasm, "routing_context_close_dht_record", [_ctx.id, jsonEncode(key)]));
+        wasm, "routing_context_close_dht_record", [_ctx.id!, jsonEncode(key)]));
   }
 
   @override
   Future<void> deleteDHTRecord(TypedKey key) {
-    return _wrapApiPromise(js_util.callMethod(
-        wasm, "routing_context_delete_dht_record", [_ctx.id, jsonEncode(key)]));
+    _ctx.ensureValid();
+    return _wrapApiPromise(js_util.callMethod(wasm,
+        "routing_context_delete_dht_record", [_ctx.id!, jsonEncode(key)]));
   }
 
   @override
   Future<ValueData?> getDHTValue(
       TypedKey key, int subkey, bool forceRefresh) async {
+    _ctx.ensureValid();
     final opt = await _wrapApiPromise(js_util.callMethod(
         wasm,
         "routing_context_get_dht_value",
-        [_ctx.id, jsonEncode(key), subkey, forceRefresh]));
+        [_ctx.id!, jsonEncode(key), subkey, forceRefresh]));
     return opt == null ? null : ValueData.fromJson(jsonDecode(opt));
   }
 
   @override
   Future<ValueData?> setDHTValue(
       TypedKey key, int subkey, Uint8List data) async {
+    _ctx.ensureValid();
     final opt = await _wrapApiPromise(js_util.callMethod(
         wasm,
         "routing_context_set_dht_value",
-        [_ctx.id, jsonEncode(key), subkey, base64UrlNoPadEncode(data)]));
+        [_ctx.id!, jsonEncode(key), subkey, base64UrlNoPadEncode(data)]));
     return opt == null ? null : ValueData.fromJson(jsonDecode(opt));
   }
 
   @override
   Future<Timestamp> watchDHTValues(TypedKey key, List<ValueSubkeyRange> subkeys,
       Timestamp expiration, int count) async {
+    _ctx.ensureValid();
     final ts = await _wrapApiPromise(js_util.callMethod(
         wasm, "routing_context_watch_dht_values", [
-      _ctx.id,
+      _ctx.id!,
       jsonEncode(key),
       jsonEncode(subkeys),
       expiration.toString(),
@@ -144,15 +172,16 @@ class VeilidRoutingContextJS implements VeilidRoutingContext {
 
   @override
   Future<bool> cancelDHTWatch(TypedKey key, List<ValueSubkeyRange> subkeys) {
+    _ctx.ensureValid();
     return _wrapApiPromise(js_util.callMethod(
         wasm,
         "routing_context_cancel_dht_watch",
-        [_ctx.id, jsonEncode(key), jsonEncode(subkeys)]));
+        [_ctx.id!, jsonEncode(key), jsonEncode(subkeys)]));
   }
 }
 
 // JS implementation of VeilidCryptoSystem
-class VeilidCryptoSystemJS implements VeilidCryptoSystem {
+class VeilidCryptoSystemJS extends VeilidCryptoSystem {
   final CryptoKind _kind;
   final VeilidJS _js;
 
@@ -327,105 +356,146 @@ class VeilidCryptoSystemJS implements VeilidCryptoSystem {
 }
 
 class _TDBT {
-  final int id;
-  VeilidTableDBJS tdbjs;
-  VeilidJS js;
+  int? id;
+  final VeilidTableDBJS tdbjs;
+  final VeilidJS js;
 
   _TDBT(this.id, this.tdbjs, this.js);
+  void ensureValid() {
+    if (id == null) {
+      throw VeilidAPIExceptionNotInitialized();
+    }
+  }
+
+  void close() {
+    if (id != null) {
+      js_util.callMethod(wasm, "release_table_db_transaction", [id!]);
+      id = null;
+    }
+  }
 }
 
 // JS implementation of VeilidTableDBTransaction
 class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
   final _TDBT _tdbt;
-  static final Finalizer<_TDBT> _finalizer = Finalizer((tdbt) =>
-      js_util.callMethod(wasm, "release_table_db_transaction", [tdbt.id]));
+  static final Finalizer<_TDBT> _finalizer = Finalizer((tdbt) => tdbt.close());
 
   VeilidTableDBTransactionJS._(this._tdbt) {
     _finalizer.attach(this, _tdbt, detach: this);
   }
 
   @override
-  Future<void> commit() {
-    return _wrapApiPromise(
-        js_util.callMethod(wasm, "table_db_transaction_commit", [_tdbt.id]));
+  bool isDone() {
+    return _tdbt.id == null;
   }
 
   @override
-  Future<void> rollback() {
-    return _wrapApiPromise(
-        js_util.callMethod(wasm, "table_db_transaction_rollback", [_tdbt.id]));
+  Future<void> commit() async {
+    _tdbt.ensureValid();
+    await _wrapApiPromise(
+        js_util.callMethod(wasm, "table_db_transaction_commit", [_tdbt.id!]));
+    _tdbt.close();
   }
 
   @override
-  Future<void> store(int col, Uint8List key, Uint8List value) {
+  Future<void> rollback() async {
+    _tdbt.ensureValid();
+    await _wrapApiPromise(
+        js_util.callMethod(wasm, "table_db_transaction_rollback", [_tdbt.id!]));
+    _tdbt.close();
+  }
+
+  @override
+  Future<void> store(int col, Uint8List key, Uint8List value) async {
+    _tdbt.ensureValid();
     final encodedKey = base64UrlNoPadEncode(key);
     final encodedValue = base64UrlNoPadEncode(value);
 
-    return _wrapApiPromise(js_util.callMethod(
-        wasm,
-        "table_db_transaction_store",
-        [_tdbt.id, col, encodedKey, encodedValue]));
+    await _wrapApiPromise(js_util.callMethod(wasm, "table_db_transaction_store",
+        [_tdbt.id!, col, encodedKey, encodedValue]));
   }
 
   @override
-  Future<void> delete(int col, Uint8List key) {
+  Future<void> delete(int col, Uint8List key) async {
+    _tdbt.ensureValid();
     final encodedKey = base64UrlNoPadEncode(key);
 
-    return _wrapApiPromise(js_util.callMethod(
-        wasm, "table_db_transaction_delete", [_tdbt.id, col, encodedKey]));
+    await _wrapApiPromise(js_util.callMethod(
+        wasm, "table_db_transaction_delete", [_tdbt.id!, col, encodedKey]));
   }
 }
 
 class _TDB {
-  final int id;
-  VeilidJS js;
+  int? id;
+  final VeilidJS js;
 
-  _TDB(this.id, this.js);
+  _TDB(int this.id, this.js);
+  void ensureValid() {
+    if (id == null) {
+      throw VeilidAPIExceptionNotInitialized();
+    }
+  }
+
+  void close() {
+    if (id != null) {
+      js_util.callMethod(wasm, "release_table_db", [id!]);
+      id = null;
+    }
+  }
 }
 
 // JS implementation of VeilidTableDB
 class VeilidTableDBJS extends VeilidTableDB {
   final _TDB _tdb;
-  static final Finalizer<_TDB> _finalizer = Finalizer(
-      (tdb) => js_util.callMethod(wasm, "release_table_db", [tdb.id]));
+  static final Finalizer<_TDB> _finalizer = Finalizer((tdb) => tdb.close());
 
   VeilidTableDBJS._(this._tdb) {
     _finalizer.attach(this, _tdb, detach: this);
   }
 
   @override
+  void close() {
+    _tdb.close();
+  }
+
+  @override
   int getColumnCount() {
-    return js_util.callMethod(wasm, "table_db_get_column_count", [_tdb.id]);
+    _tdb.ensureValid();
+    return js_util.callMethod(wasm, "table_db_get_column_count", [_tdb.id!]);
   }
 
   @override
   Future<List<Uint8List>> getKeys(int col) async {
+    _tdb.ensureValid();
     return jsonListConstructor(base64UrlNoPadDecodeDynamic)(jsonDecode(
-        await js_util.callMethod(wasm, "table_db_get_keys", [_tdb.id, col])));
+        await js_util.callMethod(wasm, "table_db_get_keys", [_tdb.id!, col])));
   }
 
   @override
   VeilidTableDBTransaction transact() {
-    final id = js_util.callMethod(wasm, "table_db_transact", [_tdb.id]);
+    _tdb.ensureValid();
+    final id = js_util.callMethod(wasm, "table_db_transact", [_tdb.id!]);
 
     return VeilidTableDBTransactionJS._(_TDBT(id, this, _tdb.js));
   }
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
+    _tdb.ensureValid();
     final encodedKey = base64UrlNoPadEncode(key);
     final encodedValue = base64UrlNoPadEncode(value);
 
     return _wrapApiPromise(js_util.callMethod(
-        wasm, "table_db_store", [_tdb.id, col, encodedKey, encodedValue]));
+        wasm, "table_db_store", [_tdb.id!, col, encodedKey, encodedValue]));
   }
 
   @override
   Future<Uint8List?> load(int col, Uint8List key) async {
+    _tdb.ensureValid();
     final encodedKey = base64UrlNoPadEncode(key);
 
     String? out = await _wrapApiPromise(
-        js_util.callMethod(wasm, "table_db_load", [_tdb.id, col, encodedKey]));
+        js_util.callMethod(wasm, "table_db_load", [_tdb.id!, col, encodedKey]));
     if (out == null) {
       return null;
     }
@@ -434,16 +504,17 @@ class VeilidTableDBJS extends VeilidTableDB {
 
   @override
   Future<Uint8List?> delete(int col, Uint8List key) {
+    _tdb.ensureValid();
     final encodedKey = base64UrlNoPadEncode(key);
 
     return _wrapApiPromise(js_util
-        .callMethod(wasm, "table_db_delete", [_tdb.id, col, encodedKey]));
+        .callMethod(wasm, "table_db_delete", [_tdb.id!, col, encodedKey]));
   }
 }
 
 // JS implementation of high level Veilid API
 
-class VeilidJS implements Veilid {
+class VeilidJS extends Veilid {
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
     var platformConfigJsonString = jsonEncode(platformConfigJson);
