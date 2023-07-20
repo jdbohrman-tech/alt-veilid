@@ -103,7 +103,7 @@ impl NetworkManager {
         target_node_ref: NodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataKind>> {
-        // First try to send data to the last socket we've seen this peer on
+        // First try to send data to the last connection we've seen this peer on
         let Some(connection_descriptor) = target_node_ref.last_connection() else {
             return Ok(NetworkResult::no_connection_other(
                 format!("should have found an existing connection: {}", target_node_ref)
@@ -149,7 +149,7 @@ impl NetworkManager {
             .is_some()
         {
             return Ok(NetworkResult::no_connection_other(
-                format!("failed to send to existing connection: {:?}", connection_descriptor)
+                format!("failed to send to unreachable node over existing connection: {:?}", connection_descriptor)
             ));
         }
 

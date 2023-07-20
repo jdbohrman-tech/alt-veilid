@@ -43,12 +43,24 @@ impl RoutingTable {
             .set_relay_node_keepalive(Some(cur_ts))
             .commit();
 
+        // We need to keep-alive at one connection per ordering for relays
+        // but also one per NAT mapping that we need to keep open for our inbound dial info
+        let mut got_unordered = false;
+        let mut got_ordered = false;
+
         // Look up any NAT mappings we may need to try to preserve with keepalives
         let mut mapped_port_info = self.get_low_level_port_info();
 
         // Relay nodes get pinged over all protocols we have inbound dialinfo for
         // This is so we can preserve the inbound NAT mappings at our router
+        let mut relay_noderefs = vec![];
         for did in &dids {
+            // Can skip the ones that are direct, those are not mapped or natted
+            // because we can have both direct and natted dialinfo on the same
+            // node, for example ipv4 can be natted, while ipv6 is direct
+            if did.class == DialInfoClass::Direct {
+                continue;
+            }
             // Do we need to do this ping?
             // Check if we have already pinged over this low-level-protocol/address-type/port combo
             // We want to ensure we do the bare minimum required here
@@ -62,16 +74,35 @@ impl RoutingTable {
                 } else {
                     false
                 };
-            if !needs_ping_for_protocol {
-                continue;
+            if needs_ping_for_protocol {
+                if pt.is_ordered() {
+                    got_ordered = true;
+                } else {
+                    got_unordered = true;
+                }
+                let dif = did.dial_info.make_filter();
+                let relay_nr_filtered =
+                    relay_nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
+                relay_noderefs.push(relay_nr_filtered);
             }
+        }
+        // Add noderef filters for ordered or unordered sequencing if we havent already seen those
+        if !got_ordered {
+            let (_, nrf) = NodeRefFilter::new().with_sequencing(Sequencing::EnsureOrdered);
+            let mut relay_nr_filtered = relay_nr.filtered_clone(nrf);
+            relay_nr_filtered.set_sequencing(Sequencing::EnsureOrdered);
+            relay_noderefs.push(relay_nr_filtered);
+        }
+        if !got_unordered {
+            relay_noderefs.push(relay_nr);
+        }
 
+        for relay_nr_filtered in relay_noderefs {
             let rpc = rpc.clone();
-            let dif = did.dial_info.make_filter();
-            let relay_nr_filtered =
-                relay_nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
 
-            //#[cfg(feature = "network-result-extra")]
+            #[cfg(feature = "network-result-extra")]
+            log_rtab!(debug "--> Keepalive ping to {:?}", relay_nr_filtered);
+            #[cfg(not(feature = "network-result-extra"))]
             log_rtab!("--> Keepalive ping to {:?}", relay_nr_filtered);
 
             unord.push(
