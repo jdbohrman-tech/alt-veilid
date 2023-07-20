@@ -1046,11 +1046,17 @@ impl NetworkManager {
             };
 
             if let Some(relay_nr) = some_relay_nr {
-                // Ensure the protocol is forwarded exactly as is
+                // Ensure the protocol used to forward is of the same sequencing requirement
                 // Address type is allowed to change if connectivity is better
-                let relay_nr = relay_nr.filtered_clone(
-                    NodeRefFilter::new().with_protocol_type(connection_descriptor.protocol_type()),
-                );
+                let relay_nr = if connection_descriptor.protocol_type().is_ordered() {
+                    // XXX: this is a little redundant
+                    let (_, nrf) = NodeRefFilter::new().with_sequencing(Sequencing::EnsureOrdered);
+                    let mut relay_nr = relay_nr.filtered_clone(nrf);
+                    relay_nr.set_sequencing(Sequencing::EnsureOrdered);
+                    relay_nr
+                } else {
+                    relay_nr
+                };
 
                 // Relay the packet to the desired destination
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
