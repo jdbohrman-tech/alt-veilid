@@ -116,6 +116,9 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
+                #[cfg(feature="network-result-extra")]
+                log_stor!(debug "SetValue fanout call returned peers {}", sva.answer.peers.len());
+
                 Ok(Some(sva.answer.peers))
             }
         };
@@ -137,6 +140,7 @@ impl StorageManager {
             key_count,
             fanout,
             timeout_us,
+            capability_fanout_node_info_filter(vec![CAP_DHT]),
             call_routine,
             check_done,
         );
