@@ -18,7 +18,8 @@ use storage_manager_inner::*;
 pub use types::*;
 
 use super::*;
-use crate::rpc_processor::*;
+use routing_table::*;
+use rpc_processor::*;
 
 /// The maximum size of a single subkey
 const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;

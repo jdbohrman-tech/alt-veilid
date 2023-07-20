@@ -510,6 +510,7 @@ impl RPCProcessor {
             count,
             fanout,
             timeout_us,
+            empty_fanout_node_info_filter(),
             call_routine,
             check_done,
         );
