@@ -344,9 +344,9 @@ impl NetworkInterfaces {
         let mut last_interfaces = {
             let mut last_interfaces = BTreeMap::<String, NetworkInterface>::new();
             let mut platform_support = PlatformSupport::new()?;
-            platform_support
-                .get_interfaces(&mut last_interfaces)
-                .await?;
+            if let Err(e) = platform_support.get_interfaces(&mut last_interfaces).await {
+                debug!("no network interfaces are enabled: {}", e);
+            }
             last_interfaces
         };
 
