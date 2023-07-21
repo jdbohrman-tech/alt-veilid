@@ -207,6 +207,11 @@ impl Receipt {
     pub fn get_sender_id(&self) -> PublicKey {
         self.sender_id
     }
+
+    pub fn get_sender_typed_id(&self) -> TypedKey {
+        TypedKey::new(self.crypto_kind, self.sender_id)
+    }
+
     pub fn get_extra_data(&self) -> &[u8] {
         &self.extra_data
     }

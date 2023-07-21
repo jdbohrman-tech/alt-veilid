@@ -21,6 +21,8 @@ String cryptoKindToString(CryptoKind kind) {
   return "${String.fromCharCode(kind & 0xFF)}${String.fromCharCode((kind >> 8) & 0xFF)}${String.fromCharCode((kind >> 16) & 0xFF)}${String.fromCharCode((kind >> 24) & 0xFF)}";
 }
 
+const CryptoKind bestCryptoKind = cryptoKindVLD0;
+
 Uint8List cryptoKindToBytes(CryptoKind kind) {
   var b = Uint8List(4);
   b[0] = kind & 0xFF;
@@ -140,6 +142,8 @@ class TypedKeyPair extends Equatable {
   String toJson() => toString();
   factory TypedKeyPair.fromJson(dynamic json) =>
       TypedKeyPair.fromString(json as String);
+  factory TypedKeyPair.fromKeyPair(CryptoKind kind, KeyPair keyPair) =>
+      TypedKeyPair(kind: kind, key: keyPair.key, secret: keyPair.secret);
 }
 
 typedef CryptoKey = FixedEncodedString43;

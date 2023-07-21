@@ -126,17 +126,9 @@ impl RPCMessageHeader {
     }
     pub fn direct_sender_node_id(&self) -> TypedKey {
         match &self.detail {
-            RPCMessageHeaderDetail::Direct(d) => {
-                TypedKey::new(d.envelope.get_crypto_kind(), d.envelope.get_sender_id())
-            }
-            RPCMessageHeaderDetail::SafetyRouted(s) => TypedKey::new(
-                s.direct.envelope.get_crypto_kind(),
-                s.direct.envelope.get_sender_id(),
-            ),
-            RPCMessageHeaderDetail::PrivateRouted(p) => TypedKey::new(
-                p.direct.envelope.get_crypto_kind(),
-                p.direct.envelope.get_sender_id(),
-            ),
+            RPCMessageHeaderDetail::Direct(d) => d.envelope.get_sender_typed_id(),
+            RPCMessageHeaderDetail::SafetyRouted(s) => s.direct.envelope.get_sender_typed_id(),
+            RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.envelope.get_sender_typed_id(),
         }
     }
 }
@@ -1464,10 +1456,7 @@ impl RPCProcessor {
         let msg = match &encoded_msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
                 // Get sender node id
-                let sender_node_id = TypedKey::new(
-                    detail.envelope.get_crypto_kind(),
-                    detail.envelope.get_sender_id(),
-                );
+                let sender_node_id = detail.envelope.get_sender_typed_id();
 
                 // Decode and validate the RPC operation
                 let operation = match self.decode_rpc_operation(&encoded_msg) {

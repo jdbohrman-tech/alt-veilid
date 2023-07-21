@@ -91,6 +91,13 @@ extension DHTRecordDescriptorExt on DHTRecordDescriptor {
     }
     return KeyPair(key: owner, secret: ownerSecret!);
   }
+
+  TypedKeyPair? ownerTypedKeyPair() {
+    if (ownerSecret == null) {
+      return null;
+    }
+    return TypedKeyPair(kind: key.kind, key: owner, secret: ownerSecret!);
+  }
 }
 
 //////////////////////////////////////

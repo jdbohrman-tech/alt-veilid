@@ -954,6 +954,7 @@ impl NetworkManager {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(debug "envelope failed to decode: {}", e);
+                    // safe to punish here because relays also check here to ensure they arent forwarding things that don't decode
                     self.address_filter().punish_ip_addr(remote_addr);
                     return Ok(false);
                 }
@@ -1005,12 +1006,12 @@ impl NetworkManager {
 
         // Peek at header and see if we need to relay this
         // If the recipient id is not our node id, then it needs relaying
-        let sender_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id());
+        let sender_id = envelope.get_sender_typed_id();
         if self.address_filter().is_node_id_punished(sender_id) {
             return Ok(false);
         }
 
-        let recipient_id = TypedKey::new(envelope.get_crypto_kind(), envelope.get_recipient_id());
+        let recipient_id = envelope.get_recipient_typed_id();
         if !routing_table.matches_own_node_id(&[recipient_id]) {
             // See if the source node is allowed to resolve nodes
             // This is a costly operation, so only outbound-relay permitted
@@ -1089,15 +1090,18 @@ impl NetworkManager {
         ) {
             Ok(v) => v,
             Err(e) => {
-                log_net!(debug "failed to decrypt envelope body: {}",e);
-                self.address_filter().punish_ip_addr(remote_addr);
+                log_net!(debug "failed to decrypt envelope body: {}", e);
+                // Can't punish by ip address here because relaying can't decrypt envelope bodies to check
+                // But because the envelope was properly signed by the time it gets here, it is safe to
+                // punish by node id
+                self.address_filter().punish_node_id(sender_id);
                 return Ok(false);
             }
         };
 
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
-            TypedKey::new(envelope.get_crypto_kind(), envelope.get_sender_id()),
+            envelope.get_sender_typed_id(),
             connection_descriptor,
             ts,
         ) {
