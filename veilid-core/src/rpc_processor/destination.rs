@@ -319,10 +319,7 @@ impl RPCProcessor {
                 };
 
                 // Reply directly to the request's source
-                let sender_node_id = TypedKey::new(
-                    detail.envelope.get_crypto_kind(),
-                    detail.envelope.get_sender_id(),
-                );
+                let sender_node_id = detail.envelope.get_sender_typed_id();
 
                 // This may be a different node's reference than the 'sender' in the case of a relay
                 let peer_noderef = detail.peer_noderef.clone();

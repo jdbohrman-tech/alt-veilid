@@ -104,10 +104,7 @@ impl RPCProcessor {
             // We filter on the -outgoing- protocol capability status not the node's dial info
             // Use the address type though, to ensure we reach an ipv6 capable node if this is
             // an ipv6 address
-            let sender_node_id = TypedKey::new(
-                detail.envelope.get_crypto_kind(),
-                detail.envelope.get_sender_id(),
-            );
+            let sender_node_id = detail.envelope.get_sender_typed_id();
             let routing_domain = detail.routing_domain;
             let node_count = {
                 let c = self.config.get();

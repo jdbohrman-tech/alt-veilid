@@ -84,6 +84,22 @@ class DHTRecordDescriptor with _$DHTRecordDescriptor {
       _$DHTRecordDescriptorFromJson(json);
 }
 
+extension DHTRecordDescriptorExt on DHTRecordDescriptor {
+  KeyPair? ownerKeyPair() {
+    if (ownerSecret == null) {
+      return null;
+    }
+    return KeyPair(key: owner, secret: ownerSecret!);
+  }
+
+  TypedKeyPair? ownerTypedKeyPair() {
+    if (ownerSecret == null) {
+      return null;
+    }
+    return TypedKeyPair(kind: key.kind, key: owner, secret: ownerSecret!);
+  }
+}
+
 //////////////////////////////////////
 /// ValueSubkeyRange
 
