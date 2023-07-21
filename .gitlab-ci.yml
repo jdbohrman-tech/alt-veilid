@@ -25,10 +25,23 @@ test_amd64:
     - earthly --ci +unit-tests-linux-amd64
   when: manual
 
+create_build_machines:
+  stage: build_packages
+  only:
+    - stable
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
+    - /home/gitlab-runner/build-machine-ctl.sh create arm64-deb
+    - /home/gitlab-runner/build-machine-ctl.sh create amd64-rpm
+
 package_amd64_deb:
   stage: build_packages
   only:
     - stable
+  needs:
+    - create_build_machines
   tags:
     - build-amd64-deb
   script:
@@ -40,6 +53,8 @@ package_arm64_deb:
   stage: build_packages
   only:
     - stable
+  needs:
+    - create_build_machines
   tags:
     - build-arm64-deb
   script:
@@ -51,6 +66,8 @@ package_amd64_rpm:
   stage: build_packages
   only:
     - stable
+  needs:
+    - create_build_machines
   tags:
     - build-amd64-rpm
   script:
@@ -78,4 +95,13 @@ deploy_repos:
   script: 
     - /home/gitlab-runner/deploy-repo.sh
 
-#Note so merge works
+delete_build_machines:
+  stage: distribute
+  only:
+    - stable
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
+    - /home/gitlab-runner/build-machine-ctl.sh delete arm64-deb
+    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-rpm
