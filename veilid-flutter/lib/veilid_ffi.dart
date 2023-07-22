@@ -338,8 +338,9 @@ Future<T> processFuturePlain<T>(Future<dynamic> future) {
     switch (list[0] as int) {
       case messageOk:
         {
-          if (list[1] == null) {
-            throw VeilidAPIExceptionInternal("Null MESSAGE_OK value");
+          if (list[1] == null && null is! T) {
+            throw const VeilidAPIExceptionInternal(
+                "Null MESSAGE_OK value on non-nullable type");
           }
           return list[1] as T;
         }
@@ -377,10 +378,15 @@ Future<T> processFutureJson<T>(
         }
       case messageOkJson:
         {
-          if (list[1] == null) {
-            throw VeilidAPIExceptionInternal("Null MESSAGE_OK_JSON value");
+          if (list[1] is! String) {
+            throw const VeilidAPIExceptionInternal(
+                "Non-string MESSAGE_OK_JSON value");
           }
           var ret = jsonDecode(list[1] as String);
+          if (ret == null) {
+            throw const VeilidAPIExceptionInternal(
+                "Null JSON object on non nullable type");
+          }
           return jsonConstructor(ret);
         }
       case messageErrJson:
@@ -416,7 +422,14 @@ Future<T?> processFutureOptJson<T>(
           if (list[1] == null) {
             return null;
           }
+          if (list[1] is! String) {
+            throw const VeilidAPIExceptionInternal(
+                "Non-string MESSAGE_OK_JSON optional value");
+          }
           var ret = jsonDecode(list[1] as String);
+          if (ret == null) {
+            return null;
+          }
           return jsonConstructor(ret);
         }
       case messageErrJson:
