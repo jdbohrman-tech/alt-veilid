@@ -1,6 +1,6 @@
 [package]
 name = "veilid-core"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
 build = "build.rs"

@@ -1,3 +1,7 @@
+**Changes in Veilid 0.1.6**
+
+- Fix for 'find_node' too many nodes returned issue
+
 **Changes in Veilid 0.1.5**
 
 - Added Changelog 
