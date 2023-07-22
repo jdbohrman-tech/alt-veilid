@@ -1,6 +1,6 @@
 [package]
 name = "veilid-flutter"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"
