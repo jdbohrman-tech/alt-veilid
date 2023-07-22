@@ -1054,8 +1054,8 @@ impl RoutingTableInner {
         nodes.sort_by(|a, b| compare(self, a, b));
 
         // return transformed vector for filtered+sorted nodes
-        let cnt = usize::min(node_count, nodes.len());
-        let mut out = Vec::<O>::with_capacity(cnt);
+        nodes.truncate(node_count);
+        let mut out = Vec::<O>::with_capacity(nodes.len());
         for node in nodes {
             let val = transform(self, node);
             out.push(val);

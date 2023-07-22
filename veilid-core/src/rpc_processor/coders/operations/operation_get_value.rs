@@ -89,7 +89,9 @@ impl RPCOperationGetValueA {
         descriptor: Option<SignedValueDescriptor>,
     ) -> Result<Self, RPCError> {
         if peers.len() > MAX_GET_VALUE_A_PEERS_LEN {
-            return Err(RPCError::protocol("GetValueA peers length too long"));
+            return Err(RPCError::protocol(
+                "encoded GetValueA peers length too long",
+            ));
         }
         Ok(Self {
             value,
@@ -175,7 +177,9 @@ impl RPCOperationGetValueA {
 
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
         if peers_reader.len() as usize > MAX_GET_VALUE_A_PEERS_LEN {
-            return Err(RPCError::protocol("GetValueA peers length too long"));
+            return Err(RPCError::protocol(
+                "decoded GetValueA peers length too long",
+            ));
         }
         let mut peers = Vec::<PeerInfo>::with_capacity(
             peers_reader
