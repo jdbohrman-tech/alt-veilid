@@ -21,6 +21,7 @@ create_test_machine:
     - build-orchestration
   script:
     - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
+  when: manual
 
 test_amd64:
   stage: test
@@ -28,12 +29,13 @@ test_amd64:
   only:
     - main
     - merge_requests
+  needs:
+    - create-test-machine
   tags:
-    - build-server
+    - earthly-tests
   script:
     - earthly bootstrap
     - earthly --ci +unit-tests-linux-amd64
-  when: manual
 
 delete_test_machine:
   stage: test
