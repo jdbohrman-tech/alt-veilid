@@ -2,9 +2,18 @@ from enum import StrEnum
 from typing import Optional, Self
 
 from .config import VeilidConfig
-from .types import (ByteCount, RouteId, Timestamp, TimestampDuration, TypedKey,
-                    ValueData, ValueSubkey, VeilidLogLevel, OperationId,
-                    urlsafe_b64decode_no_pad)
+from .types import (
+    ByteCount,
+    RouteId,
+    Timestamp,
+    TimestampDuration,
+    TypedKey,
+    ValueData,
+    ValueSubkey,
+    VeilidLogLevel,
+    OperationId,
+    urlsafe_b64decode_no_pad,
+)
 
 
 class AttachmentState(StrEnum):
@@ -200,9 +209,7 @@ class PeerTableData:
     @classmethod
     def from_json(cls, j: dict) -> Self:
         """JSON object hook"""
-        return cls(
-            j["node_ids"], j["peer_address"], PeerStats.from_json(j["peer_stats"])
-        )
+        return cls(j["node_ids"], j["peer_address"], PeerStats.from_json(j["peer_stats"]))
 
 
 class VeilidStateNetwork:
@@ -276,9 +283,7 @@ class VeilidLog:
     message: str
     backtrace: Optional[str]
 
-    def __init__(
-        self, log_level: VeilidLogLevel, message: str, backtrace: Optional[str]
-    ):
+    def __init__(self, log_level: VeilidLogLevel, message: str, backtrace: Optional[str]):
         self.log_level = log_level
         self.message = message
         self.backtrace = backtrace
@@ -349,9 +354,7 @@ class VeilidValueChange:
     count: int
     value: ValueData
 
-    def __init__(
-        self, key: TypedKey, subkeys: list[ValueSubkey], count: int, value: ValueData
-    ):
+    def __init__(self, key: TypedKey, subkeys: list[ValueSubkey], count: int, value: ValueData):
         self.key = key
         self.subkeys = subkeys
         self.count = count

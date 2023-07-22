@@ -1,8 +1,8 @@
 import base64
 import json
 from enum import StrEnum
-from typing import Any, Optional, Self, Tuple
 from functools import total_ordering
+from typing import Any, Optional, Self, Tuple
 
 ####################################################################
 
@@ -82,6 +82,7 @@ class DHTSchemaKind(StrEnum):
 class SafetySelectionKind(StrEnum):
     UNSAFE = "Unsafe"
     SAFE = "Safe"
+
 
 ####################################################################
 
@@ -249,7 +250,12 @@ class VeilidVersion:
         return False
 
     def __eq__(self, other):
-        return isinstance(other, VeilidVersion) and self.data == other.data and self.seq == other.seq and self.writer == other.writer
+        return (
+            isinstance(other, VeilidVersion)
+            and self.data == other.data
+            and self.seq == other.seq
+            and self.writer == other.writer
+        )
 
     @property
     def major(self):
@@ -319,8 +325,7 @@ class DHTSchema:
         if DHTSchemaKind(j["kind"]) == DHTSchemaKind.SMPL:
             return cls.smpl(
                 j["o_cnt"],
-                [DHTSchemaSMPLMember.from_json(member)
-                 for member in j["members"]],
+                [DHTSchemaSMPLMember.from_json(member) for member in j["members"]],
             )
         raise Exception("Unknown DHTSchema kind", j["kind"])
 
@@ -351,8 +356,7 @@ class DHTRecordDescriptor:
         return cls(
             TypedKey(j["key"]),
             PublicKey(j["owner"]),
-            None if j["owner_secret"] is None else SecretKey(
-                j["owner_secret"]),
+            None if j["owner_secret"] is None else SecretKey(j["owner_secret"]),
             DHTSchema.from_json(j["schema"]),
         )
 
@@ -387,7 +391,12 @@ class ValueData:
         return False
 
     def __eq__(self, other):
-        return isinstance(other, ValueData) and self.data == other.data and self.seq == other.seq and self.writer == other.writer
+        return (
+            isinstance(other, ValueData)
+            and self.data == other.data
+            and self.seq == other.seq
+            and self.writer == other.writer
+        )
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
@@ -403,13 +412,20 @@ class ValueData:
 
 ####################################################################
 
+
 class SafetySpec:
     preferred_route: Optional[RouteId]
     hop_count: int
     stability: Stability
     sequencing: Sequencing
 
-    def __init__(self, preferred_route: Optional[RouteId], hop_count: int, stability: Stability, sequencing: Sequencing):
+    def __init__(
+        self,
+        preferred_route: Optional[RouteId],
+        hop_count: int,
+        stability: Stability,
+        sequencing: Sequencing,
+    ):
         self.preferred_route = preferred_route
         self.hop_count = hop_count
         self.stability = stability
@@ -417,10 +433,12 @@ class SafetySpec:
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
-        return cls(RouteId(j["preferred_route"]) if "preferred_route" in j else None,
-                   j["hop_count"],
-                   Stability(j["stability"]),
-                   Sequencing(j["sequencing"]))
+        return cls(
+            RouteId(j["preferred_route"]) if "preferred_route" in j else None,
+            j["hop_count"],
+            Stability(j["stability"]),
+            Sequencing(j["sequencing"]),
+        )
 
     def to_json(self) -> dict:
         return self.__dict__
