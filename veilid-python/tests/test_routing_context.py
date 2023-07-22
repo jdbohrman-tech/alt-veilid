@@ -143,14 +143,12 @@ async def test_routing_context_app_call_loopback():
 async def test_routing_context_app_message_loopback_big_packets():
     app_message_queue: asyncio.Queue = asyncio.Queue()
 
-    global got_message
-    got_message = 0
+    count_hack = [0]
 
     async def app_message_queue_update_callback(update: veilid.VeilidUpdate):
         if update.kind == veilid.VeilidUpdateKind.APP_MESSAGE:
-            global got_message
-            got_message += 1
-            sys.stdout.write("{} ".format(got_message))
+            count_hack[0] += 1
+            print(f"{count_hack[0]} ", end="")
             await app_message_queue.put(update)
 
     sent_messages: set[bytes] = set()
@@ -198,8 +196,7 @@ async def test_routing_context_app_message_loopback_big_packets():
 
 @pytest.mark.asyncio
 async def test_routing_context_app_call_loopback_big_packets():
-    global got_message
-    got_message = 0
+    count_hack = [0]
 
     app_call_queue: asyncio.Queue = asyncio.Queue()
 
@@ -211,11 +208,8 @@ async def test_routing_context_app_call_loopback_big_packets():
         while True:
             update = await app_call_queue.get()
 
-            global got_message
-            got_message += 1
-
-            sys.stdout.write("{} ".format(got_message))
-            sys.stdout.flush()
+            count_hack[0] += 1
+            print(f"{count_hack[0]} ", end="", flush=True)
 
             await api.app_call_reply(update.detail.call_id, update.detail.message)
 
