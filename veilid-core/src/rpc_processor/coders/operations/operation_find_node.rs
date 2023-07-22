@@ -81,7 +81,9 @@ pub struct RPCOperationFindNodeA {
 impl RPCOperationFindNodeA {
     pub fn new(peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
         if peers.len() > MAX_FIND_NODE_A_PEERS_LEN {
-            return Err(RPCError::protocol("find node peers length too long"));
+            return Err(RPCError::protocol(
+                "encoded find node peers length too long",
+            ));
         }
 
         Ok(Self { peers })
@@ -106,7 +108,9 @@ impl RPCOperationFindNodeA {
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
 
         if peers_reader.len() as usize > MAX_FIND_NODE_A_PEERS_LEN {
-            return Err(RPCError::protocol("find node peers length too long"));
+            return Err(RPCError::protocol(
+                "decoded find node peers length too long",
+            ));
         }
 
         let mut peers = Vec::<PeerInfo>::with_capacity(
