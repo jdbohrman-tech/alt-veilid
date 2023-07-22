@@ -30,7 +30,7 @@ test_amd64:
     - main
     - merge_requests
   needs:
-    - create-test-machine
+    - create_test_machine
   tags:
     - earthly-tests
   script:
