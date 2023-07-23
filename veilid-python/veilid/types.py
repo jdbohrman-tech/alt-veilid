@@ -351,6 +351,9 @@ class DHTRecordDescriptor:
         self.owner_secret = owner_secret
         self.schema = schema
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}(key={self.key!r})>"
+
     @classmethod
     def from_json(cls, j: dict) -> Self:
         return cls(
@@ -374,6 +377,9 @@ class ValueData:
         self.seq = seq
         self.data = data
         self.writer = writer
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}(seq={self.seq!r}, data={self.data!r}, writer={self.writer!r})>"
 
     def __lt__(self, other):
         if other is None:
