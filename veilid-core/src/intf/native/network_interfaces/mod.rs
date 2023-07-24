@@ -395,10 +395,16 @@ impl NetworkInterfaces {
                 continue;
             }
             if let Some(pipv4) = intf.primary_ipv4() {
-                intf_addrs.push(pipv4);
+                // Skip temporary addresses because they're going to change
+                if !pipv4.is_temporary() {
+                    intf_addrs.push(pipv4);
+                }
             }
             if let Some(pipv6) = intf.primary_ipv6() {
-                intf_addrs.push(pipv6);
+                // Skip temporary addresses because they're going to change
+                if !pipv6.is_temporary() {
+                    intf_addrs.push(pipv6);
+                }
             }
         }
 
