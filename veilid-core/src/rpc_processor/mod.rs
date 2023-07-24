@@ -1678,7 +1678,10 @@ impl RPCProcessor {
 
         let send_channel = {
             let inner = self.inner.lock();
-            inner.send_channel.as_ref().unwrap().clone()
+            let Some(send_channel) = inner.send_channel.as_ref().cloned() else {
+                bail!("send channel is closed");
+            };
+            send_channel
         };
         let span_id = Span::current().id();
         send_channel
@@ -1714,7 +1717,10 @@ impl RPCProcessor {
         };
         let send_channel = {
             let inner = self.inner.lock();
-            inner.send_channel.as_ref().unwrap().clone()
+            let Some(send_channel) = inner.send_channel.as_ref().cloned() else {
+                bail!("send channel is closed");
+            };
+            send_channel
         };
         let span_id = Span::current().id();
         send_channel
@@ -1753,7 +1759,10 @@ impl RPCProcessor {
 
         let send_channel = {
             let inner = self.inner.lock();
-            inner.send_channel.as_ref().unwrap().clone()
+            let Some(send_channel) = inner.send_channel.as_ref().cloned() else {
+                bail!("send channel is closed");
+            };
+            send_channel
         };
         let span_id = Span::current().id();
         send_channel
