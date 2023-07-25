@@ -62,11 +62,17 @@ async def start():
         await rc.delete_dht_record(rec.key)
 
 
-async def respond(key, writer):
+async def respond(key):
     conn = await veilid.json_api_connect("localhost", 5959, cb)
 
     rc = await conn.new_routing_context()
     async with rc:
+        try:
+            await rc.open_dht_record(key, None)
+        except veilid.error.VeilidAPIErrorGeneric as exc:
+            if exc.message != 'record is already open and should be closed first':
+                raise
+
         await chatter(rc, key, 1, 0)
 
 
@@ -83,7 +89,7 @@ if __name__ == "__main__":
     if sys.argv[1] == "--start":
         func = start()
     elif sys.argv[1] == "--respond":
-        func = respond(sys.argv[2], sys.argv[3])
+        func = respond(sys.argv[2])
     elif sys.argv[1] == "--clean":
         func = clean(sys.argv[2])
     else:
