@@ -368,7 +368,7 @@ Future<T> processFuturePlain<T>(Future<dynamic> future) {
 }
 
 Future<T> processFutureJson<T>(
-    T Function(Map<String, dynamic>) jsonConstructor, Future<dynamic> future) {
+    T Function(dynamic) jsonConstructor, Future<dynamic> future) {
   return future.then((value) {
     final list = value as List<dynamic>;
     switch (list[0] as int) {
@@ -541,7 +541,7 @@ Future<Stream<T>> processFutureStream<T>(
 }
 
 Stream<T> processStreamJson<T>(
-    T Function(Map<String, dynamic>) jsonConstructor, ReceivePort port) async* {
+    T Function(dynamic) jsonConstructor, ReceivePort port) async* {
   try {
     await for (var value in port) {
       final list = value as List<dynamic>;
@@ -688,7 +688,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeWriter =
-        writer != null ? jsonEncode(key).toNativeUtf8() : nullptr;
+        writer != null ? jsonEncode(writer).toNativeUtf8() : nullptr;
     final recvPort = ReceivePort("routing_context_open_dht_record");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextOpenDHTRecord(
@@ -729,7 +729,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextGetDHTValue(
         sendPort.nativePort, _ctx.id!, nativeKey, subkey, forceRefresh);
-    final valueData = await processFutureJson(
+    final valueData = await processFutureOptJson(
         optFromJson(ValueData.fromJson), recvPort.first);
     return valueData;
   }
@@ -745,7 +745,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextSetDHTValue(
         sendPort.nativePort, _ctx.id!, nativeKey, subkey, nativeData);
-    final valueData = await processFutureJson(
+    final valueData = await processFutureOptJson(
         optFromJson(ValueData.fromJson), recvPort.first);
     return valueData;
   }
@@ -1651,8 +1651,8 @@ class VeilidFFI extends Veilid {
   }
 
   @override
-  Future<void> appCallReply(String call_id, Uint8List message) {
-    final nativeCallId = call_id.toNativeUtf8();
+  Future<void> appCallReply(String callId, Uint8List message) {
+    final nativeCallId = callId.toNativeUtf8();
     final nativeEncodedMessage = base64UrlNoPadEncode(message).toNativeUtf8();
     final recvPort = ReceivePort("app_call_reply");
     final sendPort = recvPort.sendPort;
@@ -1681,15 +1681,15 @@ class VeilidFFI extends Veilid {
   @override
   List<CryptoKind> validCryptoKinds() {
     final vckString = _validCryptoKinds();
-    final vck = jsonDecode(vckString.toDartString());
+    final vck = jsonDecode(vckString.toDartString()) as List<dynamic>;
     _freeString(vckString);
-    return vck;
+    return vck.map((v) => v as CryptoKind).toList();
   }
 
   @override
   Future<VeilidCryptoSystem> getCryptoSystem(CryptoKind kind) async {
     if (!validCryptoKinds().contains(kind)) {
-      throw VeilidAPIExceptionGeneric("unsupported cryptosystem");
+      throw const VeilidAPIExceptionGeneric("unsupported cryptosystem");
     }
     return VeilidCryptoSystemFFI._(this, kind);
   }

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:system_info2/system_info2.dart' as sysinfo;
+import 'package:system_info_plus/system_info_plus.dart';
 import 'veilid.dart';
 
 const int megaByte = 1024 * 1024;
@@ -13,9 +16,12 @@ int getLocalSubkeyCacheSize() {
   return 1024;
 }
 
-int getLocalMaxSubkeyCacheMemoryMb() {
+Future<int> getLocalMaxSubkeyCacheMemoryMb() async {
   if (kIsWeb) {
     return 256;
+  }
+  if (Platform.isIOS || Platform.isAndroid) {
+    return (await SystemInfoPlus.physicalMemory ?? 2048) ~/ 32;
   }
   return sysinfo.SysInfo.getTotalPhysicalMemory() ~/ 32 ~/ megaByte;
 }
@@ -34,9 +40,12 @@ int getRemoteMaxRecords() {
   return 128;
 }
 
-int getRemoteMaxSubkeyCacheMemoryMb() {
+Future<int> getRemoteMaxSubkeyCacheMemoryMb() async {
   if (kIsWeb) {
     return 256;
+  }
+  if (Platform.isIOS || Platform.isAndroid) {
+    return (await SystemInfoPlus.physicalMemory ?? 2048) ~/ 32;
   }
   return sysinfo.SysInfo.getTotalPhysicalMemory() ~/ 32 ~/ megaByte;
 }
@@ -121,10 +130,10 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
           minPeerRefreshTimeMs: 60000,
           validateDialInfoReceiptTimeMs: 2000,
           localSubkeyCacheSize: getLocalSubkeyCacheSize(),
-          localMaxSubkeyCacheMemoryMb: getLocalMaxSubkeyCacheMemoryMb(),
+          localMaxSubkeyCacheMemoryMb: await getLocalMaxSubkeyCacheMemoryMb(),
           remoteSubkeyCacheSize: getRemoteSubkeyCacheSize(),
           remoteMaxRecords: getRemoteMaxRecords(),
-          remoteMaxSubkeyCacheMemoryMb: getRemoteMaxSubkeyCacheMemoryMb(),
+          remoteMaxSubkeyCacheMemoryMb: await getRemoteMaxSubkeyCacheMemoryMb(),
           remoteMaxStorageSpaceMb: getRemoteMaxStorageSpaceMb()),
       upnp: true,
       detectAddressChanges: true,

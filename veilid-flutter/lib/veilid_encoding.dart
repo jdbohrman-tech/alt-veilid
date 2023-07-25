@@ -27,7 +27,7 @@ class Uint8ListJsonConverter implements JsonConverter<Uint8List, String> {
   const Uint8ListJsonConverter();
 
   @override
-  Uint8List fromJson(String json) => base64UrlNoPadDecode(json);
+  Uint8List fromJson(dynamic json) => base64UrlNoPadDecode(json as String);
   @override
   String toJson(Uint8List data) => base64UrlNoPadEncode(data);
 }

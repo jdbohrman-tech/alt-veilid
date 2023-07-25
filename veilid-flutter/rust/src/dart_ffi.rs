@@ -367,9 +367,8 @@ pub extern "C" fn shutdown_veilid_core(port: i64) {
     });
 }
 
-fn add_routing_context(routing_context: veilid_core::RoutingContext) -> u32 {
+fn add_routing_context(rc: &mut BTreeMap<u32, veilid_core::RoutingContext>, routing_context: veilid_core::RoutingContext) -> u32 {
     let mut next_id: u32 = 1;
-    let mut rc = ROUTING_CONTEXTS.lock();
     while rc.contains_key(&next_id) {
         next_id += 1;
     }
@@ -382,7 +381,8 @@ pub extern "C" fn routing_context(port: i64) {
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         let routing_context = veilid_api.routing_context();
-        let new_id = add_routing_context(routing_context);
+        let mut rc = ROUTING_CONTEXTS.lock();
+        let new_id = add_routing_context(&mut *rc, routing_context);
         APIResult::Ok(new_id)
     });
 }
@@ -398,14 +398,14 @@ pub extern "C" fn release_routing_context(id: u32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn routing_context_with_privacy(id: u32) -> u32 {
-    let rc = ROUTING_CONTEXTS.lock();
+    let mut rc = ROUTING_CONTEXTS.lock();
     let Some(routing_context) = rc.get(&id) else {
         return 0;
     };
     let Ok(routing_context) = routing_context.clone().with_privacy() else {
         return 0;
     };
-    let new_id = add_routing_context(routing_context);
+    let new_id = add_routing_context(&mut rc, routing_context);
     new_id
 }
 
@@ -414,14 +414,14 @@ pub extern "C" fn routing_context_with_custom_privacy(id: u32, safety_selection:
     let safety_selection: veilid_core::SafetySelection =
         veilid_core::deserialize_opt_json(safety_selection.into_opt_string()).unwrap();
 
-    let rc = ROUTING_CONTEXTS.lock();
+    let mut rc = ROUTING_CONTEXTS.lock();
     let Some(routing_context) = rc.get(&id) else {
         return 0;
     };
     let Ok(routing_context) = routing_context.clone().with_custom_privacy(safety_selection) else {
         return 0;
     };
-    let new_id = add_routing_context(routing_context);
+    let new_id = add_routing_context(&mut rc, routing_context);
     new_id
 }
 
@@ -430,12 +430,12 @@ pub extern "C" fn routing_context_with_sequencing(id: u32, sequencing: FfiStr) -
     let sequencing: veilid_core::Sequencing =
         veilid_core::deserialize_opt_json(sequencing.into_opt_string()).unwrap();
 
-    let rc = ROUTING_CONTEXTS.lock();
+    let mut rc = ROUTING_CONTEXTS.lock();
     let Some(routing_context) = rc.get(&id) else {
         return 0;
     };
     let routing_context = routing_context.clone().with_sequencing(sequencing);
-    let new_id = add_routing_context(routing_context);
+    let new_id = add_routing_context(&mut rc, routing_context);
     new_id
 }
 
@@ -569,7 +569,7 @@ pub extern "C" fn routing_context_delete_dht_record(port: i64, id: u32, key: Ffi
 #[no_mangle]
 pub extern "C" fn routing_context_get_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, force_refresh: bool) {
     let key: veilid_core::TypedKey = veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
-    DartIsolateWrapper::new(port).spawn_result_opt_json(async move {        
+    DartIsolateWrapper::new(port).spawn_result_json(async move {        
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
@@ -594,7 +594,7 @@ pub extern "C" fn routing_context_set_dht_value(port: i64, id: u32, key: FfiStr,
     )
     .unwrap();
 
-    DartIsolateWrapper::new(port).spawn_result_opt_json(async move {        
+    DartIsolateWrapper::new(port).spawn_result_json(async move {        
         let routing_context = {
             let rc = ROUTING_CONTEXTS.lock();
             let Some(routing_context) = rc.get(&id) else {
@@ -1404,7 +1404,7 @@ pub extern "C" fn crypto_decrypt_aead(port: i64, kind: u32, body: FfiStr, nonce:
 
     let associated_data: Option<Vec<u8>> = associated_data.into_opt_string().map(|s| data_encoding::BASE64URL_NOPAD.decode(s.as_bytes()).unwrap());
 
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_decrypt_aead", "kind", kind.to_string()))?;
@@ -1412,6 +1412,7 @@ pub extern "C" fn crypto_decrypt_aead(port: i64, kind: u32, body: FfiStr, nonce:
             Some(ad) => Some(ad.as_slice()),
             None => None
         })?;
+        let out = data_encoding::BASE64URL_NOPAD.encode(&out);
         APIResult::Ok(out)
     });
 }
@@ -1436,7 +1437,7 @@ pub extern "C" fn crypto_encrypt_aead(port: i64, kind: u32, body: FfiStr, nonce:
 
     let associated_data: Option<Vec<u8>> = associated_data.into_opt_string().map(|s| data_encoding::BASE64URL_NOPAD.decode(s.as_bytes()).unwrap());
 
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_encrypt_aead", "kind", kind.to_string()))?;
@@ -1444,6 +1445,7 @@ pub extern "C" fn crypto_encrypt_aead(port: i64, kind: u32, body: FfiStr, nonce:
             Some(ad) => Some(ad.as_slice()),
             None => None
         })?;
+        let out = data_encoding::BASE64URL_NOPAD.encode(&out);
         APIResult::Ok(out)
     });
 }
@@ -1468,11 +1470,12 @@ pub extern "C" fn crypto_crypt_no_auth(port: i64, kind: u32, body: FfiStr, nonce
     let shared_secret: veilid_core::SharedSecret =
         veilid_core::deserialize_opt_json(shared_secret.into_opt_string()).unwrap();
 
-    DartIsolateWrapper::new(port).spawn_result_json(async move {
+    DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| veilid_core::VeilidAPIError::invalid_argument("crypto_crypt_no_auth", "kind", kind.to_string()))?;
         csv.crypt_in_place_no_auth(&mut body, &nonce, &shared_secret);
+        let body = data_encoding::BASE64URL_NOPAD.encode(&body);
         APIResult::Ok(body)
     });
 }

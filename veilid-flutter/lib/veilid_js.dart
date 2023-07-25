@@ -571,13 +571,15 @@ class VeilidJS extends Veilid {
 
   @override
   List<CryptoKind> validCryptoKinds() {
-    return jsonDecode(js_util.callMethod(wasm, "valid_crypto_kinds", []));
+    final vck = jsonDecode(js_util.callMethod(wasm, "valid_crypto_kinds", []))
+        as List<dynamic>;
+    return vck.map((v) => v as CryptoKind).toList();
   }
 
   @override
   Future<VeilidCryptoSystem> getCryptoSystem(CryptoKind kind) async {
     if (!validCryptoKinds().contains(kind)) {
-      throw VeilidAPIExceptionGeneric("unsupported cryptosystem");
+      throw const VeilidAPIExceptionGeneric("unsupported cryptosystem");
     }
     return VeilidCryptoSystemJS._(this, kind);
   }
