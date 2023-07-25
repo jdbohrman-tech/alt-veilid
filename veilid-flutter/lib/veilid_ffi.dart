@@ -688,7 +688,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeWriter =
-        writer != null ? jsonEncode(key).toNativeUtf8() : nullptr;
+        writer != null ? jsonEncode(writer).toNativeUtf8() : nullptr;
     final recvPort = ReceivePort("routing_context_open_dht_record");
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextOpenDHTRecord(
