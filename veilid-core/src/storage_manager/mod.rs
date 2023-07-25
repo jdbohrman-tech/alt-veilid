@@ -380,7 +380,7 @@ impl StorageManager {
 
             // Add to offline writes to flush
             inner.offline_subkey_writes.entry(key).and_modify(|x| { x.insert(subkey); } ).or_insert(ValueSubkeyRangeSet::single(subkey));
-            return Ok(Some(signed_value_data.into_value_data()))
+            return Ok(None)
         };
 
         // Drop the lock for network access
@@ -393,7 +393,7 @@ impl StorageManager {
                 key,
                 subkey,
                 safety_selection,
-                signed_value_data,
+                signed_value_data.clone(),
                 descriptor,
             )
             .await?;
@@ -404,7 +404,13 @@ impl StorageManager {
             .handle_set_local_value(key, subkey, final_signed_value_data.clone())
             .await?;
 
-        Ok(Some(final_signed_value_data.into_value_data()))
+        // Return the new value if it differs from what was asked to set
+        if final_signed_value_data.value_data() != signed_value_data.value_data() {
+            return Ok(Some(final_signed_value_data.into_value_data()));
+        }
+
+        // If the original value was set, return None
+        Ok(None)
     }
 
     pub async fn watch_values(

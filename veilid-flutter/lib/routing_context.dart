@@ -5,7 +5,6 @@ import 'package:change_case/change_case.dart';
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'veilid_encoding.dart';
 import 'veilid.dart';
 
 part 'routing_context.freezed.dart';
@@ -51,8 +50,8 @@ sealed class DHTSchema with _$DHTSchema {
       {required int oCnt,
       required List<DHTSchemaMember> members}) = DHTSchemaSMPL;
 
-  factory DHTSchema.fromJson(Map<String, dynamic> json) =>
-      _$DHTSchemaFromJson(json);
+  factory DHTSchema.fromJson(dynamic json) =>
+      _$DHTSchemaFromJson(json as Map<String, dynamic>);
 }
 
 const DHTSchema defaultDHTSchema = DHTSchema.dflt(oCnt: 1);
@@ -65,8 +64,8 @@ class DHTSchemaMember with _$DHTSchemaMember {
     required int mCnt,
   }) = _DHTSchemaMember;
 
-  factory DHTSchemaMember.fromJson(Map<String, dynamic> json) =>
-      _$DHTSchemaMemberFromJson(json);
+  factory DHTSchemaMember.fromJson(dynamic json) =>
+      _$DHTSchemaMemberFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -80,8 +79,8 @@ class DHTRecordDescriptor with _$DHTRecordDescriptor {
     PublicKey? ownerSecret,
     required DHTSchema schema,
   }) = _DHTRecordDescriptor;
-  factory DHTRecordDescriptor.fromJson(Map<String, dynamic> json) =>
-      _$DHTRecordDescriptorFromJson(json);
+  factory DHTRecordDescriptor.fromJson(dynamic json) =>
+      _$DHTRecordDescriptorFromJson(json as Map<String, dynamic>);
 }
 
 extension DHTRecordDescriptorExt on DHTRecordDescriptor {
@@ -112,8 +111,8 @@ class ValueSubkeyRange with _$ValueSubkeyRange {
     required int high,
   }) = _ValueSubkeyRange;
 
-  factory ValueSubkeyRange.fromJson(Map<String, dynamic> json) =>
-      _$ValueSubkeyRangeFromJson(json);
+  factory ValueSubkeyRange.fromJson(dynamic json) =>
+      _$ValueSubkeyRangeFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -128,8 +127,8 @@ class ValueData with _$ValueData {
     required PublicKey writer,
   }) = _ValueData;
 
-  factory ValueData.fromJson(Map<String, dynamic> json) =>
-      _$ValueDataFromJson(json);
+  factory ValueData.fromJson(dynamic json) =>
+      _$ValueDataFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -140,8 +139,8 @@ enum Stability {
   reliable;
 
   String toJson() => name.toPascalCase();
-  factory Stability.fromJson(String j) =>
-      Stability.values.byName(j.toCamelCase());
+  factory Stability.fromJson(dynamic j) =>
+      Stability.values.byName((j as String).toCamelCase());
 }
 
 //////////////////////////////////////
@@ -153,8 +152,8 @@ enum Sequencing {
   ensureOrdered;
 
   String toJson() => name.toPascalCase();
-  factory Sequencing.fromJson(String j) =>
-      Sequencing.values.byName(j.toCamelCase());
+  factory Sequencing.fromJson(dynamic j) =>
+      Sequencing.values.byName((j as String).toCamelCase());
 }
 
 //////////////////////////////////////
@@ -162,7 +161,8 @@ enum Sequencing {
 
 @immutable
 abstract class SafetySelection extends Equatable {
-  factory SafetySelection.fromJson(Map<String, dynamic> json) {
+  factory SafetySelection.fromJson(dynamic jsond) {
+    final json = jsond as Map<String, dynamic>;
     if (json.containsKey("Unsafe")) {
       return SafetySelectionUnsafe(
           sequencing: Sequencing.fromJson(json["Unsafe"]));
@@ -223,8 +223,8 @@ class SafetySpec with _$SafetySpec {
     required Sequencing sequencing,
   }) = _SafetySpec;
 
-  factory SafetySpec.fromJson(Map<String, dynamic> json) =>
-      _$SafetySpecFromJson(json);
+  factory SafetySpec.fromJson(dynamic json) =>
+      _$SafetySpecFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -234,8 +234,8 @@ class RouteBlob with _$RouteBlob {
   const factory RouteBlob(
       {required String routeId,
       @Uint8ListJsonConverter() required Uint8List blob}) = _RouteBlob;
-  factory RouteBlob.fromJson(Map<String, dynamic> json) =>
-      _$RouteBlobFromJson(json);
+  factory RouteBlob.fromJson(dynamic json) =>
+      _$RouteBlobFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////

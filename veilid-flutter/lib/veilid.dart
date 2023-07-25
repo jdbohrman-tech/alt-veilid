@@ -156,7 +156,7 @@ abstract class Veilid {
   Future<void> releasePrivateRoute(String key);
 
   // App calls
-  Future<void> appCallReply(String id, Uint8List message);
+  Future<void> appCallReply(String callId, Uint8List message);
 
   // TableStore
   Future<VeilidTableDB> openTableDB(String name, int columnCount);

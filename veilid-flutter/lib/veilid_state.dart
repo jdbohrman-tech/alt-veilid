@@ -22,8 +22,8 @@ enum AttachmentState {
   detaching;
 
   String toJson() => name.toPascalCase();
-  factory AttachmentState.fromJson(String j) =>
-      AttachmentState.values.byName(j.toCamelCase());
+  factory AttachmentState.fromJson(dynamic j) =>
+      AttachmentState.values.byName((j as String).toCamelCase());
 }
 
 //////////////////////////////////////
@@ -37,8 +37,8 @@ enum VeilidLogLevel {
   trace;
 
   String toJson() => name.toPascalCase();
-  factory VeilidLogLevel.fromJson(String j) =>
-      VeilidLogLevel.values.byName(j.toCamelCase());
+  factory VeilidLogLevel.fromJson(dynamic j) =>
+      VeilidLogLevel.values.byName((j as String).toCamelCase());
 }
 
 ////////////
@@ -51,8 +51,8 @@ class LatencyStats with _$LatencyStats {
     required TimestampDuration slowest,
   }) = _LatencyStats;
 
-  factory LatencyStats.fromJson(Map<String, dynamic> json) =>
-      _$LatencyStatsFromJson(json);
+  factory LatencyStats.fromJson(dynamic json) =>
+      _$LatencyStatsFromJson(json as Map<String, dynamic>);
 }
 
 ////////////
@@ -66,8 +66,8 @@ class TransferStats with _$TransferStats {
     required BigInt minimum,
   }) = _TransferStats;
 
-  factory TransferStats.fromJson(Map<String, dynamic> json) =>
-      _$TransferStatsFromJson(json);
+  factory TransferStats.fromJson(dynamic json) =>
+      _$TransferStatsFromJson(json as Map<String, dynamic>);
 }
 
 ////////////
@@ -79,8 +79,8 @@ class TransferStatsDownUp with _$TransferStatsDownUp {
     required TransferStats up,
   }) = _TransferStatsDownUp;
 
-  factory TransferStatsDownUp.fromJson(Map<String, dynamic> json) =>
-      _$TransferStatsDownUpFromJson(json);
+  factory TransferStatsDownUp.fromJson(dynamic json) =>
+      _$TransferStatsDownUpFromJson(json as Map<String, dynamic>);
 }
 
 ////////////
@@ -98,8 +98,8 @@ class RPCStats with _$RPCStats {
     required int failedToSend,
   }) = _RPCStats;
 
-  factory RPCStats.fromJson(Map<String, dynamic> json) =>
-      _$RPCStatsFromJson(json);
+  factory RPCStats.fromJson(dynamic json) =>
+      _$RPCStatsFromJson(json as Map<String, dynamic>);
 }
 
 ////////////
@@ -113,8 +113,8 @@ class PeerStats with _$PeerStats {
     required TransferStatsDownUp transfer,
   }) = _PeerStats;
 
-  factory PeerStats.fromJson(Map<String, dynamic> json) =>
-      _$PeerStatsFromJson(json);
+  factory PeerStats.fromJson(dynamic json) =>
+      _$PeerStatsFromJson(json as Map<String, dynamic>);
 }
 
 ////////////
@@ -127,8 +127,8 @@ class PeerTableData with _$PeerTableData {
     required PeerStats peerStats,
   }) = _PeerTableData;
 
-  factory PeerTableData.fromJson(Map<String, dynamic> json) =>
-      _$PeerTableDataFromJson(json);
+  factory PeerTableData.fromJson(dynamic json) =>
+      _$PeerTableDataFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -173,8 +173,8 @@ sealed class VeilidUpdate with _$VeilidUpdate {
     required ValueData valueData,
   }) = VeilidUpdateValueChange;
 
-  factory VeilidUpdate.fromJson(Map<String, dynamic> json) =>
-      _$VeilidUpdateFromJson(json);
+  factory VeilidUpdate.fromJson(dynamic json) =>
+      _$VeilidUpdateFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -187,8 +187,8 @@ class VeilidStateAttachment with _$VeilidStateAttachment {
       required bool publicInternetReady,
       required bool localNetworkReady}) = _VeilidStateAttachment;
 
-  factory VeilidStateAttachment.fromJson(Map<String, dynamic> json) =>
-      _$VeilidStateAttachmentFromJson(json);
+  factory VeilidStateAttachment.fromJson(dynamic json) =>
+      _$VeilidStateAttachmentFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -202,8 +202,8 @@ class VeilidStateNetwork with _$VeilidStateNetwork {
       required BigInt bpsUp,
       required List<PeerTableData> peers}) = _VeilidStateNetwork;
 
-  factory VeilidStateNetwork.fromJson(Map<String, dynamic> json) =>
-      _$VeilidStateNetworkFromJson(json);
+  factory VeilidStateNetwork.fromJson(dynamic json) =>
+      _$VeilidStateNetworkFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -215,8 +215,8 @@ class VeilidStateConfig with _$VeilidStateConfig {
     required VeilidConfig config,
   }) = _VeilidStateConfig;
 
-  factory VeilidStateConfig.fromJson(Map<String, dynamic> json) =>
-      _$VeilidStateConfigFromJson(json);
+  factory VeilidStateConfig.fromJson(dynamic json) =>
+      _$VeilidStateConfigFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////
@@ -230,6 +230,6 @@ class VeilidState with _$VeilidState {
     required VeilidStateConfig config,
   }) = _VeilidState;
 
-  factory VeilidState.fromJson(Map<String, dynamic> json) =>
-      _$VeilidStateFromJson(json);
+  factory VeilidState.fromJson(dynamic json) =>
+      _$VeilidStateFromJson(json as Map<String, dynamic>);
 }

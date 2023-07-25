@@ -18,17 +18,14 @@ const CryptoKind cryptoKindNONE =
     $N << 0 | $O << 8 | $N << 16 | $E << 24; // "NONE"
 
 String cryptoKindToString(CryptoKind kind) {
-  return "${String.fromCharCode(kind & 0xFF)}${String.fromCharCode((kind >> 8) & 0xFF)}${String.fromCharCode((kind >> 16) & 0xFF)}${String.fromCharCode((kind >> 24) & 0xFF)}";
+  return cryptoKindToBytes(kind).map((c) => String.fromCharCode(c)).join();
 }
 
 const CryptoKind bestCryptoKind = cryptoKindVLD0;
 
 Uint8List cryptoKindToBytes(CryptoKind kind) {
   var b = Uint8List(4);
-  b[0] = kind & 0xFF;
-  b[1] = (kind >> 8) & 0xFF;
-  b[2] = (kind >> 16) & 0xFF;
-  b[3] = (kind >> 24) & 0xFF;
+  ByteData.sublistView(b).setUint32(0, kind, Endian.big);
   return b;
 }
 
@@ -36,10 +33,8 @@ CryptoKind cryptoKindFromString(String s) {
   if (s.codeUnits.length != 4) {
     throw const FormatException("malformed string");
   }
-  CryptoKind kind = s.codeUnits[0] |
-      s.codeUnits[1] << 8 |
-      s.codeUnits[2] << 16 |
-      s.codeUnits[3] << 24;
+  CryptoKind kind = ByteData.sublistView(Uint8List.fromList(s.codeUnits))
+      .getUint32(0, Endian.big);
   return kind;
 }
 
@@ -71,9 +66,10 @@ class Typed<V extends EncodedString> extends Equatable {
   }
 
   Uint8List decode() {
-    var b = cryptoKindToBytes(kind);
-    b.addAll(value.decode());
-    return b;
+    var b = BytesBuilder();
+    b.add(cryptoKindToBytes(kind));
+    b.add(value.decode());
+    return b.toBytes();
   }
 
   String toJson() => toString();
