@@ -5,7 +5,6 @@ import 'package:charcode/charcode.dart';
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'veilid_encoding.dart';
 import 'veilid.dart';
 
 //////////////////////////////////////
@@ -17,24 +16,22 @@ const CryptoKind cryptoKindVLD0 =
 const CryptoKind cryptoKindNONE =
     $N << 0 | $O << 8 | $N << 16 | $E << 24; // "NONE"
 
-String cryptoKindToString(CryptoKind kind) {
-  return cryptoKindToBytes(kind).map((c) => String.fromCharCode(c)).join();
-}
+String cryptoKindToString(CryptoKind kind) => cryptoKindToBytes(kind).map(String.fromCharCode).join();
 
 const CryptoKind bestCryptoKind = cryptoKindVLD0;
 
 Uint8List cryptoKindToBytes(CryptoKind kind) {
-  var b = Uint8List(4);
-  ByteData.sublistView(b).setUint32(0, kind, Endian.big);
+  final b = Uint8List(4);
+  ByteData.sublistView(b).setUint32(0, kind);
   return b;
 }
 
 CryptoKind cryptoKindFromString(String s) {
   if (s.codeUnits.length != 4) {
-    throw const FormatException("malformed string");
+    throw const FormatException('malformed string');
   }
-  CryptoKind kind = ByteData.sublistView(Uint8List.fromList(s.codeUnits))
-      .getUint32(0, Endian.big);
+  final kind = ByteData.sublistView(Uint8List.fromList(s.codeUnits))
+      .getUint32(0);
   return kind;
 }
 
@@ -43,103 +40,99 @@ CryptoKind cryptoKindFromString(String s) {
 
 @immutable
 class Typed<V extends EncodedString> extends Equatable {
+
+  const Typed({required this.kind, required this.value});
+
+  factory Typed.fromString(String s) {
+    final parts = s.split(':');
+    if (parts.length < 2 || parts[0].codeUnits.length != 4) {
+      throw const FormatException('malformed string');
+    }
+    final kind = cryptoKindFromString(parts[0]);
+    final value = EncodedString.fromString<V>(parts.sublist(1).join(':'));
+    return Typed(kind: kind, value: value);
+  }
+  factory Typed.fromJson(dynamic json) => Typed.fromString(json as String);
   final CryptoKind kind;
   final V value;
   @override
   List<Object> get props => [kind, value];
 
-  const Typed({required this.kind, required this.value});
-
   @override
-  String toString() {
-    return "${cryptoKindToString(kind)}:$value";
-  }
-
-  factory Typed.fromString(String s) {
-    final parts = s.split(":");
-    if (parts.length < 2 || parts[0].codeUnits.length != 4) {
-      throw const FormatException("malformed string");
-    }
-    final kind = cryptoKindFromString(parts[0]);
-    final value = EncodedString.fromString<V>(parts.sublist(1).join(":"));
-    return Typed(kind: kind, value: value);
-  }
+  String toString() => '${cryptoKindToString(kind)}:$value';
 
   Uint8List decode() {
-    var b = BytesBuilder();
+    final b = BytesBuilder();
     b.add(cryptoKindToBytes(kind));
     b.add(value.decode());
     return b.toBytes();
   }
 
   String toJson() => toString();
-  factory Typed.fromJson(dynamic json) => Typed.fromString(json as String);
 }
 
 @immutable
 class KeyPair extends Equatable {
-  final PublicKey key;
-  final PublicKey secret;
-  @override
-  List<Object> get props => [key, secret];
 
   const KeyPair({required this.key, required this.secret});
 
-  @override
-  String toString() {
-    return "${key.toString()}:${secret.toString()}";
-  }
-
   factory KeyPair.fromString(String s) {
-    final parts = s.split(":");
+    final parts = s.split(':');
     if (parts.length != 2 ||
         parts[0].codeUnits.length != 43 ||
         parts[1].codeUnits.length != 43) {
-      throw const FormatException("malformed string");
+      throw const FormatException('malformed string');
     }
     final key = PublicKey.fromString(parts[0]);
     final secret = PublicKey.fromString(parts[1]);
     return KeyPair(key: key, secret: secret);
   }
+  factory KeyPair.fromJson(dynamic json) => KeyPair.fromString(json as String);
+  final PublicKey key;
+  final PublicKey secret;
+  @override
+  List<Object> get props => [key, secret];
+
+  @override
+  String toString() => '$key:$secret';
 
   String toJson() => toString();
-  factory KeyPair.fromJson(dynamic json) => KeyPair.fromString(json as String);
 }
 
 @immutable
 class TypedKeyPair extends Equatable {
-  final CryptoKind kind;
-  final PublicKey key;
-  final PublicKey secret;
-  @override
-  List<Object> get props => [kind, key, secret];
 
   const TypedKeyPair(
       {required this.kind, required this.key, required this.secret});
 
-  @override
-  String toString() =>
-      "${cryptoKindToString(kind)}:${key.toString()}:${secret.toString()}";
-
   factory TypedKeyPair.fromString(String s) {
-    final parts = s.split(":");
+    final parts = s.split(':');
     if (parts.length != 3 ||
         parts[0].codeUnits.length != 4 ||
         parts[1].codeUnits.length != 43 ||
         parts[2].codeUnits.length != 43) {
-      throw VeilidAPIExceptionInvalidArgument("malformed string", "s", s);
+      throw VeilidAPIExceptionInvalidArgument('malformed string', 's', s);
     }
     final kind = cryptoKindFromString(parts[0]);
     final key = PublicKey.fromString(parts[1]);
     final secret = PublicKey.fromString(parts[2]);
     return TypedKeyPair(kind: kind, key: key, secret: secret);
   }
-
-  String toJson() => toString();
   factory TypedKeyPair.fromJson(dynamic json) =>
       TypedKeyPair.fromString(json as String);
   factory TypedKeyPair.fromKeyPair(CryptoKind kind, KeyPair keyPair) =>
       TypedKeyPair(kind: kind, key: keyPair.key, secret: keyPair.secret);
+  final CryptoKind kind;
+  final PublicKey key;
+  final PublicKey secret;
+  @override
+  List<Object> get props => [kind, key, secret];
+
+  @override
+  String toString() =>
+      '${cryptoKindToString(kind)}:$key:$secret';
+
+  String toJson() => toString();
 }
 
 typedef CryptoKey = FixedEncodedString43;
@@ -176,17 +169,13 @@ abstract class VeilidCryptoSystem {
   Future<HashDigest> generateHash(Uint8List data);
   //Future<HashDigest> generateHashReader(Stream<List<int>> reader);
   Future<bool> validateKeyPair(PublicKey key, SecretKey secret);
-  Future<bool> validateKeyPairWithKeyPair(KeyPair keyPair) {
-    return validateKeyPair(keyPair.key, keyPair.secret);
-  }
+  Future<bool> validateKeyPairWithKeyPair(KeyPair keyPair) => validateKeyPair(keyPair.key, keyPair.secret);
 
   Future<bool> validateHash(Uint8List data, HashDigest hash);
   //Future<bool> validateHashReader(Stream<List<int>> reader, HashDigest hash);
   Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2);
   Future<Signature> sign(PublicKey key, SecretKey secret, Uint8List data);
-  Future<Signature> signWithKeyPair(KeyPair keyPair, Uint8List data) {
-    return sign(keyPair.key, keyPair.secret, data);
-  }
+  Future<Signature> signWithKeyPair(KeyPair keyPair, Uint8List data) => sign(keyPair.key, keyPair.secret, data);
 
   Future<void> verify(PublicKey key, Uint8List data, Signature signature);
   Future<int> aeadOverhead();

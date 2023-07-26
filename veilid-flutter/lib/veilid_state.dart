@@ -109,8 +109,7 @@ class PeerStats with _$PeerStats {
   const factory PeerStats({
     required Timestamp timeAdded,
     required RPCStats rpcStats,
-    LatencyStats? latency,
-    required TransferStatsDownUp transfer,
+    required TransferStatsDownUp transfer, LatencyStats? latency,
   }) = _PeerStats;
 
   factory PeerStats.fromJson(dynamic json) =>
@@ -142,13 +141,10 @@ sealed class VeilidUpdate with _$VeilidUpdate {
     String? backtrace,
   }) = VeilidLog;
   const factory VeilidUpdate.appMessage({
-    TypedKey? sender,
-    @Uint8ListJsonConverter() required Uint8List message,
+    @Uint8ListJsonConverter() required Uint8List message, TypedKey? sender,
   }) = VeilidAppMessage;
   const factory VeilidUpdate.appCall({
-    TypedKey? sender,
-    @Uint8ListJsonConverter() required Uint8List message,
-    required String callId,
+    @Uint8ListJsonConverter() required Uint8List message, required String callId, TypedKey? sender,
   }) = VeilidAppCall;
   const factory VeilidUpdate.attachment(
       {required AttachmentState state,

@@ -1,9 +1,8 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:flutter/foundation.dart';
 import 'package:change_case/change_case.dart';
+import 'package:flutter/foundation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'veilid.dart';
-import 'veilid_encoding.dart';
-import 'veilid_crypto.dart';
 
 part 'veilid_config.freezed.dart';
 part 'veilid_config.g.dart';
@@ -126,13 +125,9 @@ enum VeilidConfigLogLevel {
   debug,
   trace;
 
-  String toJson() {
-    return name.toPascalCase();
-  }
+  String toJson() => name.toPascalCase();
 
-  factory VeilidConfigLogLevel.fromJson(dynamic j) {
-    return VeilidConfigLogLevel.values.byName((j as String).toCamelCase());
-  }
+  factory VeilidConfigLogLevel.fromJson(dynamic j) => VeilidConfigLogLevel.values.byName((j as String).toCamelCase());
 }
 
 //////////////////////////////////////
@@ -300,11 +295,8 @@ class VeilidConfigRPC with _$VeilidConfigRPC {
   const factory VeilidConfigRPC(
       {required int concurrency,
       required int queueSize,
-      int? maxTimestampBehindMs,
-      int? maxTimestampAheadMs,
-      required int timeoutMs,
-      required int maxRouteHopCount,
-      required int defaultRouteHopCount}) = _VeilidConfigRPC;
+      required int timeoutMs, required int maxRouteHopCount, required int defaultRouteHopCount, int? maxTimestampBehindMs,
+      int? maxTimestampAheadMs}) = _VeilidConfigRPC;
 
   factory VeilidConfigRPC.fromJson(dynamic json) =>
       _$VeilidConfigRPCFromJson(json as Map<String, dynamic>);
@@ -343,16 +335,7 @@ class VeilidConfigNetwork with _$VeilidConfigNetwork {
     required int clientWhitelistTimeoutMs,
     required int reverseConnectionReceiptTimeMs,
     required int holePunchReceiptTimeMs,
-    String? networkKeyPassword,
-    required VeilidConfigRoutingTable routingTable,
-    required VeilidConfigRPC rpc,
-    required VeilidConfigDHT dht,
-    required bool upnp,
-    required bool detectAddressChanges,
-    required int restrictedNatRetries,
-    required VeilidConfigTLS tls,
-    required VeilidConfigApplication application,
-    required VeilidConfigProtocol protocol,
+    required VeilidConfigRoutingTable routingTable, required VeilidConfigRPC rpc, required VeilidConfigDHT dht, required bool upnp, required bool detectAddressChanges, required int restrictedNatRetries, required VeilidConfigTLS tls, required VeilidConfigApplication application, required VeilidConfigProtocol protocol, String? networkKeyPassword,
   }) = _VeilidConfigNetwork;
 
   factory VeilidConfigNetwork.fromJson(dynamic json) =>

@@ -1,10 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:system_info2/system_info2.dart' as sysinfo;
 import 'package:system_info_plus/system_info_plus.dart';
+
 import 'veilid.dart';
 
 const int megaByte = 1024 * 1024;
@@ -57,31 +58,29 @@ int getRemoteMaxStorageSpaceMb() {
   return 256;
 }
 
-Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
-  return VeilidConfig(
+Future<VeilidConfig> getDefaultVeilidConfig(String programName) async => VeilidConfig(
     programName: programName,
-    namespace: "",
+    namespace: '',
     capabilities: const VeilidConfigCapabilities(disable: []),
     protectedStore: const VeilidConfigProtectedStore(
       allowInsecureFallback: false,
       alwaysUseInsecureStorage: false,
-      directory: "",
+      directory: '',
       delete: false,
-      deviceEncryptionKeyPassword: "",
-      newDeviceEncryptionKeyPassword: null,
+      deviceEncryptionKeyPassword: '',
     ),
     tableStore: VeilidConfigTableStore(
       directory: kIsWeb
-          ? ""
+          ? ''
           : p.join((await getApplicationSupportDirectory()).absolute.path,
-              "table_store"),
+              'table_store'),
       delete: false,
     ),
     blockStore: VeilidConfigBlockStore(
       directory: kIsWeb
-          ? ""
+          ? ''
           : p.join((await getApplicationSupportDirectory()).absolute.path,
-              "block_store"),
+              'block_store'),
       delete: false,
     ),
     network: VeilidConfigNetwork(
@@ -98,8 +97,8 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
         nodeId: [],
         nodeIdSecret: [],
         bootstrap: kIsWeb
-            ? ["ws://bootstrap.veilid.net:5150/ws"]
-            : ["bootstrap.veilid.net"],
+            ? ['ws://bootstrap.veilid.net:5150/ws']
+            : ['bootstrap.veilid.net'],
         limitOverAttached: 64,
         limitFullyAttached: 32,
         limitAttachedStrong: 16,
@@ -139,54 +138,47 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
       detectAddressChanges: true,
       restrictedNatRetries: 0,
       tls: const VeilidConfigTLS(
-        certificatePath: "",
-        privateKeyPath: "",
+        certificatePath: '',
+        privateKeyPath: '',
         connectionInitialTimeoutMs: 2000,
       ),
       application: const VeilidConfigApplication(
           https: VeilidConfigHTTPS(
             enabled: false,
-            listenAddress: "",
-            path: "",
-            url: null,
+            listenAddress: '',
+            path: '',
           ),
           http: VeilidConfigHTTP(
             enabled: false,
-            listenAddress: "",
-            path: "",
-            url: null,
+            listenAddress: '',
+            path: '',
           )),
       protocol: const VeilidConfigProtocol(
         udp: VeilidConfigUDP(
           enabled: !kIsWeb,
           socketPoolSize: 0,
-          listenAddress: "",
-          publicAddress: null,
+          listenAddress: '',
         ),
         tcp: VeilidConfigTCP(
           connect: !kIsWeb,
           listen: !kIsWeb,
           maxConnections: 32,
-          listenAddress: "",
-          publicAddress: null,
+          listenAddress: '',
         ),
         ws: VeilidConfigWS(
           connect: true,
           listen: !kIsWeb,
           maxConnections: 16,
-          listenAddress: "",
-          path: "ws",
-          url: null,
+          listenAddress: '',
+          path: 'ws',
         ),
         wss: VeilidConfigWSS(
           connect: true,
           listen: false,
           maxConnections: 16,
-          listenAddress: "",
-          path: "ws",
-          url: null,
+          listenAddress: '',
+          path: 'ws',
         ),
       ),
     ),
   );
-}

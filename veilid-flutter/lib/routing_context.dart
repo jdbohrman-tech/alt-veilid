@@ -26,7 +26,7 @@ extension ValidateDFLT on DHTSchemaDFLT {
 
 extension ValidateSMPL on DHTSchemaSMPL {
   bool validate() {
-    final totalsv = members.fold(0, (acc, v) => (acc + v.mCnt)) + oCnt;
+    final totalsv = members.fold(0, (acc, v) => acc + v.mCnt) + oCnt;
     if (totalsv > 65535) {
       return false;
     }
@@ -76,8 +76,7 @@ class DHTRecordDescriptor with _$DHTRecordDescriptor {
   const factory DHTRecordDescriptor({
     required TypedKey key,
     required PublicKey owner,
-    PublicKey? ownerSecret,
-    required DHTSchema schema,
+    required DHTSchema schema, PublicKey? ownerSecret,
   }) = _DHTRecordDescriptor;
   factory DHTRecordDescriptor.fromJson(dynamic json) =>
       _$DHTRecordDescriptorFromJson(json as Map<String, dynamic>);
@@ -163,13 +162,13 @@ enum Sequencing {
 abstract class SafetySelection extends Equatable {
   factory SafetySelection.fromJson(dynamic jsond) {
     final json = jsond as Map<String, dynamic>;
-    if (json.containsKey("Unsafe")) {
+    if (json.containsKey('Unsafe')) {
       return SafetySelectionUnsafe(
-          sequencing: Sequencing.fromJson(json["Unsafe"]));
-    } else if (json.containsKey("Safe")) {
-      return SafetySelectionSafe(safetySpec: SafetySpec.fromJson(json["Safe"]));
+          sequencing: Sequencing.fromJson(json['Unsafe']));
+    } else if (json.containsKey('Safe')) {
+      return SafetySelectionSafe(safetySpec: SafetySpec.fromJson(json['Safe']));
     } else {
-      throw const VeilidAPIExceptionInternal("Invalid SafetySelection");
+      throw const VeilidAPIExceptionInternal('Invalid SafetySelection');
     }
   }
   Map<String, dynamic> toJson();
@@ -177,50 +176,43 @@ abstract class SafetySelection extends Equatable {
 
 @immutable
 class SafetySelectionUnsafe implements SafetySelection {
+
+  //
+  const SafetySelectionUnsafe({
+    required this.sequencing,
+  });
   final Sequencing sequencing;
   @override
   List<Object> get props => [sequencing];
   @override
   bool? get stringify => null;
 
-  //
-  const SafetySelectionUnsafe({
-    required this.sequencing,
-  });
-
   @override
-  Map<String, dynamic> toJson() {
-    return {'Unsafe': sequencing.toJson()};
-  }
+  Map<String, dynamic> toJson() => {'Unsafe': sequencing.toJson()};
 }
 
 @immutable
 class SafetySelectionSafe implements SafetySelection {
+
+  //
+  const SafetySelectionSafe({
+    required this.safetySpec,
+  });
   final SafetySpec safetySpec;
   @override
   List<Object> get props => [safetySpec];
   @override
   bool? get stringify => null;
 
-  //
-  const SafetySelectionSafe({
-    required this.safetySpec,
-  });
-
   @override
-  Map<String, dynamic> toJson() {
-    return {'Safe': safetySpec.toJson()};
-  }
+  Map<String, dynamic> toJson() => {'Safe': safetySpec.toJson()};
 }
 
 /// Options for safety routes (sender privacy)
 @freezed
 class SafetySpec with _$SafetySpec {
   const factory SafetySpec({
-    String? preferredRoute,
-    required int hopCount,
-    required Stability stability,
-    required Sequencing sequencing,
+    required int hopCount, required Stability stability, required Sequencing sequencing, String? preferredRoute,
   }) = _SafetySpec;
 
   factory SafetySpec.fromJson(dynamic json) =>

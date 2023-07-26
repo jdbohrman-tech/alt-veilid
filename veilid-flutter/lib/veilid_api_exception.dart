@@ -6,64 +6,64 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 @immutable
 abstract class VeilidAPIException implements Exception {
   factory VeilidAPIException.fromJson(dynamic json) {
-    switch (json["kind"]) {
-      case "NotInitialized":
+    switch (json['kind']) {
+      case 'NotInitialized':
         {
           return VeilidAPIExceptionNotInitialized();
         }
-      case "AlreadyInitialized":
+      case 'AlreadyInitialized':
         {
           return VeilidAPIExceptionAlreadyInitialized();
         }
-      case "Timeout":
+      case 'Timeout':
         {
           return VeilidAPIExceptionTimeout();
         }
-      case "TryAgain":
+      case 'TryAgain':
         {
           return VeilidAPIExceptionTryAgain();
         }
-      case "Shutdown":
+      case 'Shutdown':
         {
           return VeilidAPIExceptionShutdown();
         }
-      case "InvalidTarget":
+      case 'InvalidTarget':
         {
           return VeilidAPIExceptionInvalidTarget();
         }
-      case "NoConnection":
+      case 'NoConnection':
         {
-          return VeilidAPIExceptionNoConnection(json["message"]);
+          return VeilidAPIExceptionNoConnection(json['message']);
         }
-      case "KeyNotFound":
+      case 'KeyNotFound':
         {
-          return VeilidAPIExceptionKeyNotFound(json["key"]);
+          return VeilidAPIExceptionKeyNotFound(json['key']);
         }
-      case "Internal":
+      case 'Internal':
         {
-          return VeilidAPIExceptionInternal(json["message"]);
+          return VeilidAPIExceptionInternal(json['message']);
         }
-      case "Unimplemented":
+      case 'Unimplemented':
         {
-          return VeilidAPIExceptionUnimplemented(json["unimplemented"]);
+          return VeilidAPIExceptionUnimplemented(json['unimplemented']);
         }
-      case "ParseError":
+      case 'ParseError':
         {
-          return VeilidAPIExceptionParseError(json["message"], json["value"]);
+          return VeilidAPIExceptionParseError(json['message'], json['value']);
         }
-      case "InvalidArgument":
+      case 'InvalidArgument':
         {
           return VeilidAPIExceptionInvalidArgument(
-              json["context"], json["argument"], json["value"]);
+              json['context'], json['argument'], json['value']);
         }
-      case "MissingArgument":
+      case 'MissingArgument':
         {
           return VeilidAPIExceptionMissingArgument(
-              json["context"], json["argument"]);
+              json['context'], json['argument']);
         }
-      case "Generic":
+      case 'Generic':
         {
-          return VeilidAPIExceptionGeneric(json["message"]);
+          return VeilidAPIExceptionGeneric(json['message']);
         }
       default:
         {
@@ -79,224 +79,168 @@ abstract class VeilidAPIException implements Exception {
 @immutable
 class VeilidAPIExceptionNotInitialized implements VeilidAPIException {
   @override
-  String toString() {
-    return "VeilidAPIException: NotInitialized";
-  }
+  String toString() => 'VeilidAPIException: NotInitialized';
 
   @override
-  String toDisplayError() {
-    return "Not initialized";
-  }
+  String toDisplayError() => 'Not initialized';
 }
 
 @immutable
 class VeilidAPIExceptionAlreadyInitialized implements VeilidAPIException {
   @override
-  String toString() {
-    return "VeilidAPIException: AlreadyInitialized";
-  }
+  String toString() => 'VeilidAPIException: AlreadyInitialized';
 
   @override
-  String toDisplayError() {
-    return "Already initialized";
-  }
+  String toDisplayError() => 'Already initialized';
 }
 
 @immutable
 class VeilidAPIExceptionTimeout implements VeilidAPIException {
   @override
-  String toString() {
-    return "VeilidAPIException: Timeout";
-  }
+  String toString() => 'VeilidAPIException: Timeout';
 
   @override
-  String toDisplayError() {
-    return "Timeout";
-  }
+  String toDisplayError() => 'Timeout';
 }
 
 @immutable
 class VeilidAPIExceptionTryAgain implements VeilidAPIException {
   @override
-  String toString() {
-    return "VeilidAPIException: TryAgain";
-  }
+  String toString() => 'VeilidAPIException: TryAgain';
 
   @override
-  String toDisplayError() {
-    return "Try again";
-  }
+  String toDisplayError() => 'Try again';
 }
 
 @immutable
 class VeilidAPIExceptionShutdown implements VeilidAPIException {
   @override
-  String toString() {
-    return "VeilidAPIException: Shutdown";
-  }
+  String toString() => 'VeilidAPIException: Shutdown';
 
   @override
-  String toDisplayError() {
-    return "Currently shut down";
-  }
+  String toDisplayError() => 'Currently shut down';
 }
 
 @immutable
 class VeilidAPIExceptionInvalidTarget implements VeilidAPIException {
   @override
-  String toString() {
-    return "VeilidAPIException: InvalidTarget";
-  }
+  String toString() => 'VeilidAPIException: InvalidTarget';
 
   @override
-  String toDisplayError() {
-    return "Invalid target";
-  }
+  String toDisplayError() => 'Invalid target';
 }
 
 @immutable
 class VeilidAPIExceptionNoConnection implements VeilidAPIException {
-  final String message;
-  @override
-  String toString() {
-    return "VeilidAPIException: NoConnection (message: $message)";
-  }
-
-  @override
-  String toDisplayError() {
-    return "No connection: $message";
-  }
 
   //
   const VeilidAPIExceptionNoConnection(this.message);
+  final String message;
+  @override
+  String toString() => 'VeilidAPIException: NoConnection (message: $message)';
+
+  @override
+  String toDisplayError() => 'No connection: $message';
 }
 
 @immutable
 class VeilidAPIExceptionKeyNotFound implements VeilidAPIException {
-  final String key;
-  @override
-  String toString() {
-    return "VeilidAPIException: KeyNotFound (key: $key)";
-  }
-
-  @override
-  String toDisplayError() {
-    return "Key not found: $key";
-  }
 
   //
   const VeilidAPIExceptionKeyNotFound(this.key);
+  final String key;
+  @override
+  String toString() => 'VeilidAPIException: KeyNotFound (key: $key)';
+
+  @override
+  String toDisplayError() => 'Key not found: $key';
 }
 
 @immutable
 class VeilidAPIExceptionInternal implements VeilidAPIException {
-  final String message;
-
-  @override
-  String toString() {
-    return "VeilidAPIException: Internal ($message)";
-  }
-
-  @override
-  String toDisplayError() {
-    return "Internal error: $message";
-  }
 
   //
   const VeilidAPIExceptionInternal(this.message);
+  final String message;
+
+  @override
+  String toString() => 'VeilidAPIException: Internal ($message)';
+
+  @override
+  String toDisplayError() => 'Internal error: $message';
 }
 
 @immutable
 class VeilidAPIExceptionUnimplemented implements VeilidAPIException {
-  final String message;
-
-  @override
-  String toString() {
-    return "VeilidAPIException: Unimplemented ($message)";
-  }
-
-  @override
-  String toDisplayError() {
-    return "Unimplemented: $message";
-  }
 
   //
   const VeilidAPIExceptionUnimplemented(this.message);
+  final String message;
+
+  @override
+  String toString() => 'VeilidAPIException: Unimplemented ($message)';
+
+  @override
+  String toDisplayError() => 'Unimplemented: $message';
 }
 
 @immutable
 class VeilidAPIExceptionParseError implements VeilidAPIException {
+
+  //
+  const VeilidAPIExceptionParseError(this.message, this.value);
   final String message;
   final String value;
 
   @override
-  String toString() {
-    return "VeilidAPIException: ParseError ($message)\n    value: $value";
-  }
+  String toString() => 'VeilidAPIException: ParseError ($message)\n    value: $value';
 
   @override
-  String toDisplayError() {
-    return "Parse error: $message";
-  }
-
-  //
-  const VeilidAPIExceptionParseError(this.message, this.value);
+  String toDisplayError() => 'Parse error: $message';
 }
 
 @immutable
 class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
+
+  //
+  const VeilidAPIExceptionInvalidArgument(
+      this.context, this.argument, this.value);
   final String context;
   final String argument;
   final String value;
 
   @override
-  String toString() {
-    return "VeilidAPIException: InvalidArgument ($context:$argument)\n    value: $value";
-  }
+  String toString() => 'VeilidAPIException: InvalidArgument ($context:$argument)\n    value: $value';
 
   @override
-  String toDisplayError() {
-    return "Invalid argument for $context: $argument";
-  }
-
-  //
-  const VeilidAPIExceptionInvalidArgument(
-      this.context, this.argument, this.value);
+  String toDisplayError() => 'Invalid argument for $context: $argument';
 }
 
 @immutable
 class VeilidAPIExceptionMissingArgument implements VeilidAPIException {
+
+  //
+  const VeilidAPIExceptionMissingArgument(this.context, this.argument);
   final String context;
   final String argument;
 
   @override
-  String toString() {
-    return "VeilidAPIException: MissingArgument ($context:$argument)";
-  }
+  String toString() => 'VeilidAPIException: MissingArgument ($context:$argument)';
 
   @override
-  String toDisplayError() {
-    return "Missing argument for $context: $argument";
-  }
-
-  //
-  const VeilidAPIExceptionMissingArgument(this.context, this.argument);
+  String toDisplayError() => 'Missing argument for $context: $argument';
 }
 
 @immutable
 class VeilidAPIExceptionGeneric implements VeilidAPIException {
-  final String message;
-
-  @override
-  String toString() {
-    return "VeilidAPIException: Generic (message: $message)";
-  }
-
-  @override
-  String toDisplayError() {
-    return message;
-  }
 
   //
   const VeilidAPIExceptionGeneric(this.message);
+  final String message;
+
+  @override
+  String toString() => 'VeilidAPIException: Generic (message: $message)';
+
+  @override
+  String toDisplayError() => message;
 }
