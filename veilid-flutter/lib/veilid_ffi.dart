@@ -226,203 +226,198 @@ const int messageStreamClose = 8;
 Veilid getVeilid() => VeilidFFI(_dylib);
 
 // Parse handle async returns
-Future<T> processFuturePlain<T>(Future<dynamic> future) async => future.then((value) {
-    final list = value as List<dynamic>;
-    switch (list[0] as int) {
-      case messageOk:
-        {
-          if (list[1] == null && null is! T) {
-            throw const VeilidAPIExceptionInternal(
-                'Null MESSAGE_OK value on non-nullable type');
+Future<T> processFuturePlain<T>(Future<dynamic> future) async =>
+    future.then((value) {
+      final list = value as List<dynamic>;
+      switch (list[0] as int) {
+        case messageOk:
+          {
+            if (list[1] == null && null is! T) {
+              throw const VeilidAPIExceptionInternal(
+                  'Null MESSAGE_OK value on non-nullable type');
+            }
+            return list[1] as T;
           }
-          return list[1] as T;
-        }
-      case messageErr:
-        {
-          throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
-        }
-      case messageErrJson:
-        {
-          throw VeilidAPIException.fromJson(jsonDecode(list[1]));
-        }
-      default:
-        {
-          throw VeilidAPIExceptionInternal(
-              'Unexpected async return message type: ${list[0]}');
-        }
-    }
-  }).catchError((e) {
-    // Wrap all other errors in VeilidAPIExceptionInternal
-    throw VeilidAPIExceptionInternal(e.toString());
-  }, test: (e) {
-    // Pass errors that are already VeilidAPIException through without wrapping
-    return e is! VeilidAPIException;
-  });
+        case messageErr:
+          {
+            throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
+          }
+        case messageErrJson:
+          {
+            throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
+          }
+        default:
+          {
+            throw VeilidAPIExceptionInternal(
+                'Unexpected async return message type: ${list[0]}');
+          }
+      }
+      // ignore: inference_failure_on_untyped_parameter
+    }).catchError((e) {
+      // Wrap all other errors in VeilidAPIExceptionInternal
+      throw VeilidAPIExceptionInternal(e.toString());
+    }, test: (e) => e is! VeilidAPIException);
 
 Future<T> processFutureJson<T>(
-    T Function(dynamic) jsonConstructor, Future<dynamic> future) async => future.then((value) {
-    final list = value as List<dynamic>;
-    switch (list[0] as int) {
-      case messageErr:
-        {
-          throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
-        }
-      case messageOkJson:
-        {
-          if (list[1] is! String) {
-            throw const VeilidAPIExceptionInternal(
-                'Non-string MESSAGE_OK_JSON value');
+        T Function(dynamic) jsonConstructor, Future<dynamic> future) async =>
+    future.then((value) {
+      final list = value as List<dynamic>;
+      switch (list[0] as int) {
+        case messageErr:
+          {
+            throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
           }
-          final ret = jsonDecode(list[1] as String);
-          if (ret == null) {
-            throw const VeilidAPIExceptionInternal(
-                'Null JSON object on non nullable type');
+        case messageOkJson:
+          {
+            if (list[1] is! String) {
+              throw const VeilidAPIExceptionInternal(
+                  'Non-string MESSAGE_OK_JSON value');
+            }
+            final ret = jsonDecode(list[1] as String);
+            if (ret == null) {
+              throw const VeilidAPIExceptionInternal(
+                  'Null JSON object on non nullable type');
+            }
+            return jsonConstructor(ret);
           }
-          return jsonConstructor(ret);
-        }
-      case messageErrJson:
-        {
-          throw VeilidAPIException.fromJson(jsonDecode(list[1]));
-        }
-      default:
-        {
-          throw VeilidAPIExceptionInternal(
-              'Unexpected async return message type: ${list[0]}');
-        }
-    }
-  }).catchError((e) {
-    // Wrap all other errors in VeilidAPIExceptionInternal
-    throw VeilidAPIExceptionInternal(e.toString());
-  }, test: (e) {
-    // Pass errors that are already VeilidAPIException through without wrapping
-    return e is! VeilidAPIException;
-  });
+        case messageErrJson:
+          {
+            throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
+          }
+        default:
+          {
+            throw VeilidAPIExceptionInternal(
+                'Unexpected async return message type: ${list[0]}');
+          }
+      }
+      // ignore: inference_failure_on_untyped_parameter
+    }).catchError((e) {
+      // Wrap all other errors in VeilidAPIExceptionInternal
+      throw VeilidAPIExceptionInternal(e.toString());
+    }, test: (e) => e is! VeilidAPIException);
 
 Future<T?> processFutureOptJson<T>(
-    T Function(dynamic) jsonConstructor, Future<dynamic> future) async => future.then((value) {
-    final list = value as List<dynamic>;
-    switch (list[0] as int) {
-      case messageErr:
-        {
-          throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
-        }
-      case messageOkJson:
-        {
-          if (list[1] == null) {
-            return null;
+        T Function(dynamic) jsonConstructor, Future<dynamic> future) async =>
+    future.then((value) {
+      final list = value as List<dynamic>;
+      switch (list[0] as int) {
+        case messageErr:
+          {
+            throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
           }
-          if (list[1] is! String) {
-            throw const VeilidAPIExceptionInternal(
-                'Non-string MESSAGE_OK_JSON optional value');
+        case messageOkJson:
+          {
+            if (list[1] == null) {
+              return null;
+            }
+            if (list[1] is! String) {
+              throw const VeilidAPIExceptionInternal(
+                  'Non-string MESSAGE_OK_JSON optional value');
+            }
+            final ret = jsonDecode(list[1] as String);
+            if (ret == null) {
+              return null;
+            }
+            return jsonConstructor(ret);
           }
-          final ret = jsonDecode(list[1] as String);
-          if (ret == null) {
-            return null;
+        case messageErrJson:
+          {
+            throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
           }
-          return jsonConstructor(ret);
-        }
-      case messageErrJson:
-        {
-          throw VeilidAPIException.fromJson(jsonDecode(list[1]));
-        }
-      default:
-        {
-          throw VeilidAPIExceptionInternal(
-              'Unexpected async return message type: ${list[0]}');
-        }
-    }
-  }).catchError((e) {
-    // Wrap all other errors in VeilidAPIExceptionInternal
-    throw VeilidAPIExceptionInternal(e.toString());
-  }, test: (e) {
-    // Pass errors that are already VeilidAPIException through without wrapping
-    return e is! VeilidAPIException;
-  });
+        default:
+          {
+            throw VeilidAPIExceptionInternal(
+                'Unexpected async return message type: ${list[0]}');
+          }
+      }
+      // ignore: inference_failure_on_untyped_parameter
+    }).catchError((e) {
+      // Wrap all other errors in VeilidAPIExceptionInternal
+      throw VeilidAPIExceptionInternal(e.toString());
+    }, test: (e) => e is! VeilidAPIException);
 
-Future<void> processFutureVoid(Future<dynamic> future) async => future.then((value) {
-    final list = value as List<dynamic>;
-    switch (list[0] as int) {
-      case messageOk:
-        {
-          if (list[1] != null) {
-            throw VeilidAPIExceptionInternal(
-                "Unexpected MESSAGE_OK value '${list[1]}' where null expected");
+Future<void> processFutureVoid(Future<dynamic> future) async =>
+    future.then((value) {
+      final list = value as List<dynamic>;
+      switch (list[0] as int) {
+        case messageOk:
+          {
+            if (list[1] != null) {
+              throw VeilidAPIExceptionInternal(
+                  "Unexpected MESSAGE_OK value '${list[1]}' where null expected");
+            }
+            return;
           }
-          return;
-        }
-      case messageErr:
-        {
-          throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
-        }
-      case messageOkJson:
-        {
-          final ret = jsonDecode(list[1] as String);
-          if (ret != null) {
-            throw VeilidAPIExceptionInternal(
-                "Unexpected MESSAGE_OK_JSON value '$ret' where null expected");
+        case messageErr:
+          {
+            throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
           }
-          return;
-        }
-      case messageErrJson:
-        {
-          throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
-        }
-      default:
-        {
-          throw VeilidAPIExceptionInternal(
-              'Unexpected async return message type: ${list[0]}');
-        }
-    }
-  }).catchError((e) {
-    // Wrap all other errors in VeilidAPIExceptionInternal
-    throw VeilidAPIExceptionInternal(e.toString());
-  }, test: (e) {
-    // Pass errors that are already VeilidAPIException through without wrapping
-    return e is! VeilidAPIException;
-  });
+        case messageOkJson:
+          {
+            final ret = jsonDecode(list[1] as String);
+            if (ret != null) {
+              throw VeilidAPIExceptionInternal(
+                  "Unexpected MESSAGE_OK_JSON value '$ret' where null expected");
+            }
+            return;
+          }
+        case messageErrJson:
+          {
+            throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
+          }
+        default:
+          {
+            throw VeilidAPIExceptionInternal(
+                'Unexpected async return message type: ${list[0]}');
+          }
+      }
+      // ignore: inference_failure_on_untyped_parameter
+    }).catchError((e) {
+      // Wrap all other errors in VeilidAPIExceptionInternal
+      throw VeilidAPIExceptionInternal(e.toString());
+    }, test: (e) => e is! VeilidAPIException);
 
 Future<Stream<T>> processFutureStream<T>(
-    Stream<T> returnStream, Future<dynamic> future) async => future.then((value) {
-    final list = value as List<dynamic>;
-    switch (list[0] as int) {
-      case messageOk:
-        {
-          if (list[1] != null) {
-            throw VeilidAPIExceptionInternal(
-                "Unexpected MESSAGE_OK value '${list[1]}' where null expected");
+        Stream<T> returnStream, Future<dynamic> future) async =>
+    future.then((value) {
+      final list = value as List<dynamic>;
+      switch (list[0] as int) {
+        case messageOk:
+          {
+            if (list[1] != null) {
+              throw VeilidAPIExceptionInternal(
+                  "Unexpected MESSAGE_OK value '${list[1]}' where null expected");
+            }
+            return returnStream;
           }
-          return returnStream;
-        }
-      case messageErr:
-        {
-          throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
-        }
-      case messageOkJson:
-        {
-          final ret = jsonDecode(list[1] as String);
-          if (ret != null) {
-            throw VeilidAPIExceptionInternal(
-                "Unexpected MESSAGE_OK_JSON value '$ret' where null expected");
+        case messageErr:
+          {
+            throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
           }
-          return returnStream;
-        }
-      case messageErrJson:
-        {
-          throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
-        }
-      default:
-        {
-          throw VeilidAPIExceptionInternal(
-              'Unexpected async return message type: ${list[0]}');
-        }
-    }
-  }).catchError((e) {
-    // Wrap all other errors in VeilidAPIExceptionInternal
-    throw VeilidAPIExceptionInternal(e.toString());
-  }, test: (e) {
-    // Pass errors that are already VeilidAPIException through without wrapping
-    return e is! VeilidAPIException;
-  });
+        case messageOkJson:
+          {
+            final ret = jsonDecode(list[1] as String);
+            if (ret != null) {
+              throw VeilidAPIExceptionInternal(
+                  "Unexpected MESSAGE_OK_JSON value '$ret' where null expected");
+            }
+            return returnStream;
+          }
+        case messageErrJson:
+          {
+            throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
+          }
+        default:
+          {
+            throw VeilidAPIExceptionInternal(
+                'Unexpected async return message type: ${list[0]}');
+          }
+      }
+      // ignore: inference_failure_on_untyped_parameter
+    }).catchError((e) {
+      // Wrap all other errors in VeilidAPIExceptionInternal
+      throw VeilidAPIExceptionInternal(e.toString());
+    }, test: (e) => e is! VeilidAPIException);
 
 Stream<T> processStreamJson<T>(
     T Function(dynamic) jsonConstructor, ReceivePort port) async* {
@@ -442,17 +437,14 @@ Stream<T> processStreamJson<T>(
           }
         case messageStreamAbort:
           {
-            port.close();
             throw VeilidAPIExceptionInternal('Internal API Error: ${list[1]}');
           }
         case messageStreamAbortJson:
           {
-            port.close();
-            throw VeilidAPIException.fromJson(jsonDecode(list[1]));
+            throw VeilidAPIException.fromJson(jsonDecode(list[1] as String));
           }
         case messageStreamClose:
           {
-            port.close();
             break;
           }
         default:
@@ -462,10 +454,13 @@ Stream<T> processStreamJson<T>(
           }
       }
     }
-  } catch (e, s) {
+  } on VeilidAPIException catch (_) {
+    rethrow;
+  } on Exception catch (e, s) {
     // Wrap all other errors in VeilidAPIExceptionInternal
-    throw VeilidAPIExceptionInternal(
-        '$e\nStack Trace:\n$s');
+    throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
+  } finally {
+    port.close();
   }
 }
 
@@ -490,7 +485,6 @@ class _Ctx {
 
 // FFI implementation of VeilidRoutingContext
 class VeilidRoutingContextFFI extends VeilidRoutingContext {
-
   VeilidRoutingContextFFI._(this._ctx) {
     _finalizer.attach(this, _ctx, detach: this);
   }
@@ -535,7 +529,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextAppCall(sendPort.nativePort, _ctx.id!,
         nativeEncodedTarget, nativeEncodedRequest);
-    final out = await processFuturePlain(recvPort.first);
+    final out = await processFuturePlain<String>(recvPort.first);
     return base64UrlNoPadDecode(out);
   }
 
@@ -613,8 +607,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextGetDHTValue(
         sendPort.nativePort, _ctx.id!, nativeKey, subkey, forceRefresh);
-    final valueData = await processFutureOptJson(
-        optFromJson(ValueData.fromJson), recvPort.first);
+    final valueData =
+        await processFutureOptJson(ValueData.fromJson, recvPort.first);
     return valueData;
   }
 
@@ -629,8 +623,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextSetDHTValue(
         sendPort.nativePort, _ctx.id!, nativeKey, subkey, nativeData);
-    final valueData = await processFutureOptJson(
-        optFromJson(ValueData.fromJson), recvPort.first);
+    final valueData =
+        await processFutureOptJson(ValueData.fromJson, recvPort.first);
     return valueData;
   }
 
@@ -668,7 +662,6 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
 }
 
 class _TDBT {
-
   _TDBT(int this.id, this.tdbffi, this.ffi);
   int? id;
   final VeilidTableDBFFI tdbffi;
@@ -689,7 +682,6 @@ class _TDBT {
 
 // FFI implementation of VeilidTableDBTransaction
 class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
-
   VeilidTableDBTransactionFFI._(this._tdbt) {
     _finalizer.attach(this, _tdbt, detach: this);
   }
@@ -780,7 +772,6 @@ class _TDB {
 
 // FFI implementation of VeilidTableDB
 class VeilidTableDBFFI extends VeilidTableDB {
-
   VeilidTableDBFFI._(this._tdb) {
     _finalizer.attach(this, _tdb, detach: this);
   }
@@ -852,7 +843,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
       col,
       nativeEncodedKey,
     );
-    final out = await processFuturePlain(recvPort.first);
+    final out = await processFuturePlain<String?>(recvPort.first);
     if (out == null) {
       return null;
     }
@@ -872,7 +863,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
       col,
       nativeEncodedKey,
     );
-    final out = await processFuturePlain(recvPort.first);
+    final out = await processFuturePlain<String?>(recvPort.first);
     if (out == null) {
       return null;
     }
@@ -882,7 +873,6 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
 // FFI implementation of VeilidCryptoSystem
 class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
-
   VeilidCryptoSystemFFI._(this._ffi, this._kind);
   final CryptoKind _kind;
   final VeilidFFI _ffi;
@@ -917,7 +907,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_random_bytes');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoRandomBytes(sendPort.nativePort, _kind, len);
-    final out = await processFuturePlain(recvPort.first);
+    final out = await processFuturePlain<String>(recvPort.first);
     return base64UrlNoPadDecode(out);
   }
 
@@ -1088,7 +1078,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoDecryptAead(sendPort.nativePort, _kind, nativeEncodedBody,
         nativeNonce, nativeSharedSecret, nativeSignature);
-    final out = await processFuturePlain(recvPort.first);
+    final out = await processFuturePlain<String>(recvPort.first);
     return base64UrlNoPadDecode(out);
   }
 
@@ -1106,7 +1096,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoEncryptAead(sendPort.nativePort, _kind, nativeEncodedBody,
         nativeNonce, nativeSharedSecret, nativeSignature);
-    final out = await processFuturePlain(recvPort.first);
+    final out = await processFuturePlain<String>(recvPort.first);
     return base64UrlNoPadDecode(out);
   }
 
@@ -1121,31 +1111,34 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoCryptNoAuth(sendPort.nativePort, _kind, nativeEncodedBody,
         nativeNonce, nativeSharedSecret);
-    final out = await processFuturePlain(recvPort.first);
+    final out = await processFuturePlain<String>(recvPort.first);
     return base64UrlNoPadDecode(out);
   }
 }
 
 // FFI implementation of high level Veilid API
 class VeilidFFI extends Veilid {
-
   VeilidFFI(DynamicLibrary dylib)
       : _dylib = dylib,
         _freeString =
-            dylib.lookupFunction<Void Function(Pointer<Utf8>), _FreeStringDart>('free_string'),
-        _initializeVeilidCore = dylib.lookupFunction<Void Function(Pointer<Utf8>),
+            dylib.lookupFunction<Void Function(Pointer<Utf8>), _FreeStringDart>(
+                'free_string'),
+        _initializeVeilidCore = dylib.lookupFunction<
+            Void Function(Pointer<Utf8>),
             _InitializeVeilidCoreDart>('initialize_veilid_core'),
-        _changeLogLevel =
-            dylib.lookupFunction<Void Function(Pointer<Utf8>, Pointer<Utf8>), _ChangeLogLevelDart>(
-                'change_log_level'),
-        _startupVeilidCore =
-            dylib.lookupFunction<Void Function(Int64, Int64, Pointer<Utf8>), _StartupVeilidCoreDart>(
-                'startup_veilid_core'),
+        _changeLogLevel = dylib.lookupFunction<
+            Void Function(Pointer<Utf8>, Pointer<Utf8>),
+            _ChangeLogLevelDart>('change_log_level'),
+        _startupVeilidCore = dylib.lookupFunction<
+            Void Function(Int64, Int64, Pointer<Utf8>),
+            _StartupVeilidCoreDart>('startup_veilid_core'),
         _getVeilidState =
             dylib.lookupFunction<Void Function(Int64), _GetVeilidStateDart>(
                 'get_veilid_state'),
-        _attach = dylib.lookupFunction<Void Function(Int64), _AttachDart>('attach'),
-        _detach = dylib.lookupFunction<Void Function(Int64), _DetachDart>('detach'),
+        _attach =
+            dylib.lookupFunction<Void Function(Int64), _AttachDart>('attach'),
+        _detach =
+            dylib.lookupFunction<Void Function(Int64), _DetachDart>('detach'),
         _shutdownVeilidCore =
             dylib.lookupFunction<Void Function(Int64), _ShutdownVeilidCoreDart>(
                 'shutdown_veilid_core'),
@@ -1165,7 +1158,8 @@ class VeilidFFI extends Veilid {
                 Uint32 Function(Uint32, Pointer<Utf8>),
                 _RoutingContextWithSequencingDart>(
             'routing_context_with_sequencing'),
-        _routingContextAppCall = dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+        _routingContextAppCall = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _RoutingContextAppCallDart>('routing_context_app_call'),
         _routingContextAppMessage = dylib.lookupFunction<
             Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
@@ -1193,7 +1187,8 @@ class VeilidFFI extends Veilid {
             Void Function(Int64, Uint32, Pointer<Utf8>, Uint32, Pointer<Utf8>),
             _RoutingContextSetDHTValueDart>('routing_context_set_dht_value'),
         _routingContextWatchDHTValues = dylib.lookupFunction<
-                Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Uint64, Uint32),
+                Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>,
+                    Uint64, Uint32),
                 _RoutingContextWatchDHTValuesDart>(
             'routing_context_watch_dht_values'),
         _routingContextCancelDHTWatch = dylib.lookupFunction<
@@ -1203,35 +1198,41 @@ class VeilidFFI extends Veilid {
         _newPrivateRoute =
             dylib.lookupFunction<Void Function(Int64), _NewPrivateRouteDart>(
                 'new_private_route'),
-        _newCustomPrivateRoute = dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>),
+        _newCustomPrivateRoute = dylib.lookupFunction<
+            Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>),
             _NewCustomPrivateRouteDart>('new_custom_private_route'),
         _importRemotePrivateRoute = dylib.lookupFunction<
             Void Function(Int64, Pointer<Utf8>),
             _ImportRemotePrivateRouteDart>('import_remote_private_route'),
-        _releasePrivateRoute = dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>),
+        _releasePrivateRoute = dylib.lookupFunction<
+            Void Function(Int64, Pointer<Utf8>),
             _ReleasePrivateRouteDart>('release_private_route'),
-        _appCallReply = dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>), _AppCallReplyDart>(
-            'app_call_reply'),
-        _openTableDb = dylib
-            .lookupFunction<Void Function(Int64, Pointer<Utf8>, Uint32), _OpenTableDbDart>('open_table_db'),
+        _appCallReply = dylib.lookupFunction<
+            Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>),
+            _AppCallReplyDart>('app_call_reply'),
+        _openTableDb = dylib.lookupFunction<
+            Void Function(Int64, Pointer<Utf8>, Uint32),
+            _OpenTableDbDart>('open_table_db'),
         _releaseTableDb =
             dylib.lookupFunction<Int32 Function(Uint32), _ReleaseTableDbDart>(
                 'release_table_db'),
-        _deleteTableDb =
-            dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>), _DeleteTableDbDart>(
-                'delete_table_db'),
+        _deleteTableDb = dylib.lookupFunction<
+            Void Function(Int64, Pointer<Utf8>),
+            _DeleteTableDbDart>('delete_table_db'),
         _tableDbGetColumnCount = dylib.lookupFunction<Uint32 Function(Uint32),
             _TableDbGetColumnCountDart>('table_db_get_column_count'),
-        _tableDbGetKeys =
-            dylib.lookupFunction<Pointer<Utf8> Function(Uint64, Uint32, Uint32), _TableDbGetKeysDart>(
-                'table_db_get_keys'),
-        _tableDbStore = dylib.lookupFunction<Void Function(Int64, Uint32, Uint32, Pointer<Utf8>, Pointer<Utf8>), _TableDbStoreDart>(
-            'table_db_store'),
-        _tableDbLoad = dylib
-            .lookupFunction<Void Function(Int64, Uint32, Uint32, Pointer<Utf8>), _TableDbLoadDart>('table_db_load'),
-        _tableDbDelete =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Uint32, Pointer<Utf8>), _TableDbDeleteDart>(
-                'table_db_delete'),
+        _tableDbGetKeys = dylib.lookupFunction<
+            Pointer<Utf8> Function(Uint64, Uint32, Uint32),
+            _TableDbGetKeysDart>('table_db_get_keys'),
+        _tableDbStore = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+            _TableDbStoreDart>('table_db_store'),
+        _tableDbLoad = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Uint32, Pointer<Utf8>),
+            _TableDbLoadDart>('table_db_load'),
+        _tableDbDelete = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Uint32, Pointer<Utf8>),
+            _TableDbDeleteDart>('table_db_delete'),
         _tableDbTransact =
             dylib.lookupFunction<Uint32 Function(Uint32), _TableDbTransactDart>(
                 'table_db_transact'),
@@ -1250,83 +1251,89 @@ class VeilidFFI extends Veilid {
         _tableDbTransactionDelete = dylib.lookupFunction<
             Void Function(Int64, Uint32, Uint32, Pointer<Utf8>),
             _TableDbTransactionDeleteDart>('table_db_transaction_delete'),
-        _validCryptoKinds =
-            dylib.lookupFunction<Pointer<Utf8> Function(), _ValidCryptoKindsDart>(
-                'valid_crypto_kinds'),
+        _validCryptoKinds = dylib.lookupFunction<Pointer<Utf8> Function(),
+            _ValidCryptoKindsDart>('valid_crypto_kinds'),
         _bestCryptoKind =
             dylib.lookupFunction<Uint32 Function(), _BestCryptoKindDart>(
                 'best_crypto_kind'),
-        _verifySignatures =
-            dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>), _VerifySignaturesDart>(
-                'verify_signatures'),
-        _generateSignatures =
-            dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>), _GenerateSignaturesDart>(
-                'generate_signatures'),
-        _generateKeyPair =
-            dylib.lookupFunction<Void Function(Int64, Uint32), _GenerateKeyPairDart>(
-                'generate_key_pair'),
-        _cryptoCachedDH =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>), _CryptoCachedDHDart>(
-                'crypto_cached_dh'),
-        _cryptoComputeDH =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>), _CryptoComputeDHDart>(
-                'crypto_compute_dh'),
-        _cryptoRandomBytes =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Uint32), _CryptoRandomBytesDart>(
-                'crypto_random_bytes'),
+        _verifySignatures = dylib.lookupFunction<
+            Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+            _VerifySignaturesDart>('verify_signatures'),
+        _generateSignatures = dylib.lookupFunction<
+            Void Function(Int64, Pointer<Utf8>, Pointer<Utf8>),
+            _GenerateSignaturesDart>('generate_signatures'),
+        _generateKeyPair = dylib.lookupFunction<Void Function(Int64, Uint32),
+            _GenerateKeyPairDart>('generate_key_pair'),
+        _cryptoCachedDH = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoCachedDHDart>('crypto_cached_dh'),
+        _cryptoComputeDH = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoComputeDHDart>('crypto_compute_dh'),
+        _cryptoRandomBytes = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Uint32),
+            _CryptoRandomBytesDart>('crypto_random_bytes'),
         _cryptoDefaultSaltLength = dylib.lookupFunction<
             Void Function(Int64, Uint32),
             _CryptoDefaultSaltLengthDart>('crypto_default_salt_length'),
-        _cryptoHashPassword =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>), _CryptoHashPasswordDart>(
-                'crypto_hash_password'),
-        _cryptoVerifyPassword = dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+        _cryptoHashPassword = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoHashPasswordDart>('crypto_hash_password'),
+        _cryptoVerifyPassword = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _CryptoVerifyPasswordDart>('crypto_verify_password'),
         _cryptoDeriveSharedSecret = dylib.lookupFunction<
             Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _CryptoVerifyPasswordDart>('crypto_derive_shared_secret'),
-        _cryptoRandomNonce =
-            dylib.lookupFunction<Void Function(Int64, Uint32), _CryptoRandomNonceDart>(
-                'crypto_random_nonce'),
+        _cryptoRandomNonce = dylib.lookupFunction<Void Function(Int64, Uint32),
+            _CryptoRandomNonceDart>('crypto_random_nonce'),
         _cryptoRandomSharedSecret = dylib.lookupFunction<
             Void Function(Int64, Uint32),
             _CryptoRandomSharedSecretDart>('crypto_random_shared_secret'),
-        _cryptoGenerateKeyPair = dylib.lookupFunction<Void Function(Int64, Uint32),
+        _cryptoGenerateKeyPair = dylib.lookupFunction<
+            Void Function(Int64, Uint32),
             _CryptoGenerateKeyPairDart>('crypto_generate_key_pair'),
-        _cryptoGenerateHash =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>), _CryptoGenerateHashDart>(
-                'crypto_generate_hash'),
-        _cryptoValidateKeyPair = dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+        _cryptoGenerateHash = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>),
+            _CryptoGenerateHashDart>('crypto_generate_hash'),
+        _cryptoValidateKeyPair = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _CryptoValidateKeyPairDart>('crypto_validate_key_pair'),
-        _cryptoValidateHash =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>), _CryptoValidateHashDart>(
-                'crypto_validate_hash'),
-        _cryptoDistance =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>), _CryptoDistanceDart>(
-                'crypto_distance'),
-        _cryptoSign =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>), _CryptoSignDart>('crypto_sign'),
-        _cryptoVerify = dylib
-            .lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>), _CryptoVerifyDart>('crypto_verify'),
-        _cryptoAeadOverhead =
-            dylib.lookupFunction<Void Function(Int64, Uint32), _CryptoAeadOverheadDart>(
-                'crypto_aead_overhead'),
-        _cryptoDecryptAead =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>), _CryptoDecryptAeadDart>(
-                'crypto_decrypt_aead'),
-        _cryptoEncryptAead =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>), _CryptoEncryptAeadDart>(
-                'crypto_encrypt_aead'),
-        _cryptoCryptNoAuth =
-            dylib.lookupFunction<Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>), _CryptoCryptNoAuthDart>(
-                'crypto_crypt_no_auth'),
+        _cryptoValidateHash = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoValidateHashDart>('crypto_validate_hash'),
+        _cryptoDistance = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoDistanceDart>('crypto_distance'),
+        _cryptoSign = dylib.lookupFunction<
+            Void Function(
+                Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoSignDart>('crypto_sign'),
+        _cryptoVerify = dylib.lookupFunction<
+            Void Function(
+                Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoVerifyDart>('crypto_verify'),
+        _cryptoAeadOverhead = dylib.lookupFunction<Void Function(Int64, Uint32),
+            _CryptoAeadOverheadDart>('crypto_aead_overhead'),
+        _cryptoDecryptAead = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>,
+                Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoDecryptAeadDart>('crypto_decrypt_aead'),
+        _cryptoEncryptAead = dylib.lookupFunction<
+            Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>,
+                Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoEncryptAeadDart>('crypto_encrypt_aead'),
+        _cryptoCryptNoAuth = dylib.lookupFunction<
+            Void Function(
+                Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoCryptNoAuthDart>('crypto_crypt_no_auth'),
         _now = dylib.lookupFunction<Uint64 Function(), _NowDart>('now'),
-        _debug = dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>), _DebugDart>('debug'),
+        _debug = dylib.lookupFunction<Void Function(Int64, Pointer<Utf8>),
+            _DebugDart>('debug'),
         _veilidVersionString = dylib.lookupFunction<Pointer<Utf8> Function(),
             _VeilidVersionStringDart>('veilid_version_string'),
-        _veilidVersion =
-            dylib.lookupFunction<VeilidVersionFFI Function(), _VeilidVersionDart>(
-                'veilid_version') {
+        _veilidVersion = dylib.lookupFunction<VeilidVersionFFI Function(),
+            _VeilidVersionDart>('veilid_version') {
     // Get veilid_flutter initializer
     final initializeVeilidFlutter = _dylib.lookupFunction<
         Void Function(Pointer<_DartPostCObject>),
@@ -1397,7 +1404,8 @@ class VeilidFFI extends Veilid {
   final _CryptoDefaultSaltLengthDart _cryptoDefaultSaltLength;
   final _CryptoHashPasswordDart _cryptoHashPassword;
   final _CryptoVerifyPasswordDart _cryptoVerifyPassword;
-  final void Function(int, int, Pointer<Utf8>, Pointer<Utf8>) _cryptoDeriveSharedSecret;
+  final void Function(int, int, Pointer<Utf8>, Pointer<Utf8>)
+      _cryptoDeriveSharedSecret;
 
   final _CryptoRandomNonceDart _cryptoRandomNonce;
   final _CryptoRandomSharedSecretDart _cryptoRandomSharedSecret;
@@ -1432,8 +1440,9 @@ class VeilidFFI extends Veilid {
     final nativeLogLevel = jsonEncode(logLevel).toNativeUtf8();
     final nativeLayer = layer.toNativeUtf8();
     _changeLogLevel(nativeLayer, nativeLogLevel);
-    malloc.free(nativeLayer);
-    malloc.free(nativeLogLevel);
+    malloc
+      ..free(nativeLayer)
+      ..free(nativeLogLevel);
   }
 
   @override
@@ -1488,7 +1497,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('routing_context');
     final sendPort = recvPort.sendPort;
     _routingContext(sendPort.nativePort);
-    final id = await processFuturePlain(recvPort.first);
+    final id = await processFuturePlain<int>(recvPort.first);
     return VeilidRoutingContextFFI._(_Ctx(id, this));
   }
 
@@ -1548,7 +1557,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('open_table_db');
     final sendPort = recvPort.sendPort;
     _openTableDb(sendPort.nativePort, name.toNativeUtf8(), columnCount);
-    final id = await processFuturePlain(recvPort.first);
+    final id = await processFuturePlain<int>(recvPort.first);
     return VeilidTableDBFFI._(_TDB(id, this));
   }
 
@@ -1557,8 +1566,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('delete_table_db');
     final sendPort = recvPort.sendPort;
     _deleteTableDb(sendPort.nativePort, name.toNativeUtf8());
-    final deleted = await processFuturePlain(recvPort.first);
-    return deleted;
+    return await processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1578,7 +1586,8 @@ class VeilidFFI extends Veilid {
   }
 
   @override
-  Future<VeilidCryptoSystem> bestCryptoSystem() async => VeilidCryptoSystemFFI._(this, _bestCryptoKind());
+  Future<VeilidCryptoSystem> bestCryptoSystem() async =>
+      VeilidCryptoSystemFFI._(this, _bestCryptoKind());
 
   @override
   Future<List<TypedKey>> verifySignatures(List<TypedKey> nodeIds,

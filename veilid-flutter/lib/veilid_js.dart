@@ -14,11 +14,13 @@ Veilid getVeilid() => VeilidJS();
 Object wasm = js_util.getProperty(html.window, 'veilid_wasm');
 
 Future<T> _wrapApiPromise<T>(Object p) => js_util
-    .promiseToFuture<T>(p)
-    .then((value) => value)
-    // ignore: inference_failure_on_untyped_parameter
-    .catchError((error) => Future<T>.error(
-        VeilidAPIException.fromJson(jsonDecode(error as String))));
+        .promiseToFuture<T>(p)
+        .then((value) => value)
+        // ignore: inference_failure_on_untyped_parameter
+        .catchError((e) {
+      // Wrap all other errors in VeilidAPIExceptionInternal
+      throw VeilidAPIExceptionInternal(e.toString());
+    }, test: (e) => e is! VeilidAPIException);
 
 class _Ctx {
   _Ctx(int this.id, this.js);
