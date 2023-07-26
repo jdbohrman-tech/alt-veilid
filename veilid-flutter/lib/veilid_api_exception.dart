@@ -5,8 +5,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 @immutable
 abstract class VeilidAPIException implements Exception {
-  factory VeilidAPIException.fromJson(dynamic json) {
-    switch (json['kind']) {
+  factory VeilidAPIException.fromJson(dynamic j) {
+    final json = j as Map<String, dynamic>;
+    switch (json['kind']! as String) {
       case 'NotInitialized':
         {
           return VeilidAPIExceptionNotInitialized();
@@ -33,42 +34,44 @@ abstract class VeilidAPIException implements Exception {
         }
       case 'NoConnection':
         {
-          return VeilidAPIExceptionNoConnection(json['message']);
+          return VeilidAPIExceptionNoConnection(json['message']! as String);
         }
       case 'KeyNotFound':
         {
-          return VeilidAPIExceptionKeyNotFound(json['key']);
+          return VeilidAPIExceptionKeyNotFound(json['key']! as String);
         }
       case 'Internal':
         {
-          return VeilidAPIExceptionInternal(json['message']);
+          return VeilidAPIExceptionInternal(json['message']! as String);
         }
       case 'Unimplemented':
         {
-          return VeilidAPIExceptionUnimplemented(json['unimplemented']);
+          return VeilidAPIExceptionUnimplemented(
+              json['unimplemented']! as String);
         }
       case 'ParseError':
         {
-          return VeilidAPIExceptionParseError(json['message'], json['value']);
+          return VeilidAPIExceptionParseError(
+              json['message']! as String, json['value']! as String);
         }
       case 'InvalidArgument':
         {
-          return VeilidAPIExceptionInvalidArgument(
-              json['context'], json['argument'], json['value']);
+          return VeilidAPIExceptionInvalidArgument(json['context']! as String,
+              json['argument']! as String, json['value']! as String);
         }
       case 'MissingArgument':
         {
           return VeilidAPIExceptionMissingArgument(
-              json['context'], json['argument']);
+              json['context']! as String, json['argument']! as String);
         }
       case 'Generic':
         {
-          return VeilidAPIExceptionGeneric(json['message']);
+          return VeilidAPIExceptionGeneric(json['message']! as String);
         }
       default:
         {
           throw VeilidAPIExceptionInternal(
-              "Invalid VeilidAPIException type: ${json['kind']}");
+              "Invalid VeilidAPIException type: ${json['kind']! as String}");
         }
     }
   }
@@ -132,7 +135,6 @@ class VeilidAPIExceptionInvalidTarget implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionNoConnection implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionNoConnection(this.message);
   final String message;
@@ -145,7 +147,6 @@ class VeilidAPIExceptionNoConnection implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionKeyNotFound implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionKeyNotFound(this.key);
   final String key;
@@ -158,7 +159,6 @@ class VeilidAPIExceptionKeyNotFound implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionInternal implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionInternal(this.message);
   final String message;
@@ -172,7 +172,6 @@ class VeilidAPIExceptionInternal implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionUnimplemented implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionUnimplemented(this.message);
   final String message;
@@ -186,14 +185,14 @@ class VeilidAPIExceptionUnimplemented implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionParseError implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionParseError(this.message, this.value);
   final String message;
   final String value;
 
   @override
-  String toString() => 'VeilidAPIException: ParseError ($message)\n    value: $value';
+  String toString() =>
+      'VeilidAPIException: ParseError ($message)\n    value: $value';
 
   @override
   String toDisplayError() => 'Parse error: $message';
@@ -201,7 +200,6 @@ class VeilidAPIExceptionParseError implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionInvalidArgument(
       this.context, this.argument, this.value);
@@ -210,7 +208,8 @@ class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
   final String value;
 
   @override
-  String toString() => 'VeilidAPIException: InvalidArgument ($context:$argument)\n    value: $value';
+  String toString() =>
+      'VeilidAPIException: InvalidArgument ($context:$argument)\n    value: $value';
 
   @override
   String toDisplayError() => 'Invalid argument for $context: $argument';
@@ -218,14 +217,14 @@ class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionMissingArgument implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionMissingArgument(this.context, this.argument);
   final String context;
   final String argument;
 
   @override
-  String toString() => 'VeilidAPIException: MissingArgument ($context:$argument)';
+  String toString() =>
+      'VeilidAPIException: MissingArgument ($context:$argument)';
 
   @override
   String toDisplayError() => 'Missing argument for $context: $argument';
@@ -233,7 +232,6 @@ class VeilidAPIExceptionMissingArgument implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionGeneric implements VeilidAPIException {
-
   //
   const VeilidAPIExceptionGeneric(this.message);
   final String message;

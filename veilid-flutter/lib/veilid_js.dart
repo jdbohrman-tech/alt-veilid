@@ -13,9 +13,12 @@ Veilid getVeilid() => VeilidJS();
 
 Object wasm = js_util.getProperty(html.window, 'veilid_wasm');
 
-Future<T> _wrapApiPromise<T>(Object p) => js_util.promiseToFuture(p).then((value) => value as T).catchError(
-      (error) => Future<T>.error(
-          VeilidAPIException.fromJson(jsonDecode(error as String))));
+Future<T> _wrapApiPromise<T>(Object p) => js_util
+    .promiseToFuture<T>(p)
+    .then((value) => value)
+    // ignore: inference_failure_on_untyped_parameter
+    .catchError((error) => Future<T>.error(
+        VeilidAPIException.fromJson(jsonDecode(error as String))));
 
 class _Ctx {
   _Ctx(int this.id, this.js);
@@ -29,7 +32,7 @@ class _Ctx {
 
   void close() {
     if (id != null) {
-      js_util.callMethod(wasm, 'release_routing_context', [id!]);
+      js_util.callMethod<void>(wasm, 'release_routing_context', [id]);
       id = null;
     }
   }
@@ -37,7 +40,6 @@ class _Ctx {
 
 // JS implementation of VeilidRoutingContext
 class VeilidRoutingContextJS extends VeilidRoutingContext {
-
   VeilidRoutingContextJS._(this._ctx) {
     _finalizer.attach(this, _ctx, detach: this);
   }
@@ -60,10 +62,11 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   VeilidRoutingContextJS withCustomPrivacy(SafetySelection safetySelection) {
     _ctx.ensureValid();
-    final newId = js_util.callMethod(
+    final id = _ctx.id!;
+    final newId = js_util.callMethod<int>(
         wasm,
         'routing_context_with_custom_privacy',
-        [_ctx.id!, jsonEncode(safetySelection)]);
+        [id, jsonEncode(safetySelection)]);
 
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
@@ -71,45 +74,50 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   VeilidRoutingContextJS withSequencing(Sequencing sequencing) {
     _ctx.ensureValid();
-    final newId = js_util.callMethod(wasm, 'routing_context_with_sequencing',
-        [_ctx.id!, jsonEncode(sequencing)]);
+    final id = _ctx.id!;
+    final newId = js_util.callMethod<int>(
+        wasm, 'routing_context_with_sequencing', [id, jsonEncode(sequencing)]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
   @override
   Future<Uint8List> appCall(String target, Uint8List request) async {
     _ctx.ensureValid();
+    final id = _ctx.id!;
     final encodedRequest = base64UrlNoPadEncode(request);
 
     return base64UrlNoPadDecode(await _wrapApiPromise(js_util.callMethod(
-        wasm, 'routing_context_app_call', [_ctx.id!, target, encodedRequest])));
+        wasm, 'routing_context_app_call', [id, target, encodedRequest])));
   }
 
   @override
   Future<void> appMessage(String target, Uint8List message) {
     _ctx.ensureValid();
+    final id = _ctx.id!;
     final encodedMessage = base64UrlNoPadEncode(message);
 
-    return _wrapApiPromise(js_util.callMethod(wasm,
-        'routing_context_app_message', [_ctx.id!, target, encodedMessage]));
+    return _wrapApiPromise(js_util.callMethod(
+        wasm, 'routing_context_app_message', [id, target, encodedMessage]));
   }
 
   @override
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
       {CryptoKind kind = 0}) async {
     _ctx.ensureValid();
+    final id = _ctx.id!;
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, 'routing_context_create_dht_record',
-            [_ctx.id!, jsonEncode(schema), kind]))));
+            [id, jsonEncode(schema), kind]))));
   }
 
   @override
   Future<DHTRecordDescriptor> openDHTRecord(
       TypedKey key, KeyPair? writer) async {
     _ctx.ensureValid();
+    final id = _ctx.id!;
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, 'routing_context_open_dht_record', [
-      _ctx.id!,
+      id,
       jsonEncode(key),
       if (writer != null) jsonEncode(writer) else null
     ]))));
@@ -118,25 +126,28 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   Future<void> closeDHTRecord(TypedKey key) {
     _ctx.ensureValid();
+    final id = _ctx.id!;
     return _wrapApiPromise(js_util.callMethod(
-        wasm, 'routing_context_close_dht_record', [_ctx.id!, jsonEncode(key)]));
+        wasm, 'routing_context_close_dht_record', [id, jsonEncode(key)]));
   }
 
   @override
   Future<void> deleteDHTRecord(TypedKey key) {
     _ctx.ensureValid();
-    return _wrapApiPromise(js_util.callMethod(wasm,
-        'routing_context_delete_dht_record', [_ctx.id!, jsonEncode(key)]));
+    final id = _ctx.id!;
+    return _wrapApiPromise(js_util.callMethod(
+        wasm, 'routing_context_delete_dht_record', [id, jsonEncode(key)]));
   }
 
   @override
   Future<ValueData?> getDHTValue(
       TypedKey key, int subkey, bool forceRefresh) async {
     _ctx.ensureValid();
-    final opt = await _wrapApiPromise(js_util.callMethod(
+    final id = _ctx.id!;
+    final opt = await _wrapApiPromise<String?>(js_util.callMethod(
         wasm,
         'routing_context_get_dht_value',
-        [_ctx.id!, jsonEncode(key), subkey, forceRefresh]));
+        [id, jsonEncode(key), subkey, forceRefresh]));
     return opt == null ? null : ValueData.fromJson(jsonDecode(opt));
   }
 
@@ -144,10 +155,11 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   Future<ValueData?> setDHTValue(
       TypedKey key, int subkey, Uint8List data) async {
     _ctx.ensureValid();
-    final opt = await _wrapApiPromise(js_util.callMethod(
+    final id = _ctx.id!;
+    final opt = await _wrapApiPromise<String?>(js_util.callMethod(
         wasm,
         'routing_context_set_dht_value',
-        [_ctx.id!, jsonEncode(key), subkey, base64UrlNoPadEncode(data)]));
+        [id, jsonEncode(key), subkey, base64UrlNoPadEncode(data)]));
     return opt == null ? null : ValueData.fromJson(jsonDecode(opt));
   }
 
@@ -155,9 +167,10 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   Future<Timestamp> watchDHTValues(TypedKey key, List<ValueSubkeyRange> subkeys,
       Timestamp expiration, int count) async {
     _ctx.ensureValid();
-    final ts = await _wrapApiPromise(js_util.callMethod(
+    final id = _ctx.id!;
+    final ts = await _wrapApiPromise<String>(js_util.callMethod(
         wasm, 'routing_context_watch_dht_values', [
-      _ctx.id!,
+      id,
       jsonEncode(key),
       jsonEncode(subkeys),
       expiration.toString(),
@@ -169,16 +182,16 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   Future<bool> cancelDHTWatch(TypedKey key, List<ValueSubkeyRange> subkeys) {
     _ctx.ensureValid();
+    final id = _ctx.id!;
     return _wrapApiPromise(js_util.callMethod(
         wasm,
         'routing_context_cancel_dht_watch',
-        [_ctx.id!, jsonEncode(key), jsonEncode(subkeys)]));
+        [id, jsonEncode(key), jsonEncode(subkeys)]));
   }
 }
 
 // JS implementation of VeilidCryptoSystem
 class VeilidCryptoSystemJS extends VeilidCryptoSystem {
-
   VeilidCryptoSystemJS._(this._js, this._kind) {
     // Keep the reference
     _js;
@@ -190,127 +203,151 @@ class VeilidCryptoSystemJS extends VeilidCryptoSystem {
   CryptoKind kind() => _kind;
 
   @override
-  Future<SharedSecret> cachedDH(PublicKey key, SecretKey secret) async => SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util
-        .callMethod(wasm, 'crypto_cached_dh',
-            [_kind, jsonEncode(key), jsonEncode(secret)]))));
+  Future<SharedSecret> cachedDH(PublicKey key, SecretKey secret) async =>
+      SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm,
+          'crypto_cached_dh',
+          [_kind, jsonEncode(key), jsonEncode(secret)]))));
 
   @override
-  Future<SharedSecret> computeDH(PublicKey key, SecretKey secret) async => SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util
-        .callMethod(wasm, 'crypto_compute_dh',
-            [_kind, jsonEncode(key), jsonEncode(secret)]))));
+  Future<SharedSecret> computeDH(PublicKey key, SecretKey secret) async =>
+      SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm,
+          'crypto_compute_dh',
+          [_kind, jsonEncode(key), jsonEncode(secret)]))));
 
   @override
-  Future<Uint8List> randomBytes(int len) async => base64UrlNoPadDecode(await _wrapApiPromise(
-        js_util.callMethod(wasm, 'crypto_random_bytes', [_kind, len])));
+  Future<Uint8List> randomBytes(int len) async =>
+      base64UrlNoPadDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'crypto_random_bytes', [_kind, len])));
 
   @override
   Future<int> defaultSaltLength() => _wrapApiPromise(
-        js_util.callMethod(wasm, 'crypto_default_salt_length', [_kind]));
+      js_util.callMethod(wasm, 'crypto_default_salt_length', [_kind]));
 
   @override
-  Future<String> hashPassword(Uint8List password, Uint8List salt) => _wrapApiPromise(js_util.callMethod(wasm, 'crypto_hash_password',
-        [_kind, base64UrlNoPadEncode(password), base64UrlNoPadEncode(salt)]));
+  Future<String> hashPassword(Uint8List password, Uint8List salt) =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'crypto_hash_password',
+          [_kind, base64UrlNoPadEncode(password), base64UrlNoPadEncode(salt)]));
 
   @override
-  Future<bool> verifyPassword(Uint8List password, String passwordHash) => _wrapApiPromise(js_util.callMethod(wasm, 'crypto_verify_password',
-        [_kind, base64UrlNoPadEncode(password), passwordHash]));
+  Future<bool> verifyPassword(Uint8List password, String passwordHash) =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'crypto_verify_password',
+          [_kind, base64UrlNoPadEncode(password), passwordHash]));
 
   @override
   Future<SharedSecret> deriveSharedSecret(
-      Uint8List password, Uint8List salt) async => SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util
-        .callMethod(wasm, 'crypto_derive_shared_secret', [
-      _kind,
-      base64UrlNoPadEncode(password),
-      base64UrlNoPadEncode(salt)
-    ]))));
+          Uint8List password, Uint8List salt) async =>
+      SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm, 'crypto_derive_shared_secret', [
+        _kind,
+        base64UrlNoPadEncode(password),
+        base64UrlNoPadEncode(salt)
+      ]))));
 
   @override
-  Future<Nonce> randomNonce() async => Nonce.fromJson(jsonDecode(await _wrapApiPromise(
-        js_util.callMethod(wasm, 'crypto_random_nonce', [_kind]))));
+  Future<Nonce> randomNonce() async =>
+      Nonce.fromJson(jsonDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'crypto_random_nonce', [_kind]))));
 
   @override
-  Future<SharedSecret> randomSharedSecret() async => SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(
-        js_util.callMethod(wasm, 'crypto_random_shared_secret', [_kind]))));
+  Future<SharedSecret> randomSharedSecret() async =>
+      SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'crypto_random_shared_secret', [_kind]))));
 
   @override
-  Future<KeyPair> generateKeyPair() async => KeyPair.fromJson(jsonDecode(await _wrapApiPromise(
-        js_util.callMethod(wasm, 'crypto_generate_key_pair', [_kind]))));
+  Future<KeyPair> generateKeyPair() async =>
+      KeyPair.fromJson(jsonDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'crypto_generate_key_pair', [_kind]))));
 
   @override
-  Future<HashDigest> generateHash(Uint8List data) async => HashDigest.fromJson(jsonDecode(await _wrapApiPromise(js_util
-        .callMethod(wasm, 'crypto_generate_hash',
-            [_kind, base64UrlNoPadEncode(data)]))));
+  Future<HashDigest> generateHash(Uint8List data) async =>
+      HashDigest.fromJson(jsonDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm, 'crypto_generate_hash', [_kind, base64UrlNoPadEncode(data)]))));
 
   @override
-  Future<bool> validateKeyPair(PublicKey key, SecretKey secret) => _wrapApiPromise(js_util.callMethod(wasm, 'crypto_validate_key_pair',
-        [_kind, jsonEncode(key), jsonEncode(secret)]));
+  Future<bool> validateKeyPair(PublicKey key, SecretKey secret) =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'crypto_validate_key_pair',
+          [_kind, jsonEncode(key), jsonEncode(secret)]));
 
   @override
-  Future<bool> validateHash(Uint8List data, HashDigest hash) => _wrapApiPromise(js_util.callMethod(wasm, 'crypto_validate_hash',
-        [_kind, base64UrlNoPadEncode(data), jsonEncode(hash)]));
+  Future<bool> validateHash(Uint8List data, HashDigest hash) =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'crypto_validate_hash',
+          [_kind, base64UrlNoPadEncode(data), jsonEncode(hash)]));
 
   @override
-  Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2) async => CryptoKeyDistance.fromJson(jsonDecode(await _wrapApiPromise(js_util
-        .callMethod(wasm, 'crypto_distance',
-            [_kind, jsonEncode(key1), jsonEncode(key2)]))));
+  Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2) async =>
+      CryptoKeyDistance.fromJson(jsonDecode(await _wrapApiPromise(js_util
+          .callMethod(wasm, 'crypto_distance',
+              [_kind, jsonEncode(key1), jsonEncode(key2)]))));
 
   @override
   Future<Signature> sign(
-      PublicKey key, SecretKey secret, Uint8List data) async => Signature.fromJson(jsonDecode(await _wrapApiPromise(js_util
-        .callMethod(wasm, 'crypto_sign', [
-      _kind,
-      jsonEncode(key),
-      jsonEncode(secret),
-      base64UrlNoPadEncode(data)
-    ]))));
+          PublicKey key, SecretKey secret, Uint8List data) async =>
+      Signature.fromJson(jsonDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm, 'crypto_sign', [
+        _kind,
+        jsonEncode(key),
+        jsonEncode(secret),
+        base64UrlNoPadEncode(data)
+      ]))));
 
   @override
-  Future<void> verify(PublicKey key, Uint8List data, Signature signature) => _wrapApiPromise(js_util.callMethod(wasm, 'crypto_verify', [
-      _kind,
-      jsonEncode(key),
-      base64UrlNoPadEncode(data),
-      jsonEncode(signature),
-    ]));
+  Future<void> verify(PublicKey key, Uint8List data, Signature signature) =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'crypto_verify', [
+        _kind,
+        jsonEncode(key),
+        base64UrlNoPadEncode(data),
+        jsonEncode(signature),
+      ]));
 
   @override
   Future<int> aeadOverhead() => _wrapApiPromise(
-        js_util.callMethod(wasm, 'crypto_aead_overhead', [_kind]));
+      js_util.callMethod(wasm, 'crypto_aead_overhead', [_kind]));
 
   @override
   Future<Uint8List> decryptAead(Uint8List body, Nonce nonce,
-      SharedSecret sharedSecret, Uint8List? associatedData) async => base64UrlNoPadDecode(
-        await _wrapApiPromise(js_util.callMethod(wasm, 'crypto_decrypt_aead', [
-      _kind,
-      base64UrlNoPadEncode(body),
-      jsonEncode(nonce),
-      jsonEncode(sharedSecret),
-      if (associatedData != null) base64UrlNoPadEncode(associatedData) else null
-    ])));
+          SharedSecret sharedSecret, Uint8List? associatedData) async =>
+      base64UrlNoPadDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'crypto_decrypt_aead', [
+        _kind,
+        base64UrlNoPadEncode(body),
+        jsonEncode(nonce),
+        jsonEncode(sharedSecret),
+        if (associatedData != null)
+          base64UrlNoPadEncode(associatedData)
+        else
+          null
+      ])));
 
   @override
   Future<Uint8List> encryptAead(Uint8List body, Nonce nonce,
-      SharedSecret sharedSecret, Uint8List? associatedData) async => base64UrlNoPadDecode(
-        await _wrapApiPromise(js_util.callMethod(wasm, 'crypto_encrypt_aead', [
-      _kind,
-      base64UrlNoPadEncode(body),
-      jsonEncode(nonce),
-      jsonEncode(sharedSecret),
-      if (associatedData != null) base64UrlNoPadEncode(associatedData) else null
-    ])));
+          SharedSecret sharedSecret, Uint8List? associatedData) async =>
+      base64UrlNoPadDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'crypto_encrypt_aead', [
+        _kind,
+        base64UrlNoPadEncode(body),
+        jsonEncode(nonce),
+        jsonEncode(sharedSecret),
+        if (associatedData != null)
+          base64UrlNoPadEncode(associatedData)
+        else
+          null
+      ])));
 
   @override
   Future<Uint8List> cryptNoAuth(
-      Uint8List body, Nonce nonce, SharedSecret sharedSecret) async => base64UrlNoPadDecode(await _wrapApiPromise(js_util.callMethod(
-        wasm, 'crypto_crypt_no_auth', [
-      _kind,
-      base64UrlNoPadEncode(body),
-      jsonEncode(nonce),
-      jsonEncode(sharedSecret)
-    ])));
+          Uint8List body, Nonce nonce, SharedSecret sharedSecret) async =>
+      base64UrlNoPadDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm, 'crypto_crypt_no_auth', [
+        _kind,
+        base64UrlNoPadEncode(body),
+        jsonEncode(nonce),
+        jsonEncode(sharedSecret)
+      ])));
 }
 
 class _TDBT {
-
   _TDBT(this.id, this.tdbjs, this.js);
   int? id;
   final VeilidTableDBJS tdbjs;
@@ -323,7 +360,7 @@ class _TDBT {
 
   void close() {
     if (id != null) {
-      js_util.callMethod(wasm, 'release_table_db_transaction', [id!]);
+      js_util.callMethod<void>(wasm, 'release_table_db_transaction', [id]);
       id = null;
     }
   }
@@ -331,7 +368,6 @@ class _TDBT {
 
 // JS implementation of VeilidTableDBTransaction
 class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
-
   VeilidTableDBTransactionJS._(this._tdbt) {
     _finalizer.attach(this, _tdbt, detach: this);
   }
@@ -344,41 +380,44 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
   @override
   Future<void> commit() async {
     _tdbt.ensureValid();
-    await _wrapApiPromise(
-        js_util.callMethod(wasm, 'table_db_transaction_commit', [_tdbt.id!]));
+    final id = _tdbt.id!;
+    await _wrapApiPromise<void>(
+        js_util.callMethod(wasm, 'table_db_transaction_commit', [id]));
     _tdbt.close();
   }
 
   @override
   Future<void> rollback() async {
     _tdbt.ensureValid();
-    await _wrapApiPromise(
-        js_util.callMethod(wasm, 'table_db_transaction_rollback', [_tdbt.id!]));
+    final id = _tdbt.id!;
+    await _wrapApiPromise<void>(
+        js_util.callMethod(wasm, 'table_db_transaction_rollback', [id]));
     _tdbt.close();
   }
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) async {
     _tdbt.ensureValid();
+    final id = _tdbt.id!;
     final encodedKey = base64UrlNoPadEncode(key);
     final encodedValue = base64UrlNoPadEncode(value);
 
-    await _wrapApiPromise(js_util.callMethod(wasm, 'table_db_transaction_store',
-        [_tdbt.id!, col, encodedKey, encodedValue]));
+    await _wrapApiPromise<void>(js_util.callMethod(wasm,
+        'table_db_transaction_store', [id, col, encodedKey, encodedValue]));
   }
 
   @override
   Future<void> delete(int col, Uint8List key) async {
     _tdbt.ensureValid();
+    final id = _tdbt.id!;
     final encodedKey = base64UrlNoPadEncode(key);
 
-    await _wrapApiPromise(js_util.callMethod(
-        wasm, 'table_db_transaction_delete', [_tdbt.id!, col, encodedKey]));
+    await _wrapApiPromise<void>(js_util.callMethod(
+        wasm, 'table_db_transaction_delete', [id, col, encodedKey]));
   }
 }
 
 class _TDB {
-
   _TDB(int this.id, this.js);
   int? id;
   final VeilidJS js;
@@ -390,7 +429,7 @@ class _TDB {
 
   void close() {
     if (id != null) {
-      js_util.callMethod(wasm, 'release_table_db', [id!]);
+      js_util.callMethod<void>(wasm, 'release_table_db', [id]);
       id = null;
     }
   }
@@ -398,7 +437,6 @@ class _TDB {
 
 // JS implementation of VeilidTableDB
 class VeilidTableDBJS extends VeilidTableDB {
-
   VeilidTableDBJS._(this._tdb) {
     _finalizer.attach(this, _tdb, detach: this);
   }
@@ -419,35 +457,39 @@ class VeilidTableDBJS extends VeilidTableDB {
   @override
   Future<List<Uint8List>> getKeys(int col) async {
     _tdb.ensureValid();
+    final id = _tdb.id!;
     return jsonListConstructor(base64UrlNoPadDecodeDynamic)(jsonDecode(
-        await js_util.callMethod(wasm, 'table_db_get_keys', [_tdb.id!, col])));
+        await js_util.callMethod(wasm, 'table_db_get_keys', [id, col])));
   }
 
   @override
   VeilidTableDBTransaction transact() {
     _tdb.ensureValid();
-    final id = js_util.callMethod(wasm, 'table_db_transact', [_tdb.id!]);
+    final id = _tdb.id!;
+    final xid = js_util.callMethod<int>(wasm, 'table_db_transact', [id]);
 
-    return VeilidTableDBTransactionJS._(_TDBT(id, this, _tdb.js));
+    return VeilidTableDBTransactionJS._(_TDBT(xid, this, _tdb.js));
   }
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
     _tdb.ensureValid();
+    final id = _tdb.id!;
     final encodedKey = base64UrlNoPadEncode(key);
     final encodedValue = base64UrlNoPadEncode(value);
 
     return _wrapApiPromise(js_util.callMethod(
-        wasm, 'table_db_store', [_tdb.id!, col, encodedKey, encodedValue]));
+        wasm, 'table_db_store', [id, col, encodedKey, encodedValue]));
   }
 
   @override
   Future<Uint8List?> load(int col, Uint8List key) async {
     _tdb.ensureValid();
+    final id = _tdb.id!;
     final encodedKey = base64UrlNoPadEncode(key);
 
-    final out = await _wrapApiPromise(
-        js_util.callMethod(wasm, 'table_db_load', [_tdb.id!, col, encodedKey]));
+    final out = await _wrapApiPromise<String?>(
+        js_util.callMethod(wasm, 'table_db_load', [id, col, encodedKey]));
     if (out == null) {
       return null;
     }
@@ -455,12 +497,17 @@ class VeilidTableDBJS extends VeilidTableDB {
   }
 
   @override
-  Future<Uint8List?> delete(int col, Uint8List key) {
+  Future<Uint8List?> delete(int col, Uint8List key) async {
     _tdb.ensureValid();
+    final id = _tdb.id!;
     final encodedKey = base64UrlNoPadEncode(key);
 
-    return _wrapApiPromise(js_util
-        .callMethod(wasm, 'table_db_delete', [_tdb.id!, col, encodedKey]));
+    final out = await _wrapApiPromise<String?>(
+        js_util.callMethod(wasm, 'table_db_delete', [id, col, encodedKey]));
+    if (out == null) {
+      return null;
+    }
+    return base64UrlNoPadDecode(out);
   }
 }
 
@@ -470,48 +517,52 @@ class VeilidJS extends Veilid {
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
     final platformConfigJsonString = jsonEncode(platformConfigJson);
-    js_util
-        .callMethod(wasm, 'initialize_veilid_core', [platformConfigJsonString]);
+    js_util.callMethod<void>(
+        wasm, 'initialize_veilid_core', [platformConfigJsonString]);
   }
 
   @override
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel) {
     final logLevelJsonString = jsonEncode(logLevel);
-    js_util.callMethod(wasm, 'change_log_level', [layer, logLevelJsonString]);
+    js_util.callMethod<void>(
+        wasm, 'change_log_level', [layer, logLevelJsonString]);
   }
 
   @override
   Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config) async {
     final streamController = StreamController<VeilidUpdate>();
-    updateCallback(String update) {
-      final updateJson = jsonDecode(update);
+    void updateCallback(String update) {
+      final updateJson = jsonDecode(update) as Map<String, dynamic>;
       if (updateJson['kind'] == 'Shutdown') {
-        streamController.close();
+        unawaited(streamController.close());
       } else {
         final update = VeilidUpdate.fromJson(updateJson);
         streamController.add(update);
       }
     }
 
-    await _wrapApiPromise(js_util.callMethod(wasm, 'startup_veilid_core',
+    await _wrapApiPromise<void>(js_util.callMethod(wasm, 'startup_veilid_core',
         [js.allowInterop(updateCallback), jsonEncode(config)]));
 
     return streamController.stream;
   }
 
   @override
-  Future<VeilidState> getVeilidState() async => VeilidState.fromJson(jsonDecode(await _wrapApiPromise(
-        js_util.callMethod(wasm, 'get_veilid_state', []))));
+  Future<VeilidState> getVeilidState() async =>
+      VeilidState.fromJson(jsonDecode(await _wrapApiPromise<String>(
+          js_util.callMethod(wasm, 'get_veilid_state', []))));
 
   @override
-  Future<void> attach() => _wrapApiPromise(js_util.callMethod(wasm, 'attach', []));
+  Future<void> attach() =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'attach', []));
 
   @override
-  Future<void> detach() => _wrapApiPromise(js_util.callMethod(wasm, 'detach', []));
+  Future<void> detach() =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'detach', []));
 
   @override
-  Future<void> shutdownVeilidCore() => _wrapApiPromise(
-        js_util.callMethod(wasm, 'shutdown_veilid_core', []));
+  Future<void> shutdownVeilidCore() =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'shutdown_veilid_core', []));
 
   @override
   List<CryptoKind> validCryptoKinds() {
@@ -530,37 +581,41 @@ class VeilidJS extends Veilid {
 
   @override
   Future<VeilidCryptoSystem> bestCryptoSystem() async => VeilidCryptoSystemJS._(
-        this, js_util.callMethod(wasm, 'best_crypto_kind', []));
+      this, js_util.callMethod(wasm, 'best_crypto_kind', []));
 
   @override
   Future<List<TypedKey>> verifySignatures(List<TypedKey> nodeIds,
-      Uint8List data, List<TypedSignature> signatures) async => jsonListConstructor(TypedKey.fromJson)(jsonDecode(
-        await _wrapApiPromise(js_util.callMethod(wasm, 'verify_signatures', [
-      jsonEncode(nodeIds),
-      base64UrlNoPadEncode(data),
-      jsonEncode(signatures)
-    ]))));
+          Uint8List data, List<TypedSignature> signatures) async =>
+      jsonListConstructor(TypedKey.fromJson)(jsonDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'verify_signatures', [
+        jsonEncode(nodeIds),
+        base64UrlNoPadEncode(data),
+        jsonEncode(signatures)
+      ]))));
 
   @override
   Future<List<TypedSignature>> generateSignatures(
-      Uint8List data, List<TypedKeyPair> keyPairs) async => jsonListConstructor(TypedSignature.fromJson)(jsonDecode(
-        await _wrapApiPromise(js_util.callMethod(wasm, 'generate_signatures',
-            [base64UrlNoPadEncode(data), jsonEncode(keyPairs)]))));
+          Uint8List data, List<TypedKeyPair> keyPairs) async =>
+      jsonListConstructor(TypedSignature.fromJson)(jsonDecode(
+          await _wrapApiPromise(js_util.callMethod(wasm, 'generate_signatures',
+              [base64UrlNoPadEncode(data), jsonEncode(keyPairs)]))));
 
   @override
-  Future<TypedKeyPair> generateKeyPair(CryptoKind kind) async => TypedKeyPair.fromJson(jsonDecode(await _wrapApiPromise(
-        js_util.callMethod(wasm, 'generate_key_pair', [kind]))));
+  Future<TypedKeyPair> generateKeyPair(CryptoKind kind) async =>
+      TypedKeyPair.fromJson(jsonDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'generate_key_pair', [kind]))));
 
   @override
   Future<VeilidRoutingContext> routingContext() async {
-    final var id =
-        await _wrapApiPromise(js_util.callMethod(wasm, 'routing_context', []));
-    return VeilidRoutingContextJS._(_Ctx(id, this));
+    final rcid = await _wrapApiPromise<int>(
+        js_util.callMethod(wasm, 'routing_context', []));
+    return VeilidRoutingContextJS._(_Ctx(rcid, this));
   }
 
   @override
-  Future<RouteBlob> newPrivateRoute() async => RouteBlob.fromJson(jsonDecode(await _wrapApiPromise(
-        js_util.callMethod(wasm, 'new_private_route', []))));
+  Future<RouteBlob> newPrivateRoute() async =>
+      RouteBlob.fromJson(jsonDecode(await _wrapApiPromise(
+          js_util.callMethod(wasm, 'new_private_route', []))));
 
   @override
   Future<RouteBlob> newCustomPrivateRoute(
@@ -581,8 +636,8 @@ class VeilidJS extends Veilid {
   }
 
   @override
-  Future<void> releasePrivateRoute(String key) => _wrapApiPromise(
-        js_util.callMethod(wasm, 'release_private_route', [key]));
+  Future<void> releasePrivateRoute(String key) =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'release_private_route', [key]));
 
   @override
   Future<void> appCallReply(String callId, Uint8List message) {
@@ -593,28 +648,32 @@ class VeilidJS extends Veilid {
 
   @override
   Future<VeilidTableDB> openTableDB(String name, int columnCount) async {
-    final id = await _wrapApiPromise(
+    final dbid = await _wrapApiPromise<int>(
         js_util.callMethod(wasm, 'open_table_db', [name, columnCount]));
-    return VeilidTableDBJS._(_TDB(id, this));
+    return VeilidTableDBJS._(_TDB(dbid, this));
   }
 
   @override
-  Future<bool> deleteTableDB(String name) => _wrapApiPromise(js_util.callMethod(wasm, 'delete_table_db', [name]));
+  Future<bool> deleteTableDB(String name) =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'delete_table_db', [name]));
 
   @override
   Timestamp now() => Timestamp.fromString(js_util.callMethod(wasm, 'now', []));
 
   @override
-  Future<String> debug(String command) async => await _wrapApiPromise(js_util.callMethod(wasm, 'debug', [command]));
+  Future<String> debug(String command) async =>
+      _wrapApiPromise(js_util.callMethod(wasm, 'debug', [command]));
 
   @override
-  String veilidVersionString() => js_util.callMethod(wasm, 'veilid_version_string', []);
+  String veilidVersionString() =>
+      js_util.callMethod(wasm, 'veilid_version_string', []);
 
   @override
   VeilidVersion veilidVersion() {
-    Map<String, dynamic> jsonVersion =
-        jsonDecode(js_util.callMethod(wasm, 'veilid_version', []));
-    return VeilidVersion(
-        jsonVersion['major'], jsonVersion['minor'], jsonVersion['patch']);
+    final jsonVersion =
+        jsonDecode(js_util.callMethod(wasm, 'veilid_version', []))
+            as Map<String, dynamic>;
+    return VeilidVersion(jsonVersion['major'] as int,
+        jsonVersion['minor'] as int, jsonVersion['patch'] as int);
   }
 }

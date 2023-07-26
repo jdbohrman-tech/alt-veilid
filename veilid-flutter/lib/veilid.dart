@@ -39,26 +39,15 @@ Object? veilidApiToEncodable(Object? value) {
   throw UnsupportedError('Cannot convert to JSON: $value');
 }
 
-T? Function(dynamic) optFromJson<T>(
-    T Function(Map<String, dynamic>) jsonConstructor) => (dynamic j) {
-    if (j == null) {
-      return null;
-    } else {
-      return jsonConstructor(j);
-    }
-  };
-
 List<T> Function(dynamic) jsonListConstructor<T>(
-    T Function(Map<String, dynamic>) jsonConstructor) => (dynamic j) => (j as List<Map<String, dynamic>>)
-        .map((e) => jsonConstructor(e))
-        .toList();
+        T Function(dynamic) jsonConstructor) =>
+    (dynamic j) => (j as List<dynamic>).map((e) => jsonConstructor(e)).toList();
 
 //////////////////////////////////////
 /// VeilidVersion
 
 @immutable
 class VeilidVersion extends Equatable {
-
   const VeilidVersion(this.major, this.minor, this.patch);
   final int major;
   final int minor;
@@ -71,7 +60,6 @@ class VeilidVersion extends Equatable {
 /// Timestamp
 @immutable
 class Timestamp extends Equatable {
-
   const Timestamp({required this.value});
   factory Timestamp.fromString(String s) => Timestamp(value: BigInt.parse(s));
   factory Timestamp.fromJson(dynamic json) =>
@@ -94,7 +82,6 @@ class Timestamp extends Equatable {
 
 @immutable
 class TimestampDuration extends Equatable {
-
   const TimestampDuration({required this.value});
   factory TimestampDuration.fromString(String s) =>
       TimestampDuration(value: BigInt.parse(s));
