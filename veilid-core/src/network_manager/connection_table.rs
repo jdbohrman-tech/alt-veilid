@@ -178,9 +178,9 @@ impl ConnectionTable {
         let mut out_conn = None;
         if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
             if let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
+                let lruk = *lruk;
                 log_net!(debug "connection lru out: {:?}", lru_conn);
-                out_conn = Some(lru_conn);
-                Self::remove_connection_records(&mut *inner, *lruk);
+                out_conn = Some(Self::remove_connection_records(&mut *inner, lruk));
             }
         }
 
