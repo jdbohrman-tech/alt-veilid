@@ -76,7 +76,8 @@ class DHTRecordDescriptor with _$DHTRecordDescriptor {
   const factory DHTRecordDescriptor({
     required TypedKey key,
     required PublicKey owner,
-    required DHTSchema schema, PublicKey? ownerSecret,
+    required DHTSchema schema,
+    PublicKey? ownerSecret,
   }) = _DHTRecordDescriptor;
   factory DHTRecordDescriptor.fromJson(dynamic json) =>
       _$DHTRecordDescriptorFromJson(json as Map<String, dynamic>);
@@ -137,9 +138,9 @@ enum Stability {
   lowLatency,
   reliable;
 
-  String toJson() => name.toPascalCase();
   factory Stability.fromJson(dynamic j) =>
       Stability.values.byName((j as String).toCamelCase());
+  String toJson() => name.toPascalCase();
 }
 
 //////////////////////////////////////
@@ -150,16 +151,16 @@ enum Sequencing {
   preferOrdered,
   ensureOrdered;
 
-  String toJson() => name.toPascalCase();
   factory Sequencing.fromJson(dynamic j) =>
       Sequencing.values.byName((j as String).toCamelCase());
+  String toJson() => name.toPascalCase();
 }
 
 //////////////////////////////////////
 /// SafetySelection
 
 @immutable
-abstract class SafetySelection extends Equatable {
+abstract class SafetySelection {
   factory SafetySelection.fromJson(dynamic jsond) {
     final json = jsond as Map<String, dynamic>;
     if (json.containsKey('Unsafe')) {
@@ -175,8 +176,7 @@ abstract class SafetySelection extends Equatable {
 }
 
 @immutable
-class SafetySelectionUnsafe implements SafetySelection {
-
+class SafetySelectionUnsafe extends Equatable implements SafetySelection {
   //
   const SafetySelectionUnsafe({
     required this.sequencing,
@@ -192,8 +192,7 @@ class SafetySelectionUnsafe implements SafetySelection {
 }
 
 @immutable
-class SafetySelectionSafe implements SafetySelection {
-
+class SafetySelectionSafe extends Equatable implements SafetySelection {
   //
   const SafetySelectionSafe({
     required this.safetySpec,
@@ -212,7 +211,10 @@ class SafetySelectionSafe implements SafetySelection {
 @freezed
 class SafetySpec with _$SafetySpec {
   const factory SafetySpec({
-    required int hopCount, required Stability stability, required Sequencing sequencing, String? preferredRoute,
+    required int hopCount,
+    required Stability stability,
+    required Sequencing sequencing,
+    String? preferredRoute,
   }) = _SafetySpec;
 
   factory SafetySpec.fromJson(dynamic json) =>

@@ -2,3 +2,10 @@ include: package:lint_hard/all.yaml
 analyzer:
   errors:
     invalid_annotation_target: ignore
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+    
+linter:
+  rules:
+    avoid_positional_boolean_parameters: false

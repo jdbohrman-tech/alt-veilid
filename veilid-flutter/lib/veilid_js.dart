@@ -23,19 +23,20 @@ Future<T> _wrapApiPromise<T>(Object p) => js_util
     }, test: (e) => e is! VeilidAPIException);
 
 class _Ctx {
-  _Ctx(int this.id, this.js);
-  int? id;
+  _Ctx(int id, this.js) : _id = id;
+  int? _id;
   final VeilidJS js;
-  void ensureValid() {
-    if (id == null) {
+  int requireId() {
+    if (_id == null) {
       throw VeilidAPIExceptionNotInitialized();
     }
+    return _id!;
   }
 
   void close() {
-    if (id != null) {
-      js_util.callMethod<void>(wasm, 'release_routing_context', [id]);
-      id = null;
+    if (_id != null) {
+      js_util.callMethod<void>(wasm, 'release_routing_context', [_id]);
+      _id = null;
     }
   }
 }
@@ -55,16 +56,15 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
   @override
   VeilidRoutingContextJS withPrivacy() {
-    _ctx.ensureValid();
+    final id = _ctx.requireId();
     final int newId =
-        js_util.callMethod(wasm, 'routing_context_with_privacy', [_ctx.id!]);
+        js_util.callMethod(wasm, 'routing_context_with_privacy', [id]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
   @override
   VeilidRoutingContextJS withCustomPrivacy(SafetySelection safetySelection) {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     final newId = js_util.callMethod<int>(
         wasm,
         'routing_context_with_custom_privacy',
@@ -75,8 +75,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
   @override
   VeilidRoutingContextJS withSequencing(Sequencing sequencing) {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     final newId = js_util.callMethod<int>(
         wasm, 'routing_context_with_sequencing', [id, jsonEncode(sequencing)]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
@@ -84,8 +83,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
   @override
   Future<Uint8List> appCall(String target, Uint8List request) async {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     final encodedRequest = base64UrlNoPadEncode(request);
 
     return base64UrlNoPadDecode(await _wrapApiPromise(js_util.callMethod(
@@ -94,8 +92,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
   @override
   Future<void> appMessage(String target, Uint8List message) {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     final encodedMessage = base64UrlNoPadEncode(message);
 
     return _wrapApiPromise(js_util.callMethod(
@@ -105,8 +102,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
       {CryptoKind kind = 0}) async {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, 'routing_context_create_dht_record',
             [id, jsonEncode(schema), kind]))));
@@ -115,8 +111,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   Future<DHTRecordDescriptor> openDHTRecord(
       TypedKey key, KeyPair? writer) async {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, 'routing_context_open_dht_record', [
       id,
@@ -127,16 +122,14 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
   @override
   Future<void> closeDHTRecord(TypedKey key) {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     return _wrapApiPromise(js_util.callMethod(
         wasm, 'routing_context_close_dht_record', [id, jsonEncode(key)]));
   }
 
   @override
   Future<void> deleteDHTRecord(TypedKey key) {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     return _wrapApiPromise(js_util.callMethod(
         wasm, 'routing_context_delete_dht_record', [id, jsonEncode(key)]));
   }
@@ -144,8 +137,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   Future<ValueData?> getDHTValue(
       TypedKey key, int subkey, bool forceRefresh) async {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     final opt = await _wrapApiPromise<String?>(js_util.callMethod(
         wasm,
         'routing_context_get_dht_value',
@@ -156,8 +148,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   Future<ValueData?> setDHTValue(
       TypedKey key, int subkey, Uint8List data) async {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     final opt = await _wrapApiPromise<String?>(js_util.callMethod(
         wasm,
         'routing_context_set_dht_value',
@@ -168,8 +159,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   @override
   Future<Timestamp> watchDHTValues(TypedKey key, List<ValueSubkeyRange> subkeys,
       Timestamp expiration, int count) async {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     final ts = await _wrapApiPromise<String>(js_util.callMethod(
         wasm, 'routing_context_watch_dht_values', [
       id,
@@ -183,8 +173,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
   @override
   Future<bool> cancelDHTWatch(TypedKey key, List<ValueSubkeyRange> subkeys) {
-    _ctx.ensureValid();
-    final id = _ctx.id!;
+    final id = _ctx.requireId();
     return _wrapApiPromise(js_util.callMethod(
         wasm,
         'routing_context_cancel_dht_watch',
@@ -194,11 +183,11 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
 // JS implementation of VeilidCryptoSystem
 class VeilidCryptoSystemJS extends VeilidCryptoSystem {
-  VeilidCryptoSystemJS._(this._js, this._kind) {
-    // Keep the reference
-    _js;
-  }
+  VeilidCryptoSystemJS._(this._js, this._kind);
+
   final CryptoKind _kind;
+  // Keep the reference
+  // ignore: unused_field
   final VeilidJS _js;
 
   @override
@@ -420,19 +409,22 @@ class VeilidTableDBTransactionJS extends VeilidTableDBTransaction {
 }
 
 class _TDB {
-  _TDB(int this.id, this.js);
-  int? id;
+  _TDB(int id, this.js) : _id = id;
+
+  int? _id;
+
   final VeilidJS js;
-  void ensureValid() {
-    if (id == null) {
+  int requireId() {
+    if (_id == null) {
       throw VeilidAPIExceptionNotInitialized();
     }
+    return _id!;
   }
 
   void close() {
-    if (id != null) {
-      js_util.callMethod<void>(wasm, 'release_table_db', [id]);
-      id = null;
+    if (_id != null) {
+      js_util.callMethod<void>(wasm, 'release_table_db', [_id]);
+      _id = null;
     }
   }
 }
@@ -452,22 +444,20 @@ class VeilidTableDBJS extends VeilidTableDB {
 
   @override
   int getColumnCount() {
-    _tdb.ensureValid();
-    return js_util.callMethod(wasm, 'table_db_get_column_count', [_tdb.id!]);
+    final id = _tdb.requireId();
+    return js_util.callMethod(wasm, 'table_db_get_column_count', [id]);
   }
 
   @override
   Future<List<Uint8List>> getKeys(int col) async {
-    _tdb.ensureValid();
-    final id = _tdb.id!;
+    final id = _tdb.requireId();
     return jsonListConstructor(base64UrlNoPadDecodeDynamic)(jsonDecode(
         await js_util.callMethod(wasm, 'table_db_get_keys', [id, col])));
   }
 
   @override
   VeilidTableDBTransaction transact() {
-    _tdb.ensureValid();
-    final id = _tdb.id!;
+    final id = _tdb.requireId();
     final xid = js_util.callMethod<int>(wasm, 'table_db_transact', [id]);
 
     return VeilidTableDBTransactionJS._(_TDBT(xid, this, _tdb.js));
@@ -475,8 +465,7 @@ class VeilidTableDBJS extends VeilidTableDB {
 
   @override
   Future<void> store(int col, Uint8List key, Uint8List value) {
-    _tdb.ensureValid();
-    final id = _tdb.id!;
+    final id = _tdb.requireId();
     final encodedKey = base64UrlNoPadEncode(key);
     final encodedValue = base64UrlNoPadEncode(value);
 
@@ -486,8 +475,7 @@ class VeilidTableDBJS extends VeilidTableDB {
 
   @override
   Future<Uint8List?> load(int col, Uint8List key) async {
-    _tdb.ensureValid();
-    final id = _tdb.id!;
+    final id = _tdb.requireId();
     final encodedKey = base64UrlNoPadEncode(key);
 
     final out = await _wrapApiPromise<String?>(
@@ -500,8 +488,7 @@ class VeilidTableDBJS extends VeilidTableDB {
 
   @override
   Future<Uint8List?> delete(int col, Uint8List key) async {
-    _tdb.ensureValid();
-    final id = _tdb.id!;
+    final id = _tdb.requireId();
     final encodedKey = base64UrlNoPadEncode(key);
 
     final out = await _wrapApiPromise<String?>(

@@ -125,9 +125,9 @@ enum VeilidConfigLogLevel {
   debug,
   trace;
 
+  factory VeilidConfigLogLevel.fromJson(dynamic j) =>
+      VeilidConfigLogLevel.values.byName((j as String).toCamelCase());
   String toJson() => name.toPascalCase();
-
-  factory VeilidConfigLogLevel.fromJson(dynamic j) => VeilidConfigLogLevel.values.byName((j as String).toCamelCase());
 }
 
 //////////////////////////////////////
@@ -295,7 +295,10 @@ class VeilidConfigRPC with _$VeilidConfigRPC {
   const factory VeilidConfigRPC(
       {required int concurrency,
       required int queueSize,
-      required int timeoutMs, required int maxRouteHopCount, required int defaultRouteHopCount, int? maxTimestampBehindMs,
+      required int timeoutMs,
+      required int maxRouteHopCount,
+      required int defaultRouteHopCount,
+      int? maxTimestampBehindMs,
       int? maxTimestampAheadMs}) = _VeilidConfigRPC;
 
   factory VeilidConfigRPC.fromJson(dynamic json) =>
@@ -335,7 +338,16 @@ class VeilidConfigNetwork with _$VeilidConfigNetwork {
     required int clientWhitelistTimeoutMs,
     required int reverseConnectionReceiptTimeMs,
     required int holePunchReceiptTimeMs,
-    required VeilidConfigRoutingTable routingTable, required VeilidConfigRPC rpc, required VeilidConfigDHT dht, required bool upnp, required bool detectAddressChanges, required int restrictedNatRetries, required VeilidConfigTLS tls, required VeilidConfigApplication application, required VeilidConfigProtocol protocol, String? networkKeyPassword,
+    required VeilidConfigRoutingTable routingTable,
+    required VeilidConfigRPC rpc,
+    required VeilidConfigDHT dht,
+    required bool upnp,
+    required bool detectAddressChanges,
+    required int restrictedNatRetries,
+    required VeilidConfigTLS tls,
+    required VeilidConfigApplication application,
+    required VeilidConfigProtocol protocol,
+    String? networkKeyPassword,
   }) = _VeilidConfigNetwork;
 
   factory VeilidConfigNetwork.fromJson(dynamic json) =>

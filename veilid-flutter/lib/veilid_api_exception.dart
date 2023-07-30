@@ -208,8 +208,8 @@ class VeilidAPIExceptionInvalidArgument implements VeilidAPIException {
   final String value;
 
   @override
-  String toString() =>
-      'VeilidAPIException: InvalidArgument ($context:$argument)\n    value: $value';
+  String toString() => 'VeilidAPIException: InvalidArgument'
+      ' ($context:$argument)\n    value: $value';
 
   @override
   String toDisplayError() => 'Invalid argument for $context: $argument';

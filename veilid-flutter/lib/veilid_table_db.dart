@@ -12,12 +12,14 @@ abstract class VeilidTableDBTransaction {
   Future<void> delete(int col, Uint8List key);
 
   Future<void> storeJson(int col, Uint8List key, Object? object,
-      {Object? Function(Object? nonEncodable)? toEncodable}) async => store(col, key,
-        utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
+          {Object? Function(Object? nonEncodable)? toEncodable}) async =>
+      store(col, key,
+          utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
 
   Future<void> storeStringJson(int col, String key, Object? object,
-      {Object? Function(Object? nonEncodable)? toEncodable}) => storeJson(col, utf8.encoder.convert(key), object,
-        toEncodable: toEncodable);
+          {Object? Function(Object? nonEncodable)? toEncodable}) =>
+      storeJson(col, utf8.encoder.convert(key), object,
+          toEncodable: toEncodable);
 }
 
 abstract class VeilidTableDB {
@@ -30,12 +32,14 @@ abstract class VeilidTableDB {
   Future<Uint8List?> delete(int col, Uint8List key);
 
   Future<void> storeJson(int col, Uint8List key, Object? object,
-      {Object? Function(Object? nonEncodable)? toEncodable}) => store(col, key,
-        utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
+          {Object? Function(Object? nonEncodable)? toEncodable}) =>
+      store(col, key,
+          utf8.encoder.convert(jsonEncode(object, toEncodable: toEncodable)));
 
   Future<void> storeStringJson(int col, String key, Object? object,
-      {Object? Function(Object? nonEncodable)? toEncodable}) => storeJson(col, utf8.encoder.convert(key), object,
-        toEncodable: toEncodable);
+          {Object? Function(Object? nonEncodable)? toEncodable}) =>
+      storeJson(col, utf8.encoder.convert(key), object,
+          toEncodable: toEncodable);
 
   Future<Object?> loadJson(int col, Uint8List key,
       {Object? Function(Object? key, Object? value)? reviver}) async {
@@ -47,7 +51,8 @@ abstract class VeilidTableDB {
   }
 
   Future<Object?> loadStringJson(int col, String key,
-      {Object? Function(Object? key, Object? value)? reviver}) => loadJson(col, utf8.encoder.convert(key), reviver: reviver);
+          {Object? Function(Object? key, Object? value)? reviver}) =>
+      loadJson(col, utf8.encoder.convert(key), reviver: reviver);
 
   Future<Object?> deleteJson(int col, Uint8List key,
       {Object? Function(Object? key, Object? value)? reviver}) async {
@@ -59,5 +64,6 @@ abstract class VeilidTableDB {
   }
 
   Future<Object?> deleteStringJson(int col, String key,
-      {Object? Function(Object? key, Object? value)? reviver}) => deleteJson(col, utf8.encoder.convert(key), reviver: reviver);
+          {Object? Function(Object? key, Object? value)? reviver}) =>
+      deleteJson(col, utf8.encoder.convert(key), reviver: reviver);
 }

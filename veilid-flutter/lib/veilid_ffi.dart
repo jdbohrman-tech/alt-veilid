@@ -26,7 +26,8 @@ typedef _DartPostCObject
     = NativeFunction<Int8 Function(Int64, Pointer<Dart_CObject>)>;
 // fn free_string(s: *mut std::os::raw::c_char)
 typedef _FreeStringDart = void Function(Pointer<Utf8>);
-// fn initialize_veilid_flutter(dart_post_c_object_ptr: ffi::DartPostCObjectFnType)
+// fn initialize_veilid_flutter(
+//    dart_post_c_object_ptr: ffi::DartPostCObjectFnType)
 // fn initialize_veilid_core(platform_config: FfiStr)
 typedef _InitializeVeilidCoreDart = void Function(Pointer<Utf8>);
 // fn change_log_level(layer: FfiStr, log_level: FfiStr)
@@ -50,16 +51,20 @@ typedef _RoutingContextWithPrivacyDart = int Function(int);
 typedef _RoutingContextWithCustomPrivacyDart = int Function(int, Pointer<Utf8>);
 // fn routing_context_with_sequencing(id: u32, sequencing: FfiStr)
 typedef _RoutingContextWithSequencingDart = int Function(int, Pointer<Utf8>);
-// fn routing_context_app_call(port: i64, id: u32, target: FfiStr, request: FfiStr)
+// fn routing_context_app_call(port: i64,
+//    id: u32, target: FfiStr, request: FfiStr)
 typedef _RoutingContextAppCallDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
-// fn routing_context_app_message(port: i64, id: u32, target: FfiStr, request: FfiStr)
+// fn routing_context_app_message(port: i64,
+//    id: u32, target: FfiStr, request: FfiStr)
 typedef _RoutingContextAppMessageDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
-// fn routing_context_create_dht_record(port: i64, id: u32, kind: u32, schema: FfiStr)
+// fn routing_context_create_dht_record(port: i64,
+//    id: u32, kind: u32, schema: FfiStr)
 typedef _RoutingContextCreateDHTRecordDart = void Function(
     int, int, Pointer<Utf8>, int);
-// fn routing_context_open_dht_record(port: i64, id: u32, key: FfiStr, writer: FfiStr)
+// fn routing_context_open_dht_record(port: i64,
+//    id: u32, key: FfiStr, writer: FfiStr)
 typedef _RoutingContextOpenDHTRecordDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
 // fn routing_context_close_dht_record(port: i64, id: u32, key: FfiStr)
@@ -68,16 +73,20 @@ typedef _RoutingContextCloseDHTRecordDart = void Function(
 // fn routing_context_delete_dht_record(port: i64, id: u32, key: FfiStr)
 typedef _RoutingContextDeleteDHTRecordDart = void Function(
     int, int, Pointer<Utf8>);
-// fn routing_context_get_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, force_refresh: bool)
+// fn routing_context_get_dht_value(port: i64,
+//    id: u32, key: FfiStr, subkey: u32, force_refresh: bool)
 typedef _RoutingContextGetDHTValueDart = void Function(
     int, int, Pointer<Utf8>, int, bool);
-// fn routing_context_set_dht_value(port: i64, id: u32, key: FfiStr, subkey: u32, data: FfiStr)
+// fn routing_context_set_dht_value(port: i64,
+//    id: u32, key: FfiStr, subkey: u32, data: FfiStr)
 typedef _RoutingContextSetDHTValueDart = void Function(
     int, int, Pointer<Utf8>, int, Pointer<Utf8>);
-// fn routing_context_watch_dht_values(port: i64, id: u32, key: FfiStr, subkeys: FfiStr, expiration: FfiStr, count: u32)
+// fn routing_context_watch_dht_values(port: i64,
+//     id: u32, key: FfiStr, subkeys: FfiStr, expiration: FfiStr, count: u32)
 typedef _RoutingContextWatchDHTValuesDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>, int, int);
-// fn routing_context_cancel_dht_watch(port: i64, id: u32, key: FfiStr, subkeys: FfiStr)
+// fn routing_context_cancel_dht_watch(port: i64,
+//     id: u32, key: FfiStr, subkeys: FfiStr)
 typedef _RoutingContextCancelDHTWatchDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
 
@@ -119,7 +128,8 @@ typedef _ReleaseTableDbTransactionDart = int Function(int);
 typedef _TableDbTransactionCommitDart = void Function(int, int);
 // fn table_db_transaction_rollback(port: i64, id: u32)
 typedef _TableDbTransactionRollbackDart = void Function(int, int);
-// fn table_db_transaction_store(port: i64, id: u32, col: u32, key: FfiStr, value: FfiStr)
+// fn table_db_transaction_store(port: i64,
+//  id: u32, col: u32, key: FfiStr, value: FfiStr)
 typedef _TableDbTransactionStoreDart = void Function(
     int, int, int, Pointer<Utf8>, Pointer<Utf8>);
 // fn table_db_transaction_delete(port: i64, id: u32, col: u32, key: FfiStr)
@@ -129,7 +139,8 @@ typedef _TableDbTransactionDeleteDart = void Function(
 typedef _ValidCryptoKindsDart = Pointer<Utf8> Function();
 // fn best_crypto_kind() -> u32
 typedef _BestCryptoKindDart = int Function();
-// fn verify_signatures(port: i64, node_ids: FfiStr, data: FfiStr, signatures: FfiStr)
+// fn verify_signatures(port: i64,
+//  node_ids: FfiStr, data: FfiStr, signatures: FfiStr)
 typedef _VerifySignaturesDart = void Function(
     int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 // fn generate_signatures(port: i64, data: FfiStr, key_pairs: FfiStr)
@@ -147,13 +158,15 @@ typedef _CryptoComputeDHDart = void Function(
 typedef _CryptoRandomBytesDart = void Function(int, int, int);
 // fn crypto_default_salt_length(port: i64, kind: u32)
 typedef _CryptoDefaultSaltLengthDart = void Function(int, int);
-// fn crypto_hash_password(port: i64, kind: u32, password: FfiStr, salt: FfiStr )
+// fn crypto_hash_password(port: i64, kind: u32, password: FfiStr, salt: FfiStr)
 typedef _CryptoHashPasswordDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
-// fn crypto_verify_password(port: i64, kind: u32, password: FfiStr, password_hash: FfiStr )
+// fn crypto_verify_password(port: i64,
+//    kind: u32, password: FfiStr, password_hash: FfiStr )
 typedef _CryptoVerifyPasswordDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
-// fn crypto_derive_shared_secret(port: i64, kind: u32, password: FfiStr, salt: FfiStr )
+// fn crypto_derive_shared_secret(port: i64,
+//    kind: u32, password: FfiStr, salt: FfiStr )
 
 // fn crypto_random_nonce(port: i64, kind: u32)
 typedef _CryptoRandomNonceDart = void Function(int, int);
@@ -163,7 +176,8 @@ typedef _CryptoRandomSharedSecretDart = void Function(int, int);
 typedef _CryptoGenerateKeyPairDart = void Function(int, int);
 // fn crypto_generate_hash(port: i64, kind: u32, data: FfiStr)
 typedef _CryptoGenerateHashDart = void Function(int, int, Pointer<Utf8>);
-// fn crypto_validate_key_pair(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
+// fn crypto_validate_key_pair(port: i64,
+//    kind: u32, key: FfiStr, secret: FfiStr)
 typedef _CryptoValidateKeyPairDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
 // fn crypto_validate_hash(port: i64, kind: u32, data: FfiStr, hash: FfiStr)
@@ -172,21 +186,28 @@ typedef _CryptoValidateHashDart = void Function(
 // fn crypto_distance(port: i64, kind: u32, key1: FfiStr, key2: FfiStr)
 typedef _CryptoDistanceDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
-// fn crypto_sign(port: i64, kind: u32, key: FfiStr, secret: FfiStr, data: FfiStr)
+// fn crypto_sign(port: i64,
+//    kind: u32, key: FfiStr, secret: FfiStr, data: FfiStr)
 typedef _CryptoSignDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
-// fn crypto_verify(port: i64, kind: u32, key: FfiStr, data: FfiStr, signature: FfiStr)
+// fn crypto_verify(port: i64,
+//    kind: u32, key: FfiStr, data: FfiStr, signature: FfiStr)
 typedef _CryptoVerifyDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 // fn crypto_aead_overhead(port: i64, kind: u32)
 typedef _CryptoAeadOverheadDart = void Function(int, int);
-// fn crypto_decrypt_aead(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr, associated_data: FfiStr)
+// fn crypto_decrypt_aead(port: i64,
+//    kind: u32, body: FfiStr, nonce: FfiStr,
+//    shared_secret: FfiStr, associated_data: FfiStr)
 typedef _CryptoDecryptAeadDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
-// fn crypto_encrypt_aead(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr, associated_data: FfiStr)
+// fn crypto_encrypt_aead(port: i64,
+//    kind: u32, body: FfiStr, nonce: FfiStr,
+//    shared_secret: FfiStr, associated_data: FfiStr)
 typedef _CryptoEncryptAeadDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
-// fn crypto_crypt_no_auth(port: i64, kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr)
+// fn crypto_crypt_no_auth(port: i64,
+//    kind: u32, body: FfiStr, nonce: FfiStr, shared_secret: FfiStr)
 typedef _CryptoCryptNoAuthDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
@@ -343,8 +364,8 @@ Future<void> processFutureVoid(Future<dynamic> future) async =>
         case messageOk:
           {
             if (list[1] != null) {
-              throw VeilidAPIExceptionInternal(
-                  "Unexpected MESSAGE_OK value '${list[1]}' where null expected");
+              throw VeilidAPIExceptionInternal('Unexpected MESSAGE_OK value'
+                  ' "${list[1]}" where null expected');
             }
             return;
           }
@@ -357,7 +378,8 @@ Future<void> processFutureVoid(Future<dynamic> future) async =>
             final ret = jsonDecode(list[1] as String);
             if (ret != null) {
               throw VeilidAPIExceptionInternal(
-                  "Unexpected MESSAGE_OK_JSON value '$ret' where null expected");
+                  'Unexpected MESSAGE_OK_JSON value'
+                  ' "$ret" where null expected');
             }
             return;
           }
@@ -385,8 +407,8 @@ Future<Stream<T>> processFutureStream<T>(
         case messageOk:
           {
             if (list[1] != null) {
-              throw VeilidAPIExceptionInternal(
-                  "Unexpected MESSAGE_OK value '${list[1]}' where null expected");
+              throw VeilidAPIExceptionInternal('Unexpected MESSAGE_OK value'
+                  ' "${list[1]}" where null expected');
             }
             return returnStream;
           }
@@ -399,7 +421,8 @@ Future<Stream<T>> processFutureStream<T>(
             final ret = jsonDecode(list[1] as String);
             if (ret != null) {
               throw VeilidAPIExceptionInternal(
-                  "Unexpected MESSAGE_OK_JSON value '$ret' where null expected");
+                  'Unexpected MESSAGE_OK_JSON value'
+                  ' "$ret" where null expected');
             }
             return returnStream;
           }

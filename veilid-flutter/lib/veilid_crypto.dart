@@ -16,7 +16,8 @@ const CryptoKind cryptoKindVLD0 =
 const CryptoKind cryptoKindNONE =
     $N << 0 | $O << 8 | $N << 16 | $E << 24; // "NONE"
 
-String cryptoKindToString(CryptoKind kind) => cryptoKindToBytes(kind).map(String.fromCharCode).join();
+String cryptoKindToString(CryptoKind kind) =>
+    cryptoKindToBytes(kind).map(String.fromCharCode).join();
 
 const CryptoKind bestCryptoKind = cryptoKindVLD0;
 
@@ -30,8 +31,8 @@ CryptoKind cryptoKindFromString(String s) {
   if (s.codeUnits.length != 4) {
     throw const FormatException('malformed string');
   }
-  final kind = ByteData.sublistView(Uint8List.fromList(s.codeUnits))
-      .getUint32(0);
+  final kind =
+      ByteData.sublistView(Uint8List.fromList(s.codeUnits)).getUint32(0);
   return kind;
 }
 
@@ -40,7 +41,6 @@ CryptoKind cryptoKindFromString(String s) {
 
 @immutable
 class Typed<V extends EncodedString> extends Equatable {
-
   const Typed({required this.kind, required this.value});
 
   factory Typed.fromString(String s) {
@@ -62,9 +62,9 @@ class Typed<V extends EncodedString> extends Equatable {
   String toString() => '${cryptoKindToString(kind)}:$value';
 
   Uint8List decode() {
-    final b = BytesBuilder();
-    b.add(cryptoKindToBytes(kind));
-    b.add(value.decode());
+    final b = BytesBuilder()
+      ..add(cryptoKindToBytes(kind))
+      ..add(value.decode());
     return b.toBytes();
   }
 
@@ -73,7 +73,6 @@ class Typed<V extends EncodedString> extends Equatable {
 
 @immutable
 class KeyPair extends Equatable {
-
   const KeyPair({required this.key, required this.secret});
 
   factory KeyPair.fromString(String s) {
@@ -101,7 +100,6 @@ class KeyPair extends Equatable {
 
 @immutable
 class TypedKeyPair extends Equatable {
-
   const TypedKeyPair(
       {required this.kind, required this.key, required this.secret});
 
@@ -129,8 +127,7 @@ class TypedKeyPair extends Equatable {
   List<Object> get props => [kind, key, secret];
 
   @override
-  String toString() =>
-      '${cryptoKindToString(kind)}:$key:$secret';
+  String toString() => '${cryptoKindToString(kind)}:$key:$secret';
 
   String toJson() => toString();
 }
@@ -169,13 +166,15 @@ abstract class VeilidCryptoSystem {
   Future<HashDigest> generateHash(Uint8List data);
   //Future<HashDigest> generateHashReader(Stream<List<int>> reader);
   Future<bool> validateKeyPair(PublicKey key, SecretKey secret);
-  Future<bool> validateKeyPairWithKeyPair(KeyPair keyPair) => validateKeyPair(keyPair.key, keyPair.secret);
+  Future<bool> validateKeyPairWithKeyPair(KeyPair keyPair) =>
+      validateKeyPair(keyPair.key, keyPair.secret);
 
   Future<bool> validateHash(Uint8List data, HashDigest hash);
   //Future<bool> validateHashReader(Stream<List<int>> reader, HashDigest hash);
   Future<CryptoKeyDistance> distance(CryptoKey key1, CryptoKey key2);
   Future<Signature> sign(PublicKey key, SecretKey secret, Uint8List data);
-  Future<Signature> signWithKeyPair(KeyPair keyPair, Uint8List data) => sign(keyPair.key, keyPair.secret, data);
+  Future<Signature> signWithKeyPair(KeyPair keyPair, Uint8List data) =>
+      sign(keyPair.key, keyPair.secret, data);
 
   Future<void> verify(PublicKey key, Uint8List data, Signature signature);
   Future<int> aeadOverhead();
