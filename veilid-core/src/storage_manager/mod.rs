@@ -347,8 +347,9 @@ impl StorageManager {
             if last_signed_value_data.value_data().data() == &data
                 && last_signed_value_data.value_data().writer() == &writer.key
             {
-                // Data and writer is the name, nothing is changing, just return the same ValueData
-                return Ok(Some(last_signed_value_data.into_value_data()));
+                // Data and writer is the same, nothing is changing,
+                // just return that we set it, but no network activity needs to happen
+                return Ok(None);
             }
             let seq = last_signed_value_data.value_data().seq();
             ValueData::new_with_seq(seq + 1, data, writer.key)
