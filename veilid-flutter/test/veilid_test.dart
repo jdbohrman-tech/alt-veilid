@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:veilid/veilid.dart';
 
 void main() {
-  Veilid api = Veilid.instance;
+  final api = Veilid.instance;
 
   TestWidgetsFlutterBinding.ensureInitialized();
 

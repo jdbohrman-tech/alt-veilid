@@ -21,9 +21,10 @@ enum AttachmentState {
   overAttached,
   detaching;
 
-  String toJson() => name.toPascalCase();
   factory AttachmentState.fromJson(dynamic j) =>
       AttachmentState.values.byName((j as String).toCamelCase());
+
+  String toJson() => name.toPascalCase();
 }
 
 //////////////////////////////////////
@@ -36,9 +37,10 @@ enum VeilidLogLevel {
   debug,
   trace;
 
-  String toJson() => name.toPascalCase();
   factory VeilidLogLevel.fromJson(dynamic j) =>
       VeilidLogLevel.values.byName((j as String).toCamelCase());
+
+  String toJson() => name.toPascalCase();
 }
 
 ////////////
@@ -109,8 +111,8 @@ class PeerStats with _$PeerStats {
   const factory PeerStats({
     required Timestamp timeAdded,
     required RPCStats rpcStats,
-    LatencyStats? latency,
     required TransferStatsDownUp transfer,
+    LatencyStats? latency,
   }) = _PeerStats;
 
   factory PeerStats.fromJson(dynamic json) =>
@@ -142,13 +144,13 @@ sealed class VeilidUpdate with _$VeilidUpdate {
     String? backtrace,
   }) = VeilidLog;
   const factory VeilidUpdate.appMessage({
-    TypedKey? sender,
     @Uint8ListJsonConverter() required Uint8List message,
+    TypedKey? sender,
   }) = VeilidAppMessage;
   const factory VeilidUpdate.appCall({
-    TypedKey? sender,
     @Uint8ListJsonConverter() required Uint8List message,
     required String callId,
+    TypedKey? sender,
   }) = VeilidAppCall;
   const factory VeilidUpdate.attachment(
       {required AttachmentState state,
