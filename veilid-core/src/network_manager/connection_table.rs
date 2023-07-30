@@ -177,10 +177,10 @@ impl ConnectionTable {
         // then drop the least recently used connection
         let mut out_conn = None;
         if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
-            if let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].remove_lru() {
+            if let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
                 log_net!(debug "connection lru out: {:?}", lru_conn);
                 out_conn = Some(lru_conn);
-                Self::remove_connection_records(&mut *inner, lruk);
+                Self::remove_connection_records(&mut *inner, *lruk);
             }
         }
 
