@@ -52,9 +52,7 @@ delete_test_machine:
 
 release_job:
   stage: release
-  image: registry.gitlab.com/gitlab-org/release-cli:latest
-  tags:
-    - build-orchestration            
+  image: registry.gitlab.com/gitlab-org/release-cli:latest        
   script:
     - echo "running release_job"
   release:                               # See https://docs.gitlab.com/ee/ci/yaml/#release for available properties
@@ -86,6 +84,15 @@ package_amd64_deb:
     - /home/gitlab-runner/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+  
+delete_amd64_deb_build_machine:
+  stage: build_packages
+  needs:
+    - package_amd64_deb
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
 
 package_arm64_deb:
   stage: build_packages
@@ -100,6 +107,15 @@ package_arm64_deb:
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
+delete_arm64_deb_build_machine:
+  stage: build_packages
+  needs:
+    - package_arm64_deb
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete arm64-deb
+
 package_amd64_rpm:
   stage: build_packages
   needs:
@@ -112,6 +128,15 @@ package_amd64_rpm:
     - /home/gitlab-runner/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+
+delete_amd64_rpm_build_machine:
+  stage: build_packages
+  needs:
+    - package_amd64_rpm
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-rpm
 
 build_repositories:
   stage: distribute
@@ -132,14 +157,3 @@ deploy_repos:
     - /home/gitlab-runner/deploy-repo.sh
   rules:
     - if: '$CCI_COMMIT_TAG =~ /v\d.+/'
-
-delete_build_machines:
-  stage: distribute
-  tags:
-    - build-orchestration
-  script:
-    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
-    - /home/gitlab-runner/build-machine-ctl.sh delete arm64-deb
-    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-rpm
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
