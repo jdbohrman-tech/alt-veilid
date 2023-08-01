@@ -361,7 +361,7 @@ impl AddressFilter {
                     Entry::Occupied(mut o) => {
                         let cnt = o.get_mut();
                         assert!(*cnt > 0);
-                        if *cnt == 0 {
+                        if *cnt == 1 {
                             inner.conn_count_by_ip4.remove(&v4);
                         } else {
                             *cnt -= 1;
@@ -377,7 +377,7 @@ impl AddressFilter {
                     Entry::Occupied(mut o) => {
                         let cnt = o.get_mut();
                         assert!(*cnt > 0);
-                        if *cnt == 0 {
+                        if *cnt == 1 {
                             inner.conn_count_by_ip6_prefix.remove(&v6);
                         } else {
                             *cnt -= 1;
