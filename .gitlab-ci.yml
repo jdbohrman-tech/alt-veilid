@@ -52,23 +52,17 @@ delete_test_machine:
 
 create_build_machines:
   stage: build_packages
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'
-  only:
-    - stable
   tags:
     - build-orchestration
   script:
     - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
     - /home/gitlab-runner/build-machine-ctl.sh create arm64-deb
     - /home/gitlab-runner/build-machine-ctl.sh create amd64-rpm
-
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
+  
 package_amd64_deb:
   stage: build_packages
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'
-  only:
-    - stable
   needs:
     - create_build_machines
   tags:
@@ -77,13 +71,11 @@ package_amd64_deb:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
     - /home/gitlab-runner/scp-to-orchestrator.sh
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
 
 package_arm64_deb:
   stage: build_packages
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'
-  only:
-    - stable
   needs:
     - create_build_machines
   tags:
@@ -92,13 +84,11 @@ package_arm64_deb:
     - earthly bootstrap
     - earthly +package-linux-arm64-deb
     - /home/gitlab-runner/scp-to-orchestrator.sh
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
 
 package_amd64_rpm:
   stage: build_packages
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'
-  only:
-    - stable
   needs:
     - create_build_machines
   tags:
@@ -107,51 +97,47 @@ package_amd64_rpm:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
     - /home/gitlab-runner/scp-to-orchestrator.sh
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
 
 release_job:
   stage: release
-  image: registry.gitlab.com/gitlab-org/release-cli:latest
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'               # Run this job when a tag is created
+  image: registry.gitlab.com/gitlab-org/release-cli:latest              
   script:
     - echo "running release_job"
   release:                               # See https://docs.gitlab.com/ee/ci/yaml/#release for available properties
     tag_name: '$CI_COMMIT_TAG'
     description: '$CI_COMMIT_TAG'
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
 
 build_repositories:
   stage: distribute
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'
-  only:
-    - stable
   tags:
     - build-orchestration
   script:
     - /home/gitlab-runner/distribute-packages.sh
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
 
 deploy_repos:
   stage: distribute
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'
-  only:
-    - stable
   needs:
     - build_repositories
   tags: 
     - repo-server
   script: 
     - /home/gitlab-runner/deploy-repo.sh
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
 
 delete_build_machines:
   stage: distribute
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /v\d.+/'
-  only:
-    - stable
   tags:
     - build-orchestration
   script:
     - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
     - /home/gitlab-runner/build-machine-ctl.sh delete arm64-deb
     - /home/gitlab-runner/build-machine-ctl.sh delete amd64-rpm
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_BRANCH =~ /v\d.+/'
