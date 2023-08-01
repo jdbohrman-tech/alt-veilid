@@ -12,7 +12,7 @@ const MAX_LEN: usize = LengthType::MAX as usize;
 
 // XXX: keep statistics on all drops and why we dropped them
 // XXX: move to config eventually?
-const FRAGMENT_LEN: usize = 1280 - HEADER_LEN;
+pub const FRAGMENT_LEN: usize = 1280 - HEADER_LEN;
 const MAX_CONCURRENT_HOSTS: usize = 256;
 const MAX_ASSEMBLIES_PER_HOST: usize = 256;
 const MAX_BUFFER_PER_HOST: usize = 256 * 1024;

@@ -115,10 +115,12 @@ build-linux-arm64:
 # Unit tests
 unit-tests-linux-amd64:
     FROM +code-linux
+    ENV RUST_BACKTRACE=1
     RUN cargo test --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 # unit-tests-linux-arm64:
 #     FROM +code-linux
+#     ENV RUST_BACKTRACE=1
 #     RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 # Package 

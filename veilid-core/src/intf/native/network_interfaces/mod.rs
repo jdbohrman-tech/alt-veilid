@@ -344,9 +344,9 @@ impl NetworkInterfaces {
         let mut last_interfaces = {
             let mut last_interfaces = BTreeMap::<String, NetworkInterface>::new();
             let mut platform_support = PlatformSupport::new()?;
-            platform_support
-                .get_interfaces(&mut last_interfaces)
-                .await?;
+            if let Err(e) = platform_support.get_interfaces(&mut last_interfaces).await {
+                debug!("no network interfaces are enabled: {}", e);
+            }
             last_interfaces
         };
 
@@ -395,10 +395,16 @@ impl NetworkInterfaces {
                 continue;
             }
             if let Some(pipv4) = intf.primary_ipv4() {
-                intf_addrs.push(pipv4);
+                // Skip temporary addresses because they're going to change
+                if !pipv4.is_temporary() {
+                    intf_addrs.push(pipv4);
+                }
             }
             if let Some(pipv6) = intf.primary_ipv6() {
-                intf_addrs.push(pipv6);
+                // Skip temporary addresses because they're going to change
+                if !pipv6.is_temporary() {
+                    intf_addrs.push(pipv6);
+                }
             }
         }
 

@@ -7,10 +7,22 @@ variables:
 stages:
   - test
   - build_packages
+  - release
   - distribute
 
 #before_script:
 #  - earthly bootstrap
+
+create_test_machine:
+  stage: test
+  only:
+    - main
+    - merge_requests
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
+  when: manual
 
 test_amd64:
   stage: test
@@ -18,64 +30,130 @@ test_amd64:
   only:
     - main
     - merge_requests
+  needs:
+    - create_test_machine
   tags:
-    - build-server
+    - earthly-tests
   script:
     - earthly bootstrap
     - earthly --ci +unit-tests-linux-amd64
-  when: manual
 
+delete_test_machine:
+  stage: test
+  only:
+    - main
+    - merge_requests
+  needs:
+    - test_amd64
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
+
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest        
+  script:
+    - echo "running release_job"
+  release:                               # See https://docs.gitlab.com/ee/ci/yaml/#release for available properties
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+
+create_build_machines:
+  stage: build_packages
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
+    - /home/gitlab-runner/build-machine-ctl.sh create arm64-deb
+    - /home/gitlab-runner/build-machine-ctl.sh create amd64-rpm
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+  
 package_amd64_deb:
   stage: build_packages
-  only:
-    - stable
+  needs:
+    - create_build_machines
   tags:
     - build-amd64-deb
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
     - /home/gitlab-runner/scp-to-orchestrator.sh
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+  
+delete_amd64_deb_build_machine:
+  stage: build_packages
+  needs:
+    - package_amd64_deb
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
 
 package_arm64_deb:
   stage: build_packages
-  only:
-    - stable
+  needs:
+    - create_build_machines
   tags:
     - build-arm64-deb
   script:
     - earthly bootstrap
     - earthly +package-linux-arm64-deb
     - /home/gitlab-runner/scp-to-orchestrator.sh
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+
+delete_arm64_deb_build_machine:
+  stage: build_packages
+  needs:
+    - package_arm64_deb
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete arm64-deb
 
 package_amd64_rpm:
   stage: build_packages
-  only:
-    - stable
+  needs:
+    - create_build_machines
   tags:
     - build-amd64-rpm
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
     - /home/gitlab-runner/scp-to-orchestrator.sh
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+
+delete_amd64_rpm_build_machine:
+  stage: build_packages
+  needs:
+    - package_amd64_rpm
+  tags:
+    - build-orchestration
+  script:
+    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-rpm
 
 build_repositories:
   stage: distribute
-  only:
-    - stable
   tags:
     - build-orchestration
   script:
     - /home/gitlab-runner/distribute-packages.sh
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
 deploy_repos:
   stage: distribute
-  only:
-    - stable
   needs:
     - build_repositories
   tags: 
     - repo-server
   script: 
     - /home/gitlab-runner/deploy-repo.sh
-
-#Note so merge works
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'

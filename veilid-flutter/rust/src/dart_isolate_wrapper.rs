@@ -52,17 +52,6 @@ impl DartIsolateWrapper {
         });
     }
 
-    pub fn spawn_result_opt_json<F, T, E>(self, future: F)
-    where
-        F: Future<Output = Result<Option<T>, E>> + Send + 'static,
-        T: Serialize + Debug,
-        E: Serialize + Debug,
-    {
-        spawn(async move {
-            self.result_opt_json(future.await);
-        });
-    }
-
     pub fn result<T: IntoDart + Debug, E: Serialize + Debug>(self, result: Result<T, E>) -> bool {
         match result {
             Ok(v) => self.ok(v),
@@ -75,16 +64,6 @@ impl DartIsolateWrapper {
     ) -> bool {
         match result {
             Ok(v) => self.ok_json(v),
-            Err(e) => self.err_json(e),
-        }
-    }
-    pub fn result_opt_json<T: Serialize + Debug, E: Serialize + Debug>(
-        self,
-        result: Result<Option<T>, E>,
-    ) -> bool {
-        match result {
-            Ok(Some(v)) => self.ok_json(v),
-            Ok(None) => self.ok(()),
             Err(e) => self.err_json(e),
         }
     }

@@ -27,22 +27,20 @@ class Uint8ListJsonConverter implements JsonConverter<Uint8List, String> {
   const Uint8ListJsonConverter();
 
   @override
-  Uint8List fromJson(String json) => base64UrlNoPadDecode(json);
+  Uint8List fromJson(dynamic json) => base64UrlNoPadDecode(json as String);
   @override
   String toJson(Uint8List data) => base64UrlNoPadEncode(data);
 }
 
 @immutable
 abstract class EncodedString extends Equatable {
+
+  const EncodedString(String s) : contents = s;
   final String contents;
   @override
   List<Object> get props => [contents];
 
-  const EncodedString(String s) : contents = s;
-
-  Uint8List decode() {
-    return base64UrlNoPadDecode(contents);
-  }
+  Uint8List decode() => base64UrlNoPadDecode(contents);
 
   @override
   String toString() => contents;
@@ -76,96 +74,82 @@ abstract class EncodedString extends Equatable {
 
 @immutable
 class FixedEncodedString32 extends EncodedString {
-  const FixedEncodedString32._(String s) : super(s);
-  static int encodedLength() {
-    return 32;
-  }
-
-  static int decodedLength() {
-    return 24;
-  }
 
   factory FixedEncodedString32.fromBytes(Uint8List bytes) {
     if (bytes.length != decodedLength()) {
-      throw Exception("length ${bytes.length} should be ${decodedLength()}");
+      throw Exception('length ${bytes.length} should be ${decodedLength()}');
     }
     return FixedEncodedString32._(base64UrlNoPadEncode(bytes));
   }
 
   factory FixedEncodedString32.fromString(String s) {
-    var d = base64UrlNoPadDecode(s);
+    final d = base64UrlNoPadDecode(s);
     if (d.length != decodedLength()) {
-      throw Exception("length ${s.length} should be ${encodedLength()}");
+      throw Exception('length ${s.length} should be ${encodedLength()}');
     }
     return FixedEncodedString32._(s);
   }
-
-  String toJson() => toString();
   factory FixedEncodedString32.fromJson(dynamic json) =>
       FixedEncodedString32.fromString(json as String);
+  const FixedEncodedString32._(super.s);
+  static int encodedLength() => 32;
+
+  static int decodedLength() => 24;
+
+  String toJson() => toString();
 }
 
 @immutable
 class FixedEncodedString43 extends EncodedString {
-  const FixedEncodedString43._(String s) : super(s);
-  static int encodedLength() {
-    return 43;
-  }
-
-  static int decodedLength() {
-    return 32;
-  }
 
   factory FixedEncodedString43.fromBytes(Uint8List bytes) {
     if (bytes.length != decodedLength()) {
-      throw Exception("length ${bytes.length} should be ${decodedLength()}");
+      throw Exception('length ${bytes.length} should be ${decodedLength()}');
     }
     return FixedEncodedString43._(base64UrlNoPadEncode(bytes));
   }
 
   factory FixedEncodedString43.fromString(String s) {
-    var d = base64UrlNoPadDecode(s);
+    final d = base64UrlNoPadDecode(s);
     if (d.length != decodedLength()) {
-      throw Exception("length ${s.length} should be ${encodedLength()}");
+      throw Exception('length ${s.length} should be ${encodedLength()}');
     }
     return FixedEncodedString43._(s);
   }
-
-  String toJson() => toString();
   factory FixedEncodedString43.fromJson(dynamic json) =>
       FixedEncodedString43.fromString(json as String);
+  const FixedEncodedString43._(super.s);
+  static int encodedLength() => 43;
+
+  static int decodedLength() => 32;
+
+  String toJson() => toString();
 }
 
 @immutable
 class FixedEncodedString86 extends EncodedString {
-  const FixedEncodedString86._(String s) : super(s);
-  static int encodedLength() {
-    return 86;
-  }
-
-  static int decodedLength() {
-    return 64;
-  }
-
-  String toJson() {
-    return toString();
-  }
 
   factory FixedEncodedString86.fromBytes(Uint8List bytes) {
     if (bytes.length != decodedLength()) {
-      throw Exception("length ${bytes.length} should be ${decodedLength()}");
+      throw Exception('length ${bytes.length} should be ${decodedLength()}');
     }
     return FixedEncodedString86._(base64UrlNoPadEncode(bytes));
   }
 
   factory FixedEncodedString86.fromString(String s) {
-    var d = base64UrlNoPadDecode(s);
+    final d = base64UrlNoPadDecode(s);
     if (d.length != decodedLength()) {
-      throw Exception("length ${s.length} should be ${encodedLength()}");
+      throw Exception('length ${s.length} should be ${encodedLength()}');
     }
     return FixedEncodedString86._(s);
   }
 
   factory FixedEncodedString86.fromJson(dynamic json) =>
       FixedEncodedString86.fromString(json as String);
+  const FixedEncodedString86._(super.s);
+  static int encodedLength() => 86;
+
+  static int decodedLength() => 64;
+
+  String toJson() => toString();
 }

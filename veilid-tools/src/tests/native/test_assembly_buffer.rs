@@ -86,7 +86,7 @@ pub async fn test_one_frag_out_in() {
     // Sending
     println!("sending");
     for _ in 0..10000 {
-        let random_len = (get_random_u32() % 1000) as usize + 1280;
+        let random_len = (get_random_u32() % 1000) as usize + FRAGMENT_LEN;
         let mut message = vec![1u8; random_len];
         random_bytes(&mut message);
         let remote_addr = random_sockaddr();
@@ -289,7 +289,7 @@ pub async fn test_many_frags_with_drops() {
     println!("sending");
     for _ in 0..1000 {
         let random_len = (get_random_u32() % 65536) as usize;
-        if random_len > 1280 {
+        if random_len > FRAGMENT_LEN {
             total_fragged += 1;
         }
         total_sent_size += random_len;

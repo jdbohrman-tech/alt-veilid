@@ -4,28 +4,26 @@ import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'veilid_stub.dart'
-    if (dart.library.io) 'veilid_ffi.dart'
-    if (dart.library.js) 'veilid_js.dart';
-
 //////////////////////////////////////////////////////////
 
 import 'routing_context.dart';
 import 'veilid_config.dart';
 import 'veilid_crypto.dart';
-import 'veilid_table_db.dart';
 import 'veilid_state.dart';
+import 'veilid_stub.dart'
+    if (dart.library.io) 'veilid_ffi.dart'
+    if (dart.library.js) 'veilid_js.dart';
+import 'veilid_table_db.dart';
 
 export 'default_config.dart';
 export 'routing_context.dart';
-
-export 'veilid_encoding.dart';
+export 'veilid.dart';
+export 'veilid_api_exception.dart';
 export 'veilid_config.dart';
 export 'veilid_crypto.dart';
-export 'veilid_table_db.dart';
-export 'veilid_api_exception.dart';
+export 'veilid_encoding.dart';
 export 'veilid_state.dart';
-export 'veilid.dart';
+export 'veilid_table_db.dart';
 
 //////////////////////////////////////
 /// JSON Encode Helper
@@ -41,57 +39,39 @@ Object? veilidApiToEncodable(Object? value) {
   throw UnsupportedError('Cannot convert to JSON: $value');
 }
 
-T? Function(dynamic) optFromJson<T>(
-    T Function(Map<String, dynamic>) jsonConstructor) {
-  return (dynamic j) {
-    if (j == null) {
-      return null;
-    } else {
-      return jsonConstructor(j);
-    }
-  };
-}
-
 List<T> Function(dynamic) jsonListConstructor<T>(
-    T Function(Map<String, dynamic>) jsonConstructor) {
-  return (dynamic j) {
-    return (j as List<Map<String, dynamic>>)
-        .map((e) => jsonConstructor(e))
-        .toList();
-  };
-}
+        T Function(dynamic) jsonConstructor) =>
+    (dynamic j) => (j as List<dynamic>).map((e) => jsonConstructor(e)).toList();
 
 //////////////////////////////////////
 /// VeilidVersion
 
 @immutable
 class VeilidVersion extends Equatable {
+  const VeilidVersion(this.major, this.minor, this.patch);
   final int major;
   final int minor;
   final int patch;
   @override
   List<Object> get props => [major, minor, patch];
-
-  const VeilidVersion(this.major, this.minor, this.patch);
 }
 
 //////////////////////////////////////
 /// Timestamp
 @immutable
 class Timestamp extends Equatable {
+  const Timestamp({required this.value});
+  factory Timestamp.fromString(String s) => Timestamp(value: BigInt.parse(s));
+  factory Timestamp.fromJson(dynamic json) =>
+      Timestamp.fromString(json as String);
   final BigInt value;
   @override
   List<Object> get props => [value];
 
-  const Timestamp({required this.value});
-
   @override
   String toString() => value.toString();
-  factory Timestamp.fromString(String s) => Timestamp(value: BigInt.parse(s));
 
   String toJson() => toString();
-  factory Timestamp.fromJson(dynamic json) =>
-      Timestamp.fromString(json as String);
 
   TimestampDuration diff(Timestamp other) =>
       TimestampDuration(value: value - other.value);
@@ -102,20 +82,19 @@ class Timestamp extends Equatable {
 
 @immutable
 class TimestampDuration extends Equatable {
+  const TimestampDuration({required this.value});
+  factory TimestampDuration.fromString(String s) =>
+      TimestampDuration(value: BigInt.parse(s));
+  factory TimestampDuration.fromJson(dynamic json) =>
+      TimestampDuration.fromString(json as String);
   final BigInt value;
   @override
   List<Object> get props => [value];
 
-  const TimestampDuration({required this.value});
-
   @override
   String toString() => value.toString();
-  factory TimestampDuration.fromString(String s) =>
-      TimestampDuration(value: BigInt.parse(s));
 
   String toJson() => toString();
-  factory TimestampDuration.fromJson(dynamic json) =>
-      TimestampDuration.fromString(json as String);
 
   int toMillis() => (value ~/ BigInt.from(1000)).toInt();
   BigInt toMicros() => value;
@@ -156,7 +135,7 @@ abstract class Veilid {
   Future<void> releasePrivateRoute(String key);
 
   // App calls
-  Future<void> appCallReply(String id, Uint8List message);
+  Future<void> appCallReply(String callId, Uint8List message);
 
   // TableStore
   Future<VeilidTableDB> openTableDB(String name, int columnCount);

@@ -11,7 +11,7 @@ class VeilidPluginStubWeb {
   Future<dynamic> handleMethodCall(MethodCall call) async {
     throw PlatformException(
       code: 'Unimplemented',
-      details: 'Veilid for Web doesn\'t implement \'${call.method}\'',
+      details: "Veilid for Web doesn't implement '${call.method}'",
     );
   }
 }

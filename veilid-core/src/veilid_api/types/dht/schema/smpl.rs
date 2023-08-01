@@ -96,7 +96,7 @@ impl DHTSchemaSMPL {
 impl TryFrom<&[u8]> for DHTSchemaSMPL {
     type Error = VeilidAPIError;
     fn try_from(b: &[u8]) -> Result<Self, Self::Error> {
-        if b.len() != Self::FIXED_SIZE {
+        if b.len() < Self::FIXED_SIZE {
             apibail_generic!("invalid size");
         }
         if &b[0..4] != &Self::FCC {
