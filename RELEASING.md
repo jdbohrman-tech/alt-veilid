@@ -7,9 +7,17 @@ Veilid is a monorepo consisting of several projects:
 
 ## Release Mechanism
 
-Releases happen via a CI/CD pipeline. Builds and tests are automatic and must succeed before a release is triggered. Releases happen if a successful build pipeline off of the `main` branch runs, followed by test pipeline, followed by package pipeline. 
-
-A new tag is calculated for each released artifact in the format 'name-v0.1.0', where the name is the pipeline name (veilid-server-deb-v0.0.0) for example. If the version number on the resulting output package artifact has changed from the most recent tag for that artifact, it is published. If publication is successful, the repository is tagged with the new tag. Multiple releases and tags can happen per pipeline run, if multiple version numbers are bumped in the same commit.
+Releases happen via a CI/CD pipeline. The release process flows as follows:
+1. Maintainer responds to a merge request (MR):
+    a. Evaluate the MR's adherence to the published requirements and if automatic tests passed.
+    b. (Optional) Perform the merge in a local dev environment if testing is required beyond the standard Earthly tests.
+    c. If everything checks out, MR meets the published requirements, and tests passed, execute the merge functions in the Gitlab UI.
+2. Maintainer performs version bump:
+    a. Update your local copy of `main` to mirror the newly merged version
+    b. Execute the bumpversion.py process.
+    c. Push your local 'main' to the upstream origin 'main' `git push`
+    d. Push the new tag to the upstream origin `git push "tag name made in step 2d"`
+    e. Ensure the package/release/distribute pipeline autostarted in the Gitlab UI
 
 Tags serve as a historical record of what repo versions were successfully released at which version numbers.
 
@@ -54,19 +62,19 @@ Occasionally a release will happen that needs to be reverted. This is done manua
 - [x] __veilid-server__ DEB package [**Tag**: `veilid-server-deb-v0.0.0`] 
   > The Veilid headless node binary in the following formats:  
   >  * Standalone Debian/Ubuntu DEB file as a 'release file' on the `veilid` GitLab repository
-  >  * Pushed to APT repository at https://packages.veilid.com
+  >  * Pushed to APT repository at https://packages.veilid.net
 - [x] __veilid-server__ RPM package [**Tag**: `veilid-server-rpm-v0.0.0`] 
   > The Veilid headless node binary in the following formats:  
   >  * Standalone RedHat/CentOS RPM file as a 'release file' on the `veilid` GitLab repository
-  >  * Pushed to Yum repository at https://packages.veilid.com
+  >  * Pushed to Yum repository at https://packages.veilid.net
 - [x] __veilid-cli__ DEB package [**Tag**: `veilid-cli-deb-v0.0.0`] 
   > The Veilid headless node administrator control binary in the following formats:  
   >  * Standalone Debian/Ubuntu DEB file as a 'release file' on the `veilid` GitLab repository
-  >  * Pushed to APT repository at https://packages.veilid.com
+  >  * Pushed to APT repository at https://packages.veilid.net
 - [x] __veilid-cli__ RPM package [**Tag**: `veilid-cli-rpm-v0.0.0`] 
   > The Veilid headless node administrator control binary in the following formats:  
   >  * Standalone RedHat/CentOS RPM file as a 'release file' on the `veilid` GitLab repository
-  >  * Pushed to Yum repository at https://packages.veilid.com
+  >  * Pushed to Yum repository at https://packages.veilid.net
 
 ### Version Numbering:
 
