@@ -79,7 +79,7 @@ async def start(host: str, port: int, name: str):
         veilid.types.DHTSchemaSMPLMember(keys["peers"][name], 1),
     ]
 
-    router = await conn.new_routing_context()
+    router = await(await conn.new_routing_context()).with_privacy()
     async with router:
         rec = await router.create_dht_record(veilid.DHTSchema.smpl(0, members))
         print(f"New chat key: {rec.key}")
@@ -106,7 +106,7 @@ async def respond(host: str, port: int, key: str):
     keys = config.read_keys()
     my_key = veilid.KeyPair(keys["self"])
 
-    router = await conn.new_routing_context()
+    router = await(await conn.new_routing_context()).with_privacy()
     async with router:
         await router.open_dht_record(key, my_key)
 
@@ -147,7 +147,7 @@ async def clean(host: str, port: int, key: str):
 
     conn = await veilid.json_api_connect(host, port, noop_callback)
 
-    router = await conn.new_routing_context()
+    router = await(await conn.new_routing_context()).with_privacy()
     async with router:
         await router.close_dht_record(key)
         await router.delete_dht_record(key)
