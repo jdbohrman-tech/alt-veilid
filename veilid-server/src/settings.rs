@@ -120,38 +120,38 @@ core:
         application:
             https:
                 enabled: false
-                listen_address: ':5150'
+                listen_address: ':443'
                 path: 'app'
-                # url: 'https://localhost:5150'
+                # url: 'https://localhost'
             http:
                 enabled: false
-                listen_address: ':5150'
+                listen_address: ':80'
                 path: 'app'
-                # url: 'http://localhost:5150'
+                # url: 'http://localhost'
         protocol:
             udp:
                 enabled: true
                 socket_pool_size: 0
-                listen_address: ':5150'
+                listen_address: ''
                 # public_address: ''
             tcp:
                 connect: true
                 listen: true
                 max_connections: 32
-                listen_address: ':5150'
+                listen_address: ''
                 #'public_address: ''
             ws:
                 connect: true
                 listen: true
                 max_connections: 16
-                listen_address: ':5150'
+                listen_address: ''
                 path: 'ws'
                 # url: 'ws://localhost:5150/ws'
             wss:
                 connect: true
                 listen: false
                 max_connections: 16
-                listen_address: ':5150'
+                listen_address: ''
                 path: 'ws'
                 # url: ''
         "#,
@@ -351,6 +351,12 @@ pub struct NamedSocketAddrs {
 impl FromStr for NamedSocketAddrs {
     type Err = std::io::Error;
     fn from_str(s: &str) -> Result<NamedSocketAddrs, std::io::Error> {
+        if s.is_empty() {
+            return Ok(NamedSocketAddrs {
+                name: String::new(),
+                addrs: vec![],
+            });
+        }
         let addr_iter = listen_address_to_socket_addrs(s)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
         Ok(NamedSocketAddrs {
