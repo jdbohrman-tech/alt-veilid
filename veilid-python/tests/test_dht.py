@@ -47,7 +47,9 @@ async def test_delete_dht_record_nonexistent(api_connection: veilid.VeilidAPI):
 async def test_create_delete_dht_record_simple(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
-        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(1), veilid.CryptoKind.CRYPTO_KIND_VLD0)
+        rec = await rc.create_dht_record(
+            veilid.DHTSchema.dflt(1), veilid.CryptoKind.CRYPTO_KIND_VLD0
+        )
         await rc.close_dht_record(rec.key)
         await rc.delete_dht_record(rec.key)
 

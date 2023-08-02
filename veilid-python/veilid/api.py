@@ -6,7 +6,6 @@ from .state import VeilidState
 
 
 class RoutingContext(ABC):
-
     async def __aenter__(self) -> Self:
         return self
 
@@ -23,21 +22,21 @@ class RoutingContext(ABC):
         pass
 
     @abstractmethod
-    async def with_privacy(self, release = True) -> Self:
+    async def with_privacy(self, release=True) -> Self:
         pass
 
     @abstractmethod
-    async def with_custom_privacy(self, safety_selection: types.SafetySelection, release = True) -> Self:
+    async def with_custom_privacy(
+        self, safety_selection: types.SafetySelection, release=True
+    ) -> Self:
         pass
 
     @abstractmethod
-    async def with_sequencing(self, sequencing: types.Sequencing, release = True) -> Self:
+    async def with_sequencing(self, sequencing: types.Sequencing, release=True) -> Self:
         pass
 
     @abstractmethod
-    async def app_call(
-        self, target: types.TypedKey | types.RouteId, request: bytes
-    ) -> bytes:
+    async def app_call(self, target: types.TypedKey | types.RouteId, request: bytes) -> bytes:
         pass
 
     @abstractmethod
@@ -166,7 +165,6 @@ class TableDb(ABC):
 
 
 class CryptoSystem(ABC):
-
     async def __aenter__(self) -> Self:
         return self
 
@@ -183,9 +181,7 @@ class CryptoSystem(ABC):
         pass
 
     @abstractmethod
-    async def cached_dh(
-        self, key: types.PublicKey, secret: types.SecretKey
-    ) -> types.SharedSecret:
+    async def cached_dh(self, key: types.PublicKey, secret: types.SecretKey) -> types.SharedSecret:
         pass
 
     @abstractmethod
@@ -211,9 +207,7 @@ class CryptoSystem(ABC):
         pass
 
     @abstractmethod
-    async def derive_shared_secret(
-        self, password: bytes, salt: bytes
-    ) -> types.SharedSecret:
+    async def derive_shared_secret(self, password: bytes, salt: bytes) -> types.SharedSecret:
         pass
 
     @abstractmethod
@@ -233,9 +227,7 @@ class CryptoSystem(ABC):
         pass
 
     @abstractmethod
-    async def validate_key_pair(
-        self, key: types.PublicKey, secret: types.SecretKey
-    ) -> bool:
+    async def validate_key_pair(self, key: types.PublicKey, secret: types.SecretKey) -> bool:
         pass
 
     @abstractmethod
@@ -255,9 +247,7 @@ class CryptoSystem(ABC):
         pass
 
     @abstractmethod
-    async def verify(
-        self, key: types.PublicKey, data: bytes, signature: types.Signature
-    ):
+    async def verify(self, key: types.PublicKey, data: bytes, signature: types.Signature):
         pass
 
     @abstractmethod

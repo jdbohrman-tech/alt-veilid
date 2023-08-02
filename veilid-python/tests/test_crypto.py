@@ -12,14 +12,13 @@ async def test_best_crypto_system(api_connection: veilid.VeilidAPI):
     async with cs:
         assert await cs.default_salt_length() == 16
 
+
 @pytest.mark.asyncio
 async def test_get_crypto_system(api_connection: veilid.VeilidAPI):
-    cs: CryptoSystem = await api_connection.get_crypto_system(
-        veilid.CryptoKind.CRYPTO_KIND_VLD0
-    )
+    cs: CryptoSystem = await api_connection.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_VLD0)
     async with cs:
         assert await cs.default_salt_length() == 16
-        
+
 
 @pytest.mark.asyncio
 async def test_get_crypto_system_invalid(api_connection: veilid.VeilidAPI):
@@ -45,4 +44,3 @@ async def test_hash_and_verify_password(api_connection: veilid.VeilidAPI):
         # Password mismatch
         phash2 = await cs.hash_password(b"abc1234", salt)
         assert not await cs.verify_password(b"abc12345", phash)
-

@@ -34,9 +34,7 @@ async def test_routing_contexts(api_connection: veilid.VeilidAPI):
 
     rc = await (await api_connection.new_routing_context()).with_custom_privacy(
         veilid.SafetySelection.safe(
-            veilid.SafetySpec(
-                None, 2, veilid.Stability.RELIABLE, veilid.Sequencing.ENSURE_ORDERED
-            )
+            veilid.SafetySpec(None, 2, veilid.Stability.RELIABLE, veilid.Sequencing.ENSURE_ORDERED)
         )
     )
     await rc.release()
@@ -117,14 +115,10 @@ async def test_routing_context_app_call_loopback():
 
             # send an app message to our own private route
             request = b"abcd1234"
-            app_call_task = asyncio.create_task(
-                rc.app_call(prr, request), name="app call task"
-            )
+            app_call_task = asyncio.create_task(rc.app_call(prr, request), name="app call task")
 
             # we should get the same request back
-            update: veilid.VeilidUpdate = await asyncio.wait_for(
-                app_call_queue.get(), timeout=10
-            )
+            update: veilid.VeilidUpdate = await asyncio.wait_for(app_call_queue.get(), timeout=10)
             appcall = update.detail
 
             assert isinstance(appcall, veilid.VeilidAppCall)
@@ -164,9 +158,9 @@ async def test_routing_context_app_message_loopback_big_packets():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
-        rc = await (
-            await (await api.new_routing_context()).with_privacy()
-        ).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
+        rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(
+            veilid.Sequencing.ENSURE_ORDERED
+        )
         async with rc:
             # make a new local private route
             prl, blob = await api.new_private_route()
@@ -223,14 +217,12 @@ async def test_routing_context_app_call_loopback_big_packets():
         # purge routes to ensure we start fresh
         await api.debug("purge routes")
 
-        app_call_task = asyncio.create_task(
-            app_call_queue_task_handler(api), name="app call task"
-        )
+        app_call_task = asyncio.create_task(app_call_queue_task_handler(api), name="app call task")
 
         # make a routing context that uses a safety route
-        rc = await (
-            await (await api.new_routing_context()).with_privacy()
-        ).with_sequencing(veilid.Sequencing.ENSURE_ORDERED)
+        rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(
+            veilid.Sequencing.ENSURE_ORDERED
+        )
         async with rc:
             # make a new local private route
             prl, blob = await api.new_private_route()
@@ -249,9 +241,7 @@ async def test_routing_context_app_call_loopback_big_packets():
         app_call_task.cancel()
 
 
-@pytest.mark.skipif(
-    os.getenv("NOSKIP") != "1", reason="unneeded test, only for performance check"
-)
+@pytest.mark.skipif(os.getenv("NOSKIP") != "1", reason="unneeded test, only for performance check")
 @pytest.mark.asyncio
 async def test_routing_context_app_message_loopback_bandwidth():
     app_message_queue: asyncio.Queue = asyncio.Queue()

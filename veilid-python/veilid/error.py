@@ -13,6 +13,10 @@ class VeilidAPIError(Exception):
     def __init__(self, *args, **kwargs):
         super().__init__(self.label, *args, **kwargs)
 
+    def __str__(self) -> str:
+        args = [('label', self.label)] + sorted(vars(self).items())
+        return " ".join(f"{key}={value!r}" for (key, value) in args)
+
     @classmethod
     def from_json(cls, json: dict) -> Self:
         kind = json["kind"]

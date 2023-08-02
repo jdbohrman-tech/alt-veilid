@@ -27,9 +27,7 @@ async def test_get_node_id(api_connection: veilid.VeilidAPI):
 @pytest.mark.asyncio
 async def test_fail_connect():
     with pytest.raises(socket.gaierror) as exc:
-        await veilid.json_api_connect(
-            "fuahwelifuh32luhwafluehawea", 1, simple_update_callback
-        )
+        await veilid.json_api_connect("fuahwelifuh32luhwafluehawea", 1, simple_update_callback)
 
     assert exc.value.errno == socket.EAI_NONAME
 

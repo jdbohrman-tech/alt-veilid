@@ -6,20 +6,45 @@ from typing import Awaitable, Callable, Optional, Self
 from jsonschema import exceptions, validators
 
 from . import schema
-from .api import (CryptoSystem, RoutingContext, TableDb, TableDbTransaction,
-                  VeilidAPI)
+from .api import CryptoSystem, RoutingContext, TableDb, TableDbTransaction, VeilidAPI
 from .error import raise_api_result
-from .operations import (CryptoSystemOperation, Operation,
-                         RoutingContextOperation, TableDbOperation,
-                         TableDbTransactionOperation)
+from .operations import (
+    CryptoSystemOperation,
+    Operation,
+    RoutingContextOperation,
+    TableDbOperation,
+    TableDbTransactionOperation,
+)
 from .state import VeilidState, VeilidUpdate
-from .types import (CryptoKey, CryptoKeyDistance, CryptoKind,
-                    DHTRecordDescriptor, DHTSchema, HashDigest, KeyPair,
-                    NewPrivateRouteResult, Nonce, OperationId, PublicKey,
-                    RouteId, SafetySelection, SecretKey, Sequencing, SharedSecret, Signature,
-                    Stability, Timestamp, TypedKey, TypedKeyPair,
-                    TypedSignature, ValueData, ValueSubkey, VeilidJSONEncoder,
-                    VeilidVersion, urlsafe_b64decode_no_pad)
+from .types import (
+    CryptoKey,
+    CryptoKeyDistance,
+    CryptoKind,
+    DHTRecordDescriptor,
+    DHTSchema,
+    HashDigest,
+    KeyPair,
+    NewPrivateRouteResult,
+    Nonce,
+    OperationId,
+    PublicKey,
+    RouteId,
+    SafetySelection,
+    SecretKey,
+    Sequencing,
+    SharedSecret,
+    Signature,
+    Stability,
+    Timestamp,
+    TypedKey,
+    TypedKeyPair,
+    TypedSignature,
+    ValueData,
+    ValueSubkey,
+    VeilidJSONEncoder,
+    VeilidVersion,
+    urlsafe_b64decode_no_pad,
+)
 
 ##############################################################
 
@@ -200,10 +225,7 @@ class _JsonVeilidAPI(VeilidAPI):
         self.writer.write(reqbytes)
 
     async def send_ndjson_request(
-        self,
-        op: Operation,
-        validate: Optional[Callable[[dict, dict], None]] = None,
-        **kwargs
+        self, op: Operation, validate: Optional[Callable[[dict, dict], None]] = None, **kwargs
     ) -> dict:
         # Get next id
         await self.lock.acquire()
@@ -249,9 +271,7 @@ class _JsonVeilidAPI(VeilidAPI):
         return response
 
     async def control(self, args: list[str]) -> str:
-        return raise_api_result(
-            await self.send_ndjson_request(Operation.CONTROL, args=args)
-        )
+        return raise_api_result(await self.send_ndjson_request(Operation.CONTROL, args=args))
 
     async def get_state(self) -> VeilidState:
         return VeilidState.from_json(
@@ -266,9 +286,7 @@ class _JsonVeilidAPI(VeilidAPI):
 
     async def new_private_route(self) -> tuple[RouteId, bytes]:
         return NewPrivateRouteResult.from_json(
-            raise_api_result(
-                await self.send_ndjson_request(Operation.NEW_PRIVATE_ROUTE)
-            )
+            raise_api_result(await self.send_ndjson_request(Operation.NEW_PRIVATE_ROUTE))
         ).to_tuple()
 
     async def new_custom_private_route(
@@ -288,17 +306,13 @@ class _JsonVeilidAPI(VeilidAPI):
     async def import_remote_private_route(self, blob: bytes) -> RouteId:
         return RouteId(
             raise_api_result(
-                await self.send_ndjson_request(
-                    Operation.IMPORT_REMOTE_PRIVATE_ROUTE, blob=blob
-                )
+                await self.send_ndjson_request(Operation.IMPORT_REMOTE_PRIVATE_ROUTE, blob=blob)
             )
         )
 
     async def release_private_route(self, route_id: RouteId):
         raise_api_result(
-            await self.send_ndjson_request(
-                Operation.RELEASE_PRIVATE_ROUTE, route_id=route_id
-            )
+            await self.send_ndjson_request(Operation.RELEASE_PRIVATE_ROUTE, route_id=route_id)
         )
 
     async def app_call_reply(self, call_id: OperationId, message: bytes):
@@ -309,9 +323,7 @@ class _JsonVeilidAPI(VeilidAPI):
         )
 
     async def new_routing_context(self) -> RoutingContext:
-        rc_id = raise_api_result(
-            await self.send_ndjson_request(Operation.NEW_ROUTING_CONTEXT)
-        )
+        rc_id = raise_api_result(await self.send_ndjson_request(Operation.NEW_ROUTING_CONTEXT))
         return _JsonRoutingContext(self, rc_id)
 
     async def open_table_db(self, name: str, column_count: int) -> TableDb:
@@ -334,9 +346,7 @@ class _JsonVeilidAPI(VeilidAPI):
         return _JsonCryptoSystem(self, cs_id)
 
     async def best_crypto_system(self) -> CryptoSystem:
-        cs_id = raise_api_result(
-            await self.send_ndjson_request(Operation.BEST_CRYPTO_SYSTEM)
-        )
+        cs_id = raise_api_result(await self.send_ndjson_request(Operation.BEST_CRYPTO_SYSTEM))
         return _JsonCryptoSystem(self, cs_id)
 
     async def verify_signatures(
@@ -375,27 +385,19 @@ class _JsonVeilidAPI(VeilidAPI):
             map(
                 lambda x: TypedKeyPair(x),
                 raise_api_result(
-                    await self.send_ndjson_request(
-                        Operation.GENERATE_KEY_PAIR, kind=kind
-                    )
+                    await self.send_ndjson_request(Operation.GENERATE_KEY_PAIR, kind=kind)
                 ),
             )
         )
 
     async def now(self) -> Timestamp:
-        return Timestamp(
-            raise_api_result(await self.send_ndjson_request(Operation.NOW))
-        )
+        return Timestamp(raise_api_result(await self.send_ndjson_request(Operation.NOW)))
 
     async def debug(self, command: str) -> str:
-        return raise_api_result(
-            await self.send_ndjson_request(Operation.DEBUG, command=command)
-        )
+        return raise_api_result(await self.send_ndjson_request(Operation.DEBUG, command=command))
 
     async def veilid_version_string(self) -> str:
-        return raise_api_result(
-            await self.send_ndjson_request(Operation.VEILID_VERSION_STRING)
-        )
+        return raise_api_result(await self.send_ndjson_request(Operation.VEILID_VERSION_STRING))
 
     async def veilid_version(self) -> VeilidVersion:
         v = await self.send_ndjson_request(Operation.VEILID_VERSION)
@@ -424,11 +426,9 @@ class _JsonRoutingContext(RoutingContext):
         if not self.done:
             # attempt to clean up server-side anyway
             self.api.send_one_way_ndjson_request(
-                Operation.ROUTING_CONTEXT,
-                rc_id=self.rc_id,
-                rc_op=RoutingContextOperation.RELEASE
+                Operation.ROUTING_CONTEXT, rc_id=self.rc_id, rc_op=RoutingContextOperation.RELEASE
             )
-            
+
             # complain
             raise AssertionError("Should have released routing context before dropping object")
 
@@ -442,11 +442,11 @@ class _JsonRoutingContext(RoutingContext):
             Operation.ROUTING_CONTEXT,
             validate=validate_rc_op,
             rc_id=self.rc_id,
-            rc_op=RoutingContextOperation.RELEASE
+            rc_op=RoutingContextOperation.RELEASE,
         )
         self.done = True
 
-    async def with_privacy(self, release = True) -> Self:
+    async def with_privacy(self, release=True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -459,7 +459,7 @@ class _JsonRoutingContext(RoutingContext):
             await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def with_custom_privacy(self, safety_selection: SafetySelection, release = True) -> Self:
+    async def with_custom_privacy(self, safety_selection: SafetySelection, release=True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -473,7 +473,7 @@ class _JsonRoutingContext(RoutingContext):
             await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def with_sequencing(self, sequencing: Sequencing, release = True) -> Self:
+    async def with_sequencing(self, sequencing: Sequencing, release=True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -664,7 +664,9 @@ class _JsonTableDbTransaction(TableDbTransaction):
             )
 
             # complain
-            raise AssertionError("Should have committed or rolled back transaction before dropping object")
+            raise AssertionError(
+                "Should have committed or rolled back transaction before dropping object"
+            )
 
     def is_done(self) -> bool:
         return self.done
@@ -672,7 +674,7 @@ class _JsonTableDbTransaction(TableDbTransaction):
     async def commit(self):
         if self.done:
             raise AssertionError("Transaction is already done")
-    
+
         raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB_TRANSACTION,
@@ -736,12 +738,9 @@ class _JsonTableDb(TableDb):
 
     def __del__(self):
         if not self.done:
-
             # attempt to clean up server-side anyway
             self.api.send_one_way_ndjson_request(
-                Operation.TABLE_DB,
-                db_id=self.db_id,
-                db_op=TableDbOperation.RELEASE
+                Operation.TABLE_DB, db_id=self.db_id, db_op=TableDbOperation.RELEASE
             )
 
             # complain
@@ -757,10 +756,9 @@ class _JsonTableDb(TableDb):
             Operation.TABLE_DB,
             validate=validate_db_op,
             db_id=self.db_id,
-            db_op=TableDbOperation.RELEASE
+            db_op=TableDbOperation.RELEASE,
         )
         self.done = True
-
 
     async def get_column_count(self) -> int:
         return raise_api_result(
@@ -859,12 +857,9 @@ class _JsonCryptoSystem(CryptoSystem):
 
     def __del__(self):
         if not self.done:
-
             # attempt to clean up server-side anyway
             self.api.send_one_way_ndjson_request(
-                Operation.CRYPTO_SYSTEM,
-                cs_id=self.cs_id,
-                cs_op=CryptoSystemOperation.RELEASE
+                Operation.CRYPTO_SYSTEM, cs_id=self.cs_id, cs_op=CryptoSystemOperation.RELEASE
             )
 
             # complain
@@ -872,7 +867,7 @@ class _JsonCryptoSystem(CryptoSystem):
 
     def is_done(self) -> bool:
         return self.done
-    
+
     async def release(self):
         if self.done:
             return
@@ -880,7 +875,7 @@ class _JsonCryptoSystem(CryptoSystem):
             Operation.CRYPTO_SYSTEM,
             validate=validate_cs_op,
             cs_id=self.cs_id,
-            cs_op=CryptoSystemOperation.RELEASE
+            cs_op=CryptoSystemOperation.RELEASE,
         )
         self.done = True
 
@@ -1142,9 +1137,7 @@ class _JsonCryptoSystem(CryptoSystem):
             )
         )
 
-    async def crypt_no_auth(
-        self, body: bytes, nonce: Nonce, shared_secret: SharedSecret
-    ) -> bytes:
+    async def crypt_no_auth(self, body: bytes, nonce: Nonce, shared_secret: SharedSecret) -> bytes:
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(

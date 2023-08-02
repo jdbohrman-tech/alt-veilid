@@ -1,6 +1,7 @@
 from enum import StrEnum
 from typing import Self
 
+
 class Operation(StrEnum):
     CONTROL = "Control"
     GET_STATE = "GetState"
@@ -28,6 +29,7 @@ class Operation(StrEnum):
     VEILID_VERSION_STRING = "VeilidVersionString"
     VEILID_VERSION = "VeilidVersion"
 
+
 class RoutingContextOperation(StrEnum):
     INVALID_ID = "InvalidId"
     RELEASE = "Release"
@@ -45,6 +47,7 @@ class RoutingContextOperation(StrEnum):
     WATCH_DHT_VALUES = "WatchDhtValues"
     CANCEL_DHT_WATCH = "CancelDhtWatch"
 
+
 class TableDbOperation(StrEnum):
     INVALID_ID = "InvalidId"
     RELEASE = "Release"
@@ -55,12 +58,14 @@ class TableDbOperation(StrEnum):
     LOAD = "Load"
     DELETE = "Delete"
 
+
 class TableDbTransactionOperation(StrEnum):
     INVALID_ID = "InvalidId"
     COMMIT = "Commit"
     ROLLBACK = "Rollback"
     STORE = "Store"
     DELETE = "Delete"
+
 
 class CryptoSystemOperation(StrEnum):
     INVALID_ID = "InvalidId"
@@ -85,7 +90,8 @@ class CryptoSystemOperation(StrEnum):
     DECRYPT_AEAD = "DecryptAead"
     ENCRYPT_AEAD = "EncryptAead"
     CRYPT_NO_AUTH = "CryptNoAuth"
-        
+
+
 class RecvMessageType(StrEnum):
     RESPONSE = "Response"
     UPDATE = "Update"
