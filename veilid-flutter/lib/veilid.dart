@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:fixnum/fixnum.dart';
 
 //////////////////////////////////////////////////////////
 
@@ -61,6 +62,8 @@ class VeilidVersion extends Equatable {
 @immutable
 class Timestamp extends Equatable {
   const Timestamp({required this.value});
+  factory Timestamp.fromInt64(Int64 i64) =>
+      Timestamp(value: BigInt.parse(i64.toStringUnsigned()));
   factory Timestamp.fromString(String s) => Timestamp(value: BigInt.parse(s));
   factory Timestamp.fromJson(dynamic json) =>
       Timestamp.fromString(json as String);
@@ -70,8 +73,8 @@ class Timestamp extends Equatable {
 
   @override
   String toString() => value.toString();
-
   String toJson() => toString();
+  Int64 toInt64() => Int64.parseInt(value.toString());
 
   TimestampDuration diff(Timestamp other) =>
       TimestampDuration(value: value - other.value);
@@ -83,6 +86,8 @@ class Timestamp extends Equatable {
 @immutable
 class TimestampDuration extends Equatable {
   const TimestampDuration({required this.value});
+  factory TimestampDuration.fromInt64(Int64 i64) =>
+      TimestampDuration(value: BigInt.parse(i64.toStringUnsigned()));
   factory TimestampDuration.fromString(String s) =>
       TimestampDuration(value: BigInt.parse(s));
   factory TimestampDuration.fromJson(dynamic json) =>
@@ -93,8 +98,8 @@ class TimestampDuration extends Equatable {
 
   @override
   String toString() => value.toString();
-
   String toJson() => toString();
+  Int64 toInt64() => Int64.parseInt(value.toString());
 
   int toMillis() => (value ~/ BigInt.from(1000)).toInt();
   BigInt toMicros() => value;
