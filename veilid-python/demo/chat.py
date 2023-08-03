@@ -10,7 +10,8 @@ import config
 
 import veilid
 
-QUIT = b"QUIT"
+QUIT = "QUIT"
+NONCE_LENGTH = 24
 
 
 async def noop_callback(*args, **kwargs):
@@ -23,6 +24,7 @@ async def chatter(
     router: veilid.api.RoutingContext,
     crypto_system: veilid.CryptoSystem,
     key: veilid.TypedKey,
+    secret: veilid.SharedSecret,
     send_subkey: veilid.ValueSubkey,
     recv_subkey: veilid.ValueSubkey,
 ):
@@ -30,9 +32,24 @@ async def chatter(
 
     last_seq = -1
 
+    async def encrypt(cleartext: str) -> bytes:
+        """Encrypt the message with the shared secret and a random nonce."""
+
+        nonce = await crypto_system.random_nonce()
+        encrypted = await crypto_system.crypt_no_auth(cleartext.encode(), nonce, secret)
+        return nonce.to_bytes() + encrypted
+
+    async def decrypt(payload: bytes) -> str:
+        """Decrypt the payload with the shared secret and the payload's nonce."""
+
+        nonce = veilid.Nonce.from_bytes(payload[:NONCE_LENGTH])
+        encrypted = payload[NONCE_LENGTH:]
+        cleartext = await crypto_system.crypt_no_auth(encrypted, nonce, secret)
+        return cleartext.decode()
+
     # Prime the pumps. Especially when starting the conversation, this
     # causes the DHT key to propagate to the network.
-    await router.set_dht_value(key, send_subkey, b"Hello from the world!")
+    await router.set_dht_value(key, send_subkey, await encrypt("Hello from the world!"))
 
     while True:
         try:
@@ -40,11 +57,11 @@ async def chatter(
         except EOFError:
             # Cat got your tongue? Hang up.
             print("Closing the chat.")
-            await router.set_dht_value(key, send_subkey, QUIT)
+            await router.set_dht_value(key, send_subkey, await encrypt(QUIT))
             return
 
         # Write the input message to the DHT key.
-        await router.set_dht_value(key, send_subkey, msg.encode())
+        await router.set_dht_value(key, send_subkey, await encrypt(msg))
 
         # In the real world, don't do this. People may tease you for it.
         # This is meant to be easy to understand for demonstration
@@ -60,11 +77,12 @@ async def chatter(
             if resp.seq == last_seq:
                 continue
 
-            if resp.data == QUIT:
+            msg = await decrypt(resp.data)
+            if msg == QUIT:
                 print("Other end closed the chat.")
                 return
 
-            print(f"RECV< {resp.data.decode()}")
+            print(f"RECV< {msg}")
             last_seq = resp.seq
             break
 
@@ -85,7 +103,9 @@ async def start(host: str, port: int, name: str):
 
     router = await (await conn.new_routing_context()).with_privacy()
     crypto_system = await conn.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_VLD0)
-    async with router, crypto_system:
+    async with crypto_system, router:
+        secret = await crypto_system.cached_dh(their_key, my_keypair.secret())
+
         record = await router.create_dht_record(veilid.DHTSchema.smpl(0, members))
         print(f"New chat key: {record.key}")
         print("Give that to your friend!")
@@ -97,27 +117,30 @@ async def start(host: str, port: int, name: str):
 
         try:
             # Write to the 1st subkey and read from the 2nd.
-            await chatter(router, crypto_system, record.key, 0, 1)
+            await chatter(router, crypto_system, record.key, secret, 0, 1)
         finally:
             await router.close_dht_record(record.key)
             await router.delete_dht_record(record.key)
 
 
-async def respond(host: str, port: int, key: str):
+async def respond(host: str, port: int, name: str, key: str):
     """Reply to a friend's chat."""
 
     conn = await veilid.json_api_connect(host, port, noop_callback)
 
     keys = config.read_keys()
     my_keypair = keys["self"]
+    their_key = keys["peers"][name]
 
     router = await (await conn.new_routing_context()).with_privacy()
     crypto_system = await conn.get_crypto_system(veilid.CryptoKind.CRYPTO_KIND_VLD0)
-    async with router, crypto_system:
+    async with crypto_system, router:
+        secret = await crypto_system.cached_dh(their_key, my_keypair.secret())
+
         await router.open_dht_record(key, my_keypair)
 
         # As the responder, we're writing to the 2nd subkey and reading from the 1st.
-        await chatter(router, crypto_system, key, 1, 0)
+        await chatter(router, crypto_system, key, secret, 1, 0)
 
 
 async def keygen(host: str, port: int):
@@ -175,6 +198,7 @@ def handle_command_line(arglist: list[str]):
     cmd_start.set_defaults(func=start)
 
     cmd_respond = subparsers.add_parser("respond", help=respond.__doc__)
+    cmd_respond.add_argument("name", help="Your friend's name")
     cmd_respond.add_argument("key", help="The chat's DHT key")
     cmd_respond.set_defaults(func=respond)
 
