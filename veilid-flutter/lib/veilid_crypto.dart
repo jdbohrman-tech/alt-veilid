@@ -199,7 +199,7 @@ abstract class VeilidCryptoSystem {
 
   Future<Uint8List> decryptNoAuthWithNonce(
       Uint8List body, SharedSecret secret) async {
-    if (body.length <= Nonce.decodedLength()) {
+    if (body.length < Nonce.decodedLength()) {
       throw const FormatException('not enough data to decrypt');
     }
     final nonce =
@@ -220,7 +220,7 @@ abstract class VeilidCryptoSystem {
 
   Future<Uint8List> decryptNoAuthWithPassword(
       Uint8List body, String password) async {
-    if (body.length <= Nonce.decodedLength()) {
+    if (body.length < Nonce.decodedLength()) {
       throw const FormatException('not enough data to decrypt');
     }
     final ekbytes = Uint8List.fromList(utf8.encode(password));
