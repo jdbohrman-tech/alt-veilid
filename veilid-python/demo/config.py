@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import veilid
+
 KEYFILE = Path(".demokeys")
 
 
@@ -10,14 +12,19 @@ def read_keys() -> dict:
     """Load the stored keys from disk."""
 
     try:
-        keydata = KEYFILE.read_text()
+        raw = KEYFILE.read_text()
     except FileNotFoundError:
         return {
             "self": None,
             "peers": {},
         }
 
-    return json.loads(keydata)
+    keys = json.loads(raw)
+    if keys["self"] is not None:
+        keys["self"] = veilid.KeyPair(keys["self"])
+    for name, pubkey in keys["peers"].items():
+        keys["peers"][name] = veilid.PublicKey(pubkey)
+    return keys
 
 
 def write_keys(keydata: dict):
