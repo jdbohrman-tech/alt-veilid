@@ -13,9 +13,9 @@ import 'veilid.dart';
 
 typedef CryptoKind = int;
 const CryptoKind cryptoKindVLD0 =
-    $V << 0 | $L << 8 | $D << 16 | $0 << 24; // "VLD0"
+    $V << 24 | $L << 16 | $D << 8 | $0 << 0; // "VLD0"
 const CryptoKind cryptoKindNONE =
-    $N << 0 | $O << 8 | $N << 16 | $E << 24; // "NONE"
+    $N << 24 | $O << 16 | $N << 8 | $E << 0; // "NONE"
 
 String cryptoKindToString(CryptoKind kind) =>
     cryptoKindToBytes(kind).map(String.fromCharCode).join();
