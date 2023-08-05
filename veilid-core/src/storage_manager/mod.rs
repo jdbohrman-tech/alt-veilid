@@ -201,6 +201,17 @@ impl StorageManager {
         // Reopen inner to store value we just got
         let mut inner = self.lock().await?;
 
+        // Check again to see if we have a local record already or not
+        // because waiting for the outbound_get_value action could result in the key being opened
+        // via some parallel process
+
+        if let Some(res) = inner
+            .open_existing_record(key, writer, safety_selection)
+            .await?
+        {
+            return Ok(res);
+        }
+
         // Open the new record
         inner
             .open_new_record(key, writer, subkey, subkey_result, safety_selection)
