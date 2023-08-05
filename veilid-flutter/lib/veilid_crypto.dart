@@ -23,6 +23,7 @@ String cryptoKindToString(CryptoKind kind) =>
 const CryptoKind bestCryptoKind = cryptoKindVLD0;
 
 Uint8List cryptoKindToBytes(CryptoKind kind) {
+  assert(kind == cryptoKindVLD0, 'xxx');
   final b = Uint8List(4);
   ByteData.sublistView(b).setUint32(0, kind);
   return b;
@@ -34,6 +35,7 @@ CryptoKind cryptoKindFromString(String s) {
   }
   final kind =
       ByteData.sublistView(Uint8List.fromList(s.codeUnits)).getUint32(0);
+  assert(kind == cryptoKindVLD0, 'xxx');
   return kind;
 }
 

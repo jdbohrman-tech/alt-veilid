@@ -188,6 +188,10 @@ impl VeilidAPI {
         stability: Stability,
         sequencing: Sequencing,
     ) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
+        for kind in crypto_kinds {
+            Crypto::validate_crypto_kind(*kind)?;
+        }
+
         let default_route_hop_count: usize = {
             let config = self.config()?;
             let c = config.get();

@@ -1012,7 +1012,7 @@ impl RoutingTable {
         node_id: TypedKey,
         filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
-    ) -> Vec<O>
+    ) -> VeilidAPIResult<Vec<O>>
     where
         T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O + Send,
     {
