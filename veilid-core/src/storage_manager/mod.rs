@@ -132,9 +132,8 @@ impl StorageManager {
         Ok(inner)
     }
 
-    async fn network_is_ready(&self) -> EyreResult<bool> {
+    fn online_writes_ready_inner(inner: &StorageManagerInner) -> Option<RPCProcessor> {
         if let Some(rpc_processor) = {
-            let inner = self.lock().await?;
             inner.rpc_processor.clone()
         } {
             if let Some(network_class) = rpc_processor
@@ -142,15 +141,24 @@ impl StorageManager {
                 .get_network_class(RoutingDomain::PublicInternet)
             {
                 // If our PublicInternet network class is valid we're ready to talk
-                Ok(network_class != NetworkClass::Invalid)
+                if network_class != NetworkClass::Invalid {
+                    Some(rpc_processor)
+                } else {
+                    None
+                }
             } else {
                 // If we haven't gotten a network class yet we shouldnt try to use the DHT
-                Ok(false)
+                None
             }
         } else {
             // If we aren't attached, we won't have an rpc processor
-            Ok(false)
+            None
         }
+    }
+
+    async fn online_writes_ready(&self) -> EyreResult<Option<RPCProcessor>> {
+        let inner = self.lock().await?;
+        return Ok(Self::online_writes_ready_inner(&*inner));
     }
 
     async fn has_offline_subkey_writes(&self) -> EyreResult<bool> {
@@ -415,12 +423,15 @@ impl StorageManager {
         )?;
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
-        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+        let Some(rpc_processor) = Self::online_writes_ready_inner(&inner) else {
+            log_stor!(debug "Writing subkey locally: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+
             // Offline, just write it locally and return immediately
             inner
                 .handle_set_local_value(key, subkey, signed_value_data.clone())
                 .await?;
 
+            log_stor!(debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
             // Add to offline writes to flush
             inner.offline_subkey_writes.entry(key)
                 .and_modify(|x| { x.subkeys.insert(subkey); } )

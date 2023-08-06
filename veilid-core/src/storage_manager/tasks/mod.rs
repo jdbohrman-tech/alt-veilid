@@ -54,7 +54,7 @@ impl StorageManager {
         self.unlocked_inner.flush_record_stores_task.tick().await?;
 
         // Run offline subkey writes task if there's work to be done
-        if self.network_is_ready().await? && self.has_offline_subkey_writes().await? {
+        if self.online_writes_ready().await?.is_some() && self.has_offline_subkey_writes().await? {
             self.unlocked_inner
                 .offline_subkey_writes_task
                 .tick()

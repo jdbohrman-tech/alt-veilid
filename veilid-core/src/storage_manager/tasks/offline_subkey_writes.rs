@@ -10,35 +10,39 @@ impl StorageManager {
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        let (rpc_processor, offline_subkey_writes) = {
+        let offline_subkey_writes = {
             let inner = self.lock().await?;
-
-            let Some(rpc_processor) = inner.rpc_processor.clone() else {
-                return Ok(());
-            };
-
-            (rpc_processor, inner.offline_subkey_writes.clone())
+            inner.offline_subkey_writes.clone()
         };
 
         // make a safety selection that is conservative
         for (key, osw) in offline_subkey_writes {
             if poll!(stop_token.clone()).is_ready() {
+                log_stor!(debug "Offline subkey writes cancelled.");
                 break;
             }
+            let Some(rpc_processor) = self.online_writes_ready().await? else {
+                log_stor!(debug "Offline subkey writes stopped for network.");
+                break;
+            };
             for subkey in osw.subkeys.iter() {
                 let subkey_result = {
                     let mut inner = self.lock().await?;
                     inner.handle_get_local_value(key, subkey, true).await
                 };
                 let Ok(subkey_result) = subkey_result else {
-                    continue;
+                    log_stor!(debug "Offline subkey write had no subkey result: {}:{}", key, subkey);
+                    continue;                    
                 };
                 let Some(value) = subkey_result.value else {
+                    log_stor!(debug "Offline subkey write had no subkey value: {}:{}", key, subkey);
                     continue;
                 };
                 let Some(descriptor) = subkey_result.descriptor else {
+                    log_stor!(debug "Offline subkey write had no descriptor: {}:{}", key, subkey);
                     continue;
                 };
+                log_stor!(debug "Offline subkey write: {}:{} len={}", key, subkey, value.value_data().data().len());
                 if let Err(e) = self
                     .outbound_set_value(
                         rpc_processor.clone(),
