@@ -18,6 +18,7 @@ use storage_manager_inner::*;
 pub use types::*;
 
 use super::*;
+use network_manager::*;
 use routing_table::*;
 use rpc_processor::*;
 
@@ -27,6 +28,8 @@ const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
 const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
 /// Frequency to flush record stores to disk
 const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
+/// Frequency to check for offline subkeys writes to send to the network
+const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 1;
 
 struct StorageManagerUnlockedInner {
     config: VeilidConfig,
@@ -37,6 +40,7 @@ struct StorageManagerUnlockedInner {
 
     // Background processes
     flush_record_stores_task: TickTask<EyreReport>,
+    offline_subkey_writes_task: TickTask<EyreReport>,
 }
 
 #[derive(Clone)]
@@ -59,6 +63,7 @@ impl StorageManager {
             #[cfg(feature = "unstable-blockstore")]
             block_store,
             flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
+            offline_subkey_writes_task: TickTask::new(OFFLINE_SUBKEY_WRITES_INTERVAL_SECS),
         }
     }
     fn new_inner(unlocked_inner: Arc<StorageManagerUnlockedInner>) -> StorageManagerInner {
@@ -125,6 +130,32 @@ impl StorageManager {
             apibail_not_initialized!();
         }
         Ok(inner)
+    }
+
+    async fn network_is_ready(&self) -> EyreResult<bool> {
+        if let Some(rpc_processor) = {
+            let inner = self.lock().await?;
+            inner.rpc_processor.clone()
+        } {
+            if let Some(network_class) = rpc_processor
+                .routing_table()
+                .get_network_class(RoutingDomain::PublicInternet)
+            {
+                // If our PublicInternet network class is valid we're ready to talk
+                Ok(network_class != NetworkClass::Invalid)
+            } else {
+                // If we haven't gotten a network class yet we shouldnt try to use the DHT
+                Ok(false)
+            }
+        } else {
+            // If we aren't attached, we won't have an rpc processor
+            Ok(false)
+        }
+    }
+
+    async fn has_offline_subkey_writes(&self) -> EyreResult<bool> {
+        let inner = self.lock().await?;
+        Ok(inner.offline_subkey_writes.len() != 0)
     }
 
     /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
@@ -391,7 +422,12 @@ impl StorageManager {
                 .await?;
 
             // Add to offline writes to flush
-            inner.offline_subkey_writes.entry(key).and_modify(|x| { x.insert(subkey); } ).or_insert(ValueSubkeyRangeSet::single(subkey));
+            inner.offline_subkey_writes.entry(key)
+                .and_modify(|x| { x.subkeys.insert(subkey); } )
+                .or_insert(OfflineSubkeyWrite{
+                    safety_selection, 
+                    subkeys: ValueSubkeyRangeSet::single(subkey)
+                });
             return Ok(None)
         };
 

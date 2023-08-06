@@ -3,6 +3,12 @@ use super::*;
 const STORAGE_MANAGER_METADATA: &str = "storage_manager_metadata";
 const OFFLINE_SUBKEY_WRITES: &[u8] = b"offline_subkey_writes";
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(super) struct OfflineSubkeyWrite {
+    pub safety_selection: SafetySelection,
+    pub subkeys: ValueSubkeyRangeSet,
+}
+
 /// Locked structure for storage manager
 pub(super) struct StorageManagerInner {
     unlocked_inner: Arc<StorageManagerUnlockedInner>,
@@ -15,7 +21,7 @@ pub(super) struct StorageManagerInner {
     /// Records that have been pushed to this node for distribution by other nodes, that we make an effort to republish
     pub remote_record_store: Option<RecordStore<RemoteRecordDetail>>,
     /// Record subkeys that have not been pushed to the network because they were written to offline
-    pub offline_subkey_writes: HashMap<TypedKey, ValueSubkeyRangeSet>,
+    pub offline_subkey_writes: HashMap<TypedKey, OfflineSubkeyWrite>,
     /// Storage manager metadata that is persistent, including copy of offline subkey writes
     pub metadata_db: Option<TableDB>,
     /// RPC processor if it is available
