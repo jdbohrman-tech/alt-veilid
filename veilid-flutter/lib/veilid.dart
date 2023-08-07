@@ -60,10 +60,11 @@ class VeilidVersion extends Equatable {
 //////////////////////////////////////
 /// Timestamp
 @immutable
-class Timestamp extends Equatable {
+class Timestamp extends Equatable implements Comparable<Timestamp> {
   const Timestamp({required this.value});
-  factory Timestamp.fromInt64(Int64 i64) =>
-      Timestamp(value: BigInt.parse(i64.toStringUnsigned()));
+  factory Timestamp.fromInt64(Int64 i64) => Timestamp(
+      value: (BigInt.from((i64 >> 32).toUnsigned(32).toInt()) << 32) |
+          BigInt.from(i64.toUnsigned(32).toInt()));
   factory Timestamp.fromString(String s) => Timestamp(value: BigInt.parse(s));
   factory Timestamp.fromJson(dynamic json) =>
       Timestamp.fromString(json as String);
@@ -72,9 +73,13 @@ class Timestamp extends Equatable {
   List<Object> get props => [value];
 
   @override
+  int compareTo(Timestamp other) => value.compareTo(other.value);
+
+  @override
   String toString() => value.toString();
   String toJson() => toString();
-  Int64 toInt64() => Int64.parseInt(value.toString());
+  Int64 toInt64() => Int64.fromInts(
+      (value >> 32).toUnsigned(32).toInt(), value.toUnsigned(32).toInt());
 
   TimestampDuration diff(Timestamp other) =>
       TimestampDuration(value: value - other.value);
@@ -84,10 +89,12 @@ class Timestamp extends Equatable {
 }
 
 @immutable
-class TimestampDuration extends Equatable {
+class TimestampDuration extends Equatable
+    implements Comparable<TimestampDuration> {
   const TimestampDuration({required this.value});
-  factory TimestampDuration.fromInt64(Int64 i64) =>
-      TimestampDuration(value: BigInt.parse(i64.toStringUnsigned()));
+  factory TimestampDuration.fromInt64(Int64 i64) => TimestampDuration(
+      value: (BigInt.from((i64 >> 32).toUnsigned(32).toInt()) << 32) |
+          BigInt.from(i64.toUnsigned(32).toInt()));
   factory TimestampDuration.fromString(String s) =>
       TimestampDuration(value: BigInt.parse(s));
   factory TimestampDuration.fromJson(dynamic json) =>
@@ -97,9 +104,13 @@ class TimestampDuration extends Equatable {
   List<Object> get props => [value];
 
   @override
+  int compareTo(TimestampDuration other) => value.compareTo(other.value);
+
+  @override
   String toString() => value.toString();
   String toJson() => toString();
-  Int64 toInt64() => Int64.parseInt(value.toString());
+  Int64 toInt64() => Int64.fromInts(
+      (value >> 32).toUnsigned(32).toInt(), value.toUnsigned(32).toInt());
 
   int toMillis() => (value ~/ BigInt.from(1000)).toInt();
   BigInt toMicros() => value;
