@@ -288,7 +288,11 @@ where
         }
         // Wait for them to complete
         timeout(timeout_ms, async {
-            while let Some(_) = unord.next().await {}
+            while let Some(_) = unord.next().await {
+                if self.clone().evaluate_done() {
+                    break;
+                }
+            }
         })
         .await
         .into_timeout_or()

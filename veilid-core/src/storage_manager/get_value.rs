@@ -13,7 +13,6 @@ struct OutboundGetValueContext {
 }
 
 impl StorageManager {
-
     /// Perform a 'get value' query on the network
     pub async fn outbound_get_value(
         &self,
@@ -74,15 +73,14 @@ impl StorageManager {
                 if let Some(descriptor) = gva.answer.descriptor {
                     let mut ctx = context.lock();
                     if ctx.descriptor.is_none() && ctx.schema.is_none() {
-                        ctx.schema =
-                            Some(descriptor.schema().map_err(RPCError::invalid_format)?);
+                        ctx.schema = Some(descriptor.schema().map_err(RPCError::invalid_format)?);
                         ctx.descriptor = Some(descriptor);
                     }
                 }
 
                 // Keep the value if we got one and it is newer and it passes schema validation
                 if let Some(value) = gva.answer.value {
-                    log_stor!(debug "Got value back: len={}", value.value_data().data().len());
+                    log_stor!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
                     let mut ctx = context.lock();
 
                     // Ensure we have a schema and descriptor
@@ -126,8 +124,7 @@ impl StorageManager {
                         } else {
                             // If the sequence number is older, ignore it
                         }
-                    }
-                    else {
+                    } else {
                         // If we have no prior value, keep it
                         ctx.value = Some(value);
                         // One node has shown us this value so far
@@ -136,7 +133,7 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                #[cfg(feature="network-result-extra")]
+                #[cfg(feature = "network-result-extra")]
                 log_stor!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
                 Ok(Some(gva.answer.peers))
@@ -147,7 +144,8 @@ impl StorageManager {
         let check_done = |_closest_nodes: &[NodeRef]| {
             // If we have reached sufficient consensus, return done
             let ctx = context.lock();
-            if ctx.value.is_some() && ctx.descriptor.is_some() && ctx.value_count >= consensus_count {
+            if ctx.value.is_some() && ctx.descriptor.is_some() && ctx.value_count >= consensus_count
+            {
                 return Some(());
             }
             None
@@ -167,14 +165,31 @@ impl StorageManager {
 
         match fanout_call.run().await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
-            TimeoutOr::Timeout | 
+            TimeoutOr::Timeout => {
+                log_stor!(debug "GetValue Fanout Timeout");
+                // Return the best answer we've got
+                let ctx = context.lock();
+                Ok(SubkeyResult {
+                    value: ctx.value.clone(),
+                    descriptor: ctx.descriptor.clone(),
+                })
+            }
             // If we finished with consensus (enough nodes returning the same value)
-            TimeoutOr::Value(Ok(Some(()))) | 
+            TimeoutOr::Value(Ok(Some(()))) => {
+                log_stor!(debug "GetValue Fanout Consensus");
+                // Return the best answer we've got
+                let ctx = context.lock();
+                Ok(SubkeyResult {
+                    value: ctx.value.clone(),
+                    descriptor: ctx.descriptor.clone(),
+                })
+            }
             // If we finished without consensus (ran out of nodes before getting consensus)
             TimeoutOr::Value(Ok(None)) => {
                 // Return the best answer we've got
                 let ctx = context.lock();
-                Ok(SubkeyResult{
+                log_stor!(debug "GetValue Fanout No Consensus: {}", ctx.value_count);
+                Ok(SubkeyResult {
                     value: ctx.value.clone(),
                     descriptor: ctx.descriptor.clone(),
                 })
@@ -182,22 +197,31 @@ impl StorageManager {
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
+                log_stor!(debug "GetValue Fanout Error: {}", e);
                 Err(e.into())
             }
         }
     }
 
     /// Handle a recieved 'Get Value' query
-    pub async fn inbound_get_value(&self, key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> VeilidAPIResult<NetworkResult<SubkeyResult>> {
+    pub async fn inbound_get_value(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        want_descriptor: bool,
+    ) -> VeilidAPIResult<NetworkResult<SubkeyResult>> {
         let mut inner = self.lock().await?;
-        let res = match inner.handle_get_remote_value(key, subkey, want_descriptor).await {            
+        let res = match inner
+            .handle_get_remote_value(key, subkey, want_descriptor)
+            .await
+        {
             Ok(res) => res,
             Err(VeilidAPIError::Internal { message }) => {
                 apibail_internal!(message);
-            },
+            }
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(e));
-            },
+            }
         };
         Ok(NetworkResult::value(res))
     }
