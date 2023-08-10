@@ -3,9 +3,9 @@ Before you get started, please review our [Code of Conduct](./code_of_conduct.md
 
 
 ## Code Contributions
-To begin crafting code to contribute to the Veilid project, first set up a [development environment]. After cloning the project, check out a new local branch and name it in a way that describes the work being done. This is referred to as a [feature branch].
+To begin crafting code to contribute to the Veilid project, first set up a [development environment](./DEVELOPMENT.md). After cloning the project, check out a new local branch and name it in a way that describes the work being done. This is referred to as a [feature branch].
 
-Some contributions might introduce changes that are incompatible with other existing nodes. In this case it is recommended to also set a [development network]. *NEED TO WRITE*
+Some contributions might introduce changes that are incompatible with other existing nodes. In this case it is recommended to also set a development network *Guide Coming Soon*.
 
 Once you have added your new function or addressed a bug, test it locally to ensure it's working as expected. If needed, test your work in a development network with more than one node based on your code. Once you're satisfied your code works as intended and does not introduce negative results or new bugs, follow the merge requests section below to submit your work for maintainer review.
 
@@ -70,8 +70,6 @@ If you're looking for more guidance, talk to other Veilid contributors on the [V
 This contributor guide is inspired by the contribution guidelines of the [Metasploit Framework](https://github.com/rapid7/metasploit-framework/blob/master/CONTRIBUTING.md) project found on GitHub.
 
 [Help other users with open issues]:https://gitlab.com/veilid/veilid/-/issues
-[Report a security vulnerability in Metasploit itself]:https://www.rapid7.com/disclosure.jsp
-[development environment]:http://r-7.co/MSF-DEV
 [50/72 rule]:http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [feature branch]:https://docs.gitlab.com/ee/gitlab-basics/feature_branch_workflow.html
 [verification steps]:https://docs.gitlab.com/ee/user/markdown.html#task-lists
