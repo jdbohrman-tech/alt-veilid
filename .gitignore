@@ -232,3 +232,5 @@ cython_debug/
 
 ## Custom for veilid-python
 veilid-python/demo/.demokeys
+
+.vscode/
