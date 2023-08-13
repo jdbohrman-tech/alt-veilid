@@ -33,7 +33,7 @@ struct CmdlineArgs {
     #[arg(long)]
     wait_for_debug: bool,
     /// Specify a configuration file to use
-    #[arg(short, long, value_name = "FILE", /*allow_invalid_utf8 = true*/)]
+    #[arg(short, long, value_name = "FILE")]
     config_file: Option<PathBuf>,
     /// log level
     #[arg(value_enum)]
