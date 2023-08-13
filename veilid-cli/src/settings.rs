@@ -1,7 +1,7 @@
 use directories::*;
 
 use serde_derive::*;
-use std::ffi::OsString;
+use std::ffi::OsStr;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 
@@ -234,13 +234,13 @@ impl Settings {
         default_log_directory
     }
 
-    pub fn new(config_file: Option<OsString>) -> Result<Self, config::ConfigError> {
+    pub fn new(config_file: Option<&OsStr>) -> Result<Self, config::ConfigError> {
         // Load the default config
         let mut cfg = load_default_config()?;
 
         // Merge in the config file if we have one
         if let Some(config_file) = config_file {
-            let config_file_path = Path::new(&config_file);
+            let config_file_path = Path::new(config_file);
             // If the user specifies a config file on the command line then it must exist
             cfg = load_config(cfg, config_file_path)?;
         }
