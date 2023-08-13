@@ -6,9 +6,27 @@ if [ $(id -u) -eq 0 ]; then
     exit
 fi
 
-# Install APT dependencies
-sudo apt update -y
-sudo apt install -y openjdk-11-jdk-headless iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip llvm wabt checkinstall
+if [ ! -z "$(command -v apt)" ]; then
+    # Install APT dependencies
+    sudo apt update -y
+    sudo apt install -y openjdk-11-jdk-headless iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip llvm wabt
+elif [ ! -z "$(command -v dnf)" ]; then
+    # DNF (formerly yum)
+    sudo dnf update -y
+    # libgirepository -> gobject-introspection
+    # iproute2 -> iproute
+    # openjdk-11-jdk-headless -> java-11-openjdk-headless
+    # checkinstall does not appear to be a thing in Fedora 38 repos
+    #
+    # Seems like iproute and file might come preinstalled but I put
+    # them in anyway
+    #
+    # Also Fedora doesn't come with pip
+    sudo dnf install -y java-11-openjdk-headless iproute curl cmake openssl-devel openssl git file pkg-config dbus-devel dbus-glib gobject-introspection-devel cairo-devel unzip llvm wabt python3-pip gcc-c++
+    # build-essentials
+    sudo dnf groupinstall -y 'Development Tools'
+fi
+
 
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y -c clippy --profile default
