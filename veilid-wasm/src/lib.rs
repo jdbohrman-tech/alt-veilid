@@ -161,7 +161,7 @@ pub struct VeilidWASMConfig {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidRouteBlob {
     pub route_id: veilid_core::RouteId,
-    #[serde(with = "veilid_core::json_as_base64")]
+    // #[serde(with = "veilid_core::json_as_base64")]
     pub blob: Vec<u8>,
 }
 
@@ -429,7 +429,7 @@ pub fn routing_context_create_dht_record(id: u32, schema: String, kind: u32) -> 
         };
 
         let dht_record_descriptor = routing_context
-            .create_dht_record(crypto_kind, schema)
+            .create_dht_record(schema, crypto_kind)
             .await?;
         APIResult::Ok(dht_record_descriptor)
     })
@@ -1347,7 +1347,7 @@ pub fn crypto_decrypt_aead(
             .unwrap()
     });
 
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| {
@@ -1396,7 +1396,7 @@ pub fn crypto_encrypt_aead(
             .unwrap()
     });
 
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| {
@@ -1438,7 +1438,7 @@ pub fn crypto_crypt_no_auth(
     let shared_secret: veilid_core::SharedSecret =
         veilid_core::deserialize_json(&shared_secret).unwrap();
 
-    wrap_api_future(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| {
@@ -1449,8 +1449,8 @@ pub fn crypto_crypt_no_auth(
             )
         })?;
         csv.crypt_in_place_no_auth(&mut body, &nonce, &shared_secret);
-        let out = data_encoding::BASE64URL_NOPAD.encode(&out);
-        APIResult::Ok(body)
+        let out = data_encoding::BASE64URL_NOPAD.encode(&body);
+        APIResult::Ok(out)
     })
 }
 

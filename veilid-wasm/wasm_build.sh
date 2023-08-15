@@ -28,7 +28,7 @@ if [[ "$1" == "release" ]]; then
 
     cargo build --target wasm32-unknown-unknown --release
     mkdir -p $OUTPUTDIR
-    wasm-bindgen --out-dir $OUTPUTDIR --target web --no-typescript $INPUTDIR/veilid_wasm.wasm
+    wasm-bindgen --out-dir $OUTPUTDIR --target web $INPUTDIR/veilid_wasm.wasm
     wasm-strip $OUTPUTDIR/veilid_wasm_bg.wasm
 else
     OUTPUTDIR=../target/wasm32-unknown-unknown/debug/pkg
@@ -36,7 +36,7 @@ else
 
     RUSTFLAGS="-O -g" cargo build --target wasm32-unknown-unknown
     mkdir -p $OUTPUTDIR
-    wasm-bindgen --out-dir $OUTPUTDIR --target web --no-typescript --keep-debug --debug $INPUTDIR/veilid_wasm.wasm
+    wasm-bindgen --out-dir $OUTPUTDIR --target web --keep-debug --debug $INPUTDIR/veilid_wasm.wasm
     ./wasm-sourcemap.py $OUTPUTDIR/veilid_wasm_bg.wasm -o $OUTPUTDIR/veilid_wasm_bg.wasm.map --dwarfdump $DWARFDUMP
     # wasm-strip $OUTPUTDIR/veilid_wasm_bg.wasm
 fi
