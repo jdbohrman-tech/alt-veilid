@@ -2,8 +2,9 @@ use super::*;
 
 /// Log level for VeilidCore
 #[derive(
-    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy, Serialize, Deserialize, JsonSchema,
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy, Serialize, Deserialize, JsonSchema, Tsify,
 )]
+#[tsify(namespace)]
 pub enum VeilidLogLevel {
     Error = 1,
     Warn = 2,
@@ -79,9 +80,10 @@ impl fmt::Display for VeilidLogLevel {
     }
 }
 /// A VeilidCore log message with optional backtrace
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Tsify)]
 pub struct VeilidLog {
     pub log_level: VeilidLogLevel,
     pub message: String,
+    #[tsify(optional)]
     pub backtrace: Option<String>,
 }

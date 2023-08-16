@@ -6,7 +6,18 @@ use super::*;
 /// Supports serializing to string for JSON as well, since JSON can't handle 64-bit numbers to Javascript
 
 #[derive(
-    Clone, Default, PartialEq, Eq, PartialOrd, Ord, Copy, Hash, Serialize, Deserialize, JsonSchema,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Copy,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    Tsify,
 )]
 #[repr(C, align(8))]
 #[serde(transparent)]
@@ -117,13 +128,17 @@ impl AlignedU64 {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Microseconds since epoch
+#[declare]
 pub type Timestamp = AlignedU64;
 pub fn get_aligned_timestamp() -> Timestamp {
     get_timestamp().into()
 }
 /// Microseconds duration
+#[declare]
 pub type TimestampDuration = AlignedU64;
 /// Request/Response matching id
+#[declare]
 pub type OperationId = AlignedU64;
 /// Number of bytes
+#[declare]
 pub type ByteCount = AlignedU64;

@@ -1,6 +1,8 @@
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Hash, Default)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Hash, Default, Tsify,
+)]
 #[serde(from = "Vec<CryptoTyped<K>>", into = "Vec<CryptoTyped<K>>")]
 pub struct CryptoTypedGroup<K = PublicKey>
 where

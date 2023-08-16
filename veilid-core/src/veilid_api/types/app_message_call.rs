@@ -1,10 +1,11 @@
 use super::*;
 
 /// Direct statement blob passed to hosting application for processing
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Tsify)]
 pub struct VeilidAppMessage {
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
+    #[tsify(optional)]
     sender: Option<TypedKey>,
 
     #[serde(with = "as_human_base64")]
@@ -29,10 +30,11 @@ impl VeilidAppMessage {
 }
 
 /// Direct question blob passed to hosting application for processing to send an eventual AppReply
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Tsify)]
 pub struct VeilidAppCall {
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
+    #[tsify(optional)]
     sender: Option<TypedKey>,
 
     #[serde(with = "as_human_base64")]

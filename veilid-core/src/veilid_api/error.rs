@@ -105,9 +105,21 @@ macro_rules! apibail_already_initialized {
 }
 
 #[derive(
-    ThisError, Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema,
+    ThisError,
+    Clone,
+    Debug,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    Tsify,
+    TsifyAsync,
 )]
 #[serde(tag = "kind")]
+#[tsify(into_wasm_abi)]
 pub enum VeilidAPIError {
     #[error("Not initialized")]
     NotInitialized,
@@ -213,6 +225,7 @@ impl VeilidAPIError {
     }
 }
 
+#[declare]
 pub type VeilidAPIResult<T> = Result<T, VeilidAPIError>;
 
 impl From<std::io::Error> for VeilidAPIError {

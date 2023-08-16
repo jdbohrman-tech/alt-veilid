@@ -126,4 +126,7 @@ use serde::*;
 use stop_token::*;
 use thiserror::Error as ThisError;
 use tracing::*;
+use tsify::*;
+use tsify_async::*;
 use veilid_tools::*;
+use wasm_bindgen::prelude::*;

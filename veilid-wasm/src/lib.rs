@@ -19,6 +19,7 @@ use serde::*;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
 use tracing_wasm::{WASMLayerConfigBuilder, *};
+use tsify::*;
 use veilid_core::tools::*;
 use veilid_core::*;
 use wasm_bindgen::prelude::*;
@@ -85,6 +86,7 @@ type APIResult<T> = Result<T, veilid_core::VeilidAPIError>;
 const APIRESULT_UNDEFINED: APIResult<()> = APIResult::Ok(());
 
 pub fn wrap_api_future_json<F, T>(future: F) -> Promise
+// Result<String, VeilidAPIError>
 where
     F: Future<Output = APIResult<T>> + 'static,
     T: Serialize + Debug + 'static,
@@ -93,6 +95,7 @@ where
 }
 
 pub fn wrap_api_future_plain<F, T>(future: F) -> Promise
+// Result<T, VeilidAPIError>
 where
     F: Future<Output = APIResult<T>> + 'static,
     JsValue: From<T>,
@@ -102,6 +105,7 @@ where
 }
 
 pub fn wrap_api_future_void<F>(future: F) -> Promise
+// Result<(), VeilidAPIError>
 where
     F: Future<Output = APIResult<()>> + 'static,
 {
@@ -111,7 +115,7 @@ where
 /////////////////////////////////////////
 // WASM-specific
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Tsify)]
 pub struct VeilidWASMConfigLoggingPerformance {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
@@ -119,24 +123,25 @@ pub struct VeilidWASMConfigLoggingPerformance {
     pub logs_in_console: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Tsify)]
 pub struct VeilidWASMConfigLoggingAPI {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Tsify)]
 pub struct VeilidWASMConfigLogging {
     pub performance: VeilidWASMConfigLoggingPerformance,
     pub api: VeilidWASMConfigLoggingAPI,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Tsify)]
+#[tsify(from_wasm_abi)]
 pub struct VeilidWASMConfig {
     pub logging: VeilidWASMConfigLogging,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Tsify)]
 pub struct VeilidRouteBlob {
     pub route_id: veilid_core::RouteId,
     #[serde(with = "veilid_core::as_human_base64")]
@@ -152,13 +157,10 @@ pub fn initialize_veilid_wasm() {
 
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 #[wasm_bindgen()]
-pub fn initialize_veilid_core(platform_config: String) {
+pub fn initialize_veilid_core(platform_config: VeilidWASMConfig) {
     if INITIALIZED.swap(true, Ordering::Relaxed) {
         return;
     }
-    let platform_config: VeilidWASMConfig = veilid_core::deserialize_json(&platform_config)
-        .expect("failed to deserialize platform config json");
-
     // Set up subscriber and layers
     let subscriber = Registry::default();
     let mut layers = Vec::new();
@@ -199,9 +201,8 @@ pub fn initialize_veilid_core(platform_config: String) {
 }
 
 #[wasm_bindgen()]
-pub fn change_log_level(layer: String, log_level: String) {
+pub fn change_log_level(layer: String, log_level: VeilidConfigLogLevel) {
     let layer = if layer == "all" { "".to_owned() } else { layer };
-    let log_level: veilid_core::VeilidConfigLogLevel = deserialize_json(&log_level).unwrap();
     let filters = (*FILTERS).borrow();
     if layer.is_empty() {
         // Change all layers
@@ -215,65 +216,73 @@ pub fn change_log_level(layer: String, log_level: String) {
     }
 }
 
-#[wasm_bindgen()]
-pub fn startup_veilid_core(update_callback_js: Function, json_config: String) -> Promise {
+#[wasm_bindgen(typescript_custom_section)]
+const IUPDATE_VEILID_FUNCTION: &'static str = r#"
+type UpdateVeilidFunction = (event: VeilidUpdate) => void;
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = Function, typescript_type = "UpdateVeilidFunction")]
+    pub type UpdateVeilidFunction;
+}
+
+#[wasm_bindgen]
+pub async fn startup_veilid_core(
+    update_callback_js: UpdateVeilidFunction,
+    json_config: String,
+) -> Result<(), VeilidAPIError> {
     let update_callback_js = SendWrapper::new(update_callback_js);
-    wrap_api_future_void(async move {
-        let update_callback = Arc::new(move |update: VeilidUpdate| {
-            let _ret =
-                match Function::call1(&update_callback_js, &JsValue::UNDEFINED, &to_json(update)) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        console_log(&format!("calling update callback failed: {:?}", e));
-                        return;
-                    }
-                };
-        });
+    let update_callback = Arc::new(move |update: VeilidUpdate| {
+        let _ret = match Function::call1(
+            &update_callback_js,
+            &JsValue::UNDEFINED,
+            &to_jsvalue(update),
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                console_log(&format!("calling update callback failed: {:?}", e));
+                return;
+            }
+        };
+    });
 
-        if VEILID_API.borrow().is_some() {
-            return Err(veilid_core::VeilidAPIError::AlreadyInitialized);
-        }
+    if VEILID_API.borrow().is_some() {
+        return Err(veilid_core::VeilidAPIError::AlreadyInitialized);
+    }
 
-        let veilid_api = veilid_core::api_startup_json(update_callback, json_config).await?;
-        VEILID_API.replace(Some(veilid_api));
-        APIRESULT_UNDEFINED
-    })
+    let veilid_api = veilid_core::api_startup_json(update_callback, json_config).await?;
+    // veilid_core::api_startup(update_callback, config_callback)
+    VEILID_API.replace(Some(veilid_api));
+    Ok(())
 }
 
 #[wasm_bindgen()]
-pub fn get_veilid_state() -> Promise {
-    wrap_api_future_json(async move {
-        let veilid_api = get_veilid_api()?;
-        let core_state = veilid_api.get_state().await?;
-        APIResult::Ok(core_state)
-    })
+pub async fn get_veilid_state() -> Result<VeilidState, VeilidAPIError> {
+    let veilid_api = get_veilid_api()?;
+    let core_state = veilid_api.get_state().await?;
+    Ok(core_state)
 }
 
 #[wasm_bindgen()]
-pub fn attach() -> Promise {
-    wrap_api_future_void(async move {
-        let veilid_api = get_veilid_api()?;
-        veilid_api.attach().await?;
-        APIRESULT_UNDEFINED
-    })
+pub async fn attach() -> Result<(), VeilidAPIError> {
+    let veilid_api = get_veilid_api()?;
+    veilid_api.attach().await?;
+    Ok(())
 }
 
 #[wasm_bindgen()]
-pub fn detach() -> Promise {
-    wrap_api_future_void(async move {
-        let veilid_api = get_veilid_api()?;
-        veilid_api.detach().await?;
-        APIRESULT_UNDEFINED
-    })
+pub async fn detach() -> Result<(), VeilidAPIError> {
+    let veilid_api = get_veilid_api()?;
+    veilid_api.detach().await?;
+    Ok(())
 }
 
 #[wasm_bindgen()]
-pub fn shutdown_veilid_core() -> Promise {
-    wrap_api_future_void(async move {
-        let veilid_api = take_veilid_api()?;
-        veilid_api.shutdown().await;
-        APIRESULT_UNDEFINED
-    })
+pub async fn shutdown_veilid_core() -> Result<(), VeilidAPIError> {
+    let veilid_api = take_veilid_api()?;
+    veilid_api.shutdown().await;
+    Ok(())
 }
 
 fn add_routing_context(routing_context: veilid_core::RoutingContext) -> u32 {
@@ -287,13 +296,11 @@ fn add_routing_context(routing_context: veilid_core::RoutingContext) -> u32 {
 }
 
 #[wasm_bindgen()]
-pub fn routing_context() -> Promise {
-    wrap_api_future_plain(async move {
-        let veilid_api = get_veilid_api()?;
-        let routing_context = veilid_api.routing_context();
-        let new_id = add_routing_context(routing_context);
-        APIResult::Ok(new_id)
-    })
+pub async fn routing_context() -> Result<u32, VeilidAPIError> {
+    let veilid_api = get_veilid_api()?;
+    let routing_context = veilid_api.routing_context();
+    let new_id = add_routing_context(routing_context);
+    Ok(new_id)
 }
 
 #[wasm_bindgen()]
@@ -1440,12 +1447,10 @@ pub fn now() -> u64 {
 }
 
 #[wasm_bindgen()]
-pub fn debug(command: String) -> Promise {
-    wrap_api_future_plain(async move {
-        let veilid_api = get_veilid_api()?;
-        let out = veilid_api.debug(command).await?;
-        APIResult::Ok(out)
-    })
+pub async fn debug(command: String) -> Result<String, VeilidAPIError> {
+    let veilid_api = get_veilid_api()?;
+    let out = veilid_api.debug(command).await?;
+    APIResult::Ok(out)
 }
 
 #[wasm_bindgen()]

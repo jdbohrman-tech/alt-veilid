@@ -6,6 +6,7 @@ use core::fmt;
 use core::hash::Hash;
 
 /// Cryptography version fourcc code
+#[declare]
 pub type CryptoKind = FourCC;
 
 /// Sort best crypto kinds first
@@ -51,14 +52,24 @@ pub use crypto_typed::*;
 pub use crypto_typed_group::*;
 pub use keypair::*;
 
+#[declare]
 pub type TypedKey = CryptoTyped<PublicKey>;
+#[declare]
 pub type TypedSecret = CryptoTyped<SecretKey>;
+#[declare]
 pub type TypedKeyPair = CryptoTyped<KeyPair>;
+#[declare]
 pub type TypedSignature = CryptoTyped<Signature>;
+#[declare]
 pub type TypedSharedSecret = CryptoTyped<SharedSecret>;
 
+#[declare]
 pub type TypedKeyGroup = CryptoTypedGroup<PublicKey>;
+#[declare]
 pub type TypedSecretGroup = CryptoTypedGroup<SecretKey>;
+#[declare]
 pub type TypedKeyPairGroup = CryptoTypedGroup<KeyPair>;
+#[declare]
 pub type TypedSignatureGroup = CryptoTypedGroup<Signature>;
+#[declare]
 pub type TypedSharedSecretGroup = CryptoTypedGroup<SharedSecret>;

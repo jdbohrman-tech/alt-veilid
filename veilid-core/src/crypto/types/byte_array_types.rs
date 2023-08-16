@@ -293,11 +293,17 @@ macro_rules! byte_array_type {
 
 byte_array_type!(CryptoKey, CRYPTO_KEY_LENGTH, CRYPTO_KEY_LENGTH_ENCODED);
 
+#[declare]
 pub type PublicKey = CryptoKey;
+#[declare]
 pub type SecretKey = CryptoKey;
+#[declare]
 pub type HashDigest = CryptoKey;
+#[declare]
 pub type SharedSecret = CryptoKey;
+#[declare]
 pub type RouteId = CryptoKey;
+#[declare]
 pub type CryptoKeyDistance = CryptoKey;
 
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);
