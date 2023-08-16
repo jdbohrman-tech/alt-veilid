@@ -2,7 +2,7 @@
 
 ## Server Grade Headless Nodes
 
-These network support nodes are heavier than the node a user would establish on their phone in the form of a chat or social media application. A cloud based virtual private server (VPS), such as Digital Ocean Droplets or AWS EC2, with high bandwidth, processing resources, and up time availability is cruicial for building the fast, secure, and private routing that Veilid is built to provide.
+These network support nodes are heavier than the node a user would establish on their phone in the form of a chat or social media application. A cloud based virtual private server (VPS), such as Digital Ocean Droplets or AWS EC2, with high bandwidth, processing resources, and up time availability is crucial for building the fast, secure, and private routing that Veilid is built to provide.
 
 ### Add the repo to a Debian based system and install a Veilid node
  ```shell 
