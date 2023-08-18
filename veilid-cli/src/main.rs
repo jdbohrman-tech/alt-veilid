@@ -4,11 +4,9 @@
 
 use crate::tools::*;
 
-use clap::{Arg, ColorChoice, Command};
+use clap::{Parser, ValueEnum};
 use flexi_logger::*;
-use std::ffi::OsStr;
-use std::net::ToSocketAddrs;
-use std::path::Path;
+use std::{net::ToSocketAddrs, path::PathBuf};
 
 mod client_api_connection;
 mod command_processor;
@@ -17,75 +15,58 @@ mod settings;
 mod tools;
 mod ui;
 
-fn parse_command_line(default_config_path: &OsStr) -> Result<clap::ArgMatches, String> {
-    let matches = Command::new("veilid-cli")
-        .version("0.1")
-        .color(ColorChoice::Auto)
-        .about("Veilid Console Client")
-        .arg(
-            Arg::new("address")
-                .required(false)
-                .help("Address to connect to"),
-        )
-        .arg(
-            Arg::new("debug")
-                .long("debug")
-                .help("Turn on debug logging"),
-        )
-        .arg(
-            Arg::new("wait-for-debug")
-                .long("wait-for-debug")
-                .help("Wait for debugger to attach"),
-        )
-        .arg(
-            Arg::new("trace")
-                .long("trace")
-                .conflicts_with("debug")
-                .help("Turn on trace logging"),
-        )
-        .arg(
-            Arg::new("config-file")
-                .short('c')
-                .takes_value(true)
-                .value_name("FILE")
-                .default_value_os(default_config_path)
-                .allow_invalid_utf8(true)
-                .help("Specify a configuration file to use"),
-        )
-        .get_matches();
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+enum LogLevel {
+    /// Turn on debug logging
+    Debug,
+    /// Turn on trace logging
+    Trace,
+}
 
-    Ok(matches)
+#[derive(Parser, Debug)]
+#[command(author, version, about = "Veilid Console Client")]
+struct CmdlineArgs {
+    /// Address to connect to
+    #[arg(long)]
+    address: Option<String>,
+    /// Wait for debugger to attach
+    #[arg(long)]
+    wait_for_debug: bool,
+    /// Specify a configuration file to use
+    #[arg(short, long, value_name = "FILE")]
+    config_file: Option<PathBuf>,
+    /// log level
+    #[arg(value_enum)]
+    log_level: Option<LogLevel>,
 }
 
 fn main() -> Result<(), String> {
     // Get command line options
     let default_config_path = settings::Settings::get_default_config_path();
-    let matches = parse_command_line(default_config_path.as_os_str())?;
-    if matches.occurrences_of("wait-for-debug") != 0 {
+    let args = CmdlineArgs::parse();
+
+    if args.wait_for_debug {
         use bugsalot::debugger;
         debugger::wait_until_attached(None).expect("state() not implemented on this platform");
     }
 
     // Attempt to load configuration
-    let settings_path = if let Some(config_file) = matches.value_of_os("config-file") {
-        if Path::new(config_file).exists() {
-            Some(config_file)
-        } else {
-            None
-        }
+    let settings_path = args.config_file.unwrap_or(default_config_path);
+    let settings_path = if settings_path.exists() {
+        Some(settings_path.into_os_string())
     } else {
         None
     };
 
-    let mut settings = settings::Settings::new(settings_path)
+    let mut settings = settings::Settings::new(settings_path.as_ref().map(|x| x.as_os_str()))
         .map_err(|e| format!("configuration is invalid: {}", e))?;
 
     // Set config from command line
-    if matches.occurrences_of("debug") != 0 {
+    if let Some(LogLevel::Debug) = args.log_level {
         settings.logging.level = settings::LogLevel::Debug;
         settings.logging.terminal.enabled = true;
     }
-    if matches.occurrences_of("trace") != 0 {
+    if let Some(LogLevel::Trace) = args.log_level {
         settings.logging.level = settings::LogLevel::Trace;
         settings.logging.terminal.enabled = true;
     }
@@ -142,7 +123,7 @@ fn main() -> Result<(), String> {
         }
     }
     // Get client address
-    let server_addrs = if let Some(address_arg) = matches.value_of("address") {
+    let server_addrs = if let Some(address_arg) = args.address {
         address_arg
             .to_socket_addrs()
             .map_err(|e| format!("Invalid server address '{}'", e))?
