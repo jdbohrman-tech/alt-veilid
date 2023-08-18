@@ -4,6 +4,7 @@ use super::*;
     Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Hash, Default, Tsify,
 )]
 #[serde(from = "Vec<CryptoTyped<K>>", into = "Vec<CryptoTyped<K>>")]
+// TODO: figure out hot to TS type this as `string`, since it's converted to string via the JSON API.
 pub struct CryptoTypedGroup<K = PublicKey>
 where
     K: Clone

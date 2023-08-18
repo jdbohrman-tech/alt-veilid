@@ -25,6 +25,9 @@ use veilid_core::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::*;
 
+pub mod veilid_client_js;
+pub mod veilid_table_js;
+
 // Allocator
 extern crate wee_alloc;
 #[global_allocator]
@@ -385,7 +388,7 @@ pub fn routing_context_app_message(id: u32, target_string: String, message: Stri
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_call", "id", id));
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_message", "id", id));
             };
             routing_context.clone()
         };
@@ -1460,7 +1463,8 @@ pub fn veilid_version_string() -> String {
     veilid_core::veilid_version_string()
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
 pub struct VeilidVersion {
     pub major: u32,
     pub minor: u32,
