@@ -1,27 +1,27 @@
 [submodule "external/cursive"]
 	path = external/cursive
-	url = ../cursive.git
+	url = https://gitlab.com/veilid/cursive.git
 [submodule "external/cursive_buffered_backend"]
 	path = external/cursive_buffered_backend
-	url = ../cursive-buffered-backend.git
+	url = https://gitlab.com/veilid/cursive-buffered-backend.git
 [submodule "external/cursive-flexi-logger-view"]
 	path = external/cursive-flexi-logger-view
-	url = ../cursive-flexi-logger-view.git
+	url = https://gitlab.com/veilid/cursive-flexi-logger-view.git
 [submodule "external/keyring-manager"]
 	path = external/keyring-manager
-	url = ../keyring-manager.git
+	url = https://gitlab.com/veilid/keyring-manager.git
 [submodule "external/keyvaluedb"]
 	path = external/keyvaluedb
-	url = ../keyvaluedb.git
+	url = https://gitlab.com/veilid/keyvaluedb.git
 [submodule "external/libmdns"]
 	path = external/libmdns
-	url = ../libmdns.git
+	url = https://gitlab.com/veilid/libmdns.git
 [submodule "external/mdns"]
 	path = external/mdns
-	url = ../mdns.git
+	url = https://gitlab.com/veilid/mdns.git
 [submodule "external/hashlink"]
 	path = external/hashlink
-	url = ../hashlink.git
+	url = https://gitlab.com/veilid/hashlink.git
 [submodule "external/rust-igd"]
 	path = external/rust-igd
-	url = ../rust-igd.git
+	url = https://gitlab.com/veilid/rust-igd.git
