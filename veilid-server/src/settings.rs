@@ -1647,13 +1647,10 @@ mod tests {
         assert_eq!(s.core.network.tls.connection_initial_timeout_ms, 2_000u32);
         //
         assert_eq!(s.core.network.application.https.enabled, false);
-        assert_eq!(
-            s.core.network.application.https.listen_address.name,
-            ":5150"
-        );
+        assert_eq!(s.core.network.application.https.listen_address.name, ":443");
         assert_eq!(
             s.core.network.application.https.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
+            listen_address_to_socket_addrs(":443").unwrap()
         );
         assert_eq!(
             s.core.network.application.https.path,
@@ -1661,10 +1658,10 @@ mod tests {
         );
         assert_eq!(s.core.network.application.https.url, None);
         assert_eq!(s.core.network.application.http.enabled, false);
-        assert_eq!(s.core.network.application.http.listen_address.name, ":5150");
+        assert_eq!(s.core.network.application.http.listen_address.name, ":80");
         assert_eq!(
             s.core.network.application.http.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
+            listen_address_to_socket_addrs(":80").unwrap()
         );
         assert_eq!(
             s.core.network.application.http.path,
@@ -1674,33 +1671,24 @@ mod tests {
         //
         assert_eq!(s.core.network.protocol.udp.enabled, true);
         assert_eq!(s.core.network.protocol.udp.socket_pool_size, 0);
-        assert_eq!(s.core.network.protocol.udp.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.udp.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.udp.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.udp.listen_address.addrs, vec![]);
         assert_eq!(s.core.network.protocol.udp.public_address, None);
 
         //
         assert_eq!(s.core.network.protocol.tcp.connect, true);
         assert_eq!(s.core.network.protocol.tcp.listen, true);
         assert_eq!(s.core.network.protocol.tcp.max_connections, 32);
-        assert_eq!(s.core.network.protocol.tcp.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.tcp.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.tcp.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.tcp.listen_address.addrs, vec![]);
         assert_eq!(s.core.network.protocol.tcp.public_address, None);
 
         //
         assert_eq!(s.core.network.protocol.ws.connect, true);
         assert_eq!(s.core.network.protocol.ws.listen, true);
         assert_eq!(s.core.network.protocol.ws.max_connections, 16);
-        assert_eq!(s.core.network.protocol.ws.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.ws.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.ws.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.ws.listen_address.addrs, vec![]);
         assert_eq!(
             s.core.network.protocol.ws.path,
             std::path::PathBuf::from("ws")
@@ -1710,11 +1698,8 @@ mod tests {
         assert_eq!(s.core.network.protocol.wss.connect, true);
         assert_eq!(s.core.network.protocol.wss.listen, false);
         assert_eq!(s.core.network.protocol.wss.max_connections, 16);
-        assert_eq!(s.core.network.protocol.wss.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.wss.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.wss.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.wss.listen_address.addrs, vec![]);
         assert_eq!(
             s.core.network.protocol.wss.path,
             std::path::PathBuf::from("ws")
