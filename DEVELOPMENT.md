@@ -42,7 +42,7 @@ command line without it. If you do so, you may skip to
 You can automatically install the prerequisites using this script:
 
 ```shell
-./install_linux_prerequisites.sh
+./dev-setup/install_linux_prerequisites.sh
 ```
 
 Otherwise, you may choose to use Android `sdkmanager`. Follow the installation
@@ -75,7 +75,7 @@ Now you may run the Linux setup script to check your development environment and
 pull the remaining Rust dependencies:
 
 ```shell
-./setup_linux.sh
+./dev-setup/setup_linux.sh
 ```
 
 #### Run the veilid-flutter setup script (optional)
@@ -127,7 +127,7 @@ Now you may run the MacOS setup script to check your development environment and
 pull the remaining Rust dependencies:
 
 ```shell
-./setup_macos.sh
+./dev-setup/setup_macos.sh
 ```
 
 #### Run the veilid-flutter setup script (optional)
