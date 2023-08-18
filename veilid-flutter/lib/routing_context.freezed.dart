@@ -600,8 +600,8 @@ DHTRecordDescriptor _$DHTRecordDescriptorFromJson(Map<String, dynamic> json) {
 mixin _$DHTRecordDescriptor {
   Typed<FixedEncodedString43> get key => throw _privateConstructorUsedError;
   FixedEncodedString43 get owner => throw _privateConstructorUsedError;
-  FixedEncodedString43? get ownerSecret => throw _privateConstructorUsedError;
   DHTSchema get schema => throw _privateConstructorUsedError;
+  FixedEncodedString43? get ownerSecret => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -618,8 +618,8 @@ abstract class $DHTRecordDescriptorCopyWith<$Res> {
   $Res call(
       {Typed<FixedEncodedString43> key,
       FixedEncodedString43 owner,
-      FixedEncodedString43? ownerSecret,
-      DHTSchema schema});
+      DHTSchema schema,
+      FixedEncodedString43? ownerSecret});
 
   $DHTSchemaCopyWith<$Res> get schema;
 }
@@ -639,8 +639,8 @@ class _$DHTRecordDescriptorCopyWithImpl<$Res, $Val extends DHTRecordDescriptor>
   $Res call({
     Object? key = null,
     Object? owner = null,
-    Object? ownerSecret = freezed,
     Object? schema = null,
+    Object? ownerSecret = freezed,
   }) {
     return _then(_value.copyWith(
       key: null == key
@@ -651,14 +651,14 @@ class _$DHTRecordDescriptorCopyWithImpl<$Res, $Val extends DHTRecordDescriptor>
           ? _value.owner
           : owner // ignore: cast_nullable_to_non_nullable
               as FixedEncodedString43,
-      ownerSecret: freezed == ownerSecret
-          ? _value.ownerSecret
-          : ownerSecret // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43?,
       schema: null == schema
           ? _value.schema
           : schema // ignore: cast_nullable_to_non_nullable
               as DHTSchema,
+      ownerSecret: freezed == ownerSecret
+          ? _value.ownerSecret
+          : ownerSecret // ignore: cast_nullable_to_non_nullable
+              as FixedEncodedString43?,
     ) as $Val);
   }
 
@@ -682,8 +682,8 @@ abstract class _$$_DHTRecordDescriptorCopyWith<$Res>
   $Res call(
       {Typed<FixedEncodedString43> key,
       FixedEncodedString43 owner,
-      FixedEncodedString43? ownerSecret,
-      DHTSchema schema});
+      DHTSchema schema,
+      FixedEncodedString43? ownerSecret});
 
   @override
   $DHTSchemaCopyWith<$Res> get schema;
@@ -702,8 +702,8 @@ class __$$_DHTRecordDescriptorCopyWithImpl<$Res>
   $Res call({
     Object? key = null,
     Object? owner = null,
-    Object? ownerSecret = freezed,
     Object? schema = null,
+    Object? ownerSecret = freezed,
   }) {
     return _then(_$_DHTRecordDescriptor(
       key: null == key
@@ -714,14 +714,14 @@ class __$$_DHTRecordDescriptorCopyWithImpl<$Res>
           ? _value.owner
           : owner // ignore: cast_nullable_to_non_nullable
               as FixedEncodedString43,
-      ownerSecret: freezed == ownerSecret
-          ? _value.ownerSecret
-          : ownerSecret // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43?,
       schema: null == schema
           ? _value.schema
           : schema // ignore: cast_nullable_to_non_nullable
               as DHTSchema,
+      ownerSecret: freezed == ownerSecret
+          ? _value.ownerSecret
+          : ownerSecret // ignore: cast_nullable_to_non_nullable
+              as FixedEncodedString43?,
     ));
   }
 }
@@ -732,8 +732,8 @@ class _$_DHTRecordDescriptor implements _DHTRecordDescriptor {
   const _$_DHTRecordDescriptor(
       {required this.key,
       required this.owner,
-      this.ownerSecret,
-      required this.schema});
+      required this.schema,
+      this.ownerSecret});
 
   factory _$_DHTRecordDescriptor.fromJson(Map<String, dynamic> json) =>
       _$$_DHTRecordDescriptorFromJson(json);
@@ -743,13 +743,13 @@ class _$_DHTRecordDescriptor implements _DHTRecordDescriptor {
   @override
   final FixedEncodedString43 owner;
   @override
-  final FixedEncodedString43? ownerSecret;
-  @override
   final DHTSchema schema;
+  @override
+  final FixedEncodedString43? ownerSecret;
 
   @override
   String toString() {
-    return 'DHTRecordDescriptor(key: $key, owner: $owner, ownerSecret: $ownerSecret, schema: $schema)';
+    return 'DHTRecordDescriptor(key: $key, owner: $owner, schema: $schema, ownerSecret: $ownerSecret)';
   }
 
   @override
@@ -759,14 +759,14 @@ class _$_DHTRecordDescriptor implements _DHTRecordDescriptor {
             other is _$_DHTRecordDescriptor &&
             (identical(other.key, key) || other.key == key) &&
             (identical(other.owner, owner) || other.owner == owner) &&
+            (identical(other.schema, schema) || other.schema == schema) &&
             (identical(other.ownerSecret, ownerSecret) ||
-                other.ownerSecret == ownerSecret) &&
-            (identical(other.schema, schema) || other.schema == schema));
+                other.ownerSecret == ownerSecret));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(runtimeType, key, owner, ownerSecret, schema);
+  int get hashCode => Object.hash(runtimeType, key, owner, schema, ownerSecret);
 
   @JsonKey(ignore: true)
   @override
@@ -787,8 +787,8 @@ abstract class _DHTRecordDescriptor implements DHTRecordDescriptor {
   const factory _DHTRecordDescriptor(
       {required final Typed<FixedEncodedString43> key,
       required final FixedEncodedString43 owner,
-      final FixedEncodedString43? ownerSecret,
-      required final DHTSchema schema}) = _$_DHTRecordDescriptor;
+      required final DHTSchema schema,
+      final FixedEncodedString43? ownerSecret}) = _$_DHTRecordDescriptor;
 
   factory _DHTRecordDescriptor.fromJson(Map<String, dynamic> json) =
       _$_DHTRecordDescriptor.fromJson;
@@ -798,9 +798,9 @@ abstract class _DHTRecordDescriptor implements DHTRecordDescriptor {
   @override
   FixedEncodedString43 get owner;
   @override
-  FixedEncodedString43? get ownerSecret;
-  @override
   DHTSchema get schema;
+  @override
+  FixedEncodedString43? get ownerSecret;
   @override
   @JsonKey(ignore: true)
   _$$_DHTRecordDescriptorCopyWith<_$_DHTRecordDescriptor> get copyWith =>
@@ -1151,10 +1151,10 @@ SafetySpec _$SafetySpecFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$SafetySpec {
-  String? get preferredRoute => throw _privateConstructorUsedError;
   int get hopCount => throw _privateConstructorUsedError;
   Stability get stability => throw _privateConstructorUsedError;
   Sequencing get sequencing => throw _privateConstructorUsedError;
+  String? get preferredRoute => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -1169,10 +1169,10 @@ abstract class $SafetySpecCopyWith<$Res> {
       _$SafetySpecCopyWithImpl<$Res, SafetySpec>;
   @useResult
   $Res call(
-      {String? preferredRoute,
-      int hopCount,
+      {int hopCount,
       Stability stability,
-      Sequencing sequencing});
+      Sequencing sequencing,
+      String? preferredRoute});
 }
 
 /// @nodoc
@@ -1188,16 +1188,12 @@ class _$SafetySpecCopyWithImpl<$Res, $Val extends SafetySpec>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? preferredRoute = freezed,
     Object? hopCount = null,
     Object? stability = null,
     Object? sequencing = null,
+    Object? preferredRoute = freezed,
   }) {
     return _then(_value.copyWith(
-      preferredRoute: freezed == preferredRoute
-          ? _value.preferredRoute
-          : preferredRoute // ignore: cast_nullable_to_non_nullable
-              as String?,
       hopCount: null == hopCount
           ? _value.hopCount
           : hopCount // ignore: cast_nullable_to_non_nullable
@@ -1210,6 +1206,10 @@ class _$SafetySpecCopyWithImpl<$Res, $Val extends SafetySpec>
           ? _value.sequencing
           : sequencing // ignore: cast_nullable_to_non_nullable
               as Sequencing,
+      preferredRoute: freezed == preferredRoute
+          ? _value.preferredRoute
+          : preferredRoute // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -1223,10 +1223,10 @@ abstract class _$$_SafetySpecCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String? preferredRoute,
-      int hopCount,
+      {int hopCount,
       Stability stability,
-      Sequencing sequencing});
+      Sequencing sequencing,
+      String? preferredRoute});
 }
 
 /// @nodoc
@@ -1240,16 +1240,12 @@ class __$$_SafetySpecCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? preferredRoute = freezed,
     Object? hopCount = null,
     Object? stability = null,
     Object? sequencing = null,
+    Object? preferredRoute = freezed,
   }) {
     return _then(_$_SafetySpec(
-      preferredRoute: freezed == preferredRoute
-          ? _value.preferredRoute
-          : preferredRoute // ignore: cast_nullable_to_non_nullable
-              as String?,
       hopCount: null == hopCount
           ? _value.hopCount
           : hopCount // ignore: cast_nullable_to_non_nullable
@@ -1262,6 +1258,10 @@ class __$$_SafetySpecCopyWithImpl<$Res>
           ? _value.sequencing
           : sequencing // ignore: cast_nullable_to_non_nullable
               as Sequencing,
+      preferredRoute: freezed == preferredRoute
+          ? _value.preferredRoute
+          : preferredRoute // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -1270,26 +1270,26 @@ class __$$_SafetySpecCopyWithImpl<$Res>
 @JsonSerializable()
 class _$_SafetySpec implements _SafetySpec {
   const _$_SafetySpec(
-      {this.preferredRoute,
-      required this.hopCount,
+      {required this.hopCount,
       required this.stability,
-      required this.sequencing});
+      required this.sequencing,
+      this.preferredRoute});
 
   factory _$_SafetySpec.fromJson(Map<String, dynamic> json) =>
       _$$_SafetySpecFromJson(json);
 
-  @override
-  final String? preferredRoute;
   @override
   final int hopCount;
   @override
   final Stability stability;
   @override
   final Sequencing sequencing;
+  @override
+  final String? preferredRoute;
 
   @override
   String toString() {
-    return 'SafetySpec(preferredRoute: $preferredRoute, hopCount: $hopCount, stability: $stability, sequencing: $sequencing)';
+    return 'SafetySpec(hopCount: $hopCount, stability: $stability, sequencing: $sequencing, preferredRoute: $preferredRoute)';
   }
 
   @override
@@ -1297,20 +1297,20 @@ class _$_SafetySpec implements _SafetySpec {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$_SafetySpec &&
-            (identical(other.preferredRoute, preferredRoute) ||
-                other.preferredRoute == preferredRoute) &&
             (identical(other.hopCount, hopCount) ||
                 other.hopCount == hopCount) &&
             (identical(other.stability, stability) ||
                 other.stability == stability) &&
             (identical(other.sequencing, sequencing) ||
-                other.sequencing == sequencing));
+                other.sequencing == sequencing) &&
+            (identical(other.preferredRoute, preferredRoute) ||
+                other.preferredRoute == preferredRoute));
   }
 
   @JsonKey(ignore: true)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, preferredRoute, hopCount, stability, sequencing);
+      Object.hash(runtimeType, hopCount, stability, sequencing, preferredRoute);
 
   @JsonKey(ignore: true)
   @override
@@ -1328,22 +1328,22 @@ class _$_SafetySpec implements _SafetySpec {
 
 abstract class _SafetySpec implements SafetySpec {
   const factory _SafetySpec(
-      {final String? preferredRoute,
-      required final int hopCount,
+      {required final int hopCount,
       required final Stability stability,
-      required final Sequencing sequencing}) = _$_SafetySpec;
+      required final Sequencing sequencing,
+      final String? preferredRoute}) = _$_SafetySpec;
 
   factory _SafetySpec.fromJson(Map<String, dynamic> json) =
       _$_SafetySpec.fromJson;
 
-  @override
-  String? get preferredRoute;
   @override
   int get hopCount;
   @override
   Stability get stability;
   @override
   Sequencing get sequencing;
+  @override
+  String? get preferredRoute;
   @override
   @JsonKey(ignore: true)
   _$$_SafetySpecCopyWith<_$_SafetySpec> get copyWith =>

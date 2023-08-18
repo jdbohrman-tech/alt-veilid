@@ -22,7 +22,7 @@ _$DHTSchemaSMPL _$$DHTSchemaSMPLFromJson(Map<String, dynamic> json) =>
     _$DHTSchemaSMPL(
       oCnt: json['o_cnt'] as int,
       members: (json['members'] as List<dynamic>)
-          .map((e) => DHTSchemaMember.fromJson(e as Map<String, dynamic>))
+          .map(DHTSchemaMember.fromJson)
           .toList(),
       $type: json['kind'] as String?,
     );
@@ -51,10 +51,10 @@ _$_DHTRecordDescriptor _$$_DHTRecordDescriptorFromJson(
     _$_DHTRecordDescriptor(
       key: Typed<FixedEncodedString43>.fromJson(json['key']),
       owner: FixedEncodedString43.fromJson(json['owner']),
+      schema: DHTSchema.fromJson(json['schema']),
       ownerSecret: json['owner_secret'] == null
           ? null
           : FixedEncodedString43.fromJson(json['owner_secret']),
-      schema: DHTSchema.fromJson(json['schema'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$$_DHTRecordDescriptorToJson(
@@ -62,8 +62,8 @@ Map<String, dynamic> _$$_DHTRecordDescriptorToJson(
     <String, dynamic>{
       'key': instance.key.toJson(),
       'owner': instance.owner.toJson(),
-      'owner_secret': instance.ownerSecret?.toJson(),
       'schema': instance.schema.toJson(),
+      'owner_secret': instance.ownerSecret?.toJson(),
     };
 
 _$_ValueSubkeyRange _$$_ValueSubkeyRangeFromJson(Map<String, dynamic> json) =>
@@ -93,18 +93,18 @@ Map<String, dynamic> _$$_ValueDataToJson(_$_ValueData instance) =>
 
 _$_SafetySpec _$$_SafetySpecFromJson(Map<String, dynamic> json) =>
     _$_SafetySpec(
-      preferredRoute: json['preferred_route'] as String?,
       hopCount: json['hop_count'] as int,
-      stability: Stability.fromJson(json['stability'] as String),
-      sequencing: Sequencing.fromJson(json['sequencing'] as String),
+      stability: Stability.fromJson(json['stability']),
+      sequencing: Sequencing.fromJson(json['sequencing']),
+      preferredRoute: json['preferred_route'] as String?,
     );
 
 Map<String, dynamic> _$$_SafetySpecToJson(_$_SafetySpec instance) =>
     <String, dynamic>{
-      'preferred_route': instance.preferredRoute,
       'hop_count': instance.hopCount,
       'stability': instance.stability.toJson(),
       'sequencing': instance.sequencing.toJson(),
+      'preferred_route': instance.preferredRoute,
     };
 
 _$_RouteBlob _$$_RouteBlobFromJson(Map<String, dynamic> json) => _$_RouteBlob(

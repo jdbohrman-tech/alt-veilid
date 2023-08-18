@@ -4377,11 +4377,11 @@ VeilidConfigRPC _$VeilidConfigRPCFromJson(Map<String, dynamic> json) {
 mixin _$VeilidConfigRPC {
   int get concurrency => throw _privateConstructorUsedError;
   int get queueSize => throw _privateConstructorUsedError;
-  int? get maxTimestampBehindMs => throw _privateConstructorUsedError;
-  int? get maxTimestampAheadMs => throw _privateConstructorUsedError;
   int get timeoutMs => throw _privateConstructorUsedError;
   int get maxRouteHopCount => throw _privateConstructorUsedError;
   int get defaultRouteHopCount => throw _privateConstructorUsedError;
+  int? get maxTimestampBehindMs => throw _privateConstructorUsedError;
+  int? get maxTimestampAheadMs => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -4398,11 +4398,11 @@ abstract class $VeilidConfigRPCCopyWith<$Res> {
   $Res call(
       {int concurrency,
       int queueSize,
-      int? maxTimestampBehindMs,
-      int? maxTimestampAheadMs,
       int timeoutMs,
       int maxRouteHopCount,
-      int defaultRouteHopCount});
+      int defaultRouteHopCount,
+      int? maxTimestampBehindMs,
+      int? maxTimestampAheadMs});
 }
 
 /// @nodoc
@@ -4420,11 +4420,11 @@ class _$VeilidConfigRPCCopyWithImpl<$Res, $Val extends VeilidConfigRPC>
   $Res call({
     Object? concurrency = null,
     Object? queueSize = null,
-    Object? maxTimestampBehindMs = freezed,
-    Object? maxTimestampAheadMs = freezed,
     Object? timeoutMs = null,
     Object? maxRouteHopCount = null,
     Object? defaultRouteHopCount = null,
+    Object? maxTimestampBehindMs = freezed,
+    Object? maxTimestampAheadMs = freezed,
   }) {
     return _then(_value.copyWith(
       concurrency: null == concurrency
@@ -4435,14 +4435,6 @@ class _$VeilidConfigRPCCopyWithImpl<$Res, $Val extends VeilidConfigRPC>
           ? _value.queueSize
           : queueSize // ignore: cast_nullable_to_non_nullable
               as int,
-      maxTimestampBehindMs: freezed == maxTimestampBehindMs
-          ? _value.maxTimestampBehindMs
-          : maxTimestampBehindMs // ignore: cast_nullable_to_non_nullable
-              as int?,
-      maxTimestampAheadMs: freezed == maxTimestampAheadMs
-          ? _value.maxTimestampAheadMs
-          : maxTimestampAheadMs // ignore: cast_nullable_to_non_nullable
-              as int?,
       timeoutMs: null == timeoutMs
           ? _value.timeoutMs
           : timeoutMs // ignore: cast_nullable_to_non_nullable
@@ -4455,6 +4447,14 @@ class _$VeilidConfigRPCCopyWithImpl<$Res, $Val extends VeilidConfigRPC>
           ? _value.defaultRouteHopCount
           : defaultRouteHopCount // ignore: cast_nullable_to_non_nullable
               as int,
+      maxTimestampBehindMs: freezed == maxTimestampBehindMs
+          ? _value.maxTimestampBehindMs
+          : maxTimestampBehindMs // ignore: cast_nullable_to_non_nullable
+              as int?,
+      maxTimestampAheadMs: freezed == maxTimestampAheadMs
+          ? _value.maxTimestampAheadMs
+          : maxTimestampAheadMs // ignore: cast_nullable_to_non_nullable
+              as int?,
     ) as $Val);
   }
 }
@@ -4470,11 +4470,11 @@ abstract class _$$_VeilidConfigRPCCopyWith<$Res>
   $Res call(
       {int concurrency,
       int queueSize,
-      int? maxTimestampBehindMs,
-      int? maxTimestampAheadMs,
       int timeoutMs,
       int maxRouteHopCount,
-      int defaultRouteHopCount});
+      int defaultRouteHopCount,
+      int? maxTimestampBehindMs,
+      int? maxTimestampAheadMs});
 }
 
 /// @nodoc
@@ -4490,11 +4490,11 @@ class __$$_VeilidConfigRPCCopyWithImpl<$Res>
   $Res call({
     Object? concurrency = null,
     Object? queueSize = null,
-    Object? maxTimestampBehindMs = freezed,
-    Object? maxTimestampAheadMs = freezed,
     Object? timeoutMs = null,
     Object? maxRouteHopCount = null,
     Object? defaultRouteHopCount = null,
+    Object? maxTimestampBehindMs = freezed,
+    Object? maxTimestampAheadMs = freezed,
   }) {
     return _then(_$_VeilidConfigRPC(
       concurrency: null == concurrency
@@ -4505,14 +4505,6 @@ class __$$_VeilidConfigRPCCopyWithImpl<$Res>
           ? _value.queueSize
           : queueSize // ignore: cast_nullable_to_non_nullable
               as int,
-      maxTimestampBehindMs: freezed == maxTimestampBehindMs
-          ? _value.maxTimestampBehindMs
-          : maxTimestampBehindMs // ignore: cast_nullable_to_non_nullable
-              as int?,
-      maxTimestampAheadMs: freezed == maxTimestampAheadMs
-          ? _value.maxTimestampAheadMs
-          : maxTimestampAheadMs // ignore: cast_nullable_to_non_nullable
-              as int?,
       timeoutMs: null == timeoutMs
           ? _value.timeoutMs
           : timeoutMs // ignore: cast_nullable_to_non_nullable
@@ -4525,6 +4517,14 @@ class __$$_VeilidConfigRPCCopyWithImpl<$Res>
           ? _value.defaultRouteHopCount
           : defaultRouteHopCount // ignore: cast_nullable_to_non_nullable
               as int,
+      maxTimestampBehindMs: freezed == maxTimestampBehindMs
+          ? _value.maxTimestampBehindMs
+          : maxTimestampBehindMs // ignore: cast_nullable_to_non_nullable
+              as int?,
+      maxTimestampAheadMs: freezed == maxTimestampAheadMs
+          ? _value.maxTimestampAheadMs
+          : maxTimestampAheadMs // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -4537,11 +4537,11 @@ class _$_VeilidConfigRPC
   const _$_VeilidConfigRPC(
       {required this.concurrency,
       required this.queueSize,
-      this.maxTimestampBehindMs,
-      this.maxTimestampAheadMs,
       required this.timeoutMs,
       required this.maxRouteHopCount,
-      required this.defaultRouteHopCount});
+      required this.defaultRouteHopCount,
+      this.maxTimestampBehindMs,
+      this.maxTimestampAheadMs});
 
   factory _$_VeilidConfigRPC.fromJson(Map<String, dynamic> json) =>
       _$$_VeilidConfigRPCFromJson(json);
@@ -4551,19 +4551,19 @@ class _$_VeilidConfigRPC
   @override
   final int queueSize;
   @override
-  final int? maxTimestampBehindMs;
-  @override
-  final int? maxTimestampAheadMs;
-  @override
   final int timeoutMs;
   @override
   final int maxRouteHopCount;
   @override
   final int defaultRouteHopCount;
+  @override
+  final int? maxTimestampBehindMs;
+  @override
+  final int? maxTimestampAheadMs;
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'VeilidConfigRPC(concurrency: $concurrency, queueSize: $queueSize, maxTimestampBehindMs: $maxTimestampBehindMs, maxTimestampAheadMs: $maxTimestampAheadMs, timeoutMs: $timeoutMs, maxRouteHopCount: $maxRouteHopCount, defaultRouteHopCount: $defaultRouteHopCount)';
+    return 'VeilidConfigRPC(concurrency: $concurrency, queueSize: $queueSize, timeoutMs: $timeoutMs, maxRouteHopCount: $maxRouteHopCount, defaultRouteHopCount: $defaultRouteHopCount, maxTimestampBehindMs: $maxTimestampBehindMs, maxTimestampAheadMs: $maxTimestampAheadMs)';
   }
 
   @override
@@ -4573,11 +4573,11 @@ class _$_VeilidConfigRPC
       ..add(DiagnosticsProperty('type', 'VeilidConfigRPC'))
       ..add(DiagnosticsProperty('concurrency', concurrency))
       ..add(DiagnosticsProperty('queueSize', queueSize))
-      ..add(DiagnosticsProperty('maxTimestampBehindMs', maxTimestampBehindMs))
-      ..add(DiagnosticsProperty('maxTimestampAheadMs', maxTimestampAheadMs))
       ..add(DiagnosticsProperty('timeoutMs', timeoutMs))
       ..add(DiagnosticsProperty('maxRouteHopCount', maxRouteHopCount))
-      ..add(DiagnosticsProperty('defaultRouteHopCount', defaultRouteHopCount));
+      ..add(DiagnosticsProperty('defaultRouteHopCount', defaultRouteHopCount))
+      ..add(DiagnosticsProperty('maxTimestampBehindMs', maxTimestampBehindMs))
+      ..add(DiagnosticsProperty('maxTimestampAheadMs', maxTimestampAheadMs));
   }
 
   @override
@@ -4589,16 +4589,16 @@ class _$_VeilidConfigRPC
                 other.concurrency == concurrency) &&
             (identical(other.queueSize, queueSize) ||
                 other.queueSize == queueSize) &&
-            (identical(other.maxTimestampBehindMs, maxTimestampBehindMs) ||
-                other.maxTimestampBehindMs == maxTimestampBehindMs) &&
-            (identical(other.maxTimestampAheadMs, maxTimestampAheadMs) ||
-                other.maxTimestampAheadMs == maxTimestampAheadMs) &&
             (identical(other.timeoutMs, timeoutMs) ||
                 other.timeoutMs == timeoutMs) &&
             (identical(other.maxRouteHopCount, maxRouteHopCount) ||
                 other.maxRouteHopCount == maxRouteHopCount) &&
             (identical(other.defaultRouteHopCount, defaultRouteHopCount) ||
-                other.defaultRouteHopCount == defaultRouteHopCount));
+                other.defaultRouteHopCount == defaultRouteHopCount) &&
+            (identical(other.maxTimestampBehindMs, maxTimestampBehindMs) ||
+                other.maxTimestampBehindMs == maxTimestampBehindMs) &&
+            (identical(other.maxTimestampAheadMs, maxTimestampAheadMs) ||
+                other.maxTimestampAheadMs == maxTimestampAheadMs));
   }
 
   @JsonKey(ignore: true)
@@ -4607,11 +4607,11 @@ class _$_VeilidConfigRPC
       runtimeType,
       concurrency,
       queueSize,
-      maxTimestampBehindMs,
-      maxTimestampAheadMs,
       timeoutMs,
       maxRouteHopCount,
-      defaultRouteHopCount);
+      defaultRouteHopCount,
+      maxTimestampBehindMs,
+      maxTimestampAheadMs);
 
   @JsonKey(ignore: true)
   @override
@@ -4631,11 +4631,11 @@ abstract class _VeilidConfigRPC implements VeilidConfigRPC {
   const factory _VeilidConfigRPC(
       {required final int concurrency,
       required final int queueSize,
-      final int? maxTimestampBehindMs,
-      final int? maxTimestampAheadMs,
       required final int timeoutMs,
       required final int maxRouteHopCount,
-      required final int defaultRouteHopCount}) = _$_VeilidConfigRPC;
+      required final int defaultRouteHopCount,
+      final int? maxTimestampBehindMs,
+      final int? maxTimestampAheadMs}) = _$_VeilidConfigRPC;
 
   factory _VeilidConfigRPC.fromJson(Map<String, dynamic> json) =
       _$_VeilidConfigRPC.fromJson;
@@ -4645,15 +4645,15 @@ abstract class _VeilidConfigRPC implements VeilidConfigRPC {
   @override
   int get queueSize;
   @override
-  int? get maxTimestampBehindMs;
-  @override
-  int? get maxTimestampAheadMs;
-  @override
   int get timeoutMs;
   @override
   int get maxRouteHopCount;
   @override
   int get defaultRouteHopCount;
+  @override
+  int? get maxTimestampBehindMs;
+  @override
+  int? get maxTimestampAheadMs;
   @override
   @JsonKey(ignore: true)
   _$$_VeilidConfigRPCCopyWith<_$_VeilidConfigRPC> get copyWith =>
@@ -5016,7 +5016,6 @@ mixin _$VeilidConfigNetwork {
   int get clientWhitelistTimeoutMs => throw _privateConstructorUsedError;
   int get reverseConnectionReceiptTimeMs => throw _privateConstructorUsedError;
   int get holePunchReceiptTimeMs => throw _privateConstructorUsedError;
-  String? get networkKeyPassword => throw _privateConstructorUsedError;
   VeilidConfigRoutingTable get routingTable =>
       throw _privateConstructorUsedError;
   VeilidConfigRPC get rpc => throw _privateConstructorUsedError;
@@ -5027,6 +5026,7 @@ mixin _$VeilidConfigNetwork {
   VeilidConfigTLS get tls => throw _privateConstructorUsedError;
   VeilidConfigApplication get application => throw _privateConstructorUsedError;
   VeilidConfigProtocol get protocol => throw _privateConstructorUsedError;
+  String? get networkKeyPassword => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -5050,7 +5050,6 @@ abstract class $VeilidConfigNetworkCopyWith<$Res> {
       int clientWhitelistTimeoutMs,
       int reverseConnectionReceiptTimeMs,
       int holePunchReceiptTimeMs,
-      String? networkKeyPassword,
       VeilidConfigRoutingTable routingTable,
       VeilidConfigRPC rpc,
       VeilidConfigDHT dht,
@@ -5059,7 +5058,8 @@ abstract class $VeilidConfigNetworkCopyWith<$Res> {
       int restrictedNatRetries,
       VeilidConfigTLS tls,
       VeilidConfigApplication application,
-      VeilidConfigProtocol protocol});
+      VeilidConfigProtocol protocol,
+      String? networkKeyPassword});
 
   $VeilidConfigRoutingTableCopyWith<$Res> get routingTable;
   $VeilidConfigRPCCopyWith<$Res> get rpc;
@@ -5091,7 +5091,6 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     Object? clientWhitelistTimeoutMs = null,
     Object? reverseConnectionReceiptTimeMs = null,
     Object? holePunchReceiptTimeMs = null,
-    Object? networkKeyPassword = freezed,
     Object? routingTable = null,
     Object? rpc = null,
     Object? dht = null,
@@ -5101,6 +5100,7 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     Object? tls = null,
     Object? application = null,
     Object? protocol = null,
+    Object? networkKeyPassword = freezed,
   }) {
     return _then(_value.copyWith(
       connectionInitialTimeoutMs: null == connectionInitialTimeoutMs
@@ -5139,10 +5139,6 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
           ? _value.holePunchReceiptTimeMs
           : holePunchReceiptTimeMs // ignore: cast_nullable_to_non_nullable
               as int,
-      networkKeyPassword: freezed == networkKeyPassword
-          ? _value.networkKeyPassword
-          : networkKeyPassword // ignore: cast_nullable_to_non_nullable
-              as String?,
       routingTable: null == routingTable
           ? _value.routingTable
           : routingTable // ignore: cast_nullable_to_non_nullable
@@ -5179,6 +5175,10 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
           ? _value.protocol
           : protocol // ignore: cast_nullable_to_non_nullable
               as VeilidConfigProtocol,
+      networkKeyPassword: freezed == networkKeyPassword
+          ? _value.networkKeyPassword
+          : networkKeyPassword // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 
@@ -5250,7 +5250,6 @@ abstract class _$$_VeilidConfigNetworkCopyWith<$Res>
       int clientWhitelistTimeoutMs,
       int reverseConnectionReceiptTimeMs,
       int holePunchReceiptTimeMs,
-      String? networkKeyPassword,
       VeilidConfigRoutingTable routingTable,
       VeilidConfigRPC rpc,
       VeilidConfigDHT dht,
@@ -5259,7 +5258,8 @@ abstract class _$$_VeilidConfigNetworkCopyWith<$Res>
       int restrictedNatRetries,
       VeilidConfigTLS tls,
       VeilidConfigApplication application,
-      VeilidConfigProtocol protocol});
+      VeilidConfigProtocol protocol,
+      String? networkKeyPassword});
 
   @override
   $VeilidConfigRoutingTableCopyWith<$Res> get routingTable;
@@ -5295,7 +5295,6 @@ class __$$_VeilidConfigNetworkCopyWithImpl<$Res>
     Object? clientWhitelistTimeoutMs = null,
     Object? reverseConnectionReceiptTimeMs = null,
     Object? holePunchReceiptTimeMs = null,
-    Object? networkKeyPassword = freezed,
     Object? routingTable = null,
     Object? rpc = null,
     Object? dht = null,
@@ -5305,6 +5304,7 @@ class __$$_VeilidConfigNetworkCopyWithImpl<$Res>
     Object? tls = null,
     Object? application = null,
     Object? protocol = null,
+    Object? networkKeyPassword = freezed,
   }) {
     return _then(_$_VeilidConfigNetwork(
       connectionInitialTimeoutMs: null == connectionInitialTimeoutMs
@@ -5343,10 +5343,6 @@ class __$$_VeilidConfigNetworkCopyWithImpl<$Res>
           ? _value.holePunchReceiptTimeMs
           : holePunchReceiptTimeMs // ignore: cast_nullable_to_non_nullable
               as int,
-      networkKeyPassword: freezed == networkKeyPassword
-          ? _value.networkKeyPassword
-          : networkKeyPassword // ignore: cast_nullable_to_non_nullable
-              as String?,
       routingTable: null == routingTable
           ? _value.routingTable
           : routingTable // ignore: cast_nullable_to_non_nullable
@@ -5383,6 +5379,10 @@ class __$$_VeilidConfigNetworkCopyWithImpl<$Res>
           ? _value.protocol
           : protocol // ignore: cast_nullable_to_non_nullable
               as VeilidConfigProtocol,
+      networkKeyPassword: freezed == networkKeyPassword
+          ? _value.networkKeyPassword
+          : networkKeyPassword // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -5402,7 +5402,6 @@ class _$_VeilidConfigNetwork
       required this.clientWhitelistTimeoutMs,
       required this.reverseConnectionReceiptTimeMs,
       required this.holePunchReceiptTimeMs,
-      this.networkKeyPassword,
       required this.routingTable,
       required this.rpc,
       required this.dht,
@@ -5411,7 +5410,8 @@ class _$_VeilidConfigNetwork
       required this.restrictedNatRetries,
       required this.tls,
       required this.application,
-      required this.protocol});
+      required this.protocol,
+      this.networkKeyPassword});
 
   factory _$_VeilidConfigNetwork.fromJson(Map<String, dynamic> json) =>
       _$$_VeilidConfigNetworkFromJson(json);
@@ -5435,8 +5435,6 @@ class _$_VeilidConfigNetwork
   @override
   final int holePunchReceiptTimeMs;
   @override
-  final String? networkKeyPassword;
-  @override
   final VeilidConfigRoutingTable routingTable;
   @override
   final VeilidConfigRPC rpc;
@@ -5454,10 +5452,12 @@ class _$_VeilidConfigNetwork
   final VeilidConfigApplication application;
   @override
   final VeilidConfigProtocol protocol;
+  @override
+  final String? networkKeyPassword;
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'VeilidConfigNetwork(connectionInitialTimeoutMs: $connectionInitialTimeoutMs, connectionInactivityTimeoutMs: $connectionInactivityTimeoutMs, maxConnectionsPerIp4: $maxConnectionsPerIp4, maxConnectionsPerIp6Prefix: $maxConnectionsPerIp6Prefix, maxConnectionsPerIp6PrefixSize: $maxConnectionsPerIp6PrefixSize, maxConnectionFrequencyPerMin: $maxConnectionFrequencyPerMin, clientWhitelistTimeoutMs: $clientWhitelistTimeoutMs, reverseConnectionReceiptTimeMs: $reverseConnectionReceiptTimeMs, holePunchReceiptTimeMs: $holePunchReceiptTimeMs, networkKeyPassword: $networkKeyPassword, routingTable: $routingTable, rpc: $rpc, dht: $dht, upnp: $upnp, detectAddressChanges: $detectAddressChanges, restrictedNatRetries: $restrictedNatRetries, tls: $tls, application: $application, protocol: $protocol)';
+    return 'VeilidConfigNetwork(connectionInitialTimeoutMs: $connectionInitialTimeoutMs, connectionInactivityTimeoutMs: $connectionInactivityTimeoutMs, maxConnectionsPerIp4: $maxConnectionsPerIp4, maxConnectionsPerIp6Prefix: $maxConnectionsPerIp6Prefix, maxConnectionsPerIp6PrefixSize: $maxConnectionsPerIp6PrefixSize, maxConnectionFrequencyPerMin: $maxConnectionFrequencyPerMin, clientWhitelistTimeoutMs: $clientWhitelistTimeoutMs, reverseConnectionReceiptTimeMs: $reverseConnectionReceiptTimeMs, holePunchReceiptTimeMs: $holePunchReceiptTimeMs, routingTable: $routingTable, rpc: $rpc, dht: $dht, upnp: $upnp, detectAddressChanges: $detectAddressChanges, restrictedNatRetries: $restrictedNatRetries, tls: $tls, application: $application, protocol: $protocol, networkKeyPassword: $networkKeyPassword)';
   }
 
   @override
@@ -5482,7 +5482,6 @@ class _$_VeilidConfigNetwork
           'reverseConnectionReceiptTimeMs', reverseConnectionReceiptTimeMs))
       ..add(
           DiagnosticsProperty('holePunchReceiptTimeMs', holePunchReceiptTimeMs))
-      ..add(DiagnosticsProperty('networkKeyPassword', networkKeyPassword))
       ..add(DiagnosticsProperty('routingTable', routingTable))
       ..add(DiagnosticsProperty('rpc', rpc))
       ..add(DiagnosticsProperty('dht', dht))
@@ -5491,7 +5490,8 @@ class _$_VeilidConfigNetwork
       ..add(DiagnosticsProperty('restrictedNatRetries', restrictedNatRetries))
       ..add(DiagnosticsProperty('tls', tls))
       ..add(DiagnosticsProperty('application', application))
-      ..add(DiagnosticsProperty('protocol', protocol));
+      ..add(DiagnosticsProperty('protocol', protocol))
+      ..add(DiagnosticsProperty('networkKeyPassword', networkKeyPassword));
   }
 
   @override
@@ -5524,8 +5524,6 @@ class _$_VeilidConfigNetwork
                     reverseConnectionReceiptTimeMs) &&
             (identical(other.holePunchReceiptTimeMs, holePunchReceiptTimeMs) ||
                 other.holePunchReceiptTimeMs == holePunchReceiptTimeMs) &&
-            (identical(other.networkKeyPassword, networkKeyPassword) ||
-                other.networkKeyPassword == networkKeyPassword) &&
             (identical(other.routingTable, routingTable) ||
                 other.routingTable == routingTable) &&
             (identical(other.rpc, rpc) || other.rpc == rpc) &&
@@ -5539,7 +5537,9 @@ class _$_VeilidConfigNetwork
             (identical(other.application, application) ||
                 other.application == application) &&
             (identical(other.protocol, protocol) ||
-                other.protocol == protocol));
+                other.protocol == protocol) &&
+            (identical(other.networkKeyPassword, networkKeyPassword) ||
+                other.networkKeyPassword == networkKeyPassword));
   }
 
   @JsonKey(ignore: true)
@@ -5555,7 +5555,6 @@ class _$_VeilidConfigNetwork
         clientWhitelistTimeoutMs,
         reverseConnectionReceiptTimeMs,
         holePunchReceiptTimeMs,
-        networkKeyPassword,
         routingTable,
         rpc,
         dht,
@@ -5564,7 +5563,8 @@ class _$_VeilidConfigNetwork
         restrictedNatRetries,
         tls,
         application,
-        protocol
+        protocol,
+        networkKeyPassword
       ]);
 
   @JsonKey(ignore: true)
@@ -5593,7 +5593,6 @@ abstract class _VeilidConfigNetwork implements VeilidConfigNetwork {
       required final int clientWhitelistTimeoutMs,
       required final int reverseConnectionReceiptTimeMs,
       required final int holePunchReceiptTimeMs,
-      final String? networkKeyPassword,
       required final VeilidConfigRoutingTable routingTable,
       required final VeilidConfigRPC rpc,
       required final VeilidConfigDHT dht,
@@ -5602,7 +5601,8 @@ abstract class _VeilidConfigNetwork implements VeilidConfigNetwork {
       required final int restrictedNatRetries,
       required final VeilidConfigTLS tls,
       required final VeilidConfigApplication application,
-      required final VeilidConfigProtocol protocol}) = _$_VeilidConfigNetwork;
+      required final VeilidConfigProtocol protocol,
+      final String? networkKeyPassword}) = _$_VeilidConfigNetwork;
 
   factory _VeilidConfigNetwork.fromJson(Map<String, dynamic> json) =
       _$_VeilidConfigNetwork.fromJson;
@@ -5626,8 +5626,6 @@ abstract class _VeilidConfigNetwork implements VeilidConfigNetwork {
   @override
   int get holePunchReceiptTimeMs;
   @override
-  String? get networkKeyPassword;
-  @override
   VeilidConfigRoutingTable get routingTable;
   @override
   VeilidConfigRPC get rpc;
@@ -5645,6 +5643,8 @@ abstract class _VeilidConfigNetwork implements VeilidConfigNetwork {
   VeilidConfigApplication get application;
   @override
   VeilidConfigProtocol get protocol;
+  @override
+  String? get networkKeyPassword;
   @override
   @JsonKey(ignore: true)
   _$$_VeilidConfigNetworkCopyWith<_$_VeilidConfigNetwork> get copyWith =>

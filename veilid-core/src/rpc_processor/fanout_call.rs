@@ -208,7 +208,7 @@ where
         }
     }
 
-    fn init_closest_nodes(self: Arc<Self>) {
+    fn init_closest_nodes(self: Arc<Self>) -> Result<(), RPCError> {
         // Get the 'node_count' closest nodes to the key out of our routing table
         let closest_nodes = {
             let routing_table = self.routing_table.clone();
@@ -247,11 +247,14 @@ where
                 NodeRef::new(routing_table.clone(), v.unwrap().clone(), None)
             };
 
-            routing_table.find_closest_nodes(self.node_count, self.node_id, filters, transform)
+            routing_table
+                .find_closest_nodes(self.node_count, self.node_id, filters, transform)
+                .map_err(RPCError::invalid_format)?
         };
 
         let mut ctx = self.context.lock();
         ctx.closest_nodes = closest_nodes;
+        Ok(())
     }
 
     pub async fn run(self: Arc<Self>) -> TimeoutOr<Result<Option<R>, RPCError>> {
@@ -264,7 +267,9 @@ where
         };
 
         // Initialize closest nodes list
-        self.clone().init_closest_nodes();
+        if let Err(e) = self.clone().init_closest_nodes() {
+            return TimeoutOr::value(Err(e));
+        }
 
         // Do a quick check to see if we're already done
         if self.clone().evaluate_done() {
@@ -283,7 +288,11 @@ where
         }
         // Wait for them to complete
         timeout(timeout_ms, async {
-            while let Some(_) = unord.next().await {}
+            while let Some(_) = unord.next().await {
+                if self.clone().evaluate_done() {
+                    break;
+                }
+            }
         })
         .await
         .into_timeout_or()

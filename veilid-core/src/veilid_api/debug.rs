@@ -1341,6 +1341,28 @@ impl VeilidAPI {
         }
     }
 
+    async fn debug_punish_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+        //
+        let network_manager = self.network_manager()?;
+        let address_filter = network_manager.address_filter();
+
+        let out = format!("Address Filter Punishments:\n{:#?}", address_filter);
+        return Ok(out);
+    }
+
+    async fn debug_punish(&self, args: String) -> VeilidAPIResult<String> {
+        let args: Vec<String> =
+            shell_words::split(&args).map_err(|e| VeilidAPIError::parse_error(e, args))?;
+
+        let command = get_debug_argument_at(&args, 0, "debug_punish", "command", get_string)?;
+
+        if command == "list" {
+            self.debug_punish_list(args).await
+        } else {
+            Ok(">>> Unknown command\n".to_owned())
+        }
+    }
+
     pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
         Ok(r#"buckets [dead|reliable]
 dialinfo
@@ -1358,6 +1380,7 @@ restart network
 contact <node>[<modifiers>]
 ping <destination>
 relay <relay> [public|local]
+punish list
 route allocate [ord|*ord] [rel] [<count>] [in|out]
       release <route>
       publish <route> [full]
@@ -1450,6 +1473,8 @@ record list <local|remote>
                 self.debug_route(rest).await
             } else if arg == "record" {
                 self.debug_record(rest).await
+            } else if arg == "punish" {
+                self.debug_punish(rest).await
             } else {
                 Err(VeilidAPIError::generic("Unknown server debug command"))
             }

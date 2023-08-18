@@ -18,6 +18,7 @@ use storage_manager_inner::*;
 pub use types::*;
 
 use super::*;
+use network_manager::*;
 use routing_table::*;
 use rpc_processor::*;
 
@@ -27,6 +28,8 @@ const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
 const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
 /// Frequency to flush record stores to disk
 const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
+/// Frequency to check for offline subkeys writes to send to the network
+const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 1;
 
 struct StorageManagerUnlockedInner {
     config: VeilidConfig,
@@ -37,6 +40,7 @@ struct StorageManagerUnlockedInner {
 
     // Background processes
     flush_record_stores_task: TickTask<EyreReport>,
+    offline_subkey_writes_task: TickTask<EyreReport>,
 }
 
 #[derive(Clone)]
@@ -59,6 +63,7 @@ impl StorageManager {
             #[cfg(feature = "unstable-blockstore")]
             block_store,
             flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
+            offline_subkey_writes_task: TickTask::new(OFFLINE_SUBKEY_WRITES_INTERVAL_SECS),
         }
     }
     fn new_inner(unlocked_inner: Arc<StorageManagerUnlockedInner>) -> StorageManagerInner {
@@ -125,6 +130,40 @@ impl StorageManager {
             apibail_not_initialized!();
         }
         Ok(inner)
+    }
+
+    fn online_writes_ready_inner(inner: &StorageManagerInner) -> Option<RPCProcessor> {
+        if let Some(rpc_processor) = {
+            inner.rpc_processor.clone()
+        } {
+            if let Some(network_class) = rpc_processor
+                .routing_table()
+                .get_network_class(RoutingDomain::PublicInternet)
+            {
+                // If our PublicInternet network class is valid we're ready to talk
+                if network_class != NetworkClass::Invalid {
+                    Some(rpc_processor)
+                } else {
+                    None
+                }
+            } else {
+                // If we haven't gotten a network class yet we shouldnt try to use the DHT
+                None
+            }
+        } else {
+            // If we aren't attached, we won't have an rpc processor
+            None
+        }
+    }
+
+    async fn online_writes_ready(&self) -> EyreResult<Option<RPCProcessor>> {
+        let inner = self.lock().await?;
+        return Ok(Self::online_writes_ready_inner(&*inner));
+    }
+
+    async fn has_offline_subkey_writes(&self) -> EyreResult<bool> {
+        let inner = self.lock().await?;
+        Ok(inner.offline_subkey_writes.len() != 0)
     }
 
     /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
@@ -200,6 +239,17 @@ impl StorageManager {
 
         // Reopen inner to store value we just got
         let mut inner = self.lock().await?;
+
+        // Check again to see if we have a local record already or not
+        // because waiting for the outbound_get_value action could result in the key being opened
+        // via some parallel process
+
+        if let Some(res) = inner
+            .open_existing_record(key, writer, safety_selection)
+            .await?
+        {
+            return Ok(res);
+        }
 
         // Open the new record
         inner
@@ -373,14 +423,22 @@ impl StorageManager {
         )?;
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
-        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+        let Some(rpc_processor) = Self::online_writes_ready_inner(&inner) else {
+            log_stor!(debug "Writing subkey locally: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+
             // Offline, just write it locally and return immediately
             inner
                 .handle_set_local_value(key, subkey, signed_value_data.clone())
                 .await?;
 
+            log_stor!(debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
             // Add to offline writes to flush
-            inner.offline_subkey_writes.entry(key).and_modify(|x| { x.insert(subkey); } ).or_insert(ValueSubkeyRangeSet::single(subkey));
+            inner.offline_subkey_writes.entry(key)
+                .and_modify(|x| { x.subkeys.insert(subkey); } )
+                .or_insert(OfflineSubkeyWrite{
+                    safety_selection, 
+                    subkeys: ValueSubkeyRangeSet::single(subkey)
+                });
             return Ok(None)
         };
 

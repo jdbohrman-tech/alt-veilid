@@ -1162,7 +1162,7 @@ impl RoutingTableInner {
         node_id: TypedKey,
         mut filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
-    ) -> Vec<O>
+    ) -> VeilidAPIResult<Vec<O>>
     where
         T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
@@ -1170,7 +1170,9 @@ impl RoutingTableInner {
 
         // Get the crypto kind
         let crypto_kind = node_id.kind;
-        let vcrypto = self.unlocked_inner.crypto().get(crypto_kind).unwrap();
+        let Some(vcrypto) = self.unlocked_inner.crypto().get(crypto_kind) else {
+            apibail_generic!("invalid crypto kind");
+        };
 
         // Filter to ensure entries support the crypto kind in use
         let filter = Box::new(
@@ -1236,7 +1238,7 @@ impl RoutingTableInner {
         let out =
             self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform);
         log_rtab!(">> find_closest_nodes: node count = {}", out.len());
-        out
+        Ok(out)
     }
 
     pub fn sort_and_clean_closest_noderefs(

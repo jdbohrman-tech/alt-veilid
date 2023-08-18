@@ -164,9 +164,9 @@ impl Network {
 
     /////////////////////////////////////////////////////
 
-    fn find_available_udp_port(&self) -> EyreResult<u16> {
+    fn find_available_udp_port(&self, start_port: u16) -> EyreResult<u16> {
         // If the address is empty, iterate ports until we find one we can use.
-        let mut udp_port = 5150u16;
+        let mut udp_port = start_port;
         loop {
             if BAD_PORTS.contains(&udp_port) {
                 continue;
@@ -182,9 +182,9 @@ impl Network {
         Ok(udp_port)
     }
 
-    fn find_available_tcp_port(&self) -> EyreResult<u16> {
+    fn find_available_tcp_port(&self, start_port: u16) -> EyreResult<u16> {
         // If the address is empty, iterate ports until we find one we can use.
-        let mut tcp_port = 5150u16;
+        let mut tcp_port = start_port;
         loop {
             if BAD_PORTS.contains(&tcp_port) {
                 continue;
@@ -203,7 +203,7 @@ impl Network {
     async fn allocate_udp_port(&self, listen_address: String) -> EyreResult<(u16, Vec<IpAddr>)> {
         if listen_address.is_empty() {
             // If listen address is empty, find us a port iteratively
-            let port = self.find_available_udp_port()?;
+            let port = self.find_available_udp_port(5150)?;
             let ip_addrs = vec![
                 IpAddr::V4(Ipv4Addr::UNSPECIFIED),
                 IpAddr::V6(Ipv6Addr::UNSPECIFIED),
@@ -218,9 +218,7 @@ impl Network {
                 bail!("No valid listen address: {}", listen_address);
             }
             let port = sockaddrs[0].port();
-            if !self.bind_first_udp_port(port) {
-                bail!("Could not find free udp port to listen on");
-            }
+
             Ok((port, sockaddrs.iter().map(|s| s.ip()).collect()))
         }
     }
@@ -228,7 +226,7 @@ impl Network {
     async fn allocate_tcp_port(&self, listen_address: String) -> EyreResult<(u16, Vec<IpAddr>)> {
         if listen_address.is_empty() {
             // If listen address is empty, find us a port iteratively
-            let port = self.find_available_tcp_port()?;
+            let port = self.find_available_tcp_port(5150)?;
             let ip_addrs = vec![
                 IpAddr::V4(Ipv4Addr::UNSPECIFIED),
                 IpAddr::V6(Ipv6Addr::UNSPECIFIED),

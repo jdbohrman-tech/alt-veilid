@@ -1,3 +1,10 @@
+/// Eventual is like Dart's "Completer"
+/// It is a thread-safe concurrent data future that may eventually resolve to a value
+/// Three variants exist
+/// Eventual, which will complete each 'instance' future to that instance's value (can be different per instance) only when 'resolve' is called.
+/// EventualValue, which will complete each 'instance' future when 'resolve' is called with an owned value, and one of those instances may 'take' the value.
+/// EventualValueClone, which will complete each 'instance' future when 'resolve' is called with a Clone-able value, and any of those instances may get a clone of that value.
+/// The future returned from an Eventual::resolve() can also be awaited on to wait until all instances have been completed
 use super::*;
 
 use eventual_base::*;

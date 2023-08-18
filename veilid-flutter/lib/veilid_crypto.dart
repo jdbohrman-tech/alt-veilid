@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:charcode/charcode.dart';
@@ -12,9 +13,9 @@ import 'veilid.dart';
 
 typedef CryptoKind = int;
 const CryptoKind cryptoKindVLD0 =
-    $V << 0 | $L << 8 | $D << 16 | $0 << 24; // "VLD0"
+    $V << 24 | $L << 16 | $D << 8 | $0 << 0; // "VLD0"
 const CryptoKind cryptoKindNONE =
-    $N << 0 | $O << 8 | $N << 16 | $E << 24; // "NONE"
+    $N << 24 | $O << 16 | $N << 8 | $E << 0; // "NONE"
 
 String cryptoKindToString(CryptoKind kind) =>
     cryptoKindToBytes(kind).map(String.fromCharCode).join();
@@ -184,4 +185,49 @@ abstract class VeilidCryptoSystem {
       SharedSecret sharedSecret, Uint8List? associatedData);
   Future<Uint8List> cryptNoAuth(
       Uint8List body, Nonce nonce, SharedSecret sharedSecret);
+
+  Future<Uint8List> encryptNoAuthWithNonce(
+      Uint8List body, SharedSecret secret) async {
+    // generate nonce
+    final nonce = await randomNonce();
+    // crypt and append nonce
+    final b = BytesBuilder()
+      ..add(await cryptNoAuth(body, nonce, secret))
+      ..add(nonce.decode());
+    return b.toBytes();
+  }
+
+  Future<Uint8List> decryptNoAuthWithNonce(
+      Uint8List body, SharedSecret secret) async {
+    if (body.length < Nonce.decodedLength()) {
+      throw const FormatException('not enough data to decrypt');
+    }
+    final nonce =
+        Nonce.fromBytes(body.sublist(body.length - Nonce.decodedLength()));
+    final encryptedData = body.sublist(0, body.length - Nonce.decodedLength());
+    // decrypt
+    return cryptNoAuth(encryptedData, nonce, secret);
+  }
+
+  Future<Uint8List> encryptNoAuthWithPassword(
+      Uint8List body, String password) async {
+    final ekbytes = Uint8List.fromList(utf8.encode(password));
+    final nonce = await randomNonce();
+    final saltBytes = nonce.decode();
+    final sharedSecret = await deriveSharedSecret(ekbytes, saltBytes);
+    return (await cryptNoAuth(body, nonce, sharedSecret))..addAll(saltBytes);
+  }
+
+  Future<Uint8List> decryptNoAuthWithPassword(
+      Uint8List body, String password) async {
+    if (body.length < Nonce.decodedLength()) {
+      throw const FormatException('not enough data to decrypt');
+    }
+    final ekbytes = Uint8List.fromList(utf8.encode(password));
+    final bodyBytes = body.sublist(0, body.length - Nonce.decodedLength());
+    final saltBytes = body.sublist(body.length - Nonce.decodedLength());
+    final nonce = Nonce.fromBytes(saltBytes);
+    final sharedSecret = await deriveSharedSecret(ekbytes, saltBytes);
+    return cryptNoAuth(bodyBytes, nonce, sharedSecret);
+  }
 }

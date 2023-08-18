@@ -120,38 +120,38 @@ core:
         application:
             https:
                 enabled: false
-                listen_address: ':5150'
+                listen_address: ':443'
                 path: 'app'
-                # url: 'https://localhost:5150'
+                # url: 'https://localhost'
             http:
                 enabled: false
-                listen_address: ':5150'
+                listen_address: ':80'
                 path: 'app'
-                # url: 'http://localhost:5150'
+                # url: 'http://localhost'
         protocol:
             udp:
                 enabled: true
                 socket_pool_size: 0
-                listen_address: ':5150'
+                listen_address: ''
                 # public_address: ''
             tcp:
                 connect: true
                 listen: true
                 max_connections: 32
-                listen_address: ':5150'
+                listen_address: ''
                 #'public_address: ''
             ws:
                 connect: true
                 listen: true
                 max_connections: 16
-                listen_address: ':5150'
+                listen_address: ''
                 path: 'ws'
                 # url: 'ws://localhost:5150/ws'
             wss:
                 connect: true
                 listen: false
                 max_connections: 16
-                listen_address: ':5150'
+                listen_address: ''
                 path: 'ws'
                 # url: ''
         "#,
@@ -351,6 +351,12 @@ pub struct NamedSocketAddrs {
 impl FromStr for NamedSocketAddrs {
     type Err = std::io::Error;
     fn from_str(s: &str) -> Result<NamedSocketAddrs, std::io::Error> {
+        if s.is_empty() {
+            return Ok(NamedSocketAddrs {
+                name: String::new(),
+                addrs: vec![],
+            });
+        }
         let addr_iter = listen_address_to_socket_addrs(s)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
         Ok(NamedSocketAddrs {
@@ -1641,13 +1647,10 @@ mod tests {
         assert_eq!(s.core.network.tls.connection_initial_timeout_ms, 2_000u32);
         //
         assert_eq!(s.core.network.application.https.enabled, false);
-        assert_eq!(
-            s.core.network.application.https.listen_address.name,
-            ":5150"
-        );
+        assert_eq!(s.core.network.application.https.listen_address.name, ":443");
         assert_eq!(
             s.core.network.application.https.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
+            listen_address_to_socket_addrs(":443").unwrap()
         );
         assert_eq!(
             s.core.network.application.https.path,
@@ -1655,10 +1658,10 @@ mod tests {
         );
         assert_eq!(s.core.network.application.https.url, None);
         assert_eq!(s.core.network.application.http.enabled, false);
-        assert_eq!(s.core.network.application.http.listen_address.name, ":5150");
+        assert_eq!(s.core.network.application.http.listen_address.name, ":80");
         assert_eq!(
             s.core.network.application.http.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
+            listen_address_to_socket_addrs(":80").unwrap()
         );
         assert_eq!(
             s.core.network.application.http.path,
@@ -1668,33 +1671,24 @@ mod tests {
         //
         assert_eq!(s.core.network.protocol.udp.enabled, true);
         assert_eq!(s.core.network.protocol.udp.socket_pool_size, 0);
-        assert_eq!(s.core.network.protocol.udp.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.udp.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.udp.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.udp.listen_address.addrs, vec![]);
         assert_eq!(s.core.network.protocol.udp.public_address, None);
 
         //
         assert_eq!(s.core.network.protocol.tcp.connect, true);
         assert_eq!(s.core.network.protocol.tcp.listen, true);
         assert_eq!(s.core.network.protocol.tcp.max_connections, 32);
-        assert_eq!(s.core.network.protocol.tcp.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.tcp.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.tcp.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.tcp.listen_address.addrs, vec![]);
         assert_eq!(s.core.network.protocol.tcp.public_address, None);
 
         //
         assert_eq!(s.core.network.protocol.ws.connect, true);
         assert_eq!(s.core.network.protocol.ws.listen, true);
         assert_eq!(s.core.network.protocol.ws.max_connections, 16);
-        assert_eq!(s.core.network.protocol.ws.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.ws.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.ws.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.ws.listen_address.addrs, vec![]);
         assert_eq!(
             s.core.network.protocol.ws.path,
             std::path::PathBuf::from("ws")
@@ -1704,11 +1698,8 @@ mod tests {
         assert_eq!(s.core.network.protocol.wss.connect, true);
         assert_eq!(s.core.network.protocol.wss.listen, false);
         assert_eq!(s.core.network.protocol.wss.max_connections, 16);
-        assert_eq!(s.core.network.protocol.wss.listen_address.name, ":5150");
-        assert_eq!(
-            s.core.network.protocol.wss.listen_address.addrs,
-            listen_address_to_socket_addrs(":5150").unwrap()
-        );
+        assert_eq!(s.core.network.protocol.wss.listen_address.name, "");
+        assert_eq!(s.core.network.protocol.wss.listen_address.addrs, vec![]);
         assert_eq!(
             s.core.network.protocol.wss.path,
             std::path::PathBuf::from("ws")

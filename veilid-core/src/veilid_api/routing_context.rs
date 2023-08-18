@@ -199,6 +199,7 @@ impl RoutingContext {
         kind: Option<CryptoKind>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         let kind = kind.unwrap_or(best_crypto_kind());
+        Crypto::validate_crypto_kind(kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .create_record(kind, schema, self.unlocked_inner.safety_selection)
@@ -213,6 +214,7 @@ impl RoutingContext {
         key: TypedKey,
         writer: Option<KeyPair>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .open_record(key, writer, self.unlocked_inner.safety_selection)
@@ -222,6 +224,7 @@ impl RoutingContext {
     /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
     /// Closing a record allows you to re-open it with a different routing context
     pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+        Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.close_record(key).await
     }
@@ -230,6 +233,7 @@ impl RoutingContext {
     /// Deleting a record does not delete it from the network, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
     pub async fn delete_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+        Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.delete_record(key).await
     }
@@ -244,6 +248,7 @@ impl RoutingContext {
         subkey: ValueSubkey,
         force_refresh: bool,
     ) -> VeilidAPIResult<Option<ValueData>> {
+        Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.get_value(key, subkey, force_refresh).await
     }
@@ -257,6 +262,7 @@ impl RoutingContext {
         subkey: ValueSubkey,
         data: Vec<u8>,
     ) -> VeilidAPIResult<Option<ValueData>> {
+        Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.set_value(key, subkey, data).await
     }
@@ -273,6 +279,7 @@ impl RoutingContext {
         expiration: Timestamp,
         count: u32,
     ) -> VeilidAPIResult<Timestamp> {
+        Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager
             .watch_values(key, subkeys, expiration, count)
@@ -286,6 +293,7 @@ impl RoutingContext {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<bool> {
+        Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.cancel_watch_values(key, subkeys).await
     }

@@ -11,7 +11,6 @@ struct OutboundSetValueContext {
 }
 
 impl StorageManager {
-
     /// Perform a 'set value' query on the network
     pub async fn outbound_set_value(
         &self,
@@ -49,7 +48,6 @@ impl StorageManager {
             let context = context.clone();
             let descriptor = descriptor.clone();
             async move {
-
                 let send_descriptor = true; // xxx check if next_node needs the descriptor or not
 
                 // get most recent value to send
@@ -81,6 +79,7 @@ impl StorageManager {
 
                     // Keep the value if we got one and it is newer and it passes schema validation
                     if let Some(value) = sva.answer.value {
+                        log_stor!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
 
                         // Validate with schema
                         if !ctx.schema.check_subkey_value_data(
@@ -101,14 +100,12 @@ impl StorageManager {
                             // One node has shown us this value so far
                             ctx.value_count = 1;
                         } else {
-                            // If the sequence number is older, or an equal sequence number, 
+                            // If the sequence number is older, or an equal sequence number,
                             // node should have not returned a value here.
                             // Skip this node and it's closer list because it is misbehaving
                             return Ok(None);
                         }
-                    }
-                    else
-                    {
+                    } else {
                         // It was set on this node and no newer value was found and returned,
                         // so increase our consensus count
                         ctx.value_count += 1;
@@ -116,7 +113,7 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                #[cfg(feature="network-result-extra")]
+                #[cfg(feature = "network-result-extra")]
                 log_stor!(debug "SetValue fanout call returned peers {}", sva.answer.peers.len());
 
                 Ok(Some(sva.answer.peers))
@@ -147,18 +144,30 @@ impl StorageManager {
 
         match fanout_call.run().await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
-            TimeoutOr::Timeout | 
+            TimeoutOr::Timeout => {
+                log_stor!(debug "SetValue Fanout Timeout");
+                // Return the best answer we've got
+                let ctx = context.lock();
+                Ok(ctx.value.clone())
+            }
             // If we finished with consensus (enough nodes returning the same value)
-            TimeoutOr::Value(Ok(Some(()))) | 
+            TimeoutOr::Value(Ok(Some(()))) => {
+                log_stor!(debug "SetValue Fanout Consensus");
+                // Return the best answer we've got
+                let ctx = context.lock();
+                Ok(ctx.value.clone())
+            }
             // If we finished without consensus (ran out of nodes before getting consensus)
             TimeoutOr::Value(Ok(None)) => {
                 // Return the best answer we've got
                 let ctx = context.lock();
+                log_stor!(debug "SetValue Fanout No Consensus: {}", ctx.value_count);
                 Ok(ctx.value.clone())
             }
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
+                log_stor!(debug "SetValue Fanout Error: {}", e);
                 Err(e.into())
             }
         }
@@ -167,7 +176,13 @@ impl StorageManager {
     /// Handle a recieved 'Set Value' query
     /// Returns a None if the value passed in was set
     /// Returns a Some(current value) if the value was older and the current value was kept
-    pub async fn inbound_set_value(&self, key: TypedKey, subkey: ValueSubkey, value: SignedValueData, descriptor: Option<SignedValueDescriptor>) -> VeilidAPIResult<NetworkResult<Option<SignedValueData>>> {
+    pub async fn inbound_set_value(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        value: SignedValueData,
+        descriptor: Option<SignedValueDescriptor>,
+    ) -> VeilidAPIResult<NetworkResult<Option<SignedValueData>>> {
         let mut inner = self.lock().await?;
 
         // See if this is a remote or local value
@@ -198,19 +213,23 @@ impl StorageManager {
                 if let Some(descriptor) = descriptor {
                     // Descriptor must match last one if it is provided
                     if descriptor.cmp_no_sig(&last_descriptor) != cmp::Ordering::Equal {
-                        return Ok(NetworkResult::invalid_message("setvalue descriptor does not match last descriptor"));
+                        return Ok(NetworkResult::invalid_message(
+                            "setvalue descriptor does not match last descriptor",
+                        ));
                     }
                 } else {
                     // Descriptor was not provided always go with last descriptor
                 }
                 last_descriptor
-            }   
+            }
             None => {
                 if let Some(descriptor) = descriptor {
                     descriptor
                 } else {
                     // No descriptor
-                    return Ok(NetworkResult::invalid_message("descriptor must be provided"));
+                    return Ok(NetworkResult::invalid_message(
+                        "descriptor must be provided",
+                    ));
                 }
             }
         };
@@ -228,16 +247,18 @@ impl StorageManager {
         let res = if is_local {
             inner.handle_set_local_value(key, subkey, value).await
         } else {
-            inner.handle_set_remote_value(key, subkey, value, actual_descriptor).await
+            inner
+                .handle_set_remote_value(key, subkey, value, actual_descriptor)
+                .await
         };
-        match res {            
-            Ok(()) => {},
+        match res {
+            Ok(()) => {}
             Err(VeilidAPIError::Internal { message }) => {
                 apibail_internal!(message);
-            },
+            }
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(e));
-            },
+            }
         }
         Ok(NetworkResult::value(None))
     }

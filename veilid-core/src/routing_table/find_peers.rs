@@ -13,6 +13,9 @@ impl RoutingTable {
                 "Not finding closest peers because our network class is still invalid",
             );
         }
+        if Crypto::validate_crypto_kind(key.kind).is_err() {
+            return NetworkResult::invalid_message("invalid crypto kind");
+        }
 
         // find N nodes closest to the target node in our routing table
         let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
@@ -46,7 +49,7 @@ impl RoutingTable {
         };
 
         let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
-        let closest_nodes = self.find_closest_nodes(
+        let closest_nodes = match self.find_closest_nodes(
             node_count,
             key,
             filters,
@@ -54,7 +57,13 @@ impl RoutingTable {
             |rti, entry| {
                 rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, entry)
             },
-        );
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                error!("failed to find closest nodes for key {}: {}", key, e);
+                return NetworkResult::invalid_message("failed to find closest nodes for key");
+            }
+        };
 
         NetworkResult::value(closest_nodes)
     }
@@ -117,7 +126,7 @@ impl RoutingTable {
         };
 
         //
-        let closest_nodes = self.find_closest_nodes(
+        let closest_nodes = match self.find_closest_nodes(
             node_count,
             key,
             filters,
@@ -127,7 +136,13 @@ impl RoutingTable {
                     e.make_peer_info(RoutingDomain::PublicInternet).unwrap()
                 })
             },
-        );
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                error!("failed to find closest nodes for key {}: {}", key, e);
+                return NetworkResult::invalid_message("failed to find closest nodes for key");
+            }
+        };
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
         // This same test is used on the other side so we vet things here

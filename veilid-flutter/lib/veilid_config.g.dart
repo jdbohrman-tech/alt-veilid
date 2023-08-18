@@ -55,12 +55,9 @@ Map<String, dynamic> _$$_VeilidFFIConfigLoggingApiToJson(
 _$_VeilidFFIConfigLogging _$$_VeilidFFIConfigLoggingFromJson(
         Map<String, dynamic> json) =>
     _$_VeilidFFIConfigLogging(
-      terminal: VeilidFFIConfigLoggingTerminal.fromJson(
-          json['terminal'] as Map<String, dynamic>),
-      otlp: VeilidFFIConfigLoggingOtlp.fromJson(
-          json['otlp'] as Map<String, dynamic>),
-      api: VeilidFFIConfigLoggingApi.fromJson(
-          json['api'] as Map<String, dynamic>),
+      terminal: VeilidFFIConfigLoggingTerminal.fromJson(json['terminal']),
+      otlp: VeilidFFIConfigLoggingOtlp.fromJson(json['otlp']),
+      api: VeilidFFIConfigLoggingApi.fromJson(json['api']),
     );
 
 Map<String, dynamic> _$$_VeilidFFIConfigLoggingToJson(
@@ -73,8 +70,7 @@ Map<String, dynamic> _$$_VeilidFFIConfigLoggingToJson(
 
 _$_VeilidFFIConfig _$$_VeilidFFIConfigFromJson(Map<String, dynamic> json) =>
     _$_VeilidFFIConfig(
-      logging: VeilidFFIConfigLogging.fromJson(
-          json['logging'] as Map<String, dynamic>),
+      logging: VeilidFFIConfigLogging.fromJson(json['logging']),
     );
 
 Map<String, dynamic> _$$_VeilidFFIConfigToJson(_$_VeilidFFIConfig instance) =>
@@ -117,10 +113,9 @@ Map<String, dynamic> _$$_VeilidWASMConfigLoggingApiToJson(
 _$_VeilidWASMConfigLogging _$$_VeilidWASMConfigLoggingFromJson(
         Map<String, dynamic> json) =>
     _$_VeilidWASMConfigLogging(
-      performance: VeilidWASMConfigLoggingPerformance.fromJson(
-          json['performance'] as Map<String, dynamic>),
-      api: VeilidWASMConfigLoggingApi.fromJson(
-          json['api'] as Map<String, dynamic>),
+      performance:
+          VeilidWASMConfigLoggingPerformance.fromJson(json['performance']),
+      api: VeilidWASMConfigLoggingApi.fromJson(json['api']),
     );
 
 Map<String, dynamic> _$$_VeilidWASMConfigLoggingToJson(
@@ -132,8 +127,7 @@ Map<String, dynamic> _$$_VeilidWASMConfigLoggingToJson(
 
 _$_VeilidWASMConfig _$$_VeilidWASMConfigFromJson(Map<String, dynamic> json) =>
     _$_VeilidWASMConfig(
-      logging: VeilidWASMConfigLogging.fromJson(
-          json['logging'] as Map<String, dynamic>),
+      logging: VeilidWASMConfigLogging.fromJson(json['logging']),
     );
 
 Map<String, dynamic> _$$_VeilidWASMConfigToJson(_$_VeilidWASMConfig instance) =>
@@ -177,8 +171,8 @@ Map<String, dynamic> _$$_VeilidConfigHTTPToJson(_$_VeilidConfigHTTP instance) =>
 _$_VeilidConfigApplication _$$_VeilidConfigApplicationFromJson(
         Map<String, dynamic> json) =>
     _$_VeilidConfigApplication(
-      https: VeilidConfigHTTPS.fromJson(json['https'] as Map<String, dynamic>),
-      http: VeilidConfigHTTP.fromJson(json['http'] as Map<String, dynamic>),
+      https: VeilidConfigHTTPS.fromJson(json['https']),
+      http: VeilidConfigHTTP.fromJson(json['http']),
     );
 
 Map<String, dynamic> _$$_VeilidConfigApplicationToJson(
@@ -265,10 +259,10 @@ Map<String, dynamic> _$$_VeilidConfigWSSToJson(_$_VeilidConfigWSS instance) =>
 _$_VeilidConfigProtocol _$$_VeilidConfigProtocolFromJson(
         Map<String, dynamic> json) =>
     _$_VeilidConfigProtocol(
-      udp: VeilidConfigUDP.fromJson(json['udp'] as Map<String, dynamic>),
-      tcp: VeilidConfigTCP.fromJson(json['tcp'] as Map<String, dynamic>),
-      ws: VeilidConfigWS.fromJson(json['ws'] as Map<String, dynamic>),
-      wss: VeilidConfigWSS.fromJson(json['wss'] as Map<String, dynamic>),
+      udp: VeilidConfigUDP.fromJson(json['udp']),
+      tcp: VeilidConfigTCP.fromJson(json['tcp']),
+      ws: VeilidConfigWS.fromJson(json['ws']),
+      wss: VeilidConfigWSS.fromJson(json['wss']),
     );
 
 Map<String, dynamic> _$$_VeilidConfigProtocolToJson(
@@ -349,22 +343,22 @@ _$_VeilidConfigRPC _$$_VeilidConfigRPCFromJson(Map<String, dynamic> json) =>
     _$_VeilidConfigRPC(
       concurrency: json['concurrency'] as int,
       queueSize: json['queue_size'] as int,
-      maxTimestampBehindMs: json['max_timestamp_behind_ms'] as int?,
-      maxTimestampAheadMs: json['max_timestamp_ahead_ms'] as int?,
       timeoutMs: json['timeout_ms'] as int,
       maxRouteHopCount: json['max_route_hop_count'] as int,
       defaultRouteHopCount: json['default_route_hop_count'] as int,
+      maxTimestampBehindMs: json['max_timestamp_behind_ms'] as int?,
+      maxTimestampAheadMs: json['max_timestamp_ahead_ms'] as int?,
     );
 
 Map<String, dynamic> _$$_VeilidConfigRPCToJson(_$_VeilidConfigRPC instance) =>
     <String, dynamic>{
       'concurrency': instance.concurrency,
       'queue_size': instance.queueSize,
-      'max_timestamp_behind_ms': instance.maxTimestampBehindMs,
-      'max_timestamp_ahead_ms': instance.maxTimestampAheadMs,
       'timeout_ms': instance.timeoutMs,
       'max_route_hop_count': instance.maxRouteHopCount,
       'default_route_hop_count': instance.defaultRouteHopCount,
+      'max_timestamp_behind_ms': instance.maxTimestampBehindMs,
+      'max_timestamp_ahead_ms': instance.maxTimestampAheadMs,
     };
 
 _$_VeilidConfigRoutingTable _$$_VeilidConfigRoutingTableFromJson(
@@ -414,19 +408,16 @@ _$_VeilidConfigNetwork _$$_VeilidConfigNetworkFromJson(
       reverseConnectionReceiptTimeMs:
           json['reverse_connection_receipt_time_ms'] as int,
       holePunchReceiptTimeMs: json['hole_punch_receipt_time_ms'] as int,
-      networkKeyPassword: json['network_key_password'] as String?,
-      routingTable: VeilidConfigRoutingTable.fromJson(
-          json['routing_table'] as Map<String, dynamic>),
-      rpc: VeilidConfigRPC.fromJson(json['rpc'] as Map<String, dynamic>),
-      dht: VeilidConfigDHT.fromJson(json['dht'] as Map<String, dynamic>),
+      routingTable: VeilidConfigRoutingTable.fromJson(json['routing_table']),
+      rpc: VeilidConfigRPC.fromJson(json['rpc']),
+      dht: VeilidConfigDHT.fromJson(json['dht']),
       upnp: json['upnp'] as bool,
       detectAddressChanges: json['detect_address_changes'] as bool,
       restrictedNatRetries: json['restricted_nat_retries'] as int,
-      tls: VeilidConfigTLS.fromJson(json['tls'] as Map<String, dynamic>),
-      application: VeilidConfigApplication.fromJson(
-          json['application'] as Map<String, dynamic>),
-      protocol: VeilidConfigProtocol.fromJson(
-          json['protocol'] as Map<String, dynamic>),
+      tls: VeilidConfigTLS.fromJson(json['tls']),
+      application: VeilidConfigApplication.fromJson(json['application']),
+      protocol: VeilidConfigProtocol.fromJson(json['protocol']),
+      networkKeyPassword: json['network_key_password'] as String?,
     );
 
 Map<String, dynamic> _$$_VeilidConfigNetworkToJson(
@@ -444,7 +435,6 @@ Map<String, dynamic> _$$_VeilidConfigNetworkToJson(
       'reverse_connection_receipt_time_ms':
           instance.reverseConnectionReceiptTimeMs,
       'hole_punch_receipt_time_ms': instance.holePunchReceiptTimeMs,
-      'network_key_password': instance.networkKeyPassword,
       'routing_table': instance.routingTable.toJson(),
       'rpc': instance.rpc.toJson(),
       'dht': instance.dht.toJson(),
@@ -454,6 +444,7 @@ Map<String, dynamic> _$$_VeilidConfigNetworkToJson(
       'tls': instance.tls.toJson(),
       'application': instance.application.toJson(),
       'protocol': instance.protocol.toJson(),
+      'network_key_password': instance.networkKeyPassword,
     };
 
 _$_VeilidConfigTableStore _$$_VeilidConfigTableStoreFromJson(
@@ -526,16 +517,12 @@ _$_VeilidConfig _$$_VeilidConfigFromJson(Map<String, dynamic> json) =>
     _$_VeilidConfig(
       programName: json['program_name'] as String,
       namespace: json['namespace'] as String,
-      capabilities: VeilidConfigCapabilities.fromJson(
-          json['capabilities'] as Map<String, dynamic>),
-      protectedStore: VeilidConfigProtectedStore.fromJson(
-          json['protected_store'] as Map<String, dynamic>),
-      tableStore: VeilidConfigTableStore.fromJson(
-          json['table_store'] as Map<String, dynamic>),
-      blockStore: VeilidConfigBlockStore.fromJson(
-          json['block_store'] as Map<String, dynamic>),
-      network:
-          VeilidConfigNetwork.fromJson(json['network'] as Map<String, dynamic>),
+      capabilities: VeilidConfigCapabilities.fromJson(json['capabilities']),
+      protectedStore:
+          VeilidConfigProtectedStore.fromJson(json['protected_store']),
+      tableStore: VeilidConfigTableStore.fromJson(json['table_store']),
+      blockStore: VeilidConfigBlockStore.fromJson(json['block_store']),
+      network: VeilidConfigNetwork.fromJson(json['network']),
     );
 
 Map<String, dynamic> _$$_VeilidConfigToJson(_$_VeilidConfig instance) =>

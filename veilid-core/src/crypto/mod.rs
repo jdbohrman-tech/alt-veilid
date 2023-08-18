@@ -325,4 +325,11 @@ impl Crypto {
             },
         )
     }
+
+    pub(crate) fn validate_crypto_kind(kind: CryptoKind) -> VeilidAPIResult<()> {
+        if !VALID_CRYPTO_KINDS.contains(&kind) {
+            apibail_generic!("invalid crypto kind");
+        }
+        Ok(())
+    }
 }
