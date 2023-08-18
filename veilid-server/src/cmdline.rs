@@ -8,7 +8,7 @@ use veilid_core::{TypedKeyGroup, TypedSecretGroup};
 
 fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap::Error> {
     let matches = Command::new("veilid-server")
-        .version(cargo_version!())
+        .version(env!("CARGO_PKG_VERSION"))
         .about("Veilid Server")
         .color(clap::ColorChoice::Auto)
         .arg(
