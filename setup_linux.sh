@@ -8,7 +8,7 @@ if [[ "$(uname)" != "Linux" ]]; then
     exit 1
 fi
 
-if [ "$(lsb_release -d | grep -qEi 'debian|buntu|mint')" ]; then
+if ! lsb_release -d | grep -qEi 'debian|buntu|mint' && [ -z "$(command -v dnf)" ]; then
     echo Not a supported Linux
     exit 1
 fi

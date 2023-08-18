@@ -10,7 +10,7 @@ if [ "$EUID" -ne 0 ]; then
         sudo checkinstall --pkgversion=$VERSION -y cp -r bin include /usr/local/
         cp *.deb ~
     else 
-        sudo make install
+	sudo cp -r bin include /usr/local/
     fi
     popd
     sudo rm -rf /tmp/protoc-install
@@ -19,7 +19,7 @@ else
         checkinstall --pkgversion=$VERSION -y cp -r bin include /usr/local/
         cp *.deb ~
     else 
-        make install
+        cp -r bin include /usr/local/
     fi
     popd
     rm -rf /tmp/protoc-install
