@@ -4,11 +4,11 @@
 
 To use:
 ```
-poetry add veilid_python
+poetry add veilid
 ```
 or 
 ```
-pip3 install veilid_python
+pip3 install veilid
 ```
 
 
