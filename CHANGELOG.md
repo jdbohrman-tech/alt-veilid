@@ -1,3 +1,19 @@
+**Changes in Veilid 0.1.8**
+- Fix Python Install Instructions
+- Fix to get server version from crate
+- Move dev setup into its own folder
+- Setup support for Fedora
+- Make submodule paths absolute
+- veilid-flutter improvements for crypto and timestamp, and endianness bugfix
+- Offline subkey writes for DHT
+- Fix WASM compilation
+- Improve server port allocation
+- Add more punishments
+- Clap derive refactor for command line args
+- gitignore emacs backup files
+- Various typos
+- Fanout debugging for DHT
+
 **Changes in Veilid 0.1.7**
 
 - Fix for connection table crash
