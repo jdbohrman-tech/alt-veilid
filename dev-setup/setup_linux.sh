@@ -115,6 +115,6 @@ cargo install wasm-bindgen-cli wasm-pack
 pip3 install --upgrade bumpversion
 
 # Install capnproto using the same mechanism as our earthly build
-$SCRIPTDIR/scripts/earthly/install_capnproto.sh
+$SCRIPTDIR/../scripts/earthly/install_capnproto.sh
 # Install protoc using the same mechanism as our earthly build
-$SCRIPTDIR/scripts/earthly/install_protoc.sh
+$SCRIPTDIR/../scripts/earthly/install_protoc.sh
