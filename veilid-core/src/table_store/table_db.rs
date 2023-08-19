@@ -147,10 +147,10 @@ impl TableDB {
                 (&data[0..NONCE_LENGTH]).try_into().unwrap(),
                 &di.key,
             );
-            decompress_size_prepended(&out)
+            decompress_size_prepended(&out, None)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
         } else {
-            decompress_size_prepended(data)
+            decompress_size_prepended(data, None)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
         }
     }

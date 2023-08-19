@@ -214,8 +214,7 @@ impl Envelope {
         );
 
         // Decompress body
-        let body = decompress_size_prepended(&body)
-            .map_err(|e| VeilidAPIError::parse_error("failed to decompress", e))?;
+        let body = decompress_size_prepended(&body, Some(MAX_ENVELOPE_SIZE))?;
 
         Ok(body)
     }
