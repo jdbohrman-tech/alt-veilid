@@ -17,12 +17,10 @@ pub use protocol::*;
 
 use async_tls::TlsAcceptor;
 use futures_util::StreamExt;
-use std::io;
-// xxx: rustls ^0.20
-//use rustls::{server::NoClientAuth, Certificate, PrivateKey, ServerConfig};
-use rustls::{Certificate, NoClientAuth, PrivateKey, ServerConfig};
+use rustls::{Certificate, PrivateKey, ServerConfig};
 use rustls_pemfile::{certs, pkcs8_private_keys, rsa_private_keys};
 use std::fs::File;
+use std::io;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
@@ -295,15 +293,10 @@ impl Network {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Private key at {} could not be loaded.\nEnsure it is unencrypted and in RSA or PKCS8 format, beginning with '-----BEGIN RSA PRIVATE KEY-----' or '-----BEGIN PRIVATE KEY-----'",c.network.tls.private_key_path)));
         }
 
-        // xxx: rustls ^0.20
-        // let mut config = ServerConfig::builder()
-        //     .with_safe_defaults()
-        //     .with_no_client_auth()
-        //     .with_single_cert(certs, keys.remove(0))
-        //     .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
-        let mut config = ServerConfig::new(NoClientAuth::new());
-        config
-            .set_single_cert(certs, keys.remove(0))
+        let config = ServerConfig::builder()
+            .with_safe_defaults()
+            .with_no_client_auth()
+            .with_single_cert(certs, keys.remove(0))
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
 
         Ok(config)

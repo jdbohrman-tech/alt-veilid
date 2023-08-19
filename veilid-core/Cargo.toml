@@ -37,60 +37,60 @@ network-result-extra = ["veilid-tools/network-result-extra"]
 
 # Tools
 veilid-tools = { path = "../veilid-tools", features = [ "tracing" ] }
-paste = "1.0.12"
-once_cell = "^1"
-owning_ref = "^0"
-backtrace = { version = "^0" }
+paste = "1.0.14"
+once_cell = "1.18.0"
+owning_ref = "0.4.1"
+backtrace = "0.3.68"
 num-traits = "0.2.15"
 shell-words = "1.1.0"
-static_assertions = "^1"
-cfg-if = "^1"
-hex = "^0"
-lazy_static = "^1"
-directories = "^4"
+static_assertions = "1.1.0"
+cfg-if = "1.0.0"
+hex = "0.4.3"
+lazy_static = "1.4.0"
+directories = "5.0.1"
 
 # Logging
-tracing = { version = "^0", features = ["log", "attributes"] }
-tracing-subscriber = "^0"
-tracing-error = "^0"
-eyre = "^0"
-thiserror = "^1"
+tracing = { version = "0.1.37", features = ["log", "attributes"] }
+tracing-subscriber = "0.3.17"
+tracing-error = "0.2.0"
+eyre = "0.6.8"
+thiserror = "1.0.47"
 
 # Data structures
-enumset = { version= "^1", features = ["serde"] }
+enumset = { version= "1.1.2", features = ["serde"] }
 keyvaluedb = { path = "../external/keyvaluedb/keyvaluedb" }
-range-set-blaze = "0.1.5"
+range-set-blaze = "0.1.9"
 weak-table = "0.3.2"
-generic-array = "^0"
+generic-array = "0.14.7"
 hashlink = { path = "../external/hashlink", features = ["serde_impl"] }
 
 # System
-futures-util = { version = "^0", default_features = false, features = ["alloc"] }
-flume = { version = "^0", features = ["async"] }
-parking_lot = "^0"
-stop-token = { version = "^0", default-features = false }
+futures-util = { version = "0.3.28", default_features = false, features = ["alloc"] }
+flume = { version = "0.11.0", features = ["async"] }
+parking_lot = "0.12.1"
+stop-token = { version = "0.7.0", default-features = false }
 
 # Crypto
-ed25519-dalek = { version = "^1", default_features = false, features = ["alloc", "u64_backend"] }
-x25519-dalek = { version = "^1", default_features = false, features = ["u64_backend"] }
-curve25519-dalek = { version = "^3", default_features = false, features = ["alloc", "u64_backend"] }
-blake3 = { version = "^1" }
-chacha20poly1305 = "^0"
-chacha20 = "^0"
-argon2 = "0.5.0"
+ed25519-dalek = { version = "2.0.0", default_features = false, features = ["alloc", "rand_core", "digest"] }
+x25519-dalek = { version = "2.0.0", default_features = false, features = ["alloc", "static_secrets"] }
+curve25519-dalek = { version = "4.0.0", default_features = false, features = ["alloc"] }
+blake3 = { version = "1.4.1" }
+chacha20poly1305 = "0.10.1"
+chacha20 = "0.9.1"
+argon2 = "0.5.1"
 
 # Network
-async-std-resolver = { version = "^0", optional = true }
-trust-dns-resolver = { version = "^0", optional = true }
+async-std-resolver = { version = "0.22.0", optional = true }
+trust-dns-resolver = { version = "0.22.0", optional = true }
 enum-as-inner = "=0.5.1" # temporary fix for trust-dns-resolver v0.22.0
 
 # Serialization
-capnp = { version = "^0", default_features = false }
-serde = { version = "^1", features = ["derive" ] }
-serde_json = { version = "^1" }
-serde-big-array = "^0"
-json = "^0"
-data-encoding = { version = "^2" }
+capnp = { version = "0.17.2", default_features = false }
+serde = { version = "1.0.183", features = ["derive" ] }
+serde_json = { version = "1.0.105" }
+serde-big-array = "0.5.1"
+json = "0.12.4"
+data-encoding = { version = "2.4.0" }
 schemars = "0.8.12"
 lz4_flex = { version = "0.11.1", default-features = false, features = ["safe-encode", "safe-decode"] }
 
@@ -99,61 +99,61 @@ lz4_flex = { version = "0.11.1", default-features = false, features = ["safe-enc
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 
 # Tools
-config = { version = "^0", features = ["yaml"] }
+config = { version = "0.13.3", features = ["yaml"] }
 bugsalot = { git = "https://github.com/crioux/bugsalot.git" }
-chrono = "^0"
-libc = "^0"
-nix = "^0"
+chrono = "0.4.26"
+libc = "0.2.147"
+nix = "0.26.2"
 
 # System
-async-std = { version = "^1", features = ["unstable"], optional = true}
-tokio = { version = "^1", features = ["full"], optional = true}
-tokio-util = { version = "^0", features = ["compat"], optional = true}
-tokio-stream = { version = "^0", features = ["net"], optional = true}
-async-io = { version = "^1" }
-futures-util = { version = "^0", default-features = false, features = ["async-await", "sink", "std", "io"] }
+async-std = { version = "1.12.0", features = ["unstable"], optional = true}
+tokio = { version = "1.32.0", features = ["full"], optional = true}
+tokio-util = { version = "0.7.8", features = ["compat"], optional = true}
+tokio-stream = { version = "0.1.14", features = ["net"], optional = true}
+async-io = { version = "1.13.0" }
+futures-util = { version = "0.3.28", default-features = false, features = ["async-await", "sink", "std", "io"] }
 
 # Data structures
 keyring-manager = { path = "../external/keyring-manager" }
 keyvaluedb-sqlite = { path = "../external/keyvaluedb/keyvaluedb-sqlite" }
 
 # Network
-async-tungstenite = { version = "^0", features = ["async-tls"] }
+async-tungstenite = { version = "0.23.0", features = ["async-tls"] }
 igd  = { path = "../external/rust-igd" }
-async-tls = "^0.11"
-webpki = "^0"
-webpki-roots = "^0"
-rustls = "^0.19"
-rustls-pemfile = "^0.2"
-socket2 = { version = "^0", features = ["all"] }
+async-tls = "0.12.0"
+webpki = "0.22.0"
+webpki-roots = "0.25.2"
+rustls = "0.20.8"
+rustls-pemfile = "1.0.3"
+socket2 = { version = "0.5.3", features = ["all"] }
 
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 
 # Tools
-getrandom = { version = "^0", features = ["js"] }
+getrandom = { version = "0.2.4", features = ["js"] }
 
 # System
-async_executors = { version = "^0", default-features = false, features = [ "bindgen", "timer" ]}
-async-lock = "^2"
-wasm-bindgen = "^0"
-js-sys = "^0"
-wasm-bindgen-futures = "^0"
-send_wrapper = { version = "^0", features = ["futures"] }
+async_executors = { version = "0.7.0", default-features = false, features = [ "bindgen", "timer" ]}
+async-lock = "2.8.0"
+wasm-bindgen = "0.2.87"
+js-sys = "0.3.64"
+wasm-bindgen-futures = "0.4.37"
+send_wrapper = { version = "0.6.0", features = ["futures"] }
 
 # Network
-ws_stream_wasm = "^0"
+ws_stream_wasm = "0.7.4"
 
 # Logging
-wasm-logger = "^0"
-tracing-wasm = "^0"
+wasm-logger = "0.2.0"
+tracing-wasm = "0.2.1"
 
 # Data Structures
 keyvaluedb-web = { path = "../external/keyvaluedb/keyvaluedb-web" }
 
 ### Configuration for WASM32 'web-sys' crate
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
-version = "^0"
+version = "0.3.64"
 features = [
     'Document',
     'HtmlDocument',
@@ -169,15 +169,15 @@ features = [
 
 # Dependencies for Android
 [target.'cfg(target_os = "android")'.dependencies]
-jni = "^0"
-jni-sys = "^0"
-ndk = { version = "^0.7" }
-ndk-glue = { version = "^0.7", features = ["logger"] }
-paranoid-android = { version = "^0", optional = true }
+jni = "0.21.1"
+jni-sys = "0.3.0"
+ndk = { version = "0.7.0" }
+ndk-glue = { version = "0.7.0", features = ["logger"] }
+paranoid-android = { version = "0.2.1", optional = true }
 
 # Dependenices for all Unix (Linux, Android, MacOS, iOS)
 [target.'cfg(unix)'.dependencies]
-ifstructs = "^0"
+ifstructs = "0.1.1"
 
 # Dependencies for Linux or Android
 [target.'cfg(any(target_os = "android", target_os = "linux"))'.dependencies]
@@ -187,38 +187,38 @@ netlink-packet-route = { version = "=0.17.0" }
 
 # Dependencies for Windows
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "^0", features = [ "iptypes", "iphlpapi" ] }
-windows = { version = "^0", features = [ "Win32_NetworkManagement_Dns", "Win32_Foundation", "alloc" ]}
-windows-permissions = "^0"
+winapi = { version = "0.3.9", features = [ "iptypes", "iphlpapi" ] }
+windows = { version = "0.51.1", features = [ "Win32_NetworkManagement_Dns", "Win32_Foundation" ]}
+windows-permissions = "0.2.4"
 
 # Dependencies for iOS
 [target.'cfg(target_os = "ios")'.dependencies]
-tracing-oslog = { version = "^0", optional = true }
+tracing-oslog = { version = "0.1.2", optional = true }
 
 # Rusqlite configuration to ensure platforms that don't come with sqlite get it bundled
 # Except WASM which doesn't use sqlite
 [target.'cfg(all(not(target_os = "ios"),not(target_os = "android"),not(target_arch = "wasm32")))'.dependencies.rusqlite]
-version = "^0"
+version = "0.29.0"
 features = ["bundled"]
 
 ### DEV DEPENDENCIES
 
 [dev-dependencies]
-serial_test = "^0"
+serial_test = "2.0.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-simplelog = { version = "^0", features=["test"] }
+simplelog = { version = "0.12.1", features=["test"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "^0"
-console_error_panic_hook = "^0"
-wee_alloc = "^0"
-wasm-logger = "^0"
+wasm-bindgen-test = "0.3.37"
+console_error_panic_hook = "0.1.7"
+wee_alloc = "0.4.5"
+wasm-logger = "0.2.0"
 
 ### BUILD OPTIONS
 
 [build-dependencies]
-capnpc = "^0"
+capnpc = "0.17.2"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]

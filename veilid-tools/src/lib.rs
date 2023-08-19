@@ -2,7 +2,6 @@
 mod assembly_buffer;
 mod async_peek_stream;
 mod async_tag_lock;
-mod callback_state_machine;
 mod clone_stream;
 mod eventual;
 mod eventual_base;
@@ -92,7 +91,6 @@ cfg_if! {
 pub use assembly_buffer::*;
 pub use async_peek_stream::*;
 pub use async_tag_lock::*;
-pub use callback_state_machine::*;
 pub use clone_stream::*;
 pub use eventual::*;
 pub use eventual_base::{EventualCommon, EventualResolvedFuture};

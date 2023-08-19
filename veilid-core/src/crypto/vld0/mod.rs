@@ -7,9 +7,9 @@ use argon2::{
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::XChaCha20;
 use chacha20poly1305 as ch;
-use chacha20poly1305::aead::{AeadInPlace, NewAead};
+use chacha20poly1305::aead::AeadInPlace;
+use chacha20poly1305::KeyInit;
 use core::convert::TryInto;
-use curve25519_dalek as cd;
 use curve25519_dalek::digest::Digest;
 use ed25519_dalek as ed;
 use x25519_dalek as xd;
@@ -17,27 +17,27 @@ use x25519_dalek as xd;
 const AEAD_OVERHEAD: usize = 16;
 pub const CRYPTO_KIND_VLD0: CryptoKind = FourCC(*b"VLD0");
 
-fn ed25519_to_x25519_pk(key: &ed::PublicKey) -> VeilidAPIResult<xd::PublicKey> {
-    let bytes = key.to_bytes();
-    let compressed = cd::edwards::CompressedEdwardsY(bytes);
-    let point = compressed
-        .decompress()
-        .ok_or_else(|| VeilidAPIError::internal("ed25519_to_x25519_pk failed"))?;
-    let mp = point.to_montgomery();
+fn ed25519_to_x25519_pk(key: &ed::VerifyingKey) -> VeilidAPIResult<xd::PublicKey> {
+    let mp = key.to_montgomery();
     Ok(xd::PublicKey::from(mp.to_bytes()))
 }
-fn ed25519_to_x25519_sk(key: &ed::SecretKey) -> VeilidAPIResult<xd::StaticSecret> {
-    let exp = ed::ExpandedSecretKey::from(key);
-    let bytes: [u8; ed::EXPANDED_SECRET_KEY_LENGTH] = exp.to_bytes();
-    let lowbytes: [u8; 32] = bytes[0..32].try_into().map_err(VeilidAPIError::internal)?;
-    Ok(xd::StaticSecret::from(lowbytes))
+fn ed25519_to_x25519_sk(key: &ed::SigningKey) -> VeilidAPIResult<xd::StaticSecret> {
+    Ok(xd::StaticSecret::from(*key.to_scalar().as_bytes()))
 }
 
 pub fn vld0_generate_keypair() -> KeyPair {
     let mut csprng = VeilidRng {};
-    let keypair = ed::Keypair::generate(&mut csprng);
-    let dht_key = PublicKey::new(keypair.public.to_bytes());
-    let dht_key_secret = SecretKey::new(keypair.secret.to_bytes());
+    let keypair = ed::SigningKey::generate(&mut csprng);
+    let dht_key = PublicKey::new(
+        keypair.to_keypair_bytes()[ed::SECRET_KEY_LENGTH..]
+            .try_into()
+            .expect("should fit"),
+    );
+    let dht_key_secret = SecretKey::new(
+        keypair.to_keypair_bytes()[0..ed::SECRET_KEY_LENGTH]
+            .try_into()
+            .expect("should fit"),
+    );
 
     KeyPair::new(dht_key, dht_key_secret)
 }
@@ -130,9 +130,9 @@ impl CryptoSystem for CryptoSystemVLD0 {
         SharedSecret::new(s)
     }
     fn compute_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
-        let pk_ed = ed::PublicKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
+        let pk_ed = ed::VerifyingKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
         let pk_xd = ed25519_to_x25519_pk(&pk_ed)?;
-        let sk_ed = ed::SecretKey::from_bytes(&secret.bytes).map_err(VeilidAPIError::internal)?;
+        let sk_ed = ed::SigningKey::from_bytes(&secret.bytes);
         let sk_xd = ed25519_to_x25519_sk(&sk_ed)?;
         Ok(SharedSecret::new(sk_xd.diffie_hellman(&pk_xd).to_bytes()))
     }
@@ -197,7 +197,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
         kpb[..SECRET_KEY_LENGTH].copy_from_slice(&dht_key_secret.bytes);
         kpb[SECRET_KEY_LENGTH..].copy_from_slice(&dht_key.bytes);
-        let keypair = ed::Keypair::from_bytes(&kpb)
+        let keypair = ed::SigningKey::from_keypair_bytes(&kpb)
             .map_err(|e| VeilidAPIError::parse_error("Keypair is invalid", e))?;
 
         let mut dig = Blake3Digest512::new();
@@ -219,11 +219,9 @@ impl CryptoSystem for CryptoSystemVLD0 {
         data: &[u8],
         signature: &Signature,
     ) -> VeilidAPIResult<()> {
-        let pk = ed::PublicKey::from_bytes(&dht_key.bytes)
+        let pk = ed::VerifyingKey::from_bytes(&dht_key.bytes)
             .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
-        let sig = ed::Signature::from_bytes(&signature.bytes)
-            .map_err(|e| VeilidAPIError::parse_error("Signature is invalid", e))?;
-
+        let sig = ed::Signature::from_bytes(&signature.bytes);
         let mut dig = Blake3Digest512::new();
         dig.update(data);
 
@@ -302,7 +300,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) {
-        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), nonce.into());
+        let mut cipher = <XChaCha20 as KeyIvInit>::new(&shared_secret.bytes.into(), nonce.into());
         cipher.apply_keystream(body);
     }
 
@@ -313,7 +311,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         nonce: &[u8; NONCE_LENGTH],
         shared_secret: &SharedSecret,
     ) {
-        let mut cipher = XChaCha20::new(&shared_secret.bytes.into(), nonce.into());
+        let mut cipher = <XChaCha20 as KeyIvInit>::new(&shared_secret.bytes.into(), nonce.into());
         cipher.apply_keystream_b2b(in_buf, out_buf).unwrap();
     }
 
