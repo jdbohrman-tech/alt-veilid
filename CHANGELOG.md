@@ -1,3 +1,11 @@
+**Changes in Veilid 0.1.9**
+- SECURITY FIX
+  * DESCRIPTION: Decompression was occurring in an unbounded way upon envelope receipt.
+  * IMPACT: Node crashes resulting in downtime. There was no risk of RCE or compromise due to Rust's memory protections and no use of unsafe code near the site of the error.
+  * INDICATIONS: This resulted in an out-of-memory abort on nodes. Issue first identified on the bootstrap servers. 
+  * REMEDIATION: Length check added to decompression on envelopes.
+- Earthfile support for generating a debug executable
+
 **Changes in Veilid 0.1.8**
 - Fix Python Install Instructions
 - Fix to get server version from crate
