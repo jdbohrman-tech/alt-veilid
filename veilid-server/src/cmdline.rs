@@ -155,6 +155,7 @@ fn do_clap_matches(default_config_path: &OsStr) -> Result<clap::ArgMatches, clap
         .arg(
             Arg::new("network-key")
                 .long("network-key")
+                .takes_value(true)
                 .help("password override to use for network isolation"),
         )
         ;
@@ -264,7 +265,7 @@ pub fn process_command_line() -> EyreResult<(Settings, ArgMatches)> {
         settingsrw.core.protected_store.new_device_encryption_key_password = Some(matches.value_of("new-password").unwrap().to_owned());
     }
     if matches.occurrences_of("network-key") != 0 {
-        settingsrw.core.network.network_key_password = Some(matches.value_of("new-password").unwrap().to_owned());
+        settingsrw.core.network.network_key_password = Some(matches.value_of("network-key").unwrap().to_owned());
     }
 
     if matches.occurrences_of("dump-txt-record") != 0 {
