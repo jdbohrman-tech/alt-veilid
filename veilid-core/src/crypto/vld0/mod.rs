@@ -27,8 +27,8 @@ fn secret_to_x25519_sk(secret: &SecretKey) -> VeilidAPIResult<xd::StaticSecret> 
         .chain_update(secret.bytes)
         .finalize()
         .into();
-    let mut output = [0u8; 32];
-    output.copy_from_slice(&hash[..32]);
+    let mut output = [0u8; SECRET_KEY_LENGTH];
+    output.copy_from_slice(&hash[..SECRET_KEY_LENGTH]);
 
     Ok(xd::StaticSecret::from(output))
 }
@@ -134,7 +134,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let pk_xd = public_to_x25519_pk(&key)?;
         let sk_xd = secret_to_x25519_sk(&secret)?;
 
-        Ok(SharedSecret::new(sk_xd.diffie_hellman(&pk_xd).to_bytes()))
+        let output = self
+            .generate_hash(&sk_xd.diffie_hellman(&pk_xd).to_bytes())
+            .bytes;
+
+        Ok(SharedSecret::new(output))
     }
     fn generate_keypair(&self) -> KeyPair {
         vld0_generate_keypair()
