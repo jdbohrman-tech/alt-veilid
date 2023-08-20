@@ -5,7 +5,8 @@
 - Windows crate update caused build and nul termination issues for DNS resolver
 - Fix for network key on the veilid-server command line
 - Strict verification for Ed25519 enabled
-
+- Domain separation for VLD0 signing and crypt
+  
 **Changes in Veilid 0.1.9**
 - SECURITY FIX
   * DESCRIPTION: Decompression was occurring in an unbounded way upon envelope receipt.

@@ -98,7 +98,7 @@ cfg_if! {
         pub fn setup() {
             SETUP_ONCE.call_once(|| {
                 use tracing_subscriber::{filter, fmt, prelude::*};
-                let mut filters = filter::Targets::new().with_default(filter::LevelFilter::TRACE);
+                let mut filters = filter::Targets::new().with_default(filter::LevelFilter::INFO);
                 for ig in DEFAULT_LOG_IGNORE_LIST {
                     filters = filters.with_target(ig, filter::LevelFilter::OFF);
                 }
