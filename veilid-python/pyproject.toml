@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "veilid"
-version = "0.1.9"
+version = "0.1.10"
 description = ""
 authors = ["Veilid Team <contact@veilid.com>"]
 readme = "README.md"
