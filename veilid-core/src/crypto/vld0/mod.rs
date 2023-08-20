@@ -9,35 +9,39 @@ use chacha20::XChaCha20;
 use chacha20poly1305 as ch;
 use chacha20poly1305::aead::AeadInPlace;
 use chacha20poly1305::KeyInit;
-use core::convert::TryInto;
 use curve25519_dalek::digest::Digest;
 use ed25519_dalek as ed;
 use x25519_dalek as xd;
 
+const VEILID_DOMAIN_SIGN: &[u8] = b"VLD0_SIGN";
+const VEILID_DOMAIN_CRYPT: &[u8] = b"VLD0_CRYPT";
+
 const AEAD_OVERHEAD: usize = 16;
 pub const CRYPTO_KIND_VLD0: CryptoKind = FourCC(*b"VLD0");
 
-fn ed25519_to_x25519_pk(key: &ed::VerifyingKey) -> VeilidAPIResult<xd::PublicKey> {
-    let mp = key.to_montgomery();
-    Ok(xd::PublicKey::from(mp.to_bytes()))
+fn public_to_x25519_pk(public: &PublicKey) -> VeilidAPIResult<xd::PublicKey> {
+    let pk_ed = ed::VerifyingKey::from_bytes(&public.bytes).map_err(VeilidAPIError::internal)?;
+    Ok(xd::PublicKey::from(*pk_ed.to_montgomery().as_bytes()))
 }
-fn ed25519_to_x25519_sk(key: &ed::SigningKey) -> VeilidAPIResult<xd::StaticSecret> {
-    Ok(xd::StaticSecret::from(*key.to_scalar().as_bytes()))
+fn secret_to_x25519_sk(secret: &SecretKey) -> VeilidAPIResult<xd::StaticSecret> {
+    // NOTE: ed::SigningKey.to_scalar() does not produce an unreduced scalar, we want the raw bytes here
+    // See https://github.com/dalek-cryptography/curve25519-dalek/issues/565
+    let hash: [u8; SIGNATURE_LENGTH] = ed::Sha512::default()
+        .chain_update(secret.bytes)
+        .finalize()
+        .into();
+    let mut output = [0u8; SECRET_KEY_LENGTH];
+    output.copy_from_slice(&hash[..SECRET_KEY_LENGTH]);
+
+    Ok(xd::StaticSecret::from(output))
 }
 
 pub fn vld0_generate_keypair() -> KeyPair {
     let mut csprng = VeilidRng {};
-    let keypair = ed::SigningKey::generate(&mut csprng);
-    let dht_key = PublicKey::new(
-        keypair.to_keypair_bytes()[ed::SECRET_KEY_LENGTH..]
-            .try_into()
-            .expect("should fit"),
-    );
-    let dht_key_secret = SecretKey::new(
-        keypair.to_keypair_bytes()[0..ed::SECRET_KEY_LENGTH]
-            .try_into()
-            .expect("should fit"),
-    );
+    let signing_key = ed::SigningKey::generate(&mut csprng);
+    let verifying_key = signing_key.verifying_key();
+    let dht_key = PublicKey::new(verifying_key.to_bytes());
+    let dht_key_secret = SecretKey::new(signing_key.to_bytes());
 
     KeyPair::new(dht_key, dht_key_secret)
 }
@@ -130,11 +134,17 @@ impl CryptoSystem for CryptoSystemVLD0 {
         SharedSecret::new(s)
     }
     fn compute_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
-        let pk_ed = ed::VerifyingKey::from_bytes(&key.bytes).map_err(VeilidAPIError::internal)?;
-        let pk_xd = ed25519_to_x25519_pk(&pk_ed)?;
-        let sk_ed = ed::SigningKey::from_bytes(&secret.bytes);
-        let sk_xd = ed25519_to_x25519_sk(&sk_ed)?;
-        Ok(SharedSecret::new(sk_xd.diffie_hellman(&pk_xd).to_bytes()))
+        let pk_xd = public_to_x25519_pk(&key)?;
+        let sk_xd = secret_to_x25519_sk(&secret)?;
+
+        let dh_bytes = sk_xd.diffie_hellman(&pk_xd).to_bytes();
+
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(VEILID_DOMAIN_CRYPT);
+        hasher.update(&dh_bytes);
+        let output = hasher.finalize();
+
+        Ok(SharedSecret::new(*output.as_bytes()))
     }
     fn generate_keypair(&self) -> KeyPair {
         vld0_generate_keypair()
@@ -200,11 +210,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let keypair = ed::SigningKey::from_keypair_bytes(&kpb)
             .map_err(|e| VeilidAPIError::parse_error("Keypair is invalid", e))?;
 
-        let mut dig = Blake3Digest512::new();
+        let mut dig: ed::Sha512 = ed::Sha512::default();
         dig.update(data);
 
         let sig_bytes = keypair
-            .sign_prehashed(dig, None)
+            .sign_prehashed(dig, Some(VEILID_DOMAIN_SIGN))
             .map_err(VeilidAPIError::internal)?;
 
         let sig = Signature::new(sig_bytes.to_bytes());
@@ -222,10 +232,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let pk = ed::VerifyingKey::from_bytes(&dht_key.bytes)
             .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
         let sig = ed::Signature::from_bytes(&signature.bytes);
-        let mut dig = Blake3Digest512::new();
+
+        let mut dig: ed::Sha512 = ed::Sha512::default();
         dig.update(data);
 
-        pk.verify_prehashed_strict(dig, None, &sig)
+        pk.verify_prehashed_strict(dig, Some(VEILID_DOMAIN_SIGN), &sig)
             .map_err(|e| VeilidAPIError::parse_error("Verification failed", e))?;
         Ok(())
     }

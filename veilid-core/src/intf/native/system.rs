@@ -79,21 +79,19 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
     cfg_if! {
         if #[cfg(target_os = "windows")] {
             use core::ffi::c_void;
-            use windows::core::PSTR;
-            use std::ffi::CStr;
+            use windows::core::{PSTR,PCSTR};
+            use std::ffi::{CStr, CString};
             use windows::Win32::NetworkManagement::Dns::{DnsQuery_UTF8, DnsFree, DNS_TYPE_TEXT, DNS_QUERY_STANDARD, DNS_RECORDA, DnsFreeRecordList};
 
             let mut out = Vec::new();
             unsafe {
                 let mut p_query_results: *mut DNS_RECORDA = core::ptr::null_mut();
-                let status = DnsQuery_UTF8(host.as_ref(), DNS_TYPE_TEXT as u16, DNS_QUERY_STANDARD, core::ptr::null_mut(), &mut p_query_results as *mut *mut DNS_RECORDA, core::ptr::null_mut());
-                if status != 0 {
-                    bail!("Failed to resolve TXT record");
-                }
+                let host = CString::new(host.as_ref()).wrap_err("invalid host string")?;
+                DnsQuery_UTF8(PCSTR::from_raw(host.as_bytes_with_nul().as_ptr()), DNS_TYPE_TEXT, DNS_QUERY_STANDARD, None, &mut p_query_results as *mut *mut DNS_RECORDA, None).wrap_err("Failed to resolve TXT record")?;
 
                 let mut p_record: *mut DNS_RECORDA = p_query_results;
                 while !p_record.is_null() {
-                    if (*p_record).wType == DNS_TYPE_TEXT as u16 {
+                    if (*p_record).wType == DNS_TYPE_TEXT.0 {
                         let count:usize = (*p_record).Data.TXT.dwStringCount.try_into().unwrap();
                         let string_array: *const PSTR = &(*p_record).Data.TXT.pStringArray[0];
                         for n in 0..count {
@@ -107,7 +105,7 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
                     }
                     p_record = (*p_record).pNext;
                 }
-                DnsFree(p_query_results as *const c_void, DnsFreeRecordList);
+                DnsFree(Some(p_query_results as *const c_void), DnsFreeRecordList);
             }
             Ok(out)
 
@@ -139,8 +137,8 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
     cfg_if! {
         if #[cfg(target_os = "windows")] {
             use core::ffi::c_void;
-            use windows::core::PSTR;
-            use std::ffi::CStr;
+            use windows::core::{PSTR,PCSTR};
+            use std::ffi::{CStr, CString};
             use windows::Win32::NetworkManagement::Dns::{DnsQuery_UTF8, DnsFree, DNS_TYPE_PTR, DNS_QUERY_STANDARD, DNS_RECORDA, DnsFreeRecordList};
 
             let host = match ip_addr {
@@ -159,14 +157,12 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
 
             unsafe {
                 let mut p_query_results: *mut DNS_RECORDA = core::ptr::null_mut();
-                let status = DnsQuery_UTF8(host, DNS_TYPE_PTR as u16, DNS_QUERY_STANDARD, core::ptr::null_mut(), &mut p_query_results as *mut *mut DNS_RECORDA, core::ptr::null_mut());
-                if status != 0 {
-                    bail!("Failed to resolve PTR record");
-                }
+                let host = CString::new(host).wrap_err("invalid host string")?;
+                DnsQuery_UTF8(PCSTR::from_raw(host.as_bytes_with_nul().as_ptr()), DNS_TYPE_PTR, DNS_QUERY_STANDARD, None, &mut p_query_results as *mut *mut DNS_RECORDA, None).wrap_err("Failed to resolve PTR record")?;
 
                 let mut p_record: *mut DNS_RECORDA = p_query_results;
                 while !p_record.is_null() {
-                    if (*p_record).wType == DNS_TYPE_PTR as u16 {
+                    if (*p_record).wType == DNS_TYPE_PTR.0 {
                         let p_name_host: PSTR = (*p_record).Data.PTR.pNameHost;
                         let c_str: &CStr = CStr::from_ptr(p_name_host.0 as *const i8);
                         if let Ok(str_slice) = c_str.to_str() {
@@ -176,7 +172,7 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
                     }
                     p_record = (*p_record).pNext;
                 }
-                DnsFree(p_query_results as *const c_void, DnsFreeRecordList);
+                DnsFree(Some(p_query_results as *const c_void), DnsFreeRecordList);
             }
             bail!("No records returned");
         } else {

@@ -139,7 +139,9 @@ pub async fn test_no_auth(vcrypto: CryptoSystemVersion) {
 pub async fn test_dh(vcrypto: CryptoSystemVersion) {
     trace!("test_dh");
     let (dht_key, dht_key_secret) = vcrypto.generate_keypair().into_split();
+    assert!(vcrypto.validate_keypair(&dht_key, &dht_key_secret));
     let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
+    assert!(vcrypto.validate_keypair(&dht_key2, &dht_key_secret2));
 
     let r1 = vcrypto.compute_dh(&dht_key, &dht_key_secret2).unwrap();
     let r2 = vcrypto.compute_dh(&dht_key2, &dht_key_secret).unwrap();

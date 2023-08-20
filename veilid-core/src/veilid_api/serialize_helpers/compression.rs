@@ -1,8 +1,6 @@
 use super::*;
 use lz4_flex::block;
 
-use crate::apibail_generic;
-
 pub fn compress_prepend_size(input: &[u8]) -> Vec<u8> {
     block::compress_prepend_size(input)
 }
