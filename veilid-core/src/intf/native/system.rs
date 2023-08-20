@@ -80,14 +80,14 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
         if #[cfg(target_os = "windows")] {
             use core::ffi::c_void;
             use windows::core::{PSTR,PCSTR};
-            use std::ffi::CStr;
+            use std::ffi::{CStr, CString};
             use windows::Win32::NetworkManagement::Dns::{DnsQuery_UTF8, DnsFree, DNS_TYPE_TEXT, DNS_QUERY_STANDARD, DNS_RECORDA, DnsFreeRecordList};
 
             let mut out = Vec::new();
             unsafe {
                 let mut p_query_results: *mut DNS_RECORDA = core::ptr::null_mut();
-                let host = host.as_ref().to_string();
-                DnsQuery_UTF8(PCSTR::from_raw(host.as_ptr()), DNS_TYPE_TEXT, DNS_QUERY_STANDARD, None, &mut p_query_results as *mut *mut DNS_RECORDA, None).wrap_err("Failed to resolve TXT record")?;
+                let host = CString::new(host.as_ref()).wrap_err("invalid host string")?;
+                DnsQuery_UTF8(PCSTR::from_raw(host.as_bytes_with_nul().as_ptr()), DNS_TYPE_TEXT, DNS_QUERY_STANDARD, None, &mut p_query_results as *mut *mut DNS_RECORDA, None).wrap_err("Failed to resolve TXT record")?;
 
                 let mut p_record: *mut DNS_RECORDA = p_query_results;
                 while !p_record.is_null() {
@@ -138,7 +138,7 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
         if #[cfg(target_os = "windows")] {
             use core::ffi::c_void;
             use windows::core::{PSTR,PCSTR};
-            use std::ffi::CStr;
+            use std::ffi::{CStr, CString};
             use windows::Win32::NetworkManagement::Dns::{DnsQuery_UTF8, DnsFree, DNS_TYPE_PTR, DNS_QUERY_STANDARD, DNS_RECORDA, DnsFreeRecordList};
 
             let host = match ip_addr {
@@ -157,7 +157,8 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
 
             unsafe {
                 let mut p_query_results: *mut DNS_RECORDA = core::ptr::null_mut();
-                DnsQuery_UTF8(PCSTR::from_raw(host.as_ptr()), DNS_TYPE_PTR, DNS_QUERY_STANDARD, None, &mut p_query_results as *mut *mut DNS_RECORDA, None).wrap_err("Failed to resolve PTR record")?;
+                let host = CString::new(host).wrap_err("invalid host string")?;
+                DnsQuery_UTF8(PCSTR::from_raw(host.as_bytes_with_nul().as_ptr()), DNS_TYPE_PTR, DNS_QUERY_STANDARD, None, &mut p_query_results as *mut *mut DNS_RECORDA, None).wrap_err("Failed to resolve PTR record")?;
 
                 let mut p_record: *mut DNS_RECORDA = p_query_results;
                 while !p_record.is_null() {
