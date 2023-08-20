@@ -13,6 +13,9 @@ use curve25519_dalek::digest::Digest;
 use ed25519_dalek as ed;
 use x25519_dalek as xd;
 
+const VEILID_DOMAIN_SIGN: &[u8] = b"VLD0_SIGN";
+const VEILID_DOMAIN_CRYPT: &[u8] = b"VLD0_CRYPT";
+
 const AEAD_OVERHEAD: usize = 16;
 pub const CRYPTO_KIND_VLD0: CryptoKind = FourCC(*b"VLD0");
 
@@ -134,11 +137,14 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let pk_xd = public_to_x25519_pk(&key)?;
         let sk_xd = secret_to_x25519_sk(&secret)?;
 
-        let output = self
-            .generate_hash(&sk_xd.diffie_hellman(&pk_xd).to_bytes())
-            .bytes;
+        let dh_bytes = sk_xd.diffie_hellman(&pk_xd).to_bytes();
 
-        Ok(SharedSecret::new(output))
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(VEILID_DOMAIN_CRYPT);
+        hasher.update(&dh_bytes);
+        let output = hasher.finalize();
+
+        Ok(SharedSecret::new(*output.as_bytes()))
     }
     fn generate_keypair(&self) -> KeyPair {
         vld0_generate_keypair()
@@ -204,11 +210,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let keypair = ed::SigningKey::from_keypair_bytes(&kpb)
             .map_err(|e| VeilidAPIError::parse_error("Keypair is invalid", e))?;
 
-        let mut dig = Blake3Digest512::new();
+        let mut dig: ed::Sha512 = ed::Sha512::default();
         dig.update(data);
 
         let sig_bytes = keypair
-            .sign_prehashed(dig, None)
+            .sign_prehashed(dig, Some(VEILID_DOMAIN_SIGN))
             .map_err(VeilidAPIError::internal)?;
 
         let sig = Signature::new(sig_bytes.to_bytes());
@@ -226,10 +232,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let pk = ed::VerifyingKey::from_bytes(&dht_key.bytes)
             .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
         let sig = ed::Signature::from_bytes(&signature.bytes);
-        let mut dig = Blake3Digest512::new();
+
+        let mut dig: ed::Sha512 = ed::Sha512::default();
         dig.update(data);
 
-        pk.verify_prehashed_strict(dig, None, &sig)
+        pk.verify_prehashed_strict(dig, Some(VEILID_DOMAIN_SIGN), &sig)
             .map_err(|e| VeilidAPIError::parse_error("Verification failed", e))?;
         Ok(())
     }

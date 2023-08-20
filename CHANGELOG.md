@@ -1,3 +1,11 @@
+**Changes in Veilid 0.1.10**
+- BREAKING CHANGE: ALL MUST UPDATE
+  * VLD0 now adds a BLAKE3 hash round on the DH output to further separate it from the raw key exchange
+  * Bootstraps are fixed now due to DH issue
+- Windows crate update caused build and nul termination issues for DNS resolver
+- Fix for network key on the veilid-server command line
+- Strict verification for Ed25519 enabled
+
 **Changes in Veilid 0.1.9**
 - SECURITY FIX
   * DESCRIPTION: Decompression was occurring in an unbounded way upon envelope receipt.
