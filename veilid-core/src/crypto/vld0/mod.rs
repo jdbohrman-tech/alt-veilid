@@ -229,7 +229,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let mut dig = Blake3Digest512::new();
         dig.update(data);
 
-        pk.verify_prehashed(dig, None, &sig)
+        pk.verify_prehashed_strict(dig, None, &sig)
             .map_err(|e| VeilidAPIError::parse_error("Verification failed", e))?;
         Ok(())
     }
