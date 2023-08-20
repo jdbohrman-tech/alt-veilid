@@ -288,7 +288,7 @@ impl Envelope {
             }
         }
 
-        // Encrypt and authenticate message
+        // Encrypt message
         let encrypted_body = vcrypto.crypt_no_auth_unaligned(&body, &self.nonce.bytes, &dh_secret);
 
         // Write body
