@@ -132,7 +132,7 @@ impl ConnectionTable {
         false
     }
 
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn add_connection(
         &self,
         network_connection: NetworkConnection,
