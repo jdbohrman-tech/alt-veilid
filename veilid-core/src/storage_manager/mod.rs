@@ -402,9 +402,9 @@ impl StorageManager {
                 return Ok(None);
             }
             let seq = last_signed_value_data.value_data().seq();
-            ValueData::new_with_seq(seq + 1, data, writer.key)
+            ValueData::new_with_seq(seq + 1, data, writer.key)?
         } else {
-            ValueData::new(data, writer.key)
+            ValueData::new(data, writer.key)?
         };
 
         // Validate with schema
