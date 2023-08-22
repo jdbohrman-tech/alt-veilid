@@ -538,6 +538,7 @@ impl RoutingTable {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
+        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
     ) -> ContactMethod {
         self.inner.read().get_contact_method(
             routing_domain,
@@ -545,6 +546,7 @@ impl RoutingTable {
             peer_b,
             dial_info_filter,
             sequencing,
+            dif_sort,
         )
     }
 

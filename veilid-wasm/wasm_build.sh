@@ -34,7 +34,7 @@ else
     OUTPUTDIR=../target/wasm32-unknown-unknown/debug/pkg
     INPUTDIR=../target/wasm32-unknown-unknown/debug
 
-    RUSTFLAGS="-O -g" cargo build --target wasm32-unknown-unknown
+    RUSTFLAGS="-O -g $RUSTFLAGS" cargo build --target wasm32-unknown-unknown
     mkdir -p $OUTPUTDIR
     wasm-bindgen --out-dir $OUTPUTDIR --target web --keep-debug --debug $INPUTDIR/veilid_wasm.wasm
     ./wasm-sourcemap.py $OUTPUTDIR/veilid_wasm_bg.wasm -o $OUTPUTDIR/veilid_wasm_bg.wasm.map --dwarfdump $DWARFDUMP

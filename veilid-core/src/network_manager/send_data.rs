@@ -357,6 +357,24 @@ impl NetworkManager {
         //     log_net!(debug "Node contact failing over to Ordered for {}", target_node_ref.to_string().cyan());
         //     sequencing = Sequencing::PreferOrdered;
         // }
+    
+        // Deprioritize dial info that have recently failed
+        let address_filter = self.address_filter();
+        let mut dial_info_failures_map = BTreeMap::<DialInfo, Timestamp>::new();
+        for did in peer_b.signed_node_info().node_info().all_filtered_dial_info_details(DialInfoDetail::NO_SORT, |_| true) {
+            if let Some(ts) = address_filter.get_dial_info_failed_ts(&did.dial_info) {
+                dial_info_failures_map.insert(did.dial_info, ts);
+            }
+        }
+        let dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if dial_info_failures_map.is_empty() {
+            None
+        } else {
+            Some(Arc::new(move |a: &DialInfoDetail, b: &DialInfoDetail| {    
+                let ats = dial_info_failures_map.get(&a.dial_info).copied().unwrap_or_default();
+                let bts = dial_info_failures_map.get(&b.dial_info).copied().unwrap_or_default();
+                ats.cmp(&bts)
+            }))
+        };
 
         // Get the best contact method with these parameters from the routing domain
         let cm = routing_table.get_contact_method(
@@ -365,6 +383,7 @@ impl NetworkManager {
             &peer_b,
             dial_info_filter,
             sequencing,
+            dif_sort,
         );
 
         // Translate the raw contact method to a referenced contact method

@@ -220,6 +220,7 @@ pub trait RoutingDomainDetail {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
+        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
     ) -> ContactMethod;
 }
 
@@ -245,6 +246,7 @@ fn first_filtered_dial_info_detail_between_nodes(
     to_node: &NodeInfo,
     dial_info_filter: &DialInfoFilter,
     sequencing: Sequencing,
+    dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>
 ) -> Option<DialInfoDetail> {
     let dial_info_filter = dial_info_filter.clone().filtered(
         &DialInfoFilter::all()
@@ -253,11 +255,28 @@ fn first_filtered_dial_info_detail_between_nodes(
     );
 
     // Apply sequencing and get sort
+    // Include sorting by external dial info sort for rotating through dialinfo
+    // based on an external preference table, for example the one kept by 
+    // AddressFilter to deprioritize dialinfo that have recently failed to connect
     let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
-    let sort = if ordered {
-        Some(DialInfoDetail::ordered_sequencing_sort)
+    let sort: Option<Box<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if ordered {
+        if let Some(dif_sort) = dif_sort {
+            Some(Box::new(move |a, b| {
+                let mut ord = dif_sort(a,b);
+                if ord == core::cmp::Ordering::Equal {
+                    ord = DialInfoDetail::ordered_sequencing_sort(a,b);
+                }
+                ord
+            }))
+        } else {
+            Some(Box::new(move |a,b| { DialInfoDetail::ordered_sequencing_sort(a,b) }))
+        }
     } else {
-        None
+        if let Some(dif_sort) = dif_sort {
+            Some(Box::new(move |a,b| { dif_sort(a,b) }))
+        } else {
+            None
+        }
     };
 
     // If the filter is dead then we won't be able to connect
@@ -287,6 +306,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
+        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
     ) -> ContactMethod {
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info().node_info();
@@ -304,7 +324,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
         // Get the best match dial info for node B if we have it
         if let Some(target_did) =
-            first_filtered_dial_info_detail_between_nodes(node_a, node_b, &dial_info_filter, sequencing)
+            first_filtered_dial_info_detail_between_nodes(node_a, node_b, &dial_info_filter, sequencing, dif_sort.clone())
         {
             // Do we need to signal before going inbound?
             if !target_did.class.requires_signal() {
@@ -334,6 +354,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                     node_b_relay,
                     &dial_info_filter,
                     sequencing,
+                    dif_sort.clone(),
                 )
                 .is_some()
                 {
@@ -347,6 +368,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                             node_a,
                             &dial_info_filter,
                             sequencing,
+                            dif_sort.clone()
                         ) {
                             // Ensure we aren't on the same public IP address (no hairpin nat)
                             if reverse_did.dial_info.to_ip_addr()
@@ -373,6 +395,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                             node_b,
                             &udp_dial_info_filter,
                             sequencing,
+                            dif_sort.clone()
                         ) {
                             // Does node A have a direct udp dialinfo that node B can reach?
                             if let Some(reverse_udp_did) = first_filtered_dial_info_detail_between_nodes(
@@ -380,6 +403,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                                 node_a,
                                 &udp_dial_info_filter,
                                 sequencing,
+                                dif_sort.clone(),
                             ) {
                                 // Ensure we aren't on the same public IP address (no hairpin nat)
                                 if reverse_udp_did.dial_info.to_ip_addr()
@@ -422,6 +446,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 &node_b_relay,
                 &dial_info_filter,
                 sequencing,
+                dif_sort.clone()
             )
             .is_some()
             {
@@ -496,6 +521,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
+        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
     ) -> ContactMethod {
         // Scope the filter down to protocols node A can do outbound
         let dial_info_filter = dial_info_filter.filtered(
@@ -504,20 +530,31 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
                 .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()),
         );
         
-        // Get first filtered dialinfo
-        let (sort, dial_info_filter) = match sequencing {
-            Sequencing::NoPreference => (None, dial_info_filter),
-            Sequencing::PreferOrdered => (
-                Some(DialInfoDetail::ordered_sequencing_sort),
-                dial_info_filter,
-            ),
-            Sequencing::EnsureOrdered => (
-                Some(DialInfoDetail::ordered_sequencing_sort),
-                dial_info_filter.filtered(
-                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
-                ),
-            ),
+        // Apply sequencing and get sort
+        // Include sorting by external dial info sort for rotating through dialinfo
+        // based on an external preference table, for example the one kept by 
+        // AddressFilter to deprioritize dialinfo that have recently failed to connect
+        let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
+        let sort: Option<Box<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if ordered {
+            if let Some(dif_sort) = dif_sort {
+                Some(Box::new(move |a, b| {
+                    let mut ord = dif_sort(a,b);
+                    if ord == core::cmp::Ordering::Equal {
+                        ord = DialInfoDetail::ordered_sequencing_sort(a,b);
+                    }
+                    ord
+                }))
+            } else {
+                Some(Box::new(move |a,b| { DialInfoDetail::ordered_sequencing_sort(a,b) }))
+            }
+        } else {
+            if let Some(dif_sort) = dif_sort {
+                Some(Box::new(move |a,b| { dif_sort(a,b) }))
+            } else {
+                None
+            }
         };
+
         // If the filter is dead then we won't be able to connect
         if dial_info_filter.is_dead() {
             return ContactMethod::Unreachable;
