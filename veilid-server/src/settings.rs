@@ -143,14 +143,14 @@ core:
             ws:
                 connect: true
                 listen: true
-                max_connections: 16
+                max_connections: 32
                 listen_address: ''
                 path: 'ws'
                 # url: 'ws://localhost:5150/ws'
             wss:
                 connect: true
                 listen: false
-                max_connections: 16
+                max_connections: 32
                 listen_address: ''
                 path: 'ws'
                 # url: ''
@@ -1686,7 +1686,7 @@ mod tests {
         //
         assert_eq!(s.core.network.protocol.ws.connect, true);
         assert_eq!(s.core.network.protocol.ws.listen, true);
-        assert_eq!(s.core.network.protocol.ws.max_connections, 16);
+        assert_eq!(s.core.network.protocol.ws.max_connections, 32);
         assert_eq!(s.core.network.protocol.ws.listen_address.name, "");
         assert_eq!(s.core.network.protocol.ws.listen_address.addrs, vec![]);
         assert_eq!(
@@ -1697,7 +1697,7 @@ mod tests {
         //
         assert_eq!(s.core.network.protocol.wss.connect, true);
         assert_eq!(s.core.network.protocol.wss.listen, false);
-        assert_eq!(s.core.network.protocol.wss.max_connections, 16);
+        assert_eq!(s.core.network.protocol.wss.max_connections, 32);
         assert_eq!(s.core.network.protocol.wss.listen_address.name, "");
         assert_eq!(s.core.network.protocol.wss.listen_address.addrs, vec![]);
         assert_eq!(
