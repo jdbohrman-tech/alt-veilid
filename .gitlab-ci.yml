@@ -13,16 +13,16 @@ stages:
 #before_script:
 #  - earthly bootstrap
 
-create_test_machine:
-  stage: test
-  only:
-    - main
-    - merge_requests
-  tags:
-    - build-orchestration
-  script:
-    - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
-  when: manual
+# create_test_machine:
+#   stage: test
+#   only:
+#     - main
+#     - merge_requests
+#   tags:
+#     - build-orchestration
+#   script:
+#     - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
+#   when: manual
 
 test_amd64:
   stage: test
@@ -38,17 +38,17 @@ test_amd64:
     - earthly bootstrap
     - earthly --ci +unit-tests-linux-amd64
 
-delete_test_machine:
-  stage: test
-  only:
-    - main
-    - merge_requests
-  needs:
-    - test_amd64
-  tags:
-    - build-orchestration
-  script:
-    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
+# delete_test_machine:
+#   stage: test
+#   only:
+#     - main
+#     - merge_requests
+#   needs:
+#     - test_amd64
+#   tags:
+#     - build-orchestration
+#   script:
+#     - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
 
 release_job:
   stage: release
