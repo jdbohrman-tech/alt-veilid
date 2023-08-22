@@ -380,6 +380,9 @@ impl NetworkManager {
             return Ok(());
         }
 
+        // Clean address filter for things that should not be persistent
+        self.address_filter().restart();
+
         // Create network components
         let connection_manager = ConnectionManager::new(self.clone());
         let net = Network::new(

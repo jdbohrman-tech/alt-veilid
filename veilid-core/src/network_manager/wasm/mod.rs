@@ -118,47 +118,66 @@ impl Network {
 
     /////////////////////////////////////////////////////////////////
 
+    // Record DialInfo failures
+    pub async fn record_dial_info_failure<T, F: Future<Output = EyreResult<NetworkResult<T>>>>(
+        &self,
+        dial_info: DialInfo,
+        fut: F,
+    ) -> EyreResult<NetworkResult<T>> {
+        let network_result = fut.await?;
+        if matches!(network_result, NetworkResult::NoConnection(_)) {
+            self.network_manager()
+                .address_filter()
+                .set_dial_info_failed(dial_info);
+        }
+        Ok(network_result)
+    }
+
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_unbound_to_dial_info(
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<()>> {
-        let data_len = data.len();
-        let timeout_ms = {
-            let c = self.config.get();
-            c.network.connection_initial_timeout_ms
-        };
+        self.record_dial_info_failure(dial_info.clone(), async move {
+            let data_len = data.len();
+            let timeout_ms = {
+                let c = self.config.get();
+                c.network.connection_initial_timeout_ms
+            };
 
-        if self
-            .network_manager()
-            .address_filter()
-            .is_ip_addr_punished(dial_info.address().to_ip_addr())
-        {
-            return Ok(NetworkResult::no_connection_other("punished"));
-        }
-
-        match dial_info.protocol_type() {
-            ProtocolType::UDP => {
-                bail!("no support for UDP protocol")
+            if self
+                .network_manager()
+                .address_filter()
+                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+            {
+                return Ok(NetworkResult::no_connection_other("punished"));
             }
-            ProtocolType::TCP => {
-                bail!("no support for TCP protocol")
-            }
-            ProtocolType::WS | ProtocolType::WSS => {
-                let pnc =
-                    network_result_try!(WebsocketProtocolHandler::connect(&dial_info, timeout_ms)
-                        .await
-                        .wrap_err("connect failure")?);
-                network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
-            }
-        };
 
-        // Network accounting
-        self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+            match dial_info.protocol_type() {
+                ProtocolType::UDP => {
+                    bail!("no support for UDP protocol")
+                }
+                ProtocolType::TCP => {
+                    bail!("no support for TCP protocol")
+                }
+                ProtocolType::WS | ProtocolType::WSS => {
+                    let pnc = network_result_try!(WebsocketProtocolHandler::connect(
+                        &dial_info, timeout_ms
+                    )
+                    .await
+                    .wrap_err("connect failure")?);
+                    network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
+                }
+            };
 
-        Ok(NetworkResult::Value(()))
+            // Network accounting
+            self.network_manager()
+                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+
+            Ok(NetworkResult::Value(()))
+        })
+        .await
     }
 
     // Send data to a dial info, unbound, using a new connection from a random port
@@ -173,53 +192,59 @@ impl Network {
         data: Vec<u8>,
         timeout_ms: u32,
     ) -> EyreResult<NetworkResult<Vec<u8>>> {
-        let data_len = data.len();
-        let connect_timeout_ms = {
-            let c = self.config.get();
-            c.network.connection_initial_timeout_ms
-        };
+        self.record_dial_info_failure(dial_info.clone(), async move {
+            let data_len = data.len();
+            let connect_timeout_ms = {
+                let c = self.config.get();
+                c.network.connection_initial_timeout_ms
+            };
 
-        if self
-            .network_manager()
-            .address_filter()
-            .is_ip_addr_punished(dial_info.address().to_ip_addr())
-        {
-            return Ok(NetworkResult::no_connection_other("punished"));
-        }
+            if self
+                .network_manager()
+                .address_filter()
+                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+            {
+                return Ok(NetworkResult::no_connection_other("punished"));
+            }
 
-        match dial_info.protocol_type() {
-            ProtocolType::UDP => {
-                bail!("no support for UDP protocol")
-            }
-            ProtocolType::TCP => {
-                bail!("no support for TCP protocol")
-            }
-            ProtocolType::WS | ProtocolType::WSS => {
-                let pnc = network_result_try!(match dial_info.protocol_type() {
-                    ProtocolType::UDP => unreachable!(),
-                    ProtocolType::TCP => unreachable!(),
-                    ProtocolType::WS | ProtocolType::WSS => {
-                        WebsocketProtocolHandler::connect(&dial_info, connect_timeout_ms)
+            match dial_info.protocol_type() {
+                ProtocolType::UDP => {
+                    bail!("no support for UDP protocol")
+                }
+                ProtocolType::TCP => {
+                    bail!("no support for TCP protocol")
+                }
+                ProtocolType::WS | ProtocolType::WSS => {
+                    let pnc = network_result_try!(match dial_info.protocol_type() {
+                        ProtocolType::UDP => unreachable!(),
+                        ProtocolType::TCP => unreachable!(),
+                        ProtocolType::WS | ProtocolType::WSS => {
+                            WebsocketProtocolHandler::connect(&dial_info, connect_timeout_ms)
+                                .await
+                                .wrap_err("connect failure")?
+                        }
+                    });
+
+                    network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
+                    self.network_manager()
+                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+
+                    let out =
+                        network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
                             .await
-                            .wrap_err("connect failure")?
-                    }
-                });
+                            .into_network_result())
+                        .wrap_err("recv failure")?);
 
-                network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
-                self.network_manager()
-                    .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                    self.network_manager().stats_packet_rcvd(
+                        dial_info.to_ip_addr(),
+                        ByteCount::new(out.len() as u64),
+                    );
 
-                let out = network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
-                    .await
-                    .into_network_result())
-                .wrap_err("recv failure")?);
-
-                self.network_manager()
-                    .stats_packet_rcvd(dial_info.to_ip_addr(), ByteCount::new(out.len() as u64));
-
-                Ok(NetworkResult::Value(out))
+                    Ok(NetworkResult::Value(out))
+                }
             }
-        }
+        })
+        .await
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
@@ -273,34 +298,37 @@ impl Network {
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
-        let data_len = data.len();
-        if dial_info.protocol_type() == ProtocolType::UDP {
-            bail!("no support for UDP protocol");
-        }
-        if dial_info.protocol_type() == ProtocolType::TCP {
-            bail!("no support for TCP protocol");
-        }
+        self.record_dial_info_failure(dial_info.clone(), async move {
+            let data_len = data.len();
+            if dial_info.protocol_type() == ProtocolType::UDP {
+                bail!("no support for UDP protocol");
+            }
+            if dial_info.protocol_type() == ProtocolType::TCP {
+                bail!("no support for TCP protocol");
+            }
 
-        // Handle connection-oriented protocols
-        let conn = network_result_try!(
-            self.connection_manager()
-                .get_or_create_connection(dial_info.clone())
-                .await?
-        );
+            // Handle connection-oriented protocols
+            let conn = network_result_try!(
+                self.connection_manager()
+                    .get_or_create_connection(dial_info.clone())
+                    .await?
+            );
 
-        if let ConnectionHandleSendResult::NotSent(_) = conn.send_async(data).await {
-            return Ok(NetworkResult::NoConnection(io::Error::new(
-                io::ErrorKind::ConnectionReset,
-                "failed to send",
-            )));
-        }
-        let connection_descriptor = conn.connection_descriptor();
+            if let ConnectionHandleSendResult::NotSent(_) = conn.send_async(data).await {
+                return Ok(NetworkResult::NoConnection(io::Error::new(
+                    io::ErrorKind::ConnectionReset,
+                    "failed to send",
+                )));
+            }
+            let connection_descriptor = conn.connection_descriptor();
 
-        // Network accounting
-        self.network_manager()
-            .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+            // Network accounting
+            self.network_manager()
+                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
 
-        Ok(NetworkResult::value(connection_descriptor))
+            Ok(NetworkResult::value(connection_descriptor))
+        })
+        .await
     }
 
     /////////////////////////////////////////////////////////////////

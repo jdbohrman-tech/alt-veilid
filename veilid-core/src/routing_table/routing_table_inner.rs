@@ -226,9 +226,10 @@ impl RoutingTableInner {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
+        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
     ) -> ContactMethod {
         self.with_routing_domain(routing_domain, |rdd| {
-            rdd.get_contact_method(self, peer_a, peer_b, dial_info_filter, sequencing)
+            rdd.get_contact_method(self, peer_a, peer_b, dial_info_filter, sequencing, dif_sort)
         })
     }
 
