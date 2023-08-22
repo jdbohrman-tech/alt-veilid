@@ -60,7 +60,7 @@ int getRemoteMaxStorageSpaceMb() {
 
 Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
   // ignore: do_not_use_environment
-  final bootstrap = const String.fromEnvironment('BOOTSTRAP').split(',');
+  const bootstrap = String.fromEnvironment('BOOTSTRAP');
   return VeilidConfig(
     programName: programName,
     namespace: '',
@@ -100,7 +100,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
         nodeId: [],
         nodeIdSecret: [],
         bootstrap: bootstrap.isNotEmpty
-            ? bootstrap
+            ? bootstrap.split(',')
             : (kIsWeb
                 ? ['ws://bootstrap.veilid.net:5150/ws']
                 : ['bootstrap.veilid.net']),
