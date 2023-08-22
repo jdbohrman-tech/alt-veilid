@@ -1,5 +1,6 @@
 #![allow(clippy::bool_assert_comparison)]
 
+use clap::ValueEnum;
 use directories::*;
 
 use crate::tools::*;
@@ -229,7 +230,7 @@ pub fn load_config(cfg: config::Config, config_file: &Path) -> EyreResult<config
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, ValueEnum)]
 pub enum LogLevel {
     Off,
     Error,

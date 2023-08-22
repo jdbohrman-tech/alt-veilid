@@ -1,8 +1,8 @@
+use crate::*;
 use crate::server::*;
 use crate::settings::Settings;
 use crate::tools::*;
 use crate::veilid_logs::*;
-use clap::ArgMatches;
 use futures_util::StreamExt;
 use signal_hook::consts::signal::*;
 use signal_hook_async_std::Signals;
@@ -26,7 +26,7 @@ async fn handle_signals(mut signals: Signals) {
 
 #[warn(missing_docs)]
 #[instrument(err)]
-pub fn run_daemon(settings: Settings, _matches: ArgMatches) -> EyreResult<()> {
+pub fn run_daemon(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
     let daemon = {
         let mut daemon = daemonize::Daemonize::new();
         let s = settings.read();

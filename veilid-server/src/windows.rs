@@ -1,6 +1,5 @@
 use crate::settings::*;
 use crate::*;
-use clap::ArgMatches;
 use std::ffi::OsString;
 use std::time::Duration;
 use tracing::*;
@@ -12,7 +11,7 @@ use windows_service::*;
 
 // Register generated `ffi_service_main` with the system and start the service, blocking
 // this thread until the service is stopped.
-pub fn run_service(settings: Settings, matches: ArgMatches) -> EyreResult<()> {
+pub fn run_service(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
     eprintln!("Windows Service mode not implemented yet.");
 
     //service_dispatcher::start("veilid-server", ffi_veilid_service_main)?;

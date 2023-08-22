@@ -1,5 +1,6 @@
 [package]
 name = "veilid-server"
+description = "Veilid Server"
 version = "0.1.10"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
@@ -37,7 +38,7 @@ tokio-util = { version = "^0", features = ["compat"], optional = true}
 async-tungstenite = { version = "^0", features = ["async-tls"] }
 color-eyre = { version = "^0", default-features = false }
 backtrace = "^0"
-clap = "^3"
+clap = { version= "4", features = ["derive", "string", "wrap_help"] }
 directories = "^4"
 parking_lot = "^0"
 config = { version = "^0", features = ["yaml"] }
