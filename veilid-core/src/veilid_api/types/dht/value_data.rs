@@ -1,4 +1,5 @@
 use super::*;
+use veilid_api::VeilidAPIResult;
 
 #[derive(Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct ValueData {
@@ -17,17 +18,25 @@ pub struct ValueData {
 impl ValueData {
     pub const MAX_LEN: usize = 32768;
 
-    pub fn new(data: Vec<u8>, writer: PublicKey) -> Self {
-        assert!(data.len() <= Self::MAX_LEN);
-        Self {
+    pub fn new(data: Vec<u8>, writer: PublicKey) -> VeilidAPIResult<Self> {
+        if data.len() > Self::MAX_LEN {
+            apibail_generic!("invalid size");
+        }
+        Ok(Self {
             seq: 0,
             data,
             writer,
-        }
+        })
     }
-    pub fn new_with_seq(seq: ValueSeqNum, data: Vec<u8>, writer: PublicKey) -> Self {
-        assert!(data.len() <= Self::MAX_LEN);
-        Self { seq, data, writer }
+    pub fn new_with_seq(
+        seq: ValueSeqNum,
+        data: Vec<u8>,
+        writer: PublicKey,
+    ) -> VeilidAPIResult<Self> {
+        if data.len() > Self::MAX_LEN {
+            apibail_generic!("invalid size");
+        }
+        Ok(Self { seq, data, writer })
     }
 
     pub fn seq(&self) -> ValueSeqNum {
@@ -54,5 +63,36 @@ impl fmt::Debug for ValueData {
             .field("data", &print_data(&self.data, None))
             .field("writer", &self.writer)
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value_data_ok() {
+        assert!(ValueData::new(vec![0; ValueData::MAX_LEN], CryptoKey { bytes: [0; 32] }).is_ok());
+        assert!(ValueData::new_with_seq(
+            0,
+            vec![0; ValueData::MAX_LEN],
+            CryptoKey { bytes: [0; 32] }
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn value_data_too_long() {
+        assert!(ValueData::new(
+            vec![0; ValueData::MAX_LEN + 1],
+            CryptoKey { bytes: [0; 32] }
+        )
+        .is_err());
+        assert!(ValueData::new_with_seq(
+            0,
+            vec![0; ValueData::MAX_LEN + 1],
+            CryptoKey { bytes: [0; 32] }
+        )
+        .is_err());
     }
 }

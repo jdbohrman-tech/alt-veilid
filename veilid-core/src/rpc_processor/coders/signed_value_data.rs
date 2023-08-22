@@ -25,7 +25,7 @@ pub fn decode_signed_value_data(
     let signature = decode_signature512(&sr);
 
     Ok(SignedValueData::new(
-        ValueData::new_with_seq(seq, data, writer),
+        ValueData::new_with_seq(seq, data, writer).map_err(RPCError::protocol)?,
         signature,
     ))
 }
