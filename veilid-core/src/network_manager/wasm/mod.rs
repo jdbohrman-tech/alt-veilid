@@ -348,8 +348,8 @@ impl Network {
             }
 
             // XXX: See issue #92
-            let family_global = AddressTypeSet::all();
-            let family_local = AddressTypeSet::all();
+            let family_global = AddressTypeSet::from(AddressType::IPV4);
+            let family_local = AddressTypeSet::from(AddressType::IPV4);
 
             ProtocolConfig {
                 outbound,
