@@ -167,8 +167,8 @@ pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
 fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
         "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
-        "namespace" => Ok(Box::new(String::from(""))),
-        "capabilities.disable" => Ok(Box::new(Vec::<FourCC>::new())),
+        "namespace" => Ok(Box::<String>::default()),
+        "capabilities.disable" => Ok(Box::<Vec::<FourCC>>::default()),
         "table_store.directory" => Ok(Box::new(get_table_store_path())),
         "table_store.delete" => Ok(Box::new(true)),
         "block_store.directory" => Ok(Box::new(get_block_store_path())),
@@ -193,7 +193,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.network_key_password" => Ok(Box::new(Option::<String>::None)),
         "network.routing_table.node_id" => Ok(Box::new(TypedKeyGroup::new())),
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
-        "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
+        "network.routing_table.bootstrap" => Ok(Box::<Vec::<String>>::default()),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
         "network.routing_table.limit_attached_strong" => Ok(Box::new(16u32)),
