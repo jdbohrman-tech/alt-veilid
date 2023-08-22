@@ -26,19 +26,12 @@ stages:
 
 test_amd64:
   stage: test
-  image: docker
-  services:
-  - docker:dind
-  only:
-    - main
-    - merge_requests
-  before_script:
-    - apk update && apk add git
-    - wget https://github.com/earthly/earthly/releases/download/v0.6.2/earthly-linux-amd64 -O /usr/local/bin/earthly
-    - chmod +x /usr/local/bin/earthly
-    - export FORCE_COLOR=1
-    - /usr/local/bin/earthly bootstrap
+  image: earthly/earthly:v0.7.15
+  # only:
+  #   - main
+  #   - merge_requests
   script:
+    - earthly bootstrap
     - earthly --ci +unit-tests-linux-amd64
 
 # delete_test_machine:
