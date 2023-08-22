@@ -125,7 +125,7 @@
     </p>
 
     <p>
-      Another example of this, but with even more tenuous connection between the block store data, is the notion of a profile picture. "Marquette's Profile Picture" is a really abstracted notion, and precisely which bits it corresponds to can vary wildly over time, not just being different versions of the picture but completely different pictures entirely. Maybe one day its a photo of Marquette and the next day it's a photo of a flower.
+      Another example of this, but with even more tenuous connection between the block store data, is the notion of a profile picture. "Marquette's Profile Picture" is a really abstracted notion, and precisely which bits it corresponds to can vary wildly over time, not just being different versions of the picture but completely different pictures entirely. Maybe one day it's a photo of Marquette and the next day it's a photo of a flower.
     </p>
 
     <p>
@@ -157,7 +157,7 @@
     <h3 id="peer-network-revisited">Peer Network, Revisited</h3>
 
     <p>
-      First, let's look at the peer network, since it's structure forms the basis for the remainder of the data storage approach. Veilid's peer network is similar to other peer-to-peer systems in that it's overlaid on top of other protocols. Veilid tries to be somewhat protocol-agnostic, however, and currently is designed to use TCP, UDP, WebSockets, and WebRTC, as well as various methods of traversing NATs so that Veilid peers can be smartphones, personal computers on hostile ISPs, etc. To facilitate this, peers are identified not by some network identity like an IP address, but instead by peer-chosen cryptographic key-pairs. Each peer also advertises a variety of options for how to communicate with it, called dial info, and when one peer wants to talk to another, it gets the dial info for that peer from the network and then uses it to communicate.
+      First, let's look at the peer network, since its structure forms the basis for the remainder of the data storage approach. Veilid's peer network is similar to other peer-to-peer systems in that it's overlaid on top of other protocols. Veilid tries to be somewhat protocol-agnostic, however, and currently is designed to use TCP, UDP, WebSockets, and WebRTC, as well as various methods of traversing NATs so that Veilid peers can be smartphones, personal computers on hostile ISPs, etc. To facilitate this, peers are identified not by some network identity like an IP address, but instead by peer-chosen cryptographic key-pairs. Each peer also advertises a variety of options for how to communicate with it, called dial info, and when one peer wants to talk to another, it gets the dial info for that peer from the network and then uses it to communicate.
     </p>
 
     <p>
@@ -165,7 +165,7 @@
     </p>
 
     <p>
-      To talk to a specific peer, it's dial info is looked up in the routing table. If there is dial info present, then the options are attempted in order of the priority specified in the routing table. Otherwise, the peer has to request the dial info from the network, so it looks through its routing table to find the peer who's ID is nearest the target peer according to the XOR metric, and sends it an RPC call with a procedure named <code>find_node</code>. Given any particular peer ID, the receiver of a <code>find_node</code> call returns dial info for the peers in its routing table that are nearest the given ID. This gets the peer closer to its destination, at least in the direction of the other peer it asked. If the desired peer's information was in the result of the call, then it's done, otherwise it calls <code>find_node</code> again to get closer. It iterates in this way, possibly trying alternate peers, as necessary, in a nearest-first fashion until it either finds the desire'd peer's dial info, has exhausted the entire network, or gives up.
+      To talk to a specific peer, its dial info is looked up in the routing table. If there is dial info present, then the options are attempted in order of the priority specified in the routing table. Otherwise, the peer has to request the dial info from the network, so it looks through its routing table to find the peer who's ID is nearest the target peer according to the XOR metric, and sends it an RPC call with a procedure named <code>find_node</code>. Given any particular peer ID, the receiver of a <code>find_node</code> call returns dial info for the peers in its routing table that are nearest the given ID. This gets the peer closer to its destination, at least in the direction of the other peer it asked. If the desired peer's information was in the result of the call, then it's done, otherwise it calls <code>find_node</code> again to get closer. It iterates in this way, possibly trying alternate peers, as necessary, in a nearest-first fashion until it either finds the desire'd peer's dial info, has exhausted the entire network, or gives up.
     </p>
 
     <h3 id="user-privacy">User Privacy</h3>

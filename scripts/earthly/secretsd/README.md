@@ -36,6 +36,6 @@ For now, all secrets are encrypted using a single "database key", which is store
     secretsd -k kwallet:
     secretsd -k exec:"pass Apps/secretsd"
 
-(As secretsd is supposed to be a background service, it is strongly advised to _not_ use an external program which would show interactive prompts. And in particular avoid those which use GnuPG pinentry or otherwise make use of libsecret, for hopefuly obvious reasons.)
+(As secretsd is supposed to be a background service, it is strongly advised to _not_ use an external program which would show interactive prompts. And in particular avoid those which use GnuPG pinentry or otherwise make use of libsecret, for hopefully obvious reasons.)
 
 Individually encrypted collections are not yet supported, but planned in the future. (This will most likely be a fully separate layer of encryption, in addition to the database key.)

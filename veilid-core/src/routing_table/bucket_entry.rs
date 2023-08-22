@@ -297,7 +297,7 @@ impl BucketEntryInner {
 
         // If we're updating an entry's node info, purge all 
         // but the last connection in our last connections list
-        // because the dial info could have changed and its safer to just reconnect.
+        // because the dial info could have changed and it's safer to just reconnect.
         // The latest connection would have been the once we got the new node info
         // over so that connection is still valid.
         if node_info_changed {

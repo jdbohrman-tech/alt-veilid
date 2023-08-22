@@ -173,7 +173,7 @@ impl StorageManager {
         }
     }
 
-    /// Handle a recieved 'Set Value' query
+    /// Handle a received 'Set Value' query
     /// Returns a None if the value passed in was set
     /// Returns a Some(current value) if the value was older and the current value was kept
     pub async fn inbound_set_value(
