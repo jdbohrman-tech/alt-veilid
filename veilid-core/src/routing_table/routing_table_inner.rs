@@ -215,10 +215,6 @@ impl RoutingTableInner {
         true
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret)
-    )]
     pub fn get_contact_method(
         &self,
         routing_domain: RoutingDomain,

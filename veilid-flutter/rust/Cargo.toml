@@ -9,20 +9,36 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
-default = [ "rt-tokio", "veilid-core/default" ]
-crypto-test = [ "rt-tokio", "veilid-core/crypto-test"]
-rt-async-std = [ "veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys"]
-rt-tokio = [ "veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio"]
+default = ["rt-tokio", "veilid-core/default"]
+crypto-test = ["rt-tokio", "veilid-core/crypto-test"]
+rt-async-std = [
+    "veilid-core/rt-async-std",
+    "async-std",
+    "opentelemetry/rt-async-std",
+    "opentelemetry-otlp/grpc-sys",
+]
+rt-tokio = [
+    "veilid-core/rt-tokio",
+    "tokio",
+    "tokio-stream",
+    "tokio-util",
+    "opentelemetry/rt-tokio",
+]
 
 [dependencies]
-veilid-core = { path="../../veilid-core", default-features = false }
+veilid-core = { path = "../../veilid-core", default-features = false, features = [
+    "verbose-tracing",
+    "network-result-extra",
+] }
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-subscriber = "^0"
 parking_lot = "^0"
 backtrace = "^0"
 serde_json = "^1"
 serde = "^1"
-futures-util = { version = "^0", default_features = false, features = ["alloc"] }
+futures-util = { version = "^0", default_features = false, features = [
+    "alloc",
+] }
 cfg-if = "^1"
 data-encoding = { version = "^2" }
 
@@ -36,7 +52,7 @@ opentelemetry-semantic-conventions = "0.10"
 async-std = { version = "^1", features = ["unstable"], optional = true }
 tokio = { version = "^1", features = ["full"], optional = true }
 tokio-stream = { version = "^0", features = ["net"], optional = true }
-tokio-util = { version = "^0", features = ["compat"], optional = true}
+tokio-util = { version = "^0", features = ["compat"], optional = true }
 allo-isolate = "^0"
 ffi-support = "^0"
 lazy_static = "^1"

@@ -33,6 +33,11 @@ impl SocketAddress {
     pub fn set_port(&mut self, port: u16) {
         self.port = port
     }
+    pub fn with_port(&self, port: u16) -> Self {
+        let mut sa = self.clone();
+        sa.port = port;
+        sa
+    }
     pub fn to_canonical(&self) -> SocketAddress {
         SocketAddress {
             address: self.address.to_canonical(),
