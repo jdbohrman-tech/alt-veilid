@@ -203,7 +203,7 @@ impl StorageManager {
         }
     }
 
-    /// Handle a recieved 'Get Value' query
+    /// Handle a received 'Get Value' query
     pub async fn inbound_get_value(
         &self,
         key: TypedKey,

@@ -27,7 +27,7 @@ cursive_buffered_backend = { path = "../external/cursive_buffered_backend" }
 cursive_table_view = "0.14.0"
 arboard = "3.2.0"
 # cursive-tabs = "0.5.0"
-clap = {version= "4", features = ["derive"]}
+clap = { version= "4", features = ["derive"] }
 directories = "^4"
 log = "^0"
 futures = "^0"

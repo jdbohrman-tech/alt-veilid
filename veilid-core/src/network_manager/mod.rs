@@ -211,20 +211,7 @@ impl NetworkManager {
         // Make the network key
         let network_key = {
             let c = config.get();
-            let network_key_password = if let Some(nkp) = c.network.network_key_password.clone() {
-                Some(nkp)
-            } else {
-                if c.network
-                    .routing_table
-                    .bootstrap
-                    .contains(&"bootstrap.veilid.net".to_owned())
-                {
-                    None
-                } else {
-                    Some(c.network.routing_table.bootstrap.join(","))
-                }
-            };
-
+            let network_key_password = c.network.network_key_password.clone();
             let network_key = if let Some(network_key_password) = network_key_password {
                 if !network_key_password.is_empty() {
                     info!("Using network key");
@@ -379,6 +366,9 @@ impl NetworkManager {
             debug!("NetworkManager::internal_startup already started");
             return Ok(());
         }
+
+        // Clean address filter for things that should not be persistent
+        self.address_filter().restart();
 
         // Create network components
         let connection_manager = ConnectionManager::new(self.clone());

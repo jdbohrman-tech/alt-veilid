@@ -4,6 +4,8 @@ use alloc::collections::btree_map::Entry;
 // XXX: Move to config eventually?
 const PUNISHMENT_DURATION_MIN: usize = 60;
 const MAX_PUNISHMENTS_BY_NODE_ID: usize = 65536;
+const DIAL_INFO_FAILURE_DURATION_MIN: usize = 10;
+const MAX_DIAL_INFO_FAILURES: usize = 65536;
 
 #[derive(ThisError, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AddressFilterError {
@@ -28,6 +30,7 @@ struct AddressFilterInner {
     punishments_by_ip4: BTreeMap<Ipv4Addr, Timestamp>,
     punishments_by_ip6_prefix: BTreeMap<Ipv6Addr, Timestamp>,
     punishments_by_node_id: BTreeMap<TypedKey, Timestamp>,
+    dial_info_failures: BTreeMap<DialInfo, Timestamp>,
 }
 
 struct AddressFilterUnlockedInner {
@@ -36,6 +39,7 @@ struct AddressFilterUnlockedInner {
     max_connections_per_ip6_prefix_size: usize,
     max_connection_frequency_per_min: usize,
     punishment_duration_min: usize,
+    dial_info_failure_duration_min: usize,
     routing_table: RoutingTable,
 }
 
@@ -56,6 +60,10 @@ impl fmt::Debug for AddressFilterUnlockedInner {
                 &self.max_connection_frequency_per_min,
             )
             .field("punishment_duration_min", &self.punishment_duration_min)
+            .field(
+                "dial_info_failure_duration_min",
+                &self.dial_info_failure_duration_min,
+            )
             .finish()
     }
 }
@@ -78,6 +86,7 @@ impl AddressFilter {
                 max_connection_frequency_per_min: c.network.max_connection_frequency_per_min
                     as usize,
                 punishment_duration_min: PUNISHMENT_DURATION_MIN,
+                dial_info_failure_duration_min: DIAL_INFO_FAILURE_DURATION_MIN,
                 routing_table,
             }),
             inner: Arc::new(Mutex::new(AddressFilterInner {
@@ -88,8 +97,15 @@ impl AddressFilter {
                 punishments_by_ip4: BTreeMap::new(),
                 punishments_by_ip6_prefix: BTreeMap::new(),
                 punishments_by_node_id: BTreeMap::new(),
+                dial_info_failures: BTreeMap::new(),
             })),
         }
+    }
+
+    // When the network restarts, some of the address filter can be cleared
+    pub fn restart(&self) {
+        let mut inner = self.inner.lock();
+        inner.dial_info_failures.clear();
     }
 
     fn purge_old_timestamps(&self, inner: &mut AddressFilterInner, cur_ts: Timestamp) {
@@ -180,6 +196,22 @@ impl AddressFilter {
                 }
             }
         }
+        // dial info
+        {
+            let mut dead_keys = Vec::<DialInfo>::new();
+            for (key, value) in &mut inner.dial_info_failures {
+                // Drop failures older than the failure duration
+                if cur_ts.as_u64().saturating_sub(value.as_u64())
+                    > self.unlocked_inner.dial_info_failure_duration_min as u64 * 60_000_000u64
+                {
+                    dead_keys.push(key.clone());
+                }
+            }
+            for key in dead_keys {
+                log_net!(debug ">>> DIALINFO PERMIT: {}", key);
+                inner.dial_info_failures.remove(&key);
+            }
+        }
     }
 
     fn is_ip_addr_punished_inner(&self, inner: &AddressFilterInner, ipblock: IpAddr) -> bool {
@@ -198,6 +230,14 @@ impl AddressFilter {
         false
     }
 
+    fn get_dial_info_failed_ts_inner(
+        &self,
+        inner: &AddressFilterInner,
+        dial_info: &DialInfo,
+    ) -> Option<Timestamp> {
+        inner.dial_info_failures.get(dial_info).copied()
+    }
+
     pub fn is_ip_addr_punished(&self, addr: IpAddr) -> bool {
         let inner = self.inner.lock();
         let ipblock = ip_to_ipblock(
@@ -205,6 +245,27 @@ impl AddressFilter {
             addr,
         );
         self.is_ip_addr_punished_inner(&*inner, ipblock)
+    }
+
+    pub fn get_dial_info_failed_ts(&self, dial_info: &DialInfo) -> Option<Timestamp> {
+        let inner = self.inner.lock();
+        self.get_dial_info_failed_ts_inner(&*inner, dial_info)
+    }
+
+    pub fn set_dial_info_failed(&self, dial_info: DialInfo) {
+        let ts = get_aligned_timestamp();
+
+        let mut inner = self.inner.lock();
+        if inner.dial_info_failures.len() >= MAX_DIAL_INFO_FAILURES {
+            log_net!(debug ">>> DIALINFO FAILURE TABLE FULL: {}", dial_info);
+            return;
+        }
+        log_net!(debug ">>> DIALINFO FAILURE: {:?}", dial_info);
+        inner
+            .dial_info_failures
+            .entry(dial_info)
+            .and_modify(|v| *v = ts)
+            .or_insert(ts);
     }
 
     pub fn punish_ip_addr(&self, addr: IpAddr) {

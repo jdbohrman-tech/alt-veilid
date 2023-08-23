@@ -401,6 +401,7 @@ impl RouteSpecStore {
                         current_node,
                         DialInfoFilter::all(),
                         sequencing,
+                        None,
                     );
                     if matches!(cm, ContactMethod::Unreachable) {
                         reachable = false;
@@ -415,6 +416,7 @@ impl RouteSpecStore {
                             current_node,
                             DialInfoFilter::all(),
                             Sequencing::EnsureOrdered,
+                            None,
                         );
                         if matches!(cm, ContactMethod::Unreachable) {
                             can_do_sequenced = false;
@@ -438,6 +440,7 @@ impl RouteSpecStore {
                         current_node,
                         DialInfoFilter::all(),
                         sequencing,
+                        None,
                     );
                     if matches!(cm, ContactMethod::Unreachable) {
                         reachable = false;
@@ -452,6 +455,7 @@ impl RouteSpecStore {
                             current_node,
                             DialInfoFilter::all(),
                             Sequencing::EnsureOrdered,
+                            None,
                         );
                         if matches!(cm, ContactMethod::Unreachable) {
                             can_do_sequenced = false;
