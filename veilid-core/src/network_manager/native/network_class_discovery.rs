@@ -557,85 +557,25 @@ impl DiscoveryContext {
 
 impl Network {
     #[instrument(level = "trace", skip(self, context), err)]
-    pub async fn update_ipv4_protocol_dialinfo(
+    pub async fn update_protocol_dialinfo(
         &self,
         context: &DiscoveryContext,
         protocol_type: ProtocolType,
+        address_type: AddressType,
     ) -> EyreResult<()> {
         let mut retry_count = {
             let c = self.config.get();
             c.network.restricted_nat_retries
         };
 
-        // Start doing ipv4 protocol
-        context.protocol_begin(protocol_type, AddressType::IPV4);
+        // Start doing protocol
+        context.protocol_begin(protocol_type, address_type);
 
         // Loop for restricted NAT retries
         loop {
             log_net!(debug
-                "=== update_ipv4_protocol_dialinfo {:?} tries_left={} ===",
-                protocol_type,
-                retry_count
-            );
-            // Get our external address from some fast node, call it node 1
-            if !context.protocol_get_external_address_1().await {
-                // If we couldn't get an external address, then we should just try the whole network class detection again later
-                return Ok(());
-            }
-
-            // If our local interface list contains external_1 then there is no NAT in place
-            {
-                let res = {
-                    let inner = context.inner.lock();
-                    inner
-                        .intf_addrs
-                        .as_ref()
-                        .unwrap()
-                        .contains(inner.external_1_address.as_ref().unwrap())
-                };
-                if res {
-                    // No NAT
-                    context.protocol_process_no_nat().await?;
-
-                    // No more retries
-                    break;
-                }
-            }
-
-            // There is -some NAT-
-            if context.protocol_process_nat().await? {
-                // We either got dial info or a network class without one
-                break;
-            }
-
-            // If we tried everything, break anyway after N attempts
-            if retry_count == 0 {
-                break;
-            }
-            retry_count -= 1;
-        }
-
-        Ok(())
-    }
-
-    #[instrument(level = "trace", skip(self, context), err)]
-    pub async fn update_ipv6_protocol_dialinfo(
-        &self,
-        context: &DiscoveryContext,
-        protocol_type: ProtocolType,
-    ) -> EyreResult<()> {
-        let mut retry_count = {
-            let c = self.config.get();
-            c.network.restricted_nat_retries
-        };
-
-        // Start doing ipv6 protocol
-        context.protocol_begin(protocol_type, AddressType::IPV6);
-
-        // Loop for restricted NAT retries
-        loop {
-            log_net!(debug
-                "=== update_ipv6_protocol_dialinfo {:?} tries_left={} ===",
+                "=== update_protocol_dialino {:?} {:?} tries_left={} ===",
+                address_type,
                 protocol_type,
                 retry_count
             );
@@ -716,7 +656,11 @@ impl Network {
                         let udpv4_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv4_protocol_dialinfo(&udpv4_context, ProtocolType::UDP)
+                            .update_protocol_dialinfo(
+                                &udpv4_context,
+                                ProtocolType::UDP,
+                                AddressType::IPV4,
+                            )
                             .await
                         {
                             log_net!(debug "Failed UDPv4 dialinfo discovery: {}", e);
@@ -736,7 +680,11 @@ impl Network {
                         let udpv6_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv6_protocol_dialinfo(&udpv6_context, ProtocolType::UDP)
+                            .update_protocol_dialinfo(
+                                &udpv6_context,
+                                ProtocolType::UDP,
+                                AddressType::IPV6,
+                            )
                             .await
                         {
                             log_net!(debug "Failed UDPv6 dialinfo discovery: {}", e);
@@ -759,7 +707,11 @@ impl Network {
                         let tcpv4_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv4_protocol_dialinfo(&tcpv4_context, ProtocolType::TCP)
+                            .update_protocol_dialinfo(
+                                &tcpv4_context,
+                                ProtocolType::TCP,
+                                AddressType::IPV4,
+                            )
                             .await
                         {
                             log_net!(debug "Failed TCPv4 dialinfo discovery: {}", e);
@@ -779,7 +731,11 @@ impl Network {
                         let wsv4_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv4_protocol_dialinfo(&wsv4_context, ProtocolType::WS)
+                            .update_protocol_dialinfo(
+                                &wsv4_context,
+                                ProtocolType::WS,
+                                AddressType::IPV4,
+                            )
                             .await
                         {
                             log_net!(debug "Failed WSv4 dialinfo discovery: {}", e);
@@ -802,7 +758,11 @@ impl Network {
                         let tcpv6_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv6_protocol_dialinfo(&tcpv6_context, ProtocolType::TCP)
+                            .update_protocol_dialinfo(
+                                &tcpv6_context,
+                                ProtocolType::TCP,
+                                AddressType::IPV6,
+                            )
                             .await
                         {
                             log_net!(debug "Failed TCPv6 dialinfo discovery: {}", e);
@@ -822,7 +782,11 @@ impl Network {
                         let wsv6_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv6_protocol_dialinfo(&wsv6_context, ProtocolType::WS)
+                            .update_protocol_dialinfo(
+                                &wsv6_context,
+                                ProtocolType::WS,
+                                AddressType::IPV6,
+                            )
                             .await
                         {
                             log_net!(debug "Failed WSv6 dialinfo discovery: {}", e);
