@@ -1,3 +1,5 @@
+/// Detect NetworkClass and DialInfo for the PublicInternet RoutingDomain
+/// Also performs UPNP/IGD mapping if enabled and possible
 use super::*;
 use futures_util::stream::FuturesUnordered;
 use futures_util::FutureExt;
