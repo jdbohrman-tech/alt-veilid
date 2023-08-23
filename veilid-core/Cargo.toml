@@ -68,6 +68,7 @@ hashlink = { path = "../external/hashlink", features = ["serde_impl"] }
 futures-util = { version = "0.3.28", default_features = false, features = ["alloc"] }
 flume = { version = "0.11.0", features = ["async"] }
 parking_lot = "0.12.1"
+lock_api = "0.4.10"
 stop-token = { version = "0.7.0", default-features = false }
 
 # Crypto
