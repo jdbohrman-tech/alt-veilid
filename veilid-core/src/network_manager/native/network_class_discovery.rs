@@ -471,15 +471,30 @@ impl DiscoveryContext {
             )
         };
 
-        // Do a validate_dial_info on the external address from a redirected node
-        if self
-            .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
-            .await
-        {
-            // Add public dial info with Direct dialinfo class
-            self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Direct);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
-            return Ok(true);
+        // Do a validate_dial_info on the external address, but with the same port as the local port of local interface, from a redirected node
+        // This test is to see if a node had manual port forwarding done with the same port number as the local listener
+        if let Some(local_port) = self.net.get_local_port(protocol_type) {
+            if external_1_dial_info.port() != local_port {
+                let mut external_1_dial_info_with_local_port = external_1_dial_info.clone();
+                external_1_dial_info_with_local_port.set_port(local_port);
+
+                if self
+                    .validate_dial_info(
+                        node_1.clone(),
+                        external_1_dial_info_with_local_port.clone(),
+                        true,
+                    )
+                    .await
+                {
+                    // Add public dial info with Direct dialinfo class
+                    self.set_detected_public_dial_info(
+                        external_1_dial_info_with_local_port,
+                        DialInfoClass::Direct,
+                    );
+                    self.set_detected_network_class(NetworkClass::InboundCapable);
+                    return Ok(true);
+                }
+            }
         }
 
         // Port mapping was not possible, and things aren't accessible directly.
