@@ -5,8 +5,8 @@ use super::*;
 pub enum DialInfoClass {
     Direct = 0, // D = Directly reachable with public IP and no firewall, with statically configured port
     Mapped = 1, // M = Directly reachable with via portmap behind any NAT or firewalled with dynamically negotiated port
-    FullConeNAT = 2, // F = Directly reachable device without portmap behind full-cone NAT
-    Blocked = 3, // B = Inbound blocked at firewall but may hole punch with public address
+    FullConeNAT = 2, // F = Directly reachable device without portmap behind full-cone NAT (or manually mapped firewall port with no configuration change)
+    Blocked = 3,     // B = Inbound blocked at firewall but may hole punch with public address
     AddressRestrictedNAT = 4, // A = Device without portmap behind address-only restricted NAT
     PortRestrictedNAT = 5, // P = Device without portmap behind address-and-port restricted NAT
 }

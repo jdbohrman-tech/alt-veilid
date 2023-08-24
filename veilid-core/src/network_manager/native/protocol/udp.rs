@@ -79,13 +79,13 @@ impl RawUdpProtocolHandler {
         };
 
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.len", &size);
+        tracing::Span::current().record("ret.len", &message_len);
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
         Ok((message_len, descriptor))
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor)))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.descriptor)))]
     pub async fn send_message(
         &self,
         data: Vec<u8>,
@@ -133,8 +133,6 @@ impl RawUdpProtocolHandler {
             SocketAddress::from_socket_addr(local_socket_addr),
         );
 
-        #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.len", &len);
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
         Ok(NetworkResult::value(descriptor))

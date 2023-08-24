@@ -1,3 +1,5 @@
+/// Detect NetworkClass and DialInfo for the PublicInternet RoutingDomain
+/// Also performs UPNP/IGD mapping if enabled and possible
 use super::*;
 use futures_util::stream::FuturesUnordered;
 use futures_util::FutureExt;
@@ -25,10 +27,18 @@ struct DiscoveryContextInner {
     detected_public_dial_info: Option<DetectedPublicDialInfo>,
 }
 
+#[derive(Clone)]
 pub struct DiscoveryContext {
     routing_table: RoutingTable,
     net: Network,
     inner: Arc<Mutex<DiscoveryContextInner>>,
+}
+
+#[derive(Clone, Debug)]
+struct DetectedDialInfo {
+    dial_info: DialInfo,
+    dial_info_class: DialInfoClass,
+    network_class: NetworkClass,
 }
 
 impl DiscoveryContext {
@@ -410,53 +420,74 @@ impl DiscoveryContext {
     // If we know we are not behind NAT, check our firewall status
     #[instrument(level = "trace", skip(self), err)]
     pub async fn protocol_process_no_nat(&self) -> EyreResult<()> {
-        let (node_1, external_1_dial_info) = {
-            let inner = self.inner.lock();
-            (
-                inner.node_1.as_ref().unwrap().clone(),
-                inner.external_1_dial_info.as_ref().unwrap().clone(),
-            )
-        };
+        // Do these detections in parallel, but with ordering preference
+        let mut ord = FuturesOrdered::new();
 
-        // Attempt a port mapping via all available and enabled mechanisms
-        // Try this before the direct mapping in the event that we are restarting
-        // and may not have recorded a mapping created the last time
-        if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
-            // Got a port mapping, let's use it
-            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
+        // UPNP Automatic Mapping
+        ///////////
+        let this = self.clone();
+        let do_mapped_fut: SendPinBoxFuture<Option<DetectedDialInfo>> = Box::pin(async move {
+            // Attempt a port mapping via all available and enabled mechanisms
+            // Try this before the direct mapping in the event that we are restarting
+            // and may not have recorded a mapping created the last time
+            if let Some(external_mapped_dial_info) = this.try_port_mapping().await {
+                // Got a port mapping, let's use it
+                return Some(DetectedDialInfo {
+                    dial_info: external_mapped_dial_info.clone(),
+                    dial_info_class: DialInfoClass::Mapped,
+                    network_class: NetworkClass::InboundCapable,
+                });
+            }
+            None
+        });
+        ord.push_back(do_mapped_fut);
+
+        let this = self.clone();
+        let do_direct_fut: SendPinBoxFuture<Option<DetectedDialInfo>> = Box::pin(async move {
+            let (node_1, external_1_dial_info) = {
+                let inner = this.inner.lock();
+                (
+                    inner.node_1.as_ref().unwrap().clone(),
+                    inner.external_1_dial_info.as_ref().unwrap().clone(),
+                )
+            };
+            // Do a validate_dial_info on the external address from a redirected node
+            if this
+                .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
+                .await
+            {
+                // Add public dial info with Direct dialinfo class
+                Some(DetectedDialInfo {
+                    dial_info: external_1_dial_info.clone(),
+                    dial_info_class: DialInfoClass::Direct,
+                    network_class: NetworkClass::InboundCapable,
+                })
+            } else {
+                // Add public dial info with Blocked dialinfo class
+                Some(DetectedDialInfo {
+                    dial_info: external_1_dial_info.clone(),
+                    dial_info_class: DialInfoClass::Blocked,
+                    network_class: NetworkClass::InboundCapable,
+                })
+            }
+        });
+
+        ord.push_back(do_direct_fut);
+
+        while let Some(res) = ord.next().await {
+            if let Some(ddi) = res {
+                self.set_detected_public_dial_info(ddi.dial_info, ddi.dial_info_class);
+                self.set_detected_network_class(ddi.network_class);
+                break;
+            }
         }
-        // Do a validate_dial_info on the external address from a redirected node
-        else if self
-            .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
-            .await
-        {
-            // Add public dial info with Direct dialinfo class
-            self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Direct);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
-        } else {
-            // Add public dial info with Blocked dialinfo class
-            self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Blocked);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
-        }
+
         Ok(())
     }
 
     // If we know we are behind NAT check what kind
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn protocol_process_nat(&self) -> EyreResult<bool> {
-        // Attempt a port mapping via all available and enabled mechanisms
-        // Try this before the direct mapping in the event that we are restarting
-        // and may not have recorded a mapping created the last time
-        if let Some(external_mapped_dial_info) = self.try_port_mapping().await {
-            // Got a port mapping, let's use it
-            self.set_detected_public_dial_info(external_mapped_dial_info, DialInfoClass::Mapped);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
-
-            // No more retries
-            return Ok(true);
-        }
-
         // Get the external dial info for our use here
         let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
             let inner = self.inner.lock();
@@ -469,36 +500,111 @@ impl DiscoveryContext {
             )
         };
 
-        // Do a validate_dial_info on the external address from a redirected node
-        if self
-            .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
-            .await
-        {
-            // Add public dial info with Direct dialinfo class
-            self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::Direct);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
-            return Ok(true);
+        // Do these detections in parallel, but with ordering preference
+        let mut ord = FuturesOrdered::new();
+
+        // UPNP Automatic Mapping
+        ///////////
+        let this = self.clone();
+        let do_mapped_fut: SendPinBoxFuture<Option<DetectedDialInfo>> = Box::pin(async move {
+            // Attempt a port mapping via all available and enabled mechanisms
+            // Try this before the direct mapping in the event that we are restarting
+            // and may not have recorded a mapping created the last time
+            if let Some(external_mapped_dial_info) = this.try_port_mapping().await {
+                // Got a port mapping, let's use it
+                return Some(DetectedDialInfo {
+                    dial_info: external_mapped_dial_info.clone(),
+                    dial_info_class: DialInfoClass::Mapped,
+                    network_class: NetworkClass::InboundCapable,
+                });
+            }
+            None
+        });
+        ord.push_back(do_mapped_fut);
+
+        // Manual Mapping Detection
+        ///////////
+        let this = self.clone();
+        if let Some(local_port) = this.net.get_local_port(protocol_type) {
+            if external_1_dial_info.port() != local_port {
+                let c_external_1_dial_info = external_1_dial_info.clone();
+                let c_node_1 = node_1.clone();
+                let do_manual_map_fut: SendPinBoxFuture<Option<DetectedDialInfo>> =
+                    Box::pin(async move {
+                        // Do a validate_dial_info on the external address, but with the same port as the local port of local interface, from a redirected node
+                        // This test is to see if a node had manual port forwarding done with the same port number as the local listener
+                        let mut external_1_dial_info_with_local_port =
+                            c_external_1_dial_info.clone();
+                        external_1_dial_info_with_local_port.set_port(local_port);
+
+                        if this
+                            .validate_dial_info(
+                                c_node_1.clone(),
+                                external_1_dial_info_with_local_port.clone(),
+                                true,
+                            )
+                            .await
+                        {
+                            // Add public dial info with Direct dialinfo class
+                            return Some(DetectedDialInfo {
+                                dial_info: external_1_dial_info_with_local_port,
+                                dial_info_class: DialInfoClass::Direct,
+                                network_class: NetworkClass::InboundCapable,
+                            });
+                        }
+
+                        None
+                    });
+                ord.push_back(do_manual_map_fut);
+            }
         }
 
-        // Port mapping was not possible, and things aren't accessible directly.
-        // Let's see what kind of NAT we have
+        // Full Cone NAT Detection
+        ///////////
+        let this = self.clone();
+        let c_node_1 = node_1.clone();
+        let c_external_1_dial_info = external_1_dial_info.clone();
+        let do_full_cone_fut: SendPinBoxFuture<Option<DetectedDialInfo>> = Box::pin(async move {
+            // Let's see what kind of NAT we have
+            // Does a redirected dial info validation from a different address and a random port find us?
+            if this
+                .validate_dial_info(c_node_1.clone(), c_external_1_dial_info.clone(), true)
+                .await
+            {
+                // Yes, another machine can use the dial info directly, so Full Cone
+                // Add public dial info with full cone NAT network class
 
-        // Does a redirected dial info validation from a different address and a random port find us?
-        if self
-            .validate_dial_info(node_1.clone(), external_1_dial_info.clone(), true)
-            .await
-        {
-            // Yes, another machine can use the dial info directly, so Full Cone
-            // Add public dial info with full cone NAT network class
-            self.set_detected_public_dial_info(external_1_dial_info, DialInfoClass::FullConeNAT);
-            self.set_detected_network_class(NetworkClass::InboundCapable);
+                return Some(DetectedDialInfo {
+                    dial_info: c_external_1_dial_info,
+                    dial_info_class: DialInfoClass::FullConeNAT,
+                    network_class: NetworkClass::InboundCapable,
+                });
+            }
+            None
+        });
+        ord.push_back(do_full_cone_fut);
 
-            // No more retries
-            return Ok(true);
+        // Run detections in parallel and take the first one, ordered by preference, that returns a result
+        while let Some(res) = ord.next().await {
+            if let Some(ddi) = res {
+                self.set_detected_public_dial_info(ddi.dial_info, ddi.dial_info_class);
+                self.set_detected_network_class(ddi.network_class);
+                return Ok(true);
+            }
         }
 
-        // No, we are restricted, determine what kind of restriction
-
+        // We are restricted, determine what kind of restriction
+        // Get the external dial info for our use here
+        let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
+            let inner = self.inner.lock();
+            (
+                inner.node_1.as_ref().unwrap().clone(),
+                inner.external_1_dial_info.as_ref().unwrap().clone(),
+                inner.external_1_address.unwrap(),
+                inner.protocol_type.unwrap(),
+                inner.address_type.unwrap(),
+            )
+        };
         // Get our external address from some fast node, that is not node 1, call it node 2
         let (external_2_address, node_2) = match self
             .discover_external_address(protocol_type, address_type, Some(node_1.node_ids()))
@@ -555,85 +661,25 @@ impl DiscoveryContext {
 
 impl Network {
     #[instrument(level = "trace", skip(self, context), err)]
-    pub async fn update_ipv4_protocol_dialinfo(
+    pub async fn update_protocol_dialinfo(
         &self,
         context: &DiscoveryContext,
         protocol_type: ProtocolType,
+        address_type: AddressType,
     ) -> EyreResult<()> {
         let mut retry_count = {
             let c = self.config.get();
             c.network.restricted_nat_retries
         };
 
-        // Start doing ipv4 protocol
-        context.protocol_begin(protocol_type, AddressType::IPV4);
+        // Start doing protocol
+        context.protocol_begin(protocol_type, address_type);
 
         // Loop for restricted NAT retries
         loop {
             log_net!(debug
-                "=== update_ipv4_protocol_dialinfo {:?} tries_left={} ===",
-                protocol_type,
-                retry_count
-            );
-            // Get our external address from some fast node, call it node 1
-            if !context.protocol_get_external_address_1().await {
-                // If we couldn't get an external address, then we should just try the whole network class detection again later
-                return Ok(());
-            }
-
-            // If our local interface list contains external_1 then there is no NAT in place
-            {
-                let res = {
-                    let inner = context.inner.lock();
-                    inner
-                        .intf_addrs
-                        .as_ref()
-                        .unwrap()
-                        .contains(inner.external_1_address.as_ref().unwrap())
-                };
-                if res {
-                    // No NAT
-                    context.protocol_process_no_nat().await?;
-
-                    // No more retries
-                    break;
-                }
-            }
-
-            // There is -some NAT-
-            if context.protocol_process_nat().await? {
-                // We either got dial info or a network class without one
-                break;
-            }
-
-            // If we tried everything, break anyway after N attempts
-            if retry_count == 0 {
-                break;
-            }
-            retry_count -= 1;
-        }
-
-        Ok(())
-    }
-
-    #[instrument(level = "trace", skip(self, context), err)]
-    pub async fn update_ipv6_protocol_dialinfo(
-        &self,
-        context: &DiscoveryContext,
-        protocol_type: ProtocolType,
-    ) -> EyreResult<()> {
-        let mut retry_count = {
-            let c = self.config.get();
-            c.network.restricted_nat_retries
-        };
-
-        // Start doing ipv6 protocol
-        context.protocol_begin(protocol_type, AddressType::IPV6);
-
-        // Loop for restricted NAT retries
-        loop {
-            log_net!(debug
-                "=== update_ipv6_protocol_dialinfo {:?} tries_left={} ===",
+                "=== update_protocol_dialinfo {:?} {:?} tries_left={} ===",
+                address_type,
                 protocol_type,
                 retry_count
             );
@@ -714,7 +760,11 @@ impl Network {
                         let udpv4_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv4_protocol_dialinfo(&udpv4_context, ProtocolType::UDP)
+                            .update_protocol_dialinfo(
+                                &udpv4_context,
+                                ProtocolType::UDP,
+                                AddressType::IPV4,
+                            )
                             .await
                         {
                             log_net!(debug "Failed UDPv4 dialinfo discovery: {}", e);
@@ -734,7 +784,11 @@ impl Network {
                         let udpv6_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv6_protocol_dialinfo(&udpv6_context, ProtocolType::UDP)
+                            .update_protocol_dialinfo(
+                                &udpv6_context,
+                                ProtocolType::UDP,
+                                AddressType::IPV6,
+                            )
                             .await
                         {
                             log_net!(debug "Failed UDPv6 dialinfo discovery: {}", e);
@@ -757,7 +811,11 @@ impl Network {
                         let tcpv4_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv4_protocol_dialinfo(&tcpv4_context, ProtocolType::TCP)
+                            .update_protocol_dialinfo(
+                                &tcpv4_context,
+                                ProtocolType::TCP,
+                                AddressType::IPV4,
+                            )
                             .await
                         {
                             log_net!(debug "Failed TCPv4 dialinfo discovery: {}", e);
@@ -777,7 +835,11 @@ impl Network {
                         let wsv4_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv4_protocol_dialinfo(&wsv4_context, ProtocolType::WS)
+                            .update_protocol_dialinfo(
+                                &wsv4_context,
+                                ProtocolType::WS,
+                                AddressType::IPV4,
+                            )
                             .await
                         {
                             log_net!(debug "Failed WSv4 dialinfo discovery: {}", e);
@@ -800,7 +862,11 @@ impl Network {
                         let tcpv6_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv6_protocol_dialinfo(&tcpv6_context, ProtocolType::TCP)
+                            .update_protocol_dialinfo(
+                                &tcpv6_context,
+                                ProtocolType::TCP,
+                                AddressType::IPV6,
+                            )
                             .await
                         {
                             log_net!(debug "Failed TCPv6 dialinfo discovery: {}", e);
@@ -820,7 +886,11 @@ impl Network {
                         let wsv6_context =
                             DiscoveryContext::new(self.routing_table(), self.clone());
                         if let Err(e) = self
-                            .update_ipv6_protocol_dialinfo(&wsv6_context, ProtocolType::WS)
+                            .update_protocol_dialinfo(
+                                &wsv6_context,
+                                ProtocolType::WS,
+                                AddressType::IPV6,
+                            )
                             .await
                         {
                             log_net!(debug "Failed WSv6 dialinfo discovery: {}", e);

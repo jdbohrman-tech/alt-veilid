@@ -527,10 +527,6 @@ impl RoutingTable {
     }
 
     /// Look up the best way for two nodes to reach each other over a specific routing domain
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret)
-    )]
     pub fn get_contact_method(
         &self,
         routing_domain: RoutingDomain,
