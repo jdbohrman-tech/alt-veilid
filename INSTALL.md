@@ -37,15 +37,15 @@ echo "deb [arch=arm64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg]
 Each of the above commands will create a new file called `veilid.list` in the `/etc/apt/sources.list.d/`. This file contains instructions that tell the operating system where to download Veilid.
 
 **Step 4**: Refresh the package manager.<br />
-*Explanation*: This tells the `apt` package manager to rebuild the list of available software using the files in `/etc/apt/sources.list.d/` directory
+*Explanation*: This tells the `apt` package manager to rebuild the list of available software using the files in `/etc/apt/sources.list.d/` directory. This is invoked with "sudo" to grant superuser permission to make the changes.
 ```shell
-apt update
+sudo apt update
 ```
 
 **Step 5**: Install Veilid.<br />
-*Explanation*: With the package manager updated, it is now possible to install Veilid!
+*Explanation*: With the package manager updated, it is now possible to install Veilid! This is invoked with "sudo" to grant superuser permission to make the changes.
 ```shell
-apt install veilid-server veilid-cli
+sudo apt install veilid-server veilid-cli
 ```
 
 ### Add the repo to a Fedora based system and install a Veilid node
