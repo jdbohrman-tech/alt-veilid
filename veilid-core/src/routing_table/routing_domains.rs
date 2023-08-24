@@ -128,7 +128,18 @@ impl RoutingDomainDetailCommon {
             self.dial_info_details.clone()
         );
 
-        let relay_info = self
+        // Check if any of our dialinfo require a relay for signaling
+        // FullConeNAT requires a relay but it does not have to be published because it does not require signaling
+        let mut publish_relay = false;
+        for did in self.dial_info_details() {
+            if did.class.requires_signal() {
+                publish_relay = true;
+                break;
+            }
+        }       
+
+        let relay_info = if publish_relay {
+            self
             .relay_node
             .as_ref()
             .and_then(|rn| {
@@ -145,7 +156,10 @@ impl RoutingDomainDetailCommon {
                 } else {
                     None
                 }
-            });
+            })
+        } else {
+            None
+        };
 
         let signed_node_info = match relay_info {
             Some((relay_ids, relay_sdni)) => SignedNodeInfo::Relayed(
