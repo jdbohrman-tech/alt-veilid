@@ -5699,6 +5699,7 @@ dependencies = [
  "keyvaluedb-web",
  "lazy_static",
  "libc",
+ "lock_api",
  "lz4_flex",
  "ndk",
  "ndk-glue",
