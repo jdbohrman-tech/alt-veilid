@@ -55,7 +55,7 @@ Die Verantwortlichen der Gemeinschaft befolgen diese Leitlinien zur Durchsetzung
 ### 2. Verwarnung
 **Auswirkungen auf die Gemeinschaft**: Ein Verstoß durch einen einzelnen Vorfall oder eine Reihe von Handlungen.
 
-**Konsequenz**: Eine Warnung mit Konsequenzen für fortgesetztes Verhalten. Keine Interaktion mit den betroffenen Personen, einschließlich unaufgeforderter Interaktion mit denjenigen, die den Verhaltenskodex durchsetzen, für eine best
+**Folgen**: Eine Warnung mit Konsequenzen für fortgesetztes Verhalten. Keine Interaktion mit den betroffenen Personen, einschließlich unaufgeforderter Interaktion mit denjenigen, die den Verhaltenskodex durchsetzen, für eine best
 ### 3. Vorübergehendes Verbot
 **Auswirkungen auf die Gemeinschaft**: Ein schwerwiegender Verstoß gegen die Gemeinschaftsstandards, einschließlich anhaltendem unangemessenem Verhalten.
 
