@@ -90,7 +90,7 @@ pub static DEFAULT_LOG_IGNORE_LIST: [&str; 23] = [
 use cfg_if::*;
 use enumset::*;
 use eyre::{bail, eyre, Report as EyreReport, Result as EyreResult, WrapErr};
-use futures_util::stream::FuturesUnordered;
+use futures_util::stream::{FuturesOrdered, FuturesUnordered};
 use parking_lot::*;
 use schemars::{schema_for, JsonSchema};
 use serde::*;
