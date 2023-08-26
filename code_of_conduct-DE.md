@@ -68,12 +68,16 @@ Die Verantwortlichen der Gemeinschaft befolgen diese Leitlinien zur Durchsetzung
 **Folgen**: Ein dauerhaftes Verbot jeglicher öffentlicher Interaktion innerhalb der Gemeinschaft.
 
 ## Zuschreibung
-Dieser Verhaltenskodex ist der [Contributor Covenant][Homepage] entnommen, Version 2.1, verfügbar unter[https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][v2.1]. Die Community Impact Guidelines wurden inspiriert von [Mozillas Verhaltenskodex-Durchsetzungsleiter][Mozilla CoC].
+Dieser Verhaltenskodex ist der [Contributor Covenant][Homepage] entnommen, Version 2.1, verfügbar unter [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][v2.1].
 
-Antworten auf häufig gestellte Fragen zu diesem Verhaltenskodex finden Sie in den FAQ unter[https://wimmte Zeitspanne. Dazu gehört auch die Vermeidung von Interaktionen in Gemeinschaftsräumen sowie in externen Kanälen wie soziale Medien. Ein Verstoß gegen diese Bedingungen kann zu einem vorübergehenden oder dauerhaften Verbot führen. www.contributor-covenant.org/faq][FAQ]. Übersetzungen sind verfügbar unter [https://www.contributor-covenant.org/translations][Übersetzungen].
+Die Community Impact Guidelines wurden inspiriert von [Mozilla's code of conduct enforcement ladder][Mozilla CoC].
 
-[Homepage]: https://www.contributor-covenant.org[v2.1]: https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
-[Mozilla CoC]: https://github.com/mozilla/diversity[FAQ]: https://www.contributor-covenant.org/faq
+Antworten auf häufig gestellte Fragen zu diesem Verhaltenskodex finden Sie in den FAQ unter [https:// www.contributor-covenant.org/faq][FAQ]. Übersetzungen sind verfügbar unter [https://www.contributor-covenant.org/translations][Übersetzungen].
+
+[Homepage]: https://www.contributor-covenant.org
+[v2.1]: https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
+[Mozilla CoC]: https://github.com/mozilla/diversity
+[FAQ]: https://www.contributor-covenant.org/faq
 [Übersetzungen]: https://www.contributor-covenant.org/translations
 
 ## Überarbeitungen
