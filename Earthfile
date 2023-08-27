@@ -2,7 +2,7 @@ VERSION 0.6
 
 # Start with older Ubuntu to ensure GLIBC symbol versioning support for older linux
 # Ensure we are using an amd64 platform because some of these targets use cross-platform tooling
-FROM --platform amd64 ubuntu:16.04
+FROM ubuntu:16.04
 
 # Install build prerequisites
 deps-base:
@@ -45,11 +45,15 @@ deps-rust:
 # Install Linux cross-platform tooling
 deps-cross:
     FROM +deps-rust
-    RUN apt-get install -y gcc-aarch64-linux-gnu curl unzip
+    # TODO: gcc-aarch64-linux-gnu is not in the packages for ubuntu 16.04
+    # RUN apt-get install -y gcc-aarch64-linux-gnu curl unzip 
+    # RUN apt-get install -y gcc-4.8-arm64-cross
     RUN curl https://ziglang.org/builds/zig-linux-x86_64-0.11.0-dev.3978+711b4e93e.tar.xz | tar -C /usr/local -xJf -
     RUN mv /usr/local/zig-linux-x86_64-0.11.0-dev.3978+711b4e93e /usr/local/zig
     ENV PATH=$PATH:/usr/local/zig
     RUN cargo install cargo-zigbuild
+    RUN rustup target add x86_64-unknown-linux-gnu
+    RUN rustup target add aarch64-unknown-linux-gnu
 
 # Install android tooling
 deps-android:
@@ -85,26 +89,49 @@ code-android:
 # Clippy only
 clippy:
     FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
     RUN cargo clippy
+    SAVE IMAGE --push registry.gitl ab.com/$CI_PROJECT_PATH/clippy:latest
 
 # Build
+build-release:
+    FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
+    RUN cargo build --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    SAVE ARTIFACT ./target/release AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/build-release:latest
+
+build:
+    FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
+    RUN cargo build -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    SAVE ARTIFACT ./target/debug AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/build:latest
+
 build-linux-amd64:
     FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
     RUN cargo build --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/build-linux-amd64:latest
 
 build-linux-amd64-debug:
     FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
     RUN cargo build --target x86_64-unknown-linux-gnu -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/build-linux-amd64-debug:latest
 
 build-linux-arm64:
     FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
     RUN cargo zigbuild --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/aarch64-unknown-linux-gnu AS LOCAL ./target/artifacts/aarch64-unknown-linux-gnu
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/build-linux-arm64:latest
 
 # build-android:
 #     FROM +code-android
+#     ARG CI_PROJECT_PATH=veilid/veilid
 #     WORKDIR /veilid/veilid-core
 #     ENV PATH=$PATH:/Android/Sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/
 #     RUN cargo build --target aarch64-linux-android --release
@@ -116,17 +143,30 @@ build-linux-arm64:
 #     SAVE ARTIFACT ./target/armv7-linux-androideabi AS LOCAL ./target/artifacts/armv7-linux-androideabi
 #     SAVE ARTIFACT ./target/i686-linux-android AS LOCAL ./target/artifacts/i686-linux-android
 #     SAVE ARTIFACT ./target/x86_64-linux-android AS LOCAL ./target/artifacts/x86_64-linux-android
+#     SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/build-android:latest
 
 # Unit tests
+unit-tests-linux:
+    FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
+    ENV RUST_BACKTRACE=1
+    RUN cargo test --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/unit-tests-linux:latest
+
+# TODO: Change t0 cross so that they work on any platform
 unit-tests-linux-amd64:
     FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
     ENV RUST_BACKTRACE=1
     RUN cargo test --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/unit-tests-linux-amd64:latest
 
-# unit-tests-linux-arm64:
-#     FROM +code-linux
-#     ENV RUST_BACKTRACE=1
-#     RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+unit-tests-linux-arm64:
+    FROM +code-linux
+    ARG CI_PROJECT_PATH=veilid/veilid
+    ENV RUST_BACKTRACE=1
+    RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/unit-tests-linux-arm64:latest
 
 # Package 
 package-linux-amd64-deb:
