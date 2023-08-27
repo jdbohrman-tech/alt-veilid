@@ -313,7 +313,7 @@ pub async fn api_startup(
     Ok(veilid_api)
 }
 
-#[instrument(err, skip(update_callback))]
+#[instrument(err, skip_all)]
 pub async fn api_startup_json(
     update_callback: UpdateCallback,
     config_json: String,
