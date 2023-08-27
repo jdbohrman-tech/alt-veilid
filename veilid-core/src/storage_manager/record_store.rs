@@ -612,7 +612,7 @@ where
         // Update record
         self.with_record_mut(key, |record| {
             record.store_subkey(subkey);
-            record.set_record_data_size(new_record_data_size);
+            record.set_record_data_size(new_total_size);
         })
         .expect("record should still be here");
 
