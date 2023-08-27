@@ -18,6 +18,7 @@ cfg_if! {
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 use async_std_resolver::{config, resolver, resolver_from_system_conf, AsyncStdResolver as AsyncResolver};
+                use trust_dns_resolver::error::ResolveErrorKind;
             } else if #[cfg(feature="rt-tokio")] {
                 use trust_dns_resolver::{config, TokioAsyncResolver as AsyncResolver, error::ResolveError, error::ResolveErrorKind};
 
