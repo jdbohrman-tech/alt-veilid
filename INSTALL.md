@@ -52,7 +52,7 @@ sudo apt install veilid-server veilid-cli
 **Step 1**: Add Veilid to your list of available software.<br />
 *Explanation*: With the package manager updated, it is now possible to install Veilid!
 ```shell
-yum-config-manager --add-repo https://packages.veilid.net/rpm/veilid-rpm-test-repo.repo
+yum-config-manager --add-repo https://packages.veilid.net/rpm/veilid-rpm-repo.repo
 ```
 **Step 2**: Install Veilid.<br />
 *Explanation*: With the package manager updated, it is now possible to install Veilid!
