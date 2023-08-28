@@ -1,3 +1,7 @@
+//! Packet reassembly and fragmentation handler
+//!
+//! * [AssemblyBuffer] handles both the sender and received end of fragmentation and reassembly.
+
 use super::*;
 use range_set_blaze::RangeSetBlaze;
 use std::io::{Error, ErrorKind};
@@ -12,7 +16,12 @@ const MAX_LEN: usize = LengthType::MAX as usize;
 
 // XXX: keep statistics on all drops and why we dropped them
 // XXX: move to config eventually?
+
+/// The hard-coded maximum fragment size used by AssemblyBuffer
+///
+/// Eventually this should parameterized and made configurable.
 pub const FRAGMENT_LEN: usize = 1280 - HEADER_LEN;
+
 const MAX_CONCURRENT_HOSTS: usize = 256;
 const MAX_ASSEMBLIES_PER_HOST: usize = 256;
 const MAX_BUFFER_PER_HOST: usize = 256 * 1024;
@@ -202,8 +211,23 @@ struct AssemblyBufferUnlockedInner {
 }
 
 /// Packet reassembly and fragmentation handler
-/// No retry, no acknowledgment, no flow control
-/// Just trying to survive lower path MTU for larger messages
+///
+/// Used to provide, for raw unordered protocols such as UDP, a means to achieve:
+///
+/// * Fragmentation of packets to ensure they are smaller than a common MTU
+/// * Reassembly of fragments upon receipt accounting for:
+///   * duplication
+///   * drops
+///   * overlaops
+///     
+/// AssemblyBuffer does not try to replicate TCP or other highly reliable protocols. Here are some
+/// of the design limitations to be aware of when using AssemblyBuffer:
+///
+/// * No packet acknowledgment. The sender does not know if a packet was received.
+/// * No flow control. If there are buffering problems or drops, the sender and receiver have no protocol to address this.
+/// * No retries or retransmission.
+/// * No sequencing of packets. Packets may still be delivered to the application out of order, but this guarantees that only whole packets will be delivered if all of their fragments are received.
+
 #[derive(Clone)]
 pub struct AssemblyBuffer {
     inner: Arc<Mutex<AssemblyBufferInner>>,
