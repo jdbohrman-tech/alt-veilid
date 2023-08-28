@@ -1,16 +1,15 @@
 # Contributing to Veilid
-Before you get started, please review our [Code of Conduct](./code_of_conduct.md). We're here to make things better and we cannot do that by treating each other without respect.
+Before you get started, please review our [Code of Conduct](./code_of_conduct.md). We're here to make things better and we cannot do that without treating each other with respect.
 
 
 ## Code Contributions
-To begin crafting code to contribute to the Veilid project, first set up a [development environment](./DEVELOPMENT.md). After cloning the project, check out a new local branch and name it in a way that describes the work being done. This is referred to as a [feature branch].
+To begin crafting code to contribute to the Veilid project, first set up a [development environment](./DEVELOPMENT.md). [Fork] and clone the project into your workspace; check out a new local branch and name it in a way that describes the work being done. This is referred to as a [feature branch].
 
 Some contributions might introduce changes that are incompatible with other existing nodes. In this case it is recommended to also set a development network *Guide Coming Soon*.
 
 Once you have added your new function or addressed a bug, test it locally to ensure it's working as expected. If needed, test your work in a development network with more than one node based on your code. Once you're satisfied your code works as intended and does not introduce negative results or new bugs, follow the merge requests section below to submit your work for maintainer review.
 
-We try to consider all merge requests fairly and with attention deserving to those willing to put in time and effort, but if you do not follow these rules, your contribution
-will be closed. We strive to ensure that the code joining the main branch is written to a high standard.
+We try to consider all merge requests fairly and with attention deserving to those willing to put in time and effort, but if you do not follow these rules, your contribution will be closed. We strive to ensure that the code joining the main branch is written to a high standard.
 
 
 ### Code Contribution Do's & Don'ts:
@@ -19,6 +18,7 @@ Keeping the following in mind gives your contribution the best chance of landing
 
 #### <u>Merge Requests</u>
 
+* **Do** start by [forking] the project.
 * **Do** create a [feature branch] to work on instead of working directly on `main`. This helps to:
 	* Protect the process.
 	* Ensures users are aware of commits on the branch being considered for merge.
@@ -38,6 +38,7 @@ Keeping the following in mind gives your contribution the best chance of landing
 ## Contributions Without Writing Code
 There are numerous ways you can contribute to the growth and success of the Veilid project without writing code:
 
+ - If you want to submit merge requests, begin by [forking] the project and checking out a new local branch. Name your new branch in a way that describes the work being done. This is referred to as a [feature branch].
  - Submit bugs as well as feature/enhancement requests. Letting us know you found a bug, have an idea for a new feature, or see a way we can enhance existing features is just as important and useful as writing the code related to those things. Send us detailed information about your issue or idea:
  	- Features/Enhancements: Describe your idea. If you're able to, sketch out a diagram or mock-up.
  	- Bugs: Please be sure to include the expected behavior, the observed behavior, and steps to reproduce the problem. Please be descriptive about the environment you've installed your node or application into. 
@@ -72,5 +73,7 @@ This contributor guide is inspired by the contribution guidelines of the [Metasp
 [Help other users with open issues]:https://gitlab.com/veilid/veilid/-/issues
 [50/72 rule]:http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [feature branch]:https://docs.gitlab.com/ee/gitlab-basics/feature_branch_workflow.html
+[forking]:https://docs.gitlab.com/ee/user/project/repository/forking_workflow.html
+[fork]:https://docs.gitlab.com/ee/user/project/repository/forking_workflow.html
 [verification steps]:https://docs.gitlab.com/ee/user/markdown.html#task-lists
 [Veilid Discord]:https://discord.gg/DmEGxyA87N

@@ -10,13 +10,12 @@ stages:
   - release
   - distribute
 
-test_amd64:
+unit_test_linux:
   stage: test
   image: docker
   services:
     - docker:dind
   only:
-    - main
     - merge_requests
   before_script:
     - apk update && apk add git
