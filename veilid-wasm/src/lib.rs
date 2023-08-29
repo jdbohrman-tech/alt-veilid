@@ -80,28 +80,6 @@ pub fn from_json<T: de::DeserializeOwned + Debug>(
     deserialize_json(&s)
 }
 
-// Parse target
-fn parse_target(s: String) -> APIResult<veilid_core::Target> {
-    // Is this a route id?
-    if let Ok(rrid) = veilid_core::RouteId::from_str(&s) {
-        let veilid_api = get_veilid_api()?;
-        let routing_table = veilid_api.routing_table()?;
-        let rss = routing_table.route_spec_store();
-
-        // Is this a valid remote route id? (can't target allocated routes)
-        if rss.is_route_id_remote(&rrid) {
-            return Ok(veilid_core::Target::PrivateRoute(rrid));
-        }
-    }
-
-    // Is this a node id?
-    if let Ok(nid) = veilid_core::TypedKey::from_str(&s) {
-        return Ok(veilid_core::Target::NodeId(nid));
-    }
-
-    Err(veilid_core::VeilidAPIError::invalid_target())
-}
-
 // Utility types for async API results
 type APIResult<T> = Result<T, veilid_core::VeilidAPIError>;
 const APIRESULT_UNDEFINED: APIResult<()> = APIResult::Ok(());
@@ -370,7 +348,7 @@ pub fn routing_context_with_sequencing(id: u32, sequencing: String) -> u32 {
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_app_call(id: u32, target: String, request: String) -> Promise {
+pub fn routing_context_app_call(id: u32, target_string: String, request: String) -> Promise {
     let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(request.as_bytes())
         .unwrap();
@@ -383,7 +361,8 @@ pub fn routing_context_app_call(id: u32, target: String, request: String) -> Pro
             routing_context.clone()
         };
 
-        let target = parse_target(target)?;
+        let veilid_api = get_veilid_api()?;
+        let target = veilid_api.parse_as_target(target_string).await?;
         let answer = routing_context.app_call(target, request).await?;
         let answer = data_encoding::BASE64URL_NOPAD.encode(&answer);
         APIResult::Ok(answer)
@@ -391,7 +370,7 @@ pub fn routing_context_app_call(id: u32, target: String, request: String) -> Pro
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_app_message(id: u32, target: String, message: String) -> Promise {
+pub fn routing_context_app_message(id: u32, target_string: String, message: String) -> Promise {
     let message: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(message.as_bytes())
         .unwrap();
@@ -404,7 +383,8 @@ pub fn routing_context_app_message(id: u32, target: String, message: String) -> 
             routing_context.clone()
         };
 
-        let target = parse_target(target)?;
+        let veilid_api = get_veilid_api()?;
+        let target = veilid_api.parse_as_target(target_string).await?;
         routing_context.app_message(target, message).await?;
         APIRESULT_UNDEFINED
     })

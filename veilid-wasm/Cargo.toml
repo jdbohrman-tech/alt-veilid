@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["veilid-core/default"]
+default = ["veilid-core/default-wasm"]
 crypto-test = ["veilid-core/crypto-test"]
 
 [dependencies]
