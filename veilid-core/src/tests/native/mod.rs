@@ -41,17 +41,21 @@ pub async fn run_all_tests() {
     info!("Finished unit tests");
 }
 
-#[allow(dead_code)]
-#[cfg(feature = "rt-tokio")]
-pub fn block_on<F: Future<Output = T>, T>(f: F) -> T {
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(f)
-}
-
-#[cfg(feature = "rt-async-std")]
-#[allow(dead_code)]
-pub fn block_on<F: Future<Output = T>, T>(f: F) -> T {
-    async_std::task::block_on(f)
+cfg_if::cfg_if! {
+    if #[cfg(feature = "rt-async-std")] {
+        #[allow(dead_code)]
+        pub fn block_on<F: Future<Output = T>, T>(f: F) -> T {
+            async_std::task::block_on(f)
+        }
+    } else if #[cfg(feature = "rt-tokio")] {
+        #[allow(dead_code)]
+        pub fn block_on<F: Future<Output = T>, T>(f: F) -> T {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(f)
+        }
+    } else {
+        compile_error!("needs executor implementation")
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -59,7 +59,7 @@ elif [[ "$1" == "android" ]]; then
     popd >/dev/null
 
 else
-    cargo test --features=rt-tokio
+    cargo test
     cargo test --features=rt-async-std
 fi
 popd 2>/dev/null

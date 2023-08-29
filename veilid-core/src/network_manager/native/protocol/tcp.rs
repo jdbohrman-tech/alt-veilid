@@ -36,7 +36,9 @@ impl RawTcpNetworkConnection {
     //             self.tcp_stream.get_mut()
     //                 .shutdown()
     //                 .await
-    //         }
+    //         } else {
+    //              compile_error!("needs executor implementation")
+    //          }
     //     }
     // }
 

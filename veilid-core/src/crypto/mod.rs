@@ -7,6 +7,7 @@ mod types;
 pub mod crypto_system;
 #[cfg(feature = "enable-crypto-none")]
 pub mod none;
+#[doc(hidden)]
 pub mod tests;
 #[cfg(feature = "enable-crypto-vld0")]
 pub mod vld0;

@@ -28,6 +28,7 @@ cfg_if! {
         lazy_static::lazy_static! {
             static ref GLOBAL_RUNTIME: tokio::runtime::Runtime = tokio::runtime::Runtime::new().unwrap();
         }
-
+    } else {
+        compile_error!("needs executor implementation")
     }
 }

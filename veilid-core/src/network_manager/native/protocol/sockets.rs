@@ -8,6 +8,8 @@ cfg_if! {
     } else if #[cfg(feature="rt-tokio")] {
         pub use tokio::net::{TcpStream, TcpListener, UdpSocket};
         pub use tokio_util::compat::*;
+    } else {
+        compile_error!("needs executor implementation")
     }
 }
 
@@ -224,6 +226,8 @@ pub async fn nonblocking_connect(
             Ok(TimeoutOr::value(TcpStream::from(async_stream.into_inner()?)))
         } else if #[cfg(feature="rt-tokio")] {
             Ok(TimeoutOr::value(TcpStream::from_std(async_stream.into_inner()?)?))
+        } else {
+            compile_error!("needs executor implementation")
         }
     }
 }

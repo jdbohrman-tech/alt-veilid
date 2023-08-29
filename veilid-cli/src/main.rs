@@ -169,6 +169,8 @@ fn main() -> Result<(), String> {
             } else if #[cfg(feature="rt-tokio")] {
                 // Wait for ui and connection to complete
                 let _ = tokio::join!(ui_future, connection_future);
+            } else {
+                compile_error!("needs executor implementation")
             }
         }
     });

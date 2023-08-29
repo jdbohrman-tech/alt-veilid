@@ -1,5 +1,5 @@
+use veilid_core::tools::*;
 use crate::dart_isolate_wrapper::*;
-use crate::tools::*;
 use allo_isolate::*;
 use cfg_if::*;
 use data_encoding::BASE64URL_NOPAD;
@@ -10,13 +10,10 @@ use opentelemetry::*;
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use serde::*;
-use std::str::FromStr;
-use std::collections::BTreeMap;
 use std::os::raw::c_char;
 use std::sync::Arc;
 use tracing::*;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::*;
 use veilid_core::Encodable as _;
 
 // Globals
@@ -57,29 +54,6 @@ define_string_destructor!(free_string);
 // Utility types for async API results
 type APIResult<T> = veilid_core::VeilidAPIResult<T>;
 const APIRESULT_VOID: APIResult<()> = APIResult::Ok(());
-
-// Parse target
-async fn parse_target(s: String) -> APIResult<veilid_core::Target> {
-
-    // Is this a route id?
-    if let Ok(rrid) = veilid_core::RouteId::from_str(&s) {
-        let veilid_api = get_veilid_api().await?;
-        let routing_table = veilid_api.routing_table()?;
-        let rss = routing_table.route_spec_store();
-    
-        // Is this a valid remote route id? (can't target allocated routes)
-        if rss.is_route_id_remote(&rrid) {
-            return Ok(veilid_core::Target::PrivateRoute(rrid));
-        }
-    }
-
-    // Is this a node id?
-    if let Ok(nid) = veilid_core::TypedKey::from_str(&s) {
-        return Ok(veilid_core::Target::NodeId(nid));
-    }
-
-    Err(veilid_core::VeilidAPIError::invalid_target())
-}
 
 /////////////////////////////////////////
 // FFI-specific
@@ -186,7 +160,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
         .expect("failed to deserialize plaform config json");
 
     // Set up subscriber and layers
-    let subscriber = Registry::default();
+    let subscriber = tracing_subscriber::Registry::default();
     let mut layers = Vec::new();
     let mut filters = (*FILTERS).lock();
 
@@ -194,7 +168,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
     if platform_config.logging.terminal.enabled {
         let filter =
             veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, None);
-        let layer = fmt::Layer::new()
+        let layer = tracing_subscriber::fmt::Layer::new()
             .compact()
             .with_writer(std::io::stdout)
             .with_filter(filter.clone());
@@ -217,6 +191,8 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                     .tonic()
                     .with_endpoint(format!("http://{}", grpc_endpoint));
                 let batch = opentelemetry::runtime::Tokio;
+            } else {
+                compile_error!("needs executor implementation")
             }
         }
 
@@ -458,8 +434,8 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
             };
             routing_context.clone()
         };
-        
-        let target = parse_target(target_string).await?;
+        let veilid_api = get_veilid_api().await?;
+        let target = veilid_api.parse_as_target(target_string).await?;
         let answer = routing_context.app_call(target, request).await?;
         let answer = data_encoding::BASE64URL_NOPAD.encode(&answer);
         APIResult::Ok(answer)
@@ -485,7 +461,8 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
             routing_context.clone()
         };
         
-        let target = parse_target(target_string).await?;
+        let veilid_api = get_veilid_api().await?;
+        let target = veilid_api.parse_as_target(target_string).await?;
         routing_context.app_message(target, message).await?;
         APIRESULT_VOID
     });

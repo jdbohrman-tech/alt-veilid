@@ -164,7 +164,7 @@ impl TableStore {
         self.flush().await;
     }
 
-    pub fn maybe_unprotect_device_encryption_key(
+    pub(crate) fn maybe_unprotect_device_encryption_key(
         &self,
         dek_bytes: &[u8],
         device_encryption_key_password: &str,
@@ -218,7 +218,7 @@ impl TableStore {
         ))
     }
 
-    pub fn maybe_protect_device_encryption_key(
+    pub(crate) fn maybe_protect_device_encryption_key(
         &self,
         dek: TypedSharedSecret,
         device_encryption_key_password: &str,

@@ -36,6 +36,8 @@ cfg_if! {
                 pub async fn resolver_from_system_conf() -> Result<AsyncResolver, ResolveError> {
                     AsyncResolver::tokio_from_system_conf()
                 }
+            } else {
+                compile_error!("needs executor implementation")
             }
         }
 

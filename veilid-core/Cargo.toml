@@ -13,6 +13,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 # Common features
 default = ["enable-crypto-vld0", "rt-tokio"]
+default-wasm = ["enable-crypto-vld0"]
 rt-async-std = [
     "async-std",
     "async-std-resolver",
@@ -32,7 +33,6 @@ rt-tokio = [
     "rtnetlink/tokio_socket",
     "veilid-tools/rt-tokio",
 ]
-rt-wasm-bindgen = ["veilid-tools/rt-wasm-bindgen", "async_executors/bindgen"]
 
 # Crypto support features
 enable-crypto-vld0 = []
@@ -173,6 +173,10 @@ socket2 = { version = "0.5.3", features = ["all"] }
 
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+
+veilid-tools = { path = "../veilid-tools", default-features = false, features = [
+    "rt-wasm-bindgen",
+] }
 
 # Tools
 getrandom = { version = "0.2.4", features = ["js"] }

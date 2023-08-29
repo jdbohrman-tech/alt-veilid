@@ -1,3 +1,14 @@
+//! The Veilid Framework
+//!
+//! Core library used to create a Veilid node and operate veilid services as part of an application.
+//!
+//! `veilid-core` contains all of the core logic for Veilid and can be used in mobile applications as well as desktop
+//! and in-browser WebAssembly apps.
+//!
+//! The public API is accessed by getting a [VeilidAPI] object via a call to [api_startup] or [api_startup_json].
+//!
+//! From there, a [RoutingContext] object can get you access to public and private routed operations.
+//!
 #![deny(clippy::all)]
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
@@ -41,15 +52,20 @@ pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;
 pub use veilid_tools as tools;
 
+/// The on-the-wire serialization format for Veilid RPC
 pub mod veilid_capnp {
     include!(concat!(env!("OUT_DIR"), "/proto/veilid_capnp.rs"));
 }
 
+#[doc(hidden)]
 pub mod tests;
 
+/// Return the cargo package version of veilid-core in string format
 pub fn veilid_version_string() -> String {
     env!("CARGO_PKG_VERSION").to_owned()
 }
+
+/// Return the cargo package version of veilid-core in tuple format
 pub fn veilid_version() -> (u32, u32, u32) {
     (
         u32::from_str(env!("CARGO_PKG_VERSION_MAJOR")).unwrap(),
@@ -90,6 +106,7 @@ pub static DEFAULT_LOG_IGNORE_LIST: [&str; 23] = [
 use cfg_if::*;
 use enumset::*;
 use eyre::{bail, eyre, Report as EyreReport, Result as EyreResult, WrapErr};
+#[allow(unused_imports)]
 use futures_util::stream::{FuturesOrdered, FuturesUnordered};
 use parking_lot::*;
 use schemars::{schema_for, JsonSchema};

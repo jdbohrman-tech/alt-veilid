@@ -14,6 +14,8 @@ cfg_if! {
         pub type WebsocketNetworkConnectionWSS =
             WebsocketNetworkConnection<async_tls::client::TlsStream<Compat<TcpStream>>>;
         pub type WebsocketNetworkConnectionWS = WebsocketNetworkConnection<Compat<TcpStream>>;
+    } else {
+        compile_error!("needs executor implementation")
     }
 }
 
