@@ -129,7 +129,7 @@ sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@11 jq
 $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
 
 # install targets
-rustup target add aarch64-apple-darwin aarch64-apple-ios x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+rustup target add aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
 # install cargo packages
 cargo install wasm-bindgen-cli wasm-pack
@@ -137,4 +137,5 @@ cargo install wasm-bindgen-cli wasm-pack
 # install pip packages
 pip3 install --upgrade bumpversion
 
+echo Installing cocoapods. This may take a while.
 sudo gem install cocoapods

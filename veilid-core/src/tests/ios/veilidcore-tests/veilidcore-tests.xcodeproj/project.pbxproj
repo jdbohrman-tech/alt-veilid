@@ -167,7 +167,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "../../../../../scripts/ios_build.sh veilid_core --features veilid_core_ios_tests,rt-tokio\n";
+			shellScript = "../../../../../scripts/ios_build.sh veilid_core --features veilid_core_ios_tests\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -332,7 +332,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = ZJPQSFX5MW;
+				DEVELOPMENT_TEAM = XP5LBLT7M7;
 				INFOPLIST_FILE = "veilidcore-tests/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.3;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -364,7 +364,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = ZJPQSFX5MW;
+				DEVELOPMENT_TEAM = XP5LBLT7M7;
 				INFOPLIST_FILE = "veilidcore-tests/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.3;
 				LD_RUNPATH_SEARCH_PATHS = (
