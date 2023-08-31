@@ -7,6 +7,9 @@ if [ ! "$(uname)" == "Darwin" ]; then
     echo Not running on MacOS
     exit 1
 fi
+read -p "Did you install Android SDK? Y/N " response
+case $response in
+	[yY] ) echo Checking android setup...;
 
 # ensure ANDROID_SDK_ROOT is defined and exists
 if [ -d "$ANDROID_SDK_ROOT" ]; then
@@ -63,6 +66,7 @@ else
     echo 'adb is not available in the path'
     exit 1
 fi
+esac
 
 # ensure brew is installed
 if command -v brew &> /dev/null; then 
@@ -125,8 +129,11 @@ if [ "$BREW_USER" == "" ]; then
 fi
 sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@11 jq
 
+case $response in
+	[yY] ) echo Checking android sdk packages are installed...;
 # Ensure android sdk packages are installed
 $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
+esac
 
 # install targets
 rustup target add aarch64-apple-darwin aarch64-apple-ios x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
