@@ -60,6 +60,6 @@ elif [[ "$1" == "android" ]]; then
 
 else
     cargo test
-    cargo test --features=rt-async-std
+    cargo test --no-default-features --features=default-async-std
 fi
 popd 2>/dev/null

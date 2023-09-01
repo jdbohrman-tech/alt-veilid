@@ -13,7 +13,10 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 # Common features
 default = ["enable-crypto-vld0", "rt-tokio"]
+default-async-std = ["enable-crypto-vld0", "rt-async-std"]
 default-wasm = ["enable-crypto-vld0"]
+
+# Runtimes
 rt-async-std = [
     "async-std",
     "async-std-resolver",
