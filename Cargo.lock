@@ -5397,15 +5397,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tsify-async"
-version = "0.1.0"
-dependencies = [
- "quote",
- "serde-wasm-bindgen",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "tsify-macros"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

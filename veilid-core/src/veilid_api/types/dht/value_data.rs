@@ -1,9 +1,8 @@
 use super::*;
 use veilid_api::VeilidAPIResult;
 
-#[derive(
-    Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema, Tsify,
-)]
+#[derive(Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct ValueData {
     /// An increasing sequence number to time-order the DHT record changes
     seq: ValueSeqNum,

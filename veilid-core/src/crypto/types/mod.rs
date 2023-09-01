@@ -6,7 +6,7 @@ use core::fmt;
 use core::hash::Hash;
 
 /// Cryptography version fourcc code
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type CryptoKind = FourCC;
 
 /// Sort best crypto kinds first
@@ -52,24 +52,24 @@ pub use crypto_typed::*;
 pub use crypto_typed_group::*;
 pub use keypair::*;
 
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedKey = CryptoTyped<PublicKey>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedSecret = CryptoTyped<SecretKey>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedKeyPair = CryptoTyped<KeyPair>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedSignature = CryptoTyped<Signature>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedSharedSecret = CryptoTyped<SharedSecret>;
 
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedKeyGroup = CryptoTypedGroup<PublicKey>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedSecretGroup = CryptoTypedGroup<SecretKey>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedKeyPairGroup = CryptoTypedGroup<KeyPair>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedSignatureGroup = CryptoTypedGroup<Signature>;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TypedSharedSecretGroup = CryptoTypedGroup<SharedSecret>;

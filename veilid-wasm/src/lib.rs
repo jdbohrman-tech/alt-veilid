@@ -115,7 +115,8 @@ where
 /////////////////////////////////////////
 // WASM-specific
 
-#[derive(Debug, Deserialize, Serialize, Tsify)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidWASMConfigLoggingPerformance {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
@@ -123,25 +124,29 @@ pub struct VeilidWASMConfigLoggingPerformance {
     pub logs_in_console: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, Tsify)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidWASMConfigLoggingAPI {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
 }
 
-#[derive(Debug, Deserialize, Serialize, Tsify)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidWASMConfigLogging {
     pub performance: VeilidWASMConfigLoggingPerformance,
     pub api: VeilidWASMConfigLoggingAPI,
 }
 
-#[derive(Debug, Deserialize, Serialize, Tsify)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[tsify(from_wasm_abi)]
 pub struct VeilidWASMConfig {
     pub logging: VeilidWASMConfigLogging,
 }
 
-#[derive(Debug, Deserialize, Serialize, Tsify)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidRouteBlob {
     pub route_id: veilid_core::RouteId,
     #[serde(with = "veilid_core::as_human_base64")]
@@ -1463,7 +1468,8 @@ pub fn veilid_version_string() -> String {
     veilid_core::veilid_version_string()
 }
 
-#[derive(Serialize, Tsify)]
+#[derive(Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[tsify(into_wasm_abi)]
 pub struct VeilidVersion {
     pub major: u32,

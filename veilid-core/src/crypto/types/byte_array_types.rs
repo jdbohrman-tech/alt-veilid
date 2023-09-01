@@ -293,17 +293,17 @@ macro_rules! byte_array_type {
 
 byte_array_type!(CryptoKey, CRYPTO_KEY_LENGTH, CRYPTO_KEY_LENGTH_ENCODED);
 
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type PublicKey = CryptoKey;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type SecretKey = CryptoKey;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type HashDigest = CryptoKey;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type SharedSecret = CryptoKey;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type RouteId = CryptoKey;
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type CryptoKeyDistance = CryptoKey;
 
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);

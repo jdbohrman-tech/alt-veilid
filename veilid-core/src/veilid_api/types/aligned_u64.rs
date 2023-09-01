@@ -6,19 +6,9 @@ use super::*;
 /// Supports serializing to string for JSON as well, since JSON can't handle 64-bit numbers to Javascript
 
 #[derive(
-    Clone,
-    Default,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Copy,
-    Hash,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    Tsify,
+    Clone, Default, PartialEq, Eq, PartialOrd, Ord, Copy, Hash, Serialize, Deserialize, JsonSchema,
 )]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[repr(C, align(8))]
 #[serde(transparent)]
 pub struct AlignedU64(
@@ -128,17 +118,17 @@ impl AlignedU64 {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Microseconds since epoch
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type Timestamp = AlignedU64;
 pub fn get_aligned_timestamp() -> Timestamp {
     get_timestamp().into()
 }
 /// Microseconds duration
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TimestampDuration = AlignedU64;
 /// Request/Response matching id
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type OperationId = AlignedU64;
 /// Number of bytes
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type ByteCount = AlignedU64;

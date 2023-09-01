@@ -105,21 +105,10 @@ macro_rules! apibail_already_initialized {
 }
 
 #[derive(
-    ThisError,
-    Clone,
-    Debug,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    Tsify,
-    TsifyAsync,
+    ThisError, Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema,
 )]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
 #[serde(tag = "kind")]
-#[tsify(into_wasm_abi)]
 pub enum VeilidAPIError {
     #[error("Not initialized")]
     NotInitialized,
@@ -157,6 +146,7 @@ pub enum VeilidAPIError {
     #[error("Generic: {message}")]
     Generic { message: String },
 }
+from_impl_to_jsvalue!(VeilidAPIError);
 
 impl VeilidAPIError {
     pub fn not_initialized() -> Self {
@@ -225,7 +215,7 @@ impl VeilidAPIError {
     }
 }
 
-#[declare]
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type VeilidAPIResult<T> = Result<T, VeilidAPIError>;
 
 impl From<std::io::Error> for VeilidAPIError {

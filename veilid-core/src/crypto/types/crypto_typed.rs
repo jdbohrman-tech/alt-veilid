@@ -1,6 +1,7 @@
 use super::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Tsify)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct CryptoTyped<K>
 where
     K: Clone

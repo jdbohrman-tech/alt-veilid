@@ -6,7 +6,6 @@ members = [
     "veilid-cli",
     "veilid-flutter/rust",
     "veilid-wasm",
-    "tsify-async"
 ]
 exclude = ["./external"]
 
