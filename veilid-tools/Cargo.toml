@@ -85,7 +85,7 @@ ndk = { version = "0.7.0" }
 ndk-glue = { version = "0.7.0", features = ["logger"] }
 lazy_static = "1.4.0"
 paranoid-android = { version = "0.2.1", optional = true }
-android-logd-logger = "0.4.2"
+android_logger = "0.13.3"
 
 # Dependencies for Windows
 # [target.'cfg(target_os = "windows")'.dependencies]

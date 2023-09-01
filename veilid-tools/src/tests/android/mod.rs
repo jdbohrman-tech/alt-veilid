@@ -44,14 +44,20 @@ pub fn veilid_tools_setup_android_tests() {
                 .try_init()
                 .expect("failed to init android tracing");
         } else {
-            let mut builder = android_logd_logger::builder();
-            builder.tag("veilid-tools");
-            builder.prepend_module(true);
+            use log::LevelFilter;
+            use android_logger::{Config,FilterBuilder};
+
+            let mut builder = FilterBuilder::new();
             builder.filter_level(LevelFilter::Trace);
             for ig in DEFAULT_LOG_IGNORE_LIST {
                 builder.filter_module(ig, LevelFilter::Off);
             }
-            builder.init();
+            android_logger::init_once(
+                Config::default()
+                    .with_max_level(LevelFilter::Trace) // limit log level
+                    .with_tag("veilid-tools") // logs will show under mytag tag
+                    .with_filter(builder.build())
+            );
         }
     }
 

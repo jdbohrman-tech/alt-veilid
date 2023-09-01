@@ -1,13 +1,14 @@
 use super::*;
+use jni::errors::Result as JniResult;
 use jni::objects::JString;
 
 #[allow(dead_code)]
 pub fn get_files_dir() -> String {
     let aglock = ANDROID_GLOBALS.lock();
     let ag = aglock.as_ref().unwrap();
-    let env = ag.vm.attach_current_thread().unwrap();
+    let mut env = ag.vm.attach_current_thread().unwrap();
 
-    with_null_local_frame(*env, 64, || {
+    env.with_local_frame(64, |env| {
         // context.getFilesDir().getAbsolutePath()
         let file = env
             .call_method(ag.ctx.as_obj(), "getFilesDir", "()Ljava/io/File;", &[])
@@ -20,8 +21,9 @@ pub fn get_files_dir() -> String {
             .l()
             .unwrap();
 
-        let jstrval = env.get_string(JString::from(path)).unwrap();
-        Ok(String::from(jstrval.to_string_lossy()))
+        let jstr = JString::from(path);
+        let jstrval = env.get_string(&jstr).unwrap();
+        JniResult::Ok(String::from(jstrval.to_string_lossy()))
     })
     .unwrap()
 }
@@ -30,9 +32,9 @@ pub fn get_files_dir() -> String {
 pub fn get_cache_dir() -> String {
     let aglock = ANDROID_GLOBALS.lock();
     let ag = aglock.as_ref().unwrap();
-    let env = ag.vm.attach_current_thread().unwrap();
+    let mut env = ag.vm.attach_current_thread().unwrap();
 
-    with_null_local_frame(*env, 64, || {
+    env.with_local_frame(64, |env| {
         // context.getCacheDir().getAbsolutePath()
         let file = env
             .call_method(ag.ctx.as_obj(), "getCacheDir", "()Ljava/io/File;", &[])
@@ -45,8 +47,9 @@ pub fn get_cache_dir() -> String {
             .l()
             .unwrap();
 
-        let jstrval = env.get_string(JString::from(path)).unwrap();
-        Ok(String::from(jstrval.to_string_lossy()))
+        let jstr = JString::from(path);
+        let jstrval = env.get_string(&jstr).unwrap();
+        JniResult::Ok(String::from(jstrval.to_string_lossy()))
     })
     .unwrap()
 }

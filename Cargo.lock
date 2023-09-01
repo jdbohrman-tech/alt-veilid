@@ -87,24 +87,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
-name = "android-logd-logger"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89d7b9303373a56714732e3371513edd14d12987d04ff4f48527444e804bc3ae"
-dependencies = [
- "bytes 1.4.0",
- "env_logger 0.10.0",
- "lazy_static",
- "libc",
- "log",
- "parking_lot 0.12.1",
- "redox_syscall 0.3.5",
- "thiserror",
- "time 0.3.28",
- "winapi",
-]
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -117,12 +99,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85965b6739a430150bdd138e2374a98af0c3ee0d030b3bb7fc3bddff58d0102e"
 
 [[package]]
+name = "android_log-sys"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ecc8056bf6ab9892dcd53216c83d1597487d7dacac16c8df6b877d127df9937"
+
+[[package]]
 name = "android_logger"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8619b80c242aa7bd638b5c7ddd952addeecb71f69c75e33f1d47b2804f8f883a"
 dependencies = [
- "android_log-sys",
+ "android_log-sys 0.2.0",
+ "env_logger 0.10.0",
+ "log",
+ "once_cell",
+]
+
+[[package]]
+name = "android_logger"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c494134f746c14dc653a35a4ea5aca24ac368529da5370ecf41fe0341c35772f"
+dependencies = [
+ "android_log-sys 0.3.1",
  "env_logger 0.10.0",
  "log",
  "once_cell",
@@ -3047,7 +3047,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0434fabdd2c15e0aab768ca31d5b7b333717f03cf02037d5a0a3ff3c278ed67f"
 dependencies = [
- "android_logger",
+ "android_logger 0.11.3",
  "libc",
  "log",
  "ndk",
@@ -5821,7 +5821,7 @@ dependencies = [
 name = "veilid-tools"
 version = "0.1.10"
 dependencies = [
- "android-logd-logger",
+ "android_logger 0.13.3",
  "async-lock",
  "async-std",
  "async_executors",

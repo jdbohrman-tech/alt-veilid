@@ -123,7 +123,7 @@ if [ "$BREW_USER" == "" ]; then
         BREW_USER=`whoami`
     fi
 fi
-sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@11 jq
+sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@17 jq
 
 # Ensure android sdk packages are installed
 $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
