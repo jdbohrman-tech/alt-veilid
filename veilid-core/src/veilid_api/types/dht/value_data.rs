@@ -10,10 +10,12 @@ pub struct ValueData {
     /// The contents of a DHT Record
     #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     data: Vec<u8>,
 
     /// The public identity key of the writer of the data
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     writer: PublicKey,
 }
 impl ValueData {

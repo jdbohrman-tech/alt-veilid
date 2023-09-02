@@ -2,24 +2,24 @@
 use super::*;
 
 #[wasm_bindgen()]
-pub struct VeilidTable {
+pub struct VeilidTableDB {
     id: u32,
     tableName: String,
     columnCount: u32,
 }
 
 #[wasm_bindgen()]
-impl VeilidTable {
+impl VeilidTableDB {
     #[wasm_bindgen(constructor)]
-    pub fn new(tableName: String, columnCount: u32) -> VeilidTable {
-        VeilidTable {
+    pub fn new(tableName: String, columnCount: u32) -> VeilidTableDB {
+        VeilidTableDB {
             id: 0,
             tableName,
             columnCount,
         }
     }
 
-    pub async fn openTable(&mut self) -> Result<u32, VeilidAPIError> {
+    pub async fn openTable(&mut self) -> VeilidAPIResult<u32> {
         let veilid_api = get_veilid_api()?;
         let tstore = veilid_api.table_store()?;
         let table_db = tstore
@@ -41,7 +41,7 @@ impl VeilidTable {
         return true;
     }
 
-    pub async fn deleteTable(&mut self) -> Result<bool, VeilidAPIError> {
+    pub async fn deleteTable(&mut self) -> VeilidAPIResult<bool> {
         self.releaseTable();
 
         let veilid_api = get_veilid_api()?;
@@ -59,11 +59,7 @@ impl VeilidTable {
         }
     }
 
-    pub async fn load(
-        &mut self,
-        columnId: u32,
-        key: String,
-    ) -> Result<Option<String>, VeilidAPIError> {
+    pub async fn load(&mut self, columnId: u32, key: String) -> VeilidAPIResult<Option<String>> {
         self.ensureOpen().await;
 
         let table_db = {
@@ -86,7 +82,7 @@ impl VeilidTable {
         columnId: u32,
         key: String,
         value: String,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> VeilidAPIResult<()> {
         self.ensureOpen().await;
 
         let table_db = {
@@ -103,11 +99,7 @@ impl VeilidTable {
         APIRESULT_UNDEFINED
     }
 
-    pub async fn delete(
-        &mut self,
-        columnId: u32,
-        key: String,
-    ) -> Result<Option<String>, VeilidAPIError> {
+    pub async fn delete(&mut self, columnId: u32, key: String) -> VeilidAPIResult<Option<String>> {
         self.ensureOpen().await;
 
         let table_db = {
@@ -125,7 +117,7 @@ impl VeilidTable {
     }
 
     // TODO try and figure out how to result a String[], maybe Box<[String]>?
-    pub async fn getKeys(&mut self, columnId: u32) -> Result<JsValue, VeilidAPIError> {
+    pub async fn getKeys(&mut self, columnId: u32) -> VeilidAPIResult<JsValue> {
         self.ensureOpen().await;
 
         let table_db = {

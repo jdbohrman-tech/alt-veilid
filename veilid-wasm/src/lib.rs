@@ -26,7 +26,8 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::*;
 
 pub mod veilid_client_js;
-pub mod veilid_table_js;
+pub mod veilid_routing_context_js;
+pub mod veilid_table_db_js;
 
 // Allocator
 extern crate wee_alloc;
@@ -139,8 +140,7 @@ pub struct VeilidWASMConfigLogging {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[tsify(from_wasm_abi)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
 pub struct VeilidWASMConfig {
     pub logging: VeilidWASMConfigLogging,
 }
@@ -150,6 +150,7 @@ pub struct VeilidWASMConfig {
 pub struct VeilidRouteBlob {
     pub route_id: veilid_core::RouteId,
     #[serde(with = "veilid_core::as_human_base64")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub blob: Vec<u8>,
 }
 
