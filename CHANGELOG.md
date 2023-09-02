@@ -1,3 +1,13 @@
+**Changes in Veilid 0.2.0**
+- Rustdoc builds now
+- API visibility changes
+- Android JNI update
+- Fix DHT record data housekeeping
+- Public address detection improvement
+- Manual port forwarding detection 
+- lock_api dependency fix
+- DialInfo failover when some dial info does not work
+
 **Changes in Veilid 0.1.10**
 - BREAKING CHANGE: ALL MUST UPDATE
   * VLD0 now adds a BLAKE3 hash round on the DH output to further separate it from the raw key exchange
