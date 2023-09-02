@@ -24,5 +24,5 @@ fi
 
 # Produce schema from veilid-server
 for SCHEMA in "Request" "RecvMessage"; do
-    echo -n "Updating ${SCHEMA}..." && ${VEILID_SERVER} --emit-schema ${SCHEMA} > $SCRIPTDIR/veilid/schema/${SCHEMA} && echo " done." || echo " error!"
+    echo -n "Updating ${SCHEMA}..." && ${VEILID_SERVER} --emit-schema ${SCHEMA} > $SCRIPTDIR/veilid/schema/${SCHEMA}.json && echo " done." || echo " error!"
 done
