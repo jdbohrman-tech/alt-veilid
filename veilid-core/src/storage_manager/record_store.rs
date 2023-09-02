@@ -113,7 +113,7 @@ where
             }
 
             // add to index and ensure we deduplicate in the case of an error
-            if let Some(v) = self.record_index.insert(ri.0, ri.1, |k, v| {
+            if let Some(v) = self.record_index.insert_with_callback(ri.0, ri.1, |k, v| {
                 // If the configuration change, we only want to keep the 'limits.max_records' records
                 dead_records.push((k, v));
             }) {
@@ -143,10 +143,13 @@ where
         let record_data_total_size = record_data.total_size();
         // Write to subkey cache
         let mut dead_size = 0usize;
-        if let Some(old_record_data) = self.subkey_cache.insert(key, record_data, |_, v| {
-            // LRU out
-            dead_size += v.total_size();
-        }) {
+        if let Some(old_record_data) =
+            self.subkey_cache
+                .insert_with_callback(key, record_data, |_, v| {
+                    // LRU out
+                    dead_size += v.total_size();
+                })
+        {
             // Old data
             dead_size += old_record_data.total_size();
         }
@@ -305,7 +308,7 @@ where
 
         // Save to record index
         let mut dead_records = Vec::new();
-        if let Some(v) = self.record_index.insert(rtk, record, |k, v| {
+        if let Some(v) = self.record_index.insert_with_callback(rtk, record, |k, v| {
             dead_records.push((k, v));
         }) {
             // Shouldn't happen but log it

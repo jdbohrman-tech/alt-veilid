@@ -454,9 +454,7 @@ impl NetworkManager {
 
     pub fn update_client_whitelist(&self, client: TypedKey) {
         let mut inner = self.inner.lock();
-        match inner.client_whitelist.entry(client, |_k, _v| {
-            // do nothing on LRU evict
-        }) {
+        match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp()
             }
@@ -472,9 +470,7 @@ impl NetworkManager {
     pub fn check_client_whitelist(&self, client: TypedKey) -> bool {
         let mut inner = self.inner.lock();
 
-        match inner.client_whitelist.entry(client, |_k, _v| {
-            // do nothing on LRU evict
-        }) {
+        match inner.client_whitelist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp();
                 true

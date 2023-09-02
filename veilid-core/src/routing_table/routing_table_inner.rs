@@ -930,9 +930,7 @@ impl RoutingTableInner {
 
     pub fn touch_recent_peer(&mut self, node_id: TypedKey, last_connection: ConnectionDescriptor) {
         self.recent_peers
-            .insert(node_id, RecentPeersEntry { last_connection }, |_k, _v| {
-                // do nothing on lru eviction
-            });
+            .insert(node_id, RecentPeersEntry { last_connection });
     }
 
     //////////////////////////////////////////////////////////////////////

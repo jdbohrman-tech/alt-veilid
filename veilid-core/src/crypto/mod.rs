@@ -310,13 +310,10 @@ impl Crypto {
         secret: &SecretKey,
     ) -> VeilidAPIResult<SharedSecret> {
         Ok(
-            match self.inner.lock().dh_cache.entry(
-                DHCacheKey {
-                    key: *key,
-                    secret: *secret,
-                },
-                |_k, _v| {},
-            ) {
+            match self.inner.lock().dh_cache.entry(DHCacheKey {
+                key: *key,
+                secret: *secret,
+            }) {
                 Entry::Occupied(e) => e.get().shared_secret,
                 Entry::Vacant(e) => {
                     let shared_secret = vcrypto.compute_dh(key, secret)?;

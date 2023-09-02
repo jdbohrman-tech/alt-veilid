@@ -45,9 +45,7 @@ impl NetworkManager {
         inner
             .stats
             .per_address_stats
-            .entry(PerAddressStatsKey(addr), |_k, _v| {
-                // do nothing on LRU evict
-            })
+            .entry(PerAddressStatsKey(addr))
             .or_insert(PerAddressStats::default())
             .transfer_stats_accounting
             .add_up(bytes);
@@ -63,9 +61,7 @@ impl NetworkManager {
         inner
             .stats
             .per_address_stats
-            .entry(PerAddressStatsKey(addr), |_k, _v| {
-                // do nothing on LRU evict
-            })
+            .entry(PerAddressStatsKey(addr))
             .or_insert(PerAddressStats::default())
             .transfer_stats_accounting
             .add_down(bytes);

@@ -148,10 +148,13 @@ impl RouteSpecStoreCache {
         }
 
         let mut dead = None;
-        self.remote_private_route_set_cache
-            .insert(id, rprinfo, |dead_id, dead_rpri| {
+        self.remote_private_route_set_cache.insert_with_callback(
+            id,
+            rprinfo,
+            |dead_id, dead_rpri| {
                 dead = Some((dead_id, dead_rpri));
-            });
+            },
+        );
 
         if let Some((dead_id, dead_rpri)) = dead {
             // If anything LRUs out, remove from the by-key table
@@ -285,12 +288,7 @@ impl RouteSpecStoreCache {
             pr_pubkey,
         };
 
-        if let Some(v) = self
-            .compiled_route_cache
-            .insert(key, safety_route, |_k, _v| {
-                // Do nothing on LRU evict
-            })
-        {
+        if let Some(v) = self.compiled_route_cache.insert(key, safety_route) {
             log_rtab!(error "route cache already contained key: sr_pubkey={:?}, pr_pubkey={:?}", v.public_key, pr_pubkey);
         }
     }

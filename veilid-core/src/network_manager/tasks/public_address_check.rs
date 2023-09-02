@@ -117,9 +117,7 @@ impl NetworkManager {
             .public_address_check_cache
             .entry(addr_proto_type_key)
             .or_insert_with(|| LruCache::new(PUBLIC_ADDRESS_CHECK_CACHE_SIZE));
-        pacc.insert(ipblock, socket_address, |_k, _v| {
-            // do nothing on LRU evict
-        });
+        pacc.insert(ipblock, socket_address);
 
         // Determine if our external address has likely changed
         let mut bad_public_address_detection_punishment: Option<

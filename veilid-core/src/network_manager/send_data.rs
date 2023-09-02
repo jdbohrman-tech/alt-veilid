@@ -461,7 +461,7 @@ impl NetworkManager {
         self.inner
             .lock()
             .node_contact_method_cache
-            .insert(ncm_key, ncm.clone(), |_, _| {});
+            .insert(ncm_key, ncm.clone());
         Ok(ncm)
     }
 

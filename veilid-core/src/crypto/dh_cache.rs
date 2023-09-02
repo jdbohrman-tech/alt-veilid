@@ -40,6 +40,6 @@ pub fn bytes_to_cache(bytes: &[u8], cache: &mut DHCache) {
         let v = DHCacheValue {
             shared_secret: SharedSecret::new(d[64..96].try_into().expect("asdf")),
         };
-        cache.insert(k, v, |_k, _v| {});
+        cache.insert(k, v);
     }
 }
