@@ -7,6 +7,7 @@
 - Manual port forwarding detection 
 - lock_api dependency fix
 - DialInfo failover when some dial info does not work
+Note: Windows builds may be broken in this release. Please test and let us know by opening an issue.
 
 **Changes in Veilid 0.1.10**
 - BREAKING CHANGE: ALL MUST UPDATE
