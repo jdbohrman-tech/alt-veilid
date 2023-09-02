@@ -1,6 +1,6 @@
 //! # The Veilid Framework
 //!
-//! Core library used to create a Veilid node and operate veilid services as part of an application.
+//! Core library used to create a Veilid node and operate it as part of an application.
 //!
 //! `veilid-core` contains all of the core logic for Veilid and can be used in mobile applications as well as desktop
 //! and in-browser WebAssembly apps.

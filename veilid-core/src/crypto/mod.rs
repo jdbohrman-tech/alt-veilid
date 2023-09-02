@@ -15,7 +15,6 @@ pub mod vld0;
 pub use blake3digest512::*;
 
 pub use crypto_system::*;
-pub use dh_cache::*;
 pub use envelope::*;
 pub use receipt::*;
 pub use types::*;
@@ -27,6 +26,7 @@ pub use vld0::*;
 
 use super::*;
 use core::convert::TryInto;
+use dh_cache::*;
 use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
 
