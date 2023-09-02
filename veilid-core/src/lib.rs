@@ -1,4 +1,4 @@
-//! The Veilid Framework
+//! # The Veilid Framework
 //!
 //! Core library used to create a Veilid node and operate veilid services as part of an application.
 //!
@@ -9,6 +9,18 @@
 //!
 //! From there, a [RoutingContext] object can get you access to public and private routed operations.
 //!
+//! ## Features
+//!
+//! The default `veilid-core` configurations are:
+//!
+//! * `default` - Uses `tokio` as the async runtime
+//!
+//! If you use `--no-default-features`, you can switch to other runtimes:
+//!
+//! * `default-async-std` - Uses `async-std` as the async runtime
+//! * `default-wasm` - When building for the `wasm32` architecture, use this to enable `wasm-bindgen-futures` as the async runtime
+//!
+
 #![deny(clippy::all)]
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]

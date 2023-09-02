@@ -489,14 +489,12 @@ impl DiscoveryContext {
     #[instrument(level = "trace", skip(self), ret, err)]
     pub async fn protocol_process_nat(&self) -> EyreResult<bool> {
         // Get the external dial info for our use here
-        let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
+        let (node_1, external_1_dial_info, protocol_type) = {
             let inner = self.inner.lock();
             (
                 inner.node_1.as_ref().unwrap().clone(),
                 inner.external_1_dial_info.as_ref().unwrap().clone(),
-                inner.external_1_address.unwrap(),
                 inner.protocol_type.unwrap(),
-                inner.address_type.unwrap(),
             )
         };
 
@@ -595,13 +593,10 @@ impl DiscoveryContext {
 
         // We are restricted, determine what kind of restriction
         // Get the external dial info for our use here
-        let (node_1, external_1_dial_info, external_1_address, protocol_type, address_type) = {
+        let (external_1_address, address_type) = {
             let inner = self.inner.lock();
             (
-                inner.node_1.as_ref().unwrap().clone(),
-                inner.external_1_dial_info.as_ref().unwrap().clone(),
                 inner.external_1_address.unwrap(),
-                inner.protocol_type.unwrap(),
                 inner.address_type.unwrap(),
             )
         };

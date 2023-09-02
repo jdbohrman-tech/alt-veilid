@@ -74,6 +74,7 @@ wasm-bindgen = "0.2.87"
 js-sys = "0.3.64"
 wasm-bindgen-futures = "0.4.37"
 async_executors = { version = "0.7.0", default-features = false }
+
 async-lock = "2.8.0"
 send_wrapper = { version = "0.6.0", features = ["futures"] }
 
