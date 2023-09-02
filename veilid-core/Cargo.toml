@@ -1,6 +1,8 @@
 [package]
+# --- Bumpversion match - do not reorder
 name = "veilid-core"
 version = "0.1.10"
+# ---
 authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
 build = "build.rs"

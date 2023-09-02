@@ -1,6 +1,8 @@
 [package]
+# --- Bumpversion match - do not reorder
 name = "veilid-cli"
 version = "0.1.10"
+# ---
 authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
 license = "MPL-2.0"
@@ -10,16 +12,27 @@ name = "veilid-cli"
 path = "src/main.rs"
 
 [features]
-default = [ "rt-tokio" ]
-rt-async-std = [ "async-std", "veilid-tools/rt-async-std", "cursive/rt-async-std" ]
-rt-tokio = [ "tokio", "tokio-util", "veilid-tools/rt-tokio", "cursive/rt-tokio" ]
+default = ["rt-tokio"]
+rt-async-std = [
+    "async-std",
+    "veilid-tools/rt-async-std",
+    "cursive/rt-async-std",
+]
+rt-tokio = ["tokio", "tokio-util", "veilid-tools/rt-tokio", "cursive/rt-tokio"]
 
 [dependencies]
-async-std = { version = "^1.9", features = ["unstable", "attributes"], optional = true }
+async-std = { version = "^1.9", features = [
+    "unstable",
+    "attributes",
+], optional = true }
 tokio = { version = "^1", features = ["full"], optional = true }
-tokio-util = { version = "^0", features = ["compat"], optional = true}
+tokio-util = { version = "^0", features = ["compat"], optional = true }
 async-tungstenite = { version = "^0.8" }
-cursive = { path = "../external/cursive/cursive", default-features = false, features = [ "crossterm", "toml", "ansi" ]}
+cursive = { path = "../external/cursive/cursive", default-features = false, features = [
+    "crossterm",
+    "toml",
+    "ansi",
+] }
 cursive-flexi-logger-view = { path = "../external/cursive-flexi-logger-view" }
 cursive_buffered_backend = { path = "../external/cursive_buffered_backend" }
 # cursive-multiplex = "0.6.0"
@@ -27,7 +40,7 @@ cursive_buffered_backend = { path = "../external/cursive_buffered_backend" }
 cursive_table_view = "0.14.0"
 arboard = "3.2.0"
 # cursive-tabs = "0.5.0"
-clap = { version= "4", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 directories = "^4"
 log = "^0"
 futures = "^0"

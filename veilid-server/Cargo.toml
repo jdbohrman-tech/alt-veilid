@@ -1,7 +1,9 @@
 [package]
+# --- Bumpversion match - do not reorder
 name = "veilid-server"
-description = "Veilid Server"
 version = "0.1.10"
+# ---
+description = "Veilid Server"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"
@@ -15,8 +17,20 @@ default = ["rt-tokio", "veilid-core/default"]
 crypto-test = ["rt-tokio", "veilid-core/crypto-test"]
 crypto-test-none = ["rt-tokio", "veilid-core/crypto-test-none"]
 
-rt-async-std = ["veilid-core/rt-async-std", "async-std", "opentelemetry/rt-async-std", "opentelemetry-otlp/grpc-sys"]
-rt-tokio = ["veilid-core/rt-tokio", "tokio", "tokio-stream", "tokio-util", "opentelemetry/rt-tokio", "console-subscriber"]
+rt-async-std = [
+    "veilid-core/rt-async-std",
+    "async-std",
+    "opentelemetry/rt-async-std",
+    "opentelemetry-otlp/grpc-sys",
+]
+rt-tokio = [
+    "veilid-core/rt-tokio",
+    "tokio",
+    "tokio-stream",
+    "tokio-util",
+    "opentelemetry/rt-tokio",
+    "console-subscriber",
+]
 tracking = ["veilid-core/tracking"]
 network-result-extra = ["veilid-core/network-result-extra"]
 
@@ -34,11 +48,11 @@ async-std = { version = "^1", features = ["unstable"], optional = true }
 tokio = { version = "^1", features = ["full", "tracing"], optional = true }
 console-subscriber = { version = "^0", optional = true }
 tokio-stream = { version = "^0", features = ["net"], optional = true }
-tokio-util = { version = "^0", features = ["compat"], optional = true}
+tokio-util = { version = "^0", features = ["compat"], optional = true }
 async-tungstenite = { version = "^0", features = ["async-tls"] }
 color-eyre = { version = "^0", default-features = false }
 backtrace = "^0"
-clap = { version= "4", features = ["derive", "string", "wrap_help"] }
+clap = { version = "4", features = ["derive", "string", "wrap_help"] }
 directories = "^4"
 parking_lot = "^0"
 config = { version = "^0", features = ["yaml"] }
@@ -47,7 +61,9 @@ serde = "^1"
 serde_derive = "^1"
 serde_yaml = "^0"
 json = "^0"
-futures-util = { version = "^0", default_features = false, features = ["alloc"] }
+futures-util = { version = "^0", default_features = false, features = [
+    "alloc",
+] }
 url = "^2"
 ctrlc = "^3"
 lazy_static = "^1"

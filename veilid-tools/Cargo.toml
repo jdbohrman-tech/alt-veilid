@@ -1,6 +1,8 @@
 [package]
+# --- Bumpversion match - do not reorder
 name = "veilid-tools"
 version = "0.1.10"
+# ---
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"
