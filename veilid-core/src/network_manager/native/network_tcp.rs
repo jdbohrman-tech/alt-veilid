@@ -132,6 +132,30 @@ impl Network {
             }
         };
 
+        #[cfg(all(feature = "rt-async-std", unix))]
+        {
+            // async-std does not directly support linger on tcpsocket yet
+            use std::os::fd::AsRawFd;
+            use std::os::fd::FromRawFd;
+            if let Err(e) = unsafe { socket2::Socket::from_raw_fd(tcp_stream.as_raw_fd()) }
+                .set_linger(Some(core::time::Duration::from_secs(0)))
+            {
+                log_net!(debug "Couldn't set TCP linger: {}", e);
+                return;
+            }
+        }
+        #[cfg(all(feature = "rt-async-std", windows))]
+        {
+            // async-std does not directly support linger on tcpsocket yet
+            use std::os::windows::io::AsRawSocket;
+            if let Err(e) = unsafe { socket2::socket_from_raw(tcp_stream.as_raw_socket()) }
+                .set_linger(Some(core::time::Duration::from_secs(0)))
+            {
+                log_net!(debug "Couldn't set TCP linger: {}", e);
+                return;
+            }
+        }
+        #[cfg(not(feature = "rt-async-std"))]
         if let Err(e) = tcp_stream.set_linger(Some(core::time::Duration::from_secs(0))) {
             log_net!(debug "Couldn't set TCP linger: {}", e);
             return;
@@ -240,6 +264,8 @@ impl Network {
             } else if #[cfg(feature="rt-tokio")] {
                 std_listener.set_nonblocking(true).expect("failed to set nonblocking");
                 let listener = TcpListener::from_std(std_listener).wrap_err("failed to create tokio tcp listener")?;
+            } else {
+                compile_error!("needs executor implementation")
             }
         }
 
@@ -267,6 +293,8 @@ impl Network {
                     let incoming_stream = listener.incoming();
                 } else if #[cfg(feature="rt-tokio")] {
                     let incoming_stream = tokio_stream::wrappers::TcpListenerStream::new(listener);
+                } else {
+                    compile_error!("needs executor implementation")
                 }
             }
 

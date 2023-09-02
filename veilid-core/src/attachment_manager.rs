@@ -86,18 +86,18 @@ impl AttachmentManager {
         self.unlocked_inner.network_manager.clone()
     }
 
-    pub fn is_attached(&self) -> bool {
-        let s = self.inner.lock().last_attachment_state;
-        !matches!(s, AttachmentState::Detached | AttachmentState::Detaching)
-    }
-    pub fn is_detached(&self) -> bool {
-        let s = self.inner.lock().last_attachment_state;
-        matches!(s, AttachmentState::Detached)
-    }
+    // pub fn is_attached(&self) -> bool {
+    //     let s = self.inner.lock().last_attachment_state;
+    //     !matches!(s, AttachmentState::Detached | AttachmentState::Detaching)
+    // }
+    // pub fn is_detached(&self) -> bool {
+    //     let s = self.inner.lock().last_attachment_state;
+    //     matches!(s, AttachmentState::Detached)
+    // }
 
-    pub fn get_attach_timestamp(&self) -> Option<Timestamp> {
-        self.inner.lock().attach_ts
-    }
+    // pub fn get_attach_timestamp(&self) -> Option<Timestamp> {
+    //     self.inner.lock().attach_ts
+    // }
 
     fn translate_routing_table_health(
         health: &RoutingTableHealth,
@@ -321,9 +321,9 @@ impl AttachmentManager {
         }
     }
 
-    pub fn get_attachment_state(&self) -> AttachmentState {
-        self.inner.lock().last_attachment_state
-    }
+    // pub fn get_attachment_state(&self) -> AttachmentState {
+    //     self.inner.lock().last_attachment_state
+    // }
 
     fn get_veilid_state_inner(inner: &AttachmentManagerInner) -> VeilidStateAttachment {
         VeilidStateAttachment {

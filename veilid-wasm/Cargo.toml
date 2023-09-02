@@ -9,11 +9,11 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = [ "veilid-core/rt-wasm-bindgen", "veilid-core/default" ]
-crypto-test = [ "veilid-core/rt-wasm-bindgen", "veilid-core/crypto-test"]
+default = ["veilid-core/default-wasm"]
+crypto-test = ["veilid-core/crypto-test"]
 
 [dependencies]
-veilid-core = { path = "../veilid-core", default-features = false  }
+veilid-core = { path = "../veilid-core", default-features = false }
 
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-wasm = "^0"

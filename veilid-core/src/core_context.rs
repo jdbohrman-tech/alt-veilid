@@ -290,6 +290,14 @@ lazy_static::lazy_static! {
     static ref INITIALIZED: AsyncMutex<bool> = AsyncMutex::new(false);
 }
 
+/// Initialize a Veilid node.
+///
+/// Must be called only once at the start of an application
+///
+/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change
+/// * `config_callback` - called at startup to supply a configuration object directly to Veilid
+///
+/// Returns a [VeilidAPI] object that can be used to operate the node
 #[instrument(err, skip_all)]
 pub async fn api_startup(
     update_callback: UpdateCallback,
@@ -313,6 +321,14 @@ pub async fn api_startup(
     Ok(veilid_api)
 }
 
+/// Initialize a Veilid node, with the configuration in JSON format
+///
+/// Must be called only once at the start of an application
+///
+/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change
+/// * `config_json` - called at startup to supply a JSON configuration object
+///
+/// Returns a [VeilidAPI] object that can be used to operate the node
 #[instrument(err, skip_all)]
 pub async fn api_startup_json(
     update_callback: UpdateCallback,

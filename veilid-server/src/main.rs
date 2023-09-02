@@ -19,7 +19,7 @@ use clap::{Args, Parser};
 use server::*;
 use settings::LogLevel;
 use std::collections::HashMap;
-use std::ffi::{OsString, OsStr};
+use std::ffi::{OsStr, OsString};
 use std::path::Path;
 use std::str::FromStr;
 use tools::*;
@@ -40,7 +40,6 @@ pub struct Logging {
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about)]
 pub struct CmdlineArgs {
-
     /// Run in daemon mode in the background
     #[arg(short, long)]
     daemon: bool,
@@ -66,7 +65,7 @@ pub struct CmdlineArgs {
     new_password: Option<String>,
 
     /// Do not automatically attach the server to the Veilid network
-    /// 
+    ///
     /// Default behaviour is to automatically attach the server to the Veilid network, this option disables this behaviour.
     #[arg(long, value_name = "BOOL")]
     no_attach: bool,
@@ -75,7 +74,7 @@ pub struct CmdlineArgs {
     logging: Logging,
 
     /// Turn on OpenTelemetry tracing
-    /// 
+    ///
     /// This option uses the GRPC OpenTelemetry protocol, not HTTP. The format for the endpoint is host:port, like 'localhost:4317'
     #[arg(long, value_name = "endpoint")]
     otlp: Option<String>,
@@ -85,14 +84,14 @@ pub struct CmdlineArgs {
     subnode_index: Option<u16>,
 
     /// Only generate a new keypair and print it
-    /// 
+    ///
     /// Generate a new keypair for a specific crypto kind and print both the key and its secret to the terminal, then exit immediately.
     #[arg(long, value_name = "crypto_kind")]
     generate_key_pair: Option<String>,
 
     /// Set the node ids and secret keys
-    /// 
-    /// Specify node ids in typed key set format ('[VLD0:xxxx,VLD1:xxxx]') on the command line, a prompt appears to enter the secret key set interactively.
+    ///
+    /// Specify node ids in typed key set format ('\[VLD0:xxxx,VLD1:xxxx\]') on the command line, a prompt appears to enter the secret key set interactively.
     #[arg(long, value_name = "key_set")]
     set_node_id: Option<String>,
 
@@ -156,7 +155,7 @@ fn main() -> EyreResult<()> {
 
     // Check for one-off commands
     #[cfg(debug_assertions)]
-    if args.wait_for_debug{
+    if args.wait_for_debug {
         use bugsalot::debugger;
         debugger::wait_until_attached(None).expect("state() not implemented on this platform");
     }
@@ -204,7 +203,9 @@ fn main() -> EyreResult<()> {
         println!("Enabling OTLP tracing");
         settingsrw.logging.otlp.enabled = true;
         settingsrw.logging.otlp.grpc_endpoint = NamedSocketAddrs::from_str(
-            args.otlp.expect("should not be null because of default missing value").as_str(),
+            args.otlp
+                .expect("should not be null because of default missing value")
+                .as_str(),
         )
         .wrap_err("failed to parse OTLP address")?;
         settingsrw.logging.otlp.level = LogLevel::Trace;
@@ -222,10 +223,16 @@ fn main() -> EyreResult<()> {
         settingsrw.core.table_store.delete = true;
     }
     if let Some(password) = args.password {
-        settingsrw.core.protected_store.device_encryption_key_password = password;
+        settingsrw
+            .core
+            .protected_store
+            .device_encryption_key_password = password;
     }
     if let Some(new_password) = args.new_password {
-        settingsrw.core.protected_store.new_device_encryption_key_password = Some(new_password);
+        settingsrw
+            .core
+            .protected_store
+            .new_device_encryption_key_password = Some(new_password);
     }
     if let Some(network_key) = args.network_key {
         settingsrw.core.network.network_key_password = Some(network_key);
@@ -241,8 +248,8 @@ fn main() -> EyreResult<()> {
         settingsrw.logging.terminal.enabled = false;
 
         // Split or get secret
-        let tks =
-            TypedKeyGroup::from_str(&key_set).wrap_err("failed to decode node id set from command line")?;
+        let tks = TypedKeyGroup::from_str(&key_set)
+            .wrap_err("failed to decode node id set from command line")?;
 
         let buffer = rpassword::prompt_password("Enter secret key set (will not echo): ")
             .wrap_err("invalid secret key")?;
@@ -265,7 +272,7 @@ fn main() -> EyreResult<()> {
         }
         settingsrw.core.network.routing_table.bootstrap = bootstrap_list;
     };
-    
+
     #[cfg(feature = "rt-tokio")]
     if args.console {
         settingsrw.logging.console.enabled = true;
@@ -299,8 +306,8 @@ fn main() -> EyreResult<()> {
             let mut tks = veilid_core::TypedKeyGroup::new();
             let mut tss = veilid_core::TypedSecretGroup::new();
             for ck in veilid_core::VALID_CRYPTO_KINDS {
-                let tkp = veilid_core::Crypto::generate_keypair(ck)
-                    .wrap_err("invalid crypto kind")?;
+                let tkp =
+                    veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
                 tks.add(veilid_core::TypedKey::new(tkp.kind, tkp.value.key));
                 tss.add(veilid_core::TypedSecret::new(tkp.kind, tkp.value.secret));
             }
@@ -312,8 +319,7 @@ fn main() -> EyreResult<()> {
         } else {
             let ck: veilid_core::CryptoKind =
                 veilid_core::FourCC::from_str(&ckstr).wrap_err("couldn't parse crypto kind")?;
-            let tkp =
-                veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
+            let tkp = veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
             println!("{}", tkp.to_string());
         }
         return Ok(());

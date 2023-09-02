@@ -19,7 +19,8 @@ cfg_if! {
             let local = tokio::task::LocalSet::new();
             local.block_on(&rt, f)
         }
-
+    } else {
+        compile_error!("needs executor implementation")
     }
 }
 

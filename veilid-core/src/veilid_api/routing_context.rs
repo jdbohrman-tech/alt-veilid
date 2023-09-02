@@ -2,10 +2,13 @@ use super::*;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
+/// Valid destinations for a message sent over a routing context
 #[derive(Clone, Debug)]
 pub enum Target {
-    NodeId(TypedKey),      // Node by its public key
-    PrivateRoute(RouteId), // Remote private route by its id
+    /// Node by its public key
+    NodeId(TypedKey),
+    /// Remote private route by its id
+    PrivateRoute(RouteId),
 }
 
 pub struct RoutingContextInner {}
@@ -24,6 +27,12 @@ impl Drop for RoutingContextInner {
     }
 }
 
+/// Routing contexts are the way you specify the communication preferences for Veilid.
+///
+/// By default routing contexts are 'direct' from node to node, offering no privacy. To enable sender
+/// privacy, use [RoutingContext::with_privacy()]. To enable receiver privacy, you should send to a private route RouteId that you have
+/// imported, rather than directly to a NodeId.
+///
 #[derive(Clone)]
 pub struct RoutingContext {
     /// Veilid API handle
@@ -45,6 +54,15 @@ impl RoutingContext {
         }
     }
 
+    /// Turn on sender privacy, enabling the use of safety routes.
+    ///
+    /// Default values for hop count, stability and sequencing preferences are used.
+    ///
+    /// * Hop count default is dependent on config, but is set to 1 extra hop.
+    /// * Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
+    /// * Sequencing default is to have no preference for ordered vs unordered message delivery
+    ///
+    /// To modify these defaults, use [RoutingContext::with_custom_privacy()].
     pub fn with_privacy(self) -> VeilidAPIResult<Self> {
         let config = self.api.config()?;
         let c = config.get();
@@ -57,6 +75,7 @@ impl RoutingContext {
         }))
     }
 
+    /// Turn on privacy using a custom [SafetySelection]
     pub fn with_custom_privacy(self, safety_selection: SafetySelection) -> VeilidAPIResult<Self> {
         Ok(Self {
             api: self.api.clone(),
@@ -65,6 +84,7 @@ impl RoutingContext {
         })
     }
 
+    /// Use a specified [Sequencing] preference, with or without privacy
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
         Self {
             api: self.api.clone(),
@@ -90,6 +110,7 @@ impl RoutingContext {
         }
     }
 
+    /// Get the [VeilidAPI] object that created this [RoutingContext]
     pub fn api(&self) -> VeilidAPI {
         self.api.clone()
     }
@@ -135,6 +156,14 @@ impl RoutingContext {
     ////////////////////////////////////////////////////////////////
     // App-level Messaging
 
+    /// App-level bidirectional call that expects a response to be returned.
+    ///
+    /// Veilid apps may use this for arbitrary message passing.
+    ///
+    /// * `target` - can be either a direct node id or a private route
+    /// * `message` - an arbitrary message blob of up to 32768 bytes
+    ///
+    /// Returns an answer blob of up to 32768 bytes
     pub async fn app_call(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
         let rpc_processor = self.api.rpc_processor()?;
 
@@ -162,6 +191,12 @@ impl RoutingContext {
         Ok(answer.answer)
     }
 
+    /// App-level unidirectional message that does not expect any value to be returned.
+    ///
+    /// Veilid apps may use this for arbitrary message passing.
+    ///
+    /// * `target` - can be either a direct node id or a private route
+    /// * `message` - an arbitrary message blob of up to 32768 bytes
     pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
         let rpc_processor = self.api.rpc_processor()?;
 
@@ -192,7 +227,10 @@ impl RoutingContext {
     /// DHT Records
 
     /// Creates a new DHT record a specified crypto kind and schema
-    /// Returns the newly allocated DHT record's key if successful. The records is considered 'open' after the create operation succeeds.
+    ///
+    /// The record is considered 'open' after the create operation succeeds.
+    ///
+    /// Returns the newly allocated DHT record's key if successful.    
     pub async fn create_dht_record(
         &self,
         schema: DHTSchema,
@@ -206,9 +244,12 @@ impl RoutingContext {
             .await
     }
 
-    /// Opens a DHT record at a specific key. Associates a secret if one is provided to provide writer capability.
+    /// Opens a DHT record at a specific key
+    ///
+    /// Associates a secret if one is provided to provide writer capability.
+    /// Records may only be opened or created. To re-open with a different routing context, first close the value.
+    ///
     /// Returns the DHT record descriptor for the opened record if successful
-    /// Records may only be opened or created . To re-open with a different routing context, first close the value.
     pub async fn open_dht_record(
         &self,
         key: TypedKey,
@@ -222,6 +263,7 @@ impl RoutingContext {
     }
 
     /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
+    ///
     /// Closing a record allows you to re-open it with a different routing context
     pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         Crypto::validate_crypto_kind(key.kind)?;
@@ -229,7 +271,9 @@ impl RoutingContext {
         storage_manager.close_record(key).await
     }
 
-    /// Deletes a DHT record at a specific key. If the record is opened, it must be closed before it is deleted.
+    /// Deletes a DHT record at a specific key
+    ///
+    /// If the record is opened, it must be closed before it is deleted.
     /// Deleting a record does not delete it from the network, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
     pub async fn delete_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
@@ -239,9 +283,11 @@ impl RoutingContext {
     }
 
     /// Gets the latest value of a subkey
+    ///
     /// May pull the latest value from the network, but by settings 'force_refresh' you can force a network data refresh
-    /// Returns None if the value subkey has not yet been set
-    /// Returns Some(data) if the value subkey has valid data
+    ///
+    /// Returns `None` if the value subkey has not yet been set
+    /// Returns `Some(data)` if the value subkey has valid data
     pub async fn get_dht_value(
         &self,
         key: TypedKey,
@@ -254,8 +300,9 @@ impl RoutingContext {
     }
 
     /// Pushes a changed subkey value to the network
-    /// Returns None if the value was successfully put
-    /// Returns Some(data) if the value put was older than the one available on the network
+    ///
+    /// Returns `None` if the value was successfully put
+    /// Returns `Some(data)` if the value put was older than the one available on the network
     pub async fn set_dht_value(
         &self,
         key: TypedKey,
@@ -268,9 +315,11 @@ impl RoutingContext {
     }
 
     /// Watches changes to an opened or created value
+    ///
     /// Changes to subkeys within the subkey range are returned via a ValueChanged callback
     /// If the subkey range is empty, all subkey changes are considered
     /// Expiration can be infinite to keep the watch for the maximum amount of time
+    ///
     /// Return value upon success is the amount of time allowed for the watch
     pub async fn watch_dht_values(
         &self,
@@ -287,6 +336,7 @@ impl RoutingContext {
     }
 
     /// Cancels a watch early
+    ///
     /// This is a convenience function that cancels watching all subkeys in a range
     pub async fn cancel_dht_watch(
         &self,

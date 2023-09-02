@@ -50,9 +50,9 @@ impl RoutedOperation {
         &self.data
     }
 
-    pub fn destructure(self) -> (Sequencing, Vec<Signature>, Nonce, Vec<u8>) {
-        (self.sequencing, self.signatures, self.nonce, self.data)
-    }
+    // pub fn destructure(self) -> (Sequencing, Vec<Signature>, Nonce, Vec<u8>) {
+    //     (self.sequencing, self.signatures, self.nonce, self.data)
+    // }
 
     pub fn decode(reader: &veilid_capnp::routed_operation::Reader) -> Result<Self, RPCError> {
         let sigs_reader = reader.get_signatures().map_err(RPCError::protocol)?;
@@ -125,9 +125,9 @@ impl RPCOperationRoute {
     pub fn safety_route(&self) -> &SafetyRoute {
         &self.safety_route
     }
-    pub fn operation(&self) -> &RoutedOperation {
-        &self.operation
-    }
+    // pub fn operation(&self) -> &RoutedOperation {
+    //     &self.operation
+    // }
     pub fn destructure(self) -> (SafetyRoute, RoutedOperation) {
         (self.safety_route, self.operation)
     }

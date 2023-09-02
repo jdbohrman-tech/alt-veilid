@@ -22,6 +22,8 @@ cfg_if! {
     } else if #[cfg(feature="rt-tokio")] {
         use tokio::io::AsyncBufReadExt;
         use tokio::io::AsyncWriteExt;
+    } else {
+        compile_error!("needs executor implementation")
     }
 }
 
@@ -114,7 +116,7 @@ impl ClientApi {
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 let mut incoming_stream = listener.incoming();
-            } else if #[cfg(feature="rt-tokio")] {
+            } else {
                 let mut incoming_stream = tokio_stream::wrappers::TcpListenerStream::new(listener);
             }
         }
@@ -318,7 +320,7 @@ impl ClientApi {
                 use futures_util::AsyncReadExt;
                 let (reader, mut writer) = stream.split();
                 let reader = BufReader::new(reader);
-            } else if #[cfg(feature="rt-tokio")] {
+            } else {
                 let (reader, writer) = stream.into_split();
                 let reader = BufReader::new(reader);
             }

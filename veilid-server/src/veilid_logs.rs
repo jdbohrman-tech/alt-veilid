@@ -80,6 +80,8 @@ impl VeilidLogs {
                         .tonic()
                         .with_endpoint(format!("http://{}", grpc_endpoint));
                     let batch = opentelemetry::runtime::Tokio;
+                } else {
+                    compile_error!("needs executor implementation")
                 }
             }
 

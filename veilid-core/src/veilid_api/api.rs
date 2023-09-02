@@ -20,6 +20,19 @@ impl Drop for VeilidAPIInner {
     }
 }
 
+/// The primary developer entrypoint into `veilid-core` functionality
+///
+/// From [VeilidAPI] one can access:
+///
+/// * [VeilidConfig] - The Veilid configuration specified by at startup time
+/// * [Crypto] - The available set of cryptosystems provided by Veilid
+/// * [TableStore] - The Veilid table-based encrypted persistent key-value store
+/// * [ProtectedStore] - The Veilid abstract of the device's low-level 'protected secret storage'
+/// * [VeilidState] - The current state of the Veilid node this API accesses
+/// * [RoutingContext] - Communication methods between Veilid nodes and private routes
+/// * Attach and detach from the network
+/// * Create and import private routes
+/// * Reply to `AppCall` RPCs
 #[derive(Clone, Debug)]
 pub struct VeilidAPI {
     inner: Arc<Mutex<VeilidAPIInner>>,
@@ -35,6 +48,7 @@ impl VeilidAPI {
         }
     }
 
+    /// Shut down Veilid and terminate the API
     #[instrument(skip_all)]
     pub async fn shutdown(self) {
         let context = { self.inner.lock().context.take() };
@@ -43,12 +57,15 @@ impl VeilidAPI {
         }
     }
 
+    /// Check to see if Veilid is already shut down
     pub fn is_shutdown(&self) -> bool {
         self.inner.lock().context.is_none()
     }
 
     ////////////////////////////////////////////////////////////////
-    // Accessors
+    // Public Accessors
+
+    /// Access the configuration that Veilid was initialized with
     pub fn config(&self) -> VeilidAPIResult<VeilidConfig> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -56,6 +73,8 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::NotInitialized)
     }
+
+    /// Get the cryptosystem manager
     pub fn crypto(&self) -> VeilidAPIResult<Crypto> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -63,6 +82,8 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::NotInitialized)
     }
+
+    /// Get the TableStore manager
     pub fn table_store(&self) -> VeilidAPIResult<TableStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -70,14 +91,8 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::not_initialized())
     }
-    #[cfg(feature = "unstable-blockstore")]
-    pub fn block_store(&self) -> VeilidAPIResult<BlockStore> {
-        let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.block_store.clone());
-        }
-        Err(VeilidAPIError::not_initialized())
-    }
+
+    /// Get the ProtectedStore manager
     pub fn protected_store(&self) -> VeilidAPIResult<ProtectedStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -85,46 +100,57 @@ impl VeilidAPI {
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn attachment_manager(&self) -> VeilidAPIResult<AttachmentManager> {
+
+    ////////////////////////////////////////////////////////////////
+    // Internal Accessors
+    pub(crate) fn attachment_manager(&self) -> VeilidAPIResult<AttachmentManager> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.clone());
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn network_manager(&self) -> VeilidAPIResult<NetworkManager> {
+    pub(crate) fn network_manager(&self) -> VeilidAPIResult<NetworkManager> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.network_manager());
         }
         Err(VeilidAPIError::not_initialized())
     }
-    pub fn rpc_processor(&self) -> VeilidAPIResult<RPCProcessor> {
+    pub(crate) fn rpc_processor(&self) -> VeilidAPIResult<RPCProcessor> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.network_manager().rpc_processor());
         }
         Err(VeilidAPIError::NotInitialized)
     }
-    pub fn routing_table(&self) -> VeilidAPIResult<RoutingTable> {
+    pub(crate) fn routing_table(&self) -> VeilidAPIResult<RoutingTable> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.attachment_manager.network_manager().routing_table());
         }
         Err(VeilidAPIError::NotInitialized)
     }
-    pub fn storage_manager(&self) -> VeilidAPIResult<StorageManager> {
+    pub(crate) fn storage_manager(&self) -> VeilidAPIResult<StorageManager> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
             return Ok(context.storage_manager.clone());
         }
         Err(VeilidAPIError::NotInitialized)
     }
+    #[cfg(feature = "unstable-blockstore")]
+    pub(crate) fn block_store(&self) -> VeilidAPIResult<BlockStore> {
+        let inner = self.inner.lock();
+        if let Some(context) = &inner.context {
+            return Ok(context.block_store.clone());
+        }
+        Err(VeilidAPIError::not_initialized())
+    }
 
     ////////////////////////////////////////////////////////////////
     // Attach/Detach
 
-    /// Get a full copy of the current state
+    /// Get a full copy of the current state of Veilid
     pub async fn get_state(&self) -> VeilidAPIResult<VeilidState> {
         let attachment_manager = self.attachment_manager()?;
         let network_manager = attachment_manager.network_manager();
@@ -162,8 +188,36 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Routing Context
 
+    /// Get a new `RoutingContext` object to use to send messages over the Veilid network.
     pub fn routing_context(&self) -> RoutingContext {
         RoutingContext::new(self.clone())
+    }
+
+    /// Parse a string into a target object that can be used in a [RoutingContext]
+    ///
+    /// Strings are in base64url format and can either be a remote route id or a node id.
+    /// Strings may have a [CryptoKind] [FourCC] prefix separated by a colon, such as:
+    /// `VLD0:XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` but if the prefix is left off
+    /// `XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` will be parsed with the 'best' cryptosystem
+    /// available (at the time of this writing this is `VLD0`)
+    pub async fn parse_as_target<S: AsRef<str>>(&self, s: S) -> VeilidAPIResult<Target> {
+        // Is this a route id?
+        if let Ok(rrid) = RouteId::from_str(s.as_ref()) {
+            let routing_table = self.routing_table()?;
+            let rss = routing_table.route_spec_store();
+
+            // Is this a valid remote route id? (can't target allocated routes)
+            if rss.is_route_id_remote(&rrid) {
+                return Ok(Target::PrivateRoute(rrid));
+            }
+        }
+
+        // Is this a node id?
+        if let Ok(nid) = TypedKey::from_str(s.as_ref()) {
+            return Ok(Target::NodeId(nid));
+        }
+
+        Err(VeilidAPIError::invalid_target())
     }
 
     ////////////////////////////////////////////////////////////////
@@ -172,6 +226,9 @@ impl VeilidAPI {
     /// Allocate a new private route set with default cryptography and network options
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
     /// Those nodes importing the blob will have their choice of which crypto kind to use
+    ///
+    /// Returns a route id and 'blob' that can be published over some means (DHT or otherwise) to be
+    /// imported by another Veilid node.
     pub async fn new_private_route(&self) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
@@ -181,7 +238,12 @@ impl VeilidAPI {
         .await
     }
 
+    /// Allocate a new private route and specify a specific cryptosystem, stability and sequencing preference
+    /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
+    /// Those nodes importing the blob will have their choice of which crypto kind to use
     ///
+    /// Returns a route id and 'blob' that can be published over some means (DHT or otherwise) to be
+    /// imported by another Veilid node.
     pub async fn new_custom_private_route(
         &self,
         crypto_kinds: &[CryptoKind],
@@ -237,12 +299,19 @@ impl VeilidAPI {
         Ok((route_id, blob))
     }
 
+    /// Import a private route blob as a remote private route.
+    ///
+    /// Returns a route id that can be used to send private messages to the node creating this route.
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let rss = self.routing_table()?.route_spec_store();
         rss.import_remote_private_route(blob)
             .map_err(|e| VeilidAPIError::invalid_argument(e, "blob", "private route blob"))
     }
 
+    /// Release either a locally allocated or remotely imported private route
+    ///
+    /// This will deactivate the route and free its resources and it can no longer be sent to
+    /// or received from.
     pub fn release_private_route(&self, route_id: RouteId) -> VeilidAPIResult<()> {
         let rss = self.routing_table()?.route_spec_store();
         if !rss.release_route(route_id) {
@@ -254,6 +323,10 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // App Calls
 
+    /// Respond to an AppCall received over a [VeilidUpdate::AppCall].
+    ///
+    /// * `call_id` - specifies which call to reply to, and it comes from a [VeilidUpdate::AppCall], specifically the [VeilidAppCall::id()] value.
+    /// * `message` - is an answer blob to be returned by the remote node's [RoutingContext::app_call()] function, and may be up to 32768 bytes
     pub async fn app_call_reply(
         &self,
         call_id: OperationId,

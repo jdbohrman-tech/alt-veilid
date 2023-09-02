@@ -136,6 +136,8 @@ impl Network {
                 } else if #[cfg(feature="rt-tokio")] {
                     std_udp_socket.set_nonblocking(true).expect("failed to set nonblocking");
                     let udp_socket = UdpSocket::from_std(std_udp_socket).wrap_err("failed to make outbound v4 tokio udpsocket")?;
+                } else {
+                    compile_error!("needs executor implementation")
                 }
             }
             let socket_arc = Arc::new(udp_socket);
@@ -160,6 +162,8 @@ impl Network {
                 } else if #[cfg(feature="rt-tokio")] {
                     std_udp_socket.set_nonblocking(true).expect("failed to set nonblocking");
                     let udp_socket = UdpSocket::from_std(std_udp_socket).wrap_err("failed to make outbound v6 tokio udpsocket")?;
+                } else {
+                    compile_error!("needs executor implementation")
                 }
             }
             let socket_arc = Arc::new(udp_socket);
@@ -190,6 +194,8 @@ impl Network {
             } else if #[cfg(feature="rt-tokio")] {
                 std_udp_socket.set_nonblocking(true).expect("failed to set nonblocking");
                 let udp_socket = UdpSocket::from_std(std_udp_socket).wrap_err("failed to make inbound tokio udpsocket")?;
+            } else {
+                compile_error!("needs executor implementation")
             }
         }
         let socket_arc = Arc::new(udp_socket);
