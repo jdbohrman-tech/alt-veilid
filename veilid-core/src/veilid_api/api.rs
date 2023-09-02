@@ -24,7 +24,7 @@ impl Drop for VeilidAPIInner {
 ///
 /// From [VeilidAPI] one can access:
 ///
-/// * [VeilidConfig] - The Veilid configuration specified by at startup time
+/// * [VeilidConfig] - The Veilid configuration specified at startup time
 /// * [Crypto] - The available set of cryptosystems provided by Veilid
 /// * [TableStore] - The Veilid table-based encrypted persistent key-value store
 /// * [ProtectedStore] - The Veilid abstract of the device's low-level 'protected secret storage'
