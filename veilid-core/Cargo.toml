@@ -3,6 +3,7 @@
 name = "veilid-core"
 version = "0.2.0"
 # ---
+description = "Core library used to create a Veilid node and operate it as part of an application"
 authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
 build = "build.rs"

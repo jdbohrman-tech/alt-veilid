@@ -3,6 +3,7 @@
 name = "veilid-tools"
 version = "0.2.0"
 # ---
+description = "A collection of baseline tools for Rust development use by Veilid and Veilid-enabled Rust applications"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"
