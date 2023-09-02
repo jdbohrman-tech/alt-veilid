@@ -74,14 +74,14 @@ deps-linux:
 # Code + Linux deps
 code-linux:
     FROM +deps-linux
-    COPY --dir .cargo external files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
     RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> /veilid/.cargo/config.toml
     WORKDIR /veilid
 
 # Code + Linux + Android deps
 code-android:
     FROM +deps-android
-    COPY --dir .cargo external files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
     RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> /veilid/.cargo/config.toml
     RUN cat /veilid/scripts/earthly/cargo-android/config.toml >> /veilid/.cargo/config.toml
     WORKDIR /veilid
@@ -191,7 +191,7 @@ package-linux-amd64-rpm:
     ### RPMBUILD .RPM FILES
     #################################
     RUN mkdir -p /veilid/target
-    COPY --dir .cargo external files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml package /veilid
+    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml package /veilid
     COPY +build-linux-amd64/x86_64-unknown-linux-gnu /veilid/target/x86_64-unknown-linux-gnu
     RUN mkdir -p /rpm-work-dir/veilid-server
     # veilid-server

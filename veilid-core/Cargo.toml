@@ -59,7 +59,7 @@ network-result-extra = ["veilid-tools/network-result-extra"]
 [dependencies]
 
 # Tools
-veilid-tools = { path = "../veilid-tools", features = [
+veilid-tools = { version = "0.2.0", path = "../veilid-tools", features = [
     "tracing",
 ], default-features = false }
 paste = "1.0.14"
@@ -83,11 +83,13 @@ thiserror = "1.0.47"
 
 # Data structures
 enumset = { version = "1.1.2", features = ["serde"] }
-keyvaluedb = { path = "../external/keyvaluedb/keyvaluedb" }
+keyvaluedb = { version = "0.1.0", git = "https://gitlab.com/veilid/keyvaluedb.git", rev = "1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0" }
 range-set-blaze = "0.1.9"
 weak-table = "0.3.2"
 generic-array = "0.14.7"
-hashlink = { path = "../external/hashlink", features = ["serde_impl"] }
+hashlink = { version = "0.8.2", git = "https://gitlab.com/veilid/hashlink.git", rev = "add585db56765b4553b45d535e0f8d0a62a975c6", features = [
+    "serde_impl",
+] }
 
 # System
 futures-util = { version = "0.3.28", default_features = false, features = [
@@ -145,7 +147,7 @@ lz4_flex = { version = "0.11.1", default-features = false, features = [
 
 # Tools
 config = { version = "0.13.3", features = ["yaml"] }
-bugsalot = { git = "https://github.com/crioux/bugsalot.git" }
+bugsalot = { version = "0.2.2", git = "https://github.com/crioux/bugsalot.git", rev = "336a7053faadf990b9362edf5752ef34fa1f9615" }
 chrono = "0.4.26"
 libc = "0.2.147"
 nix = "0.26.2"
@@ -164,12 +166,12 @@ futures-util = { version = "0.3.28", default-features = false, features = [
 ] }
 
 # Data structures
-keyring-manager = { path = "../external/keyring-manager" }
-keyvaluedb-sqlite = { path = "../external/keyvaluedb/keyvaluedb-sqlite" }
+keyring-manager = { version = "0.5.0", git = "https://gitlab.com/veilid/keyring-manager.git", rev = "e00be7d4130f3e3f69548121de26b24aeb935df2" }
+keyvaluedb-sqlite = { version = "0.1.0", git = "https://gitlab.com/veilid/keyvaluedb.git", rev = "1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0" }
 
 # Network
 async-tungstenite = { version = "0.23.0", features = ["async-tls"] }
-igd = { path = "../external/rust-igd" }
+igd = { version = "0.12.1", git = "https://gitlab.com/veilid/rust-igd.git", rev = "85a15fcdd9120c553345a1fe9b14256779c79548" }
 async-tls = "0.12.0"
 webpki = "0.22.0"
 webpki-roots = "0.25.2"
@@ -180,7 +182,7 @@ socket2 = { version = "0.5.3", features = ["all"] }
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 
-veilid-tools = { path = "../veilid-tools", default-features = false, features = [
+veilid-tools = { version = "0.2.0", path = "../veilid-tools", default-features = false, features = [
     "rt-wasm-bindgen",
 ] }
 
@@ -206,7 +208,7 @@ wasm-logger = "0.2.0"
 tracing-wasm = "0.2.1"
 
 # Data Structures
-keyvaluedb-web = { path = "../external/keyvaluedb/keyvaluedb-web" }
+keyvaluedb-web = { version = "0.1.0", git = "https://gitlab.com/veilid/keyvaluedb.git", rev = "1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0" }
 
 ### Configuration for WASM32 'web-sys' crate
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]

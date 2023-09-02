@@ -15,7 +15,7 @@ default = ["veilid-core/default-wasm"]
 crypto-test = ["veilid-core/crypto-test"]
 
 [dependencies]
-veilid-core = { path = "../veilid-core", default-features = false }
+veilid-core = { version = "0.2.0", path = "../veilid-core", default-features = false }
 
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-wasm = "^0"

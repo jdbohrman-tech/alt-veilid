@@ -800,6 +800,14 @@ dependencies = [
 [[package]]
 name = "bugsalot"
 version = "0.2.2"
+source = "git+https://github.com/crioux/bugsalot.git?rev=336a7053faadf990b9362edf5752ef34fa1f9615#336a7053faadf990b9362edf5752ef34fa1f9615"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "bugsalot"
+version = "0.2.2"
 source = "git+https://github.com/crioux/bugsalot.git#336a7053faadf990b9362edf5752ef34fa1f9615"
 dependencies = [
  "libc",
@@ -1314,6 +1322,7 @@ dependencies = [
 [[package]]
 name = "cursive"
 version = "0.20.0"
+source = "git+https://gitlab.com/veilid/cursive.git?rev=631dad18f0b4b246914998e8952da8abb6093bd2#631dad18f0b4b246914998e8952da8abb6093bd2"
 dependencies = [
  "ahash 0.8.3",
  "async-std",
@@ -1324,6 +1333,8 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
+ "maplit",
+ "ncurses",
  "signal-hook",
  "tokio",
  "unicode-segmentation",
@@ -1333,6 +1344,7 @@ dependencies = [
 [[package]]
 name = "cursive-flexi-logger-view"
 version = "0.5.0"
+source = "git+https://gitlab.com/veilid/cursive-flexi-logger-view.git?rev=16722a6f4bd93dbfb32bf5d88eaafa44fffc51a3#16722a6f4bd93dbfb32bf5d88eaafa44fffc51a3"
 dependencies = [
  "arraydeque",
  "cursive",
@@ -1347,6 +1359,7 @@ dependencies = [
 [[package]]
 name = "cursive-macros"
 version = "0.1.0"
+source = "git+https://gitlab.com/veilid/cursive.git?rev=631dad18f0b4b246914998e8952da8abb6093bd2#631dad18f0b4b246914998e8952da8abb6093bd2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1355,7 +1368,8 @@ dependencies = [
 
 [[package]]
 name = "cursive_buffered_backend"
-version = "0.6.1-pre"
+version = "0.6.1"
+source = "git+https://gitlab.com/veilid/cursive-buffered-backend.git?rev=dd6b0276050e041d8f194cf415da5e1481f91370#dd6b0276050e041d8f194cf415da5e1481f91370"
 dependencies = [
  "cursive_core",
  "enumset",
@@ -1368,6 +1382,7 @@ dependencies = [
 [[package]]
 name = "cursive_core"
 version = "0.3.7"
+source = "git+https://gitlab.com/veilid/cursive.git?rev=631dad18f0b4b246914998e8952da8abb6093bd2#631dad18f0b4b246914998e8952da8abb6093bd2"
 dependencies = [
  "ahash 0.8.3",
  "ansi-parser",
@@ -2286,6 +2301,7 @@ dependencies = [
 [[package]]
 name = "hashlink"
 version = "0.8.2"
+source = "git+https://gitlab.com/veilid/hashlink.git?rev=add585db56765b4553b45d535e0f8d0a62a975c6#add585db56765b4553b45d535e0f8d0a62a975c6"
 dependencies = [
  "hashbrown 0.13.2",
  "serde",
@@ -2522,6 +2538,7 @@ dependencies = [
 [[package]]
 name = "igd"
 version = "0.12.1"
+source = "git+https://gitlab.com/veilid/rust-igd.git?rev=85a15fcdd9120c553345a1fe9b14256779c79548#85a15fcdd9120c553345a1fe9b14256779c79548"
 dependencies = [
  "attohttpc",
  "log",
@@ -2719,6 +2736,7 @@ dependencies = [
 [[package]]
 name = "keyring-manager"
 version = "0.5.0"
+source = "git+https://gitlab.com/veilid/keyring-manager.git?rev=e00be7d4130f3e3f69548121de26b24aeb935df2#e00be7d4130f3e3f69548121de26b24aeb935df2"
 dependencies = [
  "byteorder",
  "cfg-if 1.0.0",
@@ -2744,6 +2762,7 @@ dependencies = [
 [[package]]
 name = "keyvaluedb"
 version = "0.1.0"
+source = "git+https://gitlab.com/veilid/keyvaluedb.git?rev=1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0#1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0"
 dependencies = [
  "smallvec",
 ]
@@ -2751,6 +2770,7 @@ dependencies = [
 [[package]]
 name = "keyvaluedb-memorydb"
 version = "0.1.0"
+source = "git+https://gitlab.com/veilid/keyvaluedb.git?rev=1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0#1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0"
 dependencies = [
  "keyvaluedb",
  "parking_lot 0.12.1",
@@ -2759,6 +2779,7 @@ dependencies = [
 [[package]]
 name = "keyvaluedb-sqlite"
 version = "0.1.0"
+source = "git+https://gitlab.com/veilid/keyvaluedb.git?rev=1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0#1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0"
 dependencies = [
  "hex",
  "keyvaluedb",
@@ -2770,6 +2791,7 @@ dependencies = [
 [[package]]
 name = "keyvaluedb-web"
 version = "0.1.0"
+source = "git+https://gitlab.com/veilid/keyvaluedb.git?rev=1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0#1430135c7e3b1d0176c0b45f64e8c0a9d85d44d0"
 dependencies = [
  "async-lock",
  "flume",
@@ -2906,6 +2928,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
+
+[[package]]
 name = "match_cfg"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2934,9 +2962,9 @@ checksum = "ed1202b2a6f884ae56f04cff409ab315c5ce26b5e58d7412e484f01fd52f52ef"
 
 [[package]]
 name = "memchr"
-version = "2.6.2"
+version = "2.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5486aed0026218e61b8a01d5fbd5a0a134649abb71a0e53b7bc088529dced86e"
+checksum = "8f232d6ef707e1956a43342693d2a31e72989554d58299d7a88738cc95b0d35c"
 
 [[package]]
 name = "memoffset"
@@ -3019,6 +3047,17 @@ checksum = "b1bb540dc6ef51cfe1916ec038ce7a620daf3a111e2502d745197cd53d6bca15"
 dependencies = [
  "libc",
  "socket2 0.4.9",
+]
+
+[[package]]
+name = "ncurses"
+version = "5.101.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e2c5d34d72657dc4b638a1c25d40aae81e4f1c699062f72f467237920752032"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
 ]
 
 [[package]]
@@ -4082,13 +4121,13 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.9.4"
+version = "1.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12de2eff854e5fa4b1295edd650e227e9d8fb0c9e90b12e7f36d6a6811791a29"
+checksum = "697061221ea1b4a94a624f67d0ae2bfe4e22b8a17b6a192afb11046542cc8c47"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.3.7",
+ "regex-automata 0.3.8",
  "regex-syntax 0.7.5",
 ]
 
@@ -4103,9 +4142,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.3.7"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49530408a136e16e5b486e883fbb6ba058e8e4e8ae6621a77b048b314336e629"
+checksum = "c2f401f4955220693b56f8ec66ee9c78abffd8d1c4f23dc41a23839eb88f0795"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -5605,7 +5644,7 @@ dependencies = [
  "arboard",
  "async-std",
  "async-tungstenite 0.8.0",
- "bugsalot",
+ "bugsalot 0.2.2 (git+https://github.com/crioux/bugsalot.git?rev=336a7053faadf990b9362edf5752ef34fa1f9615)",
  "cfg-if 1.0.0",
  "clap 4.4.2",
  "config",
@@ -5648,7 +5687,7 @@ dependencies = [
  "async_executors",
  "backtrace",
  "blake3",
- "bugsalot",
+ "bugsalot 0.2.2 (git+https://github.com/crioux/bugsalot.git?rev=336a7053faadf990b9362edf5752ef34fa1f9615)",
  "capnp",
  "capnpc",
  "cfg-if 1.0.0",
@@ -5775,7 +5814,7 @@ dependencies = [
  "async-std",
  "async-tungstenite 0.23.0",
  "backtrace",
- "bugsalot",
+ "bugsalot 0.2.2 (git+https://github.com/crioux/bugsalot.git)",
  "cfg-if 1.0.0",
  "clap 4.4.2",
  "color-eyre",
