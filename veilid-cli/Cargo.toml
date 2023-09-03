@@ -33,7 +33,7 @@ cursive = { version = "0.20.0", git = "https://gitlab.com/veilid/cursive.git", r
     "toml",
     "ansi",
 ] }
-cursive-flexi-logger-view = { version = "0.5.0", git = "https://gitlab.com/veilid/cursive-flexi-logger-view.git", rev = "16722a6f4bd93dbfb32bf5d88eaafa44fffc51a3" }
+cursive-flexi-logger-view = { version = "0.5.0", git = "https://gitlab.com/veilid/cursive-flexi-logger-view.git", rev = "f623d81aeef45601c35223d064e4898aed3808ba" }
 cursive_buffered_backend = { version = "0.6.1", git = "https://gitlab.com/veilid/cursive-buffered-backend.git", rev = "dd6b0276050e041d8f194cf415da5e1481f91370" }
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
