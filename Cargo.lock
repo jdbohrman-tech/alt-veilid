@@ -1290,7 +1290,7 @@ dependencies = [
 [[package]]
 name = "cursive"
 version = "0.20.0"
-source = "git+https://gitlab.com/veilid/cursive.git?rev=631dad18f0b4b246914998e8952da8abb6093bd2#631dad18f0b4b246914998e8952da8abb6093bd2"
+source = "git+https://gitlab.com/veilid/cursive.git#a76fc9050f69edf56bc37efc63194050b9f222e4"
 dependencies = [
  "ahash 0.8.3",
  "async-std",
@@ -1310,7 +1310,7 @@ dependencies = [
 [[package]]
 name = "cursive-flexi-logger-view"
 version = "0.5.0"
-source = "git+https://gitlab.com/veilid/cursive-flexi-logger-view.git?rev=f623d81aeef45601c35223d064e4898aed3808ba#f623d81aeef45601c35223d064e4898aed3808ba"
+source = "git+https://gitlab.com/veilid/cursive-flexi-logger-view.git#7c931536b8c57339011bbe2ee604e431c91c0aa8"
 dependencies = [
  "arraydeque",
  "cursive_core",
@@ -1324,7 +1324,7 @@ dependencies = [
 [[package]]
 name = "cursive-macros"
 version = "0.1.0"
-source = "git+https://gitlab.com/veilid/cursive.git?rev=631dad18f0b4b246914998e8952da8abb6093bd2#631dad18f0b4b246914998e8952da8abb6093bd2"
+source = "git+https://gitlab.com/veilid/cursive.git#a76fc9050f69edf56bc37efc63194050b9f222e4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1334,7 +1334,7 @@ dependencies = [
 [[package]]
 name = "cursive_buffered_backend"
 version = "0.6.1"
-source = "git+https://gitlab.com/veilid/cursive-buffered-backend.git?rev=dd6b0276050e041d8f194cf415da5e1481f91370#dd6b0276050e041d8f194cf415da5e1481f91370"
+source = "git+https://gitlab.com/veilid/cursive-buffered-backend.git#a0f5242882b0d42a0b18baa68b2d8d6dcaa6dee4"
 dependencies = [
  "cursive_core",
  "enumset",
@@ -1347,7 +1347,7 @@ dependencies = [
 [[package]]
 name = "cursive_core"
 version = "0.3.7"
-source = "git+https://gitlab.com/veilid/cursive.git?rev=631dad18f0b4b246914998e8952da8abb6093bd2#631dad18f0b4b246914998e8952da8abb6093bd2"
+source = "git+https://gitlab.com/veilid/cursive.git#a76fc9050f69edf56bc37efc63194050b9f222e4"
 dependencies = [
  "ahash 0.8.3",
  "ansi-parser",

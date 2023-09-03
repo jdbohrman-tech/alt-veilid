@@ -10,8 +10,8 @@ members = [
 exclude = ["./external"]
 
 [patch.crates-io]
-cursive = { version = "0.20.0", git = "https://gitlab.com/veilid/cursive.git", rev = "631dad18f0b4b246914998e8952da8abb6093bd2" }
-cursive_core = { version = "0.3.7", git = "https://gitlab.com/veilid/cursive.git", rev = "631dad18f0b4b246914998e8952da8abb6093bd2" }
+cursive = { git = "https://gitlab.com/veilid/cursive.git" }
+cursive_core = { git = "https://gitlab.com/veilid/cursive.git" }
 
 [profile.release]
 opt-level = "s"

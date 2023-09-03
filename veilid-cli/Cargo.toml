@@ -28,13 +28,13 @@ async-std = { version = "^1.9", features = [
 tokio = { version = "^1", features = ["full"], optional = true }
 tokio-util = { version = "^0", features = ["compat"], optional = true }
 async-tungstenite = { version = "^0.8" }
-cursive = { version = "0.20.0", git = "https://gitlab.com/veilid/cursive.git", rev = "631dad18f0b4b246914998e8952da8abb6093bd2", default-features = false, features = [
+cursive = { git = "https://gitlab.com/veilid/cursive.git", default-features = false, features = [
     "crossterm",
     "toml",
     "ansi",
 ] }
-cursive-flexi-logger-view = { version = "0.5.0", git = "https://gitlab.com/veilid/cursive-flexi-logger-view.git", rev = "f623d81aeef45601c35223d064e4898aed3808ba" }
-cursive_buffered_backend = { version = "0.6.1", git = "https://gitlab.com/veilid/cursive-buffered-backend.git", rev = "dd6b0276050e041d8f194cf415da5e1481f91370" }
+cursive-flexi-logger-view = { git = "https://gitlab.com/veilid/cursive-flexi-logger-view.git" }
+cursive_buffered_backend = { git = "https://gitlab.com/veilid/cursive-buffered-backend.git" }
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
 cursive_table_view = "0.14.0"
