@@ -2258,15 +2258,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hashlink"
-version = "0.8.4"
-source = "git+https://gitlab.com/veilid/hashlink.git?rev=14ea55b8b148f51b834c0c7ad5755066400d8c71#14ea55b8b148f51b834c0c7ad5755066400d8c71"
-dependencies = [
- "hashbrown 0.14.0",
- "serde",
-]
-
-[[package]]
 name = "hdrhistogram"
 version = "7.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4162,7 +4153,7 @@ dependencies = [
  "bitflags 2.4.0",
  "fallible-iterator",
  "fallible-streaming-iterator",
- "hashlink 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hashlink",
  "libsqlite3-sys",
  "smallvec",
 ]
@@ -5612,7 +5603,6 @@ dependencies = [
  "futures-util",
  "generic-array 0.14.7",
  "getrandom 0.2.10",
- "hashlink 0.8.4 (git+https://gitlab.com/veilid/hashlink.git?rev=14ea55b8b148f51b834c0c7ad5755066400d8c71)",
  "hex",
  "ifstructs",
  "igd",
@@ -5665,6 +5655,7 @@ dependencies = [
  "tracing-subscriber",
  "tracing-wasm",
  "trust-dns-resolver",
+ "veilid-hashlink",
  "veilid-tools",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5709,6 +5700,16 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "veilid-core",
+]
+
+[[package]]
+name = "veilid-hashlink"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a3dabbda02cfe176635dcaa18a021416ff2eb4d0b47a913e3fdc7f62049d7b1"
+dependencies = [
+ "hashbrown 0.14.0",
+ "serde",
 ]
 
 [[package]]

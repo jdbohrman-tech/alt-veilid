@@ -87,7 +87,7 @@ keyvaluedb = "0.1.0"
 range-set-blaze = "0.1.9"
 weak-table = "0.3.2"
 generic-array = "0.14.7"
-hashlink = { version = "0.8.4", git = "https://gitlab.com/veilid/hashlink.git", rev = "14ea55b8b148f51b834c0c7ad5755066400d8c71", features = [
+hashlink = { package = "veilid-hashlink", version = "0.1.0", features = [
     "serde_impl",
 ] }
 
