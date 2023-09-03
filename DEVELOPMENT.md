@@ -142,7 +142,34 @@ cd veilid-flutter
 
 ### Windows
 
-**TODO**
+For a simple installation allowing Rust development, follow these steps:
+
+Install Git from https://git-scm.com/download/win
+
+Install Rust from https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe
+
+Ensure that protoc.exe is in a directory in your path. For example, it can be obtained from https://github.com/protocolbuffers/protobuf/releases/download/v24.2/protoc-24.2-win64.zip
+
+Ensure that capnp.exe is in a directory in your path. For example, it can be obtained from https://capnproto.org/capnproto-c++-win32-0.10.4.zip
+
+Start a Command Prompt window.
+
+```shell
+git clone https://gitlab.com/veilid/veilid.git
+cd veilid
+cargo build
+cd target
+cd debug
+veilid-server.exe
+```
+
+This may result in a popup window from local security software, asking whether you wish to allow network access by veilid-server.exe.
+
+To use the CLI, navigate to the above `debug` directory in another Command Prompt window (while veilid-server.exe is still running), and type:
+
+```shell
+veilid-cli.exe
+```
 
 ## Running the Application(s)
 
