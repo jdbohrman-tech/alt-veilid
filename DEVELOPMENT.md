@@ -8,7 +8,7 @@ This guide covers setting up environments for core, Flutter/Dart, and Python dev
 ## Obtaining the source code
 
 ```shell
-git clone --recurse-submodules https://gitlab.com/veilid/veilid.git
+git clone https://gitlab.com/veilid/veilid.git
 ```
 
 ## Dependencies
