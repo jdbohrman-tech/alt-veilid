@@ -1,3 +1,13 @@
+**Changes in Veilid 0.2.1**
+- Crates are separated and publishable
+- First publication of veilid-core with docs to crates.io and docs.rs
+- Avoid large logs of 127.0.0.1:5959 attack payloads
+- Use getrandom in WASM for RNG
+- Increase privacy for WASM builds by rewriting internal paths
+- Translations
+- Fix python update schema script
+- Earthfile cleanup
+
 **Changes in Veilid 0.2.0**
 - Rustdoc builds now
 - API visibility changes

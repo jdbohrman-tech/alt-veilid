@@ -2379,11 +2379,9 @@
               ]
             },
             "message": {
-              "description": "The content of the message to deliver to the application",
               "type": "string"
             },
             "sender": {
-              "description": "Some(sender) if the message was sent directly, None if received via a private/safety route",
               "type": [
                 "string",
                 "null"
@@ -2401,7 +2399,6 @@
           ],
           "properties": {
             "call_id": {
-              "description": "The id to reply to",
               "type": "string"
             },
             "kind": {
@@ -2411,11 +2408,9 @@
               ]
             },
             "message": {
-              "description": "The content of the request to deliver to the application",
               "type": "string"
             },
             "sender": {
-              "description": "Some(sender) if the request was sent directly, None if received via a private/safety route",
               "type": [
                 "string",
                 "null"
