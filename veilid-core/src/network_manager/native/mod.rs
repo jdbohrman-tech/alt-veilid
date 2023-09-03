@@ -1,3 +1,4 @@
+mod discovery_context;
 mod igd_manager;
 mod network_class_discovery;
 mod network_tcp;
@@ -8,6 +9,7 @@ mod start_protocols;
 use super::*;
 use crate::routing_table::*;
 use connection_manager::*;
+use discovery_context::*;
 use network_interfaces::*;
 use network_tcp::*;
 use protocol::tcp::RawTcpProtocolHandler;
