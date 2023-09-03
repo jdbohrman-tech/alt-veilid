@@ -2461,18 +2461,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "igd"
-version = "0.12.1"
-source = "git+https://gitlab.com/veilid/rust-igd.git?rev=85a15fcdd9120c553345a1fe9b14256779c79548#85a15fcdd9120c553345a1fe9b14256779c79548"
-dependencies = [
- "attohttpc",
- "log",
- "rand 0.8.5",
- "url",
- "xmltree",
-]
-
-[[package]]
 name = "image"
 version = "0.24.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5594,7 +5582,6 @@ dependencies = [
  "getrandom 0.2.10",
  "hex",
  "ifstructs",
- "igd",
  "jni",
  "jni-sys",
  "js-sys",
@@ -5646,6 +5633,7 @@ dependencies = [
  "trust-dns-resolver",
  "veilid-bugsalot",
  "veilid-hashlink",
+ "veilid-igd",
  "veilid-tools",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5700,6 +5688,19 @@ checksum = "6a3dabbda02cfe176635dcaa18a021416ff2eb4d0b47a913e3fdc7f62049d7b1"
 dependencies = [
  "hashbrown 0.14.0",
  "serde",
+]
+
+[[package]]
+name = "veilid-igd"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28428a3f826ed334f995522e554d7c8c1a5a0e0a0248fc795a31022ddf436c9d"
+dependencies = [
+ "attohttpc",
+ "log",
+ "rand 0.8.5",
+ "url",
+ "xmltree",
 ]
 
 [[package]]

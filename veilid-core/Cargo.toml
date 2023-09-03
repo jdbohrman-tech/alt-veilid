@@ -171,7 +171,7 @@ keyvaluedb-sqlite = "0.1.0"
 
 # Network
 async-tungstenite = { version = "0.23.0", features = ["async-tls"] }
-igd = { version = "0.12.1", git = "https://gitlab.com/veilid/rust-igd.git", rev = "85a15fcdd9120c553345a1fe9b14256779c79548" }
+igd = { package = "veilid-igd", version = "0.1.0" }
 async-tls = "0.12.0"
 webpki = "0.22.0"
 webpki-roots = "0.25.2"
