@@ -15,6 +15,8 @@ use veilid_core::tools::*;
 use veilid_core::*;
 use wg::AsyncWaitGroup;
 
+const MAX_NON_JSON_LOGGING: usize = 50;
+
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
         use async_std::io::prelude::BufReadExt;
@@ -201,12 +203,21 @@ impl ClientApi {
         jrp: JsonRequestProcessor,
         request_line: RequestLine,
     ) -> VeilidAPIResult<Option<RequestLine>> {
-        let line = request_line.line;
+        let line = request_line.line.trim_start();
+
+        // Avoid logging failed deserialization of large adversarial payloads from
+        // http://127.0.0.1:5959 by using an initial colon to force a parse error.
+        let sanitized_line = if line.len() > MAX_NON_JSON_LOGGING && !line.starts_with("{") {
+            ":skipped long input that's not a JSON object".to_string()
+        } else {
+            line.to_string()
+        };
+
         let responses_tx = request_line.responses_tx;
 
         // Unmarshal NDJSON - newline => json
         // (trim all whitespace around input lines just to make things more permissive for API users)
-        let request: json_api::Request = deserialize_json(&line)?;
+        let request: json_api::Request = deserialize_json(&sanitized_line)?;
 
         // See if this is a control message or a veilid-core message
         let response = if let json_api::RequestOp::Control { args } = request.op {
