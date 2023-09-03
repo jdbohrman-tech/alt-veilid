@@ -49,7 +49,7 @@ serde_derive = "^1"
 parking_lot = "^0"
 cfg-if = "^1"
 config = { version = "^0", features = ["yaml"] }
-bugsalot = { version = "0.2.2", git = "https://github.com/crioux/bugsalot.git", rev = "336a7053faadf990b9362edf5752ef34fa1f9615" }
+bugsalot = { package = "veilid-bugsalot", version = "0.1.0" }
 flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"

@@ -67,7 +67,7 @@ futures-util = { version = "^0", default_features = false, features = [
 url = "^2"
 ctrlc = "^3"
 lazy_static = "^1"
-bugsalot = { git = "https://github.com/crioux/bugsalot.git" }
+bugsalot = { package = "veilid-bugsalot", version = "0.1.0" }
 flume = { version = "^0", features = ["async"] }
 rpassword = "^6"
 hostname = "^0"
