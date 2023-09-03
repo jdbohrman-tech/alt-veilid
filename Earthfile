@@ -216,6 +216,14 @@ package-linux-arm64-deb:
     # save artifacts
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
 
+package-linux-amd64:
+    BUILD +package-linux-amd64-deb
+    BUILD +package-linux-amd64-rpm
+
+package-linux-arm64:
+    BUILD +package-linux-arm64-deb
+    BUILD +package-linux-arm64-rpm
+    
 package-linux:
     BUILD +package-linux-amd64
     BUILD +package-linux-arm64
