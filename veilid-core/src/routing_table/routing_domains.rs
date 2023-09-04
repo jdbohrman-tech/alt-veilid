@@ -103,8 +103,21 @@ impl RoutingDomainDetailCommon {
     pub fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details
     }
-    pub(super) fn clear_dial_info_details(&mut self) {
-        self.dial_info_details.clear();
+    pub(super) fn clear_dial_info_details(&mut self, address_type: Option<AddressType>, protocol_type: Option<ProtocolType>) {
+        self.dial_info_details.retain_mut(|e| {
+            let mut remove = true;
+            if let Some(pt) = protocol_type {
+                if pt != e.dial_info.protocol_type() {
+                    remove = false;
+                }
+            }
+            if let Some(at) = address_type {
+                if at != e.dial_info.address_type() {
+                    remove = false;
+                }
+            }
+            !remove
+        });
         self.clear_cache();
     }
     pub(super) fn add_dial_info_detail(&mut self, did: DialInfoDetail) {

@@ -929,14 +929,14 @@ impl Network {
 
         routing_table
             .edit_routing_domain(RoutingDomain::PublicInternet)
-            .clear_dial_info_details()
+            .clear_dial_info_details(None, None)
             .set_network_class(None)
             .clear_relay_node()
             .commit();
 
         routing_table
             .edit_routing_domain(RoutingDomain::LocalNetwork)
-            .clear_dial_info_details()
+            .clear_dial_info_details(None, None)
             .set_network_class(None)
             .clear_relay_node()
             .commit();

@@ -1,7 +1,10 @@
 use super::*;
 
 enum RoutingDomainChange {
-    ClearDialInfoDetails,
+    ClearDialInfoDetails {
+        address_type: Option<AddressType>,
+        protocol_type: Option<ProtocolType>,
+    },
     ClearRelayNode,
     SetRelayNode {
         relay_node: NodeRef,
@@ -39,8 +42,16 @@ impl RoutingDomainEditor {
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub fn clear_dial_info_details(&mut self) -> &mut Self {
-        self.changes.push(RoutingDomainChange::ClearDialInfoDetails);
+    pub fn clear_dial_info_details(
+        &mut self,
+        address_type: Option<AddressType>,
+        protocol_type: Option<ProtocolType>,
+    ) -> &mut Self {
+        self.changes
+            .push(RoutingDomainChange::ClearDialInfoDetails {
+                address_type,
+                protocol_type,
+            });
         self
     }
     #[instrument(level = "debug", skip(self))]
@@ -125,9 +136,17 @@ impl RoutingDomainEditor {
             inner.with_routing_domain_mut(self.routing_domain, |detail| {
                 for change in self.changes.drain(..) {
                     match change {
-                        RoutingDomainChange::ClearDialInfoDetails => {
-                            debug!("[{:?}] cleared dial info details", self.routing_domain);
-                            detail.common_mut().clear_dial_info_details();
+                        RoutingDomainChange::ClearDialInfoDetails {
+                            address_type,
+                            protocol_type,
+                        } => {
+                            debug!(
+                                "[{:?}] cleared dial info details: at={:?} pt={:?}",
+                                self.routing_domain, address_type, protocol_type
+                            );
+                            detail
+                                .common_mut()
+                                .clear_dial_info_details(address_type, protocol_type);
                             changed = true;
                         }
                         RoutingDomainChange::ClearRelayNode => {
