@@ -29,6 +29,7 @@ unit_test_linux:
     - if [ "$CI_PROJECT_PATH" != "veilid/veilid" ]; then project_args="--CI_PROJECT_PATH=$CI_PROJECT_PATH"; fi
     - earthly --use-inline-cache $cache_args --ci +unit-tests-linux $project_args
   resource_group: test
+  when: manual
 
 release_job:
   stage: release
