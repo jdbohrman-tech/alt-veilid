@@ -3,7 +3,7 @@ use super::*;
 
 #[wasm_bindgen()]
 pub struct VeilidRoutingContext {
-    id: u32,
+    inner_routing_context: Option<RoutingContext>,
 }
 
 #[wasm_bindgen()]
@@ -12,8 +12,10 @@ impl VeilidRoutingContext {
     /// Use one of the `VeilidRoutingContext.create___()` factory methods instead.
     /// @deprecated
     #[wasm_bindgen(constructor)]
-    pub fn new(id: u32) -> Self {
-        Self { id }
+    pub fn new() -> Self {
+        Self {
+            inner_routing_context: None,
+        }
     }
 
     // --------------------------------
@@ -24,8 +26,9 @@ impl VeilidRoutingContext {
     pub fn createWithoutPrivacy() -> APIResult<VeilidRoutingContext> {
         let veilid_api = get_veilid_api()?;
         let routing_context = veilid_api.routing_context();
-        let id = add_routing_context(routing_context);
-        Ok(VeilidRoutingContext { id })
+        Ok(VeilidRoutingContext {
+            inner_routing_context: Some(routing_context),
+        })
     }
 
     /// Turn on sender privacy, enabling the use of safety routes.
@@ -39,8 +42,9 @@ impl VeilidRoutingContext {
     pub fn createWithPrivacy() -> APIResult<VeilidRoutingContext> {
         let veilid_api = get_veilid_api()?;
         let routing_context = veilid_api.routing_context().with_privacy()?;
-        let id = add_routing_context(routing_context);
-        Ok(VeilidRoutingContext { id })
+        Ok(VeilidRoutingContext {
+            inner_routing_context: Some(routing_context),
+        })
     }
 
     /// Turn on privacy using a custom `SafetySelection`
@@ -51,16 +55,18 @@ impl VeilidRoutingContext {
         let routing_context = veilid_api
             .routing_context()
             .with_custom_privacy(safety_selection)?;
-        let id = add_routing_context(routing_context);
-        Ok(VeilidRoutingContext { id })
+        Ok(VeilidRoutingContext {
+            inner_routing_context: Some(routing_context),
+        })
     }
 
     /// Use a specified `Sequencing` preference, with or without privacy.
     pub fn createWithSequencing(sequencing: Sequencing) -> APIResult<VeilidRoutingContext> {
         let veilid_api = get_veilid_api()?;
         let routing_context = veilid_api.routing_context().with_sequencing(sequencing);
-        let id = add_routing_context(routing_context);
-        Ok(VeilidRoutingContext { id })
+        Ok(VeilidRoutingContext {
+            inner_routing_context: Some(routing_context),
+        })
     }
 
     // --------------------------------
@@ -115,6 +121,7 @@ impl VeilidRoutingContext {
     /// * `call_id` - specifies which call to reply to, and it comes from a VeilidUpdate::AppCall, specifically the VeilidAppCall::id() value.
     /// * `message` - is an answer blob to be returned by the remote node's RoutingContext::app_call() function, and may be up to 32768 bytes
     pub async fn appCallReply(call_id: String, message: String) -> APIResult<()> {
+        let message = unmarshall(message);
         let call_id = match call_id.parse() {
             Ok(v) => v,
             Err(e) => {
@@ -124,9 +131,7 @@ impl VeilidRoutingContext {
             }
         };
         let veilid_api = get_veilid_api()?;
-        veilid_api
-            .app_call_reply(call_id, message.into_bytes())
-            .await?;
+        veilid_api.app_call_reply(call_id, message).await?;
         APIRESULT_UNDEFINED
     }
 
@@ -134,9 +139,8 @@ impl VeilidRoutingContext {
     // Instance methods
     // --------------------------------
     fn getRoutingContext(&self) -> APIResult<RoutingContext> {
-        let rc = (*ROUTING_CONTEXTS).borrow();
-        let Some(routing_context) = rc.get(&self.id) else {
-            return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("getRoutingContext", "id", self.id));
+        let Some(routing_context) = &self.inner_routing_context else {
+            return APIResult::Err(veilid_core::VeilidAPIError::generic("Unable to getRoutingContext instance. inner_routing_context is None."));
         };
         APIResult::Ok(routing_context.clone())
     }
@@ -150,12 +154,11 @@ impl VeilidRoutingContext {
     #[wasm_bindgen(skip_jsdoc)]
     pub async fn appMessage(&self, target_string: String, message: String) -> APIResult<()> {
         let routing_context = self.getRoutingContext()?;
+        let message = unmarshall(message);
 
         let veilid_api = get_veilid_api()?;
         let target = veilid_api.parse_as_target(target_string).await?;
-        routing_context
-            .app_message(target, message.into_bytes())
-            .await?;
+        routing_context.app_message(target, message).await?;
         APIRESULT_UNDEFINED
     }
 
@@ -168,15 +171,13 @@ impl VeilidRoutingContext {
     /// @returns an answer blob of up to `32768` bytes, base64Url encoded.
     #[wasm_bindgen(skip_jsdoc)]
     pub async fn appCall(&self, target_string: String, request: String) -> APIResult<String> {
-        let request: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(&request.as_bytes())
-            .unwrap();
+        let request: Vec<u8> = unmarshall(request);
         let routing_context = self.getRoutingContext()?;
 
         let veilid_api = get_veilid_api()?;
         let target = veilid_api.parse_as_target(target_string).await?;
         let answer = routing_context.app_call(target, request).await?;
-        let answer = data_encoding::BASE64URL_NOPAD.encode(&answer);
+        let answer = marshall(&answer);
         APIResult::Ok(answer)
     }
 

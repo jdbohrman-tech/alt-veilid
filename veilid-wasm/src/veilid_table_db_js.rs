@@ -3,7 +3,7 @@ use super::*;
 
 #[wasm_bindgen()]
 pub struct VeilidTableDB {
-    id: u32,
+    inner_table_db: Option<TableDB>,
     tableName: String,
     columnCount: u32,
 }
@@ -15,48 +15,35 @@ impl VeilidTableDB {
     #[wasm_bindgen(constructor)]
     pub fn new(tableName: String, columnCount: u32) -> Self {
         Self {
-            id: 0,
+            inner_table_db: None,
             tableName,
             columnCount,
         }
     }
 
     fn getTableDB(&self) -> APIResult<TableDB> {
-        let table_dbs = (*TABLE_DBS).borrow();
-        let Some(table_db) = table_dbs.get(&self.id) else {
-            return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("getTableDB", "id", self.id));
+        let Some(table_db) = &self.inner_table_db else {
+            return APIResult::Err(veilid_core::VeilidAPIError::generic("Unable to getTableDB instance. Ensure you've called openTable()."));
         };
         APIResult::Ok(table_db.clone())
     }
 
     /// Get or create the TableDB database table.
     /// This is called automatically when performing actions on the TableDB.
-    pub async fn openTable(&mut self) -> APIResult<u32> {
+    pub async fn openTable(&mut self) -> APIResult<()> {
         let veilid_api = get_veilid_api()?;
         let tstore = veilid_api.table_store()?;
         let table_db = tstore
             .open(&self.tableName, self.columnCount)
             .await
             .map_err(veilid_core::VeilidAPIError::generic)?;
-        let new_id = add_table_db(table_db);
-        self.id = new_id;
-        APIResult::Ok(new_id)
-    }
-
-    /// Release the TableDB instance from memory.
-    pub fn releaseTable(&mut self) -> bool {
-        let mut tdbs = (*TABLE_DBS).borrow_mut();
-        let status = tdbs.remove(&self.id);
-        self.id = 0;
-        if status.is_none() {
-            return false;
-        }
-        return true;
+        self.inner_table_db = Some(table_db);
+        APIRESULT_UNDEFINED
     }
 
     /// Delete this TableDB.
     pub async fn deleteTable(&mut self) -> APIResult<bool> {
-        self.releaseTable();
+        self.inner_table_db = None;
 
         let veilid_api = get_veilid_api()?;
         let tstore = veilid_api.table_store()?;
@@ -68,7 +55,7 @@ impl VeilidTableDB {
     }
 
     async fn ensureOpen(&mut self) {
-        if self.id == 0 {
+        if self.inner_table_db.is_none() {
             let _ = self.openTable().await;
         }
     }
@@ -128,14 +115,15 @@ impl VeilidTableDB {
         let table_db = self.getTableDB()?;
 
         let transaction = table_db.transact();
-        let transaction_id = add_table_db_transaction(transaction);
-        APIResult::Ok(VeilidTableDBTransaction { id: transaction_id })
+        APIResult::Ok(VeilidTableDBTransaction {
+            inner_transaction: Some(transaction),
+        })
     }
 }
 
 #[wasm_bindgen]
 pub struct VeilidTableDBTransaction {
-    id: u32,
+    inner_transaction: Option<TableDBTransaction>,
 }
 
 #[wasm_bindgen]
@@ -144,26 +132,17 @@ impl VeilidTableDBTransaction {
     /// Use `.createTransaction()` on an instance of `VeilidTableDB` instead.
     /// @deprecated
     #[wasm_bindgen(constructor)]
-    pub fn new(id: u32) -> Self {
-        Self { id }
+    pub fn new() -> Self {
+        Self {
+            inner_transaction: None,
+        }
     }
 
     fn getTransaction(&self) -> APIResult<TableDBTransaction> {
-        let transactions = (*TABLE_DB_TRANSACTIONS).borrow();
-        let Some(transaction) = transactions.get(&self.id) else {
-            return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("getTransaction", "id", &self.id));
+        let Some(transaction) = &self.inner_transaction else {
+            return APIResult::Err(veilid_core::VeilidAPIError::generic("Unable to getTransaction instance. inner_transaction is None."));
         };
         APIResult::Ok(transaction.clone())
-    }
-
-    /// Releases the transaction from memory.
-    pub fn releaseTransaction(&mut self) -> bool {
-        let mut transactions = (*TABLE_DB_TRANSACTIONS).borrow_mut();
-        self.id = 0;
-        if transactions.remove(&self.id).is_none() {
-            return false;
-        }
-        return true;
     }
 
     /// Commit the transaction. Performs all actions atomically.
