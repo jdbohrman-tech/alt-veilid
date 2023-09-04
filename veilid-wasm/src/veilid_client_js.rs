@@ -66,10 +66,16 @@ impl VeilidClient {
             .expect("failed to initalize WASM platform");
     }
 
+    /// Initialize a Veilid node, with the configuration in JSON format
+    ///
+    /// Must be called only once at the start of an application
+    ///
+    /// @param {UpdateVeilidFunction} update_callback_js - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change
+    /// @param {string} json_config - called at startup to supply a JSON configuration object.
     pub async fn startupCore(
         update_callback_js: UpdateVeilidFunction,
         json_config: String,
-    ) -> Result<(), VeilidAPIError> {
+    ) -> APIResult<()> {
         let update_callback_js = SendWrapper::new(update_callback_js);
         let update_callback = Arc::new(move |update: VeilidUpdate| {
             let _ret = match Function::call1(
@@ -86,12 +92,12 @@ impl VeilidClient {
         });
 
         if VEILID_API.borrow().is_some() {
-            return Err(veilid_core::VeilidAPIError::AlreadyInitialized);
+            return APIResult::Err(veilid_core::VeilidAPIError::AlreadyInitialized);
         }
 
         let veilid_api = veilid_core::api_startup_json(update_callback, json_config).await?;
         VEILID_API.replace(Some(veilid_api));
-        Ok(())
+        APIRESULT_UNDEFINED
     }
 
     // TODO: can we refine the TS type of `layer`?
@@ -110,36 +116,42 @@ impl VeilidClient {
         }
     }
 
-    pub async fn shutdownCore() -> Result<(), VeilidAPIError> {
+    /// Shut down Veilid and terminate the API.
+    pub async fn shutdownCore() -> APIResult<()> {
         let veilid_api = take_veilid_api()?;
         veilid_api.shutdown().await;
-        Ok(())
+        APIRESULT_UNDEFINED
     }
 
-    pub async fn getState() -> Result<VeilidState, VeilidAPIError> {
+    /// Get a full copy of the current state of Veilid.
+    pub async fn getState() -> APIResult<VeilidState> {
         let veilid_api = get_veilid_api()?;
         let core_state = veilid_api.get_state().await?;
-        Ok(core_state)
+        APIResult::Ok(core_state)
     }
 
-    pub async fn attach() -> Result<(), VeilidAPIError> {
+    /// Connect to the network.
+    pub async fn attach() -> APIResult<()> {
         let veilid_api = get_veilid_api()?;
         veilid_api.attach().await?;
-        Ok(())
+        APIRESULT_UNDEFINED
     }
 
-    pub async fn detach() -> Result<(), VeilidAPIError> {
+    /// Disconnect from the network.
+    pub async fn detach() -> APIResult<()> {
         let veilid_api = get_veilid_api()?;
         veilid_api.detach().await?;
-        Ok(())
+        APIRESULT_UNDEFINED
     }
 
-    pub async fn debug(command: String) -> Result<String, VeilidAPIError> {
+    /// Execute an 'internal debug command'.
+    pub async fn debug(command: String) -> APIResult<String> {
         let veilid_api = get_veilid_api()?;
         let out = veilid_api.debug(command).await?;
         APIResult::Ok(out)
     }
 
+    /// Return the cargo package version of veilid-core, in object format.
     pub fn version() -> VeilidVersion {
         let (major, minor, patch) = veilid_core::veilid_version();
         let vv = super::VeilidVersion {
@@ -148,5 +160,10 @@ impl VeilidClient {
             patch,
         };
         vv
+    }
+
+    /// Return the cargo package version of veilid-core, in string format.
+    pub fn versionString() -> String {
+        veilid_core::veilid_version_string()
     }
 }

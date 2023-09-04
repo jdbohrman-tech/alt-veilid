@@ -65,6 +65,17 @@ fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIErr
         .ok_or(veilid_core::VeilidAPIError::NotInitialized)
 }
 
+// Marshalling helpers
+pub fn unmarshall(b64: String) -> Vec<u8> {
+    data_encoding::BASE64URL_NOPAD
+        .decode(b64.as_bytes())
+        .unwrap()
+}
+
+pub fn marshall(data: &Vec<u8>) -> String {
+    data_encoding::BASE64URL_NOPAD.encode(data)
+}
+
 // JSON Helpers for WASM
 pub fn to_json<T: Serialize + Debug>(val: T) -> JsValue {
     JsValue::from_str(&serialize_json(val))

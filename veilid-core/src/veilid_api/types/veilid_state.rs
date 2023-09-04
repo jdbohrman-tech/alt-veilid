@@ -64,6 +64,7 @@ pub struct VeilidStateAttachment {
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct PeerTableData {
     #[schemars(with = "Vec<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string[]"))]
     pub node_ids: Vec<TypedKey>,
     pub peer_address: String,
     pub peer_stats: PeerStats,
@@ -82,8 +83,10 @@ pub struct VeilidStateNetwork {
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidRouteChange {
     #[schemars(with = "Vec<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub dead_routes: Vec<RouteId>,
     #[schemars(with = "Vec<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub dead_remote_routes: Vec<RouteId>,
 }
 

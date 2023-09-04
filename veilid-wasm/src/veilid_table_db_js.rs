@@ -10,16 +10,28 @@ pub struct VeilidTableDB {
 
 #[wasm_bindgen()]
 impl VeilidTableDB {
+    /// If the column count is greater than an existing TableDB's column count,
+    /// the database will be upgraded to add the missing columns.
     #[wasm_bindgen(constructor)]
-    pub fn new(tableName: String, columnCount: u32) -> VeilidTableDB {
-        VeilidTableDB {
+    pub fn new(tableName: String, columnCount: u32) -> Self {
+        Self {
             id: 0,
             tableName,
             columnCount,
         }
     }
 
-    pub async fn openTable(&mut self) -> VeilidAPIResult<u32> {
+    fn getTableDB(&self) -> APIResult<TableDB> {
+        let table_dbs = (*TABLE_DBS).borrow();
+        let Some(table_db) = table_dbs.get(&self.id) else {
+            return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("getTableDB", "id", self.id));
+        };
+        APIResult::Ok(table_db.clone())
+    }
+
+    /// Get or create the TableDB database table.
+    /// This is called automatically when performing actions on the TableDB.
+    pub async fn openTable(&mut self) -> APIResult<u32> {
         let veilid_api = get_veilid_api()?;
         let tstore = veilid_api.table_store()?;
         let table_db = tstore
@@ -31,6 +43,7 @@ impl VeilidTableDB {
         APIResult::Ok(new_id)
     }
 
+    /// Release the TableDB instance from memory.
     pub fn releaseTable(&mut self) -> bool {
         let mut tdbs = (*TABLE_DBS).borrow_mut();
         let status = tdbs.remove(&self.id);
@@ -41,7 +54,8 @@ impl VeilidTableDB {
         return true;
     }
 
-    pub async fn deleteTable(&mut self) -> VeilidAPIResult<bool> {
+    /// Delete this TableDB.
+    pub async fn deleteTable(&mut self) -> APIResult<bool> {
         self.releaseTable();
 
         let veilid_api = get_veilid_api()?;
@@ -59,116 +73,125 @@ impl VeilidTableDB {
         }
     }
 
-    pub async fn load(&mut self, columnId: u32, key: String) -> VeilidAPIResult<Option<String>> {
+    /// Read a key from a column in the TableDB immediately.
+    pub async fn load(&mut self, columnId: u32, key: String) -> APIResult<Option<String>> {
         self.ensureOpen().await;
+        let key = unmarshall(key);
+        let table_db = self.getTableDB()?;
 
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&self.id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_load", "id", self.id));
-            };
-            table_db.clone()
-        };
-
-        let out = table_db.load(columnId, key.as_bytes()).await?.unwrap();
-        let out = Some(str::from_utf8(&out).unwrap().to_owned());
-        // let out = serde_wasm_bindgen::to_value(&out)
-        //     .expect("Could not parse using serde_wasm_bindgen");
+        let out = table_db.load(columnId, &key).await?.unwrap();
+        let out = Some(marshall(&out));
         APIResult::Ok(out)
     }
 
-    pub async fn store(
-        &mut self,
-        columnId: u32,
-        key: String,
-        value: String,
-    ) -> VeilidAPIResult<()> {
+    /// Store a key with a value in a column in the TableDB.
+    /// Performs a single transaction immediately.
+    pub async fn store(&mut self, columnId: u32, key: String, value: String) -> APIResult<()> {
         self.ensureOpen().await;
+        let key = unmarshall(key);
+        let value = unmarshall(value);
+        let table_db = self.getTableDB()?;
 
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&self.id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_store", "id", self.id));
-            };
-            table_db.clone()
-        };
-
-        table_db
-            .store(columnId, key.as_bytes(), value.as_bytes())
-            .await?;
+        table_db.store(columnId, &key, &value).await?;
         APIRESULT_UNDEFINED
     }
 
-    pub async fn delete(&mut self, columnId: u32, key: String) -> VeilidAPIResult<Option<String>> {
+    /// Delete key with from a column in the TableDB.
+    pub async fn delete(&mut self, columnId: u32, key: String) -> APIResult<Option<String>> {
         self.ensureOpen().await;
+        let key = unmarshall(key);
+        let table_db = self.getTableDB()?;
 
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&self.id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_delete", "id", self.id));
-            };
-            table_db.clone()
-        };
-
-        // TODO: will crash when trying to .unwrap() of None (trying to delete key that doesn't exist)
-        let out = table_db.delete(columnId, key.as_bytes()).await?.unwrap();
-        let out = Some(str::from_utf8(&out).unwrap().to_owned());
+        let out = table_db.delete(columnId, &key).await?.unwrap();
+        let out = Some(marshall(&out));
         APIResult::Ok(out)
     }
 
-    // TODO try and figure out how to result a String[], maybe Box<[String]>?
-    pub async fn getKeys(&mut self, columnId: u32) -> VeilidAPIResult<JsValue> {
+    /// Get the list of keys in a column of the TableDB.
+    ///
+    /// Returns an array of base64Url encoded keys.
+    pub async fn getKeys(&mut self, columnId: u32) -> APIResult<StringArray> {
         self.ensureOpen().await;
-
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&self.id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("table_db_store", "id", self.id));
-            };
-            table_db.clone()
-        };
+        let table_db = self.getTableDB()?;
 
         let keys = table_db.clone().get_keys(columnId).await?;
-        let out: Vec<String> = keys
-            .into_iter()
-            .map(|k| str::from_utf8(&k).unwrap().to_owned())
-            .collect();
-        let out =
-            serde_wasm_bindgen::to_value(&out).expect("Could not parse using serde_wasm_bindgen");
+        let out: Vec<String> = keys.into_iter().map(|k| marshall(&k)).collect();
+        let out = into_unchecked_string_array(out);
 
         APIResult::Ok(out)
     }
 
-    pub async fn transact(&mut self) -> u32 {
+    /// Start a TableDB write transaction.
+    /// The transaction object must be committed or rolled back before dropping.
+    pub async fn createTransaction(&mut self) -> APIResult<VeilidTableDBTransaction> {
         self.ensureOpen().await;
+        let table_db = self.getTableDB()?;
 
-        let table_dbs = (*TABLE_DBS).borrow();
-        let Some(table_db) = table_dbs.get(&self.id) else {
-            return 0;
-        };
-        let tdbt = table_db.clone().transact();
-        let tdbtid = add_table_db_transaction(tdbt);
-        return tdbtid;
+        let transaction = table_db.transact();
+        let transaction_id = add_table_db_transaction(transaction);
+        APIResult::Ok(VeilidTableDBTransaction { id: transaction_id })
+    }
+}
+
+#[wasm_bindgen]
+pub struct VeilidTableDBTransaction {
+    id: u32,
+}
+
+#[wasm_bindgen]
+impl VeilidTableDBTransaction {
+    /// Don't use this constructor directly.
+    /// Use `.createTransaction()` on an instance of `VeilidTableDB` instead.
+    /// @deprecated
+    #[wasm_bindgen(constructor)]
+    pub fn new(id: u32) -> Self {
+        Self { id }
     }
 
-    // TODO: placeholders for transaction functions
-    // pub async fn releaseTransaction(&mut self) {
-    //     self.ensureOpen().await;
-    // }
+    fn getTransaction(&self) -> APIResult<TableDBTransaction> {
+        let transactions = (*TABLE_DB_TRANSACTIONS).borrow();
+        let Some(transaction) = transactions.get(&self.id) else {
+            return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("getTransaction", "id", &self.id));
+        };
+        APIResult::Ok(transaction.clone())
+    }
 
-    // pub async fn commitTransaction(&mut self) {
-    //     self.ensureOpen().await;
-    // }
+    /// Releases the transaction from memory.
+    pub fn releaseTransaction(&mut self) -> bool {
+        let mut transactions = (*TABLE_DB_TRANSACTIONS).borrow_mut();
+        self.id = 0;
+        if transactions.remove(&self.id).is_none() {
+            return false;
+        }
+        return true;
+    }
 
-    // pub async fn rollbackTransaction(&mut self) {
-    //     self.ensureOpen().await;
-    // }
+    /// Commit the transaction. Performs all actions atomically.
+    pub async fn commit(&self) -> APIResult<()> {
+        let transaction = self.getTransaction()?;
+        transaction.commit().await
+    }
 
-    // pub async fn storeTransaction(&mut self, tableId: u32, key: String, value: String) {
-    //     self.ensureOpen().await;
-    // }
+    /// Rollback the transaction. Does nothing to the TableDB.
+    pub fn rollback(&self) -> APIResult<()> {
+        let transaction = self.getTransaction()?;
+        transaction.rollback();
+        APIRESULT_UNDEFINED
+    }
 
-    // pub async fn deleteTransaction(&mut self) {
-    //     self.ensureOpen().await;
-    // }
+    /// Store a key with a value in a column in the TableDB.
+    /// Does not modify TableDB until `.commit()` is called.
+    pub fn store(&self, col: u32, key: String, value: String) -> APIResult<()> {
+        let key = unmarshall(key);
+        let value = unmarshall(value);
+        let transaction = self.getTransaction()?;
+        transaction.store(col, &key, &value)
+    }
+
+    /// Delete key with from a column in the TableDB
+    pub fn deleteKey(&self, col: u32, key: String) -> APIResult<()> {
+        let key = unmarshall(key);
+        let transaction = self.getTransaction()?;
+        transaction.delete(col, &key)
+    }
 }
