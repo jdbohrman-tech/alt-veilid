@@ -231,7 +231,23 @@ impl Network {
             match unord.next().timeout_at(stop_token.clone()).await {
                 Ok(Some(Some(ddi))) => {
                     // Found some new dial info for this protocol/address combination
-                    self.update_with_detected_dial_info(ddi).await?
+                    self.update_with_detected_dial_info(ddi.clone()).await?;
+
+                    // Add WS dialinfo as well if it is on the same port as TCP
+                    if let DetectedDialInfo::Detected(did) = &ddi {
+                        if did.dial_info.protocol_type() == ProtocolType::TCP && tcp_same_port {
+                            // Make WS dialinfo as well with same socket address as TCP
+                            let ws_ddi = DetectedDialInfo::Detected(DialInfoDetail {
+                                dial_info: self.make_dial_info(
+                                    did.dial_info.socket_address(),
+                                    ProtocolType::WS,
+                                ),
+                                class: did.class,
+                            });
+                            // Add additional WS dialinfo
+                            self.update_with_detected_dial_info(ws_ddi).await?;
+                        }
+                    }
                 }
                 Ok(Some(None)) => {
                     // Found no new dial info for this protocol/address combination
@@ -284,5 +300,22 @@ impl Network {
         }
 
         out
+    }
+
+    /// Make a dialinfo from an address and protocol type
+    pub fn make_dial_info(&self, addr: SocketAddress, protocol_type: ProtocolType) -> DialInfo {
+        match protocol_type {
+            ProtocolType::UDP => DialInfo::udp(addr),
+            ProtocolType::TCP => DialInfo::tcp(addr),
+            ProtocolType::WS => {
+                let c = self.config.get();
+                DialInfo::try_ws(
+                    addr,
+                    format!("ws://{}/{}", addr, c.network.protocol.ws.path),
+                )
+                .unwrap()
+            }
+            ProtocolType::WSS => panic!("none of the discovery functions are used for wss"),
+        }
     }
 }
