@@ -16,6 +16,7 @@ unit_test_linux:
   services:
     - docker:dind
   only:
+    - main
     - merge_requests
   before_script:
     - apk update && apk add git
