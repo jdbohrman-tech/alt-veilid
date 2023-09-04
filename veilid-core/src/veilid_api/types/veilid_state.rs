@@ -97,6 +97,7 @@ pub struct VeilidStateConfig {
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidValueChange {
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub key: TypedKey,
     pub subkeys: Vec<ValueSubkey>,
     pub count: u32,

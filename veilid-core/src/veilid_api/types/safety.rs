@@ -68,7 +68,7 @@ impl Default for SafetySelection {
 pub struct SafetySpec {
     /// preferred safety route set id if it still exists
     #[schemars(with = "Option<String>")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string | undefined"))]
+    #[cfg_attr(target_arch = "wasm32", tsify(optional, type = "string"))]
     pub preferred_route: Option<RouteId>,
     /// must be greater than 0
     pub hop_count: usize,

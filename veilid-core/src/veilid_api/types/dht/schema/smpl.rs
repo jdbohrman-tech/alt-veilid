@@ -2,9 +2,11 @@ use super::*;
 
 /// Simple DHT Schema (SMPL) Member
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
 pub struct DHTSchemaSMPLMember {
     /// Member key
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub m_key: PublicKey,
     /// Member subkey count
     pub m_cnt: u16,
@@ -12,6 +14,7 @@ pub struct DHTSchemaSMPLMember {
 
 /// Simple DHT Schema (SMPL)
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
 pub struct DHTSchemaSMPL {
     /// Owner subkey count
     pub o_cnt: u16,

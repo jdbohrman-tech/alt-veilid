@@ -2,6 +2,7 @@ use super::*;
 
 /// Default DHT Schema (DFLT)
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
 pub struct DHTSchemaDFLT {
     /// Owner subkey count
     pub o_cnt: u16,

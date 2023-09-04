@@ -13,6 +13,7 @@ impl VeilidRoutingContext {
         Self { id }
     }
 
+    // Factories
     pub fn createWithoutPrivacy() -> VeilidAPIResult<VeilidRoutingContext> {
         let veilid_api = get_veilid_api()?;
         let routing_context = veilid_api.routing_context();
@@ -45,6 +46,54 @@ impl VeilidRoutingContext {
         Ok(VeilidRoutingContext { id })
     }
 
+    // Static methods
+    pub async fn newPrivateRoute() -> VeilidAPIResult<VeilidRouteBlob> {
+        let veilid_api = get_veilid_api()?;
+
+        let (route_id, blob) = veilid_api.new_private_route().await?;
+
+        let route_blob = VeilidRouteBlob { route_id, blob };
+        APIResult::Ok(route_blob)
+    }
+
+    pub async fn newCustomPrivateRoute(
+        stability: Stability,
+        sequencing: Sequencing,
+    ) -> VeilidAPIResult<VeilidRouteBlob> {
+        let veilid_api = get_veilid_api()?;
+
+        let (route_id, blob) = veilid_api
+            .new_custom_private_route(&veilid_core::VALID_CRYPTO_KINDS, stability, sequencing)
+            .await?;
+
+        let route_blob = VeilidRouteBlob { route_id, blob };
+        APIResult::Ok(route_blob)
+    }
+
+    pub async fn releasePrivateRoute(routeId: String) -> VeilidAPIResult<()> {
+        let route_id: veilid_core::RouteId = veilid_core::deserialize_json(&routeId).unwrap();
+        let veilid_api = get_veilid_api()?;
+        veilid_api.release_private_route(route_id)?;
+        APIRESULT_UNDEFINED
+    }
+
+    pub async fn appCallReply(callId: String, message: String) -> VeilidAPIResult<()> {
+        let call_id = match callId.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+                    e, "call_id", callId,
+                ))
+            }
+        };
+        let veilid_api = get_veilid_api()?;
+        veilid_api
+            .app_call_reply(call_id, message.into_bytes())
+            .await?;
+        APIRESULT_UNDEFINED
+    }
+
+    // Instance methods
     pub async fn appMessage(&self, target_string: String, message: String) -> VeilidAPIResult<()> {
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
@@ -62,12 +111,7 @@ impl VeilidRoutingContext {
         APIRESULT_UNDEFINED
     }
 
-    pub async fn appCall(
-        &self,
-        id: u32,
-        target_string: String,
-        request: String,
-    ) -> VeilidAPIResult<String> {
+    pub async fn appCall(&self, target_string: String, request: String) -> VeilidAPIResult<String> {
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&self.id) else {
@@ -86,12 +130,15 @@ impl VeilidRoutingContext {
         APIResult::Ok(answer)
     }
 
-    pub async fn createDhtRecord(&self, schema: JsValue, kind: u32) -> VeilidAPIResult<JsValue> {
-        let schema: DHTSchema = serde_wasm_bindgen::from_value(schema).unwrap();
-        let crypto_kind = if kind == 0 {
+    pub async fn createDhtRecord(
+        &self,
+        schema: DHTSchema,
+        kind: String,
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        let crypto_kind = if kind.is_empty() {
             None
         } else {
-            Some(veilid_core::FourCC::from(kind))
+            Some(veilid_core::FourCC::from_str(&kind)?)
         };
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
@@ -104,18 +151,21 @@ impl VeilidRoutingContext {
         let dht_record_descriptor = routing_context
             .create_dht_record(schema, crypto_kind)
             .await?;
-        let out = serde_wasm_bindgen::to_value(&dht_record_descriptor).unwrap();
-        APIResult::Ok(out)
+        APIResult::Ok(dht_record_descriptor)
     }
 
+    /// @param {string} writer - Stringified key pair in the form of `key:secret`.
     pub async fn openDhtRecord(
         &self,
         key: String,
         writer: Option<String>,
-    ) -> VeilidAPIResult<JsValue> {
-        let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
-        let writer: Option<veilid_core::KeyPair> =
-            writer.map(|s| veilid_core::deserialize_json(&s).unwrap());
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        let key = TypedKey::from_str(&key).unwrap();
+        let writer = match writer {
+            Some(writer) => Some(KeyPair::from_str(&writer).unwrap()),
+            _ => None,
+        };
+
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&self.id) else {
@@ -124,12 +174,11 @@ impl VeilidRoutingContext {
             routing_context.clone()
         };
         let dht_record_descriptor = routing_context.open_dht_record(key, writer).await?;
-        let out = serde_wasm_bindgen::to_value(&dht_record_descriptor).unwrap();
-        APIResult::Ok(out)
+        APIResult::Ok(dht_record_descriptor)
     }
 
     pub async fn closeDhtRecord(&self, key: String) -> VeilidAPIResult<()> {
-        let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
+        let key = TypedKey::from_str(&key).unwrap();
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&self.id) else {
@@ -142,7 +191,7 @@ impl VeilidRoutingContext {
     }
 
     pub async fn deleteDhtRecord(&self, key: String) -> VeilidAPIResult<()> {
-        let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
+        let key = TypedKey::from_str(&key).unwrap();
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&self.id) else {
@@ -159,8 +208,8 @@ impl VeilidRoutingContext {
         key: String,
         subKey: u32,
         forceRefresh: bool,
-    ) -> VeilidAPIResult<JsValue> {
-        let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
+    ) -> VeilidAPIResult<Option<ValueData>> {
+        let key = TypedKey::from_str(&key).unwrap();
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&self.id) else {
@@ -171,17 +220,17 @@ impl VeilidRoutingContext {
         let res = routing_context
             .get_dht_value(key, subKey, forceRefresh)
             .await?;
-        let out = serde_wasm_bindgen::to_value(&res).unwrap();
-        APIResult::Ok(out)
+        APIResult::Ok(res)
     }
 
+    /// @param {string} data - Base64Url (no padding) encoded data string
     pub async fn setDhtValue(
         &self,
         key: String,
         subKey: u32,
         data: String,
-    ) -> VeilidAPIResult<JsValue> {
-        let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
+    ) -> VeilidAPIResult<Option<ValueData>> {
+        let key = TypedKey::from_str(&key).unwrap();
         let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(&data.as_bytes())
             .unwrap();
@@ -194,8 +243,7 @@ impl VeilidRoutingContext {
             routing_context.clone()
         };
         let res = routing_context.set_dht_value(key, subKey, data).await?;
-        let out = serde_wasm_bindgen::to_value(&res).unwrap();
-        APIResult::Ok(out)
+        APIResult::Ok(res)
     }
 
     // pub async fn watchDhtValues(
@@ -238,56 +286,4 @@ impl VeilidRoutingContext {
     //     let res = routing_context.cancel_dht_watch(key, subkeys).await?;
     //     APIResult::Ok(res)
     // }
-}
-
-#[wasm_bindgen()]
-pub async fn newPrivateRoute() -> VeilidAPIResult<JsValue> {
-    let veilid_api = get_veilid_api()?;
-
-    let (route_id, blob) = veilid_api.new_private_route().await?;
-
-    let route_blob = VeilidRouteBlob { route_id, blob };
-    let out = serde_wasm_bindgen::to_value(&route_blob).unwrap();
-    APIResult::Ok(out)
-}
-
-#[wasm_bindgen()]
-pub async fn newCustomPrivateRoute(
-    stability: Stability,
-    sequencing: Sequencing,
-) -> VeilidAPIResult<JsValue> {
-    let veilid_api = get_veilid_api()?;
-
-    let (route_id, blob) = veilid_api
-        .new_custom_private_route(&veilid_core::VALID_CRYPTO_KINDS, stability, sequencing)
-        .await?;
-
-    let route_blob = VeilidRouteBlob { route_id, blob };
-    let out = serde_wasm_bindgen::to_value(&route_blob).unwrap();
-    APIResult::Ok(out)
-}
-
-#[wasm_bindgen()]
-pub async fn releasePrivateRoute(routeId: String) -> VeilidAPIResult<()> {
-    let route_id: veilid_core::RouteId = veilid_core::deserialize_json(&routeId).unwrap();
-    let veilid_api = get_veilid_api()?;
-    veilid_api.release_private_route(route_id)?;
-    APIRESULT_UNDEFINED
-}
-
-#[wasm_bindgen()]
-pub async fn appCallReply(callId: String, message: String) -> VeilidAPIResult<()> {
-    let call_id = match callId.parse() {
-        Ok(v) => v,
-        Err(e) => {
-            return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                e, "call_id", callId,
-            ))
-        }
-    };
-    let veilid_api = get_veilid_api()?;
-    veilid_api
-        .app_call_reply(call_id, message.into_bytes())
-        .await?;
-    APIRESULT_UNDEFINED
 }

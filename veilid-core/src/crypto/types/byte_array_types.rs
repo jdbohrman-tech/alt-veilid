@@ -78,6 +78,7 @@ where
 macro_rules! byte_array_type {
     ($name:ident, $size:expr, $encoded_size:expr) => {
         #[derive(Clone, Copy, Hash)]
+        #[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
         pub struct $name {
             pub bytes: [u8; $size],
         }

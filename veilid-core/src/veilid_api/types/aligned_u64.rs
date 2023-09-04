@@ -14,6 +14,7 @@ use super::*;
 pub struct AlignedU64(
     #[serde(with = "as_human_string")]
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     u64,
 );
 

@@ -2,7 +2,7 @@ use super::*;
 use veilid_api::VeilidAPIResult;
 
 #[derive(Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
 pub struct ValueData {
     /// An increasing sequence number to time-order the DHT record changes
     seq: ValueSeqNum,
@@ -18,6 +18,8 @@ pub struct ValueData {
     #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     writer: PublicKey,
 }
+from_impl_to_jsvalue!(ValueData);
+
 impl ValueData {
     pub const MAX_LEN: usize = 32768;
 

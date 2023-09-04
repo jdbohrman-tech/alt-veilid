@@ -1,10 +1,18 @@
 use super::*;
 
 #[derive(Clone, Copy, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(from_wasm_abi, into_wasm_abi)
+)]
 pub struct KeyPair {
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub key: PublicKey,
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub secret: SecretKey,
 }
+from_impl_to_jsvalue!(KeyPair);
 
 impl KeyPair {
     pub fn new(key: PublicKey, secret: SecretKey) -> Self {

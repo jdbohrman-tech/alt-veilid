@@ -6,11 +6,12 @@ use super::*;
 pub struct VeilidAppMessage {
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(target_arch = "wasm32", tsify(optional, type = "string"))]
     sender: Option<TypedKey>,
 
     #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     message: Vec<u8>,
 }
 
