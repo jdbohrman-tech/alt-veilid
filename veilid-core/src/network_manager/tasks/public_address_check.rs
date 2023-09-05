@@ -77,7 +77,7 @@ impl NetworkManager {
         });
 
         // Get the ip(block) this report is coming from
-        let ipblock = ip_to_ipblock(
+        let reporting_ipblock = ip_to_ipblock(
             ip6_prefix_size,
             connection_descriptor.remote_address().to_ip_addr(),
         );
@@ -88,6 +88,13 @@ impl NetworkManager {
             return;
         };
         if node_info.network_class() != NetworkClass::InboundCapable {
+            return;
+        }
+
+        // If the socket address reported is the same as the reporter, then this is coming through a relay
+        // or it should be ignored due to local proximity (nodes on the same network block should not be trusted as
+        // public ip address reporters, only disinterested parties)
+        if reporting_ipblock == ip_to_ipblock(ip6_prefix_size, socket_address.to_ip_addr()) {
             return;
         }
 
@@ -105,7 +112,7 @@ impl NetworkManager {
         if inner
             .public_address_inconsistencies_table
             .get(&addr_proto_type_key)
-            .map(|pait| pait.contains_key(&ipblock))
+            .map(|pait| pait.contains_key(&reporting_ipblock))
             .unwrap_or(false)
         {
             return;
@@ -117,7 +124,7 @@ impl NetworkManager {
             .public_address_check_cache
             .entry(addr_proto_type_key)
             .or_insert_with(|| LruCache::new(PUBLIC_ADDRESS_CHECK_CACHE_SIZE));
-        pacc.insert(ipblock, socket_address);
+        pacc.insert(reporting_ipblock, socket_address);
 
         // Determine if our external address has likely changed
         let mut bad_public_address_detection_punishment: Option<
