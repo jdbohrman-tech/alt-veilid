@@ -375,7 +375,10 @@ impl DiscoveryContext {
 
     // If we know we are not behind NAT, check our firewall status
     #[instrument(level = "trace", skip(self), ret)]
-    async fn protocol_process_no_nat(&self) -> DetectedDialInfo {
+    async fn protocol_process_no_nat(
+        &self,
+        unord: &mut FuturesUnordered<SendPinBoxFuture<Option<DetectedDialInfo>>>,
+    ) -> DetectedDialInfo {
         let external_1 = self.inner.lock().external_1.as_ref().unwrap().clone();
 
         // Do a validate_dial_info on the external address from a redirected node
@@ -399,7 +402,10 @@ impl DiscoveryContext {
 
     // If we know we are behind NAT check what kind
     #[instrument(level = "trace", skip(self), ret)]
-    async fn protocol_process_nat(&self) -> Option<DetectedDialInfo> {
+    async fn protocol_process_nat(
+        &self,
+        unord: &mut FuturesUnordered<SendPinBoxFuture<Option<DetectedDialInfo>>>,
+    ) -> Option<DetectedDialInfo> {
         // Get the external dial info for our use here
         let external_1 = self.inner.lock().external_1.as_ref().unwrap().clone();
         let external_2 = self.inner.lock().external_2.as_ref().unwrap().clone();
@@ -553,30 +559,31 @@ impl DiscoveryContext {
         let external_1 = self.inner.lock().external_1.as_ref().unwrap().clone();
 
         if self.unlocked_inner.intf_addrs.contains(&external_1.address) {
-            this.protocol_process_no_nat(unord).await
-            xxx continue here
+            self.protocol_process_no_nat(unord).await;
         } else {
-            // Loop for restricted NAT retries
-            let this = self.clone();
-            let do_nat_fut: SendPinBoxFuture<Option<DetectedDialInfo>> = Box::pin(async move {
-                loop {
-                    // There is -some NAT-
-                    if let Some(ddi) = this.protocol_process_nat().await {
-                        if let DetectedDialInfo::Detected(did) = &ddi {
-                            // If we got something better than restricted NAT or we're done retrying
-                            if did.class < DialInfoClass::AddressRestrictedNAT || retry_count == 0 {
-                                return Some(ddi);
-                            }
-                        }
-                    }
-                    if retry_count == 0 {
-                        break;
-                    }
-                    retry_count -= 1;
-                }
-                None
-            });
-            unord.push(do_nat_fut);
+            self.protocol_process_nat(unord).await;
+
+            // // Loop for restricted NAT retries
+            // let this = self.clone();
+            // let do_nat_fut: SendPinBoxFuture<Option<DetectedDialInfo>> = Box::pin(async move {
+            //     loop {
+            //         // There is -some NAT-
+            //         if let Some(ddi) = this.protocol_process_nat().await {
+            //             if let DetectedDialInfo::Detected(did) = &ddi {
+            //                 // If we got something better than restricted NAT or we're done retrying
+            //                 if did.class < DialInfoClass::AddressRestrictedNAT || retry_count == 0 {
+            //                     return Some(ddi);
+            //                 }
+            //             }
+            //         }
+            //         if retry_count == 0 {
+            //             break;
+            //         }
+            //         retry_count -= 1;
+            //     }
+            //     None
+            // });
+            // unord.push(do_nat_fut);
         }
     }
 }
