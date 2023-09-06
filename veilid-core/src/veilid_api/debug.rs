@@ -570,7 +570,8 @@ impl VeilidAPI {
         routing_table
             .edit_routing_domain(routing_domain)
             .set_relay_node(relay_node)
-            .commit();
+            .commit(true)
+            .await;
         Ok("Relay changed".to_owned())
     }
 

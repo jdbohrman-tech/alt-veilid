@@ -647,7 +647,11 @@ impl Network {
                 let peer_socket_addr = dial_info.to_socket_addr();
                 let ph = match self.find_best_udp_protocol_handler(&peer_socket_addr, &None) {
                     Some(ph) => ph,
-                    None => bail!("no appropriate UDP protocol handler for dial_info"),
+                    None => {
+                        return Ok(NetworkResult::no_connection_other(
+                            "no appropriate UDP protocol handler for dial_info",
+                        ));
+                    }
                 };
                 connection_descriptor = network_result_try!(ph
                     .send_message(data, peer_socket_addr)
@@ -876,8 +880,8 @@ impl Network {
         }
 
         // commit routing table edits
-        editor_public_internet.commit();
-        editor_local_network.commit();
+        editor_public_internet.commit(true).await;
+        editor_local_network.commit(true).await;
 
         info!("network started");
         self.inner.lock().network_started = true;
@@ -932,14 +936,16 @@ impl Network {
             .clear_dial_info_details(None, None)
             .set_network_class(None)
             .clear_relay_node()
-            .commit();
+            .commit(true)
+            .await;
 
         routing_table
             .edit_routing_domain(RoutingDomain::LocalNetwork)
             .clear_dial_info_details(None, None)
             .set_network_class(None)
             .clear_relay_node()
-            .commit();
+            .commit(true)
+            .await;
 
         // Reset state including network class
         *self.inner.lock() = Self::new_inner();

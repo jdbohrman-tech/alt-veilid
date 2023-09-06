@@ -12,7 +12,7 @@ impl RoutingTable {
     // Ping each node in the routing table if they need to be pinged
     // to determine their reliability
     #[instrument(level = "trace", skip(self), err)]
-    fn relay_keepalive_public_internet(
+    async fn relay_keepalive_public_internet(
         &self,
         cur_ts: Timestamp,
         relay_nr: NodeRef,
@@ -41,7 +41,8 @@ impl RoutingTable {
         // Say we're doing this keepalive now
         self.edit_routing_domain(RoutingDomain::PublicInternet)
             .set_relay_node_keepalive(Some(cur_ts))
-            .commit();
+            .commit(false)
+            .await;
 
         // We need to keep-alive at one connection per ordering for relays
         // but also one per NAT mapping that we need to keep open for our inbound dial info
@@ -119,7 +120,7 @@ impl RoutingTable {
     // Ping each node in the routing table if they need to be pinged
     // to determine their reliability
     #[instrument(level = "trace", skip(self), err)]
-    fn ping_validator_public_internet(
+    async fn ping_validator_public_internet(
         &self,
         cur_ts: Timestamp,
         unord: &mut FuturesUnordered<
@@ -136,7 +137,8 @@ impl RoutingTable {
 
         // If this is our relay, let's check for NAT keepalives
         if let Some(relay_nr) = opt_relay_nr {
-            self.relay_keepalive_public_internet(cur_ts, relay_nr, unord)?;
+            self.relay_keepalive_public_internet(cur_ts, relay_nr, unord)
+                .await?;
         }
 
         // Just do a single ping with the best protocol for all the other nodes to check for liveness
@@ -156,7 +158,7 @@ impl RoutingTable {
     // Ping each node in the LocalNetwork routing domain if they
     // need to be pinged to determine their reliability
     #[instrument(level = "trace", skip(self), err)]
-    fn ping_validator_local_network(
+    async fn ping_validator_local_network(
         &self,
         cur_ts: Timestamp,
         unord: &mut FuturesUnordered<
@@ -195,10 +197,12 @@ impl RoutingTable {
         let mut unord = FuturesUnordered::new();
 
         // PublicInternet
-        self.ping_validator_public_internet(cur_ts, &mut unord)?;
+        self.ping_validator_public_internet(cur_ts, &mut unord)
+            .await?;
 
         // LocalNetwork
-        self.ping_validator_local_network(cur_ts, &mut unord)?;
+        self.ping_validator_local_network(cur_ts, &mut unord)
+            .await?;
 
         // Wait for ping futures to complete in parallel
         while let Ok(Some(_)) = unord.next().timeout_at(stop_token.clone()).await {}

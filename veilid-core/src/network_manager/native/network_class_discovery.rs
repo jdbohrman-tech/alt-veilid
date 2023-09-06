@@ -35,7 +35,7 @@ impl Network {
 
                     editor.clear_dial_info_details(None, None);
                     editor.set_network_class(Some(NetworkClass::OutboundOnly));
-                    editor.commit();
+                    editor.commit(true).await;
                 }
             }
             DetectedDialInfo::Detected(did) => {
@@ -85,7 +85,7 @@ impl Network {
                         }
 
                         editor.set_network_class(Some(NetworkClass::InboundCapable));
-                        editor.commit();
+                        editor.commit(true).await;
                     }
                 }
             }
@@ -131,8 +131,7 @@ impl Network {
         editor.clear_dial_info_details(None, None);
         editor.set_network_class(None);
         editor.clear_relay_node();
-        editor.commit();
-        log_net!(debug "PublicInternet network class cleared");
+        editor.commit(true).await;
 
         // Process all protocol and address combinations
         let mut unord = FuturesUnordered::new();
