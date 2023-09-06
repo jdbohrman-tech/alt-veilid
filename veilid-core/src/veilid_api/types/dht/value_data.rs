@@ -2,6 +2,7 @@ use super::*;
 use veilid_api::VeilidAPIResult;
 
 #[derive(Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
 pub struct ValueData {
     /// An increasing sequence number to time-order the DHT record changes
     seq: ValueSeqNum,
@@ -9,12 +10,16 @@ pub struct ValueData {
     /// The contents of a DHT Record
     #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     data: Vec<u8>,
 
     /// The public identity key of the writer of the data
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     writer: PublicKey,
 }
+from_impl_to_jsvalue!(ValueData);
+
 impl ValueData {
     pub const MAX_LEN: usize = 32768;
 

@@ -19,10 +19,19 @@ use serde::*;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
 use tracing_wasm::{WASMLayerConfigBuilder, *};
+use tsify::*;
 use veilid_core::tools::*;
 use veilid_core::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::*;
+
+pub mod veilid_client_js;
+pub mod veilid_crypto_js;
+pub mod veilid_routing_context_js;
+pub mod veilid_table_db_js;
+
+mod wasm_helpers;
+use wasm_helpers::*;
 
 // Allocator
 extern crate wee_alloc;
@@ -54,6 +63,17 @@ fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIErr
     (**VEILID_API)
         .take()
         .ok_or(veilid_core::VeilidAPIError::NotInitialized)
+}
+
+// Marshalling helpers
+pub fn unmarshall(b64: String) -> Vec<u8> {
+    data_encoding::BASE64URL_NOPAD
+        .decode(b64.as_bytes())
+        .unwrap()
+}
+
+pub fn marshall(data: &Vec<u8>) -> String {
+    data_encoding::BASE64URL_NOPAD.encode(data)
 }
 
 // JSON Helpers for WASM
@@ -112,6 +132,7 @@ where
 // WASM-specific
 
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidWASMConfigLoggingPerformance {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
@@ -120,28 +141,38 @@ pub struct VeilidWASMConfigLoggingPerformance {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidWASMConfigLoggingAPI {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidWASMConfigLogging {
     pub performance: VeilidWASMConfigLoggingPerformance,
     pub api: VeilidWASMConfigLoggingAPI,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
 pub struct VeilidWASMConfig {
     pub logging: VeilidWASMConfigLogging,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(from_wasm_abi, into_wasm_abi)
+)]
 pub struct VeilidRouteBlob {
     pub route_id: veilid_core::RouteId,
     #[serde(with = "veilid_core::as_human_base64")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub blob: Vec<u8>,
 }
+from_impl_to_jsvalue!(VeilidRouteBlob);
 
 // WASM Bindings
 
@@ -214,6 +245,11 @@ pub fn change_log_level(layer: String, log_level: String) {
         f.set_max_level(log_level);
     }
 }
+
+#[wasm_bindgen(typescript_custom_section)]
+const IUPDATE_VEILID_FUNCTION: &'static str = r#"
+type UpdateVeilidFunction = (event: VeilidUpdate) => void;
+"#;
 
 #[wasm_bindgen()]
 pub fn startup_veilid_core(update_callback_js: Function, json_config: String) -> Promise {
@@ -378,7 +414,7 @@ pub fn routing_context_app_message(id: u32, target_string: String, message: Stri
         let routing_context = {
             let rc = (*ROUTING_CONTEXTS).borrow();
             let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_call", "id", id));
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_app_message", "id", id));
             };
             routing_context.clone()
         };
@@ -1454,6 +1490,8 @@ pub fn veilid_version_string() -> String {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[tsify(into_wasm_abi)]
 pub struct VeilidVersion {
     pub major: u32,
     pub minor: u32,

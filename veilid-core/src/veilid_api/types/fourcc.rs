@@ -4,6 +4,7 @@ use super::*;
 #[derive(
     Copy, Default, Clone, Hash, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
 )]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub struct FourCC(pub [u8; 4]);

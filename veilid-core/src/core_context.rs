@@ -231,7 +231,7 @@ impl VeilidCoreContext {
         update_callback: UpdateCallback,
         config_json: String,
     ) -> VeilidAPIResult<VeilidCoreContext> {
-        // Set up config from callback
+        // Set up config from json
         trace!("setup config with json");
         let mut config = VeilidConfig::new();
         config.setup_from_json(config_json, update_callback.clone())?;

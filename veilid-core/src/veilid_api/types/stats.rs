@@ -1,6 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct LatencyStats {
     pub fastest: TimestampDuration, // fastest latency in the ROLLING_LATENCIES_SIZE last latencies
     pub average: TimestampDuration, // average latency over the ROLLING_LATENCIES_SIZE last latencies
@@ -8,6 +9,7 @@ pub struct LatencyStats {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct TransferStats {
     pub total: ByteCount,   // total amount transferred ever
     pub maximum: ByteCount, // maximum rate over the ROLLING_TRANSFERS_SIZE last amounts
@@ -16,12 +18,14 @@ pub struct TransferStats {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct TransferStatsDownUp {
     pub down: TransferStats,
     pub up: TransferStats,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct RPCStats {
     pub messages_sent: u32, // number of rpcs that have been sent in the total_time range
     pub messages_rcvd: u32, // number of rpcs that have been received in the total_time range
@@ -34,6 +38,7 @@ pub struct RPCStats {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct PeerStats {
     pub time_added: Timestamp, // when the peer was added to the routing table
     pub rpc_stats: RPCStats,   // information about RPCs

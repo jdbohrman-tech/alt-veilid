@@ -2,6 +2,11 @@ use super::*;
 
 /// Attachment abstraction for network 'signal strength'
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(namespace, from_wasm_abi, into_wasm_abi)
+)]
 pub enum AttachmentState {
     Detached = 0,
     Attaching = 1,
@@ -48,6 +53,7 @@ impl TryFrom<String> for AttachmentState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidStateAttachment {
     pub state: AttachmentState,
     pub public_internet_ready: bool,
@@ -55,14 +61,17 @@ pub struct VeilidStateAttachment {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct PeerTableData {
     #[schemars(with = "Vec<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string[]"))]
     pub node_ids: Vec<TypedKey>,
     pub peer_address: String,
     pub peer_stats: PeerStats,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidStateNetwork {
     pub started: bool,
     pub bps_down: ByteCount,
@@ -71,21 +80,27 @@ pub struct VeilidStateNetwork {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidRouteChange {
     #[schemars(with = "Vec<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub dead_routes: Vec<RouteId>,
     #[schemars(with = "Vec<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub dead_remote_routes: Vec<RouteId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidStateConfig {
     pub config: VeilidConfigInner,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidValueChange {
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub key: TypedKey,
     pub subkeys: Vec<ValueSubkey>,
     pub count: u32,
@@ -93,6 +108,7 @@ pub struct VeilidValueChange {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
 #[serde(tag = "kind")]
 pub enum VeilidUpdate {
     Log(VeilidLog),
@@ -105,10 +121,13 @@ pub enum VeilidUpdate {
     ValueChange(VeilidValueChange),
     Shutdown,
 }
+from_impl_to_jsvalue!(VeilidUpdate);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
 pub struct VeilidState {
     pub attachment: VeilidStateAttachment,
     pub network: VeilidStateNetwork,
     pub config: VeilidStateConfig,
 }
+from_impl_to_jsvalue!(VeilidState);

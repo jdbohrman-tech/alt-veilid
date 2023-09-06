@@ -8,11 +8,13 @@ use super::*;
 #[derive(
     Clone, Default, PartialEq, Eq, PartialOrd, Ord, Copy, Hash, Serialize, Deserialize, JsonSchema,
 )]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[repr(C, align(8))]
 #[serde(transparent)]
 pub struct AlignedU64(
     #[serde(with = "as_human_string")]
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     u64,
 );
 
@@ -117,13 +119,17 @@ impl AlignedU64 {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Microseconds since epoch
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type Timestamp = AlignedU64;
 pub fn get_aligned_timestamp() -> Timestamp {
     get_timestamp().into()
 }
 /// Microseconds duration
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type TimestampDuration = AlignedU64;
 /// Request/Response matching id
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type OperationId = AlignedU64;
 /// Number of bytes
+#[cfg_attr(target_arch = "wasm32", declare)]
 pub type ByteCount = AlignedU64;

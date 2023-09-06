@@ -2,13 +2,16 @@ use super::*;
 
 /// Direct statement blob passed to hosting application for processing
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidAppMessage {
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(optional, type = "string"))]
     sender: Option<TypedKey>,
 
     #[serde(with = "as_human_base64")]
     #[schemars(with = "String")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     message: Vec<u8>,
 }
 
@@ -30,9 +33,11 @@ impl VeilidAppMessage {
 
 /// Direct question blob passed to hosting application for processing to send an eventual AppReply
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidAppCall {
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
+    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     sender: Option<TypedKey>,
 
     #[serde(with = "as_human_base64")]
