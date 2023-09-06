@@ -582,17 +582,24 @@ impl VeilidAPI {
     }
 
     async fn debug_config(&self, args: String) -> VeilidAPIResult<String> {
-        let config = self.config()?;
+        let mut args = args.as_str();
+        let mut config = self.config()?;
+        if !args.starts_with("insecure") {
+            config = config.safe_config();
+        } else {
+            args = &args[8..];
+        }
         let args = args.trim_start();
+
         if args.is_empty() {
-            return config.get_key_json("");
+            return config.get_key_json("", true);
         }
         let (arg, rest) = args.split_once(' ').unwrap_or((args, ""));
         let rest = rest.trim_start().to_owned();
 
         // One argument is 'config get'
         if rest.is_empty() {
-            return config.get_key_json(arg);
+            return config.get_key_json(arg, true);
         }
 
         // More than one argument is 'config set'
@@ -1372,7 +1379,7 @@ peerinfo [routingdomain]
 entries [dead|reliable]
 entry <node>
 nodeinfo
-config [configkey [new value]]
+config [insecure] [configkey [new value]]
 txtrecord
 keypair
 purge <buckets|connections|routes>
