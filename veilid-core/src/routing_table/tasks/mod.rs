@@ -125,6 +125,11 @@ impl RoutingTable {
     /// Ticks about once per second
     /// to run tick tasks which may run at slower tick rates as configured
     pub async fn tick(&self) -> EyreResult<()> {
+        // Don't tick if paused
+        if self.inner.read().tick_paused {
+            return Ok(());
+        }
+
         // Do rolling transfers every ROLLING_TRANSFERS_INTERVAL_SECS secs
         self.unlocked_inner.rolling_transfers_task.tick().await?;
 
@@ -168,12 +173,32 @@ impl RoutingTable {
         self.unlocked_inner.relay_management_task.tick().await?;
 
         // Run the private route management task
-        self.unlocked_inner
-            .private_route_management_task
-            .tick()
-            .await?;
+        // If we don't know our network class then don't do this yet
+        if self.has_valid_network_class(RoutingDomain::PublicInternet) {
+            self.unlocked_inner
+                .private_route_management_task
+                .tick()
+                .await?;
+        }
 
         Ok(())
+    }
+    pub(crate) async fn pause_tasks(&self, paused: bool) {
+        let cancel = {
+            let mut inner = self.inner.write();
+            if !inner.tick_paused && paused {
+                inner.tick_paused = true;
+                true
+            } else if inner.tick_paused && !paused {
+                inner.tick_paused = false;
+                false
+            } else {
+                false
+            }
+        };
+        if cancel {
+            self.cancel_tasks().await;
+        }
     }
 
     pub(crate) async fn cancel_tasks(&self) {

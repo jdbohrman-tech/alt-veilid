@@ -34,6 +34,8 @@ pub struct RoutingTableInner {
     pub(super) recent_peers: LruCache<TypedKey, RecentPeersEntry>,
     /// Storage for private/safety RouteSpecs
     pub(super) route_spec_store: Option<RouteSpecStore>,
+    /// Tick paused or not
+    pub(super) tick_paused: bool,
 }
 
 impl RoutingTableInner {
@@ -50,6 +52,7 @@ impl RoutingTableInner {
             self_transfer_stats: TransferStatsDownUp::default(),
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
             route_spec_store: None,
+            tick_paused: false,
         }
     }
 

@@ -169,11 +169,6 @@ impl RoutingTable {
         _last_ts: Timestamp,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        // If we don't know our network class then don't do this yet
-        if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
-            return Ok(());
-        }
-
         // Test locally allocated routes first
         // This may remove dead routes
         let routes_needing_testing = self.get_allocated_routes_to_test(cur_ts);

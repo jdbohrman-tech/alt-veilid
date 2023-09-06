@@ -576,7 +576,7 @@ impl VeilidConfig {
         self.inner.read()
     }
 
-    pub fn safe_config(&self) -> VeilidConfigInner {
+    fn safe_config_inner(&self) -> VeilidConfigInner {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
@@ -585,6 +585,20 @@ impl VeilidConfig {
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
         safe_cfg
+    }
+
+    pub fn safe_config(&self) -> VeilidConfig {
+        let mut safe_cfg = self.inner.read().clone();
+
+        // Remove secrets
+        safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
+        safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
+        safe_cfg.protected_store.new_device_encryption_key_password = None;
+
+        VeilidConfig {
+            update_cb: self.update_cb.clone(),
+            inner: Arc::new(RwLock::new(safe_cfg)),
+        }
     }
 
     pub fn with_mut<F, R>(&self, f: F) -> VeilidAPIResult<R>
@@ -611,14 +625,14 @@ impl VeilidConfig {
 
         // Send configuration update to clients
         if let Some(update_cb) = &self.update_cb {
-            let safe_cfg = self.safe_config();
+            let safe_cfg = self.safe_config_inner();
             update_cb(VeilidUpdate::Config(VeilidStateConfig { config: safe_cfg }));
         }
 
         Ok(out)
     }
 
-    pub fn get_key_json(&self, key: &str) -> VeilidAPIResult<String> {
+    pub fn get_key_json(&self, key: &str, pretty: bool) -> VeilidAPIResult<String> {
         let c = self.get();
 
         // Generate json from whole config
@@ -627,7 +641,11 @@ impl VeilidConfig {
 
         // Find requested subkey
         if key.is_empty() {
-            Ok(jvc.to_string())
+            Ok(if pretty {
+                jvc.pretty(2)
+            } else {
+                jvc.to_string()
+            })
         } else {
             // Split key into path parts
             let keypath: Vec<&str> = key.split('.').collect();
@@ -638,7 +656,11 @@ impl VeilidConfig {
                 }
                 out = &out[k];
             }
-            Ok(out.to_string())
+            Ok(if pretty {
+                out.pretty(2)
+            } else {
+                out.to_string()
+            })
         }
     }
     pub fn set_key_json(&self, key: &str, value: &str) -> VeilidAPIResult<()> {

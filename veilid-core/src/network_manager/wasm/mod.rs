@@ -387,7 +387,7 @@ impl Network {
         editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
 
         // commit routing table edits
-        editor_public_internet.commit();
+        editor_public_internet.commit(true).await;
 
         self.inner.lock().network_started = true;
         Ok(())
@@ -414,10 +414,11 @@ impl Network {
         // Drop all dial info
         routing_table
             .edit_routing_domain(RoutingDomain::PublicInternet)
-            .clear_dial_info_details()
+            .clear_dial_info_details(None, None)
             .set_network_class(None)
             .clear_relay_node()
-            .commit();
+            .commit(true)
+            .await;
 
         // Cancels all async background tasks by dropping join handles
         *self.inner.lock() = Self::new_inner();
