@@ -1,0 +1,23 @@
+{
+  "name": "veilid-wasm-tests",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@wdio/browser-runner": "^8.16.4",
+    "@wdio/cli": "^8.16.4",
+    "@wdio/mocha-framework": "^8.16.3",
+    "@wdio/spec-reporter": "^8.16.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2",
+    "veilid-wasm": "file:../pkg",
+    "vite-plugin-wasm": "^3.2.2"
+  },
+  "scripts": {
+    "test": "wdio run ./wdio.conf.ts",
+    "test:headless": "WDIO_HEADLESS=true npm run test",
+    "start": "tsc && npm run test:headless"
+  }
+}
