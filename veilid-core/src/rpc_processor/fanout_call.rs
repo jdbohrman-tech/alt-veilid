@@ -4,8 +4,7 @@ struct FanoutContext<R>
 where
     R: Unpin,
 {
-    closest_nodes: Vec<NodeRef>,
-    called_nodes: HashSet<TypedKey>,
+    fanout_queue: FanoutQueue,
     result: Option<Result<R, RPCError>>,
 }
 
@@ -72,8 +71,7 @@ where
         check_done: D,
     ) -> Arc<Self> {
         let context = Mutex::new(FanoutContext {
-            closest_nodes: Vec::with_capacity(node_count),
-            called_nodes: HashSet::new(),
+            fanout_queue: FanoutQueue::new(node_id.kind),
             result: None,
         });
 
@@ -91,82 +89,44 @@ where
         })
     }
 
-    fn add_new_nodes(self: Arc<Self>, new_nodes: Vec<NodeRef>) {
-        let mut ctx = self.context.lock();
-
-        for nn in new_nodes {
-            // Make sure the new node isnt already in the list
-            let mut dup = false;
-            for cn in &ctx.closest_nodes {
-                if cn.same_entry(&nn) {
-                    dup = true;
-                    break;
-                }
-            }
-            if !dup {
-                // Add the new node if we haven't already called it before (only one call per node ever)
-                if let Some(key) = nn.node_ids().get(self.crypto_kind) {
-                    if !ctx.called_nodes.contains(&key) {
-                        ctx.closest_nodes.push(nn.clone());
-                    }
-                }
-            }
-        }
-
-        self.routing_table
-            .sort_and_clean_closest_noderefs(self.node_id, &mut ctx.closest_nodes);
-        ctx.closest_nodes.truncate(self.node_count);
-    }
-
-    fn remove_node(self: Arc<Self>, dead_node: NodeRef) {
-        let mut ctx = self.context.lock();
-        for n in 0..ctx.closest_nodes.len() {
-            let cn = &ctx.closest_nodes[n];
-            if cn.same_entry(&dead_node) {
-                ctx.closest_nodes.remove(n);
-                break;
-            }
-        }
-    }
-
-    fn get_next_node(self: Arc<Self>) -> Option<NodeRef> {
-        let mut next_node = None;
-        let mut ctx = self.context.lock();
-        for cn in ctx.closest_nodes.clone() {
-            if let Some(key) = cn.node_ids().get(self.crypto_kind) {
-                if !ctx.called_nodes.contains(&key) {
-                    // New fanout call candidate found
-                    next_node = Some(cn.clone());
-                    ctx.called_nodes.insert(key);
-                    break;
-                }
-            }
-        }
-        next_node
-    }
-
-    fn evaluate_done(self: Arc<Self>) -> bool {
-        let mut ctx = self.context.lock();
-
+    fn evaluate_done(self: Arc<Self>, ctx: &mut FanoutContext<R>) -> bool {
         // If we have a result, then we're done
         if ctx.result.is_some() {
             return true;
         }
 
         // Check for a new done result
-        ctx.result = (self.check_done)(&ctx.closest_nodes).map(|o| Ok(o));
+        ctx.result = (self.check_done)(ctx.fanout_queue.nodes()).map(|o| Ok(o));
         ctx.result.is_some()
     }
 
+    fn add_to_fanout_queue(self: Arc<Self>, new_nodes: &[NodeRef]) {
+        let ctx = &mut *self.context.lock();
+        let this = self.clone();
+        ctx.fanout_queue.add(&new_nodes, |current_nodes| {
+            let mut current_nodes_vec = this
+                .routing_table
+                .sort_and_clean_closest_noderefs(this.node_id, current_nodes);
+            current_nodes_vec.truncate(self.node_count);
+            current_nodes_vec
+        });
+    }
+
     async fn fanout_processor(self: Arc<Self>) {
-        // Check to see if we have a result or are done
-        while !self.clone().evaluate_done() {
-            // Get the closest node we haven't processed yet
-            let next_node = self.clone().get_next_node();
+        // Loop until we have a result or are done
+        loop {
+            // Get the closest node we haven't processed yet if we're not done yet
+            let next_node = {
+                let mut ctx = self.context.lock();
+                if self.clone().evaluate_done(&mut ctx) {
+                    break;
+                }
+                self.context.lock().fanout_queue.next()
+            };
 
             // If we don't have a node to process, stop fanning out
             let Some(next_node) = next_node else {
-                return;
+                break;
             };
 
             // Do the call for this node
@@ -188,20 +148,18 @@ where
                         .collect();
 
                     // Call succeeded
-                    // Register the returned nodes and add them to the closest nodes list in sorted order
+                    // Register the returned nodes and add them to the fanout queue in sorted order
                     let new_nodes = self
                         .routing_table
                         .register_find_node_answer(self.crypto_kind, filtered_v);
-                    self.clone().add_new_nodes(new_nodes);
+                    self.clone().add_to_fanout_queue(&new_nodes);
                 }
                 Ok(None) => {
-                    // Call failed, remove the node so it isn't considered as part of the fanout
-                    self.clone().remove_node(next_node);
+                    // Call failed, node will node be considered again
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error
-                    let mut ctx = self.context.lock();
-                    ctx.result = Some(Err(e));
+                    self.context.lock().result = Some(Err(e));
                     return;
                 }
             };
@@ -231,7 +189,7 @@ where
                             return false;
                         }
 
-                        // Check our node info ilter
+                        // Check our node info filter
                         let node_ids = e.node_ids().to_vec();
                         if !(node_info_filter)(&node_ids, signed_node_info.node_info()) {
                             return false;
@@ -248,12 +206,10 @@ where
             };
 
             routing_table
-                .find_closest_nodes(self.node_count, self.node_id, filters, transform)
+                .find_preferred_closest_nodes(self.node_count, self.node_id, filters, transform)
                 .map_err(RPCError::invalid_format)?
         };
-
-        let mut ctx = self.context.lock();
-        ctx.closest_nodes = closest_nodes;
+        self.clone().add_to_fanout_queue(&closest_nodes);
         Ok(())
     }
 
@@ -272,9 +228,11 @@ where
         }
 
         // Do a quick check to see if we're already done
-        if self.clone().evaluate_done() {
+        {
             let mut ctx = self.context.lock();
-            return TimeoutOr::value(ctx.result.take().transpose());
+            if self.clone().evaluate_done(&mut ctx) {
+                return TimeoutOr::value(ctx.result.take().transpose());
+            }
         }
 
         // If not, do the fanout
@@ -287,19 +245,12 @@ where
             }
         }
         // Wait for them to complete
-        timeout(timeout_ms, async {
-            while let Some(_) = unord.next().await {
-                if self.clone().evaluate_done() {
-                    break;
-                }
-            }
-        })
-        .await
-        .into_timeout_or()
-        .map(|_| {
-            // Finished, return whatever value we came up with
-            let mut ctx = self.context.lock();
-            ctx.result.take().transpose()
-        })
+        timeout(timeout_ms, async { while unord.next().await.is_some() {} })
+            .await
+            .into_timeout_or()
+            .map(|_| {
+                // Finished, return whatever value we came up with
+                self.context.lock().result.take().transpose()
+            })
     }
 }

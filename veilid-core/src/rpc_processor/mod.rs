@@ -1,6 +1,7 @@
 mod coders;
 mod destination;
 mod fanout_call;
+mod fanout_queue;
 mod operation_waiter;
 mod rpc_app_call;
 mod rpc_app_message;
@@ -31,6 +32,7 @@ mod rpc_start_tunnel;
 pub use coders::*;
 pub use destination::*;
 pub use fanout_call::*;
+pub use fanout_queue::*;
 pub use operation_waiter::*;
 pub use rpc_error::*;
 pub use rpc_status::*;

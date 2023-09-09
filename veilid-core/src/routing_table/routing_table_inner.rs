@@ -963,7 +963,7 @@ impl RoutingTableInner {
             }) as RoutingTableEntryFilter;
         filters.push_front(public_node_filter);
 
-        self.find_fastest_nodes(
+        self.find_preferred_fastest_nodes(
             node_count,
             filters,
             |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
@@ -1062,7 +1062,7 @@ impl RoutingTableInner {
         out
     }
 
-    pub fn find_fastest_nodes<T, O>(
+    pub fn find_preferred_fastest_nodes<T, O>(
         &self,
         node_count: usize,
         mut filters: VecDeque<RoutingTableEntryFilter>,
@@ -1154,7 +1154,7 @@ impl RoutingTableInner {
         out
     }
 
-    pub fn find_closest_nodes<T, O>(
+    pub fn find_preferred_closest_nodes<T, O>(
         &self,
         node_count: usize,
         node_id: TypedKey,
@@ -1242,8 +1242,8 @@ impl RoutingTableInner {
     pub fn sort_and_clean_closest_noderefs(
         &self,
         node_id: TypedKey,
-        closest_nodes: &mut Vec<NodeRef>,
-    ) {
+        closest_nodes: &[NodeRef],
+    ) -> Vec<NodeRef> {
         // Lock all noderefs
         let kind = node_id.kind;
         let mut closest_nodes_locked: Vec<NodeRefLocked> = closest_nodes
@@ -1263,7 +1263,7 @@ impl RoutingTableInner {
         closest_nodes_locked.sort_by(sort);
 
         // Unlock noderefs
-        *closest_nodes = closest_nodes_locked.iter().map(|x| x.unlocked()).collect();
+        closest_nodes_locked.iter().map(|x| x.unlocked()).collect()
     }
 }
 
@@ -1271,7 +1271,6 @@ fn make_closest_noderef_sort(
     crypto: Crypto,
     node_id: TypedKey,
 ) -> impl Fn(&NodeRefLocked, &NodeRefLocked) -> core::cmp::Ordering {
-    let cur_ts = get_aligned_timestamp();
     let kind = node_id.kind;
     // Get cryptoversion to check distance with
     let vcrypto = crypto.get(kind).unwrap();
@@ -1282,19 +1281,8 @@ fn make_closest_noderef_sort(
             return core::cmp::Ordering::Equal;
         }
 
-        // reliable nodes come first, pessimistically treating our own node as unreliable
         a.operate(|_rti, a_entry| {
             b.operate(|_rti, b_entry| {
-                let ra = a_entry.check_reliable(cur_ts);
-                let rb = b_entry.check_reliable(cur_ts);
-                if ra != rb {
-                    if ra {
-                        return core::cmp::Ordering::Less;
-                    } else {
-                        return core::cmp::Ordering::Greater;
-                    }
-                }
-
                 // get keys
                 let a_key = a_entry.node_ids().get(kind).unwrap();
                 let b_key = b_entry.node_ids().get(kind).unwrap();
