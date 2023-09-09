@@ -56,6 +56,10 @@ impl SignedValueData {
         &self.signature
     }
 
+    pub fn data_size(&self) -> usize {
+        self.value_data.data_size()
+    }
+
     pub fn total_size(&self) -> usize {
         (mem::size_of::<Self>() - mem::size_of::<ValueData>()) + self.value_data.total_size()
     }

@@ -93,13 +93,14 @@ impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
                 }
             }
             log_stor!(debug "Commit ({}): {} => {}", self.description, self.value, uncommitted_value);
+            self.uncommitted_value = None;
             self.value = uncommitted_value;
         }
         Ok(self.value)
     }
 
     pub fn rollback(&mut self) -> T {
-        if let Some(uv) = self.uncommitted_value {
+        if let Some(uv) = self.uncommitted_value.take() {
             log_stor!(debug "Rollback ({}): {} (drop {})", self.description, self.value, uv);
         }
         return self.value;

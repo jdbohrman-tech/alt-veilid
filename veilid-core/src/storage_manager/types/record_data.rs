@@ -12,7 +12,11 @@ impl RecordData {
     pub fn signed_value_data(&self) -> &SignedValueData {
         &self.signed_value_data
     }
+    pub fn data_size(&self) -> usize {
+        self.signed_value_data.data_size()
+    }
     pub fn total_size(&self) -> usize {
-        mem::size_of::<RecordData>() + self.signed_value_data.value_data().data().len()
+        (mem::size_of::<Self>() - mem::size_of::<SignedValueData>())
+            + self.signed_value_data.total_size()
     }
 }
