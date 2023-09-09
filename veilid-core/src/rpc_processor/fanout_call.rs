@@ -121,7 +121,7 @@ where
                 if self.clone().evaluate_done(&mut ctx) {
                     break;
                 }
-                self.context.lock().fanout_queue.next()
+                ctx.fanout_queue.next()
             };
 
             // If we don't have a node to process, stop fanning out
