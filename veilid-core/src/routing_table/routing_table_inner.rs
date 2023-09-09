@@ -2,6 +2,7 @@ use super::*;
 use weak_table::PtrWeakHashSet;
 
 const RECENT_PEERS_TABLE_SIZE: usize = 64;
+
 pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 //////////////////////////////////////////////////////////////////////////
 
@@ -34,8 +35,9 @@ pub struct RoutingTableInner {
     pub(super) recent_peers: LruCache<TypedKey, RecentPeersEntry>,
     /// Storage for private/safety RouteSpecs
     pub(super) route_spec_store: Option<RouteSpecStore>,
-    /// Tick paused or not
-    pub(super) tick_paused: bool,
+    /// Async tagged critical sections table
+    /// Tag: "tick" -> in ticker
+    pub(super) critical_sections: AsyncTagLockTable<&'static str>,
 }
 
 impl RoutingTableInner {
@@ -52,7 +54,7 @@ impl RoutingTableInner {
             self_transfer_stats: TransferStatsDownUp::default(),
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
             route_spec_store: None,
-            tick_paused: false,
+            critical_sections: AsyncTagLockTable::new(),
         }
     }
 

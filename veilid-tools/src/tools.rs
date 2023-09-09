@@ -47,6 +47,13 @@ cfg_if::cfg_if! {
                 $x.clone().lock_owned().await
             };
         }
+
+        #[macro_export]
+        macro_rules! asyncmutex_try_lock_arc {
+            ($x:expr) => {
+                $x.try_lock_owned().ok()
+            };
+        }
     } else {
         #[macro_export]
         macro_rules! asyncmutex_try_lock {
@@ -58,6 +65,12 @@ cfg_if::cfg_if! {
         macro_rules! asyncmutex_lock_arc {
             ($x:expr) => {
                 $x.lock_arc().await
+            };
+        }
+        #[macro_export]
+        macro_rules! asyncmutex_try_lock_arc {
+            ($x:expr) => {
+                $x.try_lock_arc()
             };
         }
     }

@@ -3,7 +3,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 pushd $SCRIPTDIR 2>/dev/null
 if [[ "$1" == "wasm" ]]; then
-    WASM_BINDGEN_TEST_TIMEOUT=120 wasm-pack test --firefox --headless --features=rt-wasm-bindgen
+    WASM_BINDGEN_TEST_TIMEOUT=120 wasm-pack test --firefox --headless --no-default-features --features=rt-wasm-bindgen
 elif [[ "$1" == "ios" ]]; then
     SYMROOT=/tmp/testout
     APPNAME=veilidtools-tests

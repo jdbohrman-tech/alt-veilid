@@ -4,7 +4,6 @@
 use cfg_if::*;
 use parking_lot::Once;
 use veilid_tools::tests::*;
-use veilid_tools::*;
 
 use wasm_bindgen_test::*;
 

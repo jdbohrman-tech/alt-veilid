@@ -135,4 +135,35 @@ where
         // Return the locked guard
         AsyncTagLockGuard::new(self.clone(), tag, guard)
     }
+
+    pub fn try_lock_tag(&self, tag: T) -> Option<AsyncTagLockGuard<T>> {
+        // Get or create a tag lock entry
+        let mutex = {
+            let mut inner = self.inner.lock();
+
+            // See if this tag is in the table
+            // and if not, add a new mutex for this tag
+            let entry = inner
+                .table
+                .entry(tag.clone())
+                .or_insert_with(|| AsyncTagLockTableEntry {
+                    mutex: Arc::new(AsyncMutex::new(())),
+                    waiters: 0,
+                });
+
+            // Increment the number of waiters
+            entry.waiters += 1;
+
+            // Return the mutex associated with the tag
+            entry.mutex.clone()
+
+            // Drop the table guard
+        };
+
+        // Lock the tag lock
+        let opt_guard = asyncmutex_try_lock_arc!(mutex);
+
+        // Return the locked guard
+        opt_guard.map(|guard| AsyncTagLockGuard::new(self.clone(), tag, guard))
+    }
 }

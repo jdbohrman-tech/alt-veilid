@@ -54,6 +54,9 @@ const ROUTING_TABLE: &str = "routing_table";
 const SERIALIZED_BUCKET_MAP: &[u8] = b"serialized_bucket_map";
 const CACHE_VALIDITY_KEY: &[u8] = b"cache_validity_key";
 
+// Critical sections
+const LOCK_TAG_TICK: &str = "TICK";
+
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
