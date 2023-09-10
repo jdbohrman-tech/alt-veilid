@@ -73,6 +73,7 @@ impl RoutingTable {
             "   Self Transfer Stats: {:#?}\n\n",
             inner.self_transfer_stats
         );
+        out += &format!("   Version: {}\n\n", veilid_version_string());
 
         out
     }

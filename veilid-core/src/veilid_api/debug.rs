@@ -439,6 +439,19 @@ fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     };
     Ok(val)
 }
+
+async fn async_get_debug_argument<T, G: FnOnce(&str) -> SendPinBoxFuture<Option<T>>>(
+    value: &str,
+    context: &str,
+    argument: &str,
+    getter: G,
+) -> VeilidAPIResult<T> {
+    let Some(val) = getter(value).await else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
+}
+
 fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     debug_args: &[String],
     pos: usize,
@@ -820,7 +833,7 @@ impl VeilidAPI {
         )
         .await?;
 
-        // Dump routing table entry
+        // Send a StatusQ
         let out = match rpc
             .rpc_call_status(dest)
             .await
@@ -833,6 +846,78 @@ impl VeilidAPI {
         };
 
         Ok(format!("{:#?}", out))
+    }
+
+    async fn debug_app_message(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rpc = netman.rpc_processor();
+
+        let (arg, rest) = args.split_once(' ').unwrap_or((&args, ""));
+        let rest = rest.trim_start().to_owned();
+
+        let dest = async_get_debug_argument(
+            arg,
+            "debug_app_message",
+            "destination",
+            get_destination(routing_table),
+        )
+        .await?;
+
+        let data = get_debug_argument(&rest, "debug_app_message", "data", get_data)?;
+        let data_len = data.len();
+
+        // Send a AppMessage
+        let out = match rpc
+            .rpc_call_app_message(dest, data)
+            .await
+            .map_err(VeilidAPIError::internal)?
+        {
+            NetworkResult::Value(_) => format!("Sent {} bytes", data_len),
+            r => {
+                return Ok(r.to_string());
+            }
+        };
+
+        Ok(out)
+    }
+
+    async fn debug_app_call(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rpc = netman.rpc_processor();
+
+        let (arg, rest) = args.split_once(' ').unwrap_or((&args, ""));
+        let rest = rest.trim_start().to_owned();
+
+        let dest = async_get_debug_argument(
+            arg,
+            "debug_app_call",
+            "destination",
+            get_destination(routing_table),
+        )
+        .await?;
+
+        let data = get_debug_argument(&rest, "debug_app_call", "data", get_data)?;
+        let data_len = data.len();
+
+        // Send a AppMessage
+        let out = match rpc
+            .rpc_call_app_call(dest, data)
+            .await
+            .map_err(VeilidAPIError::internal)?
+        {
+            NetworkResult::Value(v) => format!(
+                "Sent {} bytes, received: {}",
+                data_len,
+                print_data(&v.answer, Some(512))
+            ),
+            r => {
+                return Ok(r.to_string());
+            }
+        };
+
+        Ok(out)
     }
 
     async fn debug_route_allocate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1451,6 +1536,8 @@ detach
 restart network
 contact <node>[<modifiers>]
 ping <destination>
+appmessage <destination> <data>
+appcall <destination> <data>
 relay <relay> [public|local]
 punish list
 route allocate [ord|*ord] [rel] [<count>] [in|out]
@@ -1528,6 +1615,10 @@ record list <local|remote>
                 self.debug_relay(rest).await
             } else if arg == "ping" {
                 self.debug_ping(rest).await
+            } else if arg == "appmessage" {
+                self.debug_app_message(rest).await
+            } else if arg == "appcall" {
+                self.debug_app_call(rest).await
             } else if arg == "contact" {
                 self.debug_contact(rest).await
             } else if arg == "nodeinfo" {
