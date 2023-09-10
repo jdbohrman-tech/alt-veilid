@@ -129,9 +129,11 @@ impl RoutingDomainEditor {
         }
 
         // Briefly pause routing table ticker while changes are made
-        if pause_tasks {
-            self.routing_table.pause_tasks(true).await;
-        }
+        let _tick_guard = if pause_tasks {
+            Some(self.routing_table.pause_tasks().await)
+        } else {
+            None
+        };
 
         // Apply changes
         let mut changed = false;
@@ -262,8 +264,5 @@ impl RoutingDomainEditor {
                 rss.reset();
             }
         }
-
-        // Unpause routing table ticker
-        self.routing_table.pause_tasks(false).await;
     }
 }

@@ -67,7 +67,7 @@ impl RoutingTable {
             ) as RoutingTableEntryFilter;
             filters.push_front(filter);
 
-            let noderefs = routing_table.find_fastest_nodes(
+            let noderefs = routing_table.find_preferred_fastest_nodes(
                 min_peer_count,
                 filters,
                 |_rti, entry: Option<Arc<BucketEntry>>| {

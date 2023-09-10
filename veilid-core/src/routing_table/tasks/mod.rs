@@ -126,9 +126,13 @@ impl RoutingTable {
     /// to run tick tasks which may run at slower tick rates as configured
     pub async fn tick(&self) -> EyreResult<()> {
         // Don't tick if paused
-        if self.inner.read().tick_paused {
+        let opt_tick_guard = {
+            let inner = self.inner.read();
+            inner.critical_sections.try_lock_tag(LOCK_TAG_TICK)
+        };
+        let Some(_tick_guard) = opt_tick_guard else {
             return Ok(());
-        }
+        };
 
         // Do rolling transfers every ROLLING_TRANSFERS_INTERVAL_SECS secs
         self.unlocked_inner.rolling_transfers_task.tick().await?;
@@ -183,22 +187,9 @@ impl RoutingTable {
 
         Ok(())
     }
-    pub(crate) async fn pause_tasks(&self, paused: bool) {
-        let cancel = {
-            let mut inner = self.inner.write();
-            if !inner.tick_paused && paused {
-                inner.tick_paused = true;
-                true
-            } else if inner.tick_paused && !paused {
-                inner.tick_paused = false;
-                false
-            } else {
-                false
-            }
-        };
-        if cancel {
-            self.cancel_tasks().await;
-        }
+    pub(crate) async fn pause_tasks(&self) -> AsyncTagLockGuard<&'static str> {
+        let critical_sections = self.inner.read().critical_sections.clone();
+        critical_sections.lock_tag(LOCK_TAG_TICK).await
     }
 
     pub(crate) async fn cancel_tasks(&self) {

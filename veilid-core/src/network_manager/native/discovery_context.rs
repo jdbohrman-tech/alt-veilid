@@ -116,7 +116,7 @@ impl DiscoveryContext {
         );
 
         log_net!(
-            "request_public_address {:?}: Value({:?})",
+            debug "request_public_address {:?}: Value({:?})",
             node_ref,
             res.answer
         );

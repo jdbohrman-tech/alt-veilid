@@ -105,7 +105,7 @@ impl RPCProcessor {
         // Get a chunk of the routing table near the requested node id
         let routing_table = self.routing_table();
         let closest_nodes =
-            network_result_try!(routing_table.find_all_closest_peers(node_id, &capabilities));
+            network_result_try!(routing_table.find_preferred_closest_peers(node_id, &capabilities));
 
         // Make FindNode answer
         let find_node_a = RPCOperationFindNodeA::new(closest_nodes)?;
