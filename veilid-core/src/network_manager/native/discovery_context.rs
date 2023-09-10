@@ -420,7 +420,7 @@ impl DiscoveryContext {
         };
 
         // If we have two different external addresses, then this is a symmetric NAT
-        if external_2.address != external_1.address {
+        if external_2.address.address() != external_1.address.address() {
             let do_symmetric_nat_fut: SendPinBoxFuture<Option<DetectedDialInfo>> =
                 Box::pin(async move { Some(DetectedDialInfo::SymmetricNAT) });
             unord.push(do_symmetric_nat_fut);

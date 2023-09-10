@@ -648,7 +648,7 @@ impl VeilidAPI {
         if !args.is_empty() {
             if args[0] == "buckets" {
                 // Must be detached
-                if matches!(
+                if !matches!(
                     self.get_state().await?.attachment.state,
                     AttachmentState::Detached | AttachmentState::Detaching
                 ) {

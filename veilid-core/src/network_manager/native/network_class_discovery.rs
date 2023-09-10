@@ -11,19 +11,6 @@ impl Network {
             .get_network_class(RoutingDomain::PublicInternet)
             .unwrap_or_default();
 
-        // get existing dial info into table by protocol/address type
-        let mut existing_dial_info = BTreeMap::<(ProtocolType, AddressType), DialInfoDetail>::new();
-        for did in self.routing_table().all_filtered_dial_info_details(
-            RoutingDomain::PublicInternet.into(),
-            &DialInfoFilter::all(),
-        ) {
-            // Only need to keep one per pt/at pair, since they will all have the same dialinfoclass
-            existing_dial_info.insert(
-                (did.dial_info.protocol_type(), did.dial_info.address_type()),
-                did,
-            );
-        }
-
         match ddi {
             DetectedDialInfo::SymmetricNAT => {
                 // If we get any symmetric nat dialinfo, this whole network class is outbound only,
@@ -39,6 +26,19 @@ impl Network {
                 }
             }
             DetectedDialInfo::Detected(did) => {
+                // get existing dial info into table by protocol/address type
+                let mut existing_dial_info =
+                    BTreeMap::<(ProtocolType, AddressType), DialInfoDetail>::new();
+                for did in self.routing_table().all_filtered_dial_info_details(
+                    RoutingDomain::PublicInternet.into(),
+                    &DialInfoFilter::all(),
+                ) {
+                    // Only need to keep one per pt/at pair, since they will all have the same dialinfoclass
+                    existing_dial_info.insert(
+                        (did.dial_info.protocol_type(), did.dial_info.address_type()),
+                        did,
+                    );
+                }
                 // We got a dial info, upgrade everything unless we are fixed to outbound only due to a symmetric nat
                 if !matches!(existing_network_class, NetworkClass::OutboundOnly) {
                     // Get existing dial info for protocol/address type combination
