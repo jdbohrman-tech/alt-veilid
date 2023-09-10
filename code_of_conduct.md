@@ -133,5 +133,6 @@ For answers to common questions about this code of conduct, see the FAQ at
 [translations]: https://www.contributor-covenant.org/translations
 
 ## Revisions
+
 Veilid Foundation, Inc reserves the right to make revisions to this document
 to ensure its continued alignment with our ideals.
