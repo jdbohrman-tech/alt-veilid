@@ -165,82 +165,89 @@ fn get_node_ref_modifiers(mut node_ref: NodeRef) -> impl FnOnce(&str) -> Option<
     }
 }
 
-fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Destination> {
+fn get_destination(
+    routing_table: RoutingTable,
+) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<Destination>> {
     move |text| {
-        // Safety selection
-        let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-            let ss = get_safety_selection(routing_table.clone())(second)?;
-            (first, Some(ss))
-        } else {
-            (text, None)
-        };
-        if text.len() == 0 {
-            return None;
-        }
-        if &text[0..1] == "#" {
-            let rss = routing_table.route_spec_store();
+        let text = text.to_owned();
+        Box::pin(async move {
+            // Safety selection
+            let (text, ss) = if let Some((first, second)) = text.split_once('+') {
+                let ss = get_safety_selection(routing_table.clone())(second)?;
+                (first, Some(ss))
+            } else {
+                (text.as_str(), None)
+            };
+            if text.len() == 0 {
+                return None;
+            }
+            if &text[0..1] == "#" {
+                let rss = routing_table.route_spec_store();
 
-            // Private route
-            let text = &text[1..];
+                // Private route
+                let text = &text[1..];
 
-            let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text) {
-                let Some(private_route) = rss.best_remote_private_route(&prid) else {
+                let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text)
+                {
+                    let Some(private_route) = rss.best_remote_private_route(&prid) else {
                     return None;
                 };
-                private_route
-            } else {
-                let mut dc = DEBUG_CACHE.lock();
-                let n = get_number(text)?;
-                let prid = dc.imported_routes.get(n)?.clone();
-                let Some(private_route) = rss.best_remote_private_route(&prid) else {
+                    private_route
+                } else {
+                    let mut dc = DEBUG_CACHE.lock();
+                    let n = get_number(text)?;
+                    let prid = dc.imported_routes.get(n)?.clone();
+                    let Some(private_route) = rss.best_remote_private_route(&prid) else {
                     // Remove imported route
                     dc.imported_routes.remove(n);
                     info!("removed dead imported route {}", n);
                     return None;
                 };
-                private_route
-            };
+                    private_route
+                };
 
-            Some(Destination::private_route(
-                private_route,
-                ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
-            ))
-        } else {
-            let (text, mods) = text
-                .split_once('/')
-                .map(|x| (x.0, Some(x.1)))
-                .unwrap_or((text, None));
-            if let Some((first, second)) = text.split_once('@') {
-                // Relay
-                let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
-                let target_nr = get_node_ref(routing_table)(first)?;
-
-                if let Some(mods) = mods {
-                    relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
-                }
-
-                let mut d = Destination::relay(relay_nr, target_nr);
-                if let Some(ss) = ss {
-                    d = d.with_safety(ss)
-                }
-
-                Some(d)
+                Some(Destination::private_route(
+                    private_route,
+                    ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
+                ))
             } else {
-                // Direct
-                let mut target_nr = get_node_ref(routing_table)(text)?;
+                let (text, mods) = text
+                    .split_once('/')
+                    .map(|x| (x.0, Some(x.1)))
+                    .unwrap_or((text, None));
+                if let Some((first, second)) = text.split_once('@') {
+                    // Relay
+                    let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
+                    let target_nr = get_node_ref(routing_table)(first)?;
 
-                if let Some(mods) = mods {
-                    target_nr = get_node_ref_modifiers(target_nr)(mods)?;
+                    if let Some(mods) = mods {
+                        relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
+                    }
+
+                    let mut d = Destination::relay(relay_nr, target_nr);
+                    if let Some(ss) = ss {
+                        d = d.with_safety(ss)
+                    }
+
+                    Some(d)
+                } else {
+                    // Direct
+                    let mut target_nr =
+                        resolve_node_ref(routing_table, ss.unwrap_or_default())(text).await?;
+
+                    if let Some(mods) = mods {
+                        target_nr = get_node_ref_modifiers(target_nr)(mods)?;
+                    }
+
+                    let mut d = Destination::direct(target_nr);
+                    if let Some(ss) = ss {
+                        d = d.with_safety(ss)
+                    }
+
+                    Some(d)
                 }
-
-                let mut d = Destination::direct(target_nr);
-                if let Some(ss) = ss {
-                    d = d.with_safety(ss)
-                }
-
-                Some(d)
             }
-        }
+        })
     }
 }
 
@@ -292,6 +299,44 @@ fn get_dht_key(
     }
 }
 
+fn resolve_node_ref(
+    routing_table: RoutingTable,
+    safety_selection: SafetySelection,
+) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<NodeRef>> {
+    move |text| {
+        let text = text.to_owned();
+        Box::pin(async move {
+            let (text, mods) = text
+                .split_once('/')
+                .map(|x| (x.0, Some(x.1)))
+                .unwrap_or((&text, None));
+
+            let mut nr = if let Some(key) = get_public_key(text) {
+                let node_id = TypedKey::new(best_crypto_kind(), key);
+                routing_table
+                    .rpc_processor()
+                    .resolve_node(node_id, safety_selection)
+                    .await
+                    .ok()
+                    .flatten()?
+            } else if let Some(node_id) = get_typed_key(text) {
+                routing_table
+                    .rpc_processor()
+                    .resolve_node(node_id, safety_selection)
+                    .await
+                    .ok()
+                    .flatten()?
+            } else {
+                return None;
+            };
+            if let Some(mods) = mods {
+                nr = get_node_ref_modifiers(nr)(mods)?;
+            }
+            Some(nr)
+        })
+    }
+}
+
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
         let (text, mods) = text
@@ -301,8 +346,8 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
 
         let mut nr = if let Some(key) = get_public_key(text) {
             routing_table.lookup_any_node_ref(key).ok().flatten()?
-        } else if let Some(key) = get_typed_key(text) {
-            routing_table.lookup_node_ref(key).ok().flatten()?
+        } else if let Some(node_id) = get_typed_key(text) {
+            routing_table.lookup_node_ref(node_id).ok().flatten()?
         } else {
             return None;
         };
@@ -406,6 +451,23 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     }
     let value = &debug_args[pos];
     let Some(val) = getter(value) else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
+}
+
+async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> SendPinBoxFuture<Option<T>>>(
+    debug_args: &[String],
+    pos: usize,
+    context: &str,
+    argument: &str,
+    getter: G,
+) -> VeilidAPIResult<T> {
+    if pos >= debug_args.len() {
+        apibail_missing_argument!(context, argument);
+    }
+    let value = &debug_args[pos];
+    let Some(val) = getter(value).await else {
         apibail_invalid_argument!(context, argument, value);
     };
     Ok(val)
@@ -749,13 +811,14 @@ impl VeilidAPI {
 
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
-        let dest = get_debug_argument_at(
+        let dest = async_get_debug_argument_at(
             &args,
             0,
             "debug_ping",
             "destination",
             get_destination(routing_table),
-        )?;
+        )
+        .await?;
 
         // Dump routing table entry
         let out = match rpc
