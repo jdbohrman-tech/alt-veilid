@@ -920,6 +920,37 @@ impl VeilidAPI {
         Ok(out)
     }
 
+    async fn debug_app_reply(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let rpc = netman.rpc_processor();
+
+        let (call_id, data) = if args.starts_with("#") {
+            let (arg, rest) = args[1..].split_once(' ').unwrap_or((&args, ""));
+            let call_id =
+                OperationId::new(u64::from_str_radix(arg, 16).map_err(VeilidAPIError::generic)?);
+            let rest = rest.trim_start().to_owned();
+            let data = get_debug_argument(&rest, "debug_app_reply", "data", get_data)?;
+            (call_id, data)
+        } else {
+            let call_id = rpc
+                .get_app_call_ids()
+                .first()
+                .cloned()
+                .ok_or_else(|| VeilidAPIError::generic("no app calls waiting"))?;
+            let data = get_debug_argument(&args, "debug_app_reply", "data", get_data)?;
+            (call_id, data)
+        };
+
+        let data_len = data.len();
+
+        // Send a AppCall Reply
+        self.app_call_reply(call_id, data)
+            .await
+            .map_err(VeilidAPIError::internal)?;
+
+        Ok(format!("Replied with {} bytes", data_len))
+    }
+
     async fn debug_route_allocate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // [ord|*ord] [rel] [<count>] [in|out] [avoid_node_id]
 
@@ -1538,6 +1569,7 @@ contact <node>[<modifiers>]
 ping <destination>
 appmessage <destination> <data>
 appcall <destination> <data>
+appreply [#id] <data>
 relay <relay> [public|local]
 punish list
 route allocate [ord|*ord] [rel] [<count>] [in|out]
@@ -1619,6 +1651,8 @@ record list <local|remote>
                 self.debug_app_message(rest).await
             } else if arg == "appcall" {
                 self.debug_app_call(rest).await
+            } else if arg == "appreply" {
+                self.debug_app_reply(rest).await
             } else if arg == "contact" {
                 self.debug_contact(rest).await
             } else if arg == "nodeinfo" {

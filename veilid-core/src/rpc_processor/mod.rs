@@ -434,6 +434,11 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
+    /// Get waiting app call id for debugging purposes
+    pub fn get_app_call_ids(&self) -> Vec<OperationId> {
+        self.unlocked_inner.waiting_app_call_table.get_operation_ids()
+    }
+
     /// Determine if a SignedNodeInfo can be placed into the specified routing domain
     fn verify_node_info(
         &self,
