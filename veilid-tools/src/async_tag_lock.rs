@@ -33,16 +33,16 @@ where
     fn drop(&mut self) {
         let mut inner = self.table.inner.lock();
         // Inform the table we're dropping this guard
-        let waiters = {
+        let guards = {
             // Get the table entry, it must exist since we have a guard locked
             let entry = inner.table.get_mut(&self.tag).unwrap();
-            // Decrement the number of waiters
-            entry.waiters -= 1;
-            // Return the number of waiters left
-            entry.waiters
+            // Decrement the number of guards
+            entry.guards -= 1;
+            // Return the number of guards left
+            entry.guards
         };
-        // If there are no waiters left, we remove the tag from the table
-        if waiters == 0 {
+        // If there are no guards left, we remove the tag from the table
+        if guards == 0 {
             inner.table.remove(&self.tag).unwrap();
         }
         // Proceed with releasing _guard, which may cause some concurrent tag lock to acquire
@@ -52,7 +52,7 @@ where
 #[derive(Clone, Debug)]
 struct AsyncTagLockTableEntry {
     mutex: Arc<AsyncMutex<()>>,
-    waiters: usize,
+    guards: usize,
 }
 
 struct AsyncTagLockTableInner<T>
@@ -108,11 +108,11 @@ where
                 .entry(tag.clone())
                 .or_insert_with(|| AsyncTagLockTableEntry {
                     mutex: Arc::new(AsyncMutex::new(())),
-                    waiters: 0,
+                    guards: 0,
                 });
 
-            // Increment the number of waiters
-            entry.waiters += 1;
+            // Increment the number of guards
+            entry.guards += 1;
 
             // Return the mutex associated with the tag
             entry.mutex.clone()
@@ -121,16 +121,7 @@ where
         };
 
         // Lock the tag lock
-        let guard;
-        cfg_if! {
-            if #[cfg(feature="rt-tokio")] {
-                // tokio version
-                guard = mutex.lock_owned().await;
-            } else {
-                // async-std and wasm async-lock version
-                guard = mutex.lock_arc().await;
-            }
-        }
+        let guard = asyncmutex_lock_arc!(mutex);
 
         // Return the locked guard
         AsyncTagLockGuard::new(self.clone(), tag, guard)
@@ -138,32 +129,28 @@ where
 
     pub fn try_lock_tag(&self, tag: T) -> Option<AsyncTagLockGuard<T>> {
         // Get or create a tag lock entry
-        let mutex = {
-            let mut inner = self.inner.lock();
+        let mut inner = self.inner.lock();
 
-            // See if this tag is in the table
-            // and if not, add a new mutex for this tag
-            let entry = inner
-                .table
-                .entry(tag.clone())
-                .or_insert_with(|| AsyncTagLockTableEntry {
-                    mutex: Arc::new(AsyncMutex::new(())),
-                    waiters: 0,
-                });
-
-            // Increment the number of waiters
-            entry.waiters += 1;
-
-            // Return the mutex associated with the tag
-            entry.mutex.clone()
-
-            // Drop the table guard
-        };
+        // See if this tag is in the table
+        // and if not, add a new mutex for this tag
+        let entry = inner.table.entry(tag.clone());
 
         // Lock the tag lock
-        let opt_guard = asyncmutex_try_lock_arc!(mutex);
-
-        // Return the locked guard
-        opt_guard.map(|guard| AsyncTagLockGuard::new(self.clone(), tag, guard))
+        let guard = match entry {
+            std::collections::hash_map::Entry::Occupied(mut o) => {
+                let e = o.get_mut();
+                let guard = asyncmutex_try_lock_arc!(e.mutex)?;
+                e.guards += 1;
+                guard
+            }
+            std::collections::hash_map::Entry::Vacant(v) => {
+                let mutex = Arc::new(AsyncMutex::new(()));
+                let guard = asyncmutex_try_lock_arc!(mutex)?;
+                v.insert(AsyncTagLockTableEntry { mutex, guards: 1 });
+                guard
+            }
+        };
+        // Return guard
+        Some(AsyncTagLockGuard::new(self.clone(), tag, guard))
     }
 }

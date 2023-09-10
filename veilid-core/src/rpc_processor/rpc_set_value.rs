@@ -114,7 +114,7 @@ impl RPCProcessor {
         };
 
         let (set, value, peers) = set_value_a.destructure();
-       
+
         #[cfg(feature="debug-dht")]
         {   
             let debug_string_value = value.as_ref().map(|v| {
@@ -140,6 +140,7 @@ impl RPCProcessor {
             );
 
             log_rpc!(debug "{}", debug_string_answer);
+            
             let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
             log_rpc!(debug "Peers: {:#?}", peer_ids);
         }

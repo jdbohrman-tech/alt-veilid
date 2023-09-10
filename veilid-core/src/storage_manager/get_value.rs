@@ -176,9 +176,13 @@ impl StorageManager {
             }
             // If we finished with consensus (enough nodes returning the same value)
             TimeoutOr::Value(Ok(Some(()))) => {
-                log_stor!(debug "GetValue Fanout Consensus");
                 // Return the best answer we've got
                 let ctx = context.lock();
+                if ctx.value_count >= consensus_count {
+                    log_stor!(debug "GetValue Fanout Consensus");
+                } else {
+                    log_stor!(debug "GetValue Fanout Non-Consensus: {}", ctx.value_count);
+                }
                 Ok(SubkeyResult {
                     value: ctx.value.clone(),
                     descriptor: ctx.descriptor.clone(),
@@ -188,7 +192,11 @@ impl StorageManager {
             TimeoutOr::Value(Ok(None)) => {
                 // Return the best answer we've got
                 let ctx = context.lock();
-                log_stor!(debug "GetValue Fanout No Consensus: {}", ctx.value_count);
+                if ctx.value_count >= consensus_count {
+                    log_stor!(debug "GetValue Fanout Exhausted Consensus");
+                } else {
+                    log_stor!(debug "GetValue Fanout Exhausted Non-Consensus: {}", ctx.value_count);
+                }
                 Ok(SubkeyResult {
                     value: ctx.value.clone(),
                     descriptor: ctx.descriptor.clone(),

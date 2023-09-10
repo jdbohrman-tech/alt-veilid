@@ -126,7 +126,7 @@ impl RPCProcessor {
             log_rpc!(debug "{}", debug_string_answer);
             
             let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
-            log_rpc!(debug "Peers: {:#?}", peers);
+            log_rpc!(debug "Peers: {:#?}", peer_ids);
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
@@ -224,7 +224,7 @@ impl RPCProcessor {
             );
 
             log_rpc!(debug "{}", debug_string);
-         }
+        }
 
         // See if we have this record ourselves
         let storage_manager = self.storage_manager();
