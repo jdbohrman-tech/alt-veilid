@@ -56,6 +56,10 @@ impl ValueData {
         &self.data
     }
 
+    pub fn data_size(&self) -> usize {
+        self.data.len()
+    }
+
     pub fn total_size(&self) -> usize {
         mem::size_of::<Self>() + self.data.len()
     }

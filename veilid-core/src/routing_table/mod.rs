@@ -54,6 +54,9 @@ const ROUTING_TABLE: &str = "routing_table";
 const SERIALIZED_BUCKET_MAP: &[u8] = b"serialized_bucket_map";
 const CACHE_VALIDITY_KEY: &[u8] = b"cache_validity_key";
 
+// Critical sections
+const LOCK_TAG_TICK: &str = "TICK";
+
 pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
@@ -939,7 +942,7 @@ impl RoutingTable {
 
         let filters = VecDeque::from([filter]);
 
-        self.find_fastest_nodes(
+        self.find_preferred_fastest_nodes(
             protocol_types_len * 2 * max_per_type,
             filters,
             |_rti, entry: Option<Arc<BucketEntry>>| {
@@ -990,7 +993,7 @@ impl RoutingTable {
             .find_peers_with_sort_and_filter(node_count, cur_ts, filters, compare, transform)
     }
 
-    pub fn find_fastest_nodes<'a, T, O>(
+    pub fn find_preferred_fastest_nodes<'a, T, O>(
         &self,
         node_count: usize,
         filters: VecDeque<RoutingTableEntryFilter>,
@@ -1001,10 +1004,10 @@ impl RoutingTable {
     {
         self.inner
             .read()
-            .find_fastest_nodes(node_count, filters, transform)
+            .find_preferred_fastest_nodes(node_count, filters, transform)
     }
 
-    pub fn find_closest_nodes<'a, T, O>(
+    pub fn find_preferred_closest_nodes<'a, T, O>(
         &self,
         node_count: usize,
         node_id: TypedKey,
@@ -1016,14 +1019,14 @@ impl RoutingTable {
     {
         self.inner
             .read()
-            .find_closest_nodes(node_count, node_id, filters, transform)
+            .find_preferred_closest_nodes(node_count, node_id, filters, transform)
     }
 
     pub fn sort_and_clean_closest_noderefs(
         &self,
         node_id: TypedKey,
-        closest_nodes: &mut Vec<NodeRef>,
-    ) {
+        closest_nodes: &[NodeRef],
+    ) -> Vec<NodeRef> {
         self.inner
             .read()
             .sort_and_clean_closest_noderefs(node_id, closest_nodes)

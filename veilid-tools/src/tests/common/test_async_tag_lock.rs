@@ -55,6 +55,29 @@ pub async fn test_simple_single_contention() {
     assert_eq!(table.len(), 1);
 }
 
+pub async fn test_simple_try() {
+    info!("test_simple_try");
+
+    let table = AsyncTagLockTable::new();
+
+    let a1 = SocketAddr::new("1.2.3.4".parse().unwrap(), 1234);
+    let a2 = SocketAddr::new("1.2.3.5".parse().unwrap(), 1235);
+
+    {
+        let _g1 = table.lock_tag(a1).await;
+
+        let opt_g2 = table.try_lock_tag(a1);
+        let opt_g3 = table.try_lock_tag(a2);
+
+        assert!(opt_g2.is_none());
+        assert!(opt_g3.is_some());
+    }
+    let opt_g4 = table.try_lock_tag(a1);
+    assert!(opt_g4.is_some());
+
+    assert_eq!(table.len(), 1);
+}
+
 pub async fn test_simple_double_contention() {
     info!("test_simple_double_contention");
 
@@ -153,6 +176,7 @@ pub async fn test_parallel_single_contention() {
 
 pub async fn test_all() {
     test_simple_no_contention().await;
+    test_simple_try().await;
     test_simple_single_contention().await;
     test_parallel_single_contention().await;
 }

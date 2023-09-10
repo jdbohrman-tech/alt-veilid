@@ -78,7 +78,7 @@ impl RPCProcessor {
         log_rpc!(debug "{}", debug_string);
 
         let waitable_reply = network_result_try!(
-            self.question(dest, question, Some(question_context))
+            self.question(dest.clone(), question, Some(question_context))
                 .await?
         );
 
@@ -99,29 +99,35 @@ impl RPCProcessor {
         };
 
         let (value, peers, descriptor) = get_value_a.destructure();
+        #[cfg(feature="debug-dht")]
+        {   
+            let debug_string_value = value.as_ref().map(|v| {
+                format!(" len={} seq={} writer={}",
+                    v.value_data().data().len(),
+                    v.value_data().seq(),
+                    v.value_data().writer(),
+                )
+            }).unwrap_or_default();
+            
+            let debug_string_answer = format!(
+                "OUT <== GetValueA({} #{}{}{} peers={}) <= {}",
+                key,
+                subkey,
+                debug_string_value,
+                if descriptor.is_some() {
+                    " +desc"
+                } else {
+                    ""
+                },
+                peers.len(),
+                dest
+            );
 
-        let debug_string_value = value.as_ref().map(|v| {
-            format!(" len={} seq={} writer={}",
-                v.value_data().data().len(),
-                v.value_data().seq(),
-                v.value_data().writer(),
-            )
-        }).unwrap_or_default();
-        
-        let debug_string_answer = format!(
-            "OUT <== GetValueA({} #{}{}{} peers={})",
-            key,
-            subkey,
-            debug_string_value,
-            if descriptor.is_some() {
-                " +desc"
-            } else {
-                ""
-            },
-            peers.len(),
-        );
-
-        log_rpc!(debug "{}", debug_string_answer);
+            log_rpc!(debug "{}", debug_string_answer);
+            
+            let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
+            log_rpc!(debug "Peers: {:#?}", peer_ids);
+        }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
         let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
@@ -201,21 +207,24 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_peers_closer_to_key(key, vec![CAP_DHT]));
+        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]));
 
-        let debug_string = format!(
-            "IN <=== GetValueQ({} #{}{}) <== {}",
-            key,
-            subkey,
-            if want_descriptor {
-                " +wantdesc"
-            } else {
-                ""
-            },
-            msg.header.direct_sender_node_id()
-        );
+        #[cfg(feature="debug-dht")]
+        {   
+            let debug_string = format!(
+                "IN <=== GetValueQ({} #{}{}) <== {}",
+                key,
+                subkey,
+                if want_descriptor {
+                    " +wantdesc"
+                } else {
+                    ""
+                },
+                msg.header.direct_sender_node_id()
+            );
 
-        log_rpc!(debug "{}", debug_string);
+            log_rpc!(debug "{}", debug_string);
+        }
 
         // See if we have this record ourselves
         let storage_manager = self.storage_manager();

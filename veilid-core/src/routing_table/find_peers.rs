@@ -1,8 +1,10 @@
 use super::*;
 
 impl RoutingTable {
-    /// Utility to find all closest nodes to a particular key, including possibly our own node and nodes further away from the key than our own, returning their peer info
-    pub fn find_all_closest_peers(
+    /// Utility to find the closest nodes to a particular key, preferring reliable nodes first,
+    /// including possibly our own node and nodes further away from the key than our own,
+    /// returning their peer info
+    pub fn find_preferred_closest_peers(
         &self,
         key: TypedKey,
         capabilities: &[Capability],
@@ -49,7 +51,7 @@ impl RoutingTable {
         };
 
         let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
-        let closest_nodes = match self.find_closest_nodes(
+        let closest_nodes = match self.find_preferred_closest_nodes(
             node_count,
             key,
             filters,
@@ -68,9 +70,10 @@ impl RoutingTable {
         NetworkResult::value(closest_nodes)
     }
 
-    /// Utility to find nodes that are closer to a key than our own node, returning their peer info
+    /// Utility to find nodes that are closer to a key than our own node,
+    /// preferring reliable nodes first, and returning their peer info
     /// Can filter based on a particular set of capabiltiies
-    pub fn find_peers_closer_to_key(
+    pub fn find_preferred_peers_closer_to_key(
         &self,
         key: TypedKey,
         required_capabilities: Vec<Capability>,
@@ -126,7 +129,7 @@ impl RoutingTable {
         };
 
         //
-        let closest_nodes = match self.find_closest_nodes(
+        let closest_nodes = match self.find_preferred_closest_nodes(
             node_count,
             key,
             filters,

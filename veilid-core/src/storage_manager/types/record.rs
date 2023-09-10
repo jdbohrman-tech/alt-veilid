@@ -74,7 +74,9 @@ where
     }
 
     pub fn total_size(&self) -> usize {
-        mem::size_of::<Record<D>>() + self.descriptor.total_size() + self.record_data_size
+        (mem::size_of::<Self>() - mem::size_of::<SignedValueDescriptor>())
+            + self.descriptor.total_size()
+            + self.record_data_size
     }
 
     // pub fn detail(&self) -> &D {
