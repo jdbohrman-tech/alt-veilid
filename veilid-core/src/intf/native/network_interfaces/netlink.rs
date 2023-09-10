@@ -122,7 +122,7 @@ impl PlatformSupportNetlink {
         }
 
         cfg_if! {
-            if #[cfg(target_os = "android")] {
+            if #[cfg(any(target_os = "android", target_env = "musl"))] {
                 let res = unsafe { ioctl(sock, SIOCGIFFLAGS as i32, &mut req) };
             } else {
                 let res = unsafe { ioctl(sock, SIOCGIFFLAGS, &mut req) };
