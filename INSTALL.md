@@ -1,4 +1,4 @@
-# Install a Veilid Node
+# Install and run a Veilid Node
 
 ## Server Grade Headless Nodes
 
@@ -72,9 +72,31 @@ sudo yum-config-manager --add-repo https://packages.veilid.net/rpm/veilid-rpm-re
 sudo dnf install veilid-server veilid-cli
 ```
 
-**Step 2**: Install Veilid.
-*Explanation*: With the package manager updated, it is now possible to install Veilid!
+## Start headless node
+
+To start a headless Veilid node, run as root:
 
 ```shell
-dnf install veilid-server veilid-cli
+systemctl start veilid-server.service
 ```
+
+To have your Veilid node start at boot:
+
+```shell
+systemctl enable --now veilid-server.service
+```
+
+> **Not recommended:**
+> In cases where you must run `veilid-server`
+> without `systemd` (e.g., systems that use OpenRC, or containers),
+> you _must_ run the `veilid-server`
+> as the `veilid` user.
+> Do this manually by running as root:
+>
+> ```shell
+> # Force-allow login by setting shell
+> usermod -s /bin/bash veilid
+> # Run veilid-server as veilid user
+> # Note that by default, veilid user is still passwordless.
+> sudo -u veilid veilid-server
+> ```
