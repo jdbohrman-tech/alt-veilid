@@ -36,3 +36,13 @@ pub(crate) fn into_unchecked_string_array(items: Vec<String>) -> StringArray {
         .collect::<js_sys::Array>()
         .unchecked_into::<StringArray>() // TODO: can I do this a better way?
 }
+
+/// Convert a StringArray (`js_sys::Array` with the type of `string[]`) into `Vec<String>`
+pub(crate) fn into_unchecked_string_vec(items: StringArray) -> Vec<String> {
+    items
+        .unchecked_into::<js_sys::Array>()
+        .to_vec()
+        .into_iter()
+        .map(|i| serde_wasm_bindgen::from_value(i).unwrap())
+        .collect::<Vec<String>>()
+}

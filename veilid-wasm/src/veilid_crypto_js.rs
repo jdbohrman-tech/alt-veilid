@@ -1,12 +1,6 @@
 #![allow(non_snake_case)]
 use super::*;
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "string[]")]
-    pub type ValidCryptoKinds;
-}
-
 #[wasm_bindgen(js_name = veilidCrypto)]
 pub struct VeilidCrypto {}
 
@@ -196,7 +190,59 @@ impl VeilidCrypto {
         APIResult::Ok(out.to_string())
     }
 
-    pub fn generateKeyPair(kind: String) -> APIResult<KeyPair> {
+    pub fn verifySignatures(
+        node_ids: StringArray,
+        data: String,
+        signatures: StringArray,
+    ) -> VeilidAPIResult<StringArray> {
+        let node_ids = into_unchecked_string_vec(node_ids);
+        let node_ids: Vec<veilid_core::TypedKey> = node_ids
+            .iter()
+            .map(|k| veilid_core::TypedKey::from_str(k).unwrap())
+            .collect();
+
+        let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
+            .decode(data.as_bytes())
+            .unwrap();
+
+        let typed_signatures = into_unchecked_string_vec(signatures);
+        let typed_signatures: Vec<veilid_core::TypedSignature> = typed_signatures
+            .iter()
+            .map(|k| veilid_core::TypedSignature::from_str(k).unwrap())
+            .collect();
+
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let out = crypto.verify_signatures(&node_ids, &data, &typed_signatures)?;
+        let out = out
+            .iter()
+            .map(|item| item.to_string())
+            .collect::<Vec<String>>();
+        let out = into_unchecked_string_array(out);
+        APIResult::Ok(out)
+    }
+
+    pub fn generateSignatures(data: String, key_pairs: StringArray) -> APIResult<StringArray> {
+        let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
+            .decode(data.as_bytes())
+            .unwrap();
+
+        let key_pairs = into_unchecked_string_vec(key_pairs);
+        let key_pairs: Vec<veilid_core::TypedKeyPair> = key_pairs
+            .iter()
+            .map(|k| veilid_core::TypedKeyPair::from_str(k).unwrap())
+            .collect();
+
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let out = crypto.generate_signatures(&data, &key_pairs, |k, s| {
+            veilid_core::TypedSignature::new(k.kind, s).to_string()
+        })?;
+        let out = into_unchecked_string_array(out);
+        APIResult::Ok(out)
+    }
+
+    pub fn generateKeyPair(kind: String) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
@@ -209,6 +255,7 @@ impl VeilidCrypto {
             )
         })?;
         let out = crypto_system.generate_keypair();
+        let out = out.encode();
         APIResult::Ok(out)
     }
 

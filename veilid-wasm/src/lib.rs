@@ -246,11 +246,6 @@ pub fn change_log_level(layer: String, log_level: String) {
     }
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const IUPDATE_VEILID_FUNCTION: &'static str = r#"
-type UpdateVeilidFunction = (event: VeilidUpdate) => void;
-"#;
-
 #[wasm_bindgen()]
 pub fn startup_veilid_core(update_callback_js: Function, json_config: String) -> Promise {
     let update_callback_js = SendWrapper::new(update_callback_js);

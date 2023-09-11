@@ -3,70 +3,23 @@ use super::*;
 
 #[wasm_bindgen()]
 pub struct VeilidRoutingContext {
-    inner_routing_context: Option<RoutingContext>,
+    inner_routing_context: RoutingContext,
 }
 
 #[wasm_bindgen()]
 impl VeilidRoutingContext {
-    /// Don't use this constructor directly.
-    /// Use one of the `VeilidRoutingContext.create___()` factory methods instead.
-    /// @deprecated
+    /// Create a new VeilidRoutingContext, without any privacy or sequencing settings.
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self {
-            inner_routing_context: None,
-        }
-    }
-
-    // --------------------------------
-    // Constructor factories
-    // --------------------------------
-
-    /// Get a new RoutingContext object to use to send messages over the Veilid network.
-    pub fn createWithoutPrivacy() -> APIResult<VeilidRoutingContext> {
+    pub fn new() -> APIResult<VeilidRoutingContext> {
         let veilid_api = get_veilid_api()?;
-        let routing_context = veilid_api.routing_context();
-        Ok(VeilidRoutingContext {
-            inner_routing_context: Some(routing_context),
+        APIResult::Ok(VeilidRoutingContext {
+            inner_routing_context: veilid_api.routing_context(),
         })
     }
 
-    /// Turn on sender privacy, enabling the use of safety routes.
-    ///
-    /// Default values for hop count, stability and sequencing preferences are used.
-    ///
-    /// Hop count default is dependent on config, but is set to 1 extra hop.
-    /// Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
-    /// Sequencing default is to have no preference for ordered vs unordered message delivery
-    /// To modify these defaults, use `VeilidRoutingContext.createWithCustomPrivacy()`.
-    pub fn createWithPrivacy() -> APIResult<VeilidRoutingContext> {
-        let veilid_api = get_veilid_api()?;
-        let routing_context = veilid_api.routing_context().with_privacy()?;
-        Ok(VeilidRoutingContext {
-            inner_routing_context: Some(routing_context),
-        })
-    }
-
-    /// Turn on privacy using a custom `SafetySelection`
-    pub fn createWithCustomPrivacy(
-        safety_selection: SafetySelection,
-    ) -> APIResult<VeilidRoutingContext> {
-        let veilid_api = get_veilid_api()?;
-        let routing_context = veilid_api
-            .routing_context()
-            .with_custom_privacy(safety_selection)?;
-        Ok(VeilidRoutingContext {
-            inner_routing_context: Some(routing_context),
-        })
-    }
-
-    /// Use a specified `Sequencing` preference, with or without privacy.
-    pub fn createWithSequencing(sequencing: Sequencing) -> APIResult<VeilidRoutingContext> {
-        let veilid_api = get_veilid_api()?;
-        let routing_context = veilid_api.routing_context().with_sequencing(sequencing);
-        Ok(VeilidRoutingContext {
-            inner_routing_context: Some(routing_context),
-        })
+    /// Same as `new VeilidRoutingContext()` except easier to chain.
+    pub fn create() -> APIResult<VeilidRoutingContext> {
+        VeilidRoutingContext::new()
     }
 
     // --------------------------------
@@ -85,6 +38,18 @@ impl VeilidRoutingContext {
 
         let route_blob = VeilidRouteBlob { route_id, blob };
         APIResult::Ok(route_blob)
+    }
+
+    /// Import a private route blob as a remote private route.
+    ///
+    /// Returns a route id that can be used to send private messages to the node creating this route.
+    pub fn importRemotePrivateRoute(&self, blob: String) -> APIResult<RouteId> {
+        let blob: Vec<u8> = data_encoding::BASE64URL_NOPAD
+            .decode(blob.as_bytes())
+            .unwrap();
+        let veilid_api = get_veilid_api()?;
+        let route_id = veilid_api.import_remote_private_route(blob)?;
+        APIResult::Ok(route_id)
     }
 
     /// Allocate a new private route and specify a specific cryptosystem, stability and sequencing preference.
@@ -110,7 +75,7 @@ impl VeilidRoutingContext {
     ///
     /// This will deactivate the route and free its resources and it can no longer be sent to or received from.
     pub fn releasePrivateRoute(route_id: String) -> APIResult<()> {
-        let route_id: veilid_core::RouteId = veilid_core::deserialize_json(&route_id).unwrap();
+        let route_id: veilid_core::RouteId = RouteId::from_str(&route_id)?;
         let veilid_api = get_veilid_api()?;
         veilid_api.release_private_route(route_id)?;
         APIRESULT_UNDEFINED
@@ -139,10 +104,43 @@ impl VeilidRoutingContext {
     // Instance methods
     // --------------------------------
     fn getRoutingContext(&self) -> APIResult<RoutingContext> {
-        let Some(routing_context) = &self.inner_routing_context else {
-            return APIResult::Err(veilid_core::VeilidAPIError::generic("Unable to getRoutingContext instance. inner_routing_context is None."));
-        };
-        APIResult::Ok(routing_context.clone())
+        APIResult::Ok(self.inner_routing_context.clone())
+    }
+
+    /// Turn on sender privacy, enabling the use of safety routes.
+    /// Returns a new instance of VeilidRoutingContext - does not mutate.
+    ///
+    /// Default values for hop count, stability and sequencing preferences are used.
+    ///
+    /// Hop count default is dependent on config, but is set to 1 extra hop.
+    /// Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
+    /// Sequencing default is to have no preference for ordered vs unordered message delivery
+    pub fn withPrivacy(&self) -> APIResult<VeilidRoutingContext> {
+        let routing_context = self.getRoutingContext()?;
+        APIResult::Ok(VeilidRoutingContext {
+            inner_routing_context: routing_context.with_privacy()?,
+        })
+    }
+
+    /// Turn on privacy using a custom `SafetySelection`.
+    /// Returns a new instance of VeilidRoutingContext - does not mutate.
+    pub fn withCustomPrivacy(
+        &self,
+        safety_selection: SafetySelection,
+    ) -> APIResult<VeilidRoutingContext> {
+        let routing_context = self.getRoutingContext()?;
+        APIResult::Ok(VeilidRoutingContext {
+            inner_routing_context: routing_context.with_custom_privacy(safety_selection)?,
+        })
+    }
+
+    /// Use a specified `Sequencing` preference.
+    /// Returns a new instance of VeilidRoutingContext - does not mutate.
+    pub fn withSequencing(&self, sequencing: Sequencing) -> APIResult<VeilidRoutingContext> {
+        let routing_context = self.getRoutingContext()?;
+        APIResult::Ok(VeilidRoutingContext {
+            inner_routing_context: routing_context.with_sequencing(sequencing),
+        })
     }
 
     /// App-level unidirectional message that does not expect any value to be returned.
