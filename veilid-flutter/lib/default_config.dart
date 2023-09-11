@@ -173,14 +173,14 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
         ws: VeilidConfigWS(
           connect: true,
           listen: !kIsWeb,
-          maxConnections: 32,
+          maxConnections: 1024,
           listenAddress: '',
           path: 'ws',
         ),
         wss: VeilidConfigWSS(
           connect: true,
           listen: false,
-          maxConnections: 32,
+          maxConnections: 1024,
           listenAddress: '',
           path: 'ws',
         ),
