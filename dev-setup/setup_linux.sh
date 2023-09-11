@@ -1,6 +1,11 @@
 #!/bin/bash
 set -eo pipefail
 
+if [ $(id -u) -eq 0 ]; then 
+    echo "Don't run this as root"
+    exit
+fi
+
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if [[ "$(uname)" != "Linux" ]]; then 
