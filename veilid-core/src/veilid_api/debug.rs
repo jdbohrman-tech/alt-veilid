@@ -687,7 +687,11 @@ impl VeilidAPI {
         // Dump core state
         let state = self.get_state().await?;
 
-        let mut peertable = format!("Recent Peers: {}\n", state.network.peers.len());
+        let mut peertable = format!(
+            "Recent Peers: {} (max {})\n",
+            state.network.peers.len(),
+            RECENT_PEERS_TABLE_SIZE
+        );
         for peer in state.network.peers {
             peertable += &format!(
                 "   {} | {} | {} | {} down | {} up\n",

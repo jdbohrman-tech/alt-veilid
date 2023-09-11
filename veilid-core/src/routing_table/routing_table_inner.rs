@@ -1,7 +1,7 @@
 use super::*;
 use weak_table::PtrWeakHashSet;
 
-const RECENT_PEERS_TABLE_SIZE: usize = 64;
+pub const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
 pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 //////////////////////////////////////////////////////////////////////////
