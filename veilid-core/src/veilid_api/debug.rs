@@ -15,6 +15,35 @@ static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
     imported_routes: Vec::new(),
 });
 
+fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
+    let Some(ts) = ts else {
+        return "---".to_owned();
+    };
+    let ts = ts.as_u64();
+    let secs = timestamp_to_secs(ts);
+    if secs >= 1.0 {
+        format!("{:.2}s", timestamp_to_secs(ts))
+    } else {
+        format!("{:.2}ms", timestamp_to_secs(ts) * 1000.0)
+    }
+}
+
+fn format_opt_bps(bps: Option<ByteCount>) -> String {
+    let Some(bps) = bps else {
+        return "---".to_owned();
+    };
+    let bps = bps.as_u64();
+    if bps >= 1024u64 * 1024u64 * 1024u64 {
+        format!("{:.2}GB/s", (bps / (1024u64 * 1024u64)) as f64 / 1024.0)
+    } else if bps >= 1024u64 * 1024u64 {
+        format!("{:.2}MB/s", (bps / 1024u64) as f64 / 1024.0)
+    } else if bps >= 1024u64 {
+        format!("{:.2}KB/s", bps as f64 / 1024.0)
+    } else {
+        format!("{:.2}B/s", bps as f64)
+    }
+}
+
 fn get_bucket_entry_state(text: &str) -> Option<BucketEntryState> {
     if text == "dead" {
         Some(BucketEntryState::Dead)
@@ -653,7 +682,23 @@ impl VeilidAPI {
     async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
-        Ok(routing_table.debug_info_nodeinfo())
+        let nodeinfo = routing_table.debug_info_nodeinfo();
+
+        // Dump core state
+        let state = self.get_state().await?;
+
+        let mut peertable = format!("Connections: {}\n", state.network.peers.len());
+        for peer in state.network.peers {
+            peertable += &format!(
+                "   {} | {} | {} | {} down | {} up\n",
+                peer.node_ids.first().unwrap(),
+                peer.peer_address,
+                format_opt_ts(peer.peer_stats.latency.map(|l| l.average)),
+                format_opt_bps(Some(peer.peer_stats.transfer.down.average)),
+                format_opt_bps(Some(peer.peer_stats.transfer.up.average)),
+            );
+        }
+        Ok(format!("{}\n\n{}\n\n", nodeinfo, peertable))
     }
 
     async fn debug_config(&self, args: String) -> VeilidAPIResult<String> {
