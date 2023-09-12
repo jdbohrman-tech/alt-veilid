@@ -66,10 +66,15 @@ fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIErr
 }
 
 // Marshalling helpers
-pub fn unmarshall(b64: String) -> Vec<u8> {
+pub fn unmarshall(b64: String) -> APIResult<Vec<u8>> {
     data_encoding::BASE64URL_NOPAD
         .decode(b64.as_bytes())
-        .unwrap()
+        .map_err(|e| {
+            VeilidAPIError::generic(format!(
+                "error decoding base64url string '{}' into bytes: {}",
+                b64, e
+            ))
+        })
 }
 
 pub fn marshall(data: &Vec<u8>) -> String {

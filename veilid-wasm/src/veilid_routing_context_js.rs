@@ -44,9 +44,7 @@ impl VeilidRoutingContext {
     ///
     /// Returns a route id that can be used to send private messages to the node creating this route.
     pub fn importRemotePrivateRoute(&self, blob: String) -> APIResult<RouteId> {
-        let blob: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(blob.as_bytes())
-            .unwrap();
+        let blob = unmarshall(blob)?;
         let veilid_api = get_veilid_api()?;
         let route_id = veilid_api.import_remote_private_route(blob)?;
         APIResult::Ok(route_id)
@@ -86,7 +84,7 @@ impl VeilidRoutingContext {
     /// * `call_id` - specifies which call to reply to, and it comes from a VeilidUpdate::AppCall, specifically the VeilidAppCall::id() value.
     /// * `message` - is an answer blob to be returned by the remote node's RoutingContext::app_call() function, and may be up to 32768 bytes
     pub async fn appCallReply(call_id: String, message: String) -> APIResult<()> {
-        let message = unmarshall(message);
+        let message = unmarshall(message)?;
         let call_id = match call_id.parse() {
             Ok(v) => v,
             Err(e) => {
@@ -152,7 +150,7 @@ impl VeilidRoutingContext {
     #[wasm_bindgen(skip_jsdoc)]
     pub async fn appMessage(&self, target_string: String, message: String) -> APIResult<()> {
         let routing_context = self.getRoutingContext()?;
-        let message = unmarshall(message);
+        let message = unmarshall(message)?;
 
         let veilid_api = get_veilid_api()?;
         let target = veilid_api.parse_as_target(target_string).await?;
@@ -169,7 +167,7 @@ impl VeilidRoutingContext {
     /// @returns an answer blob of up to `32768` bytes, base64Url encoded.
     #[wasm_bindgen(skip_jsdoc)]
     pub async fn appCall(&self, target_string: String, request: String) -> APIResult<String> {
-        let request: Vec<u8> = unmarshall(request);
+        let request: Vec<u8> = unmarshall(request)?;
         let routing_context = self.getRoutingContext()?;
 
         let veilid_api = get_veilid_api()?;
@@ -215,11 +213,10 @@ impl VeilidRoutingContext {
         key: String,
         writer: Option<String>,
     ) -> APIResult<DHTRecordDescriptor> {
-        let key = TypedKey::from_str(&key).unwrap();
-        let writer = match writer {
-            Some(writer) => Some(KeyPair::from_str(&writer).unwrap()),
-            _ => None,
-        };
+        let key = TypedKey::from_str(&key)?;
+        let writer = writer
+            .map(|writer| KeyPair::from_str(&writer))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let routing_context = self.getRoutingContext()?;
         let dht_record_descriptor = routing_context.open_dht_record(key, writer).await?;
@@ -230,7 +227,7 @@ impl VeilidRoutingContext {
     ///
     /// Closing a record allows you to re-open it with a different routing context
     pub async fn closeDhtRecord(&self, key: String) -> APIResult<()> {
-        let key = TypedKey::from_str(&key).unwrap();
+        let key = TypedKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         routing_context.close_dht_record(key).await?;
         APIRESULT_UNDEFINED
@@ -242,7 +239,7 @@ impl VeilidRoutingContext {
     /// Deleting a record does not delete it from the network, but will remove the storage of the record locally,
     /// and will prevent its value from being refreshed on the network by this node.
     pub async fn deleteDhtRecord(&self, key: String) -> APIResult<()> {
-        let key = TypedKey::from_str(&key).unwrap();
+        let key = TypedKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         routing_context.delete_dht_record(key).await?;
         APIRESULT_UNDEFINED
@@ -260,7 +257,7 @@ impl VeilidRoutingContext {
         subKey: u32,
         forceRefresh: bool,
     ) -> APIResult<Option<ValueData>> {
-        let key = TypedKey::from_str(&key).unwrap();
+        let key = TypedKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         let res = routing_context
             .get_dht_value(key, subKey, forceRefresh)
@@ -278,10 +275,8 @@ impl VeilidRoutingContext {
         subKey: u32,
         data: String,
     ) -> APIResult<Option<ValueData>> {
-        let key = TypedKey::from_str(&key).unwrap();
-        let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(&data.as_bytes())
-            .unwrap();
+        let key = TypedKey::from_str(&key)?;
+        let data = unmarshall(data)?;
 
         let routing_context = self.getRoutingContext()?;
         let res = routing_context.set_dht_value(key, subKey, data).await?;
