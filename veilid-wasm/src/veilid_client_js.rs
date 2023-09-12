@@ -3,7 +3,16 @@ use super::*;
 
 #[wasm_bindgen(typescript_custom_section)]
 const IUPDATE_VEILID_FUNCTION: &'static str = r#"
-type UpdateVeilidFunction = (event: VeilidUpdate) => void;
+export type UpdateVeilidFunction = (event: VeilidUpdate) => void;
+
+// Type overrides for structs that always get serialized by serde.
+export type CryptoKey = string;
+export type Nonce = string;
+export type Signature = string;
+export type KeyPair = `${PublicKey}:${SecretKey}`;
+export type FourCC = "NONE" | "VLD0" | string;
+export type CryptoTyped<TCryptoKey extends string> = `${FourCC}:${TCryptoKey}`;
+export type CryptoTypedGroup<TCryptoKey extends string> = Array<CryptoTyped<TCryptoKey>>;
 "#;
 
 #[wasm_bindgen]

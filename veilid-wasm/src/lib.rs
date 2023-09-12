@@ -66,10 +66,15 @@ fn take_veilid_api() -> Result<veilid_core::VeilidAPI, veilid_core::VeilidAPIErr
 }
 
 // Marshalling helpers
-pub fn unmarshall(b64: String) -> Vec<u8> {
+pub fn unmarshall(b64: String) -> APIResult<Vec<u8>> {
     data_encoding::BASE64URL_NOPAD
         .decode(b64.as_bytes())
-        .unwrap()
+        .map_err(|e| {
+            VeilidAPIError::generic(format!(
+                "error decoding base64url string '{}' into bytes: {}",
+                b64, e
+            ))
+        })
 }
 
 pub fn marshall(data: &Vec<u8>) -> String {
@@ -245,11 +250,6 @@ pub fn change_log_level(layer: String, log_level: String) {
         f.set_max_level(log_level);
     }
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const IUPDATE_VEILID_FUNCTION: &'static str = r#"
-type UpdateVeilidFunction = (event: VeilidUpdate) => void;
-"#;
 
 #[wasm_bindgen()]
 pub fn startup_veilid_core(update_callback_js: Function, json_config: String) -> Promise {

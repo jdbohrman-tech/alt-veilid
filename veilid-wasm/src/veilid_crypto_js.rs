@@ -1,12 +1,6 @@
 #![allow(non_snake_case)]
 use super::*;
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "string[]")]
-    pub type ValidCryptoKinds;
-}
-
 #[wasm_bindgen(js_name = veilidCrypto)]
 pub struct VeilidCrypto {}
 
@@ -99,12 +93,8 @@ impl VeilidCrypto {
 
     pub fn hashPassword(kind: String, password: String, salt: String) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
-        let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(password.as_bytes())
-            .unwrap();
-        let salt: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(salt.as_bytes())
-            .unwrap();
+        let password = unmarshall(password)?;
+        let salt = unmarshall(salt)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -125,9 +115,7 @@ impl VeilidCrypto {
         password_hash: String,
     ) -> APIResult<bool> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
-        let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(password.as_bytes())
-            .unwrap();
+        let password = unmarshall(password)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -144,12 +132,8 @@ impl VeilidCrypto {
 
     pub fn deriveSharedSecret(kind: String, password: String, salt: String) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
-        let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(password.as_bytes())
-            .unwrap();
-        let salt: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(salt.as_bytes())
-            .unwrap();
+        let password = unmarshall(password)?;
+        let salt = unmarshall(salt)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -196,7 +180,79 @@ impl VeilidCrypto {
         APIResult::Ok(out.to_string())
     }
 
-    pub fn generateKeyPair(kind: String) -> APIResult<KeyPair> {
+    pub fn verifySignatures(
+        node_ids: StringArray,
+        data: String,
+        signatures: StringArray,
+    ) -> VeilidAPIResult<StringArray> {
+        let node_ids = into_unchecked_string_vec(node_ids);
+        let node_ids: Vec<TypedKey> = node_ids
+            .iter()
+            .map(|k| {
+                veilid_core::TypedKey::from_str(k).map_err(|e| {
+                    VeilidAPIError::invalid_argument(
+                        "verifySignatures()",
+                        format!("error decoding nodeid in node_ids[]: {}", e),
+                        k,
+                    )
+                })
+            })
+            .collect::<APIResult<Vec<TypedKey>>>()?;
+
+        let data: Vec<u8> = unmarshall(data)?;
+
+        let typed_signatures = into_unchecked_string_vec(signatures);
+        let typed_signatures: Vec<TypedSignature> = typed_signatures
+            .iter()
+            .map(|k| {
+                TypedSignature::from_str(k).map_err(|e| {
+                    VeilidAPIError::invalid_argument(
+                        "verifySignatures()",
+                        format!("error decoding keypair in key_pairs[]: {}", e),
+                        k,
+                    )
+                })
+            })
+            .collect::<APIResult<Vec<TypedSignature>>>()?;
+
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let out = crypto.verify_signatures(&node_ids, &data, &typed_signatures)?;
+        let out = out
+            .iter()
+            .map(|item| item.to_string())
+            .collect::<Vec<String>>();
+        let out = into_unchecked_string_array(out);
+        APIResult::Ok(out)
+    }
+
+    pub fn generateSignatures(data: String, key_pairs: StringArray) -> APIResult<StringArray> {
+        let data = unmarshall(data)?;
+
+        let key_pairs = into_unchecked_string_vec(key_pairs);
+        let key_pairs: Vec<TypedKeyPair> = key_pairs
+            .iter()
+            .map(|k| {
+                veilid_core::TypedKeyPair::from_str(k).map_err(|e| {
+                    VeilidAPIError::invalid_argument(
+                        "generateSignatures()",
+                        format!("error decoding keypair in key_pairs[]: {}", e),
+                        k,
+                    )
+                })
+            })
+            .collect::<APIResult<Vec<veilid_core::TypedKeyPair>>>()?;
+
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let out = crypto.generate_signatures(&data, &key_pairs, |k, s| {
+            veilid_core::TypedSignature::new(k.kind, s).to_string()
+        })?;
+        let out = into_unchecked_string_array(out);
+        APIResult::Ok(out)
+    }
+
+    pub fn generateKeyPair(kind: String) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
@@ -209,15 +265,14 @@ impl VeilidCrypto {
             )
         })?;
         let out = crypto_system.generate_keypair();
+        let out = out.encode();
         APIResult::Ok(out)
     }
 
     pub fn generateHash(kind: String, data: String) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
-        let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(data.as_bytes())
-            .unwrap();
+        let data = unmarshall(data)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -254,9 +309,7 @@ impl VeilidCrypto {
     pub fn validateHash(kind: String, data: String, hash: String) -> APIResult<bool> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
-        let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(data.as_bytes())
-            .unwrap();
+        let data = unmarshall(data)?;
 
         let hash: veilid_core::HashDigest = veilid_core::HashDigest::from_str(&hash)?;
 
@@ -298,9 +351,7 @@ impl VeilidCrypto {
         let key: veilid_core::PublicKey = veilid_core::PublicKey::from_str(&key)?;
         let secret: veilid_core::SecretKey = veilid_core::SecretKey::from_str(&secret)?;
 
-        let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(data.as_bytes())
-            .unwrap();
+        let data = unmarshall(data)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -315,9 +366,7 @@ impl VeilidCrypto {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
         let key: veilid_core::PublicKey = veilid_core::PublicKey::from_str(&key)?;
-        let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(data.as_bytes())
-            .unwrap();
+        let data = unmarshall(data)?;
         let signature: veilid_core::Signature = veilid_core::Signature::from_str(&signature)?;
 
         let veilid_api = get_veilid_api()?;
@@ -354,20 +403,16 @@ impl VeilidCrypto {
     ) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
-        let body: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(body.as_bytes())
-            .unwrap();
+        let body = unmarshall(body)?;
 
         let nonce: veilid_core::Nonce = veilid_core::Nonce::from_str(&nonce)?;
 
         let shared_secret: veilid_core::SharedSecret =
             veilid_core::SharedSecret::from_str(&shared_secret)?;
 
-        let associated_data: Option<Vec<u8>> = associated_data.map(|ad| {
-            data_encoding::BASE64URL_NOPAD
-                .decode(ad.as_bytes())
-                .unwrap()
-        });
+        let associated_data = associated_data
+            .map(|ad| unmarshall(ad))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -400,20 +445,16 @@ impl VeilidCrypto {
     ) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
-        let body: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(body.as_bytes())
-            .unwrap();
+        let body = unmarshall(body)?;
 
-        let nonce: veilid_core::Nonce = veilid_core::Nonce::from_str(&nonce).unwrap();
+        let nonce: veilid_core::Nonce = veilid_core::Nonce::from_str(&nonce)?;
 
         let shared_secret: veilid_core::SharedSecret =
-            veilid_core::SharedSecret::from_str(&shared_secret).unwrap();
+            veilid_core::SharedSecret::from_str(&shared_secret)?;
 
-        let associated_data: Option<Vec<u8>> = associated_data.map(|ad| {
-            data_encoding::BASE64URL_NOPAD
-                .decode(ad.as_bytes())
-                .unwrap()
-        });
+        let associated_data: Option<Vec<u8>> = associated_data
+            .map(|ad| unmarshall(ad))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -445,14 +486,12 @@ impl VeilidCrypto {
     ) -> APIResult<String> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
-        let mut body: Vec<u8> = data_encoding::BASE64URL_NOPAD
-            .decode(body.as_bytes())
-            .unwrap();
+        let mut body = unmarshall(body)?;
 
-        let nonce: veilid_core::Nonce = veilid_core::Nonce::from_str(&nonce).unwrap();
+        let nonce: veilid_core::Nonce = veilid_core::Nonce::from_str(&nonce)?;
 
         let shared_secret: veilid_core::SharedSecret =
-            veilid_core::SharedSecret::from_str(&shared_secret).unwrap();
+            veilid_core::SharedSecret::from_str(&shared_secret)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
