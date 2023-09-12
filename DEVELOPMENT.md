@@ -1,8 +1,9 @@
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md) 
-
 # Veilid Development
 
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
+
 ## Introduction
+
 This guide covers setting up environments for core, Flutter/Dart, and Python development. See the relevent sections.
 
 ## Obtaining the source code
@@ -20,14 +21,15 @@ itself, Ubuntu or Mint. Pull requests to support other distributions would be
 welcome!
 
 Running the setup script requires:
+
 * Android SDK and NDK
 * Rust
 
-You may decide to use Android Studio [here](https://developer.android.com/studio) 
-to maintain your Android dependencies. If so, use the dependency manager 
+You may decide to use Android Studio [here](https://developer.android.com/studio)
+to maintain your Android dependencies. If so, use the dependency manager
 within your IDE. If you plan on using Flutter for Veilid development, the Android Studio
-method is highly recommended as you may run into path problems with the 'flutter' 
-command line without it. If you do so, you may skip to 
+method is highly recommended as you may run into path problems with the 'flutter'
+command line without it. If you do so, you may skip to
 [Run Veilid setup script](#Run Veilid setup script).
 
 * build-tools;33.0.1
@@ -37,7 +39,6 @@ command line without it. If you do so, you may skip to
 * platforms;android-33
 
 #### Setup Dependencies using the CLI
-
 
 You can automatically install the prerequisites using this script:
 
@@ -88,20 +89,21 @@ cd veilid-flutter
 ./setup_flutter.sh
 ```
 
-
 ### macOS
 
 Development of Veilid on MacOS is possible on both Intel and ARM hardware.
 
 Development requires:
-* Android Studio 
+
+* Android Studio
 * Xcode, preferably latest version
 * Homebrew [here](https://brew.sh)
 * Android SDK and NDK
 * Rust
 
-You will need to use Android Studio [here](https://developer.android.com/studio) 
+You will need to use Android Studio [here](https://developer.android.com/studio)
 to maintain your Android dependencies. Use the SDK Manager in the IDE to install the following packages (use package details view to select version):
+
 * Android SDK Build Tools (33.0.1)
 * NDK (Side-by-side) (25.1.8937393)
 * Cmake (3.22.1)
@@ -121,7 +123,7 @@ export PATH=\$PATH:$HOME/Library/Android/sdk/platform-tools
 EOF
 ```
 
-#### Run Veilid setup script
+#### Run Veilid setup script (macOS)
 
 Now you may run the MacOS setup script to check your development environment and
 pull the remaining Rust dependencies:
@@ -130,7 +132,7 @@ pull the remaining Rust dependencies:
 ./dev-setup/setup_macos.sh
 ```
 
-#### Run the veilid-flutter setup script (optional)
+#### Run the veilid-flutter setup script (optional) (macOS)
 
 If you are developing Flutter applications or the flutter-veilid portion, you should
 install Android Studio, and run the flutter setup script:
@@ -144,13 +146,13 @@ cd veilid-flutter
 
 For a simple installation allowing Rust development, follow these steps:
 
-Install Git from https://git-scm.com/download/win
+Install Git from <https://git-scm.com/download/win>
 
-Install Rust from https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe
+Install Rust from <https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe>
 
-Ensure that protoc.exe is in a directory in your path. For example, it can be obtained from https://github.com/protocolbuffers/protobuf/releases/download/v24.2/protoc-24.2-win64.zip
+Ensure that protoc.exe is in a directory in your path. For example, it can be obtained from <https://github.com/protocolbuffers/protobuf/releases/download/v24.2/protoc-24.2-win64.zip>
 
-Ensure that capnp.exe is in a directory in your path. For example, it can be obtained from https://capnproto.org/capnproto-c++-win32-0.10.4.zip
+Ensure that capnp.exe is in a directory in your path. For example, it can be obtained from <https://capnproto.org/capnproto-c++-win32-0.10.4.zip>
 
 Start a Command Prompt window.
 
