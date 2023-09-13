@@ -404,4 +404,12 @@ impl ConnectionManager {
             let _ = sender.send_async(ConnectionManagerEvent::Dead(conn)).await;
         }
     }
+
+    pub async fn debug_print(&self) -> String {
+        //let inner = self.arc.inner.lock();
+        format!(
+            "Connection Table:\n\n{}",
+            self.arc.connection_table.debug_print_table()
+        )
+    }
 }

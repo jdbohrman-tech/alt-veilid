@@ -391,6 +391,17 @@ impl NetworkConnection {
                 .await;
         }.instrument(trace_span!("process_connection")))
     }
+
+    pub fn debug_print(&self, cur_ts: Timestamp) -> String {
+        format!("{} <- {} | {:x} | est {} sent {} rcvd {}",
+            self.descriptor.remote_address(), 
+            self.descriptor.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
+            self.connection_id.as_u64(),
+            debug_duration(cur_ts.as_u64().saturating_sub(self.established_time.as_u64())),
+            self.stats().last_message_sent_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
+            self.stats().last_message_recv_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
+        )
+    }
 }
 
 // Resolves ready when the connection loop has terminated

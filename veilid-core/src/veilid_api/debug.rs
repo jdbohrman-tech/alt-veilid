@@ -682,6 +682,7 @@ impl VeilidAPI {
     async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
+        let connection_manager = self.network_manager()?.connection_manager();
         let nodeinfo = routing_table.debug_info_nodeinfo();
 
         // Dump core state
@@ -702,7 +703,11 @@ impl VeilidAPI {
                 format_opt_bps(Some(peer.peer_stats.transfer.up.average)),
             );
         }
-        Ok(format!("{}\n\n{}\n\n", nodeinfo, peertable))
+
+        // Dump connection table
+        let connman = connection_manager.debug_print().await;
+
+        Ok(format!("{}\n\n{}\n\n{}\n\n", nodeinfo, peertable, connman))
     }
 
     async fn debug_config(&self, args: String) -> VeilidAPIResult<String> {
