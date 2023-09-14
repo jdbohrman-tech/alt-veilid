@@ -72,6 +72,15 @@ impl ConnectionTable {
         }
     }
 
+    fn index_to_protocol(idx: usize) -> ProtocolType {
+        match idx {
+            0 => ProtocolType::TCP,
+            1 => ProtocolType::WS,
+            2 => ProtocolType::WSS,
+            _ => panic!("not a connection-oriented protocol"),
+        }
+    }
+
     #[instrument(level = "trace", skip(self))]
     pub async fn join(&self) {
         let mut unord = {
@@ -330,5 +339,24 @@ impl ConnectionTable {
         }
         let conn = Self::remove_connection_records(&mut *inner, id);
         Some(conn)
+    }
+
+    pub fn debug_print_table(&self) -> String {
+        let mut out = String::new();
+        let inner = self.inner.lock();
+        let cur_ts = get_aligned_timestamp();
+        for t in 0..inner.conn_by_id.len() {
+            out += &format!(
+                "  {} Connections: ({}/{})\n",
+                Self::index_to_protocol(t).to_string(),
+                inner.conn_by_id[t].len(),
+                inner.max_connections[t]
+            );
+
+            for (_, conn) in &inner.conn_by_id[t] {
+                out += &format!("    {}\n", conn.debug_print(cur_ts));
+            }
+        }
+        out
     }
 }

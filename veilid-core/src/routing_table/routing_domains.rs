@@ -470,7 +470,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 return ContactMethod::Unreachable;
             };
 
-            // Can we reach the full relay?
+            // Can we reach the inbound relay?
             if first_filtered_dial_info_detail_between_nodes(
                 node_a,
                 &node_b_relay,
@@ -480,11 +480,30 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             )
             .is_some()
             {
+                ///////// Reverse connection
+
+                // Get the best match dial info for an reverse inbound connection from node B to node A
+                if let Some(reverse_did) = first_filtered_dial_info_detail_between_nodes(
+                    node_b,
+                    node_a,
+                    &dial_info_filter,
+                    sequencing,
+                    dif_sort.clone()
+                ) {
+                    // Can we receive a direct reverse connection?
+                    if !reverse_did.class.requires_signal() {
+                        return ContactMethod::SignalReverse(
+                            node_b_relay_id,
+                            node_b_id,
+                        );
+                    }
+                }
+
                 return ContactMethod::InboundRelay(node_b_relay_id);
             }
         }
 
-        // If node A can't reach the node by other means, it may need to use its own relay
+        // If node A can't reach the node by other means, it may need to use its outbound relay
         if peer_a.signed_node_info().node_info().network_class().outbound_wants_relay() {
             if let Some(node_a_relay_id) = peer_a.signed_node_info().relay_ids().get(best_ck) {
                 // Ensure it's not our relay we're trying to reach
