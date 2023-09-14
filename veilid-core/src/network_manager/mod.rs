@@ -665,7 +665,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), err)]
     pub async fn handle_signal(
         &self,
-        connection_descriptor: ConnectionDescriptor,
+        signal_connection_descriptor: ConnectionDescriptor,
         signal_info: SignalInfo,
     ) -> EyreResult<NetworkResult<()>> {
         match signal_info {
@@ -689,8 +689,9 @@ impl NetworkManager {
                 };
 
                 // Restrict reverse connection to same protocol as inbound signal
-                let peer_nr = peer_nr
-                    .filtered_clone(NodeRefFilter::from(connection_descriptor.protocol_type()));
+                let peer_nr = peer_nr.filtered_clone(NodeRefFilter::from(
+                    signal_connection_descriptor.protocol_type(),
+                ));
 
                 // Make a reverse connection to the peer and send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)

@@ -184,10 +184,20 @@ impl ConnectionTable {
         // then drop the least recently used connection
         let mut out_conn = None;
         if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
-            if let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
+            while let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
                 let lruk = *lruk;
-                log_net!(debug "connection lru out: {:?}", lru_conn);
+
+                // Don't LRU protected connections
+                if lru_conn.is_protected() {
+                    // Mark as recently used
+                    log_net!(debug "== No LRU Out for PROTECTED connection: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
+                    inner.conn_by_id[protocol_index].get(&lruk);
+                    continue;
+                }
+
+                log_net!(debug "== LRU Connection Killed: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
                 out_conn = Some(Self::remove_connection_records(&mut *inner, lruk));
+                break;
             }
         }
 
