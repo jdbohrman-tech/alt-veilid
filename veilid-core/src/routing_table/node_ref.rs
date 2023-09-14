@@ -244,7 +244,7 @@ pub trait NodeRefBase: Sized {
         })
     }
 
-    fn all_filtered_dial_info_details<F>(&self) -> Vec<DialInfoDetail> {
+    fn all_filtered_dial_info_details(&self) -> Vec<DialInfoDetail> {
         let routing_domain_set = self.routing_domain_set();
         let dial_info_filter = self.dial_info_filter();
 

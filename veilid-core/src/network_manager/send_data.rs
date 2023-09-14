@@ -18,6 +18,36 @@ impl NetworkManager {
         let this = self.clone();
         Box::pin(
             async move {
+
+                // First try to send data to the last socket we've seen this peer on
+                let data = if let Some(connection_descriptor) = destination_node_ref.last_connection() {
+                    match this
+                        .net()
+                        .send_data_to_existing_connection(connection_descriptor, data)
+                        .await?
+                    {
+                        None => {
+                            // Update timestamp for this last connection since we just sent to it
+                            destination_node_ref
+                                .set_last_connection(connection_descriptor, get_aligned_timestamp());
+
+                            return Ok(NetworkResult::value(SendDataKind::Existing(
+                                connection_descriptor,
+                            )));
+                        }
+                        Some(data) => {
+                            // Couldn't send data to existing connection
+                            // so pass the data back out
+                            data
+                        }
+                    }
+                } else {
+                    // No last connection
+                    data
+                };
+
+                // No existing connection was found or usable, so we proceed to see how to make a new one
+                
                 // Get the best way to contact this node
                 let contact_method = this.get_node_contact_method(destination_node_ref.clone())?;
 

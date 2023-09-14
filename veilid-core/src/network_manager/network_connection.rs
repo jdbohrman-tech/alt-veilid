@@ -94,6 +94,7 @@ pub struct NetworkConnection {
     stats: Arc<Mutex<NetworkConnectionStats>>,
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
+    protected: bool,
 }
 
 impl NetworkConnection {
@@ -112,6 +113,7 @@ impl NetworkConnection {
             })),
             sender,
             stop_source: None,
+            protected: false,
         }
     }
 
@@ -157,6 +159,7 @@ impl NetworkConnection {
             stats,
             sender,
             stop_source: Some(stop_source),
+            protected: false,
         }
     }
 
@@ -170,6 +173,14 @@ impl NetworkConnection {
 
     pub fn get_handle(&self) -> ConnectionHandle {
         ConnectionHandle::new(self.connection_id, self.descriptor.clone(), self.sender.clone())
+    }
+
+    pub fn is_protected(&self) -> bool {
+        self.protected
+    }
+
+    pub fn protect(&mut self) {
+        self.protected = true;
     }
 
     pub fn close(&mut self) {
