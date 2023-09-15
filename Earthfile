@@ -74,14 +74,14 @@ deps-linux:
 # Code + Linux deps
 code-linux:
     FROM +deps-linux
-    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --dir .cargo .capnp_version .protoc_version files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
     RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> /veilid/.cargo/config.toml
     WORKDIR /veilid
 
 # Code + Linux + Android deps
 code-android:
     FROM +deps-android
-    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --dir .cargo .capnp_version .protoc_version files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
     RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> /veilid/.cargo/config.toml
     RUN cat /veilid/scripts/earthly/cargo-android/config.toml >> /veilid/.cargo/config.toml
     WORKDIR /veilid
