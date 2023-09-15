@@ -90,7 +90,7 @@ fn main() {
         < desired_protoc_major_version
     {
         panic!(
-            "capnproto version should be at least major version {} but is {}",
+            "protoc version should be at least major version {} but is {}",
             desired_protoc_major_version, protoc_version_string
         );
     } else if protoc_version_string != desired_protoc_version_string {
