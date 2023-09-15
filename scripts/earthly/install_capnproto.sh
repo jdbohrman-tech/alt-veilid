@@ -1,9 +1,12 @@
 #!/bin/bash
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CAPNPROTO_VERSION=$(cat "$SCRIPTDIR/../../.capnp_version")
+
 mkdir /tmp/capnproto-install
 pushd /tmp/capnproto-install
-curl -O https://capnproto.org/capnproto-c++-0.10.4.tar.gz
-tar zxf capnproto-c++-0.10.4.tar.gz
-cd capnproto-c++-0.10.4
+curl -O https://capnproto.org/capnproto-c++-${CAPNPROTO_VERSION}.tar.gz
+tar zxf capnproto-c++-${CAPNPROTO_VERSION}.tar.gz
+cd capnproto-c++-${CAPNPROTO_VERSION}
 ./configure --without-openssl
 make -j$1 check
 if [ "$EUID" -ne 0 ]; then
