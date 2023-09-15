@@ -10,7 +10,7 @@ These network support nodes are heavier than the node a user would establish on 
 
 Follow the steps here to add the repo to a Debian based system and install Veilid.
 
-**Step 1**: Add the GPG keys to your operating systems keyring.
+**Step 1**: Add the GPG keys to your operating systems keyring.<br />
 *Explanation*: The `wget` command downloads the public key, and the `sudo gpg` command adds the public key to the keyring.
 
 ```shell
@@ -74,29 +74,26 @@ sudo dnf install veilid-server veilid-cli
 
 ## Start headless node
 
-To start a headless Veilid node, run as root:
+### With systemd
+
+To start a headless Veilid node, run:
 
 ```shell
-systemctl start veilid-server.service
+sudo systemctl start veilid-server.service
 ```
 
-To have your Veilid node start at boot:
+To have your headless Veilid node start at boot:
 
 ```shell
-systemctl enable --now veilid-server.service
+sudo systemctl enable --now veilid-server.service
 ```
 
-> **Not recommended:**
-> In cases where you must run `veilid-server`
-> without `systemd` (e.g., systems that use OpenRC, or containers),
-> you _must_ run the `veilid-server`
-> as the `veilid` user.
-> Do this manually by running as root:
->
-> ```shell
-> # Force-allow login by setting shell
-> usermod -s /bin/bash veilid
-> # Run veilid-server as veilid user
-> # Note that by default, veilid user is still passwordless.
-> sudo -u veilid veilid-server
-> ```
+### Without systemd
+
+`veilid-server` must be run as the `veilid` user.
+
+To start your headless Veilid node without systemd, run:
+
+```shell
+sudo -u veilid veilid-server
+```
