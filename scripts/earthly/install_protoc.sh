@@ -1,6 +1,10 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-PROTOC_VERSION=$(cat "$SCRIPTDIR/../../.protoc_version")
+if [ -f ".protoc_version" ]; then 
+    PROTOC_VERSION=$(cat ".protoc_version")
+else
+    PROTOC_VERSION=$(cat "$SCRIPTDIR/../../.protoc_version")
+fi
 
 UNAME_M=$(uname -m)
 if [[ "$UNAME_M" == "x86_64" ]]; then 

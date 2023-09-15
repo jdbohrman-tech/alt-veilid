@@ -1,6 +1,10 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-CAPNPROTO_VERSION=$(cat "$SCRIPTDIR/../../.capnp_version")
+if [ -f ".capnp_version" ]; then 
+    CAPNPROTO_VERSION=$(cat ".capnp_version")
+else
+    CAPNPROTO_VERSION=$(cat "$SCRIPTDIR/../../.capnp_version")
+fi
 
 mkdir /tmp/capnproto-install
 pushd /tmp/capnproto-install
