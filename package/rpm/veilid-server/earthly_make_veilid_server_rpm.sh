@@ -10,4 +10,4 @@ cp -rf /veilid/package/rpm/veilid-server/veilid-server.spec /root/rpmbuild/SPECS
 /veilid/package/replace_variable.sh /root/rpmbuild/SPECS/veilid-server.spec CARGO_ARCH $CARGO_ARCH
 
 # build the rpm
-rpmbuild --target "x86_64" -bb /root/rpmbuild/SPECS/veilid-server.spec
+rpmbuild --target "$ARCH" -bb /root/rpmbuild/SPECS/veilid-server.spec
