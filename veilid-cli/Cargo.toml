@@ -54,7 +54,7 @@ flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"
 hex = "^0"
-veilid-tools = { version = "0.2.0", path = "../veilid-tools" }
+veilid-tools = { version = "0.2.1", path = "../veilid-tools" }
 
 json = "^0"
 stop-token = { version = "^0", default-features = false }
