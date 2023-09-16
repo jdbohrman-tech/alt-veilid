@@ -1,15 +1,27 @@
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-fn get_workspace_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .canonicalize()
-        .expect("want workspace dir")
+fn search_file<T: AsRef<str>, P: AsRef<str>>(start: T, name: P) -> Option<PathBuf> {
+    let start_path = PathBuf::from(start.as_ref()).canonicalize().ok();
+    let mut path = start_path.as_ref().map(|x| x.as_path());
+    while let Some(some_path) = path {
+        let file_path = some_path.join(name.as_ref());
+        if file_path.exists() {
+            return Some(file_path.to_owned());
+        }
+        path = some_path.parent();
+    }
+    None
 }
+
 fn get_desired_capnp_version_string() -> String {
-    std::fs::read_to_string(get_workspace_dir().join(".capnp_version"))
-        .expect("should find .capnp_version file")
+    let capnp_path = search_file(env!("CARGO_MANIFEST_DIR"), ".capnp_version")
+        .expect("should find .capnp_version file");
+    std::fs::read_to_string(&capnp_path)
+        .expect(&format!(
+            "can't read .capnp_version file here: {:?}",
+            capnp_path
+        ))
         .trim()
         .to_owned()
 }
@@ -32,8 +44,13 @@ fn get_capnp_version_string() -> String {
 }
 
 fn get_desired_protoc_version_string() -> String {
-    std::fs::read_to_string(get_workspace_dir().join(".protoc_version"))
-        .expect("should find .protoc_version file")
+    let protoc_path = search_file(env!("CARGO_MANIFEST_DIR"), ".protoc_version")
+        .expect("should find .protoc_version file");
+    std::fs::read_to_string(&protoc_path)
+        .expect(&format!(
+            "can't read .protoc_version file here: {:?}",
+            protoc_path
+        ))
         .trim()
         .to_owned()
 }
