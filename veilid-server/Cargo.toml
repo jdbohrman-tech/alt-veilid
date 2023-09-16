@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-server"
-version = "0.2.1"
+version = "0.2.2"
 # ---
 description = "Veilid Server"
 authors = ["Veilid Team <contact@veilid.com>"]
@@ -61,7 +61,7 @@ serde = "^1"
 serde_derive = "^1"
 serde_yaml = "^0"
 json = "^0"
-futures-util = { version = "^0", default_features = false, features = [
+futures-util = { version = "^0", default-features = false, features = [
     "alloc",
 ] }
 url = "^2"

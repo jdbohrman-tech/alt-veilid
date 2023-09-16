@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-tools"
-version = "0.2.1"
+version = "0.2.2"
 # ---
 description = "A collection of baseline tools for Rust development use by Veilid and Veilid-enabled Rust applications"
 authors = ["Veilid Team <contact@veilid.com>"]
@@ -41,7 +41,7 @@ eyre = "0.6.8"
 static_assertions = "1.1.0"
 cfg-if = "1.0.0"
 thiserror = "1.0.47"
-futures-util = { version = "0.3.28", default_features = false, features = [
+futures-util = { version = "0.3.28", default-features = false, features = [
     "alloc",
 ] }
 parking_lot = "0.12.1"

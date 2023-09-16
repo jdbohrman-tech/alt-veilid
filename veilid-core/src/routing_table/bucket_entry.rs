@@ -649,9 +649,10 @@ impl BucketEntryInner {
             return false;
         }
 
-        // if we have seen the node consistently for longer that UNRELIABLE_PING_SPAN_SECS
         match self.peer_stats.rpc_stats.first_consecutive_seen_ts {
+            // If we have not seen seen a node consecutively, it can't be reliable
             None => false,
+            // If we have seen the node consistently for longer than UNRELIABLE_PING_SPAN_SECS then it is reliable
             Some(ts) => {
                 cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }
@@ -662,11 +663,13 @@ impl BucketEntryInner {
         if self.peer_stats.rpc_stats.failed_to_send >= NEVER_REACHED_PING_COUNT {
             return true;
         }
-        // if we have not heard from the node at all for the duration of the unreliable ping span
-        // a node is not dead if we haven't heard from it yet,
-        // but we give it NEVER_REACHED_PING_COUNT chances to ping before we say it's dead
+
         match self.peer_stats.rpc_stats.last_seen_ts {
-            None => self.peer_stats.rpc_stats.recent_lost_answers < NEVER_REACHED_PING_COUNT,
+            // a node is not dead if we haven't heard from it yet,
+            // but we give it NEVER_REACHED_PING_COUNT chances to ping before we say it's dead
+            None => self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_REACHED_PING_COUNT,
+            
+            // return dead if we have not heard from the node at all for the duration of the unreliable ping span
             Some(ts) => {
                 cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }

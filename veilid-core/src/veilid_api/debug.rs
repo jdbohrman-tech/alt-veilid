@@ -871,6 +871,47 @@ impl VeilidAPI {
         Ok(format!("{:#?}", cm))
     }
 
+    async fn debug_resolve(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+
+        let dest = async_get_debug_argument_at(
+            &args,
+            0,
+            "debug_resolve",
+            "destination",
+            get_destination(routing_table.clone()),
+        )
+        .await?;
+
+        match &dest {
+            Destination::Direct {
+                target,
+                safety_selection: _,
+            } => Ok(format!(
+                "Destination: {:#?}\nTarget Entry:\n{}\n",
+                &dest,
+                routing_table.debug_info_entry(target.clone())
+            )),
+            Destination::Relay {
+                relay,
+                target,
+                safety_selection: _,
+            } => Ok(format!(
+                "Destination: {:#?}\nTarget Entry:\n{}\nRelay Entry:\n{}\n",
+                &dest,
+                routing_table.clone().debug_info_entry(target.clone()),
+                routing_table.debug_info_entry(relay.clone())
+            )),
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _,
+            } => Ok(format!("Destination: {:#?}", &dest)),
+        }
+    }
+
     async fn debug_ping(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -1620,6 +1661,7 @@ attach
 detach
 restart network
 contact <node>[<modifiers>]
+resolve <destination>
 ping <destination>
 appmessage <destination> <data>
 appcall <destination> <data>
@@ -1707,6 +1749,8 @@ record list <local|remote>
                 self.debug_app_call(rest).await
             } else if arg == "appreply" {
                 self.debug_app_reply(rest).await
+            } else if arg == "resolve" {
+                self.debug_resolve(rest).await
             } else if arg == "contact" {
                 self.debug_contact(rest).await
             } else if arg == "nodeinfo" {
