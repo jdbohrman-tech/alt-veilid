@@ -27,18 +27,18 @@ fn get_desired_capnp_version_string() -> String {
 }
 
 fn get_capnp_version_string() -> String {
-    let output = Command::new("capnpc")
+    let output = Command::new("capnp")
         .arg("--version")
         .stdout(Stdio::piped())
         .output()
-        .expect("capnpc was not in the PATH");
+        .expect("capnp was not in the PATH");
     let s = String::from_utf8(output.stdout)
-        .expect("'capnpc --version' output was not a valid string")
+        .expect("'capnp --version' output was not a valid string")
         .trim()
         .to_owned();
 
     if !s.starts_with("Cap'n Proto version ") {
-        panic!("invalid capnpc version string: {}", s);
+        panic!("invalid capnp version string: {}", s);
     }
     s[20..].to_owned()
 }
