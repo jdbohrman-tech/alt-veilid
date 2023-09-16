@@ -122,7 +122,7 @@ impl RoutingContext {
             Target::NodeId(node_id) => {
                 // Resolve node
                 let mut nr = match rpc_processor
-                    .resolve_node(node_id, self.unlocked_inner.safety_selection)
+                    .lookup_or_resolve_node(node_id, self.unlocked_inner.safety_selection)
                     .await
                 {
                     Ok(Some(nr)) => nr,

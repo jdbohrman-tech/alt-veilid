@@ -1008,7 +1008,10 @@ impl NetworkManager {
             let some_relay_nr = if self.check_client_whitelist(sender_id) {
                 // Full relay allowed, do a full resolve_node
                 match rpc
-                    .resolve_node(recipient_id, SafetySelection::Unsafe(Sequencing::default()))
+                    .lookup_or_resolve_node(
+                        recipient_id,
+                        SafetySelection::Unsafe(Sequencing::default()),
+                    )
                     .await
                 {
                     Ok(v) => v,

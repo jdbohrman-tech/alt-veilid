@@ -344,14 +344,14 @@ fn resolve_node_ref(
                 let node_id = TypedKey::new(best_crypto_kind(), key);
                 routing_table
                     .rpc_processor()
-                    .resolve_node(node_id, safety_selection)
+                    .lookup_or_resolve_node(node_id, safety_selection)
                     .await
                     .ok()
                     .flatten()?
             } else if let Some(node_id) = get_typed_key(text) {
                 routing_table
                     .rpc_processor()
-                    .resolve_node(node_id, safety_selection)
+                    .lookup_or_resolve_node(node_id, safety_selection)
                     .await
                     .ok()
                     .flatten()?
