@@ -441,15 +441,27 @@ checksum = "ecc7ab41815b3c653ccd2978ec3255c81349336702dfdf62ee6f7069b12a3aae"
 
 [[package]]
 name = "async-tls"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7e7fbc0843fc5ad3d5ca889c5b2bea9130984d34cd0e62db57ab70c2529a8e3"
+dependencies = [
+ "futures",
+ "rustls 0.18.1",
+ "webpki 0.21.4",
+ "webpki-roots 0.20.0",
+]
+
+[[package]]
+name = "async-tls"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfeefd0ca297cbbb3bd34fd6b228401c2a5177038257afd751bc29f0a2da4795"
 dependencies = [
  "futures-core",
  "futures-io",
- "rustls",
+ "rustls 0.20.9",
  "rustls-pemfile",
- "webpki",
+ "webpki 0.22.1",
  "webpki-roots 0.22.6",
 ]
 
@@ -470,6 +482,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5c45a0dd44b7e6533ac4e7acc38ead1a3b39885f5bbb738140d30ea528abc7c"
 dependencies = [
+ "async-tls 0.9.0",
  "futures-io",
  "futures-util",
  "log",
@@ -483,7 +496,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1e9efbe14612da0a19fb983059a0b621e9cf6225d7018ecab4f9988215540dc"
 dependencies = [
- "async-tls",
+ "async-tls 0.12.0",
  "futures-io",
  "futures-util",
  "log",
@@ -2149,19 +2162,6 @@ name = "gloo-utils"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
-dependencies = [
- "js-sys",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
-name = "gloo-utils"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b5555354113b18c547c1d3a98fbf7fb32a9ff4f6fa112ce823a21641a0ba3aa"
 dependencies = [
  "js-sys",
  "serde",
@@ -4220,14 +4220,27 @@ dependencies = [
 
 [[package]]
 name = "rustls"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d1126dcf58e93cee7d098dbda643b5f92ed724f1f6a63007c1116eed6700c81"
+dependencies = [
+ "base64 0.12.3",
+ "log",
+ "ring",
+ "sct 0.6.1",
+ "webpki 0.21.4",
+]
+
+[[package]]
+name = "rustls"
 version = "0.20.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b80e3dec595989ea8510028f30c408a4630db12c9cbb8de34203b89d6577e99"
 dependencies = [
  "log",
  "ring",
- "sct",
- "webpki",
+ "sct 0.7.0",
+ "webpki 0.22.1",
 ]
 
 [[package]]
@@ -4295,6 +4308,16 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "sct"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b362b83898e0e69f38515b82ee15aa80636befe47c3b6d3d89a911e78fc228ce"
+dependencies = [
+ "ring",
+ "untrusted",
+]
 
 [[package]]
 name = "sct"
@@ -5394,7 +5417,7 @@ version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6b26cf145f2f3b9ff84e182c448eaf05468e247f148cf3d2a7d67d78ff023a0"
 dependencies = [
- "gloo-utils 0.1.7",
+ "gloo-utils",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -5580,7 +5603,7 @@ checksum = "a9ee584edf237fac328b891dd06c21e7914a1db3762907edc366a13803451fe3"
 
 [[package]]
 name = "veilid-cli"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "arboard",
  "async-std",
@@ -5602,7 +5625,7 @@ dependencies = [
  "indent",
  "json",
  "log",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "serde",
  "serde_derive",
  "serial_test 0.10.0",
@@ -5616,14 +5639,14 @@ dependencies = [
 
 [[package]]
 name = "veilid-core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "argon2",
  "async-io",
  "async-lock",
  "async-std",
  "async-std-resolver",
- "async-tls",
+ "async-tls 0.12.0",
  "async-tungstenite 0.23.0",
  "async_executors",
  "backtrace",
@@ -5675,7 +5698,7 @@ dependencies = [
  "range-set-blaze",
  "rtnetlink",
  "rusqlite",
- "rustls",
+ "rustls 0.20.9",
  "rustls-pemfile",
  "schemars",
  "send_wrapper 0.6.0",
@@ -5710,7 +5733,7 @@ dependencies = [
  "wasm-logger",
  "weak-table",
  "web-sys",
- "webpki",
+ "webpki 0.22.1",
  "webpki-roots 0.25.2",
  "wee_alloc",
  "winapi",
@@ -5722,7 +5745,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-flutter"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "allo-isolate",
  "async-std",
@@ -5737,7 +5760,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "serde",
  "serde_json",
  "tokio",
@@ -5774,11 +5797,11 @@ dependencies = [
 
 [[package]]
 name = "veilid-server"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "ansi_term",
  "async-std",
- "async-tungstenite 0.23.0",
+ "async-tungstenite 0.8.0",
  "backtrace",
  "cfg-if 1.0.0",
  "clap 4.4.3",
@@ -5793,11 +5816,11 @@ dependencies = [
  "hostname",
  "json",
  "lazy_static",
- "nix 0.27.1",
+ "nix 0.22.3",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "rpassword",
  "serde",
  "serde_derive",
@@ -5824,7 +5847,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-tools"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "android_logger 0.13.3",
  "async-lock",
@@ -5876,17 +5899,17 @@ dependencies = [
 
 [[package]]
 name = "veilid-wasm"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
  "data-encoding",
  "futures-util",
- "gloo-utils 0.2.0",
+ "gloo-utils",
  "js-sys",
  "lazy_static",
  "parking_lot 0.12.1",
- "send_wrapper 0.6.0",
+ "send_wrapper 0.4.0",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -6071,6 +6094,16 @@ dependencies = [
 
 [[package]]
 name = "webpki"
+version = "0.21.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8e38c0608262c46d4a56202ebabdeb094cef7e560ca7a226c6bf055188aa4ea"
+dependencies = [
+ "ring",
+ "untrusted",
+]
+
+[[package]]
+name = "webpki"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0e74f82d49d545ad128049b7e88f6576df2da6b02e9ce565c6f533be576957e"
@@ -6081,11 +6114,20 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f20dea7535251981a9670857150d571846545088359b28e4951d350bdaf179f"
+dependencies = [
+ "webpki 0.21.4",
+]
+
+[[package]]
+name = "webpki-roots"
 version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
 dependencies = [
- "webpki",
+ "webpki 0.22.1",
 ]
 
 [[package]]
