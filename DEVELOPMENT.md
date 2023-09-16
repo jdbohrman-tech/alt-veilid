@@ -148,11 +148,11 @@ For a simple installation allowing Rust development, follow these steps:
 
 Install Git from <https://git-scm.com/download/win>
 
-Install Rust from <https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe>
+Install Rust from <https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe> (this may prompt you to run the Visual Studio Installer, and reboot, before proceeding).
 
-Ensure that protoc.exe is in a directory in your path. For example, it can be obtained from <https://github.com/protocolbuffers/protobuf/releases/download/v24.2/protoc-24.2-win64.zip>
+Ensure that protoc.exe is in a directory in your path. For example, it can be obtained from <https://github.com/protocolbuffers/protobuf/releases/download/v24.3/protoc-24.3-win64.zip>
 
-Ensure that capnp.exe is in a directory in your path. For example, it can be obtained from <https://capnproto.org/capnproto-c++-win32-0.10.4.zip>
+Ensure that capnp.exe (for Cap’n Proto 1.0.1) is in a directory in your path. For example, it can be obtained from the <https://capnproto.org/capnproto-c++-win32-1.0.1.zip> distribution. Please note that the Windows Package Manager Community Repository (i.e., winget) as of 2023-09-15 has version 0.10.4, which is not sufficient.
 
 Start a Command Prompt window.
 
