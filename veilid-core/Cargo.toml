@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-core"
-version = "0.2.1"
+version = "0.2.2"
 # ---
 description = "Core library used to create a Veilid node and operate it as part of an application"
 authors = ["Veilid Team <contact@veilid.com>"]
@@ -59,7 +59,7 @@ network-result-extra = ["veilid-tools/network-result-extra"]
 [dependencies]
 
 # Tools
-veilid-tools = { version = "0.2.1", path = "../veilid-tools", features = [
+veilid-tools = { version = "0.2.2", path = "../veilid-tools", features = [
     "tracing",
 ], default-features = false }
 paste = "1.0.14"
@@ -182,7 +182,7 @@ socket2 = { version = "0.5.3", features = ["all"] }
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 
-veilid-tools = { version = "0.2.1", path = "../veilid-tools", default-features = false, features = [
+veilid-tools = { version = "0.2.2", path = "../veilid-tools", default-features = false, features = [
     "rt-wasm-bindgen",
 ] }
 
