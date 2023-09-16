@@ -1661,6 +1661,7 @@ attach
 detach
 restart network
 contact <node>[<modifiers>]
+resolve <destination>
 ping <destination>
 appmessage <destination> <data>
 appcall <destination> <data>
@@ -1748,6 +1749,8 @@ record list <local|remote>
                 self.debug_app_call(rest).await
             } else if arg == "appreply" {
                 self.debug_app_reply(rest).await
+            } else if arg == "resolve" {
+                self.debug_resolve(rest).await
             } else if arg == "contact" {
                 self.debug_contact(rest).await
             } else if arg == "nodeinfo" {

@@ -404,7 +404,7 @@ impl NetworkConnection {
     }
 
     pub fn debug_print(&self, cur_ts: Timestamp) -> String {
-        format!("{} <- {} | {:x} | est {} sent {} rcvd {}",
+        format!("{} <- {} | {} | est {} sent {} rcvd {}",
             self.descriptor.remote_address(), 
             self.descriptor.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
             self.connection_id.as_u64(),

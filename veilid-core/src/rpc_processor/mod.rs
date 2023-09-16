@@ -453,9 +453,9 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
-    /// Search the DHT for a single node and add it to the routing table and return the node reference
+    /// Search the network for a single node and add it to the routing table and return the node reference
     /// If no node was found in the timeout, this returns None
-    async fn search_dht_single_key(
+    async fn search_for_node_id(
         &self,
         node_id: TypedKey,
         count: usize,
@@ -561,7 +561,7 @@ impl RPCProcessor {
 
             // Search in preferred cryptosystem order
             let nr = match this
-                .search_dht_single_key(node_id, node_count, fanout, timeout, safety_selection)
+                .search_for_node_id(node_id, node_count, fanout, timeout, safety_selection)
                 .await
             {
                 TimeoutOr::Timeout => None,
@@ -570,13 +570,6 @@ impl RPCProcessor {
                     return Err(e);
                 }
             };
-
-            if let Some(nr) = &nr {
-                if nr.node_ids().contains(&node_id) {
-                    // found a close node, but not exact within our configured resolve_node timeout
-                    return Ok(None);
-                }
-            }
 
             Ok(nr)
         })
