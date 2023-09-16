@@ -25,8 +25,8 @@ NEW_VERSION=$(cat .bumpversion.cfg | grep current_version\ = | cut -d\  -f3)
 echo NEW_VERSION=$NEW_VERSION
 
 # Update crate dependencies for the crates we publish
-cargo upgrade -p veilid-tools@$NEW_VERSION
-cargo upgrade -p veilid-core@$NEW_VERSION
+cargo upgrade veilid-tools@$NEW_VERSION
+cargo upgrade veilid-core@$NEW_VERSION
 
 # Update lockfile
 cargo update
