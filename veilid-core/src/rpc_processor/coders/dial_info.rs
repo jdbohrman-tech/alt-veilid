@@ -32,8 +32,13 @@ pub fn decode_dial_info(reader: &veilid_capnp::dial_info::Reader) -> Result<Dial
             let request = ws
                 .get_request()
                 .map_err(RPCError::map_protocol("missing WS request"))?;
-            DialInfo::try_ws(socket_address, request.to_owned())
-                .map_err(RPCError::map_protocol("invalid WS dial info"))
+            DialInfo::try_ws(
+                socket_address,
+                request
+                    .to_string()
+                    .map_err(RPCError::map_protocol("invalid WS request string"))?,
+            )
+            .map_err(RPCError::map_protocol("invalid WS dial info"))
         }
         veilid_capnp::dial_info::Which::Wss(wss) => {
             let wss = wss.map_err(RPCError::protocol)?;
@@ -44,8 +49,13 @@ pub fn decode_dial_info(reader: &veilid_capnp::dial_info::Reader) -> Result<Dial
             let request = wss
                 .get_request()
                 .map_err(RPCError::map_protocol("missing WSS request"))?;
-            DialInfo::try_wss(socket_address, request.to_owned())
-                .map_err(RPCError::map_protocol("invalid WSS dial info"))
+            DialInfo::try_wss(
+                socket_address,
+                request
+                    .to_string()
+                    .map_err(RPCError::map_protocol("invalid WSS request string"))?,
+            )
+            .map_err(RPCError::map_protocol("invalid WSS dial info"))
         }
     }
 }
