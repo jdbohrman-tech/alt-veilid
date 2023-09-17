@@ -25,7 +25,7 @@ cfg_if! {
                 pub async fn resolver(
                     config: config::ResolverConfig,
                     options: config::ResolverOpts,
-                ) -> Result<AsyncResolver, ResolveError> {
+                ) -> AsyncResolver {
                     AsyncResolver::tokio(config, options)
                 }
 
@@ -62,7 +62,6 @@ cfg_if! {
                         config::ResolverOpts::default(),
                     )
                     .await
-                    .expect("failed to connect resolver"),
                 };
 
                 *resolver_lock = Some(resolver.clone());

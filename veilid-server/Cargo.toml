@@ -39,11 +39,11 @@ veilid-core = { path = "../veilid-core", default-features = false }
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-subscriber = { version = "^0", features = ["env-filter"] }
 tracing-appender = "^0"
-tracing-opentelemetry = "0.18"
+tracing-opentelemetry = "0.21"
 # Buggy: tracing-error = "^0"
-opentelemetry = { version = "0.18" }
-opentelemetry-otlp = { version = "0.11" }
-opentelemetry-semantic-conventions = "0.10"
+opentelemetry = { version = "0.20" }
+opentelemetry-otlp = { version = "0.13" }
+opentelemetry-semantic-conventions = "0.12"
 async-std = { version = "^1", features = ["unstable"], optional = true }
 tokio = { version = "^1", features = ["full", "tracing"], optional = true }
 console-subscriber = { version = "^0", optional = true }
@@ -53,7 +53,7 @@ async-tungstenite = { version = "^0", features = ["async-tls"] }
 color-eyre = { version = "^0", default-features = false }
 backtrace = "^0"
 clap = { version = "4", features = ["derive", "string", "wrap_help"] }
-directories = "^4"
+directories = "^5"
 parking_lot = "^0"
 config = { version = "^0", features = ["yaml"] }
 cfg-if = "^1"
@@ -69,10 +69,10 @@ ctrlc = "^3"
 lazy_static = "^1"
 bugsalot = { package = "veilid-bugsalot", version = "0.1.0" }
 flume = { version = "^0", features = ["async"] }
-rpassword = "^6"
+rpassword = "^7"
 hostname = "^0"
 stop-token = { version = "^0", default-features = false }
-sysinfo = { version = "^0.28.4", default-features = false }
+sysinfo = { version = "^0.29.10", default-features = false }
 wg = "0.3.2"
 
 [target.'cfg(windows)'.dependencies]
@@ -89,4 +89,4 @@ nix = "^0"
 tracing-journald = "^0"
 
 [dev-dependencies]
-serial_test = "^0"
+serial_test = "^2"
