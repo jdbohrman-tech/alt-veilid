@@ -1,3 +1,7 @@
+**Changed in Veilid 0.2.3**
+- Security fix for WS denial of service
+- Support for latest Rust 1.72
+
 **Changed in Veilid 0.2.2**
 - Capnproto 1.0.1 + Protobuf 24.3
 - DHT set/get correctness fixes
