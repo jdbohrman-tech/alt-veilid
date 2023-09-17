@@ -1,147 +1,99 @@
-# Veilid Release Process
+# Install and run a Veilid Node
 
-## Introduction
+## Server Grade Headless Nodes
 
-This guide outlines the process for releasing a new version of Veilid. The end result is an update of the package repositories and Pypi.
+These network support nodes are heavier than the node a user would establish on their phone in the form of a chat or social media application. A cloud based virtual private server (VPS), such as Digital Ocean Droplets or AWS EC2, with high bandwidth, processing resources, and uptime availability is crucial for building the fast, secure, and private routing that Veilid is built to provide.
 
-## Create a Gitlab Release
+## Install
 
-Releases happen via a CI/CD pipeline. The release process flows as follows:
+### Debian
 
-1. Complete outstanding merge requests (MR):
+Follow the steps here to add the repo to a Debian based system and install Veilid.
 
-    1.1 Evaluate the MR's adherence to the published requirements and if automatic tests passed.
+**Step 1**: Add the GPG keys to your operating systems keyring.<br />
+*Explanation*: The `wget` command downloads the public key, and the `sudo gpg` command adds the public key to the keyring.
 
-    1.2 (Optional) Perform the merge in a local dev environment if testing is required beyond the standard Earthly tests.
+```shell
+wget -O- https://packages.veilid.net/gpg/veilid-packages-key.public | sudo gpg --dearmor -o /usr/share/keyrings/veilid-packages-keyring.gpg
+```
 
-    1.3 If everything checks out, MR meets the published requirements, and tests passed, execute the merge functions in the Gitlab UI.
+**Step 2**: Identify your architecture<br />
+*Explanation*: The following command will tell you what type of CPU your system is running
 
-2. Maintainer performs version bump:
+```shell
+dpkg --print-architecture
+```
 
-    2.1 Update your local copy of `main` to mirror the newly merged upstream `main`
+**Step 3**: Add Veilid to your list of available software.<br />
+*Explanation*: Use the result of your command in **Step 2** and run **one** of the following:
 
-    2.2 Ensure the [CHANGELOG](./CHANGELOG.md) is updated
+- For **AMD64** based systems run this command:
 
-    2.3 Activate your bumpversion Python venv (see bumpversion setup section for details)
+  ```shell
+  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg] https://packages.veilid.net/apt stable main" | sudo tee /etc/apt/sources.list.d/veilid.list 1>/dev/null
+  ```
 
-    2.4 Execute version_bump.sh with the appropriate parameter (patch, minor, or major). This results in all version entries being updated and a matching git tag created locally.
+- For **ARM64** based systems run this command:
 
-    2.5 Add all changes `git add *`
+  ```shell
+  echo "deb [arch=arm64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg] https://packages.veilid.net/apt stable main" | sudo tee /etc/apt/sources.list.d/veilid.list 1>/dev/null
+  ```
 
-    2.6 Git commit the changes with the following message: `Version update: v{current_version} → v{new_version}`
+*Explanation*:
+Each of the above commands will create a new file called `veilid.list` in the `/etc/apt/sources.list.d/`. This file contains instructions that tell the operating system where to download Veilid.
 
-    2.7 Create the Git tag `git tag v{new_version}`
+**Step 4**: Refresh the package manager.<br />
+*Explanation*: This tells the `apt` package manager to rebuild the list of available software using the files in `/etc/apt/sources.list.d/` directory.
 
-    2.8 Push your local 'main' to the upstream origin 'main' `git push`
+```shell
+sudo apt update
+```
 
-    2.9 Push the new tag to the upstream origin `git push origin {tag name made in step 2.7}` i.e. `git push origin v0.1.5`
+**Step 5**: Install Veilid.
 
-    2.10 Ensure the package/release/distribute pipeline autostarted in the Gitlab UI
+```shell
+sudo apt install veilid-server veilid-cli
+```
 
-Git tags serve as a historical record of what repo versions were successfully released at which version numbers.
+### RPM-based
 
-## Publish to crates.io
+Follow the steps here to add the repo to
+RPM-based systems (CentOS, Rocky Linux, AlmaLinux, Fedora, etc.)
+and install Veilid.
 
-1. Configure the crates.io credentials, if not already accomplished.
-2. Execute `cargo publish -p veilid-tools --dry-run`
-3. Execute `cargo publish -p veilid-tools`
-4. Execute `cargo publish -p veilid-core --dry-run`
-5. Execute `cargo publish -p veilid-core`
+**Step 1**: Add Veilid to your list of available software.
 
-## Publish to Pypi
+```shell
+sudo yum-config-manager --add-repo https://packages.veilid.net/rpm/veilid-rpm-repo.repo
+```
+**Step 2**: Install Veilid.
 
-1. Change directory to veilid-python
-2. Install Poetry and configure the Pypi credentials, if not already accomplished.
-3. Execute `poetry build`
-4. Execute `poetry publish`
+```shell
+sudo dnf install veilid-server veilid-cli
+```
 
-## Reverting Releases
+## Start headless node
 
-Occasionally a release will happen that needs to be reverted. This is done manually on `crates.io` or the APT repository, or wherever the artifacts end up. Tags are not removed.
+### With systemd
 
-## Released Artifacts
+To start a headless Veilid node, run:
 
-### Rust Crates
+```shell
+sudo systemctl start veilid-server.service
+```
 
-- [x] __veilid-tools__ [__Tag__: `veilid-tools-v0.0.0`]
-  > An assortment of useful components used by the other Veilid crates.  
-  > Released to crates.io when its version number is changed in `Cargo.toml`
-- [x] __veilid-core__  [__Tag__: `veilid-core-v0.0.0`]
-  > The base rust crate for Veilid's logic  
-  > Released to crates.io when its version number is changed in `Cargo.toml`
-- [ ] __veilid-server__
-  > The Veilid headless node end-user application  
-  > Not released to crates.io as it is an application binary that is either built by hand or installed using a package manager.  
-  > This application does not currently support `cargo install`
-- [ ] __veilid-cli__ A text user interface to talk to veilid-server and operate it manually
-  > Not released to crates.io as it is an application binary that is either built by hand or installed using a package manager.  
-  > This application does not currently support `cargo install`
-- [ ] __veilid-wasm__
-  > Not released to crates.io as it is not a library that can be linked by other Rust applications
-- [ ] __veilid-flutter__
-  > The Dart-FFI native interface to the Veilid API  
-  > This is currently built by the Flutter plugin `veilid-flutter` and not released.
+To have your headless Veilid node start at boot:
 
-### Python Packages
+```shell
+sudo systemctl enable --now veilid-server.service
+```
 
-- [x] __veilid-python__ [__Tag__: `veilid-python-v0.0.0`]
-  > The Veilid API bindings for Python  
-  > Released to PyPi when the version number is changed in `pyproject.toml`
-  
-### Flutter Plugins
+### Without systemd
 
-- [ ] __veilid-flutter__
-  > The Flutter plugin for the Veilid API.  
-  > Because this requires a build of a native Rust crate, this is not yet released via <https://pub.dev>  
-  > TODO: Eventually the rust crate should be bound to
+`veilid-server` must be run as the `veilid` user.
 
-### Operating System Packages
+To start your headless Veilid node without systemd, run:
 
-- [x] __veilid-server__ DEB package [__Tag__: `veilid-server-deb-v0.0.0`]
-  > The Veilid headless node binary in the following formats:  
-  >
-  > - Standalone Debian/Ubuntu DEB file as a 'release file' on the `veilid` GitLab repository
-  > - Pushed to APT repository at <https://packages.veilid.net>
-  >
-- [x] __veilid-server__ RPM package [__Tag__: `veilid-server-rpm-v0.0.0`]
-  > The Veilid headless node binary in the following formats:  
-  >
-  > - Standalone RedHat/CentOS RPM file as a 'release file' on the `veilid` GitLab repository
-  > - Pushed to Yum repository at <https://packages.veilid.net>
-  >
-- [x] __veilid-cli__ DEB package [__Tag__: `veilid-cli-deb-v0.0.0`]
-  > The Veilid headless node administrator control binary in the following formats:  
-  >
-  > - Standalone Debian/Ubuntu DEB file as a 'release file' on the `veilid` GitLab repository
-  > - Pushed to APT repository at <https://packages.veilid.net>
-  >
-- [x] __veilid-cli__ RPM package [__Tag__: `veilid-cli-rpm-v0.0.0`]
-  > The Veilid headless node administrator control binary in the following formats:  
-  >
-  > - Standalone RedHat/CentOS RPM file as a 'release file' on the `veilid` GitLab repository
-  > - Pushed to Yum repository at <https://packages.veilid.net>
-
-### Version Numbering
-
-All versions of Veilid Rust crates as well as `veilid-python` and `veilid-flutter` packages are versioned using Semver. Versions can differ per crate and package, and it is important for the Semver rules to be followed (<https://semver.org/>):
-
-- MAJOR version when you make incompatible API changes
-- MINOR version when you add functionality in a backward compatible manner
-- PATCH version when you make backward compatible bug fixes
-
-The `version_bump.sh` script should be run on every release to stable. All of the Rust crates are versioned together and should have the same version, as well as the `veilid-python` Python package and `veilid-flutter` Flutter plugin.
-
-## Bumpversion Setup and Usage
-
-### Install Bumpversion
-
-1. Create a Python venv for bumpversion.py. Mine is in my home dir so it persists when I update my local Veilid `main`.
-
-    `python3 -m venv ~/bumpversion-venv`
-2. Activate the venv. `source ~/bumpversion-venv/bin/activate`
-3. Install bumpversion. `pip3 install bumpversion`
-
-### Activate venv for version bumping step of the release process
-
-1. Activate the venv. `source ~/bumpversion-venv/bin/activate`
-2. Return to step 2.4 of _Create a Gitlab Release_
+```shell
+sudo -u veilid veilid-server
+```
