@@ -40,6 +40,14 @@ Releases happen via a CI/CD pipeline. The release process flows as follows:
 
 Git tags serve as a historical record of what repo versions were successfully released at which version numbers.
 
+## Publish to crates.io
+
+1. Configure the crates.io credentials, if not already accomplished.
+2. Execute `cargo publish -p veilid-tools --dry-run`
+3. Execute `cargo publish -p veilid-tools`
+4. Execute `cargo publish -p veilid-core --dry-run`
+5. Execute `cargo publish -p veilid-core`
+
 ## Publish to Pypi
 
 1. Change directory to veilid-python
