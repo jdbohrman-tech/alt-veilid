@@ -41,7 +41,7 @@ fn must_encode_path(c: u8) -> bool {
 fn is_valid_scheme<H: AsRef<str>>(host: H) -> bool {
     let mut chars = host.as_ref().chars();
     if let Some(ch) = chars.next() {
-        if !matches!(ch, 'A'..='Z' | 'a'..='z') {
+        if !ch.is_ascii_alphabetic() {
             return false;
         }
     } else {

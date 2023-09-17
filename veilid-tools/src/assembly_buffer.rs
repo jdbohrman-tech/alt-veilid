@@ -262,7 +262,7 @@ impl AssemblyBuffer {
         remote_addr: SocketAddr,
     ) -> NetworkResult<Option<Vec<u8>>> {
         // If we receive a zero length frame, send it
-        if frame.len() == 0 {
+        if frame.is_empty() {
             return NetworkResult::value(Some(frame.to_vec()));
         }
 
@@ -338,10 +338,8 @@ impl AssemblyBuffer {
 
                 // If we are returning a message, see if there are any more assemblies for this peer
                 // If not, remove the peer
-                if out.is_some() {
-                    if peer_messages.assemblies.len() == 0 {
-                        e.remove();
-                    }
+                if out.is_some() && peer_messages.assemblies.is_empty() {
+                    e.remove();
                 }
                 NetworkResult::value(out)
             }
@@ -361,7 +359,7 @@ impl AssemblyBuffer {
 
     /// Add framing to chunk to send to the wire
     fn frame_chunk(chunk: &[u8], offset: usize, message_len: usize, seq: SequenceType) -> Vec<u8> {
-        assert!(chunk.len() > 0);
+        assert!(!chunk.is_empty());
         assert!(message_len <= MAX_LEN);
         assert!(offset + chunk.len() <= message_len);
 
@@ -403,7 +401,7 @@ impl AssemblyBuffer {
         }
 
         // Do not frame or split anything zero bytes long, just send it
-        if data.len() == 0 {
+        if data.is_empty() {
             return sender(data, remote_addr).await;
         }
 

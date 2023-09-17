@@ -58,7 +58,7 @@ fn main() -> Result<(), String> {
         None
     };
 
-    let mut settings = settings::Settings::new(settings_path.as_ref().map(|x| x.as_os_str()))
+    let mut settings = settings::Settings::new(settings_path.as_deref())
         .map_err(|e| format!("configuration is invalid: {}", e))?;
 
     // Set config from command line
