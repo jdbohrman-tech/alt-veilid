@@ -430,3 +430,9 @@ impl AssemblyBuffer {
         Ok(NetworkResult::value(()))
     }
 }
+
+impl Default for AssemblyBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}

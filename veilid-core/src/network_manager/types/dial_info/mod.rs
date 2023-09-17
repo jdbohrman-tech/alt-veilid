@@ -36,10 +36,10 @@ impl fmt::Display for DialInfo {
                 let split_url = SplitUrl::from_str(&url).unwrap();
                 match split_url.host {
                     SplitUrlHost::Hostname(_) => {
-                        write!(f, "ws|{}|{}", di.socket_address.to_ip_addr(), di.request)
+                        write!(f, "ws|{}|{}", di.socket_address.ip_addr(), di.request)
                     }
                     SplitUrlHost::IpAddr(a) => {
-                        if di.socket_address.to_ip_addr() == a {
+                        if di.socket_address.ip_addr() == a {
                             write!(f, "ws|{}", di.request)
                         } else {
                             panic!("resolved address does not match url: {}", di.request);
@@ -52,7 +52,7 @@ impl fmt::Display for DialInfo {
                 let split_url = SplitUrl::from_str(&url).unwrap();
                 match split_url.host {
                     SplitUrlHost::Hostname(_) => {
-                        write!(f, "wss|{}|{}", di.socket_address.to_ip_addr(), di.request)
+                        write!(f, "wss|{}|{}", di.socket_address.ip_addr(), di.request)
                     }
                     SplitUrlHost::IpAddr(_) => {
                         panic!(
@@ -143,22 +143,22 @@ impl FromStr for DialInfo {
 impl DialInfo {
     pub fn udp_from_socketaddr(socket_addr: SocketAddr) -> Self {
         Self::UDP(DialInfoUDP {
-            socket_address: SocketAddress::from_socket_addr(socket_addr).to_canonical(),
+            socket_address: SocketAddress::from_socket_addr(socket_addr).canonical(),
         })
     }
     pub fn tcp_from_socketaddr(socket_addr: SocketAddr) -> Self {
         Self::TCP(DialInfoTCP {
-            socket_address: SocketAddress::from_socket_addr(socket_addr).to_canonical(),
+            socket_address: SocketAddress::from_socket_addr(socket_addr).canonical(),
         })
     }
     pub fn udp(socket_address: SocketAddress) -> Self {
         Self::UDP(DialInfoUDP {
-            socket_address: socket_address.to_canonical(),
+            socket_address: socket_address.canonical(),
         })
     }
     pub fn tcp(socket_address: SocketAddress) -> Self {
         Self::TCP(DialInfoTCP {
-            socket_address: socket_address.to_canonical(),
+            socket_address: socket_address.canonical(),
         })
     }
     pub fn try_ws(socket_address: SocketAddress, url: String) -> VeilidAPIResult<Self> {
@@ -173,7 +173,7 @@ impl DialInfo {
             apibail_parse_error!("socket address port doesn't match url port", url);
         }
         if let SplitUrlHost::IpAddr(a) = split_url.host {
-            if socket_address.to_ip_addr() != a {
+            if socket_address.ip_addr() != a {
                 apibail_parse_error!(
                     format!("request address does not match socket address: {}", a),
                     socket_address
@@ -181,7 +181,7 @@ impl DialInfo {
             }
         }
         Ok(Self::WS(DialInfoWS {
-            socket_address: socket_address.to_canonical(),
+            socket_address: socket_address.canonical(),
             request: url[5..].to_string(),
         }))
     }
@@ -203,7 +203,7 @@ impl DialInfo {
             );
         }
         Ok(Self::WSS(DialInfoWSS {
-            socket_address: socket_address.to_canonical(),
+            socket_address: socket_address.canonical(),
             request: url[6..].to_string(),
         }))
     }
@@ -244,10 +244,10 @@ impl DialInfo {
     }
     pub fn to_ip_addr(&self) -> IpAddr {
         match self {
-            Self::UDP(di) => di.socket_address.to_ip_addr(),
-            Self::TCP(di) => di.socket_address.to_ip_addr(),
-            Self::WS(di) => di.socket_address.to_ip_addr(),
-            Self::WSS(di) => di.socket_address.to_ip_addr(),
+            Self::UDP(di) => di.socket_address.ip_addr(),
+            Self::TCP(di) => di.socket_address.ip_addr(),
+            Self::WS(di) => di.socket_address.ip_addr(),
+            Self::WSS(di) => di.socket_address.ip_addr(),
         }
     }
     pub fn port(&self) -> u16 {
@@ -268,10 +268,10 @@ impl DialInfo {
     }
     pub fn to_socket_addr(&self) -> SocketAddr {
         match self {
-            Self::UDP(di) => di.socket_address.to_socket_addr(),
-            Self::TCP(di) => di.socket_address.to_socket_addr(),
-            Self::WS(di) => di.socket_address.to_socket_addr(),
-            Self::WSS(di) => di.socket_address.to_socket_addr(),
+            Self::UDP(di) => di.socket_address.socket_addr(),
+            Self::TCP(di) => di.socket_address.socket_addr(),
+            Self::WS(di) => di.socket_address.socket_addr(),
+            Self::WSS(di) => di.socket_address.socket_addr(),
         }
     }
     pub fn to_peer_address(&self) -> PeerAddress {
@@ -376,11 +376,11 @@ impl DialInfo {
                 "udp" => Self::udp_from_socketaddr(sa),
                 "tcp" => Self::tcp_from_socketaddr(sa),
                 "ws" => Self::try_ws(
-                    SocketAddress::from_socket_addr(sa).to_canonical(),
+                    SocketAddress::from_socket_addr(sa).canonical(),
                     url.to_string(),
                 )?,
                 "wss" => Self::try_wss(
-                    SocketAddress::from_socket_addr(sa).to_canonical(),
+                    SocketAddress::from_socket_addr(sa).canonical(),
                     url.to_string(),
                 )?,
                 _ => {
@@ -395,13 +395,13 @@ impl DialInfo {
         match self {
             DialInfo::UDP(di) => (
                 format!("U{}", di.socket_address.port()),
-                intf::ptr_lookup(di.socket_address.to_ip_addr())
+                intf::ptr_lookup(di.socket_address.ip_addr())
                     .await
                     .unwrap_or_else(|_| di.socket_address.to_string()),
             ),
             DialInfo::TCP(di) => (
                 format!("T{}", di.socket_address.port()),
-                intf::ptr_lookup(di.socket_address.to_ip_addr())
+                intf::ptr_lookup(di.socket_address.ip_addr())
                     .await
                     .unwrap_or_else(|_| di.socket_address.to_string()),
             ),
@@ -447,11 +447,11 @@ impl DialInfo {
     }
     pub async fn to_url(&self) -> String {
         match self {
-            DialInfo::UDP(di) => intf::ptr_lookup(di.socket_address.to_ip_addr())
+            DialInfo::UDP(di) => intf::ptr_lookup(di.socket_address.ip_addr())
                 .await
                 .map(|h| format!("udp://{}:{}", h, di.socket_address.port()))
                 .unwrap_or_else(|_| format!("udp://{}", di.socket_address)),
-            DialInfo::TCP(di) => intf::ptr_lookup(di.socket_address.to_ip_addr())
+            DialInfo::TCP(di) => intf::ptr_lookup(di.socket_address.ip_addr())
                 .await
                 .map(|h| format!("tcp://{}:{}", h, di.socket_address.port()))
                 .unwrap_or_else(|_| format!("tcp://{}", di.socket_address)),

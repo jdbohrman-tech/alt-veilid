@@ -312,7 +312,7 @@ impl Network {
             // if no other public address is specified
             if !detect_address_changes
                 && public_address.is_none()
-                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, &di)
+                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, di)
             {
                 editor_public_internet.register_dial_info(di.clone(), DialInfoClass::Direct)?;
                 static_public = true;
@@ -449,7 +449,7 @@ impl Network {
 
         for socket_address in socket_addresses {
             // Skip addresses we already did
-            if registered_addresses.contains(&socket_address.to_ip_addr()) {
+            if registered_addresses.contains(&socket_address.ip_addr()) {
                 continue;
             }
             // Build dial info request url
@@ -628,7 +628,7 @@ impl Network {
             }
             // Register interface dial info
             editor_local_network.register_dial_info(di.clone(), DialInfoClass::Direct)?;
-            registered_addresses.insert(socket_address.to_ip_addr());
+            registered_addresses.insert(socket_address.ip_addr());
         }
 
         // Add static public dialinfo if it's configured

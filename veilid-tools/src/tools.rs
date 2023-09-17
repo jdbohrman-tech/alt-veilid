@@ -242,8 +242,10 @@ pub fn compatible_unspecified_socket_addr(socket_addr: &SocketAddr) -> SocketAdd
 pub fn listen_address_to_socket_addrs(listen_address: &str) -> Result<Vec<SocketAddr>, String> {
     // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
     // If the address is specified, only use the specified port and fail otherwise
-    let ip_addrs = [IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-        IpAddr::V6(Ipv6Addr::UNSPECIFIED)];
+    let ip_addrs = [
+        IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+        IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+    ];
 
     Ok(if let Some(portstr) = listen_address.strip_prefix(':') {
         let port = portstr
@@ -333,6 +335,8 @@ cfg_if::cfg_if! {
 #[repr(C, align(8))]
 struct AlignToEight([u8; 8]);
 
+/// # Safety
+/// Ensure you immediately initialize this vector as it could contain sensitive data
 pub unsafe fn aligned_8_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
     let n_units = (n_bytes + mem::size_of::<AlignToEight>() - 1) / mem::size_of::<AlignToEight>();
     let mut aligned: Vec<AlignToEight> = Vec::with_capacity(n_units);
@@ -347,6 +351,8 @@ pub unsafe fn aligned_8_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
     )
 }
 
+/// # Safety
+/// Ensure you immediately initialize this vector as it could contain sensitive data
 pub unsafe fn unaligned_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
     let mut unaligned: Vec<u8> = Vec::with_capacity(n_bytes);
     let ptr = unaligned.as_mut_ptr();

@@ -244,12 +244,12 @@ impl AddressFilter {
             self.unlocked_inner.max_connections_per_ip6_prefix_size,
             addr,
         );
-        self.is_ip_addr_punished_inner(&*inner, ipblock)
+        self.is_ip_addr_punished_inner(&inner, ipblock)
     }
 
     pub fn get_dial_info_failed_ts(&self, dial_info: &DialInfo) -> Option<Timestamp> {
         let inner = self.inner.lock();
-        self.get_dial_info_failed_ts_inner(&*inner, dial_info)
+        self.get_dial_info_failed_ts_inner(&inner, dial_info)
     }
 
     pub fn set_dial_info_failed(&self, dial_info: DialInfo) {
@@ -301,7 +301,7 @@ impl AddressFilter {
 
     pub fn is_node_id_punished(&self, node_id: TypedKey) -> bool {
         let inner = self.inner.lock();
-        self.is_node_id_punished_inner(&*inner, node_id)
+        self.is_node_id_punished_inner(&inner, node_id)
     }
 
     pub fn punish_node_id(&self, node_id: TypedKey) {
@@ -333,8 +333,8 @@ impl AddressFilter {
     ) -> EyreResult<()> {
         //
         let mut inner = self.inner.lock();
-        self.purge_old_timestamps(&mut *inner, cur_ts);
-        self.purge_old_punishments(&mut *inner, cur_ts);
+        self.purge_old_timestamps(&mut inner, cur_ts);
+        self.purge_old_punishments(&mut inner, cur_ts);
 
         Ok(())
     }
@@ -411,7 +411,7 @@ impl AddressFilter {
         );
 
         let ts = get_aligned_timestamp();
-        self.purge_old_timestamps(&mut *inner, ts);
+        self.purge_old_timestamps(&mut inner, ts);
 
         match ipblock {
             IpAddr::V4(v4) => {

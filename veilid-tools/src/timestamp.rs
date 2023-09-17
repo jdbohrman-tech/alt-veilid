@@ -68,29 +68,32 @@ cfg_if! {
             let show_month = show_year || now.month() != date.month();
             let show_date = show_month || now.day() != date.day();
 
+            let s_year = if show_year {
+                format!("{:04}/",date.year())
+            } else {
+                "".to_owned()
+            };
+            let s_month = if show_month {
+                format!("{:02}/",date.month())
+            } else {
+                "".to_owned()
+            };
+            let s_date = if show_date {
+                format!("{:02}-",date.day())
+            } else {
+                "".to_owned()
+            };
+            let s_time = format!("{:02}:{:02}:{:02}.{:04}",
+                date.hour(),
+                date.minute(),
+                date.second(),
+                date.nanosecond()/1_000_000
+            );
             format!("{}{}{}{}",
-                if show_year {
-                    format!("{:04}/",date.year())
-                } else {
-                    "".to_owned()
-                },
-                if show_month {
-                    format!("{:02}/",date.month())
-                } else {
-                    "".to_owned()
-                },
-                if show_date {
-                    format!("{:02}-",date.day())
-                } else {
-                    "".to_owned()
-                },
-                format!("{:02}:{:02}:{:02}.{:04}",
-                        date.hour(),
-                        date.minute(),
-                        date.second(),
-                        date.nanosecond()/1_000_000
-                ))
-
+                s_year,
+                s_month,
+                s_date,
+                s_time)
         }
     }
 }

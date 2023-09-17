@@ -68,7 +68,7 @@ impl Network {
                                 Ok(Ok((size, descriptor))) => {
                                     // Network accounting
                                     network_manager.stats_packet_rcvd(
-                                        descriptor.remote_address().to_ip_addr(),
+                                        descriptor.remote_address().ip_addr(),
                                         ByteCount::new(size as u64),
                                     );
 

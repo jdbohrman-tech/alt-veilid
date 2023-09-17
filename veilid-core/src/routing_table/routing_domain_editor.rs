@@ -258,11 +258,9 @@ impl RoutingDomainEditor {
             }
         }
         // Clear the routespecstore cache if our PublicInternet dial info has changed
-        if changed {
-            if self.routing_domain == RoutingDomain::PublicInternet {
-                let rss = self.routing_table.route_spec_store();
-                rss.reset();
-            }
+        if changed && self.routing_domain == RoutingDomain::PublicInternet {
+            let rss = self.routing_table.route_spec_store();
+            rss.reset();
         }
     }
 }

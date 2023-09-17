@@ -338,7 +338,7 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // If a node is punished, then don't try to contact it
-        if target_node_ref.node_ids().iter().find(|nid| self.address_filter().is_node_id_punished(**nid)).is_some() {
+        if target_node_ref.node_ids().iter().any(|nid| self.address_filter().is_node_id_punished(*nid)) {
             return Ok(NodeContactMethod::Unreachable);
         }
 

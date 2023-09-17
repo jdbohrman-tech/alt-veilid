@@ -324,7 +324,7 @@ impl PlatformSupportApple {
             let intf_index = unsafe { (*rt).rtm_index } as u32;
 
             // Fill in sockaddr table
-            for i in 0..(RTAX_MAX as usize) {
+            (0..(RTAX_MAX as usize)).for_each(|i| {
                 if rtm_addrs & (1 << i) != 0 {
                     sa_tab[i] = sa;
                     sa = unsafe {
@@ -333,7 +333,7 @@ impl PlatformSupportApple {
                         sa
                     };
                 }
-            }
+            });
 
             // Look for gateways
             if rtm_addrs & (RTA_DST | RTA_GATEWAY) == (RTA_DST | RTA_GATEWAY) {
@@ -373,7 +373,7 @@ impl PlatformSupportApple {
     }
 
     fn get_address_flags(ifname: &str, addr: sockaddr_in6) -> EyreResult<AddressFlags> {
-        let mut req = in6_ifreq::from_name(&ifname).unwrap();
+        let mut req = in6_ifreq::from_name(ifname).unwrap();
         req.set_addr(addr);
 
         let sock = unsafe { socket(AF_INET6, SOCK_DGRAM, 0) };

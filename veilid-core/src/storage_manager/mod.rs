@@ -474,21 +474,21 @@ impl StorageManager {
 
     pub async fn watch_values(
         &self,
-        key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
-        expiration: Timestamp,
-        count: u32,
+        _key: TypedKey,
+        _subkeys: ValueSubkeyRangeSet,
+        _expiration: Timestamp,
+        _count: u32,
     ) -> VeilidAPIResult<Timestamp> {
-        let inner = self.lock().await?;
+        let _inner = self.lock().await?;
         unimplemented!();
     }
 
     pub async fn cancel_watch_values(
         &self,
-        key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
+        _key: TypedKey,
+        _subkeys: ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<bool> {
-        let inner = self.lock().await?;
+        let _inner = self.lock().await?;
         unimplemented!();
     }
 }

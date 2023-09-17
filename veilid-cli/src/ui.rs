@@ -482,7 +482,9 @@ impl UI {
                     )
                     .as_bytes(),
                 )
-                .is_ok() && std::io::stdout().flush().is_ok() {
+                .is_ok()
+                && std::io::stdout().flush().is_ok()
+            {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
                 cursive_flexi_logger_view::parse_lines_to_log(
                     color.into(),
@@ -938,10 +940,12 @@ impl UI {
     // }
 }
 
+type CallbackSink = Box<dyn FnOnce(&mut Cursive) + 'static + Send>;
+
 #[derive(Clone)]
 pub struct UISender {
     inner: Arc<Mutex<UIInner>>,
-    cb_sink: Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>,
+    cb_sink: Sender<CallbackSink>,
 }
 
 impl UISender {

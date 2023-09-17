@@ -223,7 +223,7 @@ impl BucketEntryInner {
         // Lower timestamp to the front, recent or no timestamp is at the end
         if let Some(e1_ts) = &e1.peer_stats.rpc_stats.first_consecutive_seen_ts {
             if let Some(e2_ts) = &e2.peer_stats.rpc_stats.first_consecutive_seen_ts {
-                e1_ts.cmp(&e2_ts)
+                e1_ts.cmp(e2_ts)
             } else {
                 std::cmp::Ordering::Less
             }
@@ -437,7 +437,7 @@ impl BucketEntryInner {
 
     // Clears the table of last connections except the most recent one
     pub fn clear_last_connections_except_latest(&mut self) {
-        if self.last_connections.len() == 0 {
+        if self.last_connections.is_empty() {
             // No last_connections
             return;
         }
@@ -454,7 +454,7 @@ impl BucketEntryInner {
         let Some(most_recent_connection) = most_recent_connection else {
             return;
         };
-        for (k, _) in &self.last_connections {
+        for k in self.last_connections.keys() {
             if k != most_recent_connection {
                 dead_keys.push(k.clone());
             }

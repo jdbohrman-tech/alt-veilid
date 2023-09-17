@@ -93,16 +93,13 @@ where
     }
     /// Return preferred typed key of our supported crypto kinds
     pub fn best(&self) -> Option<CryptoTyped<K>> {
-        match self.items.first().copied() {
-            None => None,
-            Some(k) => {
-                if !VALID_CRYPTO_KINDS.contains(&k.kind) {
-                    None
-                } else {
-                    Some(k)
-                }
-            }
-        }
+        self.items
+            .first()
+            .copied()
+            .filter(|k| VALID_CRYPTO_KINDS.contains(&k.kind))
+    }
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
     }
     pub fn len(&self) -> usize {
         self.items.len()
@@ -204,7 +201,7 @@ where
         if &s[0..1] != "[" || &s[(s.len() - 1)..] != "]" {
             apibail_parse_error!("invalid format", s);
         }
-        for x in s[1..s.len() - 1].split(",") {
+        for x in s[1..s.len() - 1].split(',') {
             let tk = CryptoTyped::<K>::from_str(x.trim())?;
             items.push(tk);
         }
@@ -272,7 +269,7 @@ where
         tks
     }
 }
-impl<K> Into<Vec<CryptoTyped<K>>> for CryptoTypedGroup<K>
+impl<K> From<CryptoTypedGroup<K>> for Vec<CryptoTyped<K>>
 where
     K: Clone
         + Copy
@@ -286,7 +283,7 @@ where
         + Hash
         + Encodable,
 {
-    fn into(self) -> Vec<CryptoTyped<K>> {
-        self.items
+    fn from(val: CryptoTypedGroup<K>) -> Self {
+        val.items
     }
 }

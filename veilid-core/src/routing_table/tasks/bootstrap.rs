@@ -327,7 +327,7 @@ impl RoutingTable {
                 }
             }
         }
-        if bootstrap_dialinfos.len() > 0 {
+        if !bootstrap_dialinfos.is_empty() {
             return self
                 .direct_bootstrap_task_routine(stop_token, bootstrap_dialinfos)
                 .await;

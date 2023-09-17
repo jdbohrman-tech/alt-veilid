@@ -359,7 +359,7 @@ impl NetworkInterfaces {
             let old_best_addresses = inner.interface_address_cache.clone();
 
             // redo the address cache
-            Self::cache_best_addresses(&mut *inner);
+            Self::cache_best_addresses(&mut inner);
 
             // See if our best addresses have changed
             if old_best_addresses != inner.interface_address_cache {

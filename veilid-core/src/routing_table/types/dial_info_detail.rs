@@ -13,6 +13,8 @@ impl MatchesDialInfoFilter for DialInfoDetail {
     }
 }
 
+pub type DialInfoDetailSort = dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering;
+
 impl DialInfoDetail {
     pub fn ordered_sequencing_sort(a: &DialInfoDetail, b: &DialInfoDetail) -> core::cmp::Ordering {
         let c = DialInfo::ordered_sequencing_sort(&a.dial_info, &b.dial_info);

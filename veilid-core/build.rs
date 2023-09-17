@@ -18,8 +18,7 @@ fn get_desired_capnp_version_string() -> String {
     let capnp_path = search_file(env!("CARGO_MANIFEST_DIR"), ".capnp_version")
         .expect("should find .capnp_version file");
     std::fs::read_to_string(&capnp_path)
-        .unwrap_or_else(|_| panic!("can't read .capnp_version file here: {:?}",
-            capnp_path))
+        .unwrap_or_else(|_| panic!("can't read .capnp_version file here: {:?}", capnp_path))
         .trim()
         .to_owned()
 }
@@ -45,8 +44,7 @@ fn get_desired_protoc_version_string() -> String {
     let protoc_path = search_file(env!("CARGO_MANIFEST_DIR"), ".protoc_version")
         .expect("should find .protoc_version file");
     std::fs::read_to_string(&protoc_path)
-        .unwrap_or_else(|_| panic!("can't read .protoc_version file here: {:?}",
-            protoc_path))
+        .unwrap_or_else(|_| panic!("can't read .protoc_version file here: {:?}", protoc_path))
         .trim()
         .to_owned()
 }
@@ -75,11 +73,18 @@ fn main() {
     let protoc_version_string = get_protoc_version_string();
 
     // Check capnp version
-    let desired_capnp_major_version =
-        usize::from_str_radix(desired_capnp_version_string.split_once('.').unwrap().0, 10)
-            .expect("should be valid int");
+    let desired_capnp_major_version = desired_capnp_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
+        .expect("should be valid int");
 
-    if usize::from_str_radix(capnp_version_string.split_once('.').unwrap().0, 10)
+    if capnp_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
         .expect("should be valid int")
         != desired_capnp_major_version
     {
@@ -95,10 +100,17 @@ fn main() {
     }
 
     // Check protoc version
-    let desired_protoc_major_version =
-        usize::from_str_radix(desired_protoc_version_string.split_once('.').unwrap().0, 10)
-            .expect("should be valid int");
-    if usize::from_str_radix(protoc_version_string.split_once('.').unwrap().0, 10)
+    let desired_protoc_major_version = desired_protoc_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
+        .expect("should be valid int");
+    if protoc_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
         .expect("should be valid int")
         < desired_protoc_major_version
     {

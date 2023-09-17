@@ -11,7 +11,7 @@ impl NetworkManager {
     ) -> EyreResult<()> {
         // go through public_address_inconsistencies_table and time out things that have expired
         let mut inner = self.inner.lock();
-        for (_, pait_v) in &mut inner.public_address_inconsistencies_table {
+        for pait_v in inner.public_address_inconsistencies_table.values_mut() {
             let mut expired = Vec::new();
             for (addr, exp_ts) in pait_v.iter() {
                 if *exp_ts <= cur_ts {
@@ -79,7 +79,7 @@ impl NetworkManager {
         // Get the ip(block) this report is coming from
         let reporting_ipblock = ip_to_ipblock(
             ip6_prefix_size,
-            connection_descriptor.remote_address().to_ip_addr(),
+            connection_descriptor.remote_address().ip_addr(),
         );
 
         // Reject public address reports from nodes that we know are behind symmetric nat or
@@ -94,7 +94,7 @@ impl NetworkManager {
         // If the socket address reported is the same as the reporter, then this is coming through a relay
         // or it should be ignored due to local proximity (nodes on the same network block should not be trusted as
         // public ip address reporters, only disinterested parties)
-        if reporting_ipblock == ip_to_ipblock(ip6_prefix_size, socket_address.to_ip_addr()) {
+        if reporting_ipblock == ip_to_ipblock(ip6_prefix_size, socket_address.ip_addr()) {
             return;
         }
 
@@ -192,7 +192,7 @@ impl NetworkManager {
                 let pait = inner
                     .public_address_inconsistencies_table
                     .entry(addr_proto_type_key)
-                    .or_insert_with(|| HashMap::new());
+                    .or_insert_with(HashMap::new);
                 for i in &inconsistencies {
                     pait.insert(*i, exp_ts);
                 }
@@ -204,7 +204,7 @@ impl NetworkManager {
                     let pait = inner
                         .public_address_inconsistencies_table
                         .entry(addr_proto_type_key)
-                        .or_insert_with(|| HashMap::new());
+                        .or_insert_with(HashMap::new);
                     let exp_ts = get_aligned_timestamp()
                         + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
                     for i in inconsistencies {

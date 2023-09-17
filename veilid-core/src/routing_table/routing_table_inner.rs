@@ -550,10 +550,9 @@ impl RoutingTableInner {
                 }
 
                 // If we don't have node status for this node, then we should ping it to get some node status
-                if e.has_node_info(routing_domain.into()) {
-                    if e.node_status(routing_domain).is_none() {
-                        return true;
-                    }
+                if e.has_node_info(routing_domain.into()) && e.node_status(routing_domain).is_none()
+                {
+                    return true;
                 }
 
                 // If this entry needs a ping because this node hasn't seen our latest node info, then do it

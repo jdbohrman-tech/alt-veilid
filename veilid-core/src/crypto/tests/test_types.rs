@@ -228,7 +228,7 @@ pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
 pub async fn test_typed_convert(vcrypto: CryptoSystemVersion) {
     let tks1 = format!(
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",
-        vcrypto.kind().to_string()
+        vcrypto.kind()
     );
     let tk1 = TypedKey::from_str(&tks1).expect("failed");
     let tks1x = tk1.to_string();
@@ -236,22 +236,22 @@ pub async fn test_typed_convert(vcrypto: CryptoSystemVersion) {
 
     let tks2 = format!(
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd",
-        vcrypto.kind().to_string()
+        vcrypto.kind()
     );
     let _tk2 = TypedKey::from_str(&tks2).expect_err("succeeded when it shouldnt have");
 
-    let tks3 = format!("XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tks3 = "XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
     let tk3 = TypedKey::from_str(&tks3).expect("failed");
     let tks3x = tk3.to_string();
     assert_eq!(tks3, tks3x);
 
-    let tks4 = format!("XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd",);
+    let tks4 = "XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd".to_string();
     let _tk4 = TypedKey::from_str(&tks4).expect_err("succeeded when it shouldnt have");
 
-    let tks5 = format!("XXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tks5 = "XXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
     let _tk5 = TypedKey::from_str(&tks5).expect_err("succeeded when it shouldnt have");
 
-    let tks6 = format!("7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tks6 = "7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
     let tk6 = TypedKey::from_str(&tks6).expect("failed");
     let tks6x = tk6.to_string();
     assert!(tks6x.ends_with(&tks6));

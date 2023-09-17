@@ -19,7 +19,7 @@ impl RawTcpNetworkConnection {
     }
 
     pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
 
     // #[instrument(level = "trace", err, skip(self))]
@@ -132,11 +132,12 @@ impl RawTcpProtocolHandler {
     ) -> io::Result<Option<ProtocolNetworkConnection>> {
         log_net!("TCP: on_accept_async: enter");
         let mut peekbuf: [u8; PEEK_DETECT_LEN] = [0u8; PEEK_DETECT_LEN];
-        if let Err(_) = timeout(
+        if (timeout(
             self.connection_initial_timeout_ms,
             ps.peek_exact(&mut peekbuf),
         )
-        .await
+        .await)
+            .is_err()
         {
             return Ok(None);
         }

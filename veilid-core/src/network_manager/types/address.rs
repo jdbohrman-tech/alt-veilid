@@ -71,16 +71,16 @@ impl Address {
             }
         }
     }
-    pub fn to_ip_addr(&self) -> IpAddr {
+    pub fn ip_addr(&self) -> IpAddr {
         match self {
             Self::IPV4(a) => IpAddr::V4(*a),
             Self::IPV6(a) => IpAddr::V6(*a),
         }
     }
-    pub fn to_socket_addr(&self, port: u16) -> SocketAddr {
-        SocketAddr::new(self.to_ip_addr(), port)
+    pub fn socket_addr(&self, port: u16) -> SocketAddr {
+        SocketAddr::new(self.ip_addr(), port)
     }
-    pub fn to_canonical(&self) -> Address {
+    pub fn canonical(&self) -> Address {
         match self {
             Address::IPV4(v4) => Address::IPV4(*v4),
             Address::IPV6(v6) => match v6.to_ipv4() {

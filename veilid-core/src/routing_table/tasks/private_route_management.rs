@@ -78,8 +78,11 @@ impl RoutingTable {
 
         // Save up to N unpublished routes and test them
         let background_safety_route_count = self.get_background_safety_route_count();
-        for x in 0..(usize::min(background_safety_route_count, unpublished_routes.len())) {
-            must_test_routes.push(unpublished_routes[x].0);
+        for unpublished_route in unpublished_routes.iter().take(usize::min(
+            background_safety_route_count,
+            unpublished_routes.len(),
+        )) {
+            must_test_routes.push(unpublished_route.0);
         }
 
         // Kill off all but N unpublished routes rather than testing them
@@ -225,9 +228,9 @@ impl RoutingTable {
         let remote_routes_needing_testing = rss.list_remote_routes(|k, v| {
             let stats = v.get_stats();
             if stats.needs_testing(cur_ts) {
-                return Some(*k);
+                Some(*k)
             } else {
-                return None;
+                None
             }
         });
         if !remote_routes_needing_testing.is_empty() {

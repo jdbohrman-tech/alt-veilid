@@ -250,7 +250,7 @@ pub trait RoutingDomainDetail {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
+        dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod;
 }
 
@@ -301,12 +301,10 @@ fn first_filtered_dial_info_detail_between_nodes(
         } else {
             Some(Box::new(move |a,b| { DialInfoDetail::ordered_sequencing_sort(a,b) }))
         }
+    } else if let Some(dif_sort) = dif_sort {
+        Some(Box::new(move |a,b| { dif_sort(a,b) }))
     } else {
-        if let Some(dif_sort) = dif_sort {
-            Some(Box::new(move |a,b| { dif_sort(a,b) }))
-        } else {
-            None
-        }
+        None
     };
 
     // If the filter is dead then we won't be able to connect
@@ -336,7 +334,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
+        dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info().node_info();
@@ -554,7 +552,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         &mut self.common
     }
     fn can_contain_address(&self, address: Address) -> bool {
-        let ip = address.to_ip_addr();
+        let ip = address.ip_addr();
         for localnet in &self.local_networks {
             if ipaddr_in_network(ip, localnet.0, localnet.1) {
                 return true;
@@ -570,7 +568,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
+        dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
         // Scope the filter down to protocols node A can do outbound
         let dial_info_filter = dial_info_filter.filtered(
@@ -596,12 +594,10 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
             } else {
                 Some(Box::new(move |a,b| { DialInfoDetail::ordered_sequencing_sort(a,b) }))
             }
+        } else if let Some(dif_sort) = dif_sort {
+            Some(Box::new(move |a,b| { dif_sort(a,b) }))
         } else {
-            if let Some(dif_sort) = dif_sort {
-                Some(Box::new(move |a,b| { dif_sort(a,b) }))
-            } else {
-                None
-            }
+            None
         };
 
         // If the filter is dead then we won't be able to connect

@@ -1,4 +1,5 @@
 #![deny(clippy::all)]
+#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
 

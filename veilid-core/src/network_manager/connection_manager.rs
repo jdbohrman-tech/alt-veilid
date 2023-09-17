@@ -117,13 +117,12 @@ impl ConnectionManager {
         // Remove the inner from the lock
         let mut inner = {
             let mut inner_lock = self.arc.inner.lock();
-            let inner = match inner_lock.take() {
+            match inner_lock.take() {
                 Some(v) => v,
                 None => {
                     panic!("not started");
                 }
-            };
-            inner
+            }
         };
 
         // Stop all the connections and the async processor
@@ -251,7 +250,7 @@ impl ConnectionManager {
         dial_info: DialInfo,
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
         let peer_address = dial_info.to_peer_address();
-        let remote_addr = peer_address.to_socket_addr();
+        let remote_addr = peer_address.socket_addr();
         let mut preferred_local_address = self
             .network_manager()
             .net()

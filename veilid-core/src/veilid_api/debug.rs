@@ -219,19 +219,19 @@ fn get_destination(
                 let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text)
                 {
                     let Some(private_route) = rss.best_remote_private_route(&prid) else {
-                    return None;
-                };
+                        return None;
+                    };
                     private_route
                 } else {
                     let mut dc = DEBUG_CACHE.lock();
                     let n = get_number(text)?;
                     let prid = dc.imported_routes.get(n)?.clone();
                     let Some(private_route) = rss.best_remote_private_route(&prid) else {
-                    // Remove imported route
-                    dc.imported_routes.remove(n);
-                    info!("removed dead imported route {}", n);
-                    return None;
-                };
+                        // Remove imported route
+                        dc.imported_routes.remove(n);
+                        info!("removed dead imported route {}", n);
+                        return None;
+                    };
                     private_route
                 };
 

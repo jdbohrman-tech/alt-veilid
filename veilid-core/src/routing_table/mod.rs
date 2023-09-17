@@ -388,11 +388,15 @@ impl RoutingTable {
         }
 
         // Caches valid, load saved routing table
-        let Some(serialized_bucket_map): Option<SerializedBucketMap> = db.load_json(0, SERIALIZED_BUCKET_MAP).await? else {
+        let Some(serialized_bucket_map): Option<SerializedBucketMap> =
+            db.load_json(0, SERIALIZED_BUCKET_MAP).await?
+        else {
             log_rtab!(debug "no bucket map in saved routing table");
             return Ok(());
         };
-        let Some(all_entry_bytes): Option<SerializedBuckets> = db.load_json(0, ALL_ENTRY_BYTES).await? else {
+        let Some(all_entry_bytes): Option<SerializedBuckets> =
+            db.load_json(0, ALL_ENTRY_BYTES).await?
+        else {
             log_rtab!(debug "no all_entry_bytes in saved routing table");
             return Ok(());
         };
