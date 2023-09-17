@@ -5215,7 +5215,7 @@ checksum = "a9ee584edf237fac328b891dd06c21e7914a1db3762907edc366a13803451fe3"
 
 [[package]]
 name = "veilid-cli"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "arboard",
  "async-std",
@@ -5237,7 +5237,7 @@ dependencies = [
  "indent",
  "json",
  "log",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "serde",
  "serde_derive",
  "serial_test",
@@ -5251,7 +5251,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-core"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "argon2",
  "async-io",
@@ -5356,7 +5356,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-flutter"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "allo-isolate",
  "async-std",
@@ -5371,7 +5371,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "serde",
  "serde_json",
  "tokio",
@@ -5408,7 +5408,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-server"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "ansi_term",
  "async-std",
@@ -5431,7 +5431,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "rpassword",
  "serde",
  "serde_derive",
@@ -5458,7 +5458,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-tools"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "android_logger 0.13.3",
  "async-lock",
@@ -5510,7 +5510,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-wasm"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
