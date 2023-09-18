@@ -1,8 +1,7 @@
-use curve25519_dalek::digest::generic_array::typenum::U64;
+use curve25519_dalek::digest::generic_array::{typenum::U64, GenericArray};
 use curve25519_dalek::digest::{
     Digest, FixedOutput, FixedOutputReset, Output, OutputSizeUser, Reset, Update,
 };
-use generic_array::GenericArray;
 
 pub struct Blake3Digest512 {
     dig: blake3::Hasher,

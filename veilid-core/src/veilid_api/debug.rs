@@ -15,6 +15,35 @@ static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
     imported_routes: Vec::new(),
 });
 
+fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
+    let Some(ts) = ts else {
+        return "---".to_owned();
+    };
+    let ts = ts.as_u64();
+    let secs = timestamp_to_secs(ts);
+    if secs >= 1.0 {
+        format!("{:.2}s", timestamp_to_secs(ts))
+    } else {
+        format!("{:.2}ms", timestamp_to_secs(ts) * 1000.0)
+    }
+}
+
+fn format_opt_bps(bps: Option<ByteCount>) -> String {
+    let Some(bps) = bps else {
+        return "---".to_owned();
+    };
+    let bps = bps.as_u64();
+    if bps >= 1024u64 * 1024u64 * 1024u64 {
+        format!("{:.2}GB/s", (bps / (1024u64 * 1024u64)) as f64 / 1024.0)
+    } else if bps >= 1024u64 * 1024u64 {
+        format!("{:.2}MB/s", (bps / 1024u64) as f64 / 1024.0)
+    } else if bps >= 1024u64 {
+        format!("{:.2}KB/s", bps as f64 / 1024.0)
+    } else {
+        format!("{:.2}B/s", bps as f64)
+    }
+}
+
 fn get_bucket_entry_state(text: &str) -> Option<BucketEntryState> {
     if text == "dead" {
         Some(BucketEntryState::Dead)
@@ -165,82 +194,89 @@ fn get_node_ref_modifiers(mut node_ref: NodeRef) -> impl FnOnce(&str) -> Option<
     }
 }
 
-fn get_destination(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Destination> {
+fn get_destination(
+    routing_table: RoutingTable,
+) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<Destination>> {
     move |text| {
-        // Safety selection
-        let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-            let ss = get_safety_selection(routing_table.clone())(second)?;
-            (first, Some(ss))
-        } else {
-            (text, None)
-        };
-        if text.len() == 0 {
-            return None;
-        }
-        if &text[0..1] == "#" {
-            let rss = routing_table.route_spec_store();
+        let text = text.to_owned();
+        Box::pin(async move {
+            // Safety selection
+            let (text, ss) = if let Some((first, second)) = text.split_once('+') {
+                let ss = get_safety_selection(routing_table.clone())(second)?;
+                (first, Some(ss))
+            } else {
+                (text.as_str(), None)
+            };
+            if text.len() == 0 {
+                return None;
+            }
+            if &text[0..1] == "#" {
+                let rss = routing_table.route_spec_store();
 
-            // Private route
-            let text = &text[1..];
+                // Private route
+                let text = &text[1..];
 
-            let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text) {
-                let Some(private_route) = rss.best_remote_private_route(&prid) else {
+                let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text)
+                {
+                    let Some(private_route) = rss.best_remote_private_route(&prid) else {
                     return None;
                 };
-                private_route
-            } else {
-                let mut dc = DEBUG_CACHE.lock();
-                let n = get_number(text)?;
-                let prid = dc.imported_routes.get(n)?.clone();
-                let Some(private_route) = rss.best_remote_private_route(&prid) else {
+                    private_route
+                } else {
+                    let mut dc = DEBUG_CACHE.lock();
+                    let n = get_number(text)?;
+                    let prid = dc.imported_routes.get(n)?.clone();
+                    let Some(private_route) = rss.best_remote_private_route(&prid) else {
                     // Remove imported route
                     dc.imported_routes.remove(n);
                     info!("removed dead imported route {}", n);
                     return None;
                 };
-                private_route
-            };
+                    private_route
+                };
 
-            Some(Destination::private_route(
-                private_route,
-                ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
-            ))
-        } else {
-            let (text, mods) = text
-                .split_once('/')
-                .map(|x| (x.0, Some(x.1)))
-                .unwrap_or((text, None));
-            if let Some((first, second)) = text.split_once('@') {
-                // Relay
-                let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
-                let target_nr = get_node_ref(routing_table)(first)?;
-
-                if let Some(mods) = mods {
-                    relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
-                }
-
-                let mut d = Destination::relay(relay_nr, target_nr);
-                if let Some(ss) = ss {
-                    d = d.with_safety(ss)
-                }
-
-                Some(d)
+                Some(Destination::private_route(
+                    private_route,
+                    ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
+                ))
             } else {
-                // Direct
-                let mut target_nr = get_node_ref(routing_table)(text)?;
+                let (text, mods) = text
+                    .split_once('/')
+                    .map(|x| (x.0, Some(x.1)))
+                    .unwrap_or((text, None));
+                if let Some((first, second)) = text.split_once('@') {
+                    // Relay
+                    let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
+                    let target_nr = get_node_ref(routing_table)(first)?;
 
-                if let Some(mods) = mods {
-                    target_nr = get_node_ref_modifiers(target_nr)(mods)?;
+                    if let Some(mods) = mods {
+                        relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
+                    }
+
+                    let mut d = Destination::relay(relay_nr, target_nr);
+                    if let Some(ss) = ss {
+                        d = d.with_safety(ss)
+                    }
+
+                    Some(d)
+                } else {
+                    // Direct
+                    let mut target_nr =
+                        resolve_node_ref(routing_table, ss.unwrap_or_default())(text).await?;
+
+                    if let Some(mods) = mods {
+                        target_nr = get_node_ref_modifiers(target_nr)(mods)?;
+                    }
+
+                    let mut d = Destination::direct(target_nr);
+                    if let Some(ss) = ss {
+                        d = d.with_safety(ss)
+                    }
+
+                    Some(d)
                 }
-
-                let mut d = Destination::direct(target_nr);
-                if let Some(ss) = ss {
-                    d = d.with_safety(ss)
-                }
-
-                Some(d)
             }
-        }
+        })
     }
 }
 
@@ -292,6 +328,44 @@ fn get_dht_key(
     }
 }
 
+fn resolve_node_ref(
+    routing_table: RoutingTable,
+    safety_selection: SafetySelection,
+) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<NodeRef>> {
+    move |text| {
+        let text = text.to_owned();
+        Box::pin(async move {
+            let (text, mods) = text
+                .split_once('/')
+                .map(|x| (x.0, Some(x.1)))
+                .unwrap_or((&text, None));
+
+            let mut nr = if let Some(key) = get_public_key(text) {
+                let node_id = TypedKey::new(best_crypto_kind(), key);
+                routing_table
+                    .rpc_processor()
+                    .resolve_node(node_id, safety_selection)
+                    .await
+                    .ok()
+                    .flatten()?
+            } else if let Some(node_id) = get_typed_key(text) {
+                routing_table
+                    .rpc_processor()
+                    .resolve_node(node_id, safety_selection)
+                    .await
+                    .ok()
+                    .flatten()?
+            } else {
+                return None;
+            };
+            if let Some(mods) = mods {
+                nr = get_node_ref_modifiers(nr)(mods)?;
+            }
+            Some(nr)
+        })
+    }
+}
+
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
         let (text, mods) = text
@@ -301,8 +375,8 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
 
         let mut nr = if let Some(key) = get_public_key(text) {
             routing_table.lookup_any_node_ref(key).ok().flatten()?
-        } else if let Some(key) = get_typed_key(text) {
-            routing_table.lookup_node_ref(key).ok().flatten()?
+        } else if let Some(node_id) = get_typed_key(text) {
+            routing_table.lookup_node_ref(node_id).ok().flatten()?
         } else {
             return None;
         };
@@ -394,6 +468,19 @@ fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     };
     Ok(val)
 }
+
+async fn async_get_debug_argument<T, G: FnOnce(&str) -> SendPinBoxFuture<Option<T>>>(
+    value: &str,
+    context: &str,
+    argument: &str,
+    getter: G,
+) -> VeilidAPIResult<T> {
+    let Some(val) = getter(value).await else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
+}
+
 fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     debug_args: &[String],
     pos: usize,
@@ -406,6 +493,23 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     }
     let value = &debug_args[pos];
     let Some(val) = getter(value) else {
+        apibail_invalid_argument!(context, argument, value);
+    };
+    Ok(val)
+}
+
+async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> SendPinBoxFuture<Option<T>>>(
+    debug_args: &[String],
+    pos: usize,
+    context: &str,
+    argument: &str,
+    getter: G,
+) -> VeilidAPIResult<T> {
+    if pos >= debug_args.len() {
+        apibail_missing_argument!(context, argument);
+    }
+    let value = &debug_args[pos];
+    let Some(val) = getter(value).await else {
         apibail_invalid_argument!(context, argument, value);
     };
     Ok(val)
@@ -578,7 +682,32 @@ impl VeilidAPI {
     async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
-        Ok(routing_table.debug_info_nodeinfo())
+        let connection_manager = self.network_manager()?.connection_manager();
+        let nodeinfo = routing_table.debug_info_nodeinfo();
+
+        // Dump core state
+        let state = self.get_state().await?;
+
+        let mut peertable = format!(
+            "Recent Peers: {} (max {})\n",
+            state.network.peers.len(),
+            RECENT_PEERS_TABLE_SIZE
+        );
+        for peer in state.network.peers {
+            peertable += &format!(
+                "   {} | {} | {} | {} down | {} up\n",
+                peer.node_ids.first().unwrap(),
+                peer.peer_address,
+                format_opt_ts(peer.peer_stats.latency.map(|l| l.average)),
+                format_opt_bps(Some(peer.peer_stats.transfer.down.average)),
+                format_opt_bps(Some(peer.peer_stats.transfer.up.average)),
+            );
+        }
+
+        // Dump connection table
+        let connman = connection_manager.debug_print().await;
+
+        Ok(format!("{}\n\n{}\n\n{}\n\n", nodeinfo, peertable, connman))
     }
 
     async fn debug_config(&self, args: String) -> VeilidAPIResult<String> {
@@ -742,6 +871,47 @@ impl VeilidAPI {
         Ok(format!("{:#?}", cm))
     }
 
+    async fn debug_resolve(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+
+        let dest = async_get_debug_argument_at(
+            &args,
+            0,
+            "debug_resolve",
+            "destination",
+            get_destination(routing_table.clone()),
+        )
+        .await?;
+
+        match &dest {
+            Destination::Direct {
+                target,
+                safety_selection: _,
+            } => Ok(format!(
+                "Destination: {:#?}\nTarget Entry:\n{}\n",
+                &dest,
+                routing_table.debug_info_entry(target.clone())
+            )),
+            Destination::Relay {
+                relay,
+                target,
+                safety_selection: _,
+            } => Ok(format!(
+                "Destination: {:#?}\nTarget Entry:\n{}\nRelay Entry:\n{}\n",
+                &dest,
+                routing_table.clone().debug_info_entry(target.clone()),
+                routing_table.debug_info_entry(relay.clone())
+            )),
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _,
+            } => Ok(format!("Destination: {:#?}", &dest)),
+        }
+    }
+
     async fn debug_ping(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
@@ -749,15 +919,16 @@ impl VeilidAPI {
 
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
-        let dest = get_debug_argument_at(
+        let dest = async_get_debug_argument_at(
             &args,
             0,
             "debug_ping",
             "destination",
             get_destination(routing_table),
-        )?;
+        )
+        .await?;
 
-        // Dump routing table entry
+        // Send a StatusQ
         let out = match rpc
             .rpc_call_status(dest)
             .await
@@ -770,6 +941,109 @@ impl VeilidAPI {
         };
 
         Ok(format!("{:#?}", out))
+    }
+
+    async fn debug_app_message(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rpc = netman.rpc_processor();
+
+        let (arg, rest) = args.split_once(' ').unwrap_or((&args, ""));
+        let rest = rest.trim_start().to_owned();
+
+        let dest = async_get_debug_argument(
+            arg,
+            "debug_app_message",
+            "destination",
+            get_destination(routing_table),
+        )
+        .await?;
+
+        let data = get_debug_argument(&rest, "debug_app_message", "data", get_data)?;
+        let data_len = data.len();
+
+        // Send a AppMessage
+        let out = match rpc
+            .rpc_call_app_message(dest, data)
+            .await
+            .map_err(VeilidAPIError::internal)?
+        {
+            NetworkResult::Value(_) => format!("Sent {} bytes", data_len),
+            r => {
+                return Ok(r.to_string());
+            }
+        };
+
+        Ok(out)
+    }
+
+    async fn debug_app_call(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let routing_table = netman.routing_table();
+        let rpc = netman.rpc_processor();
+
+        let (arg, rest) = args.split_once(' ').unwrap_or((&args, ""));
+        let rest = rest.trim_start().to_owned();
+
+        let dest = async_get_debug_argument(
+            arg,
+            "debug_app_call",
+            "destination",
+            get_destination(routing_table),
+        )
+        .await?;
+
+        let data = get_debug_argument(&rest, "debug_app_call", "data", get_data)?;
+        let data_len = data.len();
+
+        // Send a AppMessage
+        let out = match rpc
+            .rpc_call_app_call(dest, data)
+            .await
+            .map_err(VeilidAPIError::internal)?
+        {
+            NetworkResult::Value(v) => format!(
+                "Sent {} bytes, received: {}",
+                data_len,
+                print_data(&v.answer, Some(512))
+            ),
+            r => {
+                return Ok(r.to_string());
+            }
+        };
+
+        Ok(out)
+    }
+
+    async fn debug_app_reply(&self, args: String) -> VeilidAPIResult<String> {
+        let netman = self.network_manager()?;
+        let rpc = netman.rpc_processor();
+
+        let (call_id, data) = if args.starts_with("#") {
+            let (arg, rest) = args[1..].split_once(' ').unwrap_or((&args, ""));
+            let call_id =
+                OperationId::new(u64::from_str_radix(arg, 16).map_err(VeilidAPIError::generic)?);
+            let rest = rest.trim_start().to_owned();
+            let data = get_debug_argument(&rest, "debug_app_reply", "data", get_data)?;
+            (call_id, data)
+        } else {
+            let call_id = rpc
+                .get_app_call_ids()
+                .first()
+                .cloned()
+                .ok_or_else(|| VeilidAPIError::generic("no app calls waiting"))?;
+            let data = get_debug_argument(&args, "debug_app_reply", "data", get_data)?;
+            (call_id, data)
+        };
+
+        let data_len = data.len();
+
+        // Send a AppCall Reply
+        self.app_call_reply(call_id, data)
+            .await
+            .map_err(VeilidAPIError::internal)?;
+
+        Ok(format!("Replied with {} bytes", data_len))
     }
 
     async fn debug_route_allocate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1387,7 +1661,11 @@ attach
 detach
 restart network
 contact <node>[<modifiers>]
+resolve <destination>
 ping <destination>
+appmessage <destination> <data>
+appcall <destination> <data>
+appreply [#id] <data>
 relay <relay> [public|local]
 punish list
 route allocate [ord|*ord] [rel] [<count>] [in|out]
@@ -1465,6 +1743,14 @@ record list <local|remote>
                 self.debug_relay(rest).await
             } else if arg == "ping" {
                 self.debug_ping(rest).await
+            } else if arg == "appmessage" {
+                self.debug_app_message(rest).await
+            } else if arg == "appcall" {
+                self.debug_app_call(rest).await
+            } else if arg == "appreply" {
+                self.debug_app_reply(rest).await
+            } else if arg == "resolve" {
+                self.debug_resolve(rest).await
             } else if arg == "contact" {
                 self.debug_contact(rest).await
             } else if arg == "nodeinfo" {

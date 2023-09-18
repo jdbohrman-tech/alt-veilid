@@ -1,7 +1,7 @@
 [tool.poetry]
 # --- Bumpversion match - do not reorder
 name = "veilid"
-version = "0.2.1"
+version = "0.2.3"
 # ---
 description = ""
 authors = ["Veilid Team <contact@veilid.com>"]

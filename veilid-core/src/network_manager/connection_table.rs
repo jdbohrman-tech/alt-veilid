@@ -72,6 +72,15 @@ impl ConnectionTable {
         }
     }
 
+    fn index_to_protocol(idx: usize) -> ProtocolType {
+        match idx {
+            0 => ProtocolType::TCP,
+            1 => ProtocolType::WS,
+            2 => ProtocolType::WSS,
+            _ => panic!("not a connection-oriented protocol"),
+        }
+    }
+
     #[instrument(level = "trace", skip(self))]
     pub async fn join(&self) {
         let mut unord = {
@@ -175,10 +184,20 @@ impl ConnectionTable {
         // then drop the least recently used connection
         let mut out_conn = None;
         if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
-            if let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
+            while let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
                 let lruk = *lruk;
-                log_net!(debug "connection lru out: {:?}", lru_conn);
+
+                // Don't LRU protected connections
+                if lru_conn.is_protected() {
+                    // Mark as recently used
+                    log_net!(debug "== No LRU Out for PROTECTED connection: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
+                    inner.conn_by_id[protocol_index].get(&lruk);
+                    continue;
+                }
+
+                log_net!(debug "== LRU Connection Killed: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
                 out_conn = Some(Self::remove_connection_records(&mut *inner, lruk));
+                break;
             }
         }
 
@@ -330,5 +349,24 @@ impl ConnectionTable {
         }
         let conn = Self::remove_connection_records(&mut *inner, id);
         Some(conn)
+    }
+
+    pub fn debug_print_table(&self) -> String {
+        let mut out = String::new();
+        let inner = self.inner.lock();
+        let cur_ts = get_aligned_timestamp();
+        for t in 0..inner.conn_by_id.len() {
+            out += &format!(
+                "  {} Connections: ({}/{})\n",
+                Self::index_to_protocol(t).to_string(),
+                inner.conn_by_id[t].len(),
+                inner.max_connections[t]
+            );
+
+            for (_, conn) in &inner.conn_by_id[t] {
+                out += &format!("    {}\n", conn.debug_print(cur_ts));
+            }
+        }
+        out
     }
 }

@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-cli"
-version = "0.2.1"
+version = "0.2.3"
 # ---
 authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
@@ -21,13 +21,13 @@ rt-async-std = [
 rt-tokio = ["tokio", "tokio-util", "veilid-tools/rt-tokio", "cursive/rt-tokio"]
 
 [dependencies]
-async-std = { version = "^1.9", features = [
+async-std = { version = "^1.12", features = [
     "unstable",
     "attributes",
 ], optional = true }
 tokio = { version = "^1", features = ["full"], optional = true }
 tokio-util = { version = "^0", features = ["compat"], optional = true }
-async-tungstenite = { version = "^0.8" }
+async-tungstenite = { version = "^0.23" }
 cursive = { git = "https://gitlab.com/veilid/cursive.git", default-features = false, features = [
     "crossterm",
     "toml",
@@ -38,10 +38,10 @@ cursive_buffered_backend = { git = "https://gitlab.com/veilid/cursive-buffered-b
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
 cursive_table_view = "0.14.0"
-arboard = "3.2.0"
+arboard = "3.2.1"
 # cursive-tabs = "0.5.0"
 clap = { version = "4", features = ["derive"] }
-directories = "^4"
+directories = "^5"
 log = "^0"
 futures = "^0"
 serde = "^1"
@@ -54,7 +54,7 @@ flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"
 hex = "^0"
-veilid-tools = { version = "0.2.0", path = "../veilid-tools" }
+veilid-tools = { version = "0.2.3", path = "../veilid-tools" }
 
 json = "^0"
 stop-token = { version = "^0", default-features = false }
@@ -63,4 +63,4 @@ data-encoding = { version = "^2" }
 indent = { version = "0.1.1" }
 
 [dev-dependencies]
-serial_test = "^0"
+serial_test = "^2"

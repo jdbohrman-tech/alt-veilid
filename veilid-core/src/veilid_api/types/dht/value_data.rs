@@ -15,7 +15,6 @@ pub struct ValueData {
 
     /// The public identity key of the writer of the data
     #[schemars(with = "String")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     writer: PublicKey,
 }
 from_impl_to_jsvalue!(ValueData);

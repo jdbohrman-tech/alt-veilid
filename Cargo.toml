@@ -8,6 +8,7 @@ members = [
     "veilid-wasm",
 ]
 exclude = ["./external"]
+resolver = "2"
 
 [patch.crates-io]
 cursive = { git = "https://gitlab.com/veilid/cursive.git" }

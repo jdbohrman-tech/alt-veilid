@@ -434,6 +434,11 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
+    /// Get waiting app call id for debugging purposes
+    pub fn get_app_call_ids(&self) -> Vec<OperationId> {
+        self.unlocked_inner.waiting_app_call_table.get_operation_ids()
+    }
+
     /// Determine if a SignedNodeInfo can be placed into the specified routing domain
     fn verify_node_info(
         &self,
@@ -448,9 +453,9 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
-    /// Search the DHT for a single node closest to a key and add it to the routing table and return the node reference
+    /// Search the network for a single node and add it to the routing table and return the node reference
     /// If no node was found in the timeout, this returns None
-    async fn search_dht_single_key(
+    async fn search_for_node_id(
         &self,
         node_id: TypedKey,
         count: usize,
@@ -486,14 +491,20 @@ impl RPCProcessor {
         };
 
         // Routine to call to check if we're done at each step
-        let check_done = |closest_nodes: &[NodeRef]| {
-            // If the node we want to locate is one of the closest nodes, return it immediately
-            if let Some(out) = closest_nodes
-                .iter()
-                .find(|x| x.node_ids().contains(&node_id))
-            {
-                return Some(out.clone());
+        let check_done = |_:&[NodeRef]| {
+            let Ok(Some(nr)) = routing_table
+                .lookup_node_ref(node_id) else {
+                    return None;
+                };
+        
+            // ensure we have some dial info for the entry already,
+            // and that the node is still alive
+            // if not, we should keep looking for better info
+            if !matches!(nr.state(get_aligned_timestamp()),BucketEntryState::Dead) &&
+                nr.has_any_dial_info() {
+                return Some(nr);
             }
+    
             None
         };
 
@@ -529,8 +540,10 @@ impl RPCProcessor {
                 .map_err(RPCError::internal)?
             {
                 // ensure we have some dial info for the entry already,
+                // and that the node is still alive
                 // if not, we should do the find_node anyway
-                if nr.has_any_dial_info() {
+                if !matches!(nr.state(get_aligned_timestamp()),BucketEntryState::Dead) &&
+                    nr.has_any_dial_info() {
                     return Ok(Some(nr));
                 }
             }
@@ -548,7 +561,7 @@ impl RPCProcessor {
 
             // Search in preferred cryptosystem order
             let nr = match this
-                .search_dht_single_key(node_id, node_count, fanout, timeout, safety_selection)
+                .search_for_node_id(node_id, node_count, fanout, timeout, safety_selection)
                 .await
             {
                 TimeoutOr::Timeout => None,
@@ -557,13 +570,6 @@ impl RPCProcessor {
                     return Err(e);
                 }
             };
-
-            if let Some(nr) = &nr {
-                if nr.node_ids().contains(&node_id) {
-                    // found a close node, but not exact within our configured resolve_node timeout
-                    return Ok(None);
-                }
-            }
 
             Ok(nr)
         })

@@ -139,6 +139,33 @@ impl ConnectionManager {
         debug!("finished connection manager shutdown");
     }
 
+    // Internal routine to see if we should keep this connection
+    // from being LRU removed. Used on our initiated relay connections.
+    fn should_protect_connection(&self, conn: &NetworkConnection) -> bool {
+        let netman = self.network_manager();
+        let routing_table = netman.routing_table();
+        let remote_address = conn.connection_descriptor().remote_address().address();
+        let Some(routing_domain) = routing_table.routing_domain_for_address(remote_address) else {
+            return false;
+        };
+        let Some(rn) = routing_table.relay_node(routing_domain) else {
+            return false;
+        };
+        let relay_nr = rn.filtered_clone(
+            NodeRefFilter::new()
+                .with_routing_domain(routing_domain)
+                .with_address_type(conn.connection_descriptor().address_type())
+                .with_protocol_type(conn.connection_descriptor().protocol_type()),
+        );
+        let dids = relay_nr.all_filtered_dial_info_details();
+        for did in dids {
+            if did.dial_info.address() == remote_address {
+                return true;
+            }
+        }
+        false
+    }
+
     // Internal routine to register new connection atomically.
     // Registers connection in the connection table for later access
     // and spawns a message processing loop for the connection
@@ -163,8 +190,16 @@ impl ConnectionManager {
             None => bail!("not creating connection because we are stopping"),
         };
 
-        let conn = NetworkConnection::from_protocol(self.clone(), stop_token, prot_conn, id);
+        let mut conn = NetworkConnection::from_protocol(self.clone(), stop_token, prot_conn, id);
         let handle = conn.get_handle();
+
+        // See if this should be a protected connection
+        let protect = self.should_protect_connection(&conn);
+        if protect {
+            log_net!(debug "== PROTECTING connection: {} -> {}", id, conn.debug_print(get_aligned_timestamp()));
+            conn.protect();
+        }
+
         // Add to the connection table
         match self.arc.connection_table.add_connection(conn) {
             Ok(None) => {
@@ -173,7 +208,7 @@ impl ConnectionManager {
             Ok(Some(conn)) => {
                 // Connection added and a different one LRU'd out
                 // Send it to be terminated
-                log_net!(debug "== LRU kill connection due to limit: {:?}", conn);
+                // log_net!(debug "== LRU kill connection due to limit: {:?}", conn);
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
             }
             Err(ConnectionTableAddError::AddressFilter(conn, e)) => {
@@ -403,5 +438,13 @@ impl ConnectionManager {
         if let Some(conn) = conn {
             let _ = sender.send_async(ConnectionManagerEvent::Dead(conn)).await;
         }
+    }
+
+    pub async fn debug_print(&self) -> String {
+        //let inner = self.arc.inner.lock();
+        format!(
+            "Connection Table:\n\n{}",
+            self.arc.connection_table.debug_print_table()
+        )
     }
 }

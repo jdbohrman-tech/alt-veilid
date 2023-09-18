@@ -6,7 +6,6 @@ use super::*;
 pub struct DHTSchemaSMPLMember {
     /// Member key
     #[schemars(with = "String")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub m_key: PublicKey,
     /// Member subkey count
     pub m_cnt: u16,

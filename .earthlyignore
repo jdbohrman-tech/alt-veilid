@@ -1,8 +1,4 @@
 .vscode
 .git
-external/keyring-manager/android_test/.gradle
-external/keyring-manager/android_test/app/build
-external/keyring-manager/android_test/build
-external/keyring-manager/android_test/local.properties
 target
 veilid-core/pkg
