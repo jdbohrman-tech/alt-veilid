@@ -7,17 +7,7 @@ IP: Static v4 & v6
 Firewall: 5150/TCP/UDP inbound allow all
 
 ## Install Veilid
-**As root**
-
- ```shell 
-wget -O- https://packages.veilid.net/keys/veilid-packages-key.public | gpg --dearmor -o /usr/share/keyrings/veilid-packages-keyring.gpg
-```
-```shell
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg] https://packages.veilid.net/repos stable main" > /etc/apt/sources.list.d/veilid.list
-```
-```shell
-apt update && apt install veilid-server veilid-cli
-```
+Follow instructions in [INSTALL.md](./INSTALL.md)
 
 ## Configure Veilid
 **As root**
@@ -28,7 +18,7 @@ systemctl stop veilid-server.service
 ```
 
 ### Setup the config
-In _/etc/veilid-server/veilid-server.conf`_ ensure _bootstrap: ['bootstrap.veilid.net']_ in the _routing_table:_ section
+In _/etc/veilid-server/veilid-server.conf`_ ensure _bootstrap: ['bootstrap.<your.domain>']_ in the _routing_table:_ section
 
 **Switch to veilid user**
 ```shell
