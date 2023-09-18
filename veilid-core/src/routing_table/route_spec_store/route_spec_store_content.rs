@@ -29,18 +29,20 @@ impl RouteSpecStoreContent {
         for (rsid, rssd) in content.details.iter_mut() {
             // Get best route since they all should resolve
             let Some(pk) = rssd.get_best_route_set_key() else {
-                dead_ids.push(rsid.clone());
+                dead_ids.push(*rsid);
                 continue;
             };
             let Some(rsd) = rssd.get_route_by_key(&pk) else {
-                dead_ids.push(rsid.clone());
+                dead_ids.push(*rsid);
                 continue;
             };
             // Go through best route and resolve noderefs
             let mut hop_node_refs = Vec::with_capacity(rsd.hops.len());
             for h in &rsd.hops {
-                let Ok(Some(nr)) = routing_table.lookup_node_ref(TypedKey::new(rsd.crypto_kind, *h)) else {
-                    dead_ids.push(rsid.clone());
+                let Ok(Some(nr)) =
+                    routing_table.lookup_node_ref(TypedKey::new(rsd.crypto_kind, *h))
+                else {
+                    dead_ids.push(*rsid);
                     break;
                 };
                 hop_node_refs.push(nr);
@@ -72,14 +74,14 @@ impl RouteSpecStoreContent {
 
         // also store in id by key table
         for (pk, _) in detail.iter_route_set() {
-            self.id_by_key.insert(*pk, id.clone());
+            self.id_by_key.insert(*pk, id);
         }
-        self.details.insert(id.clone(), detail);
+        self.details.insert(id, detail);
     }
     pub fn remove_detail(&mut self, id: &RouteId) -> Option<RouteSetSpecDetail> {
         let detail = self.details.remove(id)?;
         for (pk, _) in detail.iter_route_set() {
-            self.id_by_key.remove(&pk).unwrap();
+            self.id_by_key.remove(pk).unwrap();
         }
         Some(detail)
     }
@@ -106,7 +108,7 @@ impl RouteSpecStoreContent {
     /// Resets publication status and statistics for when our node info changes
     /// Routes must be republished
     pub fn reset_details(&mut self) {
-        for (_k, v) in &mut self.details {
+        for v in self.details.values_mut() {
             // Must republish route now
             v.set_published(false);
             // Restart stats for routes so we test the route again

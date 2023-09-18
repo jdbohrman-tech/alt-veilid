@@ -129,7 +129,7 @@ impl RoutingTableUnlockedInner {
     where
         F: FnOnce(&VeilidConfigInner) -> R,
     {
-        f(&*self.config.get())
+        f(&self.config.get())
     }
 
     pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
@@ -541,7 +541,7 @@ impl RoutingTable {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
+        dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
         self.inner.read().get_contact_method(
             routing_domain,
@@ -885,7 +885,7 @@ impl RoutingTable {
         crypto_kind: CryptoKind,
         max_per_type: usize,
     ) -> Vec<NodeRef> {
-        let protocol_types = vec![
+        let protocol_types = [
             ProtocolType::UDP,
             ProtocolType::TCP,
             ProtocolType::WS,
@@ -893,8 +893,8 @@ impl RoutingTable {
         ];
 
         let protocol_types_len = protocol_types.len();
-        let mut nodes_proto_v4 = vec![0usize, 0usize, 0usize, 0usize];
-        let mut nodes_proto_v6 = vec![0usize, 0usize, 0usize, 0usize];
+        let mut nodes_proto_v4 = [0usize, 0usize, 0usize, 0usize];
+        let mut nodes_proto_v6 = [0usize, 0usize, 0usize, 0usize];
 
         let filter = Box::new(
             move |rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| {

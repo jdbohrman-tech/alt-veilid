@@ -812,7 +812,7 @@ impl RPCProcessor {
                         };
                         let private_route = PrivateRoute::new_stub(
                             destination_node_ref.best_node_id(),
-                            RouteNode::PeerInfo(peer_info),
+                            RouteNode::PeerInfo(Box::new(peer_info)),
                         );
 
                         // Wrap with safety route

@@ -396,7 +396,7 @@ impl NetworkManager {
                 dial_info_failures_map.insert(did.dial_info, ts);
             }
         }
-        let dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if dial_info_failures_map.is_empty() {
+        let dif_sort: Option<Arc<DialInfoDetailSort>> = if dial_info_failures_map.is_empty() {
             None
         } else {
             Some(Arc::new(move |a: &DialInfoDetail, b: &DialInfoDetail| {    

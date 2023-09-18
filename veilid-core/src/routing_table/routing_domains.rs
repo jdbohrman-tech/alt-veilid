@@ -276,7 +276,7 @@ fn first_filtered_dial_info_detail_between_nodes(
     to_node: &NodeInfo,
     dial_info_filter: &DialInfoFilter,
     sequencing: Sequencing,
-    dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>
+    dif_sort: Option<Arc<DialInfoDetailSort>>
 ) -> Option<DialInfoDetail> {
     let dial_info_filter = dial_info_filter.clone().filtered(
         &DialInfoFilter::all()
@@ -289,7 +289,7 @@ fn first_filtered_dial_info_detail_between_nodes(
     // based on an external preference table, for example the one kept by 
     // AddressFilter to deprioritize dialinfo that have recently failed to connect
     let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
-    let sort: Option<Box<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if ordered {
+    let sort: Option<Box<DialInfoDetailSort>> = if ordered {
         if let Some(dif_sort) = dif_sort {
             Some(Box::new(move |a, b| {
                 let mut ord = dif_sort(a,b);
@@ -582,7 +582,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         // based on an external preference table, for example the one kept by 
         // AddressFilter to deprioritize dialinfo that have recently failed to connect
         let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
-        let sort: Option<Box<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if ordered {
+        let sort: Option<Box<DialInfoDetailSort>> = if ordered {
             if let Some(dif_sort) = dif_sort {
                 Some(Box::new(move |a, b| {
                     let mut ord = dif_sort(a,b);

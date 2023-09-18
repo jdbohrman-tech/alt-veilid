@@ -18,7 +18,7 @@ pub enum RouteNode {
     /// Route node is optimized, no contact method information as this node id has been seen before
     NodeId(PublicKey),
     /// Route node with full contact method information to ensure the peer is reachable
-    PeerInfo(PeerInfo),
+    PeerInfo(Box<PeerInfo>),
 }
 
 impl RouteNode {
@@ -41,7 +41,7 @@ impl RouteNode {
                     Ok(nr) => nr,
                     Err(e) => {
                         log_rtab!(debug "failed to look up route node: {}", e);
-                        return None;
+                        None
                     }
                 }
             }
@@ -49,13 +49,13 @@ impl RouteNode {
                 //
                 match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
-                    pi.clone(),
+                    *pi.clone(),
                     false,
                 ) {
                     Ok(nr) => Some(nr),
                     Err(e) => {
                         log_rtab!(debug "failed to register route node: {}", e);
-                        return None;
+                        None
                     }
                 }
             }
@@ -95,7 +95,7 @@ impl RouteHop {
 #[derive(Clone, Debug)]
 pub enum PrivateRouteHops {
     /// The first hop of a private route, unencrypted, route_hops == total hop count
-    FirstHop(RouteHop),
+    FirstHop(Box<RouteHop>),
     /// Private route internal node. Has > 0 private route hops left but < total hop count
     Data(RouteHopData),
     /// Private route has ended (hop count = 0)
@@ -134,10 +134,10 @@ impl PrivateRoute {
         Self {
             public_key,
             hop_count: 1,
-            hops: PrivateRouteHops::FirstHop(RouteHop {
+            hops: PrivateRouteHops::FirstHop(Box::new(RouteHop {
                 node,
                 next_hop: None,
-            }),
+            })),
         }
     }
 

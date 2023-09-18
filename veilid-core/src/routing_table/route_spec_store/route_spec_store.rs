@@ -89,7 +89,6 @@ impl RouteSpecStore {
 
         Ok(rss)
     }
-    
 
     #[instrument(level = "trace", skip(self), err)]
     pub async fn save(&self) -> EyreResult<()> {
@@ -99,7 +98,9 @@ impl RouteSpecStore {
         };
 
         // Save our content
-        content.save(self.unlocked_inner.routing_table.clone()).await?;
+        content
+            .save(self.unlocked_inner.routing_table.clone())
+            .await?;
 
         Ok(())
     }
@@ -166,6 +167,7 @@ impl RouteSpecStore {
     }
 
     #[instrument(level = "trace", skip(self, inner, rti), ret, err)]
+    #[allow(clippy::too_many_arguments)]
     fn allocate_route_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
@@ -186,7 +188,7 @@ impl RouteSpecStore {
         if hop_count > self.unlocked_inner.max_route_hop_count {
             bail!("Not allocating route longer than max route hop count");
         }
-        
+
         // Ensure we have a valid network class so our peer info is useful
         if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
             log_rtab!(debug "unable to allocate route until we have a valid PublicInternet network class");
@@ -197,7 +199,9 @@ impl RouteSpecStore {
         let our_peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
 
         // Get relay node if we have one
-        let opt_own_relay_nr = rti.relay_node(RoutingDomain::PublicInternet).map(|nr| nr.locked(rti));
+        let opt_own_relay_nr = rti
+            .relay_node(RoutingDomain::PublicInternet)
+            .map(|nr| nr.locked(rti));
 
         // Get list of all nodes, and sort them for selection
         let cur_ts = get_aligned_timestamp();
@@ -218,7 +222,6 @@ impl RouteSpecStore {
 
                 // Process node info exclusions
                 let keep = entry.with_inner(|e| {
-                    
                     // Exclude nodes that don't have our requested crypto kinds
                     let common_ck = e.common_crypto_kinds(crypto_kinds);
                     if common_ck.len() != crypto_kinds.len() {
@@ -236,13 +239,13 @@ impl RouteSpecStore {
                     }
 
                     // Exclude nodes that have no publicinternet signednodeinfo
-                    let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) else {    
+                    let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) else {
                         return false;
                     };
 
                     // Relay check
                     let relay_ids = sni.relay_ids();
-                    if relay_ids.len() != 0 {
+                    if !relay_ids.is_empty() {
                         // Exclude nodes whose relays we have chosen to avoid
                         if relay_ids.contains_any(avoid_nodes) {
                             return false;
@@ -254,7 +257,7 @@ impl RouteSpecStore {
                             }
                         }
                     }
-                    return true;
+                    true
                 });
                 if !keep {
                     return false;
@@ -262,9 +265,12 @@ impl RouteSpecStore {
 
                 // Exclude nodes with no publicinternet nodeinfo, or incompatible nodeinfo or node status won't route
                 entry.with_inner(|e| {
-                    e.signed_node_info(RoutingDomain::PublicInternet).map(|sni| 
-                        sni.has_sequencing_matched_dial_info(sequencing) && sni.node_info().has_capability(CAP_ROUTE)
-                    ).unwrap_or(false)
+                    e.signed_node_info(RoutingDomain::PublicInternet)
+                        .map(|sni| {
+                            sni.has_sequencing_matched_dial_info(sequencing)
+                                && sni.node_info().has_capability(CAP_ROUTE)
+                        })
+                        .unwrap_or(false)
                 })
             },
         ) as RoutingTableEntryFilter;
@@ -273,7 +279,6 @@ impl RouteSpecStore {
                        entry1: &Option<Arc<BucketEntry>>,
                        entry2: &Option<Arc<BucketEntry>>|
          -> Ordering {
-            
             // Our own node is filtered out
             let entry1 = entry1.as_ref().unwrap().clone();
             let entry2 = entry2.as_ref().unwrap().clone();
@@ -302,8 +307,14 @@ impl RouteSpecStore {
             if matches!(sequencing, Sequencing::PreferOrdered) {
                 let cmp_seq = entry1.with_inner(|e1| {
                     entry2.with_inner(|e2| {
-                        let e1_can_do_ordered = e1.signed_node_info(RoutingDomain::PublicInternet).map(|sni| sni.has_sequencing_matched_dial_info(sequencing)).unwrap_or(false);
-                        let e2_can_do_ordered = e2.signed_node_info(RoutingDomain::PublicInternet).map(|sni| sni.has_sequencing_matched_dial_info(sequencing)).unwrap_or(false);
+                        let e1_can_do_ordered = e1
+                            .signed_node_info(RoutingDomain::PublicInternet)
+                            .map(|sni| sni.has_sequencing_matched_dial_info(sequencing))
+                            .unwrap_or(false);
+                        let e2_can_do_ordered = e2
+                            .signed_node_info(RoutingDomain::PublicInternet)
+                            .map(|sni| sni.has_sequencing_matched_dial_info(sequencing))
+                            .unwrap_or(false);
                         e2_can_do_ordered.cmp(&e1_can_do_ordered)
                     })
                 });
@@ -313,27 +324,22 @@ impl RouteSpecStore {
             }
 
             // always prioritize reliable nodes, but sort by oldest or fastest
-            let cmpout = entry1.with_inner(|e1| {
+
+            entry1.with_inner(|e1| {
                 entry2.with_inner(|e2| match stability {
-                    Stability::LowLatency => {
-                        BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2)
-                    }
-                    Stability::Reliable => {
-                        BucketEntryInner::cmp_oldest_reliable(cur_ts, e1, e2)
-                    }
+                    Stability::LowLatency => BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2),
+                    Stability::Reliable => BucketEntryInner::cmp_oldest_reliable(cur_ts, e1, e2),
                 })
-            });
-            cmpout
+            })
         };
-        
+
         let routing_table = self.unlocked_inner.routing_table.clone();
-        let transform =
-            |_rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> NodeRef {
-                NodeRef::new(routing_table.clone(), entry.unwrap(), None)
-            };
+        let transform = |_rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> NodeRef {
+            NodeRef::new(routing_table.clone(), entry.unwrap(), None)
+        };
 
         // Pull the whole routing table in sorted order
-        let nodes:Vec<NodeRef> =
+        let nodes: Vec<NodeRef> =
             rti.find_peers_with_sort_and_filter(usize::MAX, cur_ts, filters, compare, transform);
 
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
@@ -343,20 +349,27 @@ impl RouteSpecStore {
         }
 
         // Get peer info for everything
-        let nodes_pi: Vec<PeerInfo> = nodes.iter().map(|nr| nr.locked(rti).make_peer_info(RoutingDomain::PublicInternet).unwrap()).collect();
+        let nodes_pi: Vec<PeerInfo> = nodes
+            .iter()
+            .map(|nr| {
+                nr.locked(rti)
+                    .make_peer_info(RoutingDomain::PublicInternet)
+                    .unwrap()
+            })
+            .collect();
 
         // Now go through nodes and try to build a route we haven't seen yet
         let mut perm_func = Box::new(|permutation: &[usize]| {
-            
             // Get the hop cache key for a particular route permutation
             // uses the same algorithm as RouteSetSpecDetail::make_cache_key
-            let route_permutation_to_hop_cache = |_rti: &RoutingTableInner, nodes: &[NodeRef], perm: &[usize]| -> Vec<u8> {
-                let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * PUBLIC_KEY_LENGTH);
-                for n in perm {
-                    cache.extend_from_slice(&nodes[*n].locked(rti).best_node_id().value.bytes)
-                }
-                cache
-            };
+            let route_permutation_to_hop_cache =
+                |_rti: &RoutingTableInner, nodes: &[NodeRef], perm: &[usize]| -> Vec<u8> {
+                    let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * PUBLIC_KEY_LENGTH);
+                    for n in perm {
+                        cache.extend_from_slice(&nodes[*n].locked(rti).best_node_id().value.bytes)
+                    }
+                    cache
+                };
             let cache_key = route_permutation_to_hop_cache(rti, &nodes, permutation);
 
             // Skip routes we have already seen
@@ -491,21 +504,36 @@ impl RouteSpecStore {
         drop(perm_func);
 
         // Got a unique route, lets build the details, register it, and return it
-        let hop_node_refs:Vec<NodeRef> = route_nodes
-            .iter()
-            .map(|k| nodes[*k].clone())
-            .collect();
+        let hop_node_refs: Vec<NodeRef> = route_nodes.iter().map(|k| nodes[*k].clone()).collect();
         let mut route_set = BTreeMap::<PublicKey, RouteSpecDetail>::new();
         for crypto_kind in crypto_kinds.iter().copied() {
-            let vcrypto = self.unlocked_inner.routing_table.crypto().get(crypto_kind).unwrap();
+            let vcrypto = self
+                .unlocked_inner
+                .routing_table
+                .crypto()
+                .get(crypto_kind)
+                .unwrap();
             let keypair = vcrypto.generate_keypair();
-            let hops: Vec<PublicKey> = route_nodes.iter().map(|v| nodes[*v].locked(rti).node_ids().get(crypto_kind).unwrap().value).collect();
+            let hops: Vec<PublicKey> = route_nodes
+                .iter()
+                .map(|v| {
+                    nodes[*v]
+                        .locked(rti)
+                        .node_ids()
+                        .get(crypto_kind)
+                        .unwrap()
+                        .value
+                })
+                .collect();
 
-            route_set.insert(keypair.key, RouteSpecDetail {
-                crypto_kind,
-                secret_key: keypair.secret,
-                hops,
-            });
+            route_set.insert(
+                keypair.key,
+                RouteSpecDetail {
+                    crypto_kind,
+                    secret_key: keypair.secret,
+                    hops,
+                },
+            );
         }
 
         let rssd = RouteSetSpecDetail::new(
@@ -514,9 +542,8 @@ impl RouteSpecStore {
             hop_node_refs,
             directions,
             stability,
-            can_do_sequenced,   
+            can_do_sequenced,
         );
-
 
         // make id
         let id = self.generate_allocated_route_id(&rssd)?;
@@ -525,23 +552,27 @@ impl RouteSpecStore {
         inner.cache.add_to_cache(rti, &rssd);
 
         // Keep route in spec store
-        inner.content.add_detail(id.clone(), rssd);
+        inner.content.add_detail(id, rssd);
 
         Ok(Some(id))
     }
 
     /// validate data using a private route's key and signature chain
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, data, callback), ret))]
-    pub fn with_signature_validated_route<F,R>(
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, data, callback), ret)
+    )]
+    pub fn with_signature_validated_route<F, R>(
         &self,
         public_key: &TypedKey,
         signatures: &[Signature],
         data: &[u8],
         last_hop_id: PublicKey,
         callback: F,
-    ) -> Option<R> 
-    where F: FnOnce(&RouteSetSpecDetail, &RouteSpecDetail) -> R, 
-    R: fmt::Debug,
+    ) -> Option<R>
+    where
+        F: FnOnce(&RouteSetSpecDetail, &RouteSpecDetail) -> R,
+        R: fmt::Debug,
     {
         let inner = &*self.inner.lock();
         let crypto = self.unlocked_inner.routing_table.crypto();
@@ -549,7 +580,7 @@ impl RouteSpecStore {
             log_rpc!(debug "can't handle route with public key: {:?}", public_key);
             return None;
         };
-        
+
         let Some(rsid) = inner.content.get_id_by_key(&public_key.value) else {
             log_rpc!(debug "route id does not exist: {:?}", public_key.value);
             return None;
@@ -587,15 +618,17 @@ impl RouteSpecStore {
                 }
             }
         }
-        // We got the correct signatures, return a key and response safety spec     
+        // We got the correct signatures, return a key and response safety spec
         Some(callback(rssd, rsd))
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret, err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret, err)
+    )]
     async fn test_allocated_route(&self, private_route_id: RouteId) -> EyreResult<bool> {
         // Make loopback route to test with
         let dest = {
-
             // Get the best private route for this id
             let (key, hop_count) = {
                 let inner = &mut *self.inner.lock();
@@ -606,7 +639,7 @@ impl RouteSpecStore {
                     bail!("no best key to test allocated route");
                 };
                 // Match the private route's hop length for safety route length
-                let hop_count = rssd.hop_count(); 
+                let hop_count = rssd.hop_count();
                 (key, hop_count)
             };
 
@@ -646,10 +679,8 @@ impl RouteSpecStore {
 
     #[instrument(level = "trace", skip(self), ret, err)]
     async fn test_remote_route(&self, private_route_id: RouteId) -> EyreResult<bool> {
-        
         // Make private route test
         let dest = {
-            
             // Get the route to test
             let Some(private_route) = self.best_remote_private_route(&private_route_id) else {
                 bail!("no best key to test remote route");
@@ -710,11 +741,17 @@ impl RouteSpecStore {
     pub fn is_route_id_remote(&self, id: &RouteId) -> bool {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
-        inner.cache.peek_remote_private_route_mut(cur_ts, &id).is_some()
+        inner
+            .cache
+            .peek_remote_private_route_mut(cur_ts, id)
+            .is_some()
     }
 
     /// Test an allocated route for continuity
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret, err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret, err)
+    )]
     pub async fn test_route(&self, id: RouteId) -> EyreResult<bool> {
         let is_remote = self.is_route_id_remote(&id);
         if is_remote {
@@ -737,8 +774,9 @@ impl RouteSpecStore {
 
     /// Find first matching unpublished route that fits into the selection criteria
     /// Don't pick any routes that have failed and haven't been tested yet
-    fn first_available_route_inner<'a>(
-        inner: &'a RouteSpecStoreInner,
+    #[allow(clippy::too_many_arguments)]
+    fn first_available_route_inner(
+        inner: &RouteSpecStoreInner,
         crypto_kind: CryptoKind,
         min_hop_count: usize,
         max_hop_count: usize,
@@ -760,7 +798,7 @@ impl RouteSpecStore {
                 && rssd.hop_count() <= max_hop_count
                 && rssd.get_directions().is_superset(directions)
                 && rssd.get_route_set_keys().kinds().contains(&crypto_kind)
-                && !rssd.is_published() 
+                && !rssd.is_published()
                 && !rssd.contains_nodes(avoid_nodes)
             {
                 routes.push((id, rssd));
@@ -821,7 +859,7 @@ impl RouteSpecStore {
     pub fn debug_route(&self, id: &RouteId) -> Option<String> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
-        if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &id) {
+        if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, id) {
             return Some(format!("{:#?}", rpri));
         }
         if let Some(rssd) = inner.content.get_detail(id) {
@@ -839,7 +877,6 @@ impl RouteSpecStore {
         let rpri = inner.cache.get_remote_private_route(cur_ts, id)?;
         rpri.best_private_route()
     }
-
 
     /// Compiles a safety route to the private route, with caching
     /// Returns an Err() if the parameters are wrong
@@ -863,7 +900,7 @@ impl RouteSpecStore {
         let pr_pubkey = private_route.public_key.value;
         let pr_hopcount = private_route.hop_count as usize;
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
-        
+
         // Check private route hop count isn't larger than the max route hop count plus one for the 'first hop' header
         if pr_hopcount > (max_route_hop_count + 1) {
             bail!("private route hop count too long");
@@ -879,15 +916,15 @@ impl RouteSpecStore {
                 };
 
                 let opt_first_hop = match pr_first_hop_node {
-                    RouteNode::NodeId(id) => rti.lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id))?,
-                    RouteNode::PeerInfo(pi) => {
-                        Some(rti.register_node_with_peer_info(
-                            routing_table.clone(),
-                            RoutingDomain::PublicInternet,
-                            pi,
-                            false,
-                        )?)
+                    RouteNode::NodeId(id) => {
+                        rti.lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id))?
                     }
+                    RouteNode::PeerInfo(pi) => Some(rti.register_node_with_peer_info(
+                        routing_table.clone(),
+                        RoutingDomain::PublicInternet,
+                        *pi,
+                        false,
+                    )?),
                 };
                 if opt_first_hop.is_none() {
                     // Can't reach this private route any more
@@ -902,7 +939,10 @@ impl RouteSpecStore {
                 // Return the compiled safety route
                 //println!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(Some(CompiledRoute {
-                    safety_route: SafetyRoute::new_stub(routing_table.node_id(crypto_kind), private_route),
+                    safety_route: SafetyRoute::new_stub(
+                        routing_table.node_id(crypto_kind),
+                        private_route,
+                    ),
                     secret: routing_table.node_id_secret_key(crypto_kind),
                     first_hop,
                 }));
@@ -911,20 +951,30 @@ impl RouteSpecStore {
 
         // If the safety route requested is also the private route, this is a loopback test, just accept it
         let opt_private_route_id = inner.content.get_id_by_key(&pr_pubkey);
-        let sr_pubkey = if opt_private_route_id.is_some() && safety_spec.preferred_route == opt_private_route_id {
+        let sr_pubkey = if opt_private_route_id.is_some()
+            && safety_spec.preferred_route == opt_private_route_id
+        {
             // Private route is also safety route during loopback test
             pr_pubkey
         } else {
             let Some(avoid_node_id) = private_route.first_hop_node_id() else {
                 bail!("compiled private route should have first hop");
             };
-            let Some(sr_pubkey) = self.get_route_for_safety_spec_inner(inner, rti, crypto_kind, &safety_spec, Direction::Outbound.into(), &[avoid_node_id])? else {
+            let Some(sr_pubkey) = self.get_route_for_safety_spec_inner(
+                inner,
+                rti,
+                crypto_kind,
+                &safety_spec,
+                Direction::Outbound.into(),
+                &[avoid_node_id],
+            )?
+            else {
                 // No safety route could be found for this spec
                 return Ok(None);
             };
             sr_pubkey
         };
-        
+
         // Look up a few things from the safety route detail we want for the compiled route and don't borrow inner
         let Some(safety_route_id) = inner.content.get_id_by_key(&sr_pubkey) else {
             bail!("route id missing");
@@ -939,7 +989,8 @@ impl RouteSpecStore {
         // We can optimize the peer info in this safety route if it has been successfully
         // communicated over either via an outbound test, or used as a private route inbound
         // and we are replying over the same route as our safety route outbound
-        let optimize = safety_rssd.get_stats().last_tested_ts.is_some() || safety_rssd.get_stats().last_received_ts.is_some();
+        let optimize = safety_rssd.get_stats().last_tested_ts.is_some()
+            || safety_rssd.get_stats().last_received_ts.is_some();
 
         // Get the first hop noderef of the safety route
         let mut first_hop = safety_rssd.hop_node_ref(0).unwrap();
@@ -952,7 +1003,10 @@ impl RouteSpecStore {
 
         // See if we have a cached route we can use
         if optimize {
-            if let Some(safety_route) = inner.cache.lookup_compiled_route_cache(sr_pubkey, pr_pubkey) {
+            if let Some(safety_route) = inner
+                .cache
+                .lookup_compiled_route_cache(sr_pubkey, pr_pubkey)
+            {
                 // Build compiled route
                 let compiled_route = CompiledRoute {
                     safety_route,
@@ -993,9 +1047,9 @@ impl RouteSpecStore {
                     let dh_secret = vcrypto
                         .cached_dh(&safety_rsd.hops[h], &safety_rsd.secret_key)
                         .wrap_err("dh failed")?;
-                    let enc_msg_data =
-                        vcrypto.encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
-                            .wrap_err("encryption failed")?;
+                    let enc_msg_data = vcrypto
+                        .encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
+                        .wrap_err("encryption failed")?;
 
                     // Make route hop data
                     let route_hop_data = RouteHopData {
@@ -1021,7 +1075,7 @@ impl RouteSpecStore {
                             if pi.is_none() {
                                 bail!("peer info should exist for route but doesn't");
                             }
-                            RouteNode::PeerInfo(pi.unwrap())
+                            RouteNode::PeerInfo(Box::new(pi.unwrap()))
                         },
                         next_hop: Some(route_hop_data),
                     };
@@ -1045,7 +1099,8 @@ impl RouteSpecStore {
             let dh_secret = vcrypto
                 .cached_dh(&safety_rsd.hops[0], &safety_rsd.secret_key)
                 .map_err(RPCError::map_internal("dh failed"))?;
-            let enc_msg_data = vcrypto.encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
+            let enc_msg_data = vcrypto
+                .encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
                 .map_err(RPCError::map_internal("encryption failed"))?;
 
             let route_hop_data = RouteHopData {
@@ -1065,7 +1120,9 @@ impl RouteSpecStore {
 
         // Add to cache but only if we have an optimized route
         if optimize {
-            inner.cache.add_to_compiled_route_cache( pr_pubkey, safety_route.clone());
+            inner
+                .cache
+                .add_to_compiled_route_cache(pr_pubkey, safety_route.clone());
         }
 
         // Build compiled route
@@ -1081,7 +1138,10 @@ impl RouteSpecStore {
     }
 
     /// Get an allocated route that matches a particular safety spec
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, inner, rti), ret, err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, inner, rti), ret, err)
+    )]
     fn get_route_for_safety_spec_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
@@ -1132,7 +1192,7 @@ impl RouteSpecStore {
                 .allocate_route_inner(
                     inner,
                     rti,
-                    &[crypto_kind], 
+                    &[crypto_kind],
                     safety_spec.stability,
                     safety_spec.sequencing,
                     safety_spec.hop_count,
@@ -1146,13 +1206,23 @@ impl RouteSpecStore {
             sr_route_id
         };
 
-        let sr_pubkey = inner.content.get_detail(&sr_route_id).unwrap().get_route_set_keys().get(crypto_kind).unwrap().value;
+        let sr_pubkey = inner
+            .content
+            .get_detail(&sr_route_id)
+            .unwrap()
+            .get_route_set_keys()
+            .get(crypto_kind)
+            .unwrap()
+            .value;
 
         Ok(Some(sr_pubkey))
     }
 
     /// Get a private route to use for the answer to question
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret, err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret, err)
+    )]
     pub fn get_private_route_for_safety_spec(
         &self,
         crypto_kind: CryptoKind,
@@ -1173,8 +1243,12 @@ impl RouteSpecStore {
         )?)
     }
 
-    fn assemble_private_route_inner(&self, key: &PublicKey, rsd: &RouteSpecDetail, optimized: bool) -> EyreResult<PrivateRoute> 
-    {
+    fn assemble_private_route_inner(
+        &self,
+        key: &PublicKey,
+        rsd: &RouteSpecDetail,
+        optimized: bool,
+    ) -> EyreResult<PrivateRoute> {
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &*routing_table.inner.read();
 
@@ -1198,7 +1272,7 @@ impl RouteSpecStore {
                 RouteNode::NodeId(node_id.value)
             } else {
                 let pi = rti.get_own_peer_info(RoutingDomain::PublicInternet);
-                RouteNode::PeerInfo(pi)
+                RouteNode::PeerInfo(Box::new(pi))
             },
             next_hop: None,
         };
@@ -1220,7 +1294,8 @@ impl RouteSpecStore {
             let dh_secret = vcrypto
                 .cached_dh(&rsd.hops[h], &rsd.secret_key)
                 .wrap_err("dh failed")?;
-            let enc_msg_data = vcrypto.encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
+            let enc_msg_data = vcrypto
+                .encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
                 .wrap_err("encryption failed")?;
             let route_hop_data = RouteHopData {
                 nonce,
@@ -1244,7 +1319,7 @@ impl RouteSpecStore {
                     if pi.is_none() {
                         bail!("peer info should exist for route but doesn't",);
                     }
-                    RouteNode::PeerInfo(pi.unwrap())
+                    RouteNode::PeerInfo(Box::new(pi.unwrap()))
                 },
                 next_hop: Some(route_hop_data),
             }
@@ -1258,10 +1333,13 @@ impl RouteSpecStore {
         };
         Ok(private_route)
     }
-    
+
     /// Assemble a single private route for publication
     /// Returns a PrivateRoute object for an allocated private route key
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), err)
+    )]
     pub fn assemble_private_route(
         &self,
         key: &PublicKey,
@@ -1277,18 +1355,24 @@ impl RouteSpecStore {
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
-        let optimized = optimized
-            .unwrap_or(rssd.get_stats().last_tested_ts.is_some() || rssd.get_stats().last_received_ts.is_some());
+        let optimized = optimized.unwrap_or(
+            rssd.get_stats().last_tested_ts.is_some()
+                || rssd.get_stats().last_received_ts.is_some(),
+        );
 
-        let rsd = rssd.get_route_by_key(key).expect("route key index is broken");
-        
+        let rsd = rssd
+            .get_route_by_key(key)
+            .expect("route key index is broken");
+
         self.assemble_private_route_inner(key, rsd, optimized)
     }
 
-
     /// Assemble private route set for publication
     /// Returns a vec of PrivateRoute objects for an allocated private route
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), err))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), err)
+    )]
     pub fn assemble_private_routes(
         &self,
         id: &RouteId,
@@ -1301,8 +1385,10 @@ impl RouteSpecStore {
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
-        let optimized = optimized
-            .unwrap_or(rssd.get_stats().last_tested_ts.is_some() || rssd.get_stats().last_received_ts.is_some());
+        let optimized = optimized.unwrap_or(
+            rssd.get_stats().last_tested_ts.is_some()
+                || rssd.get_stats().last_received_ts.is_some(),
+        );
 
         let mut out = Vec::new();
         for (key, rsd) in rssd.iter_route_set() {
@@ -1314,12 +1400,18 @@ impl RouteSpecStore {
     /// Import a remote private route for compilation
     /// It is safe to import the same route more than once and it will return the same route id
     /// Returns a route set id
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, blob), ret, err))]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<RouteId> { 
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, blob), ret, err)
+    )]
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<RouteId> {
         let cur_ts = get_aligned_timestamp();
-        
+
         // decode the pr blob
-        let private_routes = RouteSpecStore::blob_to_private_routes(self.unlocked_inner.routing_table.crypto(), blob)?;
+        let private_routes = RouteSpecStore::blob_to_private_routes(
+            self.unlocked_inner.routing_table.crypto(),
+            blob,
+        )?;
 
         // make the route id
         let id = self.generate_remote_route_id(&private_routes)?;
@@ -1327,7 +1419,6 @@ impl RouteSpecStore {
         // validate the private routes
         let inner = &mut *self.inner.lock();
         for private_route in &private_routes {
-
             // ensure private route has first hop
             if !matches!(private_route.hops, PrivateRouteHops::FirstHop(_)) {
                 bail!("private route must have first hop");
@@ -1339,27 +1430,31 @@ impl RouteSpecStore {
             // }
         }
 
-        inner.cache.cache_remote_private_route(cur_ts, id, private_routes);
+        inner
+            .cache
+            .cache_remote_private_route(cur_ts, id, private_routes);
 
         Ok(id)
     }
 
     /// Release a remote private route that is no longer in use
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self), ret))]
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self), ret)
+    )]
     pub fn release_remote_private_route(&self, id: RouteId) -> bool {
         let inner = &mut *self.inner.lock();
         inner.cache.remove_remote_private_route(id)
     }
 
-    /// Get a route id for a route's public key 
-    pub fn get_route_id_for_key(&self, key: &PublicKey) -> Option<RouteId> 
-    {
+    /// Get a route id for a route's public key
+    pub fn get_route_id_for_key(&self, key: &PublicKey) -> Option<RouteId> {
         let inner = &mut *self.inner.lock();
         // Check for local route
         if let Some(id) = inner.content.get_id_by_key(key) {
             return Some(id);
         }
-    
+
         // Check for remote route
         if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
             return Some(rrid);
@@ -1371,7 +1466,6 @@ impl RouteSpecStore {
     /// Check to see if this remote (not ours) private route has seen our current node info yet
     /// This happens when you communicate with a private route without a safety route
     pub fn has_remote_private_route_seen_our_node_info(&self, key: &PublicKey) -> bool {
-
         let inner = &mut *self.inner.lock();
 
         // Check for local route. If this is not a remote private route,
@@ -1383,9 +1477,11 @@ impl RouteSpecStore {
 
         if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
             let cur_ts = get_aligned_timestamp();
-            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid)
-            {
-                let our_node_info_ts = self.unlocked_inner.routing_table.get_own_node_info_ts(RoutingDomain::PublicInternet);        
+            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid) {
+                let our_node_info_ts = self
+                    .unlocked_inner
+                    .routing_table
+                    .get_own_node_info_ts(RoutingDomain::PublicInternet);
                 return rpri.has_seen_our_node_info_ts(our_node_info_ts);
             }
         }
@@ -1404,7 +1500,10 @@ impl RouteSpecStore {
         key: &PublicKey,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        let our_node_info_ts = self.unlocked_inner.routing_table.get_own_node_info_ts(RoutingDomain::PublicInternet);        
+        let our_node_info_ts = self
+            .unlocked_inner
+            .routing_table
+            .get_own_node_info_ts(RoutingDomain::PublicInternet);
 
         let inner = &mut *self.inner.lock();
 
@@ -1416,8 +1515,7 @@ impl RouteSpecStore {
         }
 
         if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
-            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid)
-            {
+            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid) {
                 rpri.set_last_seen_our_node_info_ts(our_node_info_ts);
                 return Ok(());
             }
@@ -1434,7 +1532,11 @@ impl RouteSpecStore {
         let inner = &mut *self.inner.lock();
 
         // Check for stub route
-        if self.unlocked_inner.routing_table.matches_own_node_id_key(key) {
+        if self
+            .unlocked_inner
+            .routing_table
+            .matches_own_node_id_key(key)
+        {
             return None;
         }
 
@@ -1447,8 +1549,7 @@ impl RouteSpecStore {
 
         // Check for remote route
         if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
-            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid)
-            {
+            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid) {
                 return Some(f(rpri.get_stats_mut()));
             }
         }
@@ -1493,22 +1594,21 @@ impl RouteSpecStore {
 
     /// Convert private route list to binary blob
     pub fn private_routes_to_blob(private_routes: &[PrivateRoute]) -> EyreResult<Vec<u8>> {
-        
         let mut buffer = vec![];
 
-        // Serialize count        
+        // Serialize count
         let pr_count = private_routes.len();
         if pr_count > MAX_CRYPTO_KINDS {
             bail!("too many crypto kinds to encode blob");
         }
         let pr_count = pr_count as u8;
         buffer.push(pr_count);
-        
+
         // Serialize stream of private routes
         for private_route in private_routes {
             let mut pr_message = ::capnp::message::Builder::new_default();
             let mut pr_builder = pr_message.init_root::<veilid_capnp::private_route::Builder>();
-    
+
             encode_private_route(private_route, &mut pr_builder)
                 .wrap_err("failed to encode private route")?;
 
@@ -1521,7 +1621,6 @@ impl RouteSpecStore {
 
     /// Convert binary blob to private route
     pub fn blob_to_private_routes(crypto: Crypto, blob: Vec<u8>) -> EyreResult<Vec<PrivateRoute>> {
-
         // Deserialize count
         if blob.is_empty() {
             bail!("not deserializing empty private route blob");
@@ -1547,16 +1646,17 @@ impl RouteSpecStore {
                 .get_root::<veilid_capnp::private_route::Reader>()
                 .map_err(RPCError::internal)
                 .wrap_err("failed to make reader for private_route")?;
-            let private_route = decode_private_route(&pr_reader).wrap_err("failed to decode private route")?;
-            private_route.validate(crypto.clone()).wrap_err("failed to validate private route")?;
+            let private_route =
+                decode_private_route(&pr_reader).wrap_err("failed to decode private route")?;
+            private_route
+                .validate(crypto.clone())
+                .wrap_err("failed to validate private route")?;
 
             out.push(private_route);
         }
-        
+
         // Don't trust the order of the blob
-        out.sort_by(|a,b| {
-            a.public_key.cmp(&b.public_key)
-        });
+        out.sort_by(|a, b| a.public_key.cmp(&b.public_key));
 
         Ok(out)
     }
@@ -1565,13 +1665,15 @@ impl RouteSpecStore {
     fn generate_allocated_route_id(&self, rssd: &RouteSetSpecDetail) -> EyreResult<RouteId> {
         let route_set_keys = rssd.get_route_set_keys();
         let crypto = self.unlocked_inner.routing_table.crypto();
-        
+
         let mut idbytes = Vec::with_capacity(PUBLIC_KEY_LENGTH * route_set_keys.len());
-        let mut best_kind : Option<CryptoKind> = None;
+        let mut best_kind: Option<CryptoKind> = None;
         for tk in route_set_keys.iter() {
-            if best_kind.is_none() || compare_crypto_kind(&tk.kind, best_kind.as_ref().unwrap()) == cmp::Ordering::Less {
+            if best_kind.is_none()
+                || compare_crypto_kind(&tk.kind, best_kind.as_ref().unwrap()) == cmp::Ordering::Less
+            {
                 best_kind = Some(tk.kind);
-            } 
+            }
             idbytes.extend_from_slice(&tk.value.bytes);
         }
         let Some(best_kind) = best_kind else {
@@ -1580,19 +1682,21 @@ impl RouteSpecStore {
         let vcrypto = crypto.get(best_kind).unwrap();
 
         Ok(RouteId::new(vcrypto.generate_hash(&idbytes).bytes))
-
     }
 
     /// Generate RouteId from set of private routes    
     fn generate_remote_route_id(&self, private_routes: &[PrivateRoute]) -> EyreResult<RouteId> {
         let crypto = self.unlocked_inner.routing_table.crypto();
-        
+
         let mut idbytes = Vec::with_capacity(PUBLIC_KEY_LENGTH * private_routes.len());
-        let mut best_kind : Option<CryptoKind> = None;
+        let mut best_kind: Option<CryptoKind> = None;
         for private_route in private_routes {
-            if best_kind.is_none() || compare_crypto_kind(&private_route.public_key.kind, best_kind.as_ref().unwrap()) == cmp::Ordering::Less {
+            if best_kind.is_none()
+                || compare_crypto_kind(&private_route.public_key.kind, best_kind.as_ref().unwrap())
+                    == cmp::Ordering::Less
+            {
                 best_kind = Some(private_route.public_key.kind);
-            } 
+            }
             idbytes.extend_from_slice(&private_route.public_key.value.bytes);
         }
         let Some(best_kind) = best_kind else {
@@ -1602,5 +1706,4 @@ impl RouteSpecStore {
 
         Ok(RouteId::new(vcrypto.generate_hash(&idbytes).bytes))
     }
-
 }

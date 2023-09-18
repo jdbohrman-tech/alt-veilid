@@ -13,7 +13,7 @@ fn _get_route_permutation_count(hop_count: usize) -> usize {
     // more than two nodes has factorial permutation
     // hop_count = 3 -> 2! -> 2
     // hop_count = 4 -> 3! -> 6
-    (3..hop_count).into_iter().fold(2usize, |acc, x| acc * x)
+    (3..hop_count).fold(2usize, |acc, x| acc * x)
 }
 pub type PermReturnType = (Vec<usize>, bool);
 pub type PermFunc<'t> = Box<dyn FnMut(&[usize]) -> Option<PermReturnType> + Send + 't>;
@@ -47,7 +47,7 @@ pub fn with_route_permutations(
         f: &mut PermFunc,
     ) -> Option<PermReturnType> {
         if size == 1 {
-            return f(&permutation);
+            return f(permutation);
         }
 
         for i in 0..size {

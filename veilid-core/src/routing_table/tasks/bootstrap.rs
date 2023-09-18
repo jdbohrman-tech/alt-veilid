@@ -46,7 +46,7 @@ impl RoutingTable {
 
         // Envelope support
         let mut envelope_support = Vec::new();
-        for ess in records[1].split(",") {
+        for ess in records[1].split(',') {
             let ess = ess.trim();
             let es = match ess.parse::<u8>() {
                 Ok(v) => v,
@@ -64,9 +64,9 @@ impl RoutingTable {
 
         // Node Id
         let mut node_ids = TypedKeyGroup::new();
-        for node_id_str in records[2].split(",") {
+        for node_id_str in records[2].split(',') {
             let node_id_str = node_id_str.trim();
-            let node_id = match TypedKey::from_str(&node_id_str) {
+            let node_id = match TypedKey::from_str(node_id_str) {
                 Ok(v) => v,
                 Err(e) => {
                     bail!(
@@ -89,7 +89,7 @@ impl RoutingTable {
 
         // Resolve each record and store in node dial infos list
         let mut dial_info_details = Vec::new();
-        for rec in records[4].split(",") {
+        for rec in records[4].split(',') {
             let rec = rec.trim();
             let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
                 Ok(dis) => dis,
@@ -321,7 +321,7 @@ impl RoutingTable {
         // See if we are specifying a direct dialinfo for bootstrap, if so use the direct mechanism
         let mut bootstrap_dialinfos = Vec::<DialInfo>::new();
         for b in &bootstrap {
-            if let Ok(bootstrap_di_vec) = DialInfo::try_vec_from_url(&b) {
+            if let Ok(bootstrap_di_vec) = DialInfo::try_vec_from_url(b) {
                 for bootstrap_di in bootstrap_di_vec {
                     bootstrap_dialinfos.push(bootstrap_di);
                 }

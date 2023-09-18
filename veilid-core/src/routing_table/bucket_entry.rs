@@ -492,7 +492,7 @@ impl BucketEntryInner {
                 }
 
                 if !only_live {
-                    return Some(v.clone());
+                    return Some(*v);
                 }
 
                 // Check if the connection is still considered live
@@ -509,7 +509,7 @@ impl BucketEntryInner {
                     };
 
                 if alive {
-                    Some(v.clone())
+                    Some(*v)
                 } else {
                     None
                 }
@@ -583,13 +583,11 @@ impl BucketEntryInner {
             RoutingDomain::LocalNetwork => self
                 .local_network
                 .node_status
-                .as_ref()
-                .map(|ns| ns.clone()),
+                .as_ref().cloned(),
             RoutingDomain::PublicInternet => self
                 .public_internet
                 .node_status
-                .as_ref()
-                .map(|ns| ns.clone()),
+                .as_ref().cloned()
         }
     }
 
@@ -892,7 +890,7 @@ impl BucketEntry {
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> R,
     {
         let inner = self.inner.read();
-        f(rti, &*inner)
+        f(rti, &inner)
     }
 
     // Note, that this requires -also- holding the RoutingTable write lock, as a
@@ -902,7 +900,7 @@ impl BucketEntry {
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> R,
     {
         let mut inner = self.inner.write();
-        f(rti, &mut *inner)
+        f(rti, &mut inner)
     }
 
     // Internal inner access for RoutingTableInner only
@@ -911,7 +909,7 @@ impl BucketEntry {
         F: FnOnce(&BucketEntryInner) -> R,
     {
         let inner = self.inner.read();
-        f(&*inner)
+        f(&inner)
     }
 
     // Internal inner access for RoutingTableInner only
@@ -920,7 +918,7 @@ impl BucketEntry {
         F: FnOnce(&mut BucketEntryInner) -> R,
     {
         let mut inner = self.inner.write();
-        f(&mut *inner)
+        f(&mut inner)
     }
 }
 
