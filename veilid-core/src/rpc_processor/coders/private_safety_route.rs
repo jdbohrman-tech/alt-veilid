@@ -53,11 +53,11 @@ pub fn encode_route_hop(
     match &route_hop.node {
         RouteNode::NodeId(ni) => {
             let mut ni_builder = node_builder.init_node_id();
-            encode_key256(&ni, &mut ni_builder);
+            encode_key256(ni, &mut ni_builder);
         }
         RouteNode::PeerInfo(pi) => {
             let mut pi_builder = node_builder.init_peer_info();
-            encode_peer_info(&pi, &mut pi_builder)?;
+            encode_peer_info(pi, &mut pi_builder)?;
         }
     }
     if let Some(rhd) = &route_hop.next_hop {

@@ -21,7 +21,9 @@ impl RPCProcessor {
             .map_err(RPCError::internal)?;
 
         let validate_dial_info = RPCOperationValidateDialInfo::new(dial_info, receipt, redirect)?;
-        let statement = RPCStatement::new(RPCStatementDetail::ValidateDialInfo(validate_dial_info));
+        let statement = RPCStatement::new(RPCStatementDetail::ValidateDialInfo(Box::new(
+            validate_dial_info,
+        )));
 
         // Send the validate_dial_info request
         // This can only be sent directly, as relays can not validate dial info
@@ -153,8 +155,9 @@ impl RPCProcessor {
                 // Make a copy of the request, without the redirect flag
                 let validate_dial_info =
                     RPCOperationValidateDialInfo::new(dial_info.clone(), receipt.clone(), false)?;
-                let statement =
-                    RPCStatement::new(RPCStatementDetail::ValidateDialInfo(validate_dial_info));
+                let statement = RPCStatement::new(RPCStatementDetail::ValidateDialInfo(Box::new(
+                    validate_dial_info,
+                )));
 
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info

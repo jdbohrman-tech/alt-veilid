@@ -361,9 +361,9 @@ impl RPCProcessor {
                     if let Some(sender_noderef) = res {
                         NetworkResult::value(Destination::relay(peer_noderef, sender_noderef))
                     } else {
-                        return NetworkResult::invalid_message(
+                        NetworkResult::invalid_message(
                             "not responding to sender that has no node info",
-                        );
+                        )
                     }
                 }
             }
@@ -371,9 +371,9 @@ impl RPCProcessor {
                 match &request.header.detail {
                     RPCMessageHeaderDetail::Direct(_) => {
                         // If this was sent directly, we should only ever respond directly
-                        return NetworkResult::invalid_message(
+                        NetworkResult::invalid_message(
                             "not responding to private route from direct question",
-                        );
+                        )
                     }
                     RPCMessageHeaderDetail::SafetyRouted(detail) => {
                         // If this was sent via a safety route, but not received over our private route, don't respond with a safety route,
@@ -387,7 +387,7 @@ impl RPCProcessor {
                         // If this was received over our private route, it's okay to respond to a private route via our safety route
                         NetworkResult::value(Destination::private_route(
                             pr.clone(),
-                            SafetySelection::Safe(detail.safety_spec.clone()),
+                            SafetySelection::Safe(detail.safety_spec),
                         ))
                     }
                 }

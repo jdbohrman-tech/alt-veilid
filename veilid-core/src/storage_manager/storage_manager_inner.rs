@@ -37,9 +37,7 @@ fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         max_subkey_size: MAX_SUBKEY_SIZE,
         max_record_total_size: MAX_RECORD_DATA_SIZE,
         max_records: None,
-        max_subkey_cache_memory_mb: Some(
-            c.network.dht.local_max_subkey_cache_memory_mb as usize,
-        ),
+        max_subkey_cache_memory_mb: Some(c.network.dht.local_max_subkey_cache_memory_mb as usize),
         max_storage_space_mb: None,
     }
 }
@@ -51,9 +49,7 @@ fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         max_subkey_size: MAX_SUBKEY_SIZE,
         max_record_total_size: MAX_RECORD_DATA_SIZE,
         max_records: Some(c.network.dht.remote_max_records as usize),
-        max_subkey_cache_memory_mb: Some(
-            c.network.dht.remote_max_subkey_cache_memory_mb as usize,
-        ),
+        max_subkey_cache_memory_mb: Some(c.network.dht.remote_max_subkey_cache_memory_mb as usize),
         max_storage_space_mb: Some(c.network.dht.remote_max_storage_space_mb as usize),
     }
 }
@@ -74,8 +70,8 @@ impl StorageManagerInner {
     }
 
     pub async fn init(&mut self, outer_self: StorageManager) -> EyreResult<()> {
-
-        let metadata_db = self.unlocked_inner
+        let metadata_db = self
+            .unlocked_inner
             .table_store
             .open(STORAGE_MANAGER_METADATA, 1)
             .await?;
@@ -120,7 +116,6 @@ impl StorageManagerInner {
     }
 
     pub async fn terminate(&mut self) {
-
         // Stop ticker
         let tick_future = self.tick_future.take();
         if let Some(f) = tick_future {
@@ -130,19 +125,19 @@ impl StorageManagerInner {
         // Final flush on record stores
         if let Some(mut local_record_store) = self.local_record_store.take() {
             if let Err(e) = local_record_store.tick().await {
-                log_stor!(error "termination local record store tick failed: {}", e); 
+                log_stor!(error "termination local record store tick failed: {}", e);
             }
         }
         if let Some(mut remote_record_store) = self.remote_record_store.take() {
             if let Err(e) = remote_record_store.tick().await {
-                log_stor!(error "termination remote record store tick failed: {}", e); 
+                log_stor!(error "termination remote record store tick failed: {}", e);
             }
         }
 
         // Save metadata
         if self.metadata_db.is_some() {
             if let Err(e) = self.save_metadata().await {
-                log_stor!(error "termination metadata save failed: {}", e); 
+                log_stor!(error "termination metadata save failed: {}", e);
             }
             self.metadata_db = None;
         }
@@ -152,7 +147,7 @@ impl StorageManagerInner {
         self.initialized = false;
     }
 
-    async fn save_metadata(&mut self) -> EyreResult<()>{
+    async fn save_metadata(&mut self) -> EyreResult<()> {
         if let Some(metadata_db) = &self.metadata_db {
             let tx = metadata_db.transact();
             tx.store_json(0, OFFLINE_SUBKEY_WRITES, &self.offline_subkey_writes)?;
@@ -163,7 +158,8 @@ impl StorageManagerInner {
 
     async fn load_metadata(&mut self) -> EyreResult<()> {
         if let Some(metadata_db) = &self.metadata_db {
-            self.offline_subkey_writes = match metadata_db.load_json(0, OFFLINE_SUBKEY_WRITES).await {
+            self.offline_subkey_writes = match metadata_db.load_json(0, OFFLINE_SUBKEY_WRITES).await
+            {
                 Ok(v) => v.unwrap_or_default(),
                 Err(_) => {
                     if let Err(e) = metadata_db.delete(0, OFFLINE_SUBKEY_WRITES).await {
@@ -218,13 +214,16 @@ impl StorageManagerInner {
         Ok((dht_key, owner))
     }
 
-    async fn move_remote_record_to_local(&mut self, key: TypedKey, safety_selection: SafetySelection) -> VeilidAPIResult<Option<(PublicKey, DHTSchema)>>
-    {
+    async fn move_remote_record_to_local(
+        &mut self,
+        key: TypedKey,
+        safety_selection: SafetySelection,
+    ) -> VeilidAPIResult<Option<(PublicKey, DHTSchema)>> {
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        
+
         // Get remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
@@ -241,31 +240,36 @@ impl StorageManagerInner {
 
         // Make local record
         let cur_ts = get_aligned_timestamp();
-        let local_record = Record::new(cur_ts, remote_record.descriptor().clone(), LocalRecordDetail {
-            safety_selection
-        })?;
+        let local_record = Record::new(
+            cur_ts,
+            remote_record.descriptor().clone(),
+            LocalRecordDetail { safety_selection },
+        )?;
         local_record_store.new_record(key, local_record).await?;
 
         // Move copy subkey data from remote to local store
         for subkey in remote_record.stored_subkeys().iter() {
-            let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, false).await? else {
+            let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, false).await?
+            else {
                 // Subkey was missing
-                warn!("Subkey was missing: {} #{}",key, subkey);
+                warn!("Subkey was missing: {} #{}", key, subkey);
                 continue;
             };
             let Some(subkey_data) = subkey_result.value else {
                 // Subkey was missing
-                warn!("Subkey data was missing: {} #{}",key, subkey);
+                warn!("Subkey data was missing: {} #{}", key, subkey);
                 continue;
             };
-            local_record_store.set_subkey(key, subkey, subkey_data).await?;
+            local_record_store
+                .set_subkey(key, subkey, subkey_data)
+                .await?;
         }
 
         // Delete remote record from store
         remote_record_store.delete_record(key).await?;
 
         // Return record information as transferred to local record
-        Ok(Some((remote_record.owner().clone(), remote_record.schema())))
+        Ok(Some((*remote_record.owner(), remote_record.schema())))
     }
 
     pub async fn open_existing_record(
@@ -292,14 +296,17 @@ impl StorageManagerInner {
             r.detail_mut().safety_selection = safety_selection;
 
             // Return record details
-            (r.owner().clone(), r.schema())
+            (*r.owner(), r.schema())
         };
-        let (owner, schema) = match local_record_store.with_record_mut(key, cb){
+        let (owner, schema) = match local_record_store.with_record_mut(key, cb) {
             Some(v) => v,
             None => {
                 // If we don't have a local record yet, check to see if we have a remote record
                 // if so, migrate it to a local record
-                let Some(v) = self.move_remote_record_to_local(key, safety_selection).await? else {
+                let Some(v) = self
+                    .move_remote_record_to_local(key, safety_selection)
+                    .await?
+                else {
                     // No remote record either
                     return Ok(None);
                 };
@@ -348,7 +355,7 @@ impl StorageManagerInner {
             apibail_generic!("no descriptor");
         };
         // Get owner
-        let owner = signed_value_descriptor.owner().clone();
+        let owner = *signed_value_descriptor.owner();
 
         // If the writer we chose is also the owner, we have the owner secret
         // Otherwise this is just another subkey writer
@@ -410,7 +417,10 @@ impl StorageManagerInner {
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = local_record_store.get_subkey(key, subkey, want_descriptor).await? {
+        if let Some(subkey_result) = local_record_store
+            .get_subkey(key, subkey, want_descriptor)
+            .await?
+        {
             return Ok(subkey_result);
         }
 
@@ -428,7 +438,7 @@ impl StorageManagerInner {
     ) -> VeilidAPIResult<()> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
-            apibail_not_initialized!();                 
+            apibail_not_initialized!();
         };
 
         // Write subkey to local store
@@ -449,7 +459,10 @@ impl StorageManagerInner {
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, want_descriptor).await? {
+        if let Some(subkey_result) = remote_record_store
+            .get_subkey(key, subkey, want_descriptor)
+            .await?
+        {
             return Ok(subkey_result);
         }
 
@@ -472,12 +485,15 @@ impl StorageManagerInner {
         };
 
         // See if we have a remote record already or not
-        if remote_record_store.with_record(key, |_|{}).is_none() {
+        if remote_record_store.with_record(key, |_| {}).is_none() {
             // record didn't exist, make it
             let cur_ts = get_aligned_timestamp();
-            let remote_record_detail = RemoteRecordDetail { };
-            let record =
-                Record::<RemoteRecordDetail>::new(cur_ts, signed_value_descriptor, remote_record_detail)?;
+            let remote_record_detail = RemoteRecordDetail {};
+            let record = Record::<RemoteRecordDetail>::new(
+                cur_ts,
+                signed_value_descriptor,
+                remote_record_detail,
+            )?;
             remote_record_store.new_record(key, record).await?
         };
 

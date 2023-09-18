@@ -17,7 +17,7 @@ impl RPCProcessor {
         let app_call_q = RPCOperationAppCallQ::new(message)?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
-            RPCQuestionDetail::AppCallQ(app_call_q),
+            RPCQuestionDetail::AppCallQ(Box::new(app_call_q)),
         );
 
         // Send the app call question
@@ -117,8 +117,11 @@ impl RPCProcessor {
         let app_call_a = RPCOperationAppCallA::new(message_a)?;
 
         // Send status answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::AppCallA(app_call_a)))
-            .await
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::AppCallA(Box::new(app_call_a))),
+        )
+        .await
     }
 
     /// Exposed to API for apps to return app call answers

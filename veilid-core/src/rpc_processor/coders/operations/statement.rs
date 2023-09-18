@@ -34,12 +34,12 @@ impl RPCStatement {
 
 #[derive(Debug, Clone)]
 pub enum RPCStatementDetail {
-    ValidateDialInfo(RPCOperationValidateDialInfo),
-    Route(RPCOperationRoute),
-    ValueChanged(RPCOperationValueChanged),
-    Signal(RPCOperationSignal),
-    ReturnReceipt(RPCOperationReturnReceipt),
-    AppMessage(RPCOperationAppMessage),
+    ValidateDialInfo(Box<RPCOperationValidateDialInfo>),
+    Route(Box<RPCOperationRoute>),
+    ValueChanged(Box<RPCOperationValueChanged>),
+    Signal(Box<RPCOperationSignal>),
+    ReturnReceipt(Box<RPCOperationReturnReceipt>),
+    AppMessage(Box<RPCOperationAppMessage>),
 }
 
 impl RPCStatementDetail {
@@ -71,32 +71,32 @@ impl RPCStatementDetail {
             veilid_capnp::statement::detail::ValidateDialInfo(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationValidateDialInfo::decode(&op_reader)?;
-                RPCStatementDetail::ValidateDialInfo(out)
+                RPCStatementDetail::ValidateDialInfo(Box::new(out))
             }
             veilid_capnp::statement::detail::Route(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationRoute::decode(&op_reader)?;
-                RPCStatementDetail::Route(out)
+                RPCStatementDetail::Route(Box::new(out))
             }
             veilid_capnp::statement::detail::ValueChanged(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationValueChanged::decode(&op_reader)?;
-                RPCStatementDetail::ValueChanged(out)
+                RPCStatementDetail::ValueChanged(Box::new(out))
             }
             veilid_capnp::statement::detail::Signal(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationSignal::decode(&op_reader)?;
-                RPCStatementDetail::Signal(out)
+                RPCStatementDetail::Signal(Box::new(out))
             }
             veilid_capnp::statement::detail::ReturnReceipt(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationReturnReceipt::decode(&op_reader)?;
-                RPCStatementDetail::ReturnReceipt(out)
+                RPCStatementDetail::ReturnReceipt(Box::new(out))
             }
             veilid_capnp::statement::detail::AppMessage(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationAppMessage::decode(&op_reader)?;
-                RPCStatementDetail::AppMessage(out)
+                RPCStatementDetail::AppMessage(Box::new(out))
             }
         };
         Ok(out)

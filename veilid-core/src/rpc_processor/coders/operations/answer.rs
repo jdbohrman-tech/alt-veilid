@@ -31,22 +31,22 @@ impl RPCAnswer {
 
 #[derive(Debug, Clone)]
 pub enum RPCAnswerDetail {
-    StatusA(RPCOperationStatusA),
-    FindNodeA(RPCOperationFindNodeA),
-    AppCallA(RPCOperationAppCallA),
-    GetValueA(RPCOperationGetValueA),
-    SetValueA(RPCOperationSetValueA),
-    WatchValueA(RPCOperationWatchValueA),
+    StatusA(Box<RPCOperationStatusA>),
+    FindNodeA(Box<RPCOperationFindNodeA>),
+    AppCallA(Box<RPCOperationAppCallA>),
+    GetValueA(Box<RPCOperationGetValueA>),
+    SetValueA(Box<RPCOperationSetValueA>),
+    WatchValueA(Box<RPCOperationWatchValueA>),
     #[cfg(feature = "unstable-blockstore")]
-    SupplyBlockA(RPCOperationSupplyBlockA),
+    SupplyBlockA(Box<RPCOperationSupplyBlockA>),
     #[cfg(feature = "unstable-blockstore")]
-    FindBlockA(RPCOperationFindBlockA),
+    FindBlockA(Box<RPCOperationFindBlockA>),
     #[cfg(feature = "unstable-tunnels")]
-    StartTunnelA(RPCOperationStartTunnelA),
+    StartTunnelA(Box<RPCOperationStartTunnelA>),
     #[cfg(feature = "unstable-tunnels")]
-    CompleteTunnelA(RPCOperationCompleteTunnelA),
+    CompleteTunnelA(Box<RPCOperationCompleteTunnelA>),
     #[cfg(feature = "unstable-tunnels")]
-    CancelTunnelA(RPCOperationCancelTunnelA),
+    CancelTunnelA(Box<RPCOperationCancelTunnelA>),
 }
 
 impl RPCAnswerDetail {
@@ -98,62 +98,62 @@ impl RPCAnswerDetail {
             veilid_capnp::answer::detail::StatusA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationStatusA::decode(&op_reader)?;
-                RPCAnswerDetail::StatusA(out)
+                RPCAnswerDetail::StatusA(Box::new(out))
             }
             veilid_capnp::answer::detail::FindNodeA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationFindNodeA::decode(&op_reader)?;
-                RPCAnswerDetail::FindNodeA(out)
+                RPCAnswerDetail::FindNodeA(Box::new(out))
             }
             veilid_capnp::answer::detail::AppCallA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationAppCallA::decode(&op_reader)?;
-                RPCAnswerDetail::AppCallA(out)
+                RPCAnswerDetail::AppCallA(Box::new(out))
             }
             veilid_capnp::answer::detail::GetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationGetValueA::decode(&op_reader)?;
-                RPCAnswerDetail::GetValueA(out)
+                RPCAnswerDetail::GetValueA(Box::new(out))
             }
             veilid_capnp::answer::detail::SetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationSetValueA::decode(&op_reader)?;
-                RPCAnswerDetail::SetValueA(out)
+                RPCAnswerDetail::SetValueA(Box::new(out))
             }
             veilid_capnp::answer::detail::WatchValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationWatchValueA::decode(&op_reader)?;
-                RPCAnswerDetail::WatchValueA(out)
+                RPCAnswerDetail::WatchValueA(Box::new(out))
             }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::answer::detail::SupplyBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationSupplyBlockA::decode(&op_reader)?;
-                RPCAnswerDetail::SupplyBlockA(out)
+                RPCAnswerDetail::SupplyBlockA(Box::new(out))
             }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::answer::detail::FindBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationFindBlockA::decode(&op_reader)?;
-                RPCAnswerDetail::FindBlockA(out)
+                RPCAnswerDetail::FindBlockA(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::StartTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationStartTunnelA::decode(&op_reader)?;
-                RPCAnswerDetail::StartTunnelA(out)
+                RPCAnswerDetail::StartTunnelA(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::CompleteTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCompleteTunnelA::decode(&op_reader)?;
-                RPCAnswerDetail::CompleteTunnelA(out)
+                RPCAnswerDetail::CompleteTunnelA(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::CancelTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCOperationCancelTunnelA::decode(&op_reader)?;
-                RPCAnswerDetail::CancelTunnelA(out)
+                RPCAnswerDetail::CancelTunnelA(Box::new(out))
             }
         };
         Ok(out)

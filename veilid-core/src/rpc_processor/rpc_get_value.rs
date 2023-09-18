@@ -65,7 +65,7 @@ impl RPCProcessor {
         let get_value_q = RPCOperationGetValueQ::new(key, subkey, last_descriptor.is_none());
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
-            RPCQuestionDetail::GetValueQ(get_value_q),
+            RPCQuestionDetail::GetValueQ(Box::new(get_value_q)),
         );
 
         let question_context = QuestionContext::GetValue(ValidateGetValueContext {
@@ -268,7 +268,7 @@ impl RPCProcessor {
         )?;
 
         // Send GetValue answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::GetValueA(get_value_a)))
+        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::GetValueA(Box::new(get_value_a))))
             .await
     }
 }

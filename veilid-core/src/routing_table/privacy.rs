@@ -177,10 +177,10 @@ impl PrivateRoute {
                     None => PrivateRouteHops::Empty,
                 };
 
-                return Some(first_hop_node);
+                Some(first_hop_node)
             }
-            PrivateRouteHops::Data(_) => return None,
-            PrivateRouteHops::Empty => return None,
+            PrivateRouteHops::Data(_) => None,
+            PrivateRouteHops::Empty => None,
         }
     }
 

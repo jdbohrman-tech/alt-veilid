@@ -2,9 +2,9 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub enum RPCOperationKind {
-    Question(RPCQuestion),
-    Statement(RPCStatement),
-    Answer(RPCAnswer),
+    Question(Box<RPCQuestion>),
+    Statement(Box<RPCStatement>),
+    Answer(Box<RPCAnswer>),
 }
 
 impl RPCOperationKind {
@@ -30,17 +30,17 @@ impl RPCOperationKind {
             veilid_capnp::operation::kind::Which::Question(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCQuestion::decode(&q_reader)?;
-                RPCOperationKind::Question(out)
+                RPCOperationKind::Question(Box::new(out))
             }
             veilid_capnp::operation::kind::Which::Statement(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCStatement::decode(&q_reader)?;
-                RPCOperationKind::Statement(out)
+                RPCOperationKind::Statement(Box::new(out))
             }
             veilid_capnp::operation::kind::Which::Answer(r) => {
                 let q_reader = r.map_err(RPCError::protocol)?;
                 let out = RPCAnswer::decode(&q_reader)?;
-                RPCOperationKind::Answer(out)
+                RPCOperationKind::Answer(Box::new(out))
             }
         };
 
@@ -73,7 +73,7 @@ impl RPCOperation {
             op_id: OperationId::new(get_random_u64()),
             opt_sender_peer_info: sender_peer_info.opt_sender_peer_info,
             target_node_info_ts: sender_peer_info.target_node_info_ts,
-            kind: RPCOperationKind::Question(question),
+            kind: RPCOperationKind::Question(Box::new(question)),
         }
     }
     pub fn new_statement(statement: RPCStatement, sender_peer_info: SenderPeerInfo) -> Self {
@@ -81,7 +81,7 @@ impl RPCOperation {
             op_id: OperationId::new(get_random_u64()),
             opt_sender_peer_info: sender_peer_info.opt_sender_peer_info,
             target_node_info_ts: sender_peer_info.target_node_info_ts,
-            kind: RPCOperationKind::Statement(statement),
+            kind: RPCOperationKind::Statement(Box::new(statement)),
         }
     }
 
@@ -94,7 +94,7 @@ impl RPCOperation {
             op_id: request.op_id,
             opt_sender_peer_info: sender_peer_info.opt_sender_peer_info,
             target_node_info_ts: sender_peer_info.target_node_info_ts,
-            kind: RPCOperationKind::Answer(answer),
+            kind: RPCOperationKind::Answer(Box::new(answer)),
         }
     }
 
@@ -163,7 +163,7 @@ impl RPCOperation {
         builder.set_op_id(self.op_id.as_u64());
         if let Some(sender_peer_info) = &self.opt_sender_peer_info {
             let mut pi_builder = builder.reborrow().init_sender_peer_info();
-            encode_peer_info(&sender_peer_info, &mut pi_builder)?;
+            encode_peer_info(sender_peer_info, &mut pi_builder)?;
         }
         builder.set_target_node_info_ts(self.target_node_info_ts.as_u64());
         let mut k_builder = builder.reborrow().init_kind();

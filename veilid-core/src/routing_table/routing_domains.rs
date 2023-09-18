@@ -278,7 +278,7 @@ fn first_filtered_dial_info_detail_between_nodes(
     sequencing: Sequencing,
     dif_sort: Option<Arc<DialInfoDetailSort>>
 ) -> Option<DialInfoDetail> {
-    let dial_info_filter = dial_info_filter.clone().filtered(
+    let dial_info_filter = (*dial_info_filter).filtered(
         &DialInfoFilter::all()
             .with_address_type_set(from_node.address_types())
             .with_protocol_type_set(from_node.outbound_protocols()),
@@ -416,7 +416,6 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
                         // Does node B have a direct udp dialinfo node A can reach?
                         let udp_dial_info_filter = dial_info_filter
-                            .clone()
                             .filtered(&DialInfoFilter::all().with_protocol_type(ProtocolType::UDP));
                         if let Some(target_udp_did) = first_filtered_dial_info_detail_between_nodes(
                             node_a,
@@ -471,7 +470,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             // Can we reach the inbound relay?
             if first_filtered_dial_info_detail_between_nodes(
                 node_a,
-                &node_b_relay,
+                node_b_relay,
                 &dial_info_filter,
                 sequencing,
                 dif_sort.clone()

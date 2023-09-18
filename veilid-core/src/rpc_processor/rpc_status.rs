@@ -101,7 +101,7 @@ impl RPCProcessor {
         let status_q = RPCOperationStatusQ::new(node_status);
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
-            RPCQuestionDetail::StatusQ(status_q),
+            RPCQuestionDetail::StatusQ(Box::new(status_q)),
         );
 
         let debug_string = format!("Status => {}", dest);
@@ -249,7 +249,10 @@ impl RPCProcessor {
         let status_a = RPCOperationStatusA::new(node_status, sender_info);
 
         // Send status answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::StatusA(status_a)))
-            .await
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::StatusA(Box::new(status_a))),
+        )
+        .await
     }
 }

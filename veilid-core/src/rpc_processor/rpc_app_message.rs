@@ -13,7 +13,7 @@ impl RPCProcessor {
         message: Vec<u8>,
     ) -> Result<NetworkResult<()>, RPCError> {
         let app_message = RPCOperationAppMessage::new(message)?;
-        let statement = RPCStatement::new(RPCStatementDetail::AppMessage(app_message));
+        let statement = RPCStatement::new(RPCStatementDetail::AppMessage(Box::new(app_message)));
 
         // Send the app message request
         self.statement(dest, statement).await
