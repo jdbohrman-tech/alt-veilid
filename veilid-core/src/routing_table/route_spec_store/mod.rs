@@ -141,10 +141,10 @@ impl RouteSpecStore {
             dr
         };
 
-        let update = VeilidUpdate::RouteChange(VeilidRouteChange {
+        let update = VeilidUpdate::RouteChange(Box::new(VeilidRouteChange {
             dead_routes,
             dead_remote_routes,
-        });
+        }));
 
         let update_callback = self.unlocked_inner.routing_table.update_callback();
         update_callback(update);

@@ -108,14 +108,14 @@ pub struct VeilidValueChange {
 #[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
 #[serde(tag = "kind")]
 pub enum VeilidUpdate {
-    Log(VeilidLog),
-    AppMessage(VeilidAppMessage),
-    AppCall(VeilidAppCall),
-    Attachment(VeilidStateAttachment),
-    Network(VeilidStateNetwork),
-    Config(VeilidStateConfig),
-    RouteChange(VeilidRouteChange),
-    ValueChange(VeilidValueChange),
+    Log(Box<VeilidLog>),
+    AppMessage(Box<VeilidAppMessage>),
+    AppCall(Box<VeilidAppCall>),
+    Attachment(Box<VeilidStateAttachment>),
+    Network(Box<VeilidStateNetwork>),
+    Config(Box<VeilidStateConfig>),
+    RouteChange(Box<VeilidRouteChange>),
+    ValueChange(Box<VeilidValueChange>),
     Shutdown,
 }
 from_impl_to_jsvalue!(VeilidUpdate);
@@ -123,8 +123,8 @@ from_impl_to_jsvalue!(VeilidUpdate);
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
 pub struct VeilidState {
-    pub attachment: VeilidStateAttachment,
-    pub network: VeilidStateNetwork,
-    pub config: VeilidStateConfig,
+    pub attachment: Box<VeilidStateAttachment>,
+    pub network: Box<VeilidStateNetwork>,
+    pub config: Box<VeilidStateConfig>,
 }
 from_impl_to_jsvalue!(VeilidState);

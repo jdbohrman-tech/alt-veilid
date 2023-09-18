@@ -22,7 +22,7 @@ impl TableStoreDriver {
     }
 
     pub async fn open(&self, table_name: &str, column_count: u32) -> VeilidAPIResult<Database> {
-        let dbpath = self.get_dbpath(&table_name)?;
+        let dbpath = self.get_dbpath(table_name)?;
 
         // Ensure permissions are correct
         ensure_file_private_owner(&dbpath).map_err(VeilidAPIError::internal)?;
@@ -43,7 +43,7 @@ impl TableStoreDriver {
     }
 
     pub async fn delete(&self, table_name: &str) -> VeilidAPIResult<bool> {
-        let dbpath = self.get_dbpath(&table_name)?;
+        let dbpath = self.get_dbpath(table_name)?;
         if !dbpath.exists() {
             return Ok(false);
         }

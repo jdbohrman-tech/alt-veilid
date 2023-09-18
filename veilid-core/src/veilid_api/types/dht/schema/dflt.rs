@@ -61,7 +61,7 @@ impl TryFrom<&[u8]> for DHTSchemaDFLT {
         if b.len() != Self::FIXED_SIZE {
             apibail_generic!("invalid size");
         }
-        if &b[0..4] != &Self::FCC {
+        if b[0..4] != Self::FCC {
             apibail_generic!("wrong fourcc");
         }
 

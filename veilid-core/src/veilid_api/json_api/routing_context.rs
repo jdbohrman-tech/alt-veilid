@@ -110,11 +110,11 @@ pub enum RoutingContextResponseOp {
     },
     CreateDhtRecord {
         #[serde(flatten)]
-        result: ApiResult<DHTRecordDescriptor>,
+        result: ApiResult<Box<DHTRecordDescriptor>>,
     },
     OpenDhtRecord {
         #[serde(flatten)]
-        result: ApiResult<DHTRecordDescriptor>,
+        result: ApiResult<Box<DHTRecordDescriptor>>,
     },
     CloseDhtRecord {
         #[serde(flatten)]

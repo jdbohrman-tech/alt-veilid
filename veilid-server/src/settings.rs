@@ -1,5 +1,3 @@
-#![allow(clippy::bool_assert_comparison)]
-
 use clap::ValueEnum;
 use directories::*;
 
@@ -714,62 +712,62 @@ impl Settings {
         }
 
         // bump client api port
-        (*settingsrw).client_api.listen_address.offset_port(idx)?;
+        settingsrw.client_api.listen_address.offset_port(idx)?;
 
         // bump protocol ports
-        (*settingsrw)
+        settingsrw
             .core
             .network
             .protocol
             .udp
             .listen_address
             .offset_port(idx)?;
-        (*settingsrw)
+        settingsrw
             .core
             .network
             .protocol
             .tcp
             .listen_address
             .offset_port(idx)?;
-        (*settingsrw)
+        settingsrw
             .core
             .network
             .protocol
             .ws
             .listen_address
             .offset_port(idx)?;
-        if let Some(url) = &mut (*settingsrw).core.network.protocol.ws.url {
+        if let Some(url) = &mut settingsrw.core.network.protocol.ws.url {
             url.offset_port(idx)?;
         }
-        (*settingsrw)
+        settingsrw
             .core
             .network
             .protocol
             .wss
             .listen_address
             .offset_port(idx)?;
-        if let Some(url) = &mut (*settingsrw).core.network.protocol.wss.url {
+        if let Some(url) = &mut settingsrw.core.network.protocol.wss.url {
             url.offset_port(idx)?;
         }
         // bump application ports
-        (*settingsrw)
+        settingsrw
             .core
             .network
             .application
             .http
             .listen_address
             .offset_port(idx)?;
-        if let Some(url) = &mut (*settingsrw).core.network.application.http.url {
+        if let Some(url) = &mut settingsrw.core.network.application.http.url {
             url.offset_port(idx)?;
         }
-        (*settingsrw)
+        settingsrw
             .core
             .network
             .application
             .https
             .listen_address
             .offset_port(idx)?;
-        if let Some(url) = &mut (*settingsrw).core.network.application.https.url {
+        if let Some(url) = &mut settingsrw.core.network.application.https.url {
             url.offset_port(idx)?;
         }
         Ok(())
@@ -1531,7 +1529,7 @@ mod tests {
         let settings = Settings::new(None).unwrap();
 
         let s = settings.read();
-        assert_eq!(s.daemon.enabled, false);
+        assert!(!s.daemon.enabled);
         assert_eq!(s.daemon.pid_file, None);
         assert_eq!(s.daemon.chroot, None);
         assert_eq!(s.daemon.working_directory, None);
@@ -1539,51 +1537,51 @@ mod tests {
         assert_eq!(s.daemon.group, None);
         assert_eq!(s.daemon.stdout_file, None);
         assert_eq!(s.daemon.stderr_file, None);
-        assert_eq!(s.client_api.enabled, true);
+        assert!(s.client_api.enabled);
         assert_eq!(s.client_api.listen_address.name, "localhost:5959");
         assert_eq!(
             s.client_api.listen_address.addrs,
             listen_address_to_socket_addrs("localhost:5959").unwrap()
         );
-        assert_eq!(s.auto_attach, true);
-        assert_eq!(s.logging.system.enabled, false);
+        assert!(s.auto_attach);
+        assert!(!s.logging.system.enabled);
         assert_eq!(s.logging.system.level, LogLevel::Info);
-        assert_eq!(s.logging.terminal.enabled, true);
+        assert!(s.logging.terminal.enabled);
         assert_eq!(s.logging.terminal.level, LogLevel::Info);
-        assert_eq!(s.logging.file.enabled, false);
+        assert!(!s.logging.file.enabled);
         assert_eq!(s.logging.file.path, "");
-        assert_eq!(s.logging.file.append, true);
+        assert!(s.logging.file.append);
         assert_eq!(s.logging.file.level, LogLevel::Info);
-        assert_eq!(s.logging.api.enabled, true);
+        assert!(s.logging.api.enabled);
         assert_eq!(s.logging.api.level, LogLevel::Info);
-        assert_eq!(s.logging.otlp.enabled, false);
+        assert!(!s.logging.otlp.enabled);
         assert_eq!(s.logging.otlp.level, LogLevel::Trace);
         assert_eq!(
             s.logging.otlp.grpc_endpoint,
             NamedSocketAddrs::from_str("localhost:4317").unwrap()
         );
-        assert_eq!(s.logging.console.enabled, false);
+        assert!(!s.logging.console.enabled);
         assert_eq!(s.testing.subnode_index, 0);
 
         assert_eq!(
             s.core.table_store.directory,
             Settings::get_default_table_store_path()
         );
-        assert_eq!(s.core.table_store.delete, false);
+        assert!(!s.core.table_store.delete);
 
         assert_eq!(
             s.core.block_store.directory,
             Settings::get_default_block_store_path()
         );
-        assert_eq!(s.core.block_store.delete, false);
+        assert!(!s.core.block_store.delete);
 
-        assert_eq!(s.core.protected_store.allow_insecure_fallback, true);
-        assert_eq!(s.core.protected_store.always_use_insecure_storage, true);
+        assert!(s.core.protected_store.allow_insecure_fallback);
+        assert!(s.core.protected_store.always_use_insecure_storage);
         assert_eq!(
             s.core.protected_store.directory,
             Settings::get_default_protected_store_directory()
         );
-        assert_eq!(s.core.protected_store.delete, false);
+        assert!(!s.core.protected_store.delete);
         assert_eq!(s.core.protected_store.device_encryption_key_password, "");
         assert_eq!(
             s.core.protected_store.new_device_encryption_key_password,
@@ -1633,8 +1631,8 @@ mod tests {
             2_000u32
         );
         //
-        assert_eq!(s.core.network.upnp, true);
-        assert_eq!(s.core.network.detect_address_changes, true);
+        assert!(s.core.network.upnp);
+        assert!(s.core.network.detect_address_changes);
         assert_eq!(s.core.network.restricted_nat_retries, 0u32);
         //
         assert_eq!(
@@ -1647,7 +1645,7 @@ mod tests {
         );
         assert_eq!(s.core.network.tls.connection_initial_timeout_ms, 2_000u32);
         //
-        assert_eq!(s.core.network.application.https.enabled, false);
+        assert!(!s.core.network.application.https.enabled);
         assert_eq!(s.core.network.application.https.listen_address.name, ":443");
         assert_eq!(
             s.core.network.application.https.listen_address.addrs,
@@ -1658,7 +1656,7 @@ mod tests {
             std::path::PathBuf::from("app")
         );
         assert_eq!(s.core.network.application.https.url, None);
-        assert_eq!(s.core.network.application.http.enabled, false);
+        assert!(!s.core.network.application.http.enabled);
         assert_eq!(s.core.network.application.http.listen_address.name, ":80");
         assert_eq!(
             s.core.network.application.http.listen_address.addrs,
@@ -1670,23 +1668,23 @@ mod tests {
         );
         assert_eq!(s.core.network.application.http.url, None);
         //
-        assert_eq!(s.core.network.protocol.udp.enabled, true);
+        assert!(s.core.network.protocol.udp.enabled);
         assert_eq!(s.core.network.protocol.udp.socket_pool_size, 0);
         assert_eq!(s.core.network.protocol.udp.listen_address.name, "");
         assert_eq!(s.core.network.protocol.udp.listen_address.addrs, vec![]);
         assert_eq!(s.core.network.protocol.udp.public_address, None);
 
         //
-        assert_eq!(s.core.network.protocol.tcp.connect, true);
-        assert_eq!(s.core.network.protocol.tcp.listen, true);
+        assert!(s.core.network.protocol.tcp.connect);
+        assert!(s.core.network.protocol.tcp.listen);
         assert_eq!(s.core.network.protocol.tcp.max_connections, 32);
         assert_eq!(s.core.network.protocol.tcp.listen_address.name, "");
         assert_eq!(s.core.network.protocol.tcp.listen_address.addrs, vec![]);
         assert_eq!(s.core.network.protocol.tcp.public_address, None);
 
         //
-        assert_eq!(s.core.network.protocol.ws.connect, true);
-        assert_eq!(s.core.network.protocol.ws.listen, true);
+        assert!(s.core.network.protocol.ws.connect);
+        assert!(s.core.network.protocol.ws.listen);
         assert_eq!(s.core.network.protocol.ws.max_connections, 32);
         assert_eq!(s.core.network.protocol.ws.listen_address.name, "");
         assert_eq!(s.core.network.protocol.ws.listen_address.addrs, vec![]);
@@ -1696,8 +1694,8 @@ mod tests {
         );
         assert_eq!(s.core.network.protocol.ws.url, None);
         //
-        assert_eq!(s.core.network.protocol.wss.connect, true);
-        assert_eq!(s.core.network.protocol.wss.listen, false);
+        assert!(s.core.network.protocol.wss.connect);
+        assert!(!s.core.network.protocol.wss.listen);
         assert_eq!(s.core.network.protocol.wss.max_connections, 32);
         assert_eq!(s.core.network.protocol.wss.listen_address.name, "");
         assert_eq!(s.core.network.protocol.wss.listen_address.addrs, vec![]);

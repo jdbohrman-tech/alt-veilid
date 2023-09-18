@@ -58,8 +58,8 @@ impl RPCProcessor {
 
         // Pass the message up through the update callback
         let message = app_message.destructure();
-        (self.unlocked_inner.update_callback)(VeilidUpdate::AppMessage(VeilidAppMessage::new(
-            sender, message,
+        (self.unlocked_inner.update_callback)(VeilidUpdate::AppMessage(Box::new(
+            VeilidAppMessage::new(sender, message),
         )));
 
         Ok(NetworkResult::value(()))

@@ -101,7 +101,7 @@ impl TryFrom<&[u8]> for DHTSchemaSMPL {
         if b.len() < Self::FIXED_SIZE {
             apibail_generic!("invalid size");
         }
-        if &b[0..4] != &Self::FCC {
+        if b[0..4] != Self::FCC {
             apibail_generic!("wrong fourcc");
         }
         if (b.len() - Self::FIXED_SIZE) % (PUBLIC_KEY_LENGTH + 2) != 0 {

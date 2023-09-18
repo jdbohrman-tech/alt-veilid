@@ -1,5 +1,3 @@
-#![allow(clippy::bool_assert_comparison)]
-
 use super::*;
 use core::convert::TryFrom;
 
@@ -338,14 +336,14 @@ async fn test_operations(vcrypto: CryptoSystemVersion) {
     assert_eq!(d4.first_nonzero_nibble(), Some((0, 0x9u8)));
 
     // Verify bits
-    assert_eq!(d1.bit(0), true);
-    assert_eq!(d1.bit(1), false);
-    assert_eq!(d1.bit(7), false);
-    assert_eq!(d1.bit(8), false);
-    assert_eq!(d1.bit(14), true);
-    assert_eq!(d1.bit(15), false);
-    assert_eq!(d1.bit(254), true);
-    assert_eq!(d1.bit(255), false);
+    assert!(d1.bit(0));
+    assert!(!d1.bit(1));
+    assert!(!d1.bit(7));
+    assert!(!d1.bit(8));
+    assert!(d1.bit(14));
+    assert!(!d1.bit(15));
+    assert!(d1.bit(254));
+    assert!(!d1.bit(255));
 
     assert_eq!(d1.first_nonzero_bit(), Some(0));
     assert_eq!(d2.first_nonzero_bit(), Some(0));

@@ -1,8 +1,8 @@
-use crate::*;
 use crate::server::*;
 use crate::settings::Settings;
 use crate::tools::*;
 use crate::veilid_logs::*;
+use crate::*;
 use futures_util::StreamExt;
 use signal_hook::consts::signal::*;
 use signal_hook_async_std::Signals;
@@ -84,7 +84,7 @@ pub fn run_daemon(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
 
         // Catch signals
         let signals =
-            Signals::new(&[SIGHUP, SIGTERM, SIGINT, SIGQUIT]).wrap_err("failed to init signals")?;
+            Signals::new([SIGHUP, SIGTERM, SIGINT, SIGQUIT]).wrap_err("failed to init signals")?;
         let handle = signals.handle();
 
         let signals_task = spawn(handle_signals(signals));

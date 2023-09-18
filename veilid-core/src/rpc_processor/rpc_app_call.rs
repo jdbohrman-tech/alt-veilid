@@ -94,9 +94,9 @@ impl RPCProcessor {
 
         // Pass the call up through the update callback
         let message_q = app_call_q.destructure();
-        (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(VeilidAppCall::new(
+        (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(Box::new(VeilidAppCall::new(
             sender, message_q, op_id,
-        )));
+        ))));
 
         // Wait for an app call answer to come back from the app
         let res = self

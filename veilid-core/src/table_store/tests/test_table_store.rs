@@ -50,7 +50,7 @@ pub async fn test_delete_open_delete(ts: TableStore) {
 pub async fn test_store_delete_load(ts: TableStore) {
     trace!("test_store_delete_load");
 
-    ts.delete("test").await;
+    let _ = ts.delete("test").await;
     let db = ts.open("test", 3).await.expect("should have opened");
     assert!(
         ts.delete("test").await.is_err(),
