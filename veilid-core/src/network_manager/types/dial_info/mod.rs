@@ -242,7 +242,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address,
         }
     }
-    pub fn to_ip_addr(&self) -> IpAddr {
+    pub fn ip_addr(&self) -> IpAddr {
         match self {
             Self::UDP(di) => di.socket_address.ip_addr(),
             Self::TCP(di) => di.socket_address.ip_addr(),
@@ -274,7 +274,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address.socket_addr(),
         }
     }
-    pub fn to_peer_address(&self) -> PeerAddress {
+    pub fn peer_address(&self) -> PeerAddress {
         match self {
             Self::UDP(di) => PeerAddress::new(di.socket_address, ProtocolType::UDP),
             Self::TCP(di) => PeerAddress::new(di.socket_address, ProtocolType::TCP),

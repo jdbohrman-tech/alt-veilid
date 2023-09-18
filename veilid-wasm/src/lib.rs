@@ -79,7 +79,7 @@ pub fn unmarshall(b64: String) -> APIResult<Vec<u8>> {
         })
 }
 
-pub fn marshall(data: &Vec<u8>) -> String {
+pub fn marshall(data: &[u8]) -> String {
     data_encoding::BASE64URL_NOPAD.encode(data)
 }
 
@@ -116,7 +116,7 @@ where
     F: Future<Output = APIResult<T>> + 'static,
     T: Serialize + Debug + 'static,
 {
-    future_to_promise(future.map(|res| res.map(|v| to_json(v)).map_err(|e| to_json(e))))
+    future_to_promise(future.map(|res| res.map(|v| to_json(v)).map_err(to_json)))
 }
 
 pub fn wrap_api_future_plain<F, T>(future: F) -> Promise
@@ -125,14 +125,14 @@ where
     JsValue: From<T>,
     T: 'static,
 {
-    future_to_promise(future.map(|res| res.map(|v| to_jsvalue(v)).map_err(|e| to_json(e))))
+    future_to_promise(future.map(|res| res.map(|v| to_jsvalue(v)).map_err(to_json)))
 }
 
 pub fn wrap_api_future_void<F>(future: F) -> Promise
 where
     F: Future<Output = APIResult<()>> + 'static,
 {
-    future_to_promise(future.map(|res| res.map(|_| JsValue::UNDEFINED).map_err(|e| to_json(e))))
+    future_to_promise(future.map(|res| res.map(|_| JsValue::UNDEFINED).map_err(to_json)))
 }
 
 /////////////////////////////////////////
@@ -340,7 +340,7 @@ pub fn release_routing_context(id: u32) -> i32 {
     if rc.remove(&id).is_none() {
         return 0;
     }
-    return 1;
+    1
 }
 
 #[wasm_bindgen()]
@@ -352,8 +352,7 @@ pub fn routing_context_with_privacy(id: u32) -> u32 {
     let Ok(routing_context) = routing_context.clone().with_privacy() else {
         return 0;
     };
-    let new_id = add_routing_context(routing_context);
-    new_id
+    add_routing_context(routing_context)
 }
 
 #[wasm_bindgen()]
@@ -371,8 +370,7 @@ pub fn routing_context_with_custom_privacy(id: u32, safety_selection: String) ->
     else {
         return 0;
     };
-    let new_id = add_routing_context(routing_context);
-    new_id
+    add_routing_context(routing_context)
 }
 
 #[wasm_bindgen()]
@@ -384,8 +382,7 @@ pub fn routing_context_with_sequencing(id: u32, sequencing: String) -> u32 {
         return 0;
     };
     let routing_context = routing_context.clone().with_sequencing(sequencing);
-    let new_id = add_routing_context(routing_context);
-    new_id
+    add_routing_context(routing_context)
 }
 
 #[wasm_bindgen()]
@@ -561,7 +558,7 @@ pub fn routing_context_get_dht_value(
 pub fn routing_context_set_dht_value(id: u32, key: String, subkey: u32, data: String) -> Promise {
     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
-        .decode(&data.as_bytes())
+        .decode(data.as_bytes())
         .unwrap();
 
     wrap_api_future_json(async move {
@@ -741,7 +738,7 @@ pub fn release_table_db(id: u32) -> i32 {
     if tdbs.remove(&id).is_none() {
         return 0;
     }
-    return 1;
+    1
 }
 
 #[wasm_bindgen()]
@@ -766,7 +763,7 @@ pub fn table_db_get_column_count(id: u32) -> u32 {
     let Ok(cc) = table_db.clone().get_column_count() else {
         return 0;
     };
-    return cc;
+    cc
 }
 
 #[wasm_bindgen()]
@@ -810,8 +807,7 @@ pub fn table_db_transact(id: u32) -> u32 {
         return 0;
     };
     let tdbt = table_db.clone().transact();
-    let tdbtid = add_table_db_transaction(tdbt);
-    return tdbtid;
+    add_table_db_transaction(tdbt)
 }
 
 #[wasm_bindgen()]
@@ -820,7 +816,7 @@ pub fn release_table_db_transaction(id: u32) -> i32 {
     if tdbts.remove(&id).is_none() {
         return 0;
     }
-    return 1;
+    1
 }
 
 #[wasm_bindgen()]

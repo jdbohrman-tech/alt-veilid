@@ -462,7 +462,7 @@ impl Network {
             }
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::Value(()))
         })
@@ -507,7 +507,7 @@ impl Network {
                         .await
                         .wrap_err("send message failure")?);
                     self.network_manager()
-                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
                     // receive single response
                     let mut out = vec![0u8; MAX_MESSAGE_SIZE];
@@ -552,7 +552,7 @@ impl Network {
 
                     network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
                     self.network_manager()
-                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
                     let out =
                         network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
@@ -560,10 +560,8 @@ impl Network {
                             .into_network_result())
                         .wrap_err("recv failure")?);
 
-                    self.network_manager().stats_packet_rcvd(
-                        dial_info.to_ip_addr(),
-                        ByteCount::new(out.len() as u64),
-                    );
+                    self.network_manager()
+                        .stats_packet_rcvd(dial_info.ip_addr(), ByteCount::new(out.len() as u64));
 
                     Ok(NetworkResult::Value(out))
                 }
@@ -676,7 +674,7 @@ impl Network {
 
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::value(connection_descriptor))
         })

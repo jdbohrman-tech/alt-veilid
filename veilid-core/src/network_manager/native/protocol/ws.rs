@@ -20,7 +20,7 @@ const MAX_WS_BEFORE_BODY: usize = 2048;
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
         pub type WebsocketNetworkConnectionWSS =
-   DialInfo::WS { field1: _ }ketNetworkConnection<async_tls::client::TlsStream<TcpStream>>;
+            WebsocketNetworkConnection<async_tls::client::TlsStream<TcpStream>>;
         pub type WebsocketNetworkConnectionWS = WebsocketNetworkConnection<TcpStream>;
     } else if #[cfg(feature="rt-tokio")] {
         pub type WebsocketNetworkConnectionWSS =
@@ -306,7 +306,7 @@ impl WebsocketProtocolHandler {
 
         // Make our connection descriptor
         let descriptor = ConnectionDescriptor::new(
-            dial_info.to_peer_address(),
+            dial_info.peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
         );
 

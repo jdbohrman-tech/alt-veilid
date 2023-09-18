@@ -23,7 +23,9 @@ impl VeilidTableDB {
 
     fn getTableDB(&self) -> APIResult<TableDB> {
         let Some(table_db) = &self.inner_table_db else {
-            return APIResult::Err(veilid_core::VeilidAPIError::generic("Unable to getTableDB instance. Ensure you've called openTable()."));
+            return APIResult::Err(veilid_core::VeilidAPIError::generic(
+                "Unable to getTableDB instance. Ensure you've called openTable().",
+            ));
         };
         APIResult::Ok(table_db.clone())
     }
@@ -140,7 +142,9 @@ impl VeilidTableDBTransaction {
 
     fn getTransaction(&self) -> APIResult<TableDBTransaction> {
         let Some(transaction) = &self.inner_transaction else {
-            return APIResult::Err(veilid_core::VeilidAPIError::generic("Unable to getTransaction instance. inner_transaction is None."));
+            return APIResult::Err(veilid_core::VeilidAPIError::generic(
+                "Unable to getTransaction instance. inner_transaction is None.",
+            ));
         };
         APIResult::Ok(transaction.clone())
     }
@@ -172,5 +176,11 @@ impl VeilidTableDBTransaction {
         let key = unmarshall(key)?;
         let transaction = self.getTransaction()?;
         transaction.delete(col, &key)
+    }
+}
+
+impl Default for VeilidTableDBTransaction {
+    fn default() -> Self {
+        Self::new()
     }
 }

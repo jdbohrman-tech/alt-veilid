@@ -249,7 +249,7 @@ impl ConnectionManager {
         &self,
         dial_info: DialInfo,
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
-        let peer_address = dial_info.to_peer_address();
+        let peer_address = dial_info.peer_address();
         let remote_addr = peer_address.socket_addr();
         let mut preferred_local_address = self
             .network_manager()
@@ -301,26 +301,6 @@ impl ConnectionManager {
             .await;
             match result_net_res {
                 Ok(net_res) => {
-                    // // If the connection 'already exists', then try one last time to return a connection from the table, in case
-                    // // an 'accept' happened at literally the same time as our connect. A preferred local address must have been
-                    // // specified otherwise we would have picked a different ephemeral port and this could not have happened
-                    // if net_res.is_already_exists() && preferred_local_address.is_some() {
-                    //     // Make 'already existing' connection descriptor
-                    //     let conn_desc = ConnectionDescriptor::new(
-                    //         dial_info.to_peer_address(),
-                    //         SocketAddress::from_socket_addr(preferred_local_address.unwrap()),
-                    //     );
-                    //     // Return the connection for this if we have it
-                    //     if let Some(conn) = self
-                    //         .arc
-                    //         .connection_table
-                    //         .get_connection_by_descriptor(conn_desc)
-                    //     {
-                    //         // Should not really happen, lets make sure we see this if it does
-                    //         log_net!(warn "== Returning existing connection in race: {:?}", conn_desc);
-                    //         return Ok(NetworkResult::Value(conn));
-                    //     }
-                    // }
                     if net_res.is_value() || retry_count == 0 {
                         // Successful new connection, return it
                         break net_res;

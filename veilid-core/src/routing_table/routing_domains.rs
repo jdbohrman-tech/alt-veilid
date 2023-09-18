@@ -399,8 +399,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                             dif_sort.clone()
                         ) {
                             // Ensure we aren't on the same public IP address (no hairpin nat)
-                            if reverse_did.dial_info.to_ip_addr()
-                                != target_did.dial_info.to_ip_addr()
+                            if reverse_did.dial_info.ip_addr()
+                                != target_did.dial_info.ip_addr()
                             {
                                 // Can we receive a direct reverse connection?
                                 if !reverse_did.class.requires_signal() {
@@ -433,8 +433,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                                 dif_sort.clone(),
                             ) {
                                 // Ensure we aren't on the same public IP address (no hairpin nat)
-                                if reverse_udp_did.dial_info.to_ip_addr()
-                                    != target_udp_did.dial_info.to_ip_addr()
+                                if reverse_udp_did.dial_info.ip_addr()
+                                    != target_udp_did.dial_info.ip_addr()
                                 {
                                     // The target and ourselves have a udp dialinfo that they can reach
                                     return ContactMethod::SignalHolePunch(

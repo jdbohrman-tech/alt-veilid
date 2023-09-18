@@ -46,7 +46,7 @@ use storage_manager::*;
 #[cfg(target_arch = "wasm32")]
 use wasm::*;
 #[cfg(target_arch = "wasm32")]
-pub use wasm::{LOCAL_NETWORK_CAPABILITIES, MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
+pub use wasm::{/* LOCAL_NETWORK_CAPABILITIES, */ MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES,};
 
 ////////////////////////////////////////////////////////////////////////////////////////
 

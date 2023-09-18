@@ -6,7 +6,7 @@ cfg_if! {
 
         pub fn get_timestamp() -> u64 {
             if is_browser() {
-                return (Date::now() * 1000.0f64) as u64;
+                (Date::now() * 1000.0f64) as u64
             } else {
                 panic!("WASM requires browser environment");
             }
@@ -23,28 +23,34 @@ cfg_if! {
                 let show_month = show_year || now.get_utc_month() != date.get_utc_month();
                 let show_date = show_month || now.get_utc_date() != date.get_utc_date();
 
+                let s_year = if show_year {
+                    format!("{:04}/",date.get_utc_full_year())
+                } else {
+                    "".to_owned()
+                };
+                let s_month = if show_month {
+                    format!("{:02}/",date.get_utc_month())
+                } else {
+                    "".to_owned()
+                };
+                let s_date = if show_date {
+                    format!("{:02}-",date.get_utc_date())
+                } else {
+                    "".to_owned()
+                };
+                let s_time = format!("{:02}:{:02}:{:02}.{:04}",
+                    date.get_utc_hours(),
+                    date.get_utc_minutes(),
+                    date.get_utc_seconds(),
+                    date.get_utc_milliseconds()
+                );
+
                 format!("{}{}{}{}",
-                    if show_year {
-                        format!("{:04}/",date.get_utc_full_year())
-                    } else {
-                        "".to_owned()
-                    },
-                    if show_month {
-                        format!("{:02}/",date.get_utc_month())
-                    } else {
-                        "".to_owned()
-                    },
-                    if show_date {
-                        format!("{:02}-",date.get_utc_date())
-                    } else {
-                        "".to_owned()
-                    },
-                    format!("{:02}:{:02}:{:02}.{:04}",
-                            date.get_utc_hours(),
-                            date.get_utc_minutes(),
-                            date.get_utc_seconds(),
-                            date.get_utc_milliseconds()
-                    ))
+                    s_year,
+                    s_month,
+                    s_date,
+                    s_time
+                )
             } else {
                 panic!("WASM requires browser environment");
             }

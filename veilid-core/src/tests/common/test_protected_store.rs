@@ -70,7 +70,7 @@ pub async fn test_protected_store(ps: ProtectedStore) {
     assert_eq!(ps.load_user_secret("_test_broken").await.unwrap(), None);
     assert_eq!(ps.load_user_secret("_test_broken").await.unwrap(), None);
     assert!(ps.remove_user_secret("_test_key").await.unwrap());
-    assert!(ps.remove_user_secret("_test_key").await.unwrap());
+    assert!(!ps.remove_user_secret("_test_key").await.unwrap());
     assert!(!ps.remove_user_secret("_test_key").await.unwrap());
     assert!(!ps.remove_user_secret("_test_broken").await.unwrap());
 
