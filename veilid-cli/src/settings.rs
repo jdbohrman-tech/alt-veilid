@@ -6,7 +6,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 
 pub fn load_default_config() -> Result<config::Config, config::ConfigError> {
-    let default_config = r###"---
+    let default_config = r#"---
 address: "localhost:5959"
 autoconnect: true
 autoreconnect: true
@@ -44,7 +44,7 @@ interface:
             info               : "white"
             warn               : "light yellow"
             error              : "light red"
-    "###
+    "#
     .replace(
         "%LOGGING_FILE_DIRECTORY%",
         &Settings::get_default_log_directory().to_string_lossy(),

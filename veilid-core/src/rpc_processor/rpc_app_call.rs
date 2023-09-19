@@ -17,7 +17,7 @@ impl RPCProcessor {
         let app_call_q = RPCOperationAppCallQ::new(message)?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
-            RPCQuestionDetail::AppCallQ(app_call_q),
+            RPCQuestionDetail::AppCallQ(Box::new(app_call_q)),
         );
 
         // Send the app call question
@@ -94,9 +94,9 @@ impl RPCProcessor {
 
         // Pass the call up through the update callback
         let message_q = app_call_q.destructure();
-        (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(VeilidAppCall::new(
+        (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(Box::new(VeilidAppCall::new(
             sender, message_q, op_id,
-        )));
+        ))));
 
         // Wait for an app call answer to come back from the app
         let res = self
@@ -117,8 +117,11 @@ impl RPCProcessor {
         let app_call_a = RPCOperationAppCallA::new(message_a)?;
 
         // Send status answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::AppCallA(app_call_a)))
-            .await
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::AppCallA(Box::new(app_call_a))),
+        )
+        .await
     }
 
     /// Exposed to API for apps to return app call answers

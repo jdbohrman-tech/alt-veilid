@@ -43,21 +43,21 @@ pub async fn test_fourcc() {
 
 pub async fn test_sequencing() {
     let orig = Sequencing::PreferOrdered;
-    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
 pub async fn test_stability() {
     let orig = Stability::Reliable;
-    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
 pub async fn test_safetyselection() {
     let orig = SafetySelection::Unsafe(Sequencing::EnsureOrdered);
-    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
@@ -178,7 +178,7 @@ pub async fn test_partialtunnel() {
 
 pub async fn test_veilidloglevel() {
     let orig = VeilidLogLevel::Info;
-    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
@@ -198,7 +198,7 @@ pub async fn test_veilidlog() {
 
 pub async fn test_attachmentstate() {
     let orig = AttachmentState::FullyAttached;
-    let copy = deserialize_json(&serialize_json(&orig)).unwrap();
+    let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
@@ -260,7 +260,7 @@ pub async fn test_veilidvaluechange() {
 }
 
 pub async fn test_veilidupdate() {
-    let orig = VeilidUpdate::ValueChange(fix_veilidvaluechange());
+    let orig = VeilidUpdate::ValueChange(Box::new(fix_veilidvaluechange()));
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
@@ -268,20 +268,20 @@ pub async fn test_veilidupdate() {
 
 pub async fn test_veilidstate() {
     let orig = VeilidState {
-        attachment: VeilidStateAttachment {
+        attachment: Box::new(VeilidStateAttachment {
             state: AttachmentState::OverAttached,
             public_internet_ready: true,
             local_network_ready: false,
-        },
-        network: VeilidStateNetwork {
+        }),
+        network: Box::new(VeilidStateNetwork {
             started: true,
             bps_down: AlignedU64::from(14_400),
             bps_up: AlignedU64::from(1200),
             peers: vec![fix_peertabledata()],
-        },
-        config: VeilidStateConfig {
+        }),
+        config: Box::new(VeilidStateConfig {
             config: fix_veilidconfiginner(),
-        },
+        }),
     };
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 

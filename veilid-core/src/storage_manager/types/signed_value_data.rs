@@ -24,7 +24,7 @@ impl SignedValueData {
     ) -> VeilidAPIResult<()> {
         let node_info_bytes = Self::make_signature_bytes(&self.value_data, owner, subkey)?;
         // validate signature
-        vcrypto.verify(&self.value_data.writer(), &node_info_bytes, &self.signature)
+        vcrypto.verify(self.value_data.writer(), &node_info_bytes, &self.signature)
     }
 
     pub fn make_signature(
@@ -37,7 +37,7 @@ impl SignedValueData {
         let node_info_bytes = Self::make_signature_bytes(&value_data, owner, subkey)?;
 
         // create signature
-        let signature = vcrypto.sign(&value_data.writer(), &writer_secret, &node_info_bytes)?;
+        let signature = vcrypto.sign(value_data.writer(), &writer_secret, &node_info_bytes)?;
         Ok(Self {
             value_data,
             signature,

@@ -248,7 +248,6 @@ Server Debug Commands:
                 _ => {
                     ui.add_node_event(Level::Error, format!("unknown flag: {}", flag));
                     ui.send_callback(callback);
-                    return;
                 }
             }
         });
@@ -271,7 +270,6 @@ Server Debug Commands:
                 _ => {
                     ui.add_node_event(Level::Error, format!("unknown flag: {}", flag));
                     ui.send_callback(callback);
-                    return;
                 }
             }
         });
@@ -399,12 +397,12 @@ Server Debug Commands:
     }
     pub fn update_route(&self, route: &json::JsonValue) {
         let mut out = String::new();
-        if route["dead_routes"].len() != 0 {
+        if !route["dead_routes"].is_empty() {
             out.push_str(&format!("Dead routes: {:?}", route["dead_routes"]));
         }
-        if route["dead_routes"].len() != 0 {
+        if !route["dead_routes"].is_empty() {
             if !out.is_empty() {
-                out.push_str("\n");
+                out.push('\n');
             }
             out.push_str(&format!(
                 "Dead remote routes: {:?}",
@@ -460,7 +458,7 @@ Server Debug Commands:
         };
 
         let strmsg = if printable {
-            format!("\"{}\"", String::from_utf8_lossy(&message).to_string())
+            format!("\"{}\"", String::from_utf8_lossy(message))
         } else {
             hex::encode(message)
         };
@@ -498,7 +496,7 @@ Server Debug Commands:
         };
 
         let strmsg = if printable {
-            format!("\"{}\"", String::from_utf8_lossy(&message).to_string())
+            format!("\"{}\"", String::from_utf8_lossy(message))
         } else {
             hex::encode(message)
         };

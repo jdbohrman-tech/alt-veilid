@@ -60,6 +60,7 @@ where
     C: Fn(NodeRef) -> F,
     D: Fn(&[NodeRef]) -> Option<R>,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         routing_table: RoutingTable,
         node_id: TypedKey,
@@ -103,7 +104,7 @@ where
     fn add_to_fanout_queue(self: Arc<Self>, new_nodes: &[NodeRef]) {
         let ctx = &mut *self.context.lock();
         let this = self.clone();
-        ctx.fanout_queue.add(&new_nodes, |current_nodes| {
+        ctx.fanout_queue.add(new_nodes, |current_nodes| {
             let mut current_nodes_vec = this
                 .routing_table
                 .sort_and_clean_closest_noderefs(this.node_id, current_nodes);
@@ -180,8 +181,10 @@ where
                     let entry = opt_entry.unwrap();
 
                     // Filter entries
-                    entry.with(rti, |_rti, e|  {
-                        let Some(signed_node_info) = e.signed_node_info(RoutingDomain::PublicInternet) else {
+                    entry.with(rti, |_rti, e| {
+                        let Some(signed_node_info) =
+                            e.signed_node_info(RoutingDomain::PublicInternet)
+                        else {
                             return false;
                         };
                         // Ensure only things that are valid/signed in the PublicInternet domain are returned

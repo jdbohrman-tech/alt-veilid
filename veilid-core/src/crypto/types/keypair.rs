@@ -96,7 +96,7 @@ impl<'de> serde::Deserialize<'de> for KeyPair {
         D: serde::Deserializer<'de>,
     {
         let s = <String as serde::Deserialize>::deserialize(deserializer)?;
-        if s == "" {
+        if s.is_empty() {
             return Ok(KeyPair::default());
         }
         KeyPair::try_decode(s.as_str()).map_err(serde::de::Error::custom)

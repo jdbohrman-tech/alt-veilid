@@ -93,7 +93,7 @@ pub mod as_human_base64 {
             let base64 = String::deserialize(d)?;
             BASE64URL_NOPAD
                 .decode(base64.as_bytes())
-                .map_err(|e| serde::de::Error::custom(e))
+                .map_err(serde::de::Error::custom)
         } else {
             Vec::<u8>::deserialize(d)
         }
@@ -106,7 +106,7 @@ pub mod as_human_opt_base64 {
 
     pub fn serialize<S: Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
         if s.is_human_readable() {
-            let base64 = v.as_ref().map(|x| BASE64URL_NOPAD.encode(&x));
+            let base64 = v.as_ref().map(|x| BASE64URL_NOPAD.encode(x));
             Option::<String>::serialize(&base64, s)
         } else {
             Option::<Vec<u8>>::serialize(v, s)
@@ -120,7 +120,7 @@ pub mod as_human_opt_base64 {
                 .map(|x| {
                     BASE64URL_NOPAD
                         .decode(x.as_bytes())
-                        .map_err(|e| serde::de::Error::custom(e))
+                        .map_err(serde::de::Error::custom)
                 })
                 .transpose()
         } else {

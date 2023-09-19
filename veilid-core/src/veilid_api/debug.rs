@@ -61,9 +61,9 @@ fn get_string(text: &str) -> Option<String> {
 }
 
 fn get_data(text: &str) -> Option<Vec<u8>> {
-    if text.starts_with("#") {
-        hex::decode(&text[1..]).ok()
-    } else if text.starts_with("\"") || text.starts_with("'") {
+    if let Some(stripped_text) = text.strip_prefix('#') {
+        hex::decode(stripped_text).ok()
+    } else if text.starts_with('"') || text.starts_with('\'') {
         json::parse(text)
             .ok()?
             .as_str()
@@ -86,7 +86,7 @@ fn get_route_id(
     allow_allocated: bool,
     allow_remote: bool,
 ) -> impl Fn(&str) -> Option<RouteId> {
-    return move |text: &str| {
+    move |text: &str| {
         if text.is_empty() {
             return None;
         }
@@ -127,7 +127,7 @@ fn get_route_id(
             }
         }
         None
-    };
+    }
 }
 
 fn get_dht_schema(text: &str) -> Option<DHTSchema> {
@@ -140,7 +140,7 @@ fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<
         let default_route_hop_count =
             routing_table.with_config(|c| c.network.rpc.default_route_hop_count as usize);
 
-        if text.len() != 0 && &text[0..1] == "-" {
+        if !text.is_empty() && &text[0..1] == "-" {
             // Unsafe
             let text = &text[1..];
             let seq = get_sequencing(text).unwrap_or_default();
@@ -151,7 +151,7 @@ fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<
             let mut hop_count = default_route_hop_count;
             let mut stability = Stability::default();
             let mut sequencing = Sequencing::default();
-            for x in text.split(",") {
+            for x in text.split(',') {
                 let x = x.trim();
                 if let Some(pr) = get_route_id(rss.clone(), true, false)(x) {
                     preferred_route = Some(pr)
@@ -179,7 +179,7 @@ fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<
 
 fn get_node_ref_modifiers(mut node_ref: NodeRef) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
-        for m in text.split("/") {
+        for m in text.split('/') {
             if let Some(pt) = get_protocol_type(m) {
                 node_ref.merge_filter(NodeRefFilter::new().with_protocol_type(pt));
             } else if let Some(at) = get_address_type(m) {
@@ -207,7 +207,7 @@ fn get_destination(
             } else {
                 (text.as_str(), None)
             };
-            if text.len() == 0 {
+            if text.is_empty() {
                 return None;
             }
             if &text[0..1] == "#" {
@@ -219,19 +219,19 @@ fn get_destination(
                 let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text)
                 {
                     let Some(private_route) = rss.best_remote_private_route(&prid) else {
-                    return None;
-                };
+                        return None;
+                    };
                     private_route
                 } else {
                     let mut dc = DEBUG_CACHE.lock();
                     let n = get_number(text)?;
-                    let prid = dc.imported_routes.get(n)?.clone();
+                    let prid = *dc.imported_routes.get(n)?;
                     let Some(private_route) = rss.best_remote_private_route(&prid) else {
-                    // Remove imported route
-                    dc.imported_routes.remove(n);
-                    info!("removed dead imported route {}", n);
-                    return None;
-                };
+                        // Remove imported route
+                        dc.imported_routes.remove(n);
+                        info!("removed dead imported route {}", n);
+                        return None;
+                    };
                     private_route
                 };
 
@@ -312,7 +312,7 @@ fn get_dht_key(
         } else {
             (text, None)
         };
-        if text.len() == 0 {
+        if text.is_empty() {
             return None;
         }
 
@@ -528,13 +528,13 @@ pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
     let (data, truncated) = if truncate_len.is_some() && data.len() > truncate_len.unwrap() {
         (&data[0..64], true)
     } else {
-        (&data[..], false)
+        (data, false)
     };
 
     let strdata = if printable {
-        format!("{}", String::from_utf8_lossy(&data).to_string())
+        String::from_utf8_lossy(data).to_string()
     } else {
-        let sw = shell_words::quote(&String::from_utf8_lossy(&data).to_string()).to_string();
+        let sw = shell_words::quote(String::from_utf8_lossy(data).as_ref()).to_string();
         let h = hex::encode(data);
         if h.len() < sw.len() {
             h
@@ -1019,8 +1019,8 @@ impl VeilidAPI {
         let netman = self.network_manager()?;
         let rpc = netman.rpc_processor();
 
-        let (call_id, data) = if args.starts_with("#") {
-            let (arg, rest) = args[1..].split_once(' ').unwrap_or((&args, ""));
+        let (call_id, data) = if let Some(stripped_args) = args.strip_prefix('#') {
+            let (arg, rest) = stripped_args.split_once(' ').unwrap_or((&args, ""));
             let call_id =
                 OperationId::new(u64::from_str_radix(arg, 16).map_err(VeilidAPIError::generic)?);
             let rest = rest.trim_start().to_owned();
@@ -1097,7 +1097,7 @@ impl VeilidAPI {
             &[],
         ) {
             Ok(Some(v)) => format!("{}", v),
-            Ok(None) => format!("<unavailable>"),
+            Ok(None) => "<unavailable>".to_string(),
             Err(e) => {
                 format!("Route allocation failed: {}", e)
             }
@@ -1270,7 +1270,7 @@ impl VeilidAPI {
         let out = format!("Private route #{} imported: {}", n, route_id);
         dc.imported_routes.push(route_id);
 
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_route_test(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1298,7 +1298,7 @@ impl VeilidAPI {
             "FAILED".to_owned()
         };
 
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_route(&self, args: String) -> VeilidAPIResult<String> {
@@ -1334,18 +1334,18 @@ impl VeilidAPI {
         let scope = get_debug_argument_at(&args, 1, "debug_record_list", "scope", get_string)?;
         let out = match scope.as_str() {
             "local" => {
-                let mut out = format!("Local Records:\n");
+                let mut out = "Local Records:\n".to_string();
                 out += &storage_manager.debug_local_records().await;
                 out
             }
             "remote" => {
-                let mut out = format!("Remote Records:\n");
+                let mut out = "Remote Records:\n".to_string();
                 out += &storage_manager.debug_remote_records().await;
                 out
             }
             _ => "Invalid scope\n".to_owned(),
         };
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_record_purge(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1359,7 +1359,7 @@ impl VeilidAPI {
             "remote" => storage_manager.purge_remote_records(bytes).await,
             _ => "Invalid scope\n".to_owned(),
         };
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_record_create(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1397,11 +1397,10 @@ impl VeilidAPI {
         // Get routing context with optional privacy
         let rc = self.routing_context();
         let rc = if let Some(ss) = ss {
-            let rcp = match rc.with_custom_privacy(ss) {
+            match rc.with_custom_privacy(ss) {
                 Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
                 Ok(v) => v,
-            };
-            rcp
+            }
         } else {
             rc
         };
@@ -1416,7 +1415,7 @@ impl VeilidAPI {
             Ok(v) => v,
         };
         debug!("DHT Record Created:\n{:#?}", record);
-        return Ok(format!("{:?}", record));
+        Ok(format!("{:?}", record))
     }
 
     async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1456,11 +1455,10 @@ impl VeilidAPI {
         // Get routing context with optional privacy
         let rc = self.routing_context();
         let rc = if let Some(ss) = ss {
-            let rcp = match rc.with_custom_privacy(ss) {
+            match rc.with_custom_privacy(ss) {
                 Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
                 Ok(v) => v,
-            };
-            rcp
+            }
         } else {
             rc
         };
@@ -1497,7 +1495,7 @@ impl VeilidAPI {
             Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
             Ok(v) => v,
         };
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_record_set(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1518,11 +1516,10 @@ impl VeilidAPI {
         // Get routing context with optional privacy
         let rc = self.routing_context();
         let rc = if let Some(ss) = ss {
-            let rcp = match rc.with_custom_privacy(ss) {
+            match rc.with_custom_privacy(ss) {
                 Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
                 Ok(v) => v,
-            };
-            rcp
+            }
         } else {
             rc
         };
@@ -1556,7 +1553,7 @@ impl VeilidAPI {
             Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
             Ok(v) => v,
         };
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_record_delete(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1568,7 +1565,7 @@ impl VeilidAPI {
             Err(e) => return Ok(format!("Can't delete DHT record: {}", e)),
             Ok(v) => v,
         };
-        Ok(format!("DHT record deleted"))
+        Ok("DHT record deleted".to_string())
     }
 
     async fn debug_record_info(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1595,7 +1592,7 @@ impl VeilidAPI {
             let ri = storage_manager.debug_remote_record_info(key).await;
             format!("Local Info:\n{}\n\nRemote Info:\n{}\n", li, ri)
         };
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
@@ -1629,7 +1626,7 @@ impl VeilidAPI {
         let address_filter = network_manager.address_filter();
 
         let out = format!("Address Filter Punishments:\n{:#?}", address_filter);
-        return Ok(out);
+        Ok(out)
     }
 
     async fn debug_punish(&self, args: String) -> VeilidAPIResult<String> {

@@ -48,7 +48,19 @@ pub async fn run_veilid_server_internal(
 ) -> EyreResult<()> {
     trace!(?settings, ?server_mode);
 
-    let settingsr = settings.read();
+    let (
+        settings_auto_attach,
+        settings_client_api_enabled,
+        settings_client_api_listen_address_addrs,
+    ) = {
+        let settingsr = settings.read();
+
+        (
+            settingsr.auto_attach,
+            settingsr.client_api.enabled,
+            settingsr.client_api.listen_address.addrs.clone(),
+        )
+    };
 
     // Create client api state change pipe
     let (sender, receiver): (
@@ -72,20 +84,19 @@ pub async fn run_veilid_server_internal(
         .wrap_err("VeilidCore startup failed")?;
 
     // Start client api if one is requested
-    let mut capi = if settingsr.client_api.enabled && matches!(server_mode, ServerMode::Normal) {
+    let mut capi = if settings_client_api_enabled && matches!(server_mode, ServerMode::Normal) {
         let some_capi =
             client_api::ClientApi::new(veilid_api.clone(), veilid_logs.clone(), settings.clone());
         some_capi
             .clone()
-            .run(settingsr.client_api.listen_address.addrs.clone());
+            .run(settings_client_api_listen_address_addrs);
         Some(some_capi)
     } else {
         None
     };
 
     // Drop rwlock on settings
-    let auto_attach = settingsr.auto_attach || !matches!(server_mode, ServerMode::Normal);
-    drop(settingsr);
+    let auto_attach = settings_auto_attach || !matches!(server_mode, ServerMode::Normal);
 
     // Process all updates
     let capi2 = capi.clone();

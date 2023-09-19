@@ -565,11 +565,11 @@ impl VeilidConfig {
         })
     }
 
-    pub fn get_veilid_state(&self) -> VeilidStateConfig {
+    pub fn get_veilid_state(&self) -> Box<VeilidStateConfig> {
         let inner = self.inner.read();
-        VeilidStateConfig {
+        Box::new(VeilidStateConfig {
             config: inner.clone(),
-        }
+        })
     }
 
     pub fn get(&self) -> RwLockReadGuard<VeilidConfigInner> {
@@ -612,7 +612,7 @@ impl VeilidConfig {
             // Make changes
             let out = f(&mut editedinner)?;
             // Validate
-            Self::validate(&mut editedinner)?;
+            Self::validate(&editedinner)?;
             // See if things have changed
             if *inner == editedinner {
                 // No changes, return early
@@ -626,7 +626,9 @@ impl VeilidConfig {
         // Send configuration update to clients
         if let Some(update_cb) = &self.update_cb {
             let safe_cfg = self.safe_config_inner();
-            update_cb(VeilidUpdate::Config(VeilidStateConfig { config: safe_cfg }));
+            update_cb(VeilidUpdate::Config(Box::new(VeilidStateConfig {
+                config: safe_cfg,
+            })));
         }
 
         Ok(out)
@@ -680,7 +682,7 @@ impl VeilidConfig {
                 // Replace subkey
                 let mut out = &mut jvc;
                 for k in objkeypath {
-                    if !out.has_key(*k) {
+                    if !out.has_key(k) {
                         apibail_parse_error!(format!("invalid subkey in key '{}'", key), k);
                     }
                     out = &mut out[*k];

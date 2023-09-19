@@ -141,10 +141,8 @@ impl DiscoveryContext {
         let dial_info_filter = DialInfoFilter::all()
             .with_protocol_type(protocol_type)
             .with_address_type(address_type);
-        let inbound_dial_info_entry_filter = RoutingTable::make_inbound_dial_info_entry_filter(
-            routing_domain,
-            dial_info_filter.clone(),
-        );
+        let inbound_dial_info_entry_filter =
+            RoutingTable::make_inbound_dial_info_entry_filter(routing_domain, dial_info_filter);
         let disallow_relays_filter = Box::new(
             move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                 let v = v.unwrap();
@@ -199,7 +197,7 @@ impl DiscoveryContext {
             let node = node.filtered_clone(
                 NodeRefFilter::new()
                     .with_routing_domain(routing_domain)
-                    .with_dial_info_filter(dial_info_filter.clone()),
+                    .with_dial_info_filter(dial_info_filter),
             );
             async move {
                 if let Some(address) = this.request_public_address(node.clone()).await {
@@ -219,9 +217,7 @@ impl DiscoveryContext {
 
         let mut external_address_infos = Vec::new();
 
-        for ni in 0..nodes.len() - 1 {
-            let node = nodes[ni].clone();
-
+        for node in nodes.iter().take(nodes.len() - 1).cloned() {
             let gpa_future = get_public_address_func(node);
             unord.push(gpa_future);
 
@@ -277,15 +273,15 @@ impl DiscoveryContext {
         node_ref.set_filter(None);
 
         // ask the node to send us a dial info validation receipt
-        let out = rpc_processor
+
+        rpc_processor
             .rpc_call_validate_dial_info(node_ref.clone(), dial_info, redirect)
             .await
             .map_err(logthru_net!(
                 "failed to send validate_dial_info to {:?}",
                 node_ref
             ))
-            .unwrap_or(false);
-        out
+            .unwrap_or(false)
     }
 
     #[instrument(level = "trace", skip(self), ret)]
@@ -307,9 +303,14 @@ impl DiscoveryContext {
 
             // Attempt a port mapping. If this doesn't succeed, it's not going to
             let Some(mapped_external_address) = igd_manager
-                .map_any_port(low_level_protocol_type, address_type, local_port, Some(external_1.address.to_ip_addr()))
-                .await else
-            {
+                .map_any_port(
+                    low_level_protocol_type,
+                    address_type,
+                    local_port,
+                    Some(external_1.address.ip_addr()),
+                )
+                .await
+            else {
                 return None;
             };
 

@@ -29,7 +29,7 @@ impl SignedDirectNodeInfo {
         // Verify the signatures that we can
         let validated_node_ids =
             crypto.verify_signatures(node_ids, &node_info_bytes, &self.signatures)?;
-        if validated_node_ids.len() == 0 {
+        if validated_node_ids.is_empty() {
             apibail_generic!("no valid node ids in direct node info");
         }
 

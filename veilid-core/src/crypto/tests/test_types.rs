@@ -1,5 +1,3 @@
-#![allow(clippy::bool_assert_comparison)]
-
 use super::*;
 use core::convert::TryFrom;
 
@@ -228,7 +226,7 @@ pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
 pub async fn test_typed_convert(vcrypto: CryptoSystemVersion) {
     let tks1 = format!(
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",
-        vcrypto.kind().to_string()
+        vcrypto.kind()
     );
     let tk1 = TypedKey::from_str(&tks1).expect("failed");
     let tks1x = tk1.to_string();
@@ -236,22 +234,22 @@ pub async fn test_typed_convert(vcrypto: CryptoSystemVersion) {
 
     let tks2 = format!(
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd",
-        vcrypto.kind().to_string()
+        vcrypto.kind()
     );
     let _tk2 = TypedKey::from_str(&tks2).expect_err("succeeded when it shouldnt have");
 
-    let tks3 = format!("XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tks3 = "XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
     let tk3 = TypedKey::from_str(&tks3).expect("failed");
     let tks3x = tk3.to_string();
     assert_eq!(tks3, tks3x);
 
-    let tks4 = format!("XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd",);
+    let tks4 = "XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd".to_string();
     let _tk4 = TypedKey::from_str(&tks4).expect_err("succeeded when it shouldnt have");
 
-    let tks5 = format!("XXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tks5 = "XXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
     let _tk5 = TypedKey::from_str(&tks5).expect_err("succeeded when it shouldnt have");
 
-    let tks6 = format!("7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",);
+    let tks6 = "7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
     let tk6 = TypedKey::from_str(&tks6).expect("failed");
     let tks6x = tk6.to_string();
     assert!(tks6x.ends_with(&tks6));
@@ -338,14 +336,14 @@ async fn test_operations(vcrypto: CryptoSystemVersion) {
     assert_eq!(d4.first_nonzero_nibble(), Some((0, 0x9u8)));
 
     // Verify bits
-    assert_eq!(d1.bit(0), true);
-    assert_eq!(d1.bit(1), false);
-    assert_eq!(d1.bit(7), false);
-    assert_eq!(d1.bit(8), false);
-    assert_eq!(d1.bit(14), true);
-    assert_eq!(d1.bit(15), false);
-    assert_eq!(d1.bit(254), true);
-    assert_eq!(d1.bit(255), false);
+    assert!(d1.bit(0));
+    assert!(!d1.bit(1));
+    assert!(!d1.bit(7));
+    assert!(!d1.bit(8));
+    assert!(d1.bit(14));
+    assert!(!d1.bit(15));
+    assert!(d1.bit(254));
+    assert!(!d1.bit(255));
 
     assert_eq!(d1.first_nonzero_bit(), Some(0));
     assert_eq!(d2.first_nonzero_bit(), Some(0));

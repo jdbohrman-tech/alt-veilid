@@ -1,5 +1,3 @@
-#![allow(clippy::bool_assert_comparison)]
-
 use crate::*;
 
 cfg_if! {
@@ -168,7 +166,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
         "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
         "namespace" => Ok(Box::<String>::default()),
-        "capabilities.disable" => Ok(Box::<Vec::<FourCC>>::default()),
+        "capabilities.disable" => Ok(Box::<Vec<FourCC>>::default()),
         "table_store.directory" => Ok(Box::new(get_table_store_path())),
         "table_store.delete" => Ok(Box::new(true)),
         "block_store.directory" => Ok(Box::new(get_block_store_path())),
@@ -193,7 +191,7 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.network_key_password" => Ok(Box::new(Option::<String>::None)),
         "network.routing_table.node_id" => Ok(Box::new(TypedKeyGroup::new())),
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
-        "network.routing_table.bootstrap" => Ok(Box::<Vec::<String>>::default()),
+        "network.routing_table.bootstrap" => Ok(Box::<Vec<String>>::default()),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
         "network.routing_table.limit_attached_strong" => Ok(Box::new(16u32)),
@@ -295,13 +293,13 @@ pub async fn test_config() {
     assert_eq!(inner.namespace, String::from(""));
     assert_eq!(inner.capabilities.disable, Vec::<FourCC>::new());
     assert_eq!(inner.table_store.directory, get_table_store_path());
-    assert_eq!(inner.table_store.delete, true);
+    assert!(inner.table_store.delete);
     assert_eq!(inner.block_store.directory, get_block_store_path());
-    assert_eq!(inner.block_store.delete, true);
-    assert_eq!(inner.protected_store.allow_insecure_fallback, true);
-    assert_eq!(inner.protected_store.always_use_insecure_storage, false);
+    assert!(inner.block_store.delete);
+    assert!(inner.protected_store.allow_insecure_fallback);
+    assert!(!inner.protected_store.always_use_insecure_storage);
     assert_eq!(inner.protected_store.directory, get_protected_store_path());
-    assert_eq!(inner.protected_store.delete, true);
+    assert!(inner.protected_store.delete);
     assert_eq!(
         inner.protected_store.device_encryption_key_password,
         "".to_owned()
@@ -351,38 +349,38 @@ pub async fn test_config() {
         5_000u32
     );
 
-    assert_eq!(inner.network.upnp, false);
-    assert_eq!(inner.network.detect_address_changes, true);
+    assert!(!inner.network.upnp);
+    assert!(inner.network.detect_address_changes);
     assert_eq!(inner.network.restricted_nat_retries, 3u32);
     assert_eq!(inner.network.tls.certificate_path, get_certfile_path());
     assert_eq!(inner.network.tls.private_key_path, get_keyfile_path());
     assert_eq!(inner.network.tls.connection_initial_timeout_ms, 2_000u32);
 
-    assert_eq!(inner.network.application.https.enabled, false);
+    assert!(!inner.network.application.https.enabled);
     assert_eq!(inner.network.application.https.listen_address, "");
     assert_eq!(inner.network.application.https.path, "app");
     assert_eq!(inner.network.application.https.url, None);
-    assert_eq!(inner.network.application.http.enabled, false);
+    assert!(!inner.network.application.http.enabled);
     assert_eq!(inner.network.application.http.listen_address, "");
     assert_eq!(inner.network.application.http.path, "app");
     assert_eq!(inner.network.application.http.url, None);
-    assert_eq!(inner.network.protocol.udp.enabled, true);
+    assert!(inner.network.protocol.udp.enabled);
     assert_eq!(inner.network.protocol.udp.socket_pool_size, 16u32);
     assert_eq!(inner.network.protocol.udp.listen_address, "");
     assert_eq!(inner.network.protocol.udp.public_address, None);
-    assert_eq!(inner.network.protocol.tcp.connect, true);
-    assert_eq!(inner.network.protocol.tcp.listen, true);
+    assert!(inner.network.protocol.tcp.connect);
+    assert!(inner.network.protocol.tcp.listen);
     assert_eq!(inner.network.protocol.tcp.max_connections, 32u32);
     assert_eq!(inner.network.protocol.tcp.listen_address, "");
     assert_eq!(inner.network.protocol.tcp.public_address, None);
-    assert_eq!(inner.network.protocol.ws.connect, false);
-    assert_eq!(inner.network.protocol.ws.listen, false);
+    assert!(!inner.network.protocol.ws.connect);
+    assert!(!inner.network.protocol.ws.listen);
     assert_eq!(inner.network.protocol.ws.max_connections, 16u32);
     assert_eq!(inner.network.protocol.ws.listen_address, "");
     assert_eq!(inner.network.protocol.ws.path, "ws");
     assert_eq!(inner.network.protocol.ws.url, None);
-    assert_eq!(inner.network.protocol.wss.connect, false);
-    assert_eq!(inner.network.protocol.wss.listen, false);
+    assert!(!inner.network.protocol.wss.connect);
+    assert!(!inner.network.protocol.wss.listen);
     assert_eq!(inner.network.protocol.wss.max_connections, 16u32);
     assert_eq!(inner.network.protocol.wss.listen_address, "");
     assert_eq!(inner.network.protocol.wss.path, "ws");

@@ -74,7 +74,7 @@ where
     }
 
     pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
 
     // #[instrument(level = "trace", err, skip(self))]
@@ -232,7 +232,7 @@ impl WebsocketProtocolHandler {
         // This check could be loosened if necessary, but until we have a reason to do so
         // a stricter interpretation of HTTP is possible and desirable to reduce attack surface
 
-        if peek_buf.windows(4).position(|w| w == b"\r\n\r\n").is_none() {
+        if !peek_buf.windows(4).any(|w| w == b"\r\n\r\n") {
             return Ok(None);
         }
 
@@ -306,7 +306,7 @@ impl WebsocketProtocolHandler {
 
         // Make our connection descriptor
         let descriptor = ConnectionDescriptor::new(
-            dial_info.to_peer_address(),
+            dial_info.peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
         );
 
@@ -339,8 +339,7 @@ impl Callback for WebsocketProtocolHandler {
             || request
                 .headers()
                 .iter()
-                .find(|h| (h.0.as_str().len() + h.1.as_bytes().len()) > MAX_WS_HEADER_LENGTH)
-                .is_some()
+                .any(|h| (h.0.as_str().len() + h.1.as_bytes().len()) > MAX_WS_HEADER_LENGTH)
         {
             let mut error_response = ErrorResponse::new(None);
             *error_response.status_mut() = StatusCode::NOT_FOUND;

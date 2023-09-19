@@ -421,7 +421,7 @@ impl Network {
             if self
                 .network_manager()
                 .address_filter()
-                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+                .is_ip_addr_punished(dial_info.address().ip_addr())
             {
                 return Ok(NetworkResult::no_connection_other("punished"));
             }
@@ -462,7 +462,7 @@ impl Network {
             }
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::Value(()))
         })
@@ -491,7 +491,7 @@ impl Network {
             if self
                 .network_manager()
                 .address_filter()
-                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+                .is_ip_addr_punished(dial_info.address().ip_addr())
             {
                 return Ok(NetworkResult::no_connection_other("punished"));
             }
@@ -507,7 +507,7 @@ impl Network {
                         .await
                         .wrap_err("send message failure")?);
                     self.network_manager()
-                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
                     // receive single response
                     let mut out = vec![0u8; MAX_MESSAGE_SIZE];
@@ -519,7 +519,7 @@ impl Network {
                     .into_network_result())
                     .wrap_err("recv_message failure")?;
 
-                    let recv_socket_addr = recv_addr.remote_address().to_socket_addr();
+                    let recv_socket_addr = recv_addr.remote_address().socket_addr();
                     self.network_manager()
                         .stats_packet_rcvd(recv_socket_addr.ip(), ByteCount::new(recv_len as u64));
 
@@ -552,7 +552,7 @@ impl Network {
 
                     network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
                     self.network_manager()
-                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
                     let out =
                         network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
@@ -560,10 +560,8 @@ impl Network {
                             .into_network_result())
                         .wrap_err("recv failure")?);
 
-                    self.network_manager().stats_packet_rcvd(
-                        dial_info.to_ip_addr(),
-                        ByteCount::new(out.len() as u64),
-                    );
+                    self.network_manager()
+                        .stats_packet_rcvd(dial_info.ip_addr(), ByteCount::new(out.len() as u64));
 
                     Ok(NetworkResult::Value(out))
                 }
@@ -583,10 +581,10 @@ impl Network {
         // Handle connectionless protocol
         if descriptor.protocol_type() == ProtocolType::UDP {
             // send over the best udp socket we have bound since UDP is not connection oriented
-            let peer_socket_addr = descriptor.remote().to_socket_addr();
+            let peer_socket_addr = descriptor.remote().socket_addr();
             if let Some(ph) = self.find_best_udp_protocol_handler(
                 &peer_socket_addr,
-                &descriptor.local().map(|sa| sa.to_socket_addr()),
+                &descriptor.local().map(|sa| sa.socket_addr()),
             ) {
                 network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
@@ -612,7 +610,7 @@ impl Network {
                 ConnectionHandleSendResult::Sent => {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
-                        descriptor.remote().to_socket_addr().ip(),
+                        descriptor.remote().socket_addr().ip(),
                         ByteCount::new(data_len as u64),
                     );
 
@@ -676,7 +674,7 @@ impl Network {
 
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::value(connection_descriptor))
         })
@@ -701,7 +699,7 @@ impl Network {
             .with_interfaces(|interfaces| {
                 trace!("interfaces: {:#?}", interfaces);
 
-                for (_name, intf) in interfaces {
+                for intf in interfaces.values() {
                     // Skip networks that we should never encounter
                     if intf.is_loopback() || !intf.is_running() {
                         continue;

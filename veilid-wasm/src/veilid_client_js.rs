@@ -163,12 +163,11 @@ impl VeilidClient {
     /// Return the cargo package version of veilid-core, in object format.
     pub fn version() -> VeilidVersion {
         let (major, minor, patch) = veilid_core::veilid_version();
-        let vv = super::VeilidVersion {
+        super::VeilidVersion {
             major,
             minor,
             patch,
-        };
-        vv
+        }
     }
 
     /// Return the cargo package version of veilid-core, in string format.

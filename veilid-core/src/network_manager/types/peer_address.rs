@@ -10,7 +10,7 @@ pub struct PeerAddress {
 impl PeerAddress {
     pub fn new(socket_address: SocketAddress, protocol_type: ProtocolType) -> Self {
         Self {
-            socket_address: socket_address.to_canonical(),
+            socket_address: socket_address.canonical(),
             protocol_type,
         }
     }
@@ -23,8 +23,8 @@ impl PeerAddress {
         self.protocol_type
     }
 
-    pub fn to_socket_addr(&self) -> SocketAddr {
-        self.socket_address.to_socket_addr()
+    pub fn socket_addr(&self) -> SocketAddr {
+        self.socket_address.socket_addr()
     }
 
     pub fn address_type(&self) -> AddressType {
@@ -42,7 +42,10 @@ impl FromStr for PeerAddress {
     type Err = VeilidAPIError;
     fn from_str(s: &str) -> VeilidAPIResult<PeerAddress> {
         let Some((first, second)) = s.split_once(':') else {
-            return Err(VeilidAPIError::parse_error("PeerAddress is missing a colon: {}", s));
+            return Err(VeilidAPIError::parse_error(
+                "PeerAddress is missing a colon: {}",
+                s,
+            ));
         };
         let protocol_type = ProtocolType::from_str(first)?;
         let socket_address = SocketAddress::from_str(second)?;

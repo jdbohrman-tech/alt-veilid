@@ -13,7 +13,7 @@ impl RPCProcessor {
         message: Vec<u8>,
     ) -> Result<NetworkResult<()>, RPCError> {
         let app_message = RPCOperationAppMessage::new(message)?;
-        let statement = RPCStatement::new(RPCStatementDetail::AppMessage(app_message));
+        let statement = RPCStatement::new(RPCStatementDetail::AppMessage(Box::new(app_message)));
 
         // Send the app message request
         self.statement(dest, statement).await
@@ -58,8 +58,8 @@ impl RPCProcessor {
 
         // Pass the message up through the update callback
         let message = app_message.destructure();
-        (self.unlocked_inner.update_callback)(VeilidUpdate::AppMessage(VeilidAppMessage::new(
-            sender, message,
+        (self.unlocked_inner.update_callback)(VeilidUpdate::AppMessage(Box::new(
+            VeilidAppMessage::new(sender, message),
         )));
 
         Ok(NetworkResult::value(()))

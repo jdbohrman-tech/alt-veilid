@@ -85,7 +85,7 @@ pub trait NodeRefBase: Sized {
         self.common()
             .filter
             .as_ref()
-            .map(|f| f.dial_info_filter.clone())
+            .map(|f| f.dial_info_filter)
             .unwrap_or(DialInfoFilter::all())
     }
 
@@ -283,7 +283,7 @@ pub trait NodeRefBase: Sized {
         self.operate(|rti, e| {
             // apply sequencing to filter and get sort
             let sequencing = self.common().sequencing;
-            let filter = self.common().filter.clone().unwrap_or_default();
+            let filter = self.common().filter.unwrap_or_default();
             let (ordered, filter) = filter.with_sequencing(sequencing);
             let mut last_connections = e.last_connections(rti, true, filter);
 
@@ -444,7 +444,7 @@ impl Clone for NodeRef {
             common: NodeRefBaseCommon {
                 routing_table: self.common.routing_table.clone(),
                 entry: self.common.entry.clone(),
-                filter: self.common.filter.clone(),
+                filter: self.common.filter,
                 sequencing: self.common.sequencing,
                 #[cfg(feature = "tracking")]
                 track_id: self.common.entry.write().track(),

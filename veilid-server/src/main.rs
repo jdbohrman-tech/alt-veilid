@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::all)]
+#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
@@ -19,7 +20,7 @@ use clap::{Args, Parser};
 use server::*;
 use settings::LogLevel;
 use std::collections::HashMap;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::path::Path;
 use std::str::FromStr;
 use tools::*;
@@ -161,17 +162,11 @@ fn main() -> EyreResult<()> {
     }
 
     // Attempt to load configuration
-    let settings_path: Option<&OsStr> = if let Some(config_file) = &args.config_file {
-        if Path::new(&config_file).exists() {
-            Some(config_file)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let settings_path: Option<OsString> = args
+        .config_file
+        .filter(|config_file| Path::new(&config_file).exists());
 
-    let settings = Settings::new(settings_path).wrap_err("configuration is invalid")?;
+    let settings = Settings::new(settings_path.as_deref()).wrap_err("configuration is invalid")?;
 
     // write lock the settings
     let mut settingsrw = settings.write();
@@ -302,7 +297,7 @@ fn main() -> EyreResult<()> {
 
     // --- Generate DHT Key ---
     if let Some(ckstr) = args.generate_key_pair {
-        if ckstr == "" {
+        if ckstr.is_empty() {
             let mut tks = veilid_core::TypedKeyGroup::new();
             let mut tss = veilid_core::TypedSecretGroup::new();
             for ck in veilid_core::VALID_CRYPTO_KINDS {
@@ -311,16 +306,12 @@ fn main() -> EyreResult<()> {
                 tks.add(veilid_core::TypedKey::new(tkp.kind, tkp.value.key));
                 tss.add(veilid_core::TypedSecret::new(tkp.kind, tkp.value.secret));
             }
-            println!(
-                "Public Keys:\n{}\nSecret Keys:\n{}\n",
-                tks.to_string(),
-                tss.to_string()
-            );
+            println!("Public Keys:\n{}\nSecret Keys:\n{}\n", tks, tss);
         } else {
             let ck: veilid_core::CryptoKind =
                 veilid_core::FourCC::from_str(&ckstr).wrap_err("couldn't parse crypto kind")?;
             let tkp = veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
-            println!("{}", tkp.to_string());
+            println!("{}", tkp);
         }
         return Ok(());
     }

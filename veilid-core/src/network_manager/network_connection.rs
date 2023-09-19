@@ -52,7 +52,7 @@ pub struct DummyNetworkConnection {
 
 impl DummyNetworkConnection {
     pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
     // pub fn close(&self) -> io::Result<()> {
     //     Ok(())
@@ -144,7 +144,7 @@ impl NetworkConnection {
             local_stop_token,
             manager_stop_token,
             connection_id,
-            descriptor.clone(),
+            descriptor,
             receiver,
             protocol_connection,
             stats.clone(),
@@ -168,11 +168,11 @@ impl NetworkConnection {
     }
 
     pub fn connection_descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
 
     pub fn get_handle(&self) -> ConnectionHandle {
-        ConnectionHandle::new(self.connection_id, self.descriptor.clone(), self.sender.clone())
+        ConnectionHandle::new(self.connection_id, self.descriptor, self.sender.clone())
     }
 
     pub fn is_protected(&self) -> bool {
@@ -197,12 +197,12 @@ impl NetworkConnection {
         message: Vec<u8>,
     ) -> io::Result<NetworkResult<()>> {
         let ts = get_aligned_timestamp();
-        let out = network_result_try!(protocol_connection.send(message).await?);
+        network_result_try!(protocol_connection.send(message).await?);
 
         let mut stats = stats.lock();
         stats.last_message_sent_time.max_assign(Some(ts));
 
-        Ok(NetworkResult::Value(out))
+        Ok(NetworkResult::Value(()))
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(stats), fields(ret.len)))]
@@ -234,6 +234,7 @@ impl NetworkConnection {
     }
 
     // Connection receiver loop
+    #[allow(clippy::too_many_arguments)]
     fn process_connection(
         connection_manager: ConnectionManager,
         local_stop_token: StopToken,
@@ -316,19 +317,19 @@ impl NetworkConnection {
                                     let peer_address = protocol_connection.descriptor().remote();
 
                                     // Check to see if it is punished
-                                    if address_filter.is_ip_addr_punished(peer_address.to_socket_addr().ip()) {
+                                    if address_filter.is_ip_addr_punished(peer_address.socket_addr().ip()) {
                                         return RecvLoopAction::Finish;
                                     }
 
                                     // Check for connection close
                                     if v.is_no_connection() {
-                                        log_net!(debug "Connection closed from: {} ({})", peer_address.to_socket_addr(), peer_address.protocol_type());
+                                        log_net!(debug "Connection closed from: {} ({})", peer_address.socket_addr(), peer_address.protocol_type());
                                         return RecvLoopAction::Finish;
                                     }
 
                                     // Punish invalid framing (tcp framing or websocket framing)
                                     if v.is_invalid_message() {
-                                        address_filter.punish_ip_addr(peer_address.to_socket_addr().ip());
+                                        address_filter.punish_ip_addr(peer_address.socket_addr().ip());
                                         return RecvLoopAction::Finish;
                                     }
 

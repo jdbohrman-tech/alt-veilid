@@ -411,7 +411,7 @@ impl VeilidCrypto {
             veilid_core::SharedSecret::from_str(&shared_secret)?;
 
         let associated_data = associated_data
-            .map(|ad| unmarshall(ad))
+            .map(unmarshall)
             .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let veilid_api = get_veilid_api()?;
@@ -453,7 +453,7 @@ impl VeilidCrypto {
             veilid_core::SharedSecret::from_str(&shared_secret)?;
 
         let associated_data: Option<Vec<u8>> = associated_data
-            .map(|ad| unmarshall(ad))
+            .map(unmarshall)
             .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let veilid_api = get_veilid_api()?;

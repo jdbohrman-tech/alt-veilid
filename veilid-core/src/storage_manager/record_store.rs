@@ -65,7 +65,7 @@ where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
     pub fn new(table_store: TableStore, name: &str, limits: RecordStoreLimits) -> Self {
-        let subkey_cache_size = limits.subkey_cache_size as usize;
+        let subkey_cache_size = limits.subkey_cache_size;
         let limit_subkey_cache_total_size = limits
             .max_subkey_cache_memory_mb
             .map(|mb| mb * 1_048_576usize);
@@ -104,7 +104,7 @@ where
             .await?;
         let subkey_table = self
             .table_store
-            .open(&&format!("{}_subkeys", self.name), 1)
+            .open(&format!("{}_subkeys", self.name), 1)
             .await?;
 
         // Pull record index from table into a vector to ensure we sort them
@@ -126,7 +126,7 @@ where
             self.total_storage_space
                 .add((mem::size_of::<RecordTableKey>() + ri.1.total_size()) as u64)
                 .unwrap();
-            if let Err(_) = self.total_storage_space.commit() {
+            if self.total_storage_space.commit().is_err() {
                 // Revert the total storage space because the commit failed
                 self.total_storage_space.rollback();
 
@@ -449,11 +449,15 @@ where
     ) -> VeilidAPIResult<Option<SubkeyResult>> {
         // Get record from index
         let Some((subkey_count, has_subkey, opt_descriptor)) = self.with_record(key, |record| {
-            (record.subkey_count(), record.stored_subkeys().contains(subkey), if want_descriptor {
-                Some(record.descriptor().clone())
-            } else {
-                None
-            })
+            (
+                record.subkey_count(),
+                record.stored_subkeys().contains(subkey),
+                if want_descriptor {
+                    Some(record.descriptor().clone())
+                } else {
+                    None
+                },
+            )
         }) else {
             // Record not available
             return Ok(None);
@@ -492,19 +496,20 @@ where
         let Some(record_data) = subkey_table
             .load_json::<RecordData>(0, &stk.bytes())
             .await
-            .map_err(VeilidAPIError::internal)? else {
-                apibail_internal!("failed to get subkey that was stored");
-            };
+            .map_err(VeilidAPIError::internal)?
+        else {
+            apibail_internal!("failed to get subkey that was stored");
+        };
 
         let out = record_data.signed_value_data().clone();
 
         // Add to cache, do nothing with lru out
         self.add_to_subkey_cache(stk, record_data);
 
-        return Ok(Some(SubkeyResult {
+        Ok(Some(SubkeyResult {
             value: Some(out),
             descriptor: opt_descriptor,
-        }));
+        }))
     }
 
     pub(crate) async fn peek_subkey(
@@ -515,11 +520,15 @@ where
     ) -> VeilidAPIResult<Option<SubkeyResult>> {
         // record from index
         let Some((subkey_count, has_subkey, opt_descriptor)) = self.peek_record(key, |record| {
-            (record.subkey_count(), record.stored_subkeys().contains(subkey), if want_descriptor {
-                Some(record.descriptor().clone())
-            } else {
-                None
-            })
+            (
+                record.subkey_count(),
+                record.stored_subkeys().contains(subkey),
+                if want_descriptor {
+                    Some(record.descriptor().clone())
+                } else {
+                    None
+                },
+            )
         }) else {
             // Record not available
             return Ok(None);
@@ -558,16 +567,17 @@ where
         let Some(record_data) = subkey_table
             .load_json::<RecordData>(0, &stk.bytes())
             .await
-            .map_err(VeilidAPIError::internal)? else {
-                apibail_internal!("failed to peek subkey that was stored");
-            };
+            .map_err(VeilidAPIError::internal)?
+        else {
+            apibail_internal!("failed to peek subkey that was stored");
+        };
 
         let out = record_data.signed_value_data().clone();
 
-        return Ok(Some(SubkeyResult {
+        Ok(Some(SubkeyResult {
             value: Some(out),
             descriptor: opt_descriptor,
-        }));
+        }))
     }
 
     pub async fn set_subkey(
@@ -692,7 +702,7 @@ where
         for (rik, rec) in &self.record_index {
             out += &format!(
                 "  {} age={} len={} subkeys={}\n",
-                rik.key.to_string(),
+                rik.key,
                 debug_duration(get_timestamp() - rec.last_touched().as_u64()),
                 rec.record_data_size(),
                 rec.stored_subkeys(),
@@ -706,11 +716,11 @@ where
         out += &format!("Total Storage Space: {}\n", self.total_storage_space.get());
         out += &format!("Dead Records: {}\n", self.dead_records.len());
         for dr in &self.dead_records {
-            out += &format!("  {}\n", dr.key.key.to_string());
+            out += &format!("  {}\n", dr.key.key);
         }
         out += &format!("Changed Records: {}\n", self.changed_records.len());
         for cr in &self.changed_records {
-            out += &format!("  {}\n", cr.key.to_string());
+            out += &format!("  {}\n", cr.key);
         }
 
         out

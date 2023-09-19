@@ -447,7 +447,7 @@ impl RPCProcessor {
         capabilities: &[Capability],
     ) -> bool {
         let routing_table = self.routing_table();
-        routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
+        routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, signed_node_info)
             && signed_node_info.node_info().has_capabilities(capabilities)
     }
 
@@ -684,7 +684,7 @@ impl RPCProcessor {
         let ssni_route =
             self.get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()));
         let operation = RPCOperation::new_statement(
-            RPCStatement::new(RPCStatementDetail::Route(route_operation)),
+            RPCStatement::new(RPCStatementDetail::Route(Box::new(route_operation))),
             ssni_route,
         );
 
@@ -812,7 +812,7 @@ impl RPCProcessor {
                         };
                         let private_route = PrivateRoute::new_stub(
                             destination_node_ref.best_node_id(),
-                            RouteNode::PeerInfo(peer_info),
+                            RouteNode::PeerInfo(Box::new(peer_info)),
                         );
 
                         // Wrap with safety route
@@ -1021,6 +1021,7 @@ impl RPCProcessor {
     }
 
     /// Record answer received from node or route
+    #[allow(clippy::too_many_arguments)]
     fn record_answer_received(
         &self,
         send_ts: Timestamp,
@@ -1079,7 +1080,7 @@ impl RPCProcessor {
 
             // If we sent to a private route without a safety route
             // We need to mark our own node info as having been seen so we can optimize sending it
-            if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(&rpr_pubkey, recv_ts) {
+            if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(rpr_pubkey, recv_ts) {
                 log_rpc!(error "private route missing: {}", e);
             }
 
@@ -1116,7 +1117,6 @@ impl RPCProcessor {
             RPCMessageHeaderDetail::Direct(_) => {
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                     sender_nr.stats_question_rcvd(recv_ts, bytes);
-                    return;
                 }
             }
             // Process messages that arrived with no private route (private route stub)

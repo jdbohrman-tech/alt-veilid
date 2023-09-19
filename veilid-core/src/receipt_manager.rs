@@ -261,9 +261,8 @@ impl ReceiptManager {
 
         // Wait on all the multi-call callbacks
         loop {
-            match callbacks.next().timeout_at(stop_token.clone()).await {
-                Ok(Some(_)) => {}
-                Ok(None) | Err(_) => break,
+            if let Ok(None) | Err(_) = callbacks.next().timeout_at(stop_token.clone()).await {
+                break;
             }
         }
     }
@@ -307,7 +306,7 @@ impl ReceiptManager {
 
         // Wait for everything to stop
         debug!("waiting for timeout task to stop");
-        if !timeout_task.join().await.is_ok() {
+        if timeout_task.join().await.is_err() {
             panic!("joining timeout task failed");
         }
 
@@ -333,7 +332,7 @@ impl ReceiptManager {
         let mut inner = self.inner.lock();
         inner.records_by_nonce.insert(receipt_nonce, record);
 
-        Self::update_next_oldest_timestamp(&mut *inner);
+        Self::update_next_oldest_timestamp(&mut inner);
     }
 
     pub fn record_single_shot_receipt(
@@ -351,7 +350,7 @@ impl ReceiptManager {
         let mut inner = self.inner.lock();
         inner.records_by_nonce.insert(receipt_nonce, record);
 
-        Self::update_next_oldest_timestamp(&mut *inner);
+        Self::update_next_oldest_timestamp(&mut inner);
     }
 
     fn update_next_oldest_timestamp(inner: &mut ReceiptManagerInner) {
@@ -382,7 +381,7 @@ impl ReceiptManager {
                     bail!("receipt not recorded");
                 }
             };
-            Self::update_next_oldest_timestamp(&mut *inner);
+            Self::update_next_oldest_timestamp(&mut inner);
             record
         };
 
@@ -448,14 +447,12 @@ impl ReceiptManager {
             let receipt_event = match receipt_returned {
                 ReceiptReturned::OutOfBand => ReceiptEvent::ReturnedOutOfBand,
                 ReceiptReturned::Safety => ReceiptEvent::ReturnedSafety,
-                ReceiptReturned::InBand {
-                    ref inbound_noderef,
-                } => ReceiptEvent::ReturnedInBand {
-                    inbound_noderef: inbound_noderef.clone(),
-                },
-                ReceiptReturned::Private { ref private_route } => ReceiptEvent::ReturnedPrivate {
-                    private_route: private_route.clone(),
-                },
+                ReceiptReturned::InBand { inbound_noderef } => {
+                    ReceiptEvent::ReturnedInBand { inbound_noderef }
+                }
+                ReceiptReturned::Private { private_route } => {
+                    ReceiptEvent::ReturnedPrivate { private_route }
+                }
             };
 
             let callback_future = Self::perform_callback(receipt_event, &mut record_mut);
@@ -464,7 +461,7 @@ impl ReceiptManager {
             if record_mut.returns_so_far == record_mut.expected_returns {
                 inner.records_by_nonce.remove(&receipt_nonce);
 
-                Self::update_next_oldest_timestamp(&mut *inner);
+                Self::update_next_oldest_timestamp(&mut inner);
             }
             (callback_future, stop_token)
         };

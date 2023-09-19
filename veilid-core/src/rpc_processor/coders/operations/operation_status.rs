@@ -36,7 +36,7 @@ impl RPCOperationStatusQ {
     ) -> Result<(), RPCError> {
         if let Some(ns) = &self.node_status {
             let mut ns_builder = builder.reborrow().init_node_status();
-            encode_node_status(&ns, &mut ns_builder)?;
+            encode_node_status(ns, &mut ns_builder)?;
         }
         Ok(())
     }
@@ -98,11 +98,11 @@ impl RPCOperationStatusA {
     ) -> Result<(), RPCError> {
         if let Some(ns) = &self.node_status {
             let mut ns_builder = builder.reborrow().init_node_status();
-            encode_node_status(&ns, &mut ns_builder)?;
+            encode_node_status(ns, &mut ns_builder)?;
         }
         if let Some(si) = &self.sender_info {
             let mut si_builder = builder.reborrow().init_sender_info();
-            encode_sender_info(&si, &mut si_builder)?;
+            encode_sender_info(si, &mut si_builder)?;
         }
         Ok(())
     }

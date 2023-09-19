@@ -69,14 +69,11 @@ impl ProtectedStore {
 
             let vkey = self.browser_key_name(key.as_ref());
 
-            let prev = match ls
+            let prev = ls
                 .get_item(&vkey)
                 .map_err(map_jsvalue_error)
                 .wrap_err("exception_thrown")?
-            {
-                Some(_) => true,
-                None => false,
-            };
+                .is_some();
 
             ls.set_item(&vkey, value.as_ref())
                 .map_err(map_jsvalue_error)

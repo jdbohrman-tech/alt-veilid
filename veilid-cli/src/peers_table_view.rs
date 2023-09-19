@@ -58,7 +58,7 @@ impl TableViewItem<PeerTableColumn> for json::JsonValue {
             PeerTableColumn::NodeId => self["node_ids"][0].to_string(),
             PeerTableColumn::Address => self["peer_address"].to_string(),
             PeerTableColumn::LatencyAvg => {
-                format!("{}", format_ts(&self["peer_stats"]["latency"]["average"]))
+                format_ts(&self["peer_stats"]["latency"]["average"]).to_string()
             }
             PeerTableColumn::TransferDownAvg => {
                 format_bps(&self["peer_stats"]["transfer"]["down"]["average"])

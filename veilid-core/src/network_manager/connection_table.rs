@@ -164,7 +164,7 @@ impl ConnectionTable {
         }
 
         // Filter by ip for connection limits
-        let ip_addr = descriptor.remote_address().to_ip_addr();
+        let ip_addr = descriptor.remote_address().ip_addr();
         match inner.address_filter.add_connection(ip_addr) {
             Ok(()) => {}
             Err(e) => {
@@ -196,7 +196,7 @@ impl ConnectionTable {
                 }
 
                 log_net!(debug "== LRU Connection Killed: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
-                out_conn = Some(Self::remove_connection_records(&mut *inner, lruk));
+                out_conn = Some(Self::remove_connection_records(&mut inner, lruk));
                 break;
             }
         }
@@ -237,11 +237,11 @@ impl ConnectionTable {
         best_port: Option<u16>,
         remote: PeerAddress,
     ) -> Option<ConnectionHandle> {
-        let mut inner = self.inner.lock();
+        let inner = &mut *self.inner.lock();
 
         let all_ids_by_remote = inner.ids_by_remote.get(&remote)?;
         let protocol_index = Self::protocol_to_index(remote.protocol_type());
-        if all_ids_by_remote.len() == 0 {
+        if all_ids_by_remote.is_empty() {
             // no connections
             return None;
         }
@@ -253,11 +253,11 @@ impl ConnectionTable {
         }
         // multiple connections, find the one that matches the best port, or the most recent
         if let Some(best_port) = best_port {
-            for id in all_ids_by_remote.iter().copied() {
-                let nc = inner.conn_by_id[protocol_index].peek(&id).unwrap();
+            for id in all_ids_by_remote {
+                let nc = inner.conn_by_id[protocol_index].peek(id).unwrap();
                 if let Some(local_addr) = nc.connection_descriptor().local() {
                     if local_addr.port() == best_port {
-                        let nc = inner.conn_by_id[protocol_index].get(&id).unwrap();
+                        let nc = inner.conn_by_id[protocol_index].get(id).unwrap();
                         return Some(nc.get_handle());
                     }
                 }
@@ -331,7 +331,7 @@ impl ConnectionTable {
             }
         }
         // address_filter
-        let ip_addr = remote.to_socket_addr().ip();
+        let ip_addr = remote.socket_addr().ip();
         inner
             .address_filter
             .remove_connection(ip_addr)
@@ -347,7 +347,7 @@ impl ConnectionTable {
         if !inner.conn_by_id[protocol_index].contains_key(&id) {
             return None;
         }
-        let conn = Self::remove_connection_records(&mut *inner, id);
+        let conn = Self::remove_connection_records(&mut inner, id);
         Some(conn)
     }
 
@@ -358,7 +358,7 @@ impl ConnectionTable {
         for t in 0..inner.conn_by_id.len() {
             out += &format!(
                 "  {} Connections: ({}/{})\n",
-                Self::index_to_protocol(t).to_string(),
+                Self::index_to_protocol(t),
                 inner.conn_by_id[t].len(),
                 inner.max_connections[t]
             );

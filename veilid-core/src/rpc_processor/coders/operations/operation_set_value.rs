@@ -122,7 +122,7 @@ impl RPCOperationSetValueA {
         value: Option<SignedValueData>,
         peers: Vec<PeerInfo>,
     ) -> Result<Self, RPCError> {
-        if peers.len() as usize > MAX_SET_VALUE_A_PEERS_LEN {
+        if peers.len() > MAX_SET_VALUE_A_PEERS_LEN {
             return Err(RPCError::protocol(
                 "encoded SetValueA peers length too long",
             ));

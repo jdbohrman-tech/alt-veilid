@@ -30,8 +30,9 @@ impl RPCProcessor {
             ));
         }
 
-        let find_node_q_detail =
-            RPCQuestionDetail::FindNodeQ(RPCOperationFindNodeQ::new(node_id, capabilities.clone()));
+        let find_node_q_detail = RPCQuestionDetail::FindNodeQ(Box::new(
+            RPCOperationFindNodeQ::new(node_id, capabilities.clone()),
+        ));
         let find_node_q = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             find_node_q_detail,
@@ -111,7 +112,10 @@ impl RPCProcessor {
         let find_node_a = RPCOperationFindNodeA::new(closest_nodes)?;
 
         // Send FindNode answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::FindNodeA(find_node_a)))
-            .await
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::FindNodeA(Box::new(find_node_a))),
+        )
+        .await
     }
 }

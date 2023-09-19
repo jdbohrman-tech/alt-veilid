@@ -133,9 +133,7 @@ impl StorageManager {
     }
 
     fn online_writes_ready_inner(inner: &StorageManagerInner) -> Option<RPCProcessor> {
-        if let Some(rpc_processor) = {
-            inner.rpc_processor.clone()
-        } {
+        if let Some(rpc_processor) = { inner.rpc_processor.clone() } {
             if let Some(network_class) = rpc_processor
                 .routing_table()
                 .get_network_class(RoutingDomain::PublicInternet)
@@ -158,12 +156,12 @@ impl StorageManager {
 
     async fn online_writes_ready(&self) -> EyreResult<Option<RPCProcessor>> {
         let inner = self.lock().await?;
-        return Ok(Self::online_writes_ready_inner(&*inner));
+        Ok(Self::online_writes_ready_inner(&inner))
     }
 
     async fn has_offline_subkey_writes(&self) -> EyreResult<bool> {
         let inner = self.lock().await?;
-        Ok(inner.offline_subkey_writes.len() != 0)
+        Ok(!inner.offline_subkey_writes.is_empty())
     }
 
     /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
@@ -394,7 +392,7 @@ impl StorageManager {
 
         // Make new subkey data
         let value_data = if let Some(last_signed_value_data) = last_subkey_result.value {
-            if last_signed_value_data.value_data().data() == &data
+            if last_signed_value_data.value_data().data() == data
                 && last_signed_value_data.value_data().writer() == &writer.key
             {
                 // Data and writer is the same, nothing is changing,
@@ -433,13 +431,17 @@ impl StorageManager {
 
             log_stor!(debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
             // Add to offline writes to flush
-            inner.offline_subkey_writes.entry(key)
-                .and_modify(|x| { x.subkeys.insert(subkey); } )
-                .or_insert(OfflineSubkeyWrite{
-                    safety_selection, 
-                    subkeys: ValueSubkeyRangeSet::single(subkey)
+            inner
+                .offline_subkey_writes
+                .entry(key)
+                .and_modify(|x| {
+                    x.subkeys.insert(subkey);
+                })
+                .or_insert(OfflineSubkeyWrite {
+                    safety_selection,
+                    subkeys: ValueSubkeyRangeSet::single(subkey),
                 });
-            return Ok(None)
+            return Ok(None);
         };
 
         // Drop the lock for network access
@@ -474,21 +476,21 @@ impl StorageManager {
 
     pub async fn watch_values(
         &self,
-        key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
-        expiration: Timestamp,
-        count: u32,
+        _key: TypedKey,
+        _subkeys: ValueSubkeyRangeSet,
+        _expiration: Timestamp,
+        _count: u32,
     ) -> VeilidAPIResult<Timestamp> {
-        let inner = self.lock().await?;
+        let _inner = self.lock().await?;
         unimplemented!();
     }
 
     pub async fn cancel_watch_values(
         &self,
-        key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
+        _key: TypedKey,
+        _subkeys: ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<bool> {
-        let inner = self.lock().await?;
+        let _inner = self.lock().await?;
         unimplemented!();
     }
 }

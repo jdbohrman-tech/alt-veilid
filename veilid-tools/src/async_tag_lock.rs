@@ -91,6 +91,11 @@ where
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        let inner = self.inner.lock();
+        inner.table.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         let inner = self.inner.lock();
         inner.table.len()
@@ -152,5 +157,14 @@ where
         };
         // Return guard
         Some(AsyncTagLockGuard::new(self.clone(), tag, guard))
+    }
+}
+
+impl<T> Default for AsyncTagLockTable<T>
+where
+    T: Hash + Eq + Clone + Debug,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }

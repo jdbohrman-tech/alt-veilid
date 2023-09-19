@@ -150,7 +150,7 @@ impl ClientApi {
 
     // Process control messages for the server
     async fn process_control(self, args: Vec<String>) -> VeilidAPIResult<String> {
-        if args.len() == 0 {
+        if args.is_empty() {
             apibail_generic!("no control request specified");
         }
         if args[0] == "Shutdown" {
@@ -207,7 +207,7 @@ impl ClientApi {
 
         // Avoid logging failed deserialization of large adversarial payloads from
         // http://127.0.0.1:5959 by using an initial colon to force a parse error.
-        let sanitized_line = if line.len() > MAX_NON_JSON_LOGGING && !line.starts_with("{") {
+        let sanitized_line = if line.len() > MAX_NON_JSON_LOGGING && !line.starts_with('{') {
             ":skipped long input that's not a JSON object".to_string()
         } else {
             line.to_string()
@@ -265,7 +265,7 @@ impl ClientApi {
             linebuf.clear();
 
             // Ignore newlines
-            if line.len() == 0 {
+            if line.is_empty() {
                 continue;
             }
 
@@ -289,7 +289,7 @@ impl ClientApi {
         mut writer: W,
     ) -> VeilidAPIResult<Option<RequestLine>> {
         while let Ok(resp) = responses_rx.recv_async().await {
-            if let Err(_) = writer.write_all(resp.as_bytes()).await {
+            if (writer.write_all(resp.as_bytes()).await).is_err() {
                 break;
             }
         }
@@ -420,7 +420,7 @@ impl ClientApi {
         // Pass other updates to clients
         let inner = self.inner.lock();
         for ch in inner.update_channels.values() {
-            if let Err(_) = ch.send(veilid_update.clone()) {
+            if ch.send(veilid_update.clone()).is_err() {
                 // eprintln!("failed to send update: {}", e);
             }
         }

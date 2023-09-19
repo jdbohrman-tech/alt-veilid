@@ -77,7 +77,7 @@ where
 
 macro_rules! byte_array_type {
     ($name:ident, $size:expr, $encoded_size:expr) => {
-        #[derive(Clone, Copy, Hash)]
+        #[derive(Clone, Copy, Hash, PartialOrd, Ord, PartialEq, Eq)]
         #[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
         pub struct $name {
             pub bytes: [u8; $size],
@@ -113,32 +113,6 @@ macro_rules! byte_array_type {
                 $name::try_decode(s.as_str()).map_err(serde::de::Error::custom)
             }
         }
-
-        impl PartialOrd for $name {
-            fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl Ord for $name {
-            fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-                for n in 0..$size {
-                    let c = self.bytes[n].cmp(&other.bytes[n]);
-                    if c != core::cmp::Ordering::Equal {
-                        return c;
-                    }
-                }
-                core::cmp::Ordering::Equal
-            }
-        }
-
-        impl PartialEq for $name {
-            fn eq(&self, other: &Self) -> bool {
-                self.bytes == other.bytes
-            }
-        }
-
-        impl Eq for $name {}
 
         impl $name {
             pub fn new(bytes: [u8; $size]) -> Self {

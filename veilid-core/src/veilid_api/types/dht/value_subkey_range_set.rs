@@ -32,10 +32,13 @@ impl FromStr for ValueSubkeyRangeSet {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         let mut data = RangeSetBlaze::<ValueSubkey>::new();
 
-        for r in value.split(",") {
+        for r in value.split(',') {
             let r = r.trim();
             let Some((ss, es)) = r.split_once("..=") else {
-                return Err(VeilidAPIError::parse_error("can not parse ValueSubkeyRangeSet", r));
+                return Err(VeilidAPIError::parse_error(
+                    "can not parse ValueSubkeyRangeSet",
+                    r,
+                ));
             };
             let sn = ValueSubkey::from_str(ss)
                 .map_err(|e| VeilidAPIError::parse_error("could not parse ValueSubkey", e))?;

@@ -79,9 +79,9 @@ impl RawUdpProtocolHandler {
         };
 
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.len", &message_len);
+        tracing::Span::current().record("ret.len", message_len);
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
+        tracing::Span::current().record("ret.descriptor", format!("{:?}", descriptor).as_str());
         Ok((message_len, descriptor))
     }
 
@@ -134,7 +134,7 @@ impl RawUdpProtocolHandler {
         );
 
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.descriptor", &format!("{:?}", descriptor).as_str());
+        tracing::Span::current().record("ret.descriptor", format!("{:?}", descriptor).as_str());
         Ok(NetworkResult::value(descriptor))
     }
 
@@ -143,7 +143,7 @@ impl RawUdpProtocolHandler {
         socket_addr: &SocketAddr,
     ) -> io::Result<RawUdpProtocolHandler> {
         // get local wildcard address for bind
-        let local_socket_addr = compatible_unspecified_socket_addr(&socket_addr);
+        let local_socket_addr = compatible_unspecified_socket_addr(socket_addr);
         let socket = UdpSocket::bind(local_socket_addr).await?;
         Ok(RawUdpProtocolHandler::new(Arc::new(socket), None))
     }

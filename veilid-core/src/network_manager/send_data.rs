@@ -338,7 +338,7 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // If a node is punished, then don't try to contact it
-        if target_node_ref.node_ids().iter().find(|nid| self.address_filter().is_node_id_punished(**nid)).is_some() {
+        if target_node_ref.node_ids().iter().any(|nid| self.address_filter().is_node_id_punished(*nid)) {
             return Ok(NodeContactMethod::Unreachable);
         }
 
@@ -396,7 +396,7 @@ impl NetworkManager {
                 dial_info_failures_map.insert(did.dial_info, ts);
             }
         }
-        let dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if dial_info_failures_map.is_empty() {
+        let dif_sort: Option<Arc<DialInfoDetailSort>> = if dial_info_failures_map.is_empty() {
             None
         } else {
             Some(Arc::new(move |a: &DialInfoDetail, b: &DialInfoDetail| {    

@@ -184,7 +184,7 @@ impl IGDManager {
             let mut found = None;
             for (pmk, pmv) in &inner.port_maps {
                 if pmk.llpt == llpt && pmk.at == at && pmv.mapped_port == mapped_port {
-                    found = Some(pmk.clone());
+                    found = Some(*pmk);
                     break;
                 }
             }
@@ -192,7 +192,7 @@ impl IGDManager {
             let _pmv = inner.port_maps.remove(&pmk).expect("key found but remove failed");
 
             // Find gateway
-            let gw = Self::find_gateway(&mut *inner, at)?;
+            let gw = Self::find_gateway(&mut inner, at)?;
 
             // Unmap port
             match gw.remove_port(convert_llpt(llpt), mapped_port) {
@@ -230,10 +230,10 @@ impl IGDManager {
             }
 
             // Get local ip address
-            let local_ip = Self::find_local_ip(&mut *inner, at)?;
+            let local_ip = Self::find_local_ip(&mut inner, at)?;
 
             // Find gateway
-            let gw = Self::find_gateway(&mut *inner, at)?;
+            let gw = Self::find_gateway(&mut inner, at)?;
 
             // Get external address
             let ext_ip = match gw.get_external_ip() {
@@ -245,16 +245,12 @@ impl IGDManager {
             };
 
             // Ensure external IP matches address type
-            if ext_ip.is_ipv4() {
-                if at != AddressType::IPV4 {
-                    log_net!(debug "mismatched ip address type from igd, wanted v4, got v6");
-                    return None;
-                }
-            } else if ext_ip.is_ipv6() {
-                if at != AddressType::IPV6 {
-                    log_net!(debug "mismatched ip address type from igd, wanted v6, got v4");
-                    return None;
-                }
+            if ext_ip.is_ipv4() && at != AddressType::IPV4 {
+                log_net!(debug "mismatched ip address type from igd, wanted v4, got v6");
+                return None;
+            } else if ext_ip.is_ipv6() && at != AddressType::IPV6 {
+                log_net!(debug "mismatched ip address type from igd, wanted v6, got v4");
+                return None;
             }
 
             if let Some(expected_external_address) = expected_external_address {

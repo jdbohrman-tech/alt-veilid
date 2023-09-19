@@ -73,7 +73,7 @@ impl NetworkManager {
         inner.stats.clone()
     }
 
-    pub fn get_veilid_state(&self) -> VeilidStateNetwork {
+    pub fn get_veilid_state(&self) -> Box<VeilidStateNetwork> {
         let has_state = self
             .unlocked_inner
             .components
@@ -83,12 +83,12 @@ impl NetworkManager {
             .unwrap_or(false);
 
         if !has_state {
-            return VeilidStateNetwork {
+            return Box::new(VeilidStateNetwork {
                 started: false,
                 bps_down: 0.into(),
                 bps_up: 0.into(),
                 peers: Vec::new(),
-            };
+            });
         }
         let routing_table = self.routing_table();
 
@@ -100,7 +100,7 @@ impl NetworkManager {
             )
         };
 
-        VeilidStateNetwork {
+        Box::new(VeilidStateNetwork {
             started: true,
             bps_down,
             bps_up,
@@ -119,7 +119,7 @@ impl NetworkManager {
                 }
                 out
             },
-        }
+        })
     }
 
     pub(super) fn send_network_update(&self) {

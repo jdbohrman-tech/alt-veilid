@@ -103,10 +103,10 @@ impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
         if let Some(uv) = self.uncommitted_value.take() {
             log_stor!(debug "Rollback ({}): {} (drop {})", self.description, self.value, uv);
         }
-        return self.value;
+        self.value
     }
 
     pub fn get(&self) -> T {
-        return self.value;
+        self.value
     }
 }

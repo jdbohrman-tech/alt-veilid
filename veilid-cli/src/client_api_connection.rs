@@ -76,7 +76,6 @@ impl ClientApiConnection {
         };
         if let Err(e) = reply_channel.send_async(response).await {
             error!("failed to process reply: {}", e);
-            return;
         }
     }
 

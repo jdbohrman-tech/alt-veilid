@@ -31,7 +31,7 @@ impl ConnectionHandle {
     }
 
     pub fn connection_descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(self, message), fields(message.len = message.len())))]
