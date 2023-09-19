@@ -1,10 +1,6 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-if [ -f ".protoc_version" ]; then 
-    PROTOC_VERSION=$(cat ".protoc_version")
-else
-    PROTOC_VERSION=$(cat "$SCRIPTDIR/../../.protoc_version")
-fi
+PROTOC_VERSION="24.3" # Keep in sync with veilid-core/build.rs
 
 UNAME_M=$(uname -m)
 if [[ "$UNAME_M" == "x86_64" ]]; then 

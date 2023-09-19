@@ -12,16 +12,14 @@ deps-base:
 # Install Cap'n Proto
 deps-capnp:
     FROM +deps-base
-    COPY .capnp_version /
     COPY scripts/earthly/install_capnproto.sh /
-    RUN /bin/bash /install_capnproto.sh 1; rm /install_capnproto.sh .capnp_version
+    RUN /bin/bash /install_capnproto.sh 1; rm /install_capnproto.sh
 
 # Install protoc
 deps-protoc:
     FROM +deps-capnp
-    COPY .protoc_version /
     COPY scripts/earthly/install_protoc.sh /
-    RUN /bin/bash /install_protoc.sh; rm /install_protoc.sh .protoc_version
+    RUN /bin/bash /install_protoc.sh; rm /install_protoc.sh
 
 # Install Rust
 deps-rust:
@@ -73,14 +71,14 @@ deps-linux:
 # Code + Linux deps
 code-linux:
     FROM +deps-linux
-    COPY --dir .cargo .capnp_version .protoc_version files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
     RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> /veilid/.cargo/config.toml
     WORKDIR /veilid
 
 # Code + Linux + Android deps
 code-android:
     FROM +deps-android
-    COPY --dir .cargo .capnp_version .protoc_version files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
     RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> /veilid/.cargo/config.toml
     RUN cat /veilid/scripts/earthly/cargo-android/config.toml >> /veilid/.cargo/config.toml
     WORKDIR /veilid
