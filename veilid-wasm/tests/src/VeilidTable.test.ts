@@ -6,7 +6,7 @@ import {
 } from './utils/veilid-config';
 
 import { VeilidTableDB, veilidClient } from 'veilid-wasm';
-import { marshall, unmarshall } from './utils/marshalling-utils';
+import { textEncoder, textDecoder } from './utils/marshalling-utils';
 
 const TABLE_NAME = 'some-table';
 const TABLE_COLS = 1;
@@ -57,18 +57,22 @@ describe('VeilidTable', () => {
       const value = 'test value with unicode 🚀';
 
       it('should store value', async () => {
-        await table.store(0, marshall(key), marshall(value));
+        await table.store(
+          0,
+          textEncoder.encode(key),
+          textEncoder.encode(value)
+        );
       });
 
       it('should load value', async () => {
-        const storedValue = await table.load(0, marshall(key));
+        const storedValue = await table.load(0, textEncoder.encode(key));
         expect(storedValue).toBeDefined();
-        expect(unmarshall(storedValue!)).toBe(value);
+        expect(textDecoder.decode(storedValue!)).toBe(value);
       });
 
       it('should have key in list of keys', async () => {
         const keys = await table.getKeys(0);
-        const decodedKeys = keys.map(unmarshall);
+        const decodedKeys = keys.map((key) => textDecoder.decode(key));
         expect(decodedKeys).toEqual([key]);
       });
     });
@@ -82,15 +86,27 @@ describe('VeilidTable', () => {
         const second = 'second✔';
         const third = 'third📢';
 
-        transaction.store(0, marshall(key), marshall(first));
-        transaction.store(0, marshall(key), marshall(second));
-        transaction.store(0, marshall(key), marshall(third));
+        transaction.store(
+          0,
+          textEncoder.encode(key),
+          textEncoder.encode(first)
+        );
+        transaction.store(
+          0,
+          textEncoder.encode(key),
+          textEncoder.encode(second)
+        );
+        transaction.store(
+          0,
+          textEncoder.encode(key),
+          textEncoder.encode(third)
+        );
 
         await transaction.commit();
 
-        const storedValue = await table.load(0, marshall(key));
+        const storedValue = await table.load(0, textEncoder.encode(key));
         expect(storedValue).toBeDefined();
-        expect(unmarshall(storedValue!)).toBe(third);
+        expect(textDecoder.decode(storedValue!)).toBe(third);
 
         transaction.free();
       });

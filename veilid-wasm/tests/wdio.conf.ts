@@ -5,7 +5,20 @@ export const config: Options.Testrunner = {
   // Runner Configuration
   // ====================
   // WebdriverIO supports running e2e tests as well as unit and component tests.
-  runner: ['browser', { viteConfig: './vite.config.ts' }],
+  runner: [
+    'browser',
+    {
+      viteConfig: './vite.config.ts',
+      coverage: {
+        enabled: true,
+        // needed since the ../pkg directory that has the compiled wasm npm package
+        //   is outside the current directory. Coverage is only collected on files
+        //   that are in within `cwd`.
+        cwd: '..',
+        include: ['pkg/**'],
+      },
+    },
+  ],
   autoCompileOpts: {
     autoCompile: true,
     tsNodeOpts: {

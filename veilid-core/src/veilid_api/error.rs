@@ -215,7 +215,6 @@ impl VeilidAPIError {
     }
 }
 
-#[cfg_attr(target_arch = "wasm32", declare)]
 pub type VeilidAPIResult<T> = Result<T, VeilidAPIError>;
 
 impl From<std::io::Error> for VeilidAPIError {

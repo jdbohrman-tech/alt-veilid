@@ -8,9 +8,13 @@ pub struct ValueData {
     seq: ValueSeqNum,
 
     /// The contents of a DHT Record
-    #[serde(with = "as_human_base64")]
+    #[cfg_attr(not(target_arch = "wasm32"), serde(with = "as_human_base64"))]
     #[schemars(with = "String")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
+    #[cfg_attr(
+        target_arch = "wasm32",
+        serde(with = "serde_bytes"),
+        tsify(type = "Uint8Array")
+    )]
     data: Vec<u8>,
 
     /// The public identity key of the writer of the data
