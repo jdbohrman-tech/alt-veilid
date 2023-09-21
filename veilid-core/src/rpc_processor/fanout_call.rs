@@ -156,7 +156,7 @@ where
                     self.clone().add_to_fanout_queue(&new_nodes);
                 }
                 Ok(None) => {
-                    // Call failed, node will node be considered again
+                    // Call failed, node will not be considered again
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error
