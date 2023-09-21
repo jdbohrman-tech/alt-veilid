@@ -6,7 +6,7 @@ Before you get started, please review our [Code of Conduct](./code_of_conduct.md
 
 To begin crafting code to contribute to the Veilid project, first set up a [development environment](./DEVELOPMENT.md). [Fork] and clone the project into your workspace; check out a new local branch and name it in a way that describes the work being done. This is referred to as a [feature branch].
 
-Some contributions might introduce changes that are incompatible with other existing nodes. In this case it is recommended to also set a development network *Guide Coming Soon*.
+Some contributions might introduce changes that are incompatible with other existing nodes. In this case it is recommended to also setup a [development network](./dev-setup/dev-network-setup.md).
 
 Once you have added your new function or addressed a bug, test it locally to ensure it's working as expected. If needed, test your work in a development network with more than one node based on your code. Once you're satisfied your code works as intended and does not introduce negative results or new bugs, follow the merge requests section below to submit your work for maintainer review.
 
