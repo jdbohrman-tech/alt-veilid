@@ -27,6 +27,9 @@ else
     exit 1
 fi
 
+# ensure Android SDK packages are installed
+$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
+
 # ensure ANDROID_NDK_HOME is defined and exists
 if [ -d "$ANDROID_NDK_HOME" ]; then
     echo '[X] $ANDROID_NDK_HOME is defined and exists' 
@@ -128,12 +131,6 @@ if [ "$BREW_USER" == "" ]; then
     fi
 fi
 sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@17 jq
-
-case $response in
-	[yY] ) echo Checking android sdk packages are installed...;
-# Ensure android sdk packages are installed
-$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
-esac
 
 # install targets
 rustup target add aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android

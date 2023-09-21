@@ -28,10 +28,7 @@ rt-tokio = [
 ]
 
 [dependencies]
-veilid-core = { path = "../../veilid-core", default-features = false, features = [
-    "verbose-tracing",
-    "network-result-extra",
-] }
+veilid-core = { path = "../../veilid-core", default-features = false }
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-subscriber = "^0"
 parking_lot = "^0"

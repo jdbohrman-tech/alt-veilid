@@ -1,10 +1,6 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-if [ -f ".capnp_version" ]; then 
-    CAPNPROTO_VERSION=$(cat ".capnp_version")
-else
-    CAPNPROTO_VERSION=$(cat "$SCRIPTDIR/../../.capnp_version")
-fi
+CAPNPROTO_VERSION="1.0.1" # Keep in sync with veilid-core/build.rs
 
 mkdir /tmp/capnproto-install
 pushd /tmp/capnproto-install

@@ -30,8 +30,8 @@ elif [[ "$1" == "ios" ]]; then
 elif [[ "$1" == "android" ]]; then
     ID="$2"
     if [[ "$ID" == "" ]]; then 
-        echo "No emulator ID specified"
-        exit 1
+        echo "No emulator ID specified, trying 'emulator-5554'"
+        ID="emulator-5554"
     fi
     APPNAME=veilid_core_android_tests
     APPID=com.veilid.veilid_core_android_tests
