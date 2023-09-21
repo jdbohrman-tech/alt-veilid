@@ -14,12 +14,10 @@ Follow instructions in [INSTALL.md](./INSTALL.md)
 
 ## Configure Veilid as Bootstrap
 
-**As root**
-
 ### Stop the Veilid service
 
 ```shell
-systemctl stop veilid-server.service
+sudo systemctl stop veilid-server.service
 ```
 
 ### Setup the config
@@ -36,7 +34,7 @@ sudo -u veilid /bin/bash
 
 ### Generate a new keypair
 
-Copy the output to secure storage.
+Copy the output to secure storage such as a password manager. This information will be used in the next step and can be used for node recovery, moving to a different server, etc.
 
 ```shell
 veilid-server --generate-key-pair
@@ -44,7 +42,7 @@ veilid-server --generate-key-pair
 
 ### Create new node ID and flush existing route table
 
-Include the brackets [] when pasting the keys. Use the public key in the command. Secret key will be request interacitvly and will not echo when pasted.
+Include the brackets [] when pasting the keys. Use the public key in the command. Secret key will be requested interactively and will not echo when pasted.
 
 ```shell
 veilid-server --set-node-id [PUBLIC_KEY] --delete-table-store
@@ -52,18 +50,22 @@ veilid-server --set-node-id [PUBLIC_KEY] --delete-table-store
 
 ### Generate the DNS TXT record
 
-Copy the output to secure storage.
+Copy the output to secure storage. This information will be use to setup DNS records.
 
 ```shell
 veilid-server --dump-txt-record
 ```
 
-**Switch back to root**
-
 ### Start the Veilid service
 
+Disconnect from the Veilid user and start veilid-server.service.
+
 ```shell
-systemctl start veilid-server.service
+exit
+```
+
+```shell
+sudo systemctl start veilid-server.service
 ```
 
 Optionally configure the service to start at boot `sudo systemctl enable veilid-server.service`

@@ -3,6 +3,11 @@
 #
 # Private Development Bootstrap Server Configuration
 #
+# This config is templated to setup a bootstrap server with
+# a network_key_password. Set the network key to whatever you
+# like. Treat it like a password. Use the same network key in
+# the config files for at least four nodes to establish an
+# independent Veilid network for private or development uses.
 # -----------------------------------------------------------
 
 ---

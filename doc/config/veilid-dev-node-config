@@ -1,8 +1,12 @@
 # Veilid Server
 # =============
 #
-# Dev Node Configuration
+# Private Development Node Configuration
 #
+# This config is templated to setup a Velid node with a 
+# network_key_password. Set the network key to whatever you
+# set within your private bootstrap server's config. Treat it 
+# like a password. 
 # -----------------------------------------------------------
 
 ---

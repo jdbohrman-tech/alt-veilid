@@ -16,7 +16,7 @@ This acts as a passphase to allow nodes to join the network. It is the mechanism
 
 ### Dev Bootstrap Server
 
-Follow the steps detailed in [BOOTSTRAP-SETUP.md](../BOOTSTRAP-SETUP.md) using the dev bootstrap example [config](../doc/config/veilid-dev-bootstrap-config.md) for the *Setup the config* section. Set your network key on line 28.
+Follow the steps detailed in [BOOTSTRAP-SETUP.md](../BOOTSTRAP-SETUP.md) using the dev bootstrap example [config](../doc/config/veilid-dev-bootstrap-config.md) for the *Setup the config* section. Set a _network_key_password_ in the config file.
 
 ### Dev Nodes
 
