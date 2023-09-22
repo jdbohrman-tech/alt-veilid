@@ -113,21 +113,21 @@ where
         });
     }
 
-    async fn fanout_processor(self: Arc<Self>) {
+    async fn fanout_processor(self: Arc<Self>) -> bool {
         // Loop until we have a result or are done
         loop {
             // Get the closest node we haven't processed yet if we're not done yet
             let next_node = {
                 let mut ctx = self.context.lock();
                 if self.clone().evaluate_done(&mut ctx) {
-                    break;
+                    break true;
                 }
                 ctx.fanout_queue.next()
             };
 
             // If we don't have a node to process, stop fanning out
             let Some(next_node) = next_node else {
-                break;
+                break false;
             };
 
             // Do the call for this node
@@ -161,7 +161,7 @@ where
                 Err(e) => {
                     // Error happened, abort everything and return the error
                     self.context.lock().result = Some(Err(e));
-                    return;
+                    break true;
                 }
             };
         }
@@ -248,12 +248,18 @@ where
             }
         }
         // Wait for them to complete
-        timeout(timeout_ms, async { while unord.next().await.is_some() {} })
-            .await
-            .into_timeout_or()
-            .map(|_| {
-                // Finished, return whatever value we came up with
-                self.context.lock().result.take().transpose()
-            })
+        timeout(timeout_ms, async {
+            while let Some(is_done) = unord.next().await {
+                if is_done {
+                    break;
+                }
+            }
+        })
+        .await
+        .into_timeout_or()
+        .map(|_| {
+            // Finished, return whatever value we came up with
+            self.context.lock().result.take().transpose()
+        })
     }
 }
