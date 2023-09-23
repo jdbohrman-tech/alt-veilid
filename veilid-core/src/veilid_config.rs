@@ -1,9 +1,7 @@
 use crate::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-#[cfg_attr(target_arch = "wasm32", declare)]
 pub type ConfigCallbackReturn = VeilidAPIResult<Box<dyn core::any::Any + Send>>;
-#[cfg_attr(target_arch = "wasm32", declare)]
 pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sync>;
 
 /// Enable and configure HTTPS access to the Veilid node

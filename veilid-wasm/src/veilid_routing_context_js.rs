@@ -83,8 +83,8 @@ impl VeilidRoutingContext {
     ///
     /// * `call_id` - specifies which call to reply to, and it comes from a VeilidUpdate::AppCall, specifically the VeilidAppCall::id() value.
     /// * `message` - is an answer blob to be returned by the remote node's RoutingContext::app_call() function, and may be up to 32768 bytes
-    pub async fn appCallReply(call_id: String, message: String) -> APIResult<()> {
-        let message = unmarshall(message)?;
+    pub async fn appCallReply(call_id: String, message: Box<[u8]>) -> APIResult<()> {
+        let message = message.into_vec();
         let call_id = match call_id.parse() {
             Ok(v) => v,
             Err(e) => {
@@ -148,10 +148,9 @@ impl VeilidRoutingContext {
     /// @param {string} target - can be either a direct node id or a private route.
     /// @param {string} message - an arbitrary message blob of up to `32768` bytes.
     #[wasm_bindgen(skip_jsdoc)]
-    pub async fn appMessage(&self, target_string: String, message: String) -> APIResult<()> {
+    pub async fn appMessage(&self, target_string: String, message: Box<[u8]>) -> APIResult<()> {
         let routing_context = self.getRoutingContext()?;
-        let message = unmarshall(message)?;
-
+        let message = message.into_vec();
         let veilid_api = get_veilid_api()?;
         let target = veilid_api.parse_as_target(target_string).await?;
         routing_context.app_message(target, message).await?;
@@ -162,18 +161,22 @@ impl VeilidRoutingContext {
     ///
     /// Veilid apps may use this for arbitrary message passing.
     ///
-    /// @param {string} target_string - can be either a direct node id or a private route, base64Url encoded.
-    /// @param {string} message - an arbitrary message blob of up to `32768` bytes, base64Url encoded.
-    /// @returns an answer blob of up to `32768` bytes, base64Url encoded.
+    /// @param {string} target_string - can be either a direct node id or a private route.
+    /// @param {Uint8Array} message - an arbitrary message blob of up to `32768` bytes.
+    /// @returns {Uint8Array} an answer blob of up to `32768` bytes.
     #[wasm_bindgen(skip_jsdoc)]
-    pub async fn appCall(&self, target_string: String, request: String) -> APIResult<String> {
-        let request: Vec<u8> = unmarshall(request)?;
+    pub async fn appCall(
+        &self,
+        target_string: String,
+        request: Box<[u8]>,
+    ) -> APIResult<Uint8Array> {
+        let request: Vec<u8> = request.into_vec();
         let routing_context = self.getRoutingContext()?;
 
         let veilid_api = get_veilid_api()?;
         let target = veilid_api.parse_as_target(target_string).await?;
         let answer = routing_context.app_call(target, request).await?;
-        let answer = marshall(&answer);
+        let answer = Uint8Array::from(answer.as_slice());
         APIResult::Ok(answer)
     }
 
@@ -250,7 +253,7 @@ impl VeilidRoutingContext {
     /// May pull the latest value from the network, but by settings 'force_refresh' you can force a network data refresh.
     ///
     /// Returns `undefined` if the value subkey has not yet been set.
-    /// Returns base64Url encoded `data` if the value subkey has valid data.
+    /// Returns a Uint8Array of `data` if the value subkey has valid data.
     pub async fn getDhtValue(
         &self,
         key: String,
@@ -268,15 +271,15 @@ impl VeilidRoutingContext {
     /// Pushes a changed subkey value to the network
     ///
     /// Returns `undefined` if the value was successfully put.
-    /// Returns base64Url encoded `data` if the value put was older than the one available on the network.
+    /// Returns a Uint8Array of `data` if the value put was older than the one available on the network.
     pub async fn setDhtValue(
         &self,
         key: String,
         subKey: u32,
-        data: String,
+        data: Box<[u8]>,
     ) -> APIResult<Option<ValueData>> {
         let key = TypedKey::from_str(&key)?;
-        let data = unmarshall(data)?;
+        let data = data.into_vec();
 
         let routing_context = self.getRoutingContext()?;
         let res = routing_context.set_dht_value(key, subKey, data).await?;

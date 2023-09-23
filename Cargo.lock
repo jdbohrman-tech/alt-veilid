@@ -4156,6 +4156,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_bytes"
+version = "0.11.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab33ec92f677585af6d88c65593ae2375adde54efdbf16d597f2cbc7a6d368ff"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_cbor"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5314,6 +5323,7 @@ dependencies = [
  "serde",
  "serde-big-array",
  "serde-wasm-bindgen 0.6.0",
+ "serde_bytes",
  "serde_json",
  "serial_test",
  "shell-words",
@@ -5521,6 +5531,7 @@ dependencies = [
  "send_wrapper 0.6.0",
  "serde",
  "serde-wasm-bindgen 0.6.0",
+ "serde_bytes",
  "serde_json",
  "tracing",
  "tracing-subscriber",

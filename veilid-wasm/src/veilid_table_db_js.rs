@@ -63,22 +63,24 @@ impl VeilidTableDB {
     }
 
     /// Read a key from a column in the TableDB immediately.
-    pub async fn load(&mut self, columnId: u32, key: String) -> APIResult<Option<String>> {
+    pub async fn load(&mut self, columnId: u32, key: Box<[u8]>) -> APIResult<Option<Uint8Array>> {
         self.ensureOpen().await;
-        let key = unmarshall(key)?;
         let table_db = self.getTableDB()?;
 
         let out = table_db.load(columnId, &key).await?;
-        let out = out.map(|out| marshall(&out));
+        let out = out.map(|out| Uint8Array::from(out.as_slice()));
         APIResult::Ok(out)
     }
 
     /// Store a key with a value in a column in the TableDB.
     /// Performs a single transaction immediately.
-    pub async fn store(&mut self, columnId: u32, key: String, value: String) -> APIResult<()> {
+    pub async fn store(
+        &mut self,
+        columnId: u32,
+        key: Box<[u8]>,
+        value: Box<[u8]>,
+    ) -> APIResult<()> {
         self.ensureOpen().await;
-        let key = unmarshall(key)?;
-        let value = unmarshall(value)?;
         let table_db = self.getTableDB()?;
 
         table_db.store(columnId, &key, &value).await?;
@@ -86,26 +88,29 @@ impl VeilidTableDB {
     }
 
     /// Delete key with from a column in the TableDB.
-    pub async fn delete(&mut self, columnId: u32, key: String) -> APIResult<Option<String>> {
+    pub async fn delete(&mut self, columnId: u32, key: Box<[u8]>) -> APIResult<Option<Uint8Array>> {
         self.ensureOpen().await;
-        let key = unmarshall(key)?;
         let table_db = self.getTableDB()?;
 
         let out = table_db.delete(columnId, &key).await?;
-        let out = out.map(|out| marshall(&out));
+        let out = out.map(|out| Uint8Array::from(out.as_slice()));
         APIResult::Ok(out)
     }
 
     /// Get the list of keys in a column of the TableDB.
     ///
-    /// Returns an array of base64Url encoded keys.
-    pub async fn getKeys(&mut self, columnId: u32) -> APIResult<StringArray> {
+    /// Returns an array of Uint8Array keys.
+    pub async fn getKeys(&mut self, columnId: u32) -> APIResult<Uint8ArrayArray> {
         self.ensureOpen().await;
         let table_db = self.getTableDB()?;
 
         let keys = table_db.clone().get_keys(columnId).await?;
-        let out: Vec<String> = keys.into_iter().map(|k| marshall(&k)).collect();
-        let out = into_unchecked_string_array(out);
+        let out: Vec<Uint8Array> = keys
+            .into_iter()
+            .map(|k| Uint8Array::from(k.as_slice()))
+            .collect();
+
+        let out = into_unchecked_uint8array_array(out);
 
         APIResult::Ok(out)
     }
@@ -164,16 +169,13 @@ impl VeilidTableDBTransaction {
 
     /// Store a key with a value in a column in the TableDB.
     /// Does not modify TableDB until `.commit()` is called.
-    pub fn store(&self, col: u32, key: String, value: String) -> APIResult<()> {
-        let key = unmarshall(key)?;
-        let value = unmarshall(value)?;
+    pub fn store(&self, col: u32, key: Box<[u8]>, value: Box<[u8]>) -> APIResult<()> {
         let transaction = self.getTransaction()?;
         transaction.store(col, &key, &value)
     }
 
     /// Delete key with from a column in the TableDB
-    pub fn deleteKey(&self, col: u32, key: String) -> APIResult<()> {
-        let key = unmarshall(key)?;
+    pub fn deleteKey(&self, col: u32, key: Box<[u8]>) -> APIResult<()> {
         let transaction = self.getTransaction()?;
         transaction.delete(col, &key)
     }

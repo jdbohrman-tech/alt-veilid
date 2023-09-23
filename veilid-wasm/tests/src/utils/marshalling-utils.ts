@@ -1,13 +1,23 @@
-//  TextEncoder/TextDecoder are used to solve for "The Unicode Problem" https://stackoverflow.com/a/30106551
+export const textDecoder = new TextDecoder();
+export const textEncoder = new TextEncoder();
 
-export function marshall(data: string) {
-  const byteString = bytesToString(new TextEncoder().encode(data));
+//  TextEncoder/TextDecoder are used to solve for "The Unicode Problem" https://stackoverflow.com/a/30106551
+export function marshallString(data: string) {
+  return marshallBytes(textEncoder.encode(data));
+}
+
+export function unmarshallString(b64: string) {
+  return textDecoder.decode(unmarshallBytes(b64));
+}
+
+export function marshallBytes(data: Uint8Array) {
+  const byteString = bytesToString(data);
   return base64UrlEncode(byteString);
 }
 
-export function unmarshall(b64: string) {
+export function unmarshallBytes(b64: string) {
   const byteString = base64UrlDecode(b64);
-  return new TextDecoder().decode(stringToBytes(byteString));
+  return stringToBytes(byteString);
 }
 
 function base64UrlEncode(data: string) {
