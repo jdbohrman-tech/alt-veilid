@@ -142,4 +142,54 @@ describe('veilidCrypto', () => {
     }).not.toThrow();
   });
 
+  describe('contants', () => {
+    it('CRYPTO_KEY_LENGTH', () => {
+      expect(typeof veilidCrypto.CRYPTO_KEY_LENGTH).toBe('number');
+    });
+    it('CRYPTO_KEY_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.CRYPTO_KEY_LENGTH_ENCODED).toBe('number');
+    });
+    it('HASH_DIGEST_LENGTH', () => {
+      expect(typeof veilidCrypto.HASH_DIGEST_LENGTH).toBe('number');
+    });
+    it('HASH_DIGEST_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.HASH_DIGEST_LENGTH_ENCODED).toBe('number');
+    });
+    it('NONCE_LENGTH', () => {
+      expect(typeof veilidCrypto.NONCE_LENGTH).toBe('number');
+    });
+    it('NONCE_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.NONCE_LENGTH_ENCODED).toBe('number');
+    });
+    it('PUBLIC_KEY_LENGTH', () => {
+      expect(typeof veilidCrypto.PUBLIC_KEY_LENGTH).toBe('number');
+    });
+    it('PUBLIC_KEY_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.PUBLIC_KEY_LENGTH_ENCODED).toBe('number');
+    });
+    it('ROUTE_ID_LENGTH', () => {
+      expect(typeof veilidCrypto.ROUTE_ID_LENGTH).toBe('number');
+    });
+    it('ROUTE_ID_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.ROUTE_ID_LENGTH_ENCODED).toBe('number');
+    });
+    it('SECRET_KEY_LENGTH', () => {
+      expect(typeof veilidCrypto.SECRET_KEY_LENGTH).toBe('number');
+    });
+    it('SECRET_KEY_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.SECRET_KEY_LENGTH_ENCODED).toBe('number');
+    });
+    it('SHARED_SECRET_LENGTH', () => {
+      expect(typeof veilidCrypto.SHARED_SECRET_LENGTH).toBe('number');
+    });
+    it('SHARED_SECRET_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.SHARED_SECRET_LENGTH_ENCODED).toBe('number');
+    });
+    it('SIGNATURE_LENGTH', () => {
+      expect(typeof veilidCrypto.SIGNATURE_LENGTH).toBe('number');
+    });
+    it('SIGNATURE_LENGTH_ENCODED', () => {
+      expect(typeof veilidCrypto.SIGNATURE_LENGTH_ENCODED).toBe('number');
+    });
+  });
 });

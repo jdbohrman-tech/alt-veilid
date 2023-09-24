@@ -478,4 +478,105 @@ impl VeilidCrypto {
         crypto_system.crypt_in_place_no_auth(&mut body, &nonce, &shared_secret);
         APIResult::Ok(body)
     }
+
+    // --------------------------------
+    // Constants
+    // (written as getters since wasm_bindgen doesn't support export of const)
+    // --------------------------------
+
+    /// Length of a crypto key in bytes
+    #[wasm_bindgen(getter)]
+    pub fn CRYPTO_KEY_LENGTH() -> usize {
+        veilid_core::CRYPTO_KEY_LENGTH
+    }
+
+    /// Length of a crypto key in bytes after encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn CRYPTO_KEY_LENGTH_ENCODED() -> usize {
+        veilid_core::CRYPTO_KEY_LENGTH_ENCODED
+    }
+
+    /// Length of a hash digest in bytes
+    #[wasm_bindgen(getter)]
+    pub fn HASH_DIGEST_LENGTH() -> usize {
+        veilid_core::HASH_DIGEST_LENGTH
+    }
+
+    /// Length of a hash digest in bytes after encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn HASH_DIGEST_LENGTH_ENCODED() -> usize {
+        veilid_core::HASH_DIGEST_LENGTH_ENCODED
+    }
+
+    /// Length of a nonce in bytes
+    #[wasm_bindgen(getter)]
+    pub fn NONCE_LENGTH() -> usize {
+        veilid_core::NONCE_LENGTH
+    }
+
+    /// Length of a nonce in bytes after encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn NONCE_LENGTH_ENCODED() -> usize {
+        veilid_core::NONCE_LENGTH_ENCODED
+    }
+
+    /// Length of a crypto key in bytes
+    #[wasm_bindgen(getter)]
+    pub fn PUBLIC_KEY_LENGTH() -> usize {
+        veilid_core::PUBLIC_KEY_LENGTH
+    }
+
+    /// Length of a crypto key in bytes after encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn PUBLIC_KEY_LENGTH_ENCODED() -> usize {
+        veilid_core::PUBLIC_KEY_LENGTH_ENCODED
+    }
+
+    /// Length of a route id in bytes
+    #[wasm_bindgen(getter)]
+    pub fn ROUTE_ID_LENGTH() -> usize {
+        veilid_core::ROUTE_ID_LENGTH
+    }
+
+    /// Length of a route id in bytes afer encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn ROUTE_ID_LENGTH_ENCODED() -> usize {
+        veilid_core::ROUTE_ID_LENGTH_ENCODED
+    }
+
+    /// Length of a secret key in bytes
+    #[wasm_bindgen(getter)]
+    pub fn SECRET_KEY_LENGTH() -> usize {
+        veilid_core::SECRET_KEY_LENGTH
+    }
+
+    /// Length of a secret key in bytes after encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn SECRET_KEY_LENGTH_ENCODED() -> usize {
+        veilid_core::SECRET_KEY_LENGTH_ENCODED
+    }
+
+    /// Length of a shared secret in bytes
+    #[wasm_bindgen(getter)]
+    pub fn SHARED_SECRET_LENGTH() -> usize {
+        veilid_core::SHARED_SECRET_LENGTH
+    }
+
+    /// Length of a shared secret in bytes after encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn SHARED_SECRET_LENGTH_ENCODED() -> usize {
+        veilid_core::SHARED_SECRET_LENGTH_ENCODED
+    }
+
+    /// Length of a signature in bytes
+    #[wasm_bindgen(getter)]
+    pub fn SIGNATURE_LENGTH() -> usize {
+        veilid_core::SIGNATURE_LENGTH
+    }
+
+    /// Length of a signature in bytes after encoding to base64url
+    #[wasm_bindgen(getter)]
+    pub fn SIGNATURE_LENGTH_ENCODED() -> usize {
+        veilid_core::SIGNATURE_LENGTH_ENCODED
+    }
 }
