@@ -215,7 +215,8 @@ abstract class VeilidCryptoSystem {
     final nonce = await randomNonce();
     final saltBytes = nonce.decode();
     final sharedSecret = await deriveSharedSecret(ekbytes, saltBytes);
-    return (await cryptNoAuth(body, nonce, sharedSecret))..addAll(saltBytes);
+    return Uint8List.fromList(
+        (await cryptNoAuth(body, nonce, sharedSecret)) + saltBytes);
   }
 
   Future<Uint8List> decryptNoAuthWithPassword(
