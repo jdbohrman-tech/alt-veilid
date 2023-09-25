@@ -17,6 +17,7 @@ use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use thiserror::Error;
+use chrono::Local;
 //////////////////////////////////////////////////////////////
 ///
 struct Dirty<T> {
@@ -101,7 +102,6 @@ pub enum DumbError {
 impl UI {
     /////////////////////////////////////////////////////////////////////////////////////
     // Private functions
-
     fn command_processor(s: &mut Cursive) -> CommandProcessor {
         let inner = Self::inner(s);
         inner.cmdproc.as_ref().unwrap().clone()
@@ -349,7 +349,7 @@ impl UI {
 
         cursive_flexi_logger_view::parse_lines_to_log(
             ColorStyle::primary().into(),
-            format!("> {}", text),
+            format!("> {} {}",Local::now().format("%Y-%m-%dT%H:%M:%S:%3f"), text),
         );
         match Self::run_command(s, text) {
             Ok(_) => {}
@@ -463,7 +463,7 @@ impl UI {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
                 cursive_flexi_logger_view::parse_lines_to_log(
                     color.into(),
-                    format!(">> Copied: {}", text.as_ref()),
+                    format!(">> {} Copied: {}", Local::now().format("%Y-%m-%dT%H:%M:%S:%3f") ,text.as_ref()),
                 );
             } else {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
@@ -488,7 +488,7 @@ impl UI {
                     let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
                     cursive_flexi_logger_view::parse_lines_to_log(
                         color.into(),
-                        format!(">> Copied: {}", text.as_ref()),
+                        format!(">> {} Copied: {}", Local::now().format("%Y-%m-%dT%H:%M:%S:%3f"), text.as_ref()),
                     );
                 }
             }
@@ -1039,7 +1039,7 @@ impl UISender {
         {
             let inner = self.inner.lock();
             let color = *inner.log_colors.get(&log_color).unwrap();
-            cursive_flexi_logger_view::parse_lines_to_log(color.into(), event);
+            cursive_flexi_logger_view::parse_lines_to_log(color.into(), format!("{}: {}", Local::now().format("%Y-%m-%dT%H:%M:%S:%3f"), event));
         }
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }
