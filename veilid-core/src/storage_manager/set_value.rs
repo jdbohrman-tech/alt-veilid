@@ -106,7 +106,7 @@ impl StorageManager {
                         } else {
                             // If the sequence number is older, or an equal sequence number,
                             // node should have not returned a value here.
-                            // Skip this node and it's closer list because it is misbehaving
+                            // Skip this node and its closer list because it is misbehaving
                             return Ok(None);
                         }
                     } else {
