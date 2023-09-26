@@ -524,7 +524,7 @@ impl RPCProcessor {
     }
 
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
-    /// Note: This routine can possible be recursive, hence the SendPinBoxFuture async form
+    /// Note: This routine can possibly be recursive, hence the SendPinBoxFuture async form
     pub fn resolve_node(
         &self,
         node_id: TypedKey,
