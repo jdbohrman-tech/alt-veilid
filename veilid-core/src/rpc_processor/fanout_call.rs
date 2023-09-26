@@ -19,7 +19,7 @@ pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeIn
     Arc::new(move |_, ni| ni.has_capabilities(&caps))
 }
 
-/// Contains the logic for generically searing the Veilid routing table for a set of nodes and applying an
+/// Contains the logic for generically searching the Veilid routing table for a set of nodes and applying an
 /// RPC operation that eventually converges on satisfactory result, or times out and returns some
 /// unsatisfactory but acceptable result. Or something.
 ///
