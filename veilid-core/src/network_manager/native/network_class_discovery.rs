@@ -22,6 +22,7 @@ impl Network {
 
                     editor.clear_dial_info_details(None, None);
                     editor.set_network_class(Some(NetworkClass::OutboundOnly));
+                    editor.clear_relay_node();
                     editor.commit(true).await;
                 }
             }

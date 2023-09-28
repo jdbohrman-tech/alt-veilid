@@ -1285,7 +1285,11 @@ impl RouteSpecStore {
 
         // Ensure our network class is valid before attempting to assemble any routes
         if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
-            bail!("can't make private routes until our node info is valid");
+            let peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
+            bail!(
+                "can't make private routes until our node info is valid: {:?}",
+                peer_info
+            );
         }
 
         // Make innermost route hop to our own node
