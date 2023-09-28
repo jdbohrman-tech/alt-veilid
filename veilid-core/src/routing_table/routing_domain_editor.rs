@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Debug)]
 enum RoutingDomainChange {
     ClearDialInfoDetails {
         address_type: Option<AddressType>,
@@ -135,6 +136,9 @@ impl RoutingDomainEditor {
             None
         };
 
+        // Debug print
+        log_rtab!(debug "[{:?}] COMMIT: {:?}", self.routing_domain, self.changes);
+
         // Apply changes
         let mut changed = false;
         {
@@ -246,10 +250,6 @@ impl RoutingDomainEditor {
                             }
                         }
                     }
-                }
-                if changed {
-                    // Clear our 'peer info' cache, the peerinfo for this routing domain will get regenerated next time it is asked for
-                    detail.common_mut().clear_cache()
                 }
             });
             if changed {
