@@ -385,7 +385,7 @@ impl AssemblyBuffer {
 
     /// Split a message into packets and send them serially, ensuring
     /// that they are sent consecutively to a particular remote address,
-    /// never interleaving packets from one message and other to minimize reassembly problems
+    /// never interleaving packets from one message and another to minimize reassembly problems
     pub async fn split_message<S, F>(
         &self,
         data: Vec<u8>,
