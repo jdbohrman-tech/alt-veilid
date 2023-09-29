@@ -65,12 +65,14 @@ pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration 
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ProtocolConfig {
     pub outbound: ProtocolTypeSet,
     pub inbound: ProtocolTypeSet,
     pub family_global: AddressTypeSet,
     pub family_local: AddressTypeSet,
+    pub public_internet_capabilities: Vec<FourCC>,
+    pub local_network_capabilities: Vec<FourCC>,
 }
 
 // Things we get when we start up and go away when we shut down

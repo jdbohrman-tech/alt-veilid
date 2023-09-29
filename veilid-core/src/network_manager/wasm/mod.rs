@@ -349,14 +349,24 @@ impl Network {
             let family_global = AddressTypeSet::from(AddressType::IPV4);
             let family_local = AddressTypeSet::from(AddressType::IPV4);
 
+            let public_internet_capabilities = {
+                PUBLIC_INTERNET_CAPABILITIES
+                    .iter()
+                    .copied()
+                    .filter(|cap| !c.capabilities.disable.contains(cap))
+                    .collect::<Vec<Capability>>()
+            };
+
             ProtocolConfig {
                 outbound,
                 inbound,
                 family_global,
                 family_local,
+                local_network_capabilities: vec![],
+                public_internet_capabilities,
             }
         };
-        self.inner.lock().protocol_config = protocol_config;
+        self.inner.lock().protocol_config = protocol_config.clone();
 
         // Start editing routing table
         let mut editor_public_internet = self
@@ -367,20 +377,11 @@ impl Network {
         // set up the routing table's network config
         // if we have static public dialinfo, upgrade our network class
 
-        let public_internet_capabilities = {
-            let c = self.config.get();
-            PUBLIC_INTERNET_CAPABILITIES
-                .iter()
-                .copied()
-                .filter(|cap| !c.capabilities.disable.contains(cap))
-                .collect::<Vec<Capability>>()
-        };
-
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
-            public_internet_capabilities,
+            protocol_config.public_internet_capabilities.clone(),
         );
         editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
 
@@ -454,7 +455,7 @@ impl Network {
     }
 
     pub fn get_protocol_config(&self) -> ProtocolConfig {
-        self.inner.lock().protocol_config
+        self.inner.lock().protocol_config.clone()
     }
 
     //////////////////////////////////////////
