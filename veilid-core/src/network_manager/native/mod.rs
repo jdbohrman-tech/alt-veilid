@@ -684,7 +684,7 @@ impl Network {
     /////////////////////////////////////////////////////////////////
 
     pub fn get_protocol_config(&self) -> ProtocolConfig {
-        self.inner.lock().protocol_config
+        self.inner.lock().protocol_config.clone()
     }
 
     #[instrument(level = "debug", err, skip_all)]
@@ -790,14 +790,33 @@ impl Network {
                     family_local.insert(AddressType::IPV6);
                 }
 
+                // set up the routing table's network config
+                // if we have static public dialinfo, upgrade our network class
+                let public_internet_capabilities = {
+                    PUBLIC_INTERNET_CAPABILITIES
+                        .iter()
+                        .copied()
+                        .filter(|cap| !c.capabilities.disable.contains(cap))
+                        .collect::<Vec<Capability>>()
+                };
+                let local_network_capabilities = {
+                    LOCAL_NETWORK_CAPABILITIES
+                        .iter()
+                        .copied()
+                        .filter(|cap| !c.capabilities.disable.contains(cap))
+                        .collect::<Vec<Capability>>()
+                };
+
                 ProtocolConfig {
                     outbound,
                     inbound,
                     family_global,
                     family_local,
+                    public_internet_capabilities,
+                    local_network_capabilities,
                 }
             };
-            inner.protocol_config = protocol_config;
+            inner.protocol_config = protocol_config.clone();
 
             protocol_config
         };
@@ -835,36 +854,17 @@ impl Network {
         // that we have ports available to us
         self.free_bound_first_ports();
 
-        // set up the routing table's network config
-        // if we have static public dialinfo, upgrade our network class
-        let public_internet_capabilities = {
-            let c = self.config.get();
-            PUBLIC_INTERNET_CAPABILITIES
-                .iter()
-                .copied()
-                .filter(|cap| !c.capabilities.disable.contains(cap))
-                .collect::<Vec<Capability>>()
-        };
-        let local_network_capabilities = {
-            let c = self.config.get();
-            LOCAL_NETWORK_CAPABILITIES
-                .iter()
-                .copied()
-                .filter(|cap| !c.capabilities.disable.contains(cap))
-                .collect::<Vec<Capability>>()
-        };
-
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
-            public_internet_capabilities,
+            protocol_config.public_internet_capabilities,
         );
         editor_local_network.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_local,
-            local_network_capabilities,
+            protocol_config.local_network_capabilities,
         );
         let detect_address_changes = {
             let c = self.config.get();

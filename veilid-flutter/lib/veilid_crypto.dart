@@ -186,6 +186,52 @@ abstract class VeilidCryptoSystem {
   Future<Uint8List> cryptNoAuth(
       Uint8List body, Nonce nonce, SharedSecret sharedSecret);
 
+  Future<Uint8List> encryptAeadWithNonce(
+      Uint8List body, SharedSecret secret) async {
+    // generate nonce
+    final nonce = await randomNonce();
+    // crypt and append nonce
+    final b = BytesBuilder()
+      ..add(await encryptAead(body, nonce, secret, null))
+      ..add(nonce.decode());
+    return b.toBytes();
+  }
+
+  Future<Uint8List> decryptAeadWithNonce(
+      Uint8List body, SharedSecret secret) async {
+    if (body.length < Nonce.decodedLength()) {
+      throw const FormatException('not enough data to decrypt');
+    }
+    final nonce =
+        Nonce.fromBytes(body.sublist(body.length - Nonce.decodedLength()));
+    final encryptedData = body.sublist(0, body.length - Nonce.decodedLength());
+    // decrypt
+    return decryptAead(encryptedData, nonce, secret, null);
+  }
+
+  Future<Uint8List> encryptAeadWithPassword(
+      Uint8List body, String password) async {
+    final ekbytes = Uint8List.fromList(utf8.encode(password));
+    final nonce = await randomNonce();
+    final saltBytes = nonce.decode();
+    final sharedSecret = await deriveSharedSecret(ekbytes, saltBytes);
+    return Uint8List.fromList(
+        (await encryptAead(body, nonce, sharedSecret, null)) + saltBytes);
+  }
+
+  Future<Uint8List> decryptAeadWithPassword(
+      Uint8List body, String password) async {
+    if (body.length < Nonce.decodedLength()) {
+      throw const FormatException('not enough data to decrypt');
+    }
+    final ekbytes = Uint8List.fromList(utf8.encode(password));
+    final bodyBytes = body.sublist(0, body.length - Nonce.decodedLength());
+    final saltBytes = body.sublist(body.length - Nonce.decodedLength());
+    final nonce = Nonce.fromBytes(saltBytes);
+    final sharedSecret = await deriveSharedSecret(ekbytes, saltBytes);
+    return decryptAead(bodyBytes, nonce, sharedSecret, null);
+  }
+
   Future<Uint8List> encryptNoAuthWithNonce(
       Uint8List body, SharedSecret secret) async {
     // generate nonce
@@ -215,7 +261,8 @@ abstract class VeilidCryptoSystem {
     final nonce = await randomNonce();
     final saltBytes = nonce.decode();
     final sharedSecret = await deriveSharedSecret(ekbytes, saltBytes);
-    return (await cryptNoAuth(body, nonce, sharedSecret))..addAll(saltBytes);
+    return Uint8List.fromList(
+        (await cryptNoAuth(body, nonce, sharedSecret)) + saltBytes);
   }
 
   Future<Uint8List> decryptNoAuthWithPassword(
