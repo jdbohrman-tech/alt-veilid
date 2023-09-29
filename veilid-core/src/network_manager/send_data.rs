@@ -375,10 +375,14 @@ impl NetworkManager {
             }
         };
 
-        // Dial info filter comes from the target node ref
-        let dial_info_filter = target_node_ref.dial_info_filter();
+        // Dial info filter comes from the target node ref but must be filtered by this node's outbound capabilities
+        let dial_info_filter = target_node_ref.dial_info_filter().filtered(
+            &DialInfoFilter::all()
+                .with_address_type_set(peer_a.signed_node_info().node_info().address_types())
+                .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()));
         let sequencing = target_node_ref.sequencing();
 
+    
         // If the node has had lost questions or failures to send, prefer sequencing
         // to improve reliability. The node may be experiencing UDP fragmentation drops
         // or other firewalling issues and may perform better with TCP.

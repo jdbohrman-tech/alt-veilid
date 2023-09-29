@@ -278,6 +278,8 @@ fn first_filtered_dial_info_detail_between_nodes(
     sequencing: Sequencing,
     dif_sort: Option<Arc<DialInfoDetailSort>>
 ) -> Option<DialInfoDetail> {
+
+    // Consider outbound capabilities
     let dial_info_filter = (*dial_info_filter).filtered(
         &DialInfoFilter::all()
             .with_address_type_set(from_node.address_types())
@@ -569,48 +571,22 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         sequencing: Sequencing,
         dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
-        // Scope the filter down to protocols node A can do outbound
-        let dial_info_filter = dial_info_filter.filtered(
-            &DialInfoFilter::all()
-                .with_address_type_set(peer_a.signed_node_info().node_info().address_types())
-                .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()),
-        );
-        
-        // Apply sequencing and get sort
-        // Include sorting by external dial info sort for rotating through dialinfo
-        // based on an external preference table, for example the one kept by 
-        // AddressFilter to deprioritize dialinfo that have recently failed to connect
-        let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
-        let sort: Option<Box<DialInfoDetailSort>> = if ordered {
-            if let Some(dif_sort) = dif_sort {
-                Some(Box::new(move |a, b| {
-                    let mut ord = dif_sort(a,b);
-                    if ord == core::cmp::Ordering::Equal {
-                        ord = DialInfoDetail::ordered_sequencing_sort(a,b);
-                    }
-                    ord
-                }))
-            } else {
-                Some(Box::new(move |a,b| { DialInfoDetail::ordered_sequencing_sort(a,b) }))
-            }
-        } else if let Some(dif_sort) = dif_sort {
-            Some(Box::new(move |a,b| { dif_sort(a,b) }))
-        } else {
-            None
+
+        // Get the nodeinfos for convenience
+        let node_a = peer_a.signed_node_info().node_info();
+        let node_b = peer_b.signed_node_info().node_info();
+
+        // Get the node ids that would be used between these peers
+        let cck = common_crypto_kinds(&peer_a.node_ids().kinds(), &peer_b.node_ids().kinds());
+        let Some(_best_ck) = cck.first().copied() else {
+            // No common crypto kinds between these nodes, can't contact
+            return ContactMethod::Unreachable;
         };
 
-        // If the filter is dead then we won't be able to connect
-        if dial_info_filter.is_dead() {
-            return ContactMethod::Unreachable;
-        }
-
-        let filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
-
-        let opt_target_did = peer_b.signed_node_info().node_info().first_filtered_dial_info_detail(sort, filter);
-        if let Some(target_did) = opt_target_did {
+        if let Some(target_did) = first_filtered_dial_info_detail_between_nodes(node_a, node_b, &dial_info_filter, sequencing, dif_sort) {
             return ContactMethod::Direct(target_did.dial_info);
         }
-
+        
         ContactMethod::Unreachable
     }
 }
