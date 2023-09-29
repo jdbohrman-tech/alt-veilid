@@ -46,7 +46,7 @@ pub struct VeilidConfigHTTP {
 
 /// Application configuration
 ///
-/// Configure web access to the Prograssive Web App (PWA)
+/// Configure web access to the Progressive Web App (PWA)
 ///
 /// To be implemented...
 ///
