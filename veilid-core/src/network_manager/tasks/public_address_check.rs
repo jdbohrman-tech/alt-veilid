@@ -167,7 +167,7 @@ impl NetworkManager {
             for (reporting_ip_block, a) in pacc {
                 // If this address is not one of our current addresses (inconsistent)
                 // and we haven't already denylisted the reporting source,
-                // Also check address with port zero in the even we are only checking changes to ip addresses
+                // Also check address with port zero in the event we are only checking changes to ip addresses
                 if !current_addresses.contains(a)
                     && !current_addresses.contains(&a.with_port(0))
                     && !inner
