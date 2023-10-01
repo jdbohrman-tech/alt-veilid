@@ -925,10 +925,13 @@ impl RoutingTableInner {
             NetworkClass::Invalid
         );
 
+        let live_entry_counts = self.cached_entry_counts();
+
         RoutingTableHealth {
             reliable_entry_count,
             unreliable_entry_count,
             dead_entry_count,
+            live_entry_counts,
             public_internet_ready,
             local_network_ready,
         }

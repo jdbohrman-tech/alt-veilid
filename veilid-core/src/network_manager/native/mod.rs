@@ -1017,14 +1017,27 @@ impl Network {
                 let routing_table = self.routing_table();
                 let rth = routing_table.get_routing_table_health();
 
-                // Need at least two entries to do this
-                if rth.unreliable_entry_count + rth.reliable_entry_count >= 2 {
+                // We want at least two live entries per crypto kind before we start doing this (bootstrap)
+                let mut has_at_least_two = true;
+                for ck in VALID_CRYPTO_KINDS {
+                    if rth
+                        .live_entry_counts
+                        .get(&(RoutingDomain::PublicInternet, ck))
+                        .copied()
+                        .unwrap_or_default()
+                        < 2
+                    {
+                        has_at_least_two = false;
+                        break;
+                    }
+                }
+
+                if has_at_least_two {
                     self.unlocked_inner.update_network_class_task.tick().await?;
                 }
             }
 
-            // If we aren't resetting the network already,
-            // check our network interfaces to see if they have changed
+            // Check our network interfaces to see if they have changed
             if !self.needs_restart() {
                 self.unlocked_inner.network_interfaces_task.tick().await?;
             }

@@ -71,12 +71,14 @@ pub type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RoutingTableHealth {
-    /// Number of reliable (responsive) entries in the routing table
+    /// Number of reliable (long-term responsive) entries in the routing table
     pub reliable_entry_count: usize,
     /// Number of unreliable (occasionally unresponsive) entries in the routing table
     pub unreliable_entry_count: usize,
     /// Number of dead (always unresponsive) entries in the routing table
     pub dead_entry_count: usize,
+    /// Number of live (responsive) entries in the routing table per RoutingDomain and CryptoKind
+    pub live_entry_counts: BTreeMap<(RoutingDomain, CryptoKind), usize>,
     /// If PublicInternet network class is valid yet
     pub public_internet_ready: bool,
     /// If LocalNetwork network class is valid yet
