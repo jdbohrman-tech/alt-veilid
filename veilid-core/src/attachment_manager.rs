@@ -168,7 +168,7 @@ impl AttachmentManager {
                     })
                     .unwrap_or(true);
             if send_update {
-                Some((update_callback, Self::get_veilid_state_inner(&*inner)))
+                Some((update_callback, Self::get_veilid_state_inner(&inner)))
             } else {
                 None
             }
@@ -197,11 +197,11 @@ impl AttachmentManager {
         };
 
         if let Some(update_callback) = update_callback {
-            update_callback(VeilidUpdate::Attachment(VeilidStateAttachment {
+            update_callback(VeilidUpdate::Attachment(Box::new(VeilidStateAttachment {
                 state,
                 public_internet_ready: false,
                 local_network_ready: false,
-            }))
+            })))
         }
     }
 
@@ -325,8 +325,8 @@ impl AttachmentManager {
     //     self.inner.lock().last_attachment_state
     // }
 
-    fn get_veilid_state_inner(inner: &AttachmentManagerInner) -> VeilidStateAttachment {
-        VeilidStateAttachment {
+    fn get_veilid_state_inner(inner: &AttachmentManagerInner) -> Box<VeilidStateAttachment> {
+        Box::new(VeilidStateAttachment {
             state: inner.last_attachment_state,
             public_internet_ready: inner
                 .last_routing_table_health
@@ -338,11 +338,11 @@ impl AttachmentManager {
                 .as_ref()
                 .map(|x| x.local_network_ready)
                 .unwrap_or(false),
-        }
+        })
     }
 
-    pub fn get_veilid_state(&self) -> VeilidStateAttachment {
+    pub fn get_veilid_state(&self) -> Box<VeilidStateAttachment> {
         let inner = self.inner.lock();
-        Self::get_veilid_state_inner(&*inner)
+        Self::get_veilid_state_inner(&inner)
     }
 }

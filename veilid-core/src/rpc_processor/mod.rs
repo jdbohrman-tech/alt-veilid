@@ -434,6 +434,11 @@ impl RPCProcessor {
 
     //////////////////////////////////////////////////////////////////////
 
+    /// Get waiting app call id for debugging purposes
+    pub fn get_app_call_ids(&self) -> Vec<OperationId> {
+        self.unlocked_inner.waiting_app_call_table.get_operation_ids()
+    }
+
     /// Determine if a SignedNodeInfo can be placed into the specified routing domain
     fn verify_node_info(
         &self,
@@ -442,15 +447,15 @@ impl RPCProcessor {
         capabilities: &[Capability],
     ) -> bool {
         let routing_table = self.routing_table();
-        routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, &signed_node_info)
+        routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, signed_node_info)
             && signed_node_info.node_info().has_capabilities(capabilities)
     }
 
     //////////////////////////////////////////////////////////////////////
 
-    /// Search the DHT for a single node closest to a key and add it to the routing table and return the node reference
+    /// Search the network for a single node and add it to the routing table and return the node reference
     /// If no node was found in the timeout, this returns None
-    async fn search_dht_single_key(
+    async fn search_for_node_id(
         &self,
         node_id: TypedKey,
         count: usize,
@@ -486,14 +491,20 @@ impl RPCProcessor {
         };
 
         // Routine to call to check if we're done at each step
-        let check_done = |closest_nodes: &[NodeRef]| {
-            // If the node we want to locate is one of the closest nodes, return it immediately
-            if let Some(out) = closest_nodes
-                .iter()
-                .find(|x| x.node_ids().contains(&node_id))
-            {
-                return Some(out.clone());
+        let check_done = |_:&[NodeRef]| {
+            let Ok(Some(nr)) = routing_table
+                .lookup_node_ref(node_id) else {
+                    return None;
+                };
+        
+            // ensure we have some dial info for the entry already,
+            // and that the node is still alive
+            // if not, we should keep looking for better info
+            if !matches!(nr.state(get_aligned_timestamp()),BucketEntryState::Dead) &&
+                nr.has_any_dial_info() {
+                return Some(nr);
             }
+    
             None
         };
 
@@ -513,7 +524,7 @@ impl RPCProcessor {
     }
 
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
-    /// Note: This routine can possible be recursive, hence the SendPinBoxFuture async form
+    /// Note: This routine can possibly be recursive, hence the SendPinBoxFuture async form
     pub fn resolve_node(
         &self,
         node_id: TypedKey,
@@ -529,8 +540,10 @@ impl RPCProcessor {
                 .map_err(RPCError::internal)?
             {
                 // ensure we have some dial info for the entry already,
+                // and that the node is still alive
                 // if not, we should do the find_node anyway
-                if nr.has_any_dial_info() {
+                if !matches!(nr.state(get_aligned_timestamp()),BucketEntryState::Dead) &&
+                    nr.has_any_dial_info() {
                     return Ok(Some(nr));
                 }
             }
@@ -548,7 +561,7 @@ impl RPCProcessor {
 
             // Search in preferred cryptosystem order
             let nr = match this
-                .search_dht_single_key(node_id, node_count, fanout, timeout, safety_selection)
+                .search_for_node_id(node_id, node_count, fanout, timeout, safety_selection)
                 .await
             {
                 TimeoutOr::Timeout => None,
@@ -557,13 +570,6 @@ impl RPCProcessor {
                     return Err(e);
                 }
             };
-
-            if let Some(nr) = &nr {
-                if nr.node_ids().contains(&node_id) {
-                    // found a close node, but not exact within our configured resolve_node timeout
-                    return Ok(None);
-                }
-            }
 
             Ok(nr)
         })
@@ -678,7 +684,7 @@ impl RPCProcessor {
         let ssni_route =
             self.get_sender_peer_info(&Destination::direct(compiled_route.first_hop.clone()));
         let operation = RPCOperation::new_statement(
-            RPCStatement::new(RPCStatementDetail::Route(route_operation)),
+            RPCStatement::new(RPCStatementDetail::Route(Box::new(route_operation))),
             ssni_route,
         );
 
@@ -806,7 +812,7 @@ impl RPCProcessor {
                         };
                         let private_route = PrivateRoute::new_stub(
                             destination_node_ref.best_node_id(),
-                            RouteNode::PeerInfo(peer_info),
+                            RouteNode::PeerInfo(Box::new(peer_info)),
                         );
 
                         // Wrap with safety route
@@ -1015,6 +1021,7 @@ impl RPCProcessor {
     }
 
     /// Record answer received from node or route
+    #[allow(clippy::too_many_arguments)]
     fn record_answer_received(
         &self,
         send_ts: Timestamp,
@@ -1073,7 +1080,7 @@ impl RPCProcessor {
 
             // If we sent to a private route without a safety route
             // We need to mark our own node info as having been seen so we can optimize sending it
-            if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(&rpr_pubkey, recv_ts) {
+            if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(rpr_pubkey, recv_ts) {
                 log_rpc!(error "private route missing: {}", e);
             }
 
@@ -1110,7 +1117,6 @@ impl RPCProcessor {
             RPCMessageHeaderDetail::Direct(_) => {
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                     sender_nr.stats_question_rcvd(recv_ts, bytes);
-                    return;
                 }
             }
             // Process messages that arrived with no private route (private route stub)

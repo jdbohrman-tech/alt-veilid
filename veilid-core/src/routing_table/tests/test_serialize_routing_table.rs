@@ -30,8 +30,8 @@ pub async fn test_routingtable_buckets_round_trip() {
 
         for crypto in routing_table_keys {
             // The same keys are present in the original and copy RoutingTables.
-            let original_buckets = original_inner.buckets.get(&crypto).unwrap();
-            let copy_buckets = copy_inner.buckets.get(&crypto).unwrap();
+            let original_buckets = original_inner.buckets.get(crypto).unwrap();
+            let copy_buckets = copy_inner.buckets.get(crypto).unwrap();
 
             // Recurse into RoutingTable.inner.buckets
             for (left_buckets, right_buckets) in original_buckets.iter().zip(copy_buckets.iter()) {

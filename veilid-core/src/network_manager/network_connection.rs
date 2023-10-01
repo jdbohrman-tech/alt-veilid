@@ -52,7 +52,7 @@ pub struct DummyNetworkConnection {
 
 impl DummyNetworkConnection {
     pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
     // pub fn close(&self) -> io::Result<()> {
     //     Ok(())
@@ -94,6 +94,7 @@ pub struct NetworkConnection {
     stats: Arc<Mutex<NetworkConnectionStats>>,
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
+    protected: bool,
 }
 
 impl NetworkConnection {
@@ -112,6 +113,7 @@ impl NetworkConnection {
             })),
             sender,
             stop_source: None,
+            protected: false,
         }
     }
 
@@ -142,7 +144,7 @@ impl NetworkConnection {
             local_stop_token,
             manager_stop_token,
             connection_id,
-            descriptor.clone(),
+            descriptor,
             receiver,
             protocol_connection,
             stats.clone(),
@@ -157,6 +159,7 @@ impl NetworkConnection {
             stats,
             sender,
             stop_source: Some(stop_source),
+            protected: false,
         }
     }
 
@@ -165,11 +168,19 @@ impl NetworkConnection {
     }
 
     pub fn connection_descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
 
     pub fn get_handle(&self) -> ConnectionHandle {
-        ConnectionHandle::new(self.connection_id, self.descriptor.clone(), self.sender.clone())
+        ConnectionHandle::new(self.connection_id, self.descriptor, self.sender.clone())
+    }
+
+    pub fn is_protected(&self) -> bool {
+        self.protected
+    }
+
+    pub fn protect(&mut self) {
+        self.protected = true;
     }
 
     pub fn close(&mut self) {
@@ -186,12 +197,12 @@ impl NetworkConnection {
         message: Vec<u8>,
     ) -> io::Result<NetworkResult<()>> {
         let ts = get_aligned_timestamp();
-        let out = network_result_try!(protocol_connection.send(message).await?);
+        network_result_try!(protocol_connection.send(message).await?);
 
         let mut stats = stats.lock();
         stats.last_message_sent_time.max_assign(Some(ts));
 
-        Ok(NetworkResult::Value(out))
+        Ok(NetworkResult::Value(()))
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(stats), fields(ret.len)))]
@@ -223,6 +234,7 @@ impl NetworkConnection {
     }
 
     // Connection receiver loop
+    #[allow(clippy::too_many_arguments)]
     fn process_connection(
         connection_manager: ConnectionManager,
         local_stop_token: StopToken,
@@ -305,19 +317,19 @@ impl NetworkConnection {
                                     let peer_address = protocol_connection.descriptor().remote();
 
                                     // Check to see if it is punished
-                                    if address_filter.is_ip_addr_punished(peer_address.to_socket_addr().ip()) {
+                                    if address_filter.is_ip_addr_punished(peer_address.socket_addr().ip()) {
                                         return RecvLoopAction::Finish;
                                     }
 
                                     // Check for connection close
                                     if v.is_no_connection() {
-                                        log_net!(debug "Connection closed from: {} ({})", peer_address.to_socket_addr(), peer_address.protocol_type());
+                                        log_net!(debug "Connection closed from: {} ({})", peer_address.socket_addr(), peer_address.protocol_type());
                                         return RecvLoopAction::Finish;
                                     }
 
                                     // Punish invalid framing (tcp framing or websocket framing)
                                     if v.is_invalid_message() {
-                                        address_filter.punish_ip_addr(peer_address.to_socket_addr().ip());
+                                        address_filter.punish_ip_addr(peer_address.socket_addr().ip());
                                         return RecvLoopAction::Finish;
                                     }
 
@@ -390,6 +402,17 @@ impl NetworkConnection {
                 .report_connection_finished(connection_id)
                 .await;
         }.instrument(trace_span!("process_connection")))
+    }
+
+    pub fn debug_print(&self, cur_ts: Timestamp) -> String {
+        format!("{} <- {} | {} | est {} sent {} rcvd {}",
+            self.descriptor.remote_address(), 
+            self.descriptor.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
+            self.connection_id.as_u64(),
+            debug_duration(cur_ts.as_u64().saturating_sub(self.established_time.as_u64())),
+            self.stats().last_message_sent_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
+            self.stats().last_message_recv_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
+        )
     }
 }
 

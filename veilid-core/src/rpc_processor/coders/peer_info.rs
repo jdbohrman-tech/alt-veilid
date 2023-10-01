@@ -41,7 +41,7 @@ pub fn decode_peer_info(reader: &veilid_capnp::peer_info::Reader) -> Result<Peer
         node_ids.add(decode_typed_key(&nid_reader)?);
     }
     let signed_node_info = decode_signed_node_info(&sni_reader)?;
-    if node_ids.len() == 0 {
+    if node_ids.is_empty() {
         return Err(RPCError::protocol("no verified node ids"));
     }
     Ok(PeerInfo::new(node_ids, signed_node_info))

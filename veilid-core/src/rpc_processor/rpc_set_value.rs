@@ -80,7 +80,7 @@ impl RPCProcessor {
         );
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
-            RPCQuestionDetail::SetValueQ(set_value_q),
+            RPCQuestionDetail::SetValueQ(Box::new(set_value_q)),
         );
         let question_context = QuestionContext::SetValue(ValidateSetValueContext {
             descriptor,
@@ -292,7 +292,7 @@ impl RPCProcessor {
         let set_value_a = RPCOperationSetValueA::new(set, new_value, closer_to_key_peers)?;
 
         // Send SetValue answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::SetValueA(set_value_a)))
+        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::SetValueA(Box::new(set_value_a))))
             .await
     }
 }

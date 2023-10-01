@@ -8,7 +8,7 @@ pub struct PeerInfo {
 
 impl PeerInfo {
     pub fn new(node_ids: TypedKeyGroup, signed_node_info: SignedNodeInfo) -> Self {
-        assert!(node_ids.len() > 0 && node_ids.len() <= MAX_CRYPTO_KINDS);
+        assert!(!node_ids.is_empty() && node_ids.len() <= MAX_CRYPTO_KINDS);
         Self {
             node_ids,
             signed_node_info,

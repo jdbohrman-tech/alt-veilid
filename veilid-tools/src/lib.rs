@@ -20,6 +20,9 @@
 //! * `rt-async-std` - Uses `async-std` as the async runtime
 //! * `rt-wasm-bindgen` - When building for the `wasm32` architecture, use this to enable `wasm-bindgen-futures` as the async runtime
 //!
+#![deny(clippy::all)]
+#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
+#![deny(unused_must_use)]
 
 // pub mod bump_port;
 pub mod assembly_buffer;

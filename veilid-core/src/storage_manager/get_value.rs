@@ -166,9 +166,13 @@ impl StorageManager {
         match fanout_call.run().await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
             TimeoutOr::Timeout => {
-                log_stor!(debug "GetValue Fanout Timeout");
                 // Return the best answer we've got
                 let ctx = context.lock();
+                if ctx.value_count >= consensus_count {
+                    log_stor!(debug "GetValue Fanout Timeout Consensus");
+                } else {
+                    log_stor!(debug "GetValue Fanout Timeout Non-Consensus: {}", ctx.value_count);
+                }
                 Ok(SubkeyResult {
                     value: ctx.value.clone(),
                     descriptor: ctx.descriptor.clone(),

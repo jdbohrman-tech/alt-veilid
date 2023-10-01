@@ -181,10 +181,17 @@ impl RPCProcessor {
                     // Sent directly but with a safety route, respond to private route
                     let crypto_kind = target.best_node_id().kind;
                     let Some(pr_key) = rss
-                            .get_private_route_for_safety_spec(crypto_kind, safety_spec, &target.node_ids())
-                            .map_err(RPCError::internal)? else {
-                                return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
-                            };
+                        .get_private_route_for_safety_spec(
+                            crypto_kind,
+                            safety_spec,
+                            &target.node_ids(),
+                        )
+                        .map_err(RPCError::internal)?
+                    else {
+                        return Ok(NetworkResult::no_connection_other(
+                            "no private route for response at this time",
+                        ));
+                    };
 
                     // Get the assembled route for response
                     let private_route = rss
@@ -211,9 +218,12 @@ impl RPCProcessor {
                     avoid_nodes.add_all(&target.node_ids());
                     let Some(pr_key) = rss
                         .get_private_route_for_safety_spec(crypto_kind, safety_spec, &avoid_nodes)
-                        .map_err(RPCError::internal)? else {
-                            return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
-                        };
+                        .map_err(RPCError::internal)?
+                    else {
+                        return Ok(NetworkResult::no_connection_other(
+                            "no private route for response at this time",
+                        ));
+                    };
 
                     // Get the assembled route for response
                     let private_route = rss
@@ -228,7 +238,9 @@ impl RPCProcessor {
                 safety_selection,
             } => {
                 let Some(avoid_node_id) = private_route.first_hop_node_id() else {
-                    return Err(RPCError::internal("destination private route must have first hop"));
+                    return Err(RPCError::internal(
+                        "destination private route must have first hop",
+                    ));
                 };
 
                 let crypto_kind = private_route.public_key.kind;
@@ -250,7 +262,7 @@ impl RPCProcessor {
                         } else {
                             let own_peer_info =
                                 routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
-                            RouteNode::PeerInfo(own_peer_info)
+                            RouteNode::PeerInfo(Box::new(own_peer_info))
                         };
 
                         Ok(NetworkResult::value(RespondTo::PrivateRoute(
@@ -271,10 +283,17 @@ impl RPCProcessor {
                         } else {
                             // Get the private route to respond to that matches the safety route spec we sent the request with
                             let Some(pr_key) = rss
-                                .get_private_route_for_safety_spec(crypto_kind, safety_spec, &[avoid_node_id])
-                                .map_err(RPCError::internal)? else {
-                                    return Ok(NetworkResult::no_connection_other("no private route for response at this time"));
-                                };
+                                .get_private_route_for_safety_spec(
+                                    crypto_kind,
+                                    safety_spec,
+                                    &[avoid_node_id],
+                                )
+                                .map_err(RPCError::internal)?
+                            else {
+                                return Ok(NetworkResult::no_connection_other(
+                                    "no private route for response at this time",
+                                ));
+                            };
                             pr_key
                         };
 
@@ -342,9 +361,9 @@ impl RPCProcessor {
                     if let Some(sender_noderef) = res {
                         NetworkResult::value(Destination::relay(peer_noderef, sender_noderef))
                     } else {
-                        return NetworkResult::invalid_message(
+                        NetworkResult::invalid_message(
                             "not responding to sender that has no node info",
-                        );
+                        )
                     }
                 }
             }
@@ -352,9 +371,9 @@ impl RPCProcessor {
                 match &request.header.detail {
                     RPCMessageHeaderDetail::Direct(_) => {
                         // If this was sent directly, we should only ever respond directly
-                        return NetworkResult::invalid_message(
+                        NetworkResult::invalid_message(
                             "not responding to private route from direct question",
-                        );
+                        )
                     }
                     RPCMessageHeaderDetail::SafetyRouted(detail) => {
                         // If this was sent via a safety route, but not received over our private route, don't respond with a safety route,
@@ -368,7 +387,7 @@ impl RPCProcessor {
                         // If this was received over our private route, it's okay to respond to a private route via our safety route
                         NetworkResult::value(Destination::private_route(
                             pr.clone(),
-                            SafetySelection::Safe(detail.safety_spec.clone()),
+                            SafetySelection::Safe(detail.safety_spec),
                         ))
                     }
                 }

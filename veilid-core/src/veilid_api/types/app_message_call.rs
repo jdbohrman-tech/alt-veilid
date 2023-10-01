@@ -9,9 +9,13 @@ pub struct VeilidAppMessage {
     #[cfg_attr(target_arch = "wasm32", tsify(optional, type = "string"))]
     sender: Option<TypedKey>,
 
-    #[serde(with = "as_human_base64")]
+    #[cfg_attr(not(target_arch = "wasm32"), serde(with = "as_human_base64"))]
     #[schemars(with = "String")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
+    #[cfg_attr(
+        target_arch = "wasm32",
+        serde(with = "serde_bytes"),
+        tsify(type = "Uint8Array")
+    )]
     message: Vec<u8>,
 }
 
@@ -40,8 +44,13 @@ pub struct VeilidAppCall {
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     sender: Option<TypedKey>,
 
-    #[serde(with = "as_human_base64")]
+    #[cfg_attr(not(target_arch = "wasm32"), serde(with = "as_human_base64"))]
     #[schemars(with = "String")]
+    #[cfg_attr(
+        target_arch = "wasm32",
+        serde(with = "serde_bytes"),
+        tsify(type = "Uint8Array")
+    )]
     message: Vec<u8>,
 
     #[serde(with = "as_human_string")]

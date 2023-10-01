@@ -421,7 +421,7 @@ impl Network {
             if self
                 .network_manager()
                 .address_filter()
-                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+                .is_ip_addr_punished(dial_info.address().ip_addr())
             {
                 return Ok(NetworkResult::no_connection_other("punished"));
             }
@@ -462,7 +462,7 @@ impl Network {
             }
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::Value(()))
         })
@@ -491,7 +491,7 @@ impl Network {
             if self
                 .network_manager()
                 .address_filter()
-                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+                .is_ip_addr_punished(dial_info.address().ip_addr())
             {
                 return Ok(NetworkResult::no_connection_other("punished"));
             }
@@ -507,7 +507,7 @@ impl Network {
                         .await
                         .wrap_err("send message failure")?);
                     self.network_manager()
-                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
                     // receive single response
                     let mut out = vec![0u8; MAX_MESSAGE_SIZE];
@@ -519,7 +519,7 @@ impl Network {
                     .into_network_result())
                     .wrap_err("recv_message failure")?;
 
-                    let recv_socket_addr = recv_addr.remote_address().to_socket_addr();
+                    let recv_socket_addr = recv_addr.remote_address().socket_addr();
                     self.network_manager()
                         .stats_packet_rcvd(recv_socket_addr.ip(), ByteCount::new(recv_len as u64));
 
@@ -552,7 +552,7 @@ impl Network {
 
                     network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
                     self.network_manager()
-                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
                     let out =
                         network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
@@ -560,10 +560,8 @@ impl Network {
                             .into_network_result())
                         .wrap_err("recv failure")?);
 
-                    self.network_manager().stats_packet_rcvd(
-                        dial_info.to_ip_addr(),
-                        ByteCount::new(out.len() as u64),
-                    );
+                    self.network_manager()
+                        .stats_packet_rcvd(dial_info.ip_addr(), ByteCount::new(out.len() as u64));
 
                     Ok(NetworkResult::Value(out))
                 }
@@ -583,10 +581,10 @@ impl Network {
         // Handle connectionless protocol
         if descriptor.protocol_type() == ProtocolType::UDP {
             // send over the best udp socket we have bound since UDP is not connection oriented
-            let peer_socket_addr = descriptor.remote().to_socket_addr();
+            let peer_socket_addr = descriptor.remote().socket_addr();
             if let Some(ph) = self.find_best_udp_protocol_handler(
                 &peer_socket_addr,
-                &descriptor.local().map(|sa| sa.to_socket_addr()),
+                &descriptor.local().map(|sa| sa.socket_addr()),
             ) {
                 network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
@@ -612,7 +610,7 @@ impl Network {
                 ConnectionHandleSendResult::Sent => {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
-                        descriptor.remote().to_socket_addr().ip(),
+                        descriptor.remote().socket_addr().ip(),
                         ByteCount::new(data_len as u64),
                     );
 
@@ -676,7 +674,7 @@ impl Network {
 
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::value(connection_descriptor))
         })
@@ -686,7 +684,7 @@ impl Network {
     /////////////////////////////////////////////////////////////////
 
     pub fn get_protocol_config(&self) -> ProtocolConfig {
-        self.inner.lock().protocol_config
+        self.inner.lock().protocol_config.clone()
     }
 
     #[instrument(level = "debug", err, skip_all)]
@@ -701,7 +699,7 @@ impl Network {
             .with_interfaces(|interfaces| {
                 trace!("interfaces: {:#?}", interfaces);
 
-                for (_name, intf) in interfaces {
+                for intf in interfaces.values() {
                     // Skip networks that we should never encounter
                     if intf.is_loopback() || !intf.is_running() {
                         continue;
@@ -792,14 +790,33 @@ impl Network {
                     family_local.insert(AddressType::IPV6);
                 }
 
+                // set up the routing table's network config
+                // if we have static public dialinfo, upgrade our network class
+                let public_internet_capabilities = {
+                    PUBLIC_INTERNET_CAPABILITIES
+                        .iter()
+                        .copied()
+                        .filter(|cap| !c.capabilities.disable.contains(cap))
+                        .collect::<Vec<Capability>>()
+                };
+                let local_network_capabilities = {
+                    LOCAL_NETWORK_CAPABILITIES
+                        .iter()
+                        .copied()
+                        .filter(|cap| !c.capabilities.disable.contains(cap))
+                        .collect::<Vec<Capability>>()
+                };
+
                 ProtocolConfig {
                     outbound,
                     inbound,
                     family_global,
                     family_local,
+                    public_internet_capabilities,
+                    local_network_capabilities,
                 }
             };
-            inner.protocol_config = protocol_config;
+            inner.protocol_config = protocol_config.clone();
 
             protocol_config
         };
@@ -837,36 +854,17 @@ impl Network {
         // that we have ports available to us
         self.free_bound_first_ports();
 
-        // set up the routing table's network config
-        // if we have static public dialinfo, upgrade our network class
-        let public_internet_capabilities = {
-            let c = self.config.get();
-            PUBLIC_INTERNET_CAPABILITIES
-                .iter()
-                .copied()
-                .filter(|cap| !c.capabilities.disable.contains(cap))
-                .collect::<Vec<Capability>>()
-        };
-        let local_network_capabilities = {
-            let c = self.config.get();
-            LOCAL_NETWORK_CAPABILITIES
-                .iter()
-                .copied()
-                .filter(|cap| !c.capabilities.disable.contains(cap))
-                .collect::<Vec<Capability>>()
-        };
-
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
-            public_internet_capabilities,
+            protocol_config.public_internet_capabilities,
         );
         editor_local_network.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_local,
-            local_network_capabilities,
+            protocol_config.local_network_capabilities,
         );
         let detect_address_changes = {
             let c = self.config.get();
@@ -1019,14 +1017,27 @@ impl Network {
                 let routing_table = self.routing_table();
                 let rth = routing_table.get_routing_table_health();
 
-                // Need at least two entries to do this
-                if rth.unreliable_entry_count + rth.reliable_entry_count >= 2 {
+                // We want at least two live entries per crypto kind before we start doing this (bootstrap)
+                let mut has_at_least_two = true;
+                for ck in VALID_CRYPTO_KINDS {
+                    if rth
+                        .live_entry_counts
+                        .get(&(RoutingDomain::PublicInternet, ck))
+                        .copied()
+                        .unwrap_or_default()
+                        < 2
+                    {
+                        has_at_least_two = false;
+                        break;
+                    }
+                }
+
+                if has_at_least_two {
                     self.unlocked_inner.update_network_class_task.tick().await?;
                 }
             }
 
-            // If we aren't resetting the network already,
-            // check our network interfaces to see if they have changed
+            // Check our network interfaces to see if they have changed
             if !self.needs_restart() {
                 self.unlocked_inner.network_interfaces_task.tick().await?;
             }

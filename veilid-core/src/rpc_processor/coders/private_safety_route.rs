@@ -53,11 +53,11 @@ pub fn encode_route_hop(
     match &route_hop.node {
         RouteNode::NodeId(ni) => {
             let mut ni_builder = node_builder.init_node_id();
-            encode_key256(&ni, &mut ni_builder);
+            encode_key256(ni, &mut ni_builder);
         }
         RouteNode::PeerInfo(pi) => {
             let mut pi_builder = node_builder.init_peer_info();
-            encode_peer_info(&pi, &mut pi_builder)?;
+            encode_peer_info(pi, &mut pi_builder)?;
         }
     }
     if let Some(rhd) = &route_hop.next_hop {
@@ -76,10 +76,10 @@ pub fn decode_route_hop(reader: &veilid_capnp::route_hop::Reader) -> Result<Rout
         }
         veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
             let pi_reader = pi.map_err(RPCError::protocol)?;
-            RouteNode::PeerInfo(
+            RouteNode::PeerInfo(Box::new(
                 decode_peer_info(&pi_reader)
                     .map_err(RPCError::map_protocol("invalid peer info in route hop"))?,
-            )
+            ))
         }
     };
 
@@ -134,7 +134,7 @@ pub fn decode_private_route(
     let hops = match reader.get_hops().which().map_err(RPCError::protocol)? {
         veilid_capnp::private_route::hops::Which::FirstHop(rh_reader) => {
             let rh_reader = rh_reader.map_err(RPCError::protocol)?;
-            PrivateRouteHops::FirstHop(decode_route_hop(&rh_reader)?)
+            PrivateRouteHops::FirstHop(Box::new(decode_route_hop(&rh_reader)?))
         }
         veilid_capnp::private_route::hops::Which::Data(rhd_reader) => {
             let rhd_reader = rhd_reader.map_err(RPCError::protocol)?;

@@ -263,7 +263,7 @@ impl VeilidAPI {
         let rss = self.routing_table()?.route_spec_store();
         let r = rss
             .allocate_route(
-                &crypto_kinds,
+                crypto_kinds,
                 stability,
                 sequencing,
                 default_route_hop_count,
@@ -275,7 +275,7 @@ impl VeilidAPI {
             apibail_generic!("unable to allocate route");
         };
         if !rss
-            .test_route(route_id.clone())
+            .test_route(route_id)
             .await
             .map_err(VeilidAPIError::no_connection)?
         {

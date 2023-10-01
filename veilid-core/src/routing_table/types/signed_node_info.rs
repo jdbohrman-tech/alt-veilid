@@ -33,8 +33,8 @@ impl SignedNodeInfo {
     }
     pub fn node_info(&self) -> &NodeInfo {
         match self {
-            SignedNodeInfo::Direct(d) => &d.node_info(),
-            SignedNodeInfo::Relayed(r) => &r.node_info(),
+            SignedNodeInfo::Direct(d) => d.node_info(),
+            SignedNodeInfo::Relayed(r) => r.node_info(),
         }
     }
     pub fn relay_ids(&self) -> TypedKeyGroup {

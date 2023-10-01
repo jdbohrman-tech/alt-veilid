@@ -11,19 +11,6 @@ impl Network {
             .get_network_class(RoutingDomain::PublicInternet)
             .unwrap_or_default();
 
-        // get existing dial info into table by protocol/address type
-        let mut existing_dial_info = BTreeMap::<(ProtocolType, AddressType), DialInfoDetail>::new();
-        for did in self.routing_table().all_filtered_dial_info_details(
-            RoutingDomain::PublicInternet.into(),
-            &DialInfoFilter::all(),
-        ) {
-            // Only need to keep one per pt/at pair, since they will all have the same dialinfoclass
-            existing_dial_info.insert(
-                (did.dial_info.protocol_type(), did.dial_info.address_type()),
-                did,
-            );
-        }
-
         match ddi {
             DetectedDialInfo::SymmetricNAT => {
                 // If we get any symmetric nat dialinfo, this whole network class is outbound only,
@@ -35,10 +22,24 @@ impl Network {
 
                     editor.clear_dial_info_details(None, None);
                     editor.set_network_class(Some(NetworkClass::OutboundOnly));
+                    editor.clear_relay_node();
                     editor.commit(true).await;
                 }
             }
             DetectedDialInfo::Detected(did) => {
+                // get existing dial info into table by protocol/address type
+                let mut existing_dial_info =
+                    BTreeMap::<(ProtocolType, AddressType), DialInfoDetail>::new();
+                for did in self.routing_table().all_filtered_dial_info_details(
+                    RoutingDomain::PublicInternet.into(),
+                    &DialInfoFilter::all(),
+                ) {
+                    // Only need to keep one per pt/at pair, since they will all have the same dialinfoclass
+                    existing_dial_info.insert(
+                        (did.dial_info.protocol_type(), did.dial_info.address_type()),
+                        did,
+                    );
+                }
                 // We got a dial info, upgrade everything unless we are fixed to outbound only due to a symmetric nat
                 if !matches!(existing_network_class, NetworkClass::OutboundOnly) {
                     // Get existing dial info for protocol/address type combination
@@ -103,7 +104,7 @@ impl Network {
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let (protocol_config, tcp_same_port) = {
             let inner = self.inner.lock();
-            let protocol_config = inner.protocol_config;
+            let protocol_config = inner.protocol_config.clone();
             let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
                 && protocol_config.inbound.contains(ProtocolType::WS)
             {
@@ -125,9 +126,16 @@ impl Network {
             .collect();
 
         // Clear public dialinfo and network class in prep for discovery
+
         let mut editor = self
             .routing_table()
             .edit_routing_domain(RoutingDomain::PublicInternet);
+        editor.setup_network(
+            protocol_config.outbound,
+            protocol_config.inbound,
+            protocol_config.family_global,
+            protocol_config.public_internet_capabilities.clone(),
+        );
         editor.clear_dial_info_details(None, None);
         editor.set_network_class(None);
         editor.clear_relay_node();
@@ -226,14 +234,18 @@ impl Network {
         }
 
         // Wait for all discovery futures to complete and apply discoverycontexts
+        let mut all_address_types = AddressTypeSet::new();
         loop {
             match unord.next().timeout_at(stop_token.clone()).await {
-                Ok(Some(Some(ddi))) => {
+                Ok(Some(Some(dr))) => {
                     // Found some new dial info for this protocol/address combination
-                    self.update_with_detected_dial_info(ddi.clone()).await?;
+                    self.update_with_detected_dial_info(dr.ddi.clone()).await?;
+
+                    // Add the external address kinds to the set we've seen
+                    all_address_types |= dr.external_address_types;
 
                     // Add WS dialinfo as well if it is on the same port as TCP
-                    if let DetectedDialInfo::Detected(did) = &ddi {
+                    if let DetectedDialInfo::Detected(did) = &dr.ddi {
                         if did.dial_info.protocol_type() == ProtocolType::TCP && tcp_same_port {
                             // Make WS dialinfo as well with same socket address as TCP
                             let ws_ddi = DetectedDialInfo::Detected(DialInfoDetail {
@@ -262,7 +274,18 @@ impl Network {
             }
         }
 
-        // All done, see if things changed
+        // All done
+
+        // Set the address types we've seen
+        editor.setup_network(
+            protocol_config.outbound,
+            protocol_config.inbound,
+            all_address_types,
+            protocol_config.public_internet_capabilities,
+        );
+        editor.commit(true).await;
+
+        // See if the dial info changed
         let new_public_dial_info: HashSet<DialInfoDetail> = self
             .routing_table()
             .all_filtered_dial_info_details(

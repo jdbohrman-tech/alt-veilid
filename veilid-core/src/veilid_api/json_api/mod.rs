@@ -140,7 +140,7 @@ pub enum ResponseOp {
     },
     GetState {
         #[serde(flatten)]
-        result: ApiResult<VeilidState>,
+        result: ApiResult<Box<VeilidState>>,
     },
     Attach {
         #[serde(flatten)]
@@ -175,7 +175,7 @@ pub enum ResponseOp {
     NewRoutingContext {
         value: u32,
     },
-    RoutingContext(RoutingContextResponse),
+    RoutingContext(Box<RoutingContextResponse>),
     // TableDb
     OpenTableDb {
         #[serde(flatten)]

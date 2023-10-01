@@ -24,7 +24,7 @@ impl ProtocolNetworkConnection {
         timeout_ms: u32,
         address_filter: AddressFilter,
     ) -> io::Result<NetworkResult<ProtocolNetworkConnection>> {
-        if address_filter.is_ip_addr_punished(dial_info.address().to_ip_addr()) {
+        if address_filter.is_ip_addr_punished(dial_info.address().ip_addr()) {
             return Ok(NetworkResult::no_connection_other("punished"));
         }
         match dial_info.protocol_type() {

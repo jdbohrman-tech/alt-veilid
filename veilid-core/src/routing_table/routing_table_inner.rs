@@ -1,7 +1,7 @@
 use super::*;
 use weak_table::PtrWeakHashSet;
 
-const RECENT_PEERS_TABLE_SIZE: usize = 64;
+pub const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
 pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 //////////////////////////////////////////////////////////////////////////
@@ -227,7 +227,7 @@ impl RoutingTableInner {
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>>,
+        dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.get_contact_method(self, peer_a, peer_b, dial_info_filter, sequencing, dif_sort)
@@ -543,17 +543,16 @@ impl RoutingTableInner {
         // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count());
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
-            if entry.with_inner(|e| {
+            let entry_needs_ping = |e: &BucketEntryInner| {
                 // If this entry isn't in the routing domain we are checking, don't include it
                 if !e.exists_in_routing_domain(rti, routing_domain) {
                     return false;
                 }
 
                 // If we don't have node status for this node, then we should ping it to get some node status
-                if e.has_node_info(routing_domain.into()) {
-                    if e.node_status(routing_domain).is_none() {
-                        return true;
-                    }
+                if e.has_node_info(routing_domain.into()) && e.node_status(routing_domain).is_none()
+                {
+                    return true;
                 }
 
                 // If this entry needs a ping because this node hasn't seen our latest node info, then do it
@@ -567,7 +566,9 @@ impl RoutingTableInner {
                 }
 
                 false
-            }) {
+            };
+
+            if entry.with_inner(entry_needs_ping) {
                 node_refs.push(NodeRef::new(
                     outer_self.clone(),
                     entry,
@@ -924,10 +925,13 @@ impl RoutingTableInner {
             NetworkClass::Invalid
         );
 
+        let live_entry_counts = self.cached_entry_counts();
+
         RoutingTableHealth {
             reliable_entry_count,
             unreliable_entry_count,
             dead_entry_count,
+            live_entry_counts,
             public_internet_ready,
             local_network_ready,
         }
@@ -983,7 +987,7 @@ impl RoutingTableInner {
         match entry {
             None => has_valid_own_node_info,
             Some(entry) => entry.with_inner(|e| {
-                e.signed_node_info(routing_domain.into())
+                e.signed_node_info(routing_domain)
                     .map(|sni| sni.has_any_signature())
                     .unwrap_or(false)
             }),
@@ -1080,11 +1084,7 @@ impl RoutingTableInner {
             move |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                 if let Some(entry) = &v {
                     // always filter out dead nodes
-                    if entry.with_inner(|e| e.state(cur_ts) == BucketEntryState::Dead) {
-                        false
-                    } else {
-                        true
-                    }
+                    !entry.with_inner(|e| e.state(cur_ts) == BucketEntryState::Dead)
                 } else {
                     // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
                     false
@@ -1100,7 +1100,7 @@ impl RoutingTableInner {
             // same nodes are always the same
             if let Some(a_entry) = a_entry {
                 if let Some(b_entry) = b_entry {
-                    if Arc::ptr_eq(&a_entry, &b_entry) {
+                    if Arc::ptr_eq(a_entry, b_entry) {
                         return core::cmp::Ordering::Equal;
                     }
                 }
@@ -1151,9 +1151,7 @@ impl RoutingTableInner {
             })
         };
 
-        let out =
-            self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform);
-        out
+        self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform)
     }
 
     pub fn find_preferred_closest_nodes<T, O>(
@@ -1194,7 +1192,7 @@ impl RoutingTableInner {
             // same nodes are always the same
             if let Some(a_entry) = a_entry {
                 if let Some(b_entry) = b_entry {
-                    if Arc::ptr_eq(&a_entry, &b_entry) {
+                    if Arc::ptr_eq(a_entry, b_entry) {
                         return core::cmp::Ordering::Equal;
                     }
                 }

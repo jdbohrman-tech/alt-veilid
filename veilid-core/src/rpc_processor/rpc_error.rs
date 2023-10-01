@@ -38,7 +38,7 @@ impl RPCError {
         move |x| Self::Internal(format!("{}: {}", message.to_string(), x.to_string()))
     }
     pub fn else_internal<M: ToString>(message: M) -> impl FnOnce() -> Self {
-        move || Self::Internal(format!("{}", message.to_string()))
+        move || Self::Internal(message.to_string())
     }
     pub fn network<X: ToString>(x: X) -> Self {
         Self::Network(x.to_string())

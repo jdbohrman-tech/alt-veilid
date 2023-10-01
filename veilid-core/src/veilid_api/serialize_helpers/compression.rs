@@ -19,5 +19,5 @@ pub fn decompress_size_prepended(
             ));
         }
     }
-    Ok(block::decompress(input, uncompressed_size).map_err(VeilidAPIError::generic)?)
+    block::decompress(input, uncompressed_size).map_err(VeilidAPIError::generic)
 }

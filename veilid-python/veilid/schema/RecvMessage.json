@@ -3176,7 +3176,7 @@
       ]
     },
     "VeilidConfigApplication": {
-      "description": "Application configuration\n\nConfigure web access to the Prograssive Web App (PWA)\n\nTo be implemented...",
+      "description": "Application configuration\n\nConfigure web access to the Progressive Web App (PWA)\n\nTo be implemented...",
       "type": "object",
       "required": [
         "http",

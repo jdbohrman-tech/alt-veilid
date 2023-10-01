@@ -87,10 +87,10 @@ impl JsonRequestProcessor {
         let Some(routing_context) = inner.routing_contexts.get(&rc_id).cloned() else {
             return Err(Response {
                 id,
-                op: ResponseOp::RoutingContext(RoutingContextResponse {
+                op: ResponseOp::RoutingContext(Box::new(RoutingContextResponse {
                     rc_id,
-                    rc_op: RoutingContextResponseOp::InvalidId
-                })
+                    rc_op: RoutingContextResponseOp::InvalidId,
+                })),
             });
         };
         Ok(routing_context)
@@ -100,7 +100,7 @@ impl JsonRequestProcessor {
         if inner.routing_contexts.remove(&id).is_none() {
             return 0;
         }
-        return 1;
+        1
     }
 
     // TableDB
@@ -120,8 +120,8 @@ impl JsonRequestProcessor {
                 id,
                 op: ResponseOp::TableDb(TableDbResponse {
                     db_id,
-                    db_op: TableDbResponseOp::InvalidId
-                })
+                    db_op: TableDbResponseOp::InvalidId,
+                }),
             });
         };
         Ok(table_db)
@@ -131,7 +131,7 @@ impl JsonRequestProcessor {
         if inner.table_dbs.remove(&id).is_none() {
             return 0;
         }
-        return 1;
+        1
     }
 
     // TableDBTransaction
@@ -155,8 +155,8 @@ impl JsonRequestProcessor {
                 id,
                 op: ResponseOp::TableDbTransaction(TableDbTransactionResponse {
                     tx_id,
-                    tx_op: TableDbTransactionResponseOp::InvalidId
-                })
+                    tx_op: TableDbTransactionResponseOp::InvalidId,
+                }),
             });
         };
         Ok(table_db_transaction)
@@ -166,7 +166,7 @@ impl JsonRequestProcessor {
         if inner.table_db_transactions.remove(&id).is_none() {
             return 0;
         }
-        return 1;
+        1
     }
 
     // CryptoSystem
@@ -186,8 +186,8 @@ impl JsonRequestProcessor {
                 id,
                 op: ResponseOp::CryptoSystem(CryptoSystemResponse {
                     cs_id,
-                    cs_op: CryptoSystemResponseOp::InvalidId
-                })
+                    cs_op: CryptoSystemResponseOp::InvalidId,
+                }),
             });
         };
         Ok(crypto_system)
@@ -197,7 +197,7 @@ impl JsonRequestProcessor {
         if inner.crypto_systems.remove(&id).is_none() {
             return 0;
         }
-        return 1;
+        1
     }
 
     // Target
@@ -280,13 +280,21 @@ impl JsonRequestProcessor {
             RoutingContextRequestOp::CreateDhtRecord { schema, kind } => {
                 RoutingContextResponseOp::CreateDhtRecord {
                     result: to_json_api_result(
-                        routing_context.create_dht_record(schema, kind).await,
+                        routing_context
+                            .create_dht_record(schema, kind)
+                            .await
+                            .map(Box::new),
                     ),
                 }
             }
             RoutingContextRequestOp::OpenDhtRecord { key, writer } => {
                 RoutingContextResponseOp::OpenDhtRecord {
-                    result: to_json_api_result(routing_context.open_dht_record(key, writer).await),
+                    result: to_json_api_result(
+                        routing_context
+                            .open_dht_record(key, writer)
+                            .await
+                            .map(Box::new),
+                    ),
                 }
             }
             RoutingContextRequestOp::CloseDhtRecord { key } => {
@@ -508,7 +516,7 @@ impl JsonRequestProcessor {
                     &body,
                     &nonce,
                     &shared_secret,
-                    associated_data.as_ref().map(|ad| ad.as_slice()),
+                    associated_data.as_deref(),
                 )),
             },
             CryptoSystemRequestOp::EncryptAead {
@@ -521,7 +529,7 @@ impl JsonRequestProcessor {
                     &body,
                     &nonce,
                     &shared_secret,
-                    associated_data.as_ref().map(|ad| ad.as_slice()),
+                    associated_data.as_deref(),
                 )),
             },
             CryptoSystemRequestOp::CryptNoAuth {
@@ -548,7 +556,7 @@ impl JsonRequestProcessor {
                 ))),
             },
             RequestOp::GetState => ResponseOp::GetState {
-                result: to_json_api_result(self.api.get_state().await),
+                result: to_json_api_result(self.api.get_state().await.map(Box::new)),
             },
             RequestOp::Attach => ResponseOp::Attach {
                 result: to_json_api_result(self.api.attach().await),
@@ -596,10 +604,10 @@ impl JsonRequestProcessor {
                     Ok(v) => v,
                     Err(e) => return e,
                 };
-                ResponseOp::RoutingContext(
+                ResponseOp::RoutingContext(Box::new(
                     self.process_routing_context_request(routing_context, rcr)
                         .await,
-                )
+                ))
             }
             RequestOp::OpenTableDb { name, column_count } => {
                 let table_store = match self.api.table_store() {

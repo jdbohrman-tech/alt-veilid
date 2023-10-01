@@ -223,7 +223,7 @@ impl BucketEntryInner {
         // Lower timestamp to the front, recent or no timestamp is at the end
         if let Some(e1_ts) = &e1.peer_stats.rpc_stats.first_consecutive_seen_ts {
             if let Some(e2_ts) = &e2.peer_stats.rpc_stats.first_consecutive_seen_ts {
-                e1_ts.cmp(&e2_ts)
+                e1_ts.cmp(e2_ts)
             } else {
                 std::cmp::Ordering::Less
             }
@@ -298,7 +298,7 @@ impl BucketEntryInner {
         // If we're updating an entry's node info, purge all 
         // but the last connection in our last connections list
         // because the dial info could have changed and it's safer to just reconnect.
-        // The latest connection would have been the once we got the new node info
+        // The latest connection would have been the one we got the new node info
         // over so that connection is still valid.
         if node_info_changed {
             self.clear_last_connections_except_latest();
@@ -437,7 +437,7 @@ impl BucketEntryInner {
 
     // Clears the table of last connections except the most recent one
     pub fn clear_last_connections_except_latest(&mut self) {
-        if self.last_connections.len() == 0 {
+        if self.last_connections.is_empty() {
             // No last_connections
             return;
         }
@@ -454,7 +454,7 @@ impl BucketEntryInner {
         let Some(most_recent_connection) = most_recent_connection else {
             return;
         };
-        for (k, _) in &self.last_connections {
+        for k in self.last_connections.keys() {
             if k != most_recent_connection {
                 dead_keys.push(k.clone());
             }
@@ -492,7 +492,7 @@ impl BucketEntryInner {
                 }
 
                 if !only_live {
-                    return Some(v.clone());
+                    return Some(*v);
                 }
 
                 // Check if the connection is still considered live
@@ -509,7 +509,7 @@ impl BucketEntryInner {
                     };
 
                 if alive {
-                    Some(v.clone())
+                    Some(*v)
                 } else {
                     None
                 }
@@ -583,13 +583,11 @@ impl BucketEntryInner {
             RoutingDomain::LocalNetwork => self
                 .local_network
                 .node_status
-                .as_ref()
-                .map(|ns| ns.clone()),
+                .as_ref().cloned(),
             RoutingDomain::PublicInternet => self
                 .public_internet
                 .node_status
-                .as_ref()
-                .map(|ns| ns.clone()),
+                .as_ref().cloned()
         }
     }
 
@@ -649,9 +647,10 @@ impl BucketEntryInner {
             return false;
         }
 
-        // if we have seen the node consistently for longer that UNRELIABLE_PING_SPAN_SECS
         match self.peer_stats.rpc_stats.first_consecutive_seen_ts {
+            // If we have not seen seen a node consecutively, it can't be reliable
             None => false,
+            // If we have seen the node consistently for longer than UNRELIABLE_PING_SPAN_SECS then it is reliable
             Some(ts) => {
                 cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }
@@ -662,11 +661,13 @@ impl BucketEntryInner {
         if self.peer_stats.rpc_stats.failed_to_send >= NEVER_REACHED_PING_COUNT {
             return true;
         }
-        // if we have not heard from the node at all for the duration of the unreliable ping span
-        // a node is not dead if we haven't heard from it yet,
-        // but we give it NEVER_REACHED_PING_COUNT chances to ping before we say it's dead
+
         match self.peer_stats.rpc_stats.last_seen_ts {
-            None => self.peer_stats.rpc_stats.recent_lost_answers < NEVER_REACHED_PING_COUNT,
+            // a node is not dead if we haven't heard from it yet,
+            // but we give it NEVER_REACHED_PING_COUNT chances to ping before we say it's dead
+            None => self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_REACHED_PING_COUNT,
+            
+            // return dead if we have not heard from the node at all for the duration of the unreliable ping span
             Some(ts) => {
                 cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
             }
@@ -889,7 +890,7 @@ impl BucketEntry {
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> R,
     {
         let inner = self.inner.read();
-        f(rti, &*inner)
+        f(rti, &inner)
     }
 
     // Note, that this requires -also- holding the RoutingTable write lock, as a
@@ -899,7 +900,7 @@ impl BucketEntry {
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> R,
     {
         let mut inner = self.inner.write();
-        f(rti, &mut *inner)
+        f(rti, &mut inner)
     }
 
     // Internal inner access for RoutingTableInner only
@@ -908,7 +909,7 @@ impl BucketEntry {
         F: FnOnce(&BucketEntryInner) -> R,
     {
         let inner = self.inner.read();
-        f(&*inner)
+        f(&inner)
     }
 
     // Internal inner access for RoutingTableInner only
@@ -917,7 +918,7 @@ impl BucketEntry {
         F: FnOnce(&mut BucketEntryInner) -> R,
     {
         let mut inner = self.inner.write();
-        f(&mut *inner)
+        f(&mut inner)
     }
 }
 

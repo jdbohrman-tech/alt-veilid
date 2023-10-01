@@ -8,6 +8,9 @@ use futures_util::stream::{FuturesUnordered, StreamExt};
 use futures_util::FutureExt;
 use stop_token::future::FutureExt as StopFutureExt;
 
+type PingValidatorFuture =
+    SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>;
+
 impl RoutingTable {
     // Ping each node in the routing table if they need to be pinged
     // to determine their reliability
@@ -16,9 +19,7 @@ impl RoutingTable {
         &self,
         cur_ts: Timestamp,
         relay_nr: NodeRef,
-        unord: &mut FuturesUnordered<
-            SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
-        >,
+        unord: &mut FuturesUnordered<PingValidatorFuture>,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
         // Get our publicinternet dial info
@@ -123,9 +124,7 @@ impl RoutingTable {
     async fn ping_validator_public_internet(
         &self,
         cur_ts: Timestamp,
-        unord: &mut FuturesUnordered<
-            SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
-        >,
+        unord: &mut FuturesUnordered<PingValidatorFuture>,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
 
@@ -161,9 +160,7 @@ impl RoutingTable {
     async fn ping_validator_local_network(
         &self,
         cur_ts: Timestamp,
-        unord: &mut FuturesUnordered<
-            SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>,
-        >,
+        unord: &mut FuturesUnordered<PingValidatorFuture>,
     ) -> EyreResult<()> {
         let rpc = self.rpc_processor();
 

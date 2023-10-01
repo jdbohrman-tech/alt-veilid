@@ -106,7 +106,7 @@ impl StorageManager {
                         } else {
                             // If the sequence number is older, or an equal sequence number,
                             // node should have not returned a value here.
-                            // Skip this node and it's closer list because it is misbehaving
+                            // Skip this node and its closer list because it is misbehaving
                             return Ok(None);
                         }
                     } else {
@@ -162,9 +162,14 @@ impl StorageManager {
         match fanout_call.run().await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
             TimeoutOr::Timeout => {
-                log_stor!(debug "SetValue Fanout Timeout");
                 // Return the best answer we've got
                 let ctx = context.lock();
+                if ctx.set_count >= consensus_count {
+                    log_stor!(debug "SetValue Fanout Timeout Consensus");
+                } else {
+                    log_stor!(debug "SetValue Fanout Timeout Non-Consensus: {}", ctx.set_count);
+                }
+
                 Ok(ctx.value.clone())
             }
             // If we finished with or without consensus (enough nodes returning the same value)

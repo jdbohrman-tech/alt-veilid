@@ -46,7 +46,7 @@ use storage_manager::*;
 #[cfg(target_arch = "wasm32")]
 use wasm::*;
 #[cfg(target_arch = "wasm32")]
-pub use wasm::{LOCAL_NETWORK_CAPABILITIES, MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
+pub use wasm::{/* LOCAL_NETWORK_CAPABILITIES, */ MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES,};
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -61,16 +61,18 @@ pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
 pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration =
     TimestampDuration::new(300_000_000u64); // 5 minutes
 pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration =
-    TimestampDuration::new(3600_000_000u64); // 60 minutes
+    TimestampDuration::new(3_600_000_000_u64); // 60 minutes
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ProtocolConfig {
     pub outbound: ProtocolTypeSet,
     pub inbound: ProtocolTypeSet,
     pub family_global: AddressTypeSet,
     pub family_local: AddressTypeSet,
+    pub public_internet_capabilities: Vec<FourCC>,
+    pub local_network_capabilities: Vec<FourCC>,
 }
 
 // Things we get when we start up and go away when we shut down
@@ -261,7 +263,7 @@ impl NetworkManager {
     where
         F: FnOnce(&VeilidConfigInner) -> R,
     {
-        f(&*self.unlocked_inner.config.get())
+        f(&self.unlocked_inner.config.get())
     }
     pub fn storage_manager(&self) -> StorageManager {
         self.unlocked_inner.storage_manager.clone()
@@ -665,7 +667,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), err)]
     pub async fn handle_signal(
         &self,
-        connection_descriptor: ConnectionDescriptor,
+        signal_connection_descriptor: ConnectionDescriptor,
         signal_info: SignalInfo,
     ) -> EyreResult<NetworkResult<()>> {
         match signal_info {
@@ -689,8 +691,9 @@ impl NetworkManager {
                 };
 
                 // Restrict reverse connection to same protocol as inbound signal
-                let peer_nr = peer_nr
-                    .filtered_clone(NodeRefFilter::from(connection_descriptor.protocol_type()));
+                let peer_nr = peer_nr.filtered_clone(NodeRefFilter::from(
+                    signal_connection_descriptor.protocol_type(),
+                ));
 
                 // Make a reverse connection to the peer and send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -891,7 +894,7 @@ impl NetworkManager {
             data.len(),
             connection_descriptor
         );
-        let remote_addr = connection_descriptor.remote_address().to_ip_addr();
+        let remote_addr = connection_descriptor.remote_address().ip_addr();
 
         // Network accounting
         self.stats_packet_rcvd(remote_addr, ByteCount::new(data.len() as u64));
@@ -899,7 +902,7 @@ impl NetworkManager {
         // If this is a zero length packet, just drop it, because these are used for hole punching
         // and possibly other low-level network connectivity tasks and will never require
         // more processing or forwarding
-        if data.len() == 0 {
+        if data.is_empty() {
             return Ok(true);
         }
 

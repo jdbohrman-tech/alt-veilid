@@ -477,7 +477,11 @@ impl UI {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
                 cursive_flexi_logger_view::parse_lines_to_log(
                     color.into(),
+<<<<<<< HEAD
                     format!(">> {} Could not copy to clipboard",  UI::cli_ts(Self::get_start_time())),
+=======
+                    ">> Could not copy to clipboard".to_string(),
+>>>>>>> f59c4509ea7e0c0e8b1088138a6eb5297844b112
                 );
             }
         } else {
@@ -491,7 +495,9 @@ impl UI {
                     .as_bytes(),
                 )
                 .is_ok()
+                && std::io::stdout().flush().is_ok()
             {
+<<<<<<< HEAD
                 if std::io::stdout().flush().is_ok() {
                     let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
                     cursive_flexi_logger_view::parse_lines_to_log(
@@ -499,6 +505,13 @@ impl UI {
                         format!(">> {} Copied: {}", UI::cli_ts(Self::get_start_time()), text.as_ref()),
                     );
                 }
+=======
+                let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
+                cursive_flexi_logger_view::parse_lines_to_log(
+                    color.into(),
+                    format!(">> Copied: {}", text.as_ref()),
+                );
+>>>>>>> f59c4509ea7e0c0e8b1088138a6eb5297844b112
             }
         }
     }
@@ -531,7 +544,7 @@ impl UI {
         let mut reset: bool = false;
         match state {
             ConnectionState::Disconnected => {
-                if inner.connection_dialog_state == None
+                if inner.connection_dialog_state.is_none()
                     || inner
                         .connection_dialog_state
                         .as_ref()
@@ -549,7 +562,7 @@ impl UI {
                 }
             }
             ConnectionState::Connected(_, _) => {
-                if inner.connection_dialog_state != None
+                if inner.connection_dialog_state.is_some()
                     && !inner
                         .connection_dialog_state
                         .as_ref()
@@ -560,7 +573,7 @@ impl UI {
                 }
             }
             ConnectionState::Retrying(_, _) => {
-                if inner.connection_dialog_state == None
+                if inner.connection_dialog_state.is_none()
                     || inner
                         .connection_dialog_state
                         .as_ref()
@@ -987,10 +1000,12 @@ impl UI {
 
 }
 
+type CallbackSink = Box<dyn FnOnce(&mut Cursive) + 'static + Send>;
+
 #[derive(Clone)]
 pub struct UISender {
     inner: Arc<Mutex<UIInner>>,
-    cb_sink: Sender<Box<dyn FnOnce(&mut Cursive) + 'static + Send>>,
+    cb_sink: Sender<CallbackSink>,
 }
 
 impl UISender {
@@ -1066,7 +1081,7 @@ impl UISender {
         for l in 0..node_ids.len() {
             let nid = &node_ids[l];
             if !node_id_str.is_empty() {
-                node_id_str.push_str(" ");
+                node_id_str.push(' ');
             }
             node_id_str.push_str(nid.to_string().as_ref());
         }

@@ -1,10 +1,22 @@
 use super::*;
 
 use async_tls::TlsConnector;
+use async_tungstenite::tungstenite::handshake::server::{
+    Callback, ErrorResponse, Request, Response,
+};
+use async_tungstenite::tungstenite::http::StatusCode;
 use async_tungstenite::tungstenite::protocol::Message;
-use async_tungstenite::{accept_async, client_async, WebSocketStream};
+use async_tungstenite::{accept_hdr_async, client_async, WebSocketStream};
 use futures_util::{AsyncRead, AsyncWrite, SinkExt};
 use sockets::*;
+
+/// Maximum number of websocket request headers to permit
+const MAX_WS_HEADERS: usize = 24;
+/// Maximum size of any one specific websocket header
+const MAX_WS_HEADER_LENGTH: usize = 512;
+/// Maximum total size of headers and request including newlines
+const MAX_WS_BEFORE_BODY: usize = 2048;
+
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
         pub type WebsocketNetworkConnectionWSS =
@@ -62,7 +74,7 @@ where
     }
 
     pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
 
     // #[instrument(level = "trace", err, skip(self))]
@@ -180,29 +192,57 @@ impl WebsocketProtocolHandler {
         log_net!("WS: on_accept_async: enter");
         let request_path_len = self.arc.request_path.len() + 2;
 
-        let mut peekbuf: Vec<u8> = vec![0u8; request_path_len];
-        if let Err(_) = timeout(
+        let mut peek_buf = [0u8; MAX_WS_BEFORE_BODY];
+        let peek_len = match timeout(
             self.arc.connection_initial_timeout_ms,
-            ps.peek_exact(&mut peekbuf),
+            ps.peek(&mut peek_buf),
         )
         .await
         {
+            Err(_) => {
+                // Timeout
+                return Ok(None);
+            }
+            Ok(Err(_)) => {
+                // Peek error
+                return Ok(None);
+            }
+            Ok(Ok(v)) => v,
+        };
+
+        // If we can't peek at least our request path, then fail out
+        if peek_len < request_path_len {
             return Ok(None);
         }
 
         // Check for websocket path
-        let matches_path = &peekbuf[0..request_path_len - 2] == self.arc.request_path.as_slice()
-            && (peekbuf[request_path_len - 2] == b' '
-                || (peekbuf[request_path_len - 2] == b'/'
-                    && peekbuf[request_path_len - 1] == b' '));
+        let matches_path = &peek_buf[0..request_path_len - 2] == self.arc.request_path.as_slice()
+            && (peek_buf[request_path_len - 2] == b' '
+                || (peek_buf[request_path_len - 2] == b'/'
+                    && peek_buf[request_path_len - 1] == b' '));
 
         if !matches_path {
             return Ok(None);
         }
 
-        let ws_stream = accept_async(ps)
-            .await
-            .map_err(|e| io_error_other!(format!("failed websockets handshake: {}", e)))?;
+        // Check for double-CRLF indicating end of headers
+        // if we don't find the end of the headers within MAX_WS_BEFORE_BODY
+        // then we should bail, as this could be an attack or at best, something malformed
+        // Yes, this restricts our handling to CRLF-conforming HTTP implementations
+        // This check could be loosened if necessary, but until we have a reason to do so
+        // a stricter interpretation of HTTP is possible and desirable to reduce attack surface
+
+        if !peek_buf.windows(4).any(|w| w == b"\r\n\r\n") {
+            return Ok(None);
+        }
+
+        let ws_stream = match accept_hdr_async(ps, self.clone()).await {
+            Ok(v) => v,
+            Err(e) => {
+                log_net!(debug "failed websockets handshake: {}", e);
+                return Ok(None);
+            }
+        };
 
         // Wrap the websocket in a NetworkConnection and register it
         let protocol_type = if self.arc.tls {
@@ -266,7 +306,7 @@ impl WebsocketProtocolHandler {
 
         // Make our connection descriptor
         let descriptor = ConnectionDescriptor::new(
-            dial_info.to_peer_address(),
+            dial_info.peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
         );
 
@@ -289,6 +329,23 @@ impl WebsocketProtocolHandler {
                 WebsocketNetworkConnection::new(descriptor, ws_stream),
             )))
         }
+    }
+}
+
+impl Callback for WebsocketProtocolHandler {
+    fn on_request(self, request: &Request, response: Response) -> Result<Response, ErrorResponse> {
+        // Cap the number of headers total and limit the size of all headers
+        if request.headers().len() > MAX_WS_HEADERS
+            || request
+                .headers()
+                .iter()
+                .any(|h| (h.0.as_str().len() + h.1.as_bytes().len()) > MAX_WS_HEADER_LENGTH)
+        {
+            let mut error_response = ErrorResponse::new(None);
+            *error_response.status_mut() = StatusCode::NOT_FOUND;
+            return Err(error_response);
+        }
+        Ok(response)
     }
 }
 

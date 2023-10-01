@@ -103,11 +103,11 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
                 None
             };
 
-            (inner.update_callback)(VeilidUpdate::Log(VeilidLog {
+            (inner.update_callback)(VeilidUpdate::Log(Box::new(VeilidLog {
                 log_level,
                 message,
                 backtrace,
-            }))
+            })))
         }
     }
 }

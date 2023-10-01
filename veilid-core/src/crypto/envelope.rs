@@ -236,7 +236,7 @@ impl Envelope {
         }
 
         // Compress body
-        let body = compress_prepend_size(&body);
+        let body = compress_prepend_size(body);
 
         // Ensure body isn't too long
         let envelope_size: usize = body.len() + MIN_ENVELOPE_SIZE;

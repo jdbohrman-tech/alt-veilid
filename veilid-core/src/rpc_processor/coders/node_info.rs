@@ -16,7 +16,7 @@ pub fn encode_node_info(
         .reborrow()
         .init_envelope_support(node_info.envelope_support().len() as u32);
     if let Some(s) = es_builder.as_slice() {
-        s.clone_from_slice(&node_info.envelope_support());
+        s.clone_from_slice(node_info.envelope_support());
     }
 
     let mut cs_builder = builder
@@ -100,7 +100,7 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
     if envelope_support.len() > MAX_ENVELOPE_VERSIONS {
         return Err(RPCError::protocol("too many envelope versions"));
     }
-    if envelope_support.len() == 0 {
+    if envelope_support.is_empty() {
         return Err(RPCError::protocol("no envelope versions"));
     }
 
@@ -129,7 +129,7 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
     if crypto_support.len() > MAX_CRYPTO_KINDS {
         return Err(RPCError::protocol("too many crypto kinds"));
     }
-    if crypto_support.len() == 0 {
+    if crypto_support.is_empty() {
         return Err(RPCError::protocol("no crypto kinds"));
     }
 

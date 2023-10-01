@@ -72,6 +72,15 @@ impl ConnectionTable {
         }
     }
 
+    fn index_to_protocol(idx: usize) -> ProtocolType {
+        match idx {
+            0 => ProtocolType::TCP,
+            1 => ProtocolType::WS,
+            2 => ProtocolType::WSS,
+            _ => panic!("not a connection-oriented protocol"),
+        }
+    }
+
     #[instrument(level = "trace", skip(self))]
     pub async fn join(&self) {
         let mut unord = {
@@ -123,7 +132,7 @@ impl ConnectionTable {
         false
     }
 
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn add_connection(
         &self,
         network_connection: NetworkConnection,
@@ -155,7 +164,7 @@ impl ConnectionTable {
         }
 
         // Filter by ip for connection limits
-        let ip_addr = descriptor.remote_address().to_ip_addr();
+        let ip_addr = descriptor.remote_address().ip_addr();
         match inner.address_filter.add_connection(ip_addr) {
             Ok(()) => {}
             Err(e) => {
@@ -175,10 +184,20 @@ impl ConnectionTable {
         // then drop the least recently used connection
         let mut out_conn = None;
         if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
-            if let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
+            while let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
                 let lruk = *lruk;
-                log_net!(debug "connection lru out: {:?}", lru_conn);
-                out_conn = Some(Self::remove_connection_records(&mut *inner, lruk));
+
+                // Don't LRU protected connections
+                if lru_conn.is_protected() {
+                    // Mark as recently used
+                    log_net!(debug "== No LRU Out for PROTECTED connection: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
+                    inner.conn_by_id[protocol_index].get(&lruk);
+                    continue;
+                }
+
+                log_net!(debug "== LRU Connection Killed: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
+                out_conn = Some(Self::remove_connection_records(&mut inner, lruk));
+                break;
             }
         }
 
@@ -218,11 +237,11 @@ impl ConnectionTable {
         best_port: Option<u16>,
         remote: PeerAddress,
     ) -> Option<ConnectionHandle> {
-        let mut inner = self.inner.lock();
+        let inner = &mut *self.inner.lock();
 
         let all_ids_by_remote = inner.ids_by_remote.get(&remote)?;
         let protocol_index = Self::protocol_to_index(remote.protocol_type());
-        if all_ids_by_remote.len() == 0 {
+        if all_ids_by_remote.is_empty() {
             // no connections
             return None;
         }
@@ -234,11 +253,11 @@ impl ConnectionTable {
         }
         // multiple connections, find the one that matches the best port, or the most recent
         if let Some(best_port) = best_port {
-            for id in all_ids_by_remote.iter().copied() {
-                let nc = inner.conn_by_id[protocol_index].peek(&id).unwrap();
+            for id in all_ids_by_remote {
+                let nc = inner.conn_by_id[protocol_index].peek(id).unwrap();
                 if let Some(local_addr) = nc.connection_descriptor().local() {
                     if local_addr.port() == best_port {
-                        let nc = inner.conn_by_id[protocol_index].get(&id).unwrap();
+                        let nc = inner.conn_by_id[protocol_index].get(id).unwrap();
                         return Some(nc.get_handle());
                     }
                 }
@@ -312,7 +331,7 @@ impl ConnectionTable {
             }
         }
         // address_filter
-        let ip_addr = remote.to_socket_addr().ip();
+        let ip_addr = remote.socket_addr().ip();
         inner
             .address_filter
             .remove_connection(ip_addr)
@@ -328,7 +347,26 @@ impl ConnectionTable {
         if !inner.conn_by_id[protocol_index].contains_key(&id) {
             return None;
         }
-        let conn = Self::remove_connection_records(&mut *inner, id);
+        let conn = Self::remove_connection_records(&mut inner, id);
         Some(conn)
+    }
+
+    pub fn debug_print_table(&self) -> String {
+        let mut out = String::new();
+        let inner = self.inner.lock();
+        let cur_ts = get_aligned_timestamp();
+        for t in 0..inner.conn_by_id.len() {
+            out += &format!(
+                "  {} Connections: ({}/{})\n",
+                Self::index_to_protocol(t),
+                inner.conn_by_id[t].len(),
+                inner.max_connections[t]
+            );
+
+            for (_, conn) in &inner.conn_by_id[t] {
+                out += &format!("    {}\n", conn.debug_print(cur_ts));
+            }
+        }
+        out
     }
 }

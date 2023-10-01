@@ -1,7 +1,3 @@
-# early α docs
-
-# please don't share publicly
-
 # Veilid Architecture Guide
 
 -   [From Orbit](#from-orbit)

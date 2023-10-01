@@ -75,8 +75,8 @@ impl Bucket {
             });
         }
         let bucket_data = SerializedBucketData { entries };
-        let out = serialize_json_bytes(&bucket_data);
-        out
+
+        serialize_json_bytes(bucket_data)
     }
 
     /// Create a new entry with a node_id of this crypto kind and return it
@@ -129,11 +129,8 @@ impl Bucket {
         let mut extra_entries = bucket_len - bucket_depth;
 
         // Get the sorted list of entries by their kick order
-        let mut sorted_entries: Vec<(PublicKey, Arc<BucketEntry>)> = self
-            .entries
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        let mut sorted_entries: Vec<(PublicKey, Arc<BucketEntry>)> =
+            self.entries.iter().map(|(k, v)| (*k, v.clone())).collect();
         let cur_ts = get_aligned_timestamp();
         sorted_entries.sort_by(|a, b| -> core::cmp::Ordering {
             if a.0 == b.0 {

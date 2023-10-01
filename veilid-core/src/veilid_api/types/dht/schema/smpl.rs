@@ -6,7 +6,6 @@ use super::*;
 pub struct DHTSchemaSMPLMember {
     /// Member key
     #[schemars(with = "String")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
     pub m_key: PublicKey,
     /// Member subkey count
     pub m_cnt: u16,
@@ -102,7 +101,7 @@ impl TryFrom<&[u8]> for DHTSchemaSMPL {
         if b.len() < Self::FIXED_SIZE {
             apibail_generic!("invalid size");
         }
-        if &b[0..4] != &Self::FCC {
+        if b[0..4] != Self::FCC {
             apibail_generic!("wrong fourcc");
         }
         if (b.len() - Self::FIXED_SIZE) % (PUBLIC_KEY_LENGTH + 2) != 0 {

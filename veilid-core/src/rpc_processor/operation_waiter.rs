@@ -30,6 +30,7 @@ where
     C: Unpin + Clone,
 {
     context: C,
+    timestamp: Timestamp,
     eventual: EventualValue<(Option<Id>, T)>,
 }
 
@@ -82,6 +83,7 @@ where
         let e = EventualValue::new();
         let waiting_op = OperationWaitingOp {
             context,
+            timestamp: get_aligned_timestamp(),
             eventual: e.clone(),
         };
         if inner.waiting_op_table.insert(op_id, waiting_op).is_some() {
@@ -96,6 +98,18 @@ where
             op_id,
             eventual_instance: Some(e.instance()),
         }
+    }
+
+    /// Get all waiting operation ids
+    pub fn get_operation_ids(&self) -> Vec<OperationId> {
+        let inner = self.inner.lock();
+        let mut opids: Vec<(OperationId, Timestamp)> = inner
+            .waiting_op_table
+            .iter()
+            .map(|x| (*x.0, x.1.timestamp))
+            .collect();
+        opids.sort_by(|a, b| a.1.cmp(&b.1));
+        opids.into_iter().map(|x| x.0).collect()
     }
 
     /// Get operation context

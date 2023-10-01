@@ -18,6 +18,36 @@ impl NetworkManager {
         let this = self.clone();
         Box::pin(
             async move {
+
+                // First try to send data to the last socket we've seen this peer on
+                let data = if let Some(connection_descriptor) = destination_node_ref.last_connection() {
+                    match this
+                        .net()
+                        .send_data_to_existing_connection(connection_descriptor, data)
+                        .await?
+                    {
+                        None => {
+                            // Update timestamp for this last connection since we just sent to it
+                            destination_node_ref
+                                .set_last_connection(connection_descriptor, get_aligned_timestamp());
+
+                            return Ok(NetworkResult::value(SendDataKind::Existing(
+                                connection_descriptor,
+                            )));
+                        }
+                        Some(data) => {
+                            // Couldn't send data to existing connection
+                            // so pass the data back out
+                            data
+                        }
+                    }
+                } else {
+                    // No last connection
+                    data
+                };
+
+                // No existing connection was found or usable, so we proceed to see how to make a new one
+                
                 // Get the best way to contact this node
                 let contact_method = this.get_node_contact_method(destination_node_ref.clone())?;
 
@@ -308,7 +338,7 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // If a node is punished, then don't try to contact it
-        if target_node_ref.node_ids().iter().find(|nid| self.address_filter().is_node_id_punished(**nid)).is_some() {
+        if target_node_ref.node_ids().iter().any(|nid| self.address_filter().is_node_id_punished(*nid)) {
             return Ok(NodeContactMethod::Unreachable);
         }
 
@@ -345,10 +375,14 @@ impl NetworkManager {
             }
         };
 
-        // Dial info filter comes from the target node ref
-        let dial_info_filter = target_node_ref.dial_info_filter();
+        // Dial info filter comes from the target node ref but must be filtered by this node's outbound capabilities
+        let dial_info_filter = target_node_ref.dial_info_filter().filtered(
+            &DialInfoFilter::all()
+                .with_address_type_set(peer_a.signed_node_info().node_info().address_types())
+                .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()));
         let sequencing = target_node_ref.sequencing();
 
+    
         // If the node has had lost questions or failures to send, prefer sequencing
         // to improve reliability. The node may be experiencing UDP fragmentation drops
         // or other firewalling issues and may perform better with TCP.
@@ -366,7 +400,7 @@ impl NetworkManager {
                 dial_info_failures_map.insert(did.dial_info, ts);
             }
         }
-        let dif_sort: Option<Arc<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>> = if dial_info_failures_map.is_empty() {
+        let dif_sort: Option<Arc<DialInfoDetailSort>> = if dial_info_failures_map.is_empty() {
             None
         } else {
             Some(Arc::new(move |a: &DialInfoDetail, b: &DialInfoDetail| {    

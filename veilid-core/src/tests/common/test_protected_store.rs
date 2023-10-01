@@ -23,14 +23,12 @@ pub async fn test_protected_store(ps: ProtectedStore) {
 
     let d1: [u8; 0] = [];
 
-    assert_eq!(
-        ps.save_user_secret("_test_key", &[2u8, 3u8, 4u8])
-            .await
-            .unwrap(),
-        false
-    );
+    assert!(!ps
+        .save_user_secret("_test_key", &[2u8, 3u8, 4u8])
+        .await
+        .unwrap());
     info!("testing saving user secret");
-    assert_eq!(ps.save_user_secret("_test_key", &d1).await.unwrap(), true);
+    assert!(ps.save_user_secret("_test_key", &d1).await.unwrap());
     info!("testing loading user secret");
     assert_eq!(
         ps.load_user_secret("_test_key").await.unwrap(),
@@ -46,23 +44,21 @@ pub async fn test_protected_store(ps: ProtectedStore) {
     info!("testing loading broken user secret again");
     assert_eq!(ps.load_user_secret("_test_broken").await.unwrap(), None);
     info!("testing remove user secret");
-    assert_eq!(ps.remove_user_secret("_test_key").await.unwrap(), true);
+    assert!(ps.remove_user_secret("_test_key").await.unwrap());
     info!("testing remove user secret again");
-    assert_eq!(ps.remove_user_secret("_test_key").await.unwrap(), false);
+    assert!(!ps.remove_user_secret("_test_key").await.unwrap());
     info!("testing remove broken user secret");
-    assert_eq!(ps.remove_user_secret("_test_broken").await.unwrap(), false);
+    assert!(!ps.remove_user_secret("_test_broken").await.unwrap());
     info!("testing remove broken user secret again");
-    assert_eq!(ps.remove_user_secret("_test_broken").await.unwrap(), false);
+    assert!(!ps.remove_user_secret("_test_broken").await.unwrap());
 
     let d2: [u8; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-    assert_eq!(
-        ps.save_user_secret("_test_key", &[2u8, 3u8, 4u8])
-            .await
-            .unwrap(),
-        false
-    );
-    assert_eq!(ps.save_user_secret("_test_key", &d2).await.unwrap(), true);
+    assert!(!ps
+        .save_user_secret("_test_key", &[2u8, 3u8, 4u8])
+        .await
+        .unwrap());
+    assert!(ps.save_user_secret("_test_key", &d2).await.unwrap());
     assert_eq!(
         ps.load_user_secret("_test_key").await.unwrap(),
         Some(d2.to_vec())
@@ -73,10 +69,10 @@ pub async fn test_protected_store(ps: ProtectedStore) {
     );
     assert_eq!(ps.load_user_secret("_test_broken").await.unwrap(), None);
     assert_eq!(ps.load_user_secret("_test_broken").await.unwrap(), None);
-    assert_eq!(ps.remove_user_secret("_test_key").await.unwrap(), true);
-    assert_eq!(ps.remove_user_secret("_test_key").await.unwrap(), false);
-    assert_eq!(ps.remove_user_secret("_test_broken").await.unwrap(), false);
-    assert_eq!(ps.remove_user_secret("_test_broken").await.unwrap(), false);
+    assert!(ps.remove_user_secret("_test_key").await.unwrap());
+    assert!(!ps.remove_user_secret("_test_key").await.unwrap());
+    assert!(!ps.remove_user_secret("_test_key").await.unwrap());
+    assert!(!ps.remove_user_secret("_test_broken").await.unwrap());
 
     let _ = ps.remove_user_secret("_test_key").await;
     let _ = ps.remove_user_secret("_test_broken").await;

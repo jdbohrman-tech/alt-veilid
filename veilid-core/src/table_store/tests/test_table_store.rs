@@ -18,7 +18,7 @@ async fn shutdown(api: VeilidAPI) {
 pub async fn test_delete_open_delete(ts: TableStore) {
     trace!("test_delete_open_delete");
 
-    let _ = ts.delete("test");
+    let _ = ts.delete("test").await;
     let db = ts.open("test", 3).await.expect("should have opened");
     assert!(
         ts.delete("test").await.is_err(),
@@ -50,7 +50,7 @@ pub async fn test_delete_open_delete(ts: TableStore) {
 pub async fn test_store_delete_load(ts: TableStore) {
     trace!("test_store_delete_load");
 
-    let _ = ts.delete("test");
+    let _ = ts.delete("test").await;
     let db = ts.open("test", 3).await.expect("should have opened");
     assert!(
         ts.delete("test").await.is_err(),
@@ -135,7 +135,7 @@ pub async fn test_store_delete_load(ts: TableStore) {
 pub async fn test_transaction(ts: TableStore) {
     trace!("test_transaction");
 
-    let _ = ts.delete("test");
+    let _ = ts.delete("test").await;
     let db = ts.open("test", 3).await.expect("should have opened");
     assert!(
         ts.delete("test").await.is_err(),
@@ -165,7 +165,7 @@ pub async fn test_transaction(ts: TableStore) {
 pub async fn test_json(vcrypto: CryptoSystemVersion, ts: TableStore) {
     trace!("test_json");
 
-    let _ = ts.delete("test");
+    let _ = ts.delete("test").await;
     let db = ts.open("test", 3).await.expect("should have opened");
     let keypair = vcrypto.generate_keypair();
 
@@ -229,10 +229,10 @@ pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore
         for password in passwords {
             let dek_bytes = ts
                 .maybe_protect_device_encryption_key(dek, password)
-                .expect(&format!("protect: dek: '{}' pw: '{}'", dek, password));
+                .unwrap_or_else(|_| panic!("protect: dek: '{}' pw: '{}'", dek, password));
             let unprotected = ts
                 .maybe_unprotect_device_encryption_key(&dek_bytes, password)
-                .expect(&format!("unprotect: dek: '{}' pw: '{}'", dek, password));
+                .unwrap_or_else(|_| panic!("unprotect: dek: '{}' pw: '{}'", dek, password));
             assert_eq!(unprotected, dek);
             let invalid_password = format!("{}x", password);
             let _ = ts
@@ -241,7 +241,7 @@ pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore
                     "invalid_password: dek: '{}' pw: '{}'",
                     dek, &invalid_password
                 ));
-            if password != "" {
+            if !password.is_empty() {
                 let _ = ts
                     .maybe_unprotect_device_encryption_key(&dek_bytes, "")
                     .expect_err(&format!("empty_password: dek: '{}' pw: ''", dek));

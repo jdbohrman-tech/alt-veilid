@@ -56,7 +56,7 @@ impl WebsocketNetworkConnection {
     }
 
     pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor.clone()
+        self.descriptor
     }
 
     // #[instrument(level = "trace", err, skip(self))]
@@ -144,7 +144,7 @@ impl WebsocketProtocolHandler {
 
         // Make our connection descriptor
         let wnc = WebsocketNetworkConnection::new(
-            ConnectionDescriptor::new_no_local(dial_info.to_peer_address()),
+            ConnectionDescriptor::new_no_local(dial_info.peer_address()),
             wsmeta,
             wsio,
         );

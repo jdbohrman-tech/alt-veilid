@@ -19,7 +19,7 @@ pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeIn
     Arc::new(move |_, ni| ni.has_capabilities(&caps))
 }
 
-/// Contains the logic for generically searing the Veilid routing table for a set of nodes and applying an
+/// Contains the logic for generically searching the Veilid routing table for a set of nodes and applying an
 /// RPC operation that eventually converges on satisfactory result, or times out and returns some
 /// unsatisfactory but acceptable result. Or something.
 ///
@@ -60,6 +60,7 @@ where
     C: Fn(NodeRef) -> F,
     D: Fn(&[NodeRef]) -> Option<R>,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         routing_table: RoutingTable,
         node_id: TypedKey,
@@ -103,7 +104,7 @@ where
     fn add_to_fanout_queue(self: Arc<Self>, new_nodes: &[NodeRef]) {
         let ctx = &mut *self.context.lock();
         let this = self.clone();
-        ctx.fanout_queue.add(&new_nodes, |current_nodes| {
+        ctx.fanout_queue.add(new_nodes, |current_nodes| {
             let mut current_nodes_vec = this
                 .routing_table
                 .sort_and_clean_closest_noderefs(this.node_id, current_nodes);
@@ -112,21 +113,21 @@ where
         });
     }
 
-    async fn fanout_processor(self: Arc<Self>) {
+    async fn fanout_processor(self: Arc<Self>) -> bool {
         // Loop until we have a result or are done
         loop {
             // Get the closest node we haven't processed yet if we're not done yet
             let next_node = {
                 let mut ctx = self.context.lock();
                 if self.clone().evaluate_done(&mut ctx) {
-                    break;
+                    break true;
                 }
                 ctx.fanout_queue.next()
             };
 
             // If we don't have a node to process, stop fanning out
             let Some(next_node) = next_node else {
-                break;
+                break false;
             };
 
             // Do the call for this node
@@ -155,12 +156,12 @@ where
                     self.clone().add_to_fanout_queue(&new_nodes);
                 }
                 Ok(None) => {
-                    // Call failed, node will node be considered again
+                    // Call failed, node will not be considered again
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error
                     self.context.lock().result = Some(Err(e));
-                    return;
+                    break true;
                 }
             };
         }
@@ -180,8 +181,10 @@ where
                     let entry = opt_entry.unwrap();
 
                     // Filter entries
-                    entry.with(rti, |_rti, e|  {
-                        let Some(signed_node_info) = e.signed_node_info(RoutingDomain::PublicInternet) else {
+                    entry.with(rti, |_rti, e| {
+                        let Some(signed_node_info) =
+                            e.signed_node_info(RoutingDomain::PublicInternet)
+                        else {
                             return false;
                         };
                         // Ensure only things that are valid/signed in the PublicInternet domain are returned
@@ -245,12 +248,18 @@ where
             }
         }
         // Wait for them to complete
-        timeout(timeout_ms, async { while unord.next().await.is_some() {} })
-            .await
-            .into_timeout_or()
-            .map(|_| {
-                // Finished, return whatever value we came up with
-                self.context.lock().result.take().transpose()
-            })
+        timeout(timeout_ms, async {
+            while let Some(is_done) = unord.next().await {
+                if is_done {
+                    break;
+                }
+            }
+        })
+        .await
+        .into_timeout_or()
+        .map(|_| {
+            // Finished, return whatever value we came up with
+            self.context.lock().result.take().transpose()
+        })
     }
 }

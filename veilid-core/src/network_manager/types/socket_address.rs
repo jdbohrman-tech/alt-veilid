@@ -34,27 +34,27 @@ impl SocketAddress {
         self.port = port
     }
     pub fn with_port(&self, port: u16) -> Self {
-        let mut sa = self.clone();
+        let mut sa = *self;
         sa.port = port;
         sa
     }
-    pub fn to_canonical(&self) -> SocketAddress {
+    pub fn canonical(&self) -> SocketAddress {
         SocketAddress {
-            address: self.address.to_canonical(),
+            address: self.address.canonical(),
             port: self.port,
         }
     }
-    pub fn to_ip_addr(&self) -> IpAddr {
-        self.address.to_ip_addr()
+    pub fn ip_addr(&self) -> IpAddr {
+        self.address.ip_addr()
     }
-    pub fn to_socket_addr(&self) -> SocketAddr {
-        self.address.to_socket_addr(self.port)
+    pub fn socket_addr(&self) -> SocketAddr {
+        self.address.socket_addr(self.port)
     }
 }
 
 impl fmt::Display for SocketAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}", self.to_socket_addr())
+        write!(f, "{}", self.socket_addr())
     }
 }
 

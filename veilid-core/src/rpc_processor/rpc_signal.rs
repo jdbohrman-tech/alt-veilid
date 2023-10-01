@@ -26,7 +26,7 @@ impl RPCProcessor {
         }
 
         let signal = RPCOperationSignal::new(signal_info);
-        let statement = RPCStatement::new(RPCStatementDetail::Signal(signal));
+        let statement = RPCStatement::new(RPCStatementDetail::Signal(Box::new(signal)));
 
         // Send the signal request
         self.statement(dest, statement).await

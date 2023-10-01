@@ -2,7 +2,7 @@ VERSION 0.6
 
 # Start with older Ubuntu to ensure GLIBC symbol versioning support for older linux
 # Ensure we are using an amd64 platform because some of these targets use cross-platform tooling
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 # Install build prerequisites
 deps-base:
@@ -45,9 +45,6 @@ deps-rust:
 # Install Linux cross-platform tooling
 deps-cross:
     FROM +deps-rust
-    # TODO: gcc-aarch64-linux-gnu is not in the packages for ubuntu 16.04
-    # RUN apt-get install -y gcc-aarch64-linux-gnu curl unzip 
-    # RUN apt-get install -y gcc-4.8-arm64-cross
     RUN curl https://ziglang.org/builds/zig-linux-x86_64-0.11.0-dev.3978+711b4e93e.tar.xz | tar -C /usr/local -xJf -
     RUN mv /usr/local/zig-linux-x86_64-0.11.0-dev.3978+711b4e93e /usr/local/zig
     ENV PATH=$PATH:/usr/local/zig
@@ -215,6 +212,27 @@ package-linux-arm64-deb:
     RUN /veilid/package/debian/earthly_make_veilid_cli_deb.sh arm64 aarch64-unknown-linux-gnu
     # save artifacts
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
+
+package-linux-arm64-rpm:
+    FROM --platform arm64 rockylinux:8
+    RUN yum install -y createrepo rpm-build rpm-sign yum-utils rpmdevtools
+    RUN rpmdev-setuptree
+    #################################
+    ### RPMBUILD .RPM FILES
+    #################################
+    RUN mkdir -p /veilid/target
+    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml package /veilid
+    COPY +build-linux-arm64/aarch64-unknown-linux-gnu /veilid/target/aarch64-unknown-linux-gnu
+    RUN mkdir -p /rpm-work-dir/veilid-server
+    # veilid-server
+    RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh aarch64 aarch64-unknown-linux-gnu
+    #SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/aarch64/*.rpm AS LOCAL ./target/packages/
+    # veilid-cli
+    RUN veilid/package/rpm/veilid-cli/earthly_make_veilid_cli_rpm.sh aarch64 aarch64-unknown-linux-gnu
+    # save artifacts
+    SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/aarch64/*.rpm AS LOCAL ./target/packages/
+
+
 
 package-linux-amd64:
     BUILD +package-linux-amd64-deb

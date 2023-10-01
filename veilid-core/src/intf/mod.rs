@@ -9,4 +9,4 @@ mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::*;
 
-pub static KNOWN_PROTECTED_STORE_KEYS: [&'static str; 2] = ["device_encryption_key", "_test_key"];
+pub static KNOWN_PROTECTED_STORE_KEYS: [&str; 2] = ["device_encryption_key", "_test_key"];

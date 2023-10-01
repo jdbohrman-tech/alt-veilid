@@ -134,8 +134,8 @@ impl CryptoSystem for CryptoSystemVLD0 {
         SharedSecret::new(s)
     }
     fn compute_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
-        let pk_xd = public_to_x25519_pk(&key)?;
-        let sk_xd = secret_to_x25519_sk(&secret)?;
+        let pk_xd = public_to_x25519_pk(key)?;
+        let sk_xd = secret_to_x25519_sk(secret)?;
 
         let dh_bytes = sk_xd.diffie_hellman(&pk_xd).to_bytes();
 
@@ -188,9 +188,9 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn distance(&self, key1: &PublicKey, key2: &PublicKey) -> CryptoKeyDistance {
         let mut bytes = [0u8; CRYPTO_KEY_LENGTH];
 
-        for n in 0..CRYPTO_KEY_LENGTH {
+        (0..CRYPTO_KEY_LENGTH).for_each(|n| {
             bytes[n] = key1.bytes[n] ^ key2.bytes[n];
-        }
+        });
 
         CryptoKeyDistance::new(bytes)
     }
@@ -219,7 +219,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
         let sig = Signature::new(sig_bytes.to_bytes());
 
-        self.verify(dht_key, &data, &sig)?;
+        self.verify(dht_key, data, &sig)?;
 
         Ok(sig)
     }

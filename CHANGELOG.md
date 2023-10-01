@@ -1,3 +1,19 @@
+**Changed in Veilid 0.2.3**
+- Security fix for WS denial of service
+- Support for latest Rust 1.72
+
+**Changed in Veilid 0.2.2**
+- Capnproto 1.0.1 + Protobuf 24.3
+- DHT set/get correctness fixes
+- Connection table fixes
+- Node resolution fixes
+- More debugging commands (appmessage, appcall, resolve, better nodeinfo, etc)
+- Reverse connect for WASM nodes
+- Better Typescript types for WASM
+- Various script and environment cleanups
+- Earthly build for aarch64 RPM
+- Much improved and faster public address detection
+
 **Changes in Veilid 0.2.1**
 - Crates are separated and publishable
 - First publication of veilid-core with docs to crates.io and docs.rs

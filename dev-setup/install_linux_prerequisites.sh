@@ -9,7 +9,7 @@ fi
 if [ ! -z "$(command -v apt)" ]; then
     # Install APT dependencies
     sudo apt update -y
-    sudo apt install -y openjdk-11-jdk-headless iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip llvm wabt
+    sudo apt install -y openjdk-11-jdk-headless iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip llvm wabt python3-pip
 elif [ ! -z "$(command -v dnf)" ]; then
     # DNF (formerly yum)
     sudo dnf update -y

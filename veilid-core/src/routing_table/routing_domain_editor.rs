@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Debug)]
 enum RoutingDomainChange {
     ClearDialInfoDetails {
         address_type: Option<AddressType>,
@@ -135,6 +136,9 @@ impl RoutingDomainEditor {
             None
         };
 
+        // Debug print
+        log_rtab!(debug "[{:?}] COMMIT: {:?}", self.routing_domain, self.changes);
+
         // Apply changes
         let mut changed = false;
         {
@@ -247,10 +251,6 @@ impl RoutingDomainEditor {
                         }
                     }
                 }
-                if changed {
-                    // Clear our 'peer info' cache, the peerinfo for this routing domain will get regenerated next time it is asked for
-                    detail.common_mut().clear_cache()
-                }
             });
             if changed {
                 // Allow signed node info updates at same timestamp for otherwise dead nodes if our network has changed
@@ -258,11 +258,9 @@ impl RoutingDomainEditor {
             }
         }
         // Clear the routespecstore cache if our PublicInternet dial info has changed
-        if changed {
-            if self.routing_domain == RoutingDomain::PublicInternet {
-                let rss = self.routing_table.route_spec_store();
-                rss.reset();
-            }
+        if changed && self.routing_domain == RoutingDomain::PublicInternet {
+            let rss = self.routing_table.route_spec_store();
+            rss.reset();
         }
     }
 }

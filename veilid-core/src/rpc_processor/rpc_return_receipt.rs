@@ -15,7 +15,8 @@ impl RPCProcessor {
         let receipt = receipt.as_ref().to_vec();
 
         let return_receipt = RPCOperationReturnReceipt::new(receipt)?;
-        let statement = RPCStatement::new(RPCStatementDetail::ReturnReceipt(return_receipt));
+        let statement =
+            RPCStatement::new(RPCStatementDetail::ReturnReceipt(Box::new(return_receipt)));
 
         // Send the return_receipt request
         network_result_try!(self.statement(dest, statement).await?);

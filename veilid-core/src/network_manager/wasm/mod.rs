@@ -32,18 +32,18 @@ pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIE
     CAP_BLOCKSTORE,
 ];
 
-#[cfg(feature = "unstable-blockstore")]
-const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
-#[cfg(not(feature = "unstable-blockstore"))]
-const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 2;
+// #[cfg(feature = "unstable-blockstore")]
+// const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
+// #[cfg(not(feature = "unstable-blockstore"))]
+// const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 2;
 
-pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
-    //CAP_RELAY,
-    CAP_DHT,
-    CAP_APPMESSAGE,
-    #[cfg(feature = "unstable-blockstore")]
-    CAP_BLOCKSTORE,
-];
+// pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
+//     //CAP_RELAY,
+//     CAP_DHT,
+//     CAP_APPMESSAGE,
+//     #[cfg(feature = "unstable-blockstore")]
+//     CAP_BLOCKSTORE,
+// ];
 
 pub const MAX_CAPABILITIES: usize = 64;
 
@@ -149,7 +149,7 @@ impl Network {
             if self
                 .network_manager()
                 .address_filter()
-                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+                .is_ip_addr_punished(dial_info.address().ip_addr())
             {
                 return Ok(NetworkResult::no_connection_other("punished"));
             }
@@ -173,7 +173,7 @@ impl Network {
 
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::Value(()))
         })
@@ -202,7 +202,7 @@ impl Network {
             if self
                 .network_manager()
                 .address_filter()
-                .is_ip_addr_punished(dial_info.address().to_ip_addr())
+                .is_ip_addr_punished(dial_info.address().ip_addr())
             {
                 return Ok(NetworkResult::no_connection_other("punished"));
             }
@@ -227,7 +227,7 @@ impl Network {
 
                     network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
                     self.network_manager()
-                        .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
                     let out =
                         network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
@@ -235,10 +235,8 @@ impl Network {
                             .into_network_result())
                         .wrap_err("recv failure")?);
 
-                    self.network_manager().stats_packet_rcvd(
-                        dial_info.to_ip_addr(),
-                        ByteCount::new(out.len() as u64),
-                    );
+                    self.network_manager()
+                        .stats_packet_rcvd(dial_info.ip_addr(), ByteCount::new(out.len() as u64));
 
                     Ok(NetworkResult::Value(out))
                 }
@@ -273,7 +271,7 @@ impl Network {
                 ConnectionHandleSendResult::Sent => {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
-                        descriptor.remote().to_socket_addr().ip(),
+                        descriptor.remote().socket_addr().ip(),
                         ByteCount::new(data_len as u64),
                     );
 
@@ -324,7 +322,7 @@ impl Network {
 
             // Network accounting
             self.network_manager()
-                .stats_packet_sent(dial_info.to_ip_addr(), ByteCount::new(data_len as u64));
+                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
             Ok(NetworkResult::value(connection_descriptor))
         })
@@ -351,14 +349,24 @@ impl Network {
             let family_global = AddressTypeSet::from(AddressType::IPV4);
             let family_local = AddressTypeSet::from(AddressType::IPV4);
 
+            let public_internet_capabilities = {
+                PUBLIC_INTERNET_CAPABILITIES
+                    .iter()
+                    .copied()
+                    .filter(|cap| !c.capabilities.disable.contains(cap))
+                    .collect::<Vec<Capability>>()
+            };
+
             ProtocolConfig {
                 outbound,
                 inbound,
                 family_global,
                 family_local,
+                local_network_capabilities: vec![],
+                public_internet_capabilities,
             }
         };
-        self.inner.lock().protocol_config = protocol_config;
+        self.inner.lock().protocol_config = protocol_config.clone();
 
         // Start editing routing table
         let mut editor_public_internet = self
@@ -369,20 +377,11 @@ impl Network {
         // set up the routing table's network config
         // if we have static public dialinfo, upgrade our network class
 
-        let public_internet_capabilities = {
-            let c = self.config.get();
-            PUBLIC_INTERNET_CAPABILITIES
-                .iter()
-                .copied()
-                .filter(|cap| !c.capabilities.disable.contains(cap))
-                .collect::<Vec<Capability>>()
-        };
-
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
-            public_internet_capabilities,
+            protocol_config.public_internet_capabilities.clone(),
         );
         editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
 
@@ -434,11 +433,11 @@ impl Network {
         Vec::new()
     }
 
-    pub fn get_local_port(&self, protocol_type: ProtocolType) -> Option<u16> {
+    pub fn get_local_port(&self, _protocol_type: ProtocolType) -> Option<u16> {
         None
     }
 
-    pub fn get_preferred_local_address(&self, dial_info: &DialInfo) -> Option<SocketAddr> {
+    pub fn get_preferred_local_address(&self, _dial_info: &DialInfo) -> Option<SocketAddr> {
         None
     }
 

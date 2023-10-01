@@ -144,7 +144,7 @@ impl RouteSpecStoreCache {
         // also store in id by key table
         for private_route in rprinfo.get_private_routes() {
             self.remote_private_routes_by_key
-                .insert(private_route.public_key.value, id.clone());
+                .insert(private_route.public_key.value, id);
         }
 
         let mut dead = None;

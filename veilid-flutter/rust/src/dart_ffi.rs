@@ -358,7 +358,7 @@ pub extern "C" fn routing_context(port: i64) {
         let veilid_api = get_veilid_api().await?;
         let routing_context = veilid_api.routing_context();
         let mut rc = ROUTING_CONTEXTS.lock();
-        let new_id = add_routing_context(&mut *rc, routing_context);
+        let new_id = add_routing_context(&mut rc, routing_context);
         APIResult::Ok(new_id)
     });
 }
@@ -369,7 +369,7 @@ pub extern "C" fn release_routing_context(id: u32) -> i32 {
     if rc.remove(&id).is_none() {
         return 0;
     }
-    return 1;
+    1
 }
 
 #[no_mangle]
@@ -381,8 +381,8 @@ pub extern "C" fn routing_context_with_privacy(id: u32) -> u32 {
     let Ok(routing_context) = routing_context.clone().with_privacy() else {
         return 0;
     };
-    let new_id = add_routing_context(&mut rc, routing_context);
-    new_id
+    
+    add_routing_context(&mut rc, routing_context)
 }
 
 #[no_mangle]
@@ -397,8 +397,8 @@ pub extern "C" fn routing_context_with_custom_privacy(id: u32, safety_selection:
     let Ok(routing_context) = routing_context.clone().with_custom_privacy(safety_selection) else {
         return 0;
     };
-    let new_id = add_routing_context(&mut rc, routing_context);
-    new_id
+    
+    add_routing_context(&mut rc, routing_context)
 }
 
 #[no_mangle]
@@ -411,8 +411,8 @@ pub extern "C" fn routing_context_with_sequencing(id: u32, sequencing: FfiStr) -
         return 0;
     };
     let routing_context = routing_context.clone().with_sequencing(sequencing);
-    let new_id = add_routing_context(&mut rc, routing_context);
-    new_id
+    
+    add_routing_context(&mut rc, routing_context)
 }
 
 
@@ -734,7 +734,7 @@ pub extern "C" fn release_table_db(id: u32) -> i32 {
     if rc.remove(&id).is_none() {
         return 0;
     }
-    return 1;
+    1
 }
 
 #[no_mangle]
@@ -757,7 +757,7 @@ pub extern "C" fn table_db_get_column_count(id: u32) -> u32 {
     let Ok(cc) = table_db.clone().get_column_count() else {
         return 0;
     };
-    return cc;
+    cc
 }
 
 #[no_mangle]
@@ -794,8 +794,8 @@ pub extern "C" fn table_db_transact(id: u32) -> u32 {
         return 0;
     };
     let tdbt = table_db.clone().transact();
-    let tdbtid = add_table_db_transaction(tdbt);
-    return tdbtid;
+    
+    add_table_db_transaction(tdbt)
 }
 
 #[no_mangle]
@@ -804,7 +804,7 @@ pub extern "C" fn release_table_db_transaction(id: u32) -> i32 {
     if tdbts.remove(&id).is_none() {
         return 0;
     }
-    return 1;
+    1
 }
 
 

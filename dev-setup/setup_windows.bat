@@ -21,8 +21,8 @@ IF NOT DEFINED PROTOC_FOUND (
 
 FOR %%X IN (capnp.exe) DO (SET CAPNP_FOUND=%%~$PATH:X)
 IF NOT DEFINED CAPNP_FOUND (
-    echo capnproto compiler ^(capnp^) is required but it's not installed. Install capnp 0.10.4 or higher. Ensure it is in your path. Aborting.
-    echo capnp is available here: https://capnproto.org/capnproto-c++-win32-0.10.4.zip
+    echo capnproto compiler ^(capnp^) is required but it's not installed. Install capnp 1.0.1 or higher. Ensure it is in your path. Aborting.
+    echo capnp is available here: https://capnproto.org/capnproto-c++-win32-1.0.1.zip
     goto end
 )
 

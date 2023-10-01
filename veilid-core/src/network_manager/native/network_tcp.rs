@@ -33,7 +33,7 @@ impl Network {
         let server_config = self
             .load_server_config()
             .wrap_err("Couldn't create TLS configuration")?;
-        let acceptor = TlsAcceptor::from(Arc::new(server_config));
+        let acceptor = TlsAcceptor::from(server_config);
         self.inner.lock().tls_acceptor = Some(acceptor.clone());
         Ok(acceptor)
     }
