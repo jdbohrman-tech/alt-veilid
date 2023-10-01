@@ -49,7 +49,7 @@ core:
         disable: []
     protected_store:
         allow_insecure_fallback: true
-        always_use_insecure_storage: false
+        always_use_insecure_storage: true
         directory: '%DIRECTORY%'
         delete: false
         device_encryption_key_password: '%DEVICE_ENCRYPTION_KEY_PASSWORD%'

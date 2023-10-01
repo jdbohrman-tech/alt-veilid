@@ -477,11 +477,7 @@ impl UI {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
                 cursive_flexi_logger_view::parse_lines_to_log(
                     color.into(),
-<<<<<<< HEAD
-                    format!(">> {} Could not copy to clipboard",  UI::cli_ts(Self::get_start_time())),
-=======
-                    ">> Could not copy to clipboard".to_string(),
->>>>>>> f59c4509ea7e0c0e8b1088138a6eb5297844b112
+                    format!(">> {} Could not copy to clipboard",  UI::cli_ts(Self::get_start_time()))
                 );
             }
         } else {
@@ -497,7 +493,6 @@ impl UI {
                 .is_ok()
                 && std::io::stdout().flush().is_ok()
             {
-<<<<<<< HEAD
                 if std::io::stdout().flush().is_ok() {
                     let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
                     cursive_flexi_logger_view::parse_lines_to_log(
@@ -505,13 +500,6 @@ impl UI {
                         format!(">> {} Copied: {}", UI::cli_ts(Self::get_start_time()), text.as_ref()),
                     );
                 }
-=======
-                let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-                cursive_flexi_logger_view::parse_lines_to_log(
-                    color.into(),
-                    format!(">> Copied: {}", text.as_ref()),
-                );
->>>>>>> f59c4509ea7e0c0e8b1088138a6eb5297844b112
             }
         }
     }
