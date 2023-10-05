@@ -443,7 +443,7 @@ Server Debug Commands:
 
         let message = json_str_vec_u8(&msg["message"]);
 
-        // check is message body is ascii printable
+        // check if message body is ascii printable
         let mut printable = true;
         for c in &message {
             if *c < 32 || *c > 126 {
@@ -481,7 +481,7 @@ Server Debug Commands:
 
         let message = json_str_vec_u8(&call["message"]);
 
-        // check is message body is ascii printable
+        // check if message body is ascii printable
         let mut printable = true;
         for c in &message {
             if *c < 32 || *c > 126 {

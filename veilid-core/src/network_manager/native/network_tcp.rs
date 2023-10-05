@@ -193,7 +193,7 @@ impl Network {
 
         // Run accept handlers on accepted stream
 
-        // Check is this could be TLS
+        // Check if this could be TLS
         let ls = listener_state.read().clone();
 
         let conn = if ls.tls_acceptor.is_some() && first_packet[0] == 0x16 {
