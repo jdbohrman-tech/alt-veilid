@@ -63,3 +63,4 @@ hostname = "^0"
 # Dependencies for Android builds only
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "^0"
+paranoid-android = "0.2.1"

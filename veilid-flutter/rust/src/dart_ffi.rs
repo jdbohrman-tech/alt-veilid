@@ -166,14 +166,26 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
 
     // Terminal logger
     if platform_config.logging.terminal.enabled {
-        let filter =
-            veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, None);
-        let layer = tracing_subscriber::fmt::Layer::new()
-            .compact()
-            .with_writer(std::io::stdout)
-            .with_filter(filter.clone());
-        filters.insert("terminal", filter);
-        layers.push(layer.boxed());
+        cfg_if! {
+            if #[cfg(target_os = "android")] {
+                let filter =
+                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, None);
+                let layer = paranoid_android::layer("veilid-flutter")
+                    .with_ansi(false)
+                    .with_filter(filter.clone());
+                filters.insert("terminal", filter);
+                layers.push(layer.boxed());
+            } else {
+                let filter =
+                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, None);
+                let layer = tracing_subscriber::fmt::Layer::new()
+                    .compact()
+                    .with_writer(std::io::stdout)
+                    .with_filter(filter.clone());
+                filters.insert("terminal", filter);
+                layers.push(layer.boxed());
+            }
+        }
     };
 
     // OpenTelemetry logger
@@ -237,6 +249,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
         .try_init()
         .map_err(|e| format!("failed to initialize logging: {}", e))
         .expect("failed to initalize ffi platform");
+
 }
 
 #[no_mangle]

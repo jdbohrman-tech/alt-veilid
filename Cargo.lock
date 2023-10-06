@@ -5380,6 +5380,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
+ "paranoid-android",
  "parking_lot 0.12.1",
  "serde",
  "serde_json",

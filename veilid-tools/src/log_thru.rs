@@ -177,6 +177,14 @@ macro_rules! log_pstore {
     (warn $fmt:literal, $($arg:expr),+) => {
         warn!(target:"pstore", $fmt, $($arg),+);
     };
+    (debug $text:expr) => { debug!(
+        target: "pstore",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"pstore", $fmt, $($arg),+);
+    };
     ($text:expr) => {trace!(
         target: "pstore",
         "{}",
