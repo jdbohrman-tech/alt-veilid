@@ -13,7 +13,9 @@ String base64UrlNoPadEncode(List<int> bytes) {
 }
 
 Uint8List base64UrlNoPadDecode(String source) {
-  source = base64.normalize(source);
+  if(source.length % 4 != 0) {
+    source = base64.normalize(source);
+  }
   return base64.decode(source);
 }
 
