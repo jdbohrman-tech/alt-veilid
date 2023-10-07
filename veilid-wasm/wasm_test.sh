@@ -15,6 +15,10 @@ wasm-pack build $WASM_PACK_FLAGS --target bundler --weak-refs
 # Install test deps and run test suite
 cd tests
 npm install
+original_tmpdir=$TMPDIR
+mkdir --parents ~/tmp
+export TMPDIR=~/tmp
 npm run test:headless
+export TMPDIR=$original_tmpdir
 
 popd &> /dev/null
