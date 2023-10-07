@@ -516,7 +516,7 @@ async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> SendPinBoxFuture<Opti
 }
 
 pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
-    // check is message body is ascii printable
+    // check if message body is ascii printable
     let mut printable = true;
     for c in data {
         if *c < 32 || *c > 126 {

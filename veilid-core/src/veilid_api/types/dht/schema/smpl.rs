@@ -65,7 +65,7 @@ impl DHTSchemaSMPL {
     ) -> bool {
         let mut cur_subkey = subkey as usize;
 
-        // Check is subkey is in owner range
+        // Check if subkey is in owner range
         if cur_subkey < (self.o_cnt as usize) {
             // Check value data has valid writer
             if value_data.writer() == owner {

@@ -40,7 +40,7 @@ impl DHTSchemaDFLT {
     ) -> bool {
         let subkey = subkey as usize;
 
-        // Check is subkey is in owner range
+        // Check if subkey is in owner range
         if subkey < (self.o_cnt as usize) {
             // Check value data has valid writer
             if value_data.writer() == owner {
