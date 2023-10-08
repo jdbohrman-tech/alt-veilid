@@ -5229,6 +5229,7 @@ dependencies = [
  "async-std",
  "async-tungstenite",
  "cfg-if 1.0.0",
+ "chrono",
  "clap 4.4.4",
  "config",
  "crossbeam-channel",

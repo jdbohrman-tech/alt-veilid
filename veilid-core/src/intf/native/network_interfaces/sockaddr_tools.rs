@@ -69,7 +69,7 @@ impl SockAddr {
                     return None;
                 }
                 Some(IpAddr::V4(Ipv4Addr::new(
-                    ((s_addr >> 0) & 255u32) as u8,
+                    (s_addr & 255u32) as u8,
                     ((s_addr >> 8) & 255u32) as u8,
                     ((s_addr >> 16) & 255u32) as u8,
                     ((s_addr >> 24) & 255u32) as u8,
@@ -81,7 +81,7 @@ impl SockAddr {
                 if s6_addr[0] == 0xfe && s6_addr[1] == 0x80 {
                     return None;
                 }
-                Some(IpAddr::V6(Ipv6Addr::from(s6_addr.clone())))
+                Some(IpAddr::V6(Ipv6Addr::from(*s6_addr)))
             }
             None => None,
         }

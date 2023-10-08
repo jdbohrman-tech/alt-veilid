@@ -2,7 +2,6 @@ use crate::command_processor::*;
 use crate::peers_table_view::*;
 use crate::settings::Settings;
 use crate::tools::*;
-use async_tungstenite::tungstenite::http::header::STRICT_TRANSPORT_SECURITY;
 use crossbeam_channel::Sender;
 use cursive::align::*;
 use cursive::event::*;
@@ -15,12 +14,12 @@ use cursive::Cursive;
 use cursive::CursiveRunnable;
 use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
 // use cursive_multiplex::*;
+use chrono::{Datelike, Timelike};
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
-use std::sync::atomic::{AtomicU64, Ordering};
-use chrono::{Datelike, Timelike};
 
 //////////////////////////////////////////////////////////////
 ///
@@ -51,8 +50,6 @@ impl<T> Dirty<T> {
 }
 
 pub type UICallback = Box<dyn Fn(&mut Cursive) + Send>;
-
-
 
 static START_TIME: AtomicU64 = AtomicU64::new(0);
 
@@ -357,7 +354,7 @@ impl UI {
 
         cursive_flexi_logger_view::parse_lines_to_log(
             ColorStyle::primary().into(),
-            format!("> {} {}", UI::cli_ts(Self::get_start_time()) , text),
+            format!("> {} {}", UI::cli_ts(Self::get_start_time()), text),
         );
         match Self::run_command(s, text) {
             Ok(_) => {}
@@ -365,7 +362,7 @@ impl UI {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Error).unwrap();
                 cursive_flexi_logger_view::parse_lines_to_log(
                     color.into(),
-                    format!(" {} Error: {}", UI::cli_ts(Self::get_start_time()), e)
+                    format!(" {} Error: {}", UI::cli_ts(Self::get_start_time()), e),
                 );
             }
         }
@@ -464,6 +461,31 @@ impl UI {
         Self::command_processor(s).start_connection();
     }
 
+    fn copy_to_clipboard_osc52<S: AsRef<str>>(s: &mut Cursive, text: S) {
+        // OSC52 clipboard copy for terminals
+        if std::io::stdout()
+            .write_all(
+                format!(
+                    "\x1B]52;c;{}\x07",
+                    data_encoding::BASE64.encode(text.as_ref().as_bytes()),
+                )
+                .as_bytes(),
+            )
+            .is_ok()
+            && std::io::stdout().flush().is_ok()
+        {
+            let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
+            cursive_flexi_logger_view::parse_lines_to_log(
+                color.into(),
+                format!(
+                    ">> {} Copied: {}",
+                    UI::cli_ts(Self::get_start_time()),
+                    text.as_ref()
+                ),
+            );
+        }
+    }
+
     fn copy_to_clipboard<S: AsRef<str>>(s: &mut Cursive, text: S) {
         if let Ok(mut clipboard) = arboard::Clipboard::new() {
             // X11/Wayland/other system copy
@@ -471,36 +493,24 @@ impl UI {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
                 cursive_flexi_logger_view::parse_lines_to_log(
                     color.into(),
-                    format!(">> {} Copied: {}", UI::cli_ts(Self::get_start_time()), text.as_ref()),
+                    format!(
+                        ">> {} Copied: {}",
+                        UI::cli_ts(Self::get_start_time()),
+                        text.as_ref()
+                    ),
                 );
             } else {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
                 cursive_flexi_logger_view::parse_lines_to_log(
                     color.into(),
-                    format!(">> {} Could not copy to clipboard",  UI::cli_ts(Self::get_start_time()))
+                    format!(
+                        ">> {} Could not copy to clipboard",
+                        UI::cli_ts(Self::get_start_time())
+                    ),
                 );
             }
         } else {
-            // OSC52 clipboard copy for terminals
-            if std::io::stdout()
-                .write_all(
-                    format!(
-                        "\x1B]52;c;{}\x07",
-                        data_encoding::BASE64.encode(text.as_ref().as_bytes()),
-                    )
-                    .as_bytes(),
-                )
-                .is_ok()
-                && std::io::stdout().flush().is_ok()
-            {
-                if std::io::stdout().flush().is_ok() {
-                    let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-                    cursive_flexi_logger_view::parse_lines_to_log(
-                        color.into(),
-                        format!(">> {} Copied: {}", UI::cli_ts(Self::get_start_time()), text.as_ref()),
-                    );
-                }
-            }
+            Self::copy_to_clipboard_osc52(s, text)
         }
     }
 
@@ -788,14 +798,11 @@ impl UI {
         }
     }
 
-
-
     ////////////////////////////////////////////////////////////////////////////
     // Public functions
 
+    #[allow(clippy::format_in_format_args)]
     pub fn cli_ts(ts: u64) -> String {
-        //let ts = get_timestamp();
-
         let now = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
         let date = chrono::DateTime::<chrono::Utc>::from(UNIX_EPOCH + Duration::from_micros(ts));
 
@@ -806,17 +813,20 @@ impl UI {
         if show_year || show_month || show_date {
             UI::set_start_time();
         }
-        format!("{}{}",
+        format!(
+            "{}{}",
             if show_year || show_month || show_date {
-                format!("Day changed: {:04}/{:02}/{:02} \n",now.year(), now.month(), now.day()) 
+                format!(
+                    "Day changed: {:04}/{:02}/{:02} \n",
+                    now.year(),
+                    now.month(),
+                    now.day()
+                )
             } else {
                 "".to_owned()
             },
-            format!("{:02}:{:02}:{:02}",
-                    now.hour(),
-                    now.minute(),
-                    now.second()
-            ))
+            format!("{:02}:{:02}:{:02}", now.hour(), now.minute(), now.second())
+        )
     }
 
     pub fn set_start_time() {
@@ -985,7 +995,6 @@ impl UI {
     // pub fn run(&mut self) {
     //      self.siv.run();
     // }
-
 }
 
 type CallbackSink = Box<dyn FnOnce(&mut Cursive) + 'static + Send>;
@@ -1088,7 +1097,10 @@ impl UISender {
         {
             let inner = self.inner.lock();
             let color = *inner.log_colors.get(&log_color).unwrap();
-            cursive_flexi_logger_view::parse_lines_to_log(color.into(), format!("{}: {}", UI::cli_ts(UI::get_start_time()), event));
+            cursive_flexi_logger_view::parse_lines_to_log(
+                color.into(),
+                format!("{}: {}", UI::cli_ts(UI::get_start_time()), event),
+            );
         }
         let _ = self.cb_sink.send(Box::new(UI::update_cb));
     }

@@ -9,12 +9,21 @@ include(FetchContent)
 FetchContent_Declare(
     Corrosion
     GIT_REPOSITORY https://github.com/AndrewGaspar/corrosion.git
-    GIT_TAG origin/master # Optionally specify a version tag or branch here
+    GIT_TAG v0.4.4 # Optionally specify a version tag or branch here
 )
 
 FetchContent_MakeAvailable(Corrosion)
 
-corrosion_import_crate(MANIFEST_PATH ${CMAKE_SOURCE_DIR}/../../rust/Cargo.toml CRATES veilid-flutter)
+execute_process(COMMAND git rev-parse --show-cdup
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE relative_path_to_repository_root)
+string(STRIP ${relative_path_to_repository_root} relative_path_to_repository_root)
+
+get_filename_component(repository_root
+    "${CMAKE_SOURCE_DIR}/${relative_path_to_repository_root}"
+    ABSOLUTE)
+
+corrosion_import_crate(MANIFEST_PATH ${repository_root}/../veilid/Cargo.toml CRATES veilid-flutter)
 
 # Flutter-specific
 
