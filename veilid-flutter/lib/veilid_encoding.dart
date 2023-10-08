@@ -13,17 +13,12 @@ String base64UrlNoPadEncode(List<int> bytes) {
 }
 
 Uint8List base64UrlNoPadDecode(String source) {
-  if(source.length % 4 != 0) {
-    source = base64.normalize(source);
-  }
-  return base64.decode(source);
+  source = base64Url.normalize(source);
+  return base64Url.decode(source);
 }
 
-Uint8List base64UrlNoPadDecodeDynamic(dynamic source) {
-  source = source as String;
-  source = base64.normalize(source);
-  return base64.decode(source);
-}
+Uint8List base64UrlNoPadDecodeDynamic(dynamic source) =>
+    base64UrlNoPadDecode(source as String);
 
 class Uint8ListJsonConverter implements JsonConverter<Uint8List, String> {
   const Uint8ListJsonConverter();
@@ -36,7 +31,6 @@ class Uint8ListJsonConverter implements JsonConverter<Uint8List, String> {
 
 @immutable
 abstract class EncodedString extends Equatable {
-
   const EncodedString(String s) : contents = s;
   final String contents;
   @override
@@ -76,7 +70,6 @@ abstract class EncodedString extends Equatable {
 
 @immutable
 class FixedEncodedString32 extends EncodedString {
-
   factory FixedEncodedString32.fromBytes(Uint8List bytes) {
     if (bytes.length != decodedLength()) {
       throw Exception('length ${bytes.length} should be ${decodedLength()}');
@@ -103,7 +96,6 @@ class FixedEncodedString32 extends EncodedString {
 
 @immutable
 class FixedEncodedString43 extends EncodedString {
-
   factory FixedEncodedString43.fromBytes(Uint8List bytes) {
     if (bytes.length != decodedLength()) {
       throw Exception('length ${bytes.length} should be ${decodedLength()}');
@@ -130,7 +122,6 @@ class FixedEncodedString43 extends EncodedString {
 
 @immutable
 class FixedEncodedString86 extends EncodedString {
-
   factory FixedEncodedString86.fromBytes(Uint8List bytes) {
     if (bytes.length != decodedLength()) {
       throw Exception('length ${bytes.length} should be ${decodedLength()}');
