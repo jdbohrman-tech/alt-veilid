@@ -279,6 +279,7 @@ wasm-logger = "0.2.0"
 
 [build-dependencies]
 capnpc = "0.18.0"
+glob = "0.3.1"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]

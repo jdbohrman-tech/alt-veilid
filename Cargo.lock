@@ -5290,6 +5290,7 @@ dependencies = [
  "flume",
  "futures-util",
  "getrandom",
+ "glob",
  "hex",
  "ifstructs",
  "jni",
