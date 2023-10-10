@@ -14,6 +14,7 @@ pub struct RPCOperationWatchValueQ {
 }
 
 impl RPCOperationWatchValueQ {
+    #[allow(dead_code)]
     pub fn new(
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
@@ -70,25 +71,37 @@ impl RPCOperationWatchValueQ {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn key(&self) -> &TypedKey {
         &self.key
     }
+
+    #[allow(dead_code)]
     pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.subkeys
     }
+
+    #[allow(dead_code)]
     pub fn expiration(&self) -> u64 {
         self.expiration
     }
+
+    #[allow(dead_code)]
     pub fn count(&self) -> u32 {
         self.count
     }
+
+    #[allow(dead_code)]
     pub fn watcher(&self) -> &PublicKey {
         &self.watcher
     }
+
+    #[allow(dead_code)]
     pub fn signature(&self) -> &Signature {
         &self.signature
     }
 
+    #[allow(dead_code)]
     pub fn destructure(
         self,
     ) -> (
@@ -192,6 +205,7 @@ pub struct RPCOperationWatchValueA {
 }
 
 impl RPCOperationWatchValueA {
+    #[allow(dead_code)]
     pub fn new(expiration: u64, peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
         if peers.len() > MAX_WATCH_VALUE_A_PEERS_LEN {
             return Err(RPCError::protocol("WatchValueA peers length too long"));
@@ -204,12 +218,15 @@ impl RPCOperationWatchValueA {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn expiration(&self) -> u64 {
         self.expiration
     }
+    #[allow(dead_code)]
     pub fn peers(&self) -> &[PeerInfo] {
         &self.peers
     }
+    #[allow(dead_code)]
     pub fn destructure(self) -> (u64, Vec<PeerInfo>) {
         (self.expiration, self.peers)
     }

@@ -11,7 +11,7 @@ use windows_service::*;
 
 // Register generated `ffi_service_main` with the system and start the service, blocking
 // this thread until the service is stopped.
-pub fn run_service(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
+pub fn run_service(_settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
     eprintln!("Windows Service mode not implemented yet.");
 
     //service_dispatcher::start("veilid-server", ffi_veilid_service_main)?;
@@ -21,6 +21,7 @@ pub fn run_service(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
 
 ///////////////
 define_windows_service!(ffi_veilid_service_main, veilid_service_main);
+#[allow(dead_code)]
 fn veilid_service_main(arguments: Vec<OsString>) {
     if let Err(e) = register_service_handler(arguments) {
         error!("{}", e);
@@ -29,7 +30,8 @@ fn veilid_service_main(arguments: Vec<OsString>) {
 
 ///////////////
 
-fn register_service_handler(arguments: Vec<OsString>) -> windows_service::Result<()> {
+#[allow(dead_code)]
+fn register_service_handler(_arguments: Vec<OsString>) -> windows_service::Result<()> {
     let event_handler = move |control_event| -> ServiceControlHandlerResult {
         match control_event {
             ServiceControl::Stop => {
