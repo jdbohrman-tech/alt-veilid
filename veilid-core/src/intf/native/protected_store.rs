@@ -41,8 +41,6 @@ impl ProtectedStore {
 
     #[instrument(level = "debug", skip(self), err)]
     pub async fn init(&self) -> EyreResult<()> {
-        log_pstore!(error "ASDFASDFASDF");
-
         let delete = {
             let c = self.config.get();
             let mut inner = self.inner.lock();
