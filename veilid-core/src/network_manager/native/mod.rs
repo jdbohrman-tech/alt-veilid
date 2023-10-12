@@ -99,6 +99,8 @@ struct NetworkInner {
     enable_ipv6_local: bool,
     /// set if we need to calculate our public dial info again
     needs_public_dial_info_check: bool,
+    /// set if we have yet to clear the network during public dial info checking
+    network_already_cleared: bool,
     /// the punishment closure to enax
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     /// udp socket record for bound-first sockets, which are used to guarantee a port is available before
@@ -148,6 +150,7 @@ impl Network {
             network_started: false,
             network_needs_restart: false,
             needs_public_dial_info_check: false,
+            network_already_cleared: false,
             public_dial_info_check_punishment: None,
             protocol_config: Default::default(),
             static_public_dialinfo: ProtocolTypeSet::empty(),
