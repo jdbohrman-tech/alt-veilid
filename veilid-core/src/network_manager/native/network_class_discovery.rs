@@ -50,12 +50,10 @@ impl Network {
                     let mut add = false;
 
                     if let Some(edi) = existing_dial_info.get(&(pt, at)) {
-                        if did.class < edi.class {
-                            // Better dial info class was found, clear existing dialinfo for this pt/at pair
+                        if did.class <= edi.class {
+                            // Better or same dial info class was found, clear existing dialinfo for this pt/at pair
+                            // Only keep one dial info per protocol/address type combination
                             clear = true;
-                            add = true;
-                        } else if did.class == edi.class {
-                            // Same dial info class, just add dial info
                             add = true;
                         }
                         // Otherwise, don't upgrade, don't add, this is worse than what we have already

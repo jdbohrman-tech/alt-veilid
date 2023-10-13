@@ -4,8 +4,8 @@ use alloc::collections::btree_map::Entry;
 use futures_util::stream::TryStreamExt;
 use ifstructs::ifreq;
 use libc::{
-    close, if_indextoname, ioctl, socket, IFF_LOOPBACK, IFF_RUNNING, IF_NAMESIZE, SIOCGIFFLAGS,
-    SOCK_DGRAM,
+    close, if_indextoname, ioctl, socket, IFF_LOOPBACK, IFF_POINTOPOINT, IFF_RUNNING, IF_NAMESIZE,
+    SIOCGIFFLAGS, SOCK_DGRAM,
 };
 use netlink_packet_route::{
     nlas::address::Nla, AddressMessage, AF_INET, AF_INET6, IFA_F_DADFAILED, IFA_F_DEPRECATED,
@@ -138,6 +138,7 @@ impl PlatformSupportNetlink {
         Ok(InterfaceFlags {
             is_loopback: (flags & IFF_LOOPBACK) != 0,
             is_running: (flags & IFF_RUNNING) != 0,
+            is_point_to_point: (flags & IFF_POINTOPOINT) != 0,
             has_default_route: self.default_route_interfaces.contains(&index),
         })
     }
@@ -247,11 +248,6 @@ impl PlatformSupportNetlink {
     ) -> EyreResult<()> {
         // Refresh the routes
         self.refresh_default_route_interfaces().await?;
-
-        // If we have no routes, this isn't going to work
-        if self.default_route_interfaces.is_empty() {
-            bail!("no routes available for NetworkInterfaces");
-        }
 
         // Ask for all the addresses we have
         let mut names = BTreeMap::<u32, String>::new();

@@ -48,13 +48,7 @@ impl SockAddr {
                 ((sa.sin_addr.s_addr >> 16) & 255) as u8,
                 ((sa.sin_addr.s_addr >> 24) & 255) as u8,
             ))),
-            Some(SockAddrIn::In6(sa)) => {
-                // Ignore all fe80:: addresses as these are link locals
-                if sa.sin6_addr.s6_addr[0] == 0xfe && sa.sin6_addr.s6_addr[1] == 0x80 {
-                    return None;
-                }
-                Some(IpAddr::V6(Ipv6Addr::from(sa.sin6_addr.s6_addr)))
-            }
+            Some(SockAddrIn::In6(sa)) => Some(IpAddr::V6(Ipv6Addr::from(sa.sin6_addr.s6_addr))),
             None => None,
         }
     }
@@ -64,10 +58,6 @@ impl SockAddr {
         match self.sockaddr_in() {
             Some(SockAddrIn::In(sa)) => {
                 let s_addr = unsafe { sa.sin_addr.S_un.S_addr() };
-                // Ignore all 169.254.x.x addresses as these are not active interfaces
-                if s_addr & 65535 == 0xfea9 {
-                    return None;
-                }
                 Some(IpAddr::V4(Ipv4Addr::new(
                     (s_addr & 255u32) as u8,
                     ((s_addr >> 8) & 255u32) as u8,
@@ -77,10 +67,6 @@ impl SockAddr {
             }
             Some(SockAddrIn::In6(sa)) => {
                 let s6_addr = unsafe { sa.sin6_addr.u.Byte() };
-                // Ignore all fe80:: addresses as these are link locals
-                if s6_addr[0] == 0xfe && s6_addr[1] == 0x80 {
-                    return None;
-                }
                 Some(IpAddr::V6(Ipv6Addr::from(*s6_addr)))
             }
             None => None,

@@ -74,6 +74,7 @@ pub struct Ifv6Addr {
 pub struct InterfaceFlags {
     pub is_loopback: bool,
     pub is_running: bool,
+    pub is_point_to_point: bool,
     pub has_default_route: bool,
 }
 
@@ -261,6 +262,10 @@ impl NetworkInterface {
         self.flags.is_loopback
     }
 
+    pub fn is_point_to_point(&self) -> bool {
+        self.flags.is_point_to_point
+    }
+
     pub fn is_running(&self) -> bool {
         self.flags.is_running
     }
@@ -363,9 +368,9 @@ impl NetworkInterfaces {
 
             // See if our best addresses have changed
             if old_best_addresses != inner.interface_address_cache {
-                trace!(
-                    "Network interface addresses changed: {:?}",
-                    inner.interface_address_cache
+                debug!(
+                    "Network interface addresses changed: \nFrom: {:?}\n  To: {:?}\n",
+                    old_best_addresses, inner.interface_address_cache
                 );
                 return Ok(true);
             }
@@ -391,7 +396,11 @@ impl NetworkInterfaces {
         // Reduce interfaces to their best routable ip addresses
         let mut intf_addrs = Vec::new();
         for intf in inner.interfaces.values() {
-            if !intf.is_running() || !intf.has_default_route() || intf.is_loopback() {
+            if !intf.is_running()
+                || !intf.has_default_route()
+                || intf.is_loopback()
+                || intf.is_point_to_point()
+            {
                 continue;
             }
             if let Some(pipv4) = intf.primary_ipv4() {

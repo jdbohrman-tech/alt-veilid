@@ -658,12 +658,20 @@ impl DiscoveryContext {
             return;
         }
 
-        // Did external addresses change from the last time we made dialinfo?
+        // Did external address change from the last time we made dialinfo?
+        // Disregard port for this because we only need to know if the ip address has changed
+        // If the port has changed it will change only for this protocol and will be overwritten individually by each protocol discover()
         let some_clear_network_callback = {
             let inner = self.inner.lock();
-            let ext_1 = inner.external_1.as_ref().unwrap().address;
-            let ext_2 = inner.external_2.as_ref().unwrap().address;
-            if (ext_1 != ext_2) || Some(ext_1) != self.unlocked_inner.existing_external_address {
+            let ext_1 = inner.external_1.as_ref().unwrap().address.address();
+            let ext_2 = inner.external_2.as_ref().unwrap().address.address();
+            if (ext_1 != ext_2)
+                || Some(ext_1)
+                    != self
+                        .unlocked_inner
+                        .existing_external_address
+                        .map(|ea| ea.address())
+            {
                 // External address was not found, or has changed, go ahead and clear the network so we can do better
                 Some(self.unlocked_inner.clear_network_callback.clone())
             } else {

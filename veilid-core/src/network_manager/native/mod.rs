@@ -375,15 +375,14 @@ impl Network {
         addrs
     }
 
-    // See if our interface addresses have changed, if so we need to punt the network
-    // and redo all our addresses. This is overkill, but anything more accurate
-    // would require inspection of routing tables that we dont want to bother with
+    // See if our interface addresses have changed, if so redo public dial info if necessary
     async fn check_interface_addresses(&self) -> EyreResult<bool> {
         if !self.unlocked_inner.interfaces.refresh().await? {
             return Ok(false);
         }
 
-        self.inner.lock().network_needs_restart = true;
+        self.inner.lock().needs_public_dial_info_check = true;
+
         Ok(true)
     }
 
@@ -700,7 +699,7 @@ impl Network {
         self.unlocked_inner
             .interfaces
             .with_interfaces(|interfaces| {
-                trace!("interfaces: {:#?}", interfaces);
+                debug!("interfaces: {:#?}", interfaces);
 
                 for intf in interfaces.values() {
                     // Skip networks that we should never encounter
@@ -978,9 +977,8 @@ impl Network {
         _l: u64,
         _t: u64,
     ) -> EyreResult<()> {
-        if self.check_interface_addresses().await? {
-            info!("interface addresses changed, restarting network");
-        }
+        self.check_interface_addresses().await?;
+
         Ok(())
     }
 
