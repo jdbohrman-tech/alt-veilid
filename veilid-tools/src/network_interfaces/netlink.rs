@@ -2,7 +2,6 @@
 
 use super::*;
 
-use alloc::collections::btree_map::Entry;
 use futures_util::stream::TryStreamExt;
 use ifstructs::ifreq;
 use libc::{
@@ -14,6 +13,7 @@ use netlink_packet_route::{
     IFA_F_OPTIMISTIC, IFA_F_PERMANENT, IFA_F_TEMPORARY, IFA_F_TENTATIVE,
 };
 use rtnetlink::{new_connection_with_socket, Handle, IpVersion};
+use std::collections::btree_map::Entry;
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
         use netlink_sys::{SmolSocket as RTNetLinkSocket};
@@ -34,11 +34,11 @@ fn get_interface_name(index: u32) -> io::Result<String> {
     cfg_if! {
         if #[cfg(all(any(target_os = "android", target_os="linux"), any(target_arch = "arm", target_arch = "aarch64")))] {
             if unsafe { if_indextoname(index, ifnamebuf.as_mut_ptr()) }.is_null() {
-                bail!("if_indextoname returned null");
+                bail_io_error_other!("if_indextoname returned null");
             }
         } else {
             if unsafe { if_indextoname(index, ifnamebuf.as_mut_ptr() as *mut i8) }.is_null() {
-                bail!("if_indextoname returned null");
+                bail_io_error_other!("if_indextoname returned null");
             }
         }
     }
@@ -46,11 +46,11 @@ fn get_interface_name(index: u32) -> io::Result<String> {
     let ifnamebuflen = ifnamebuf
         .iter()
         .position(|c| *c == 0u8)
-        .ok_or_else(|| eyre!("null not found in interface name"))?;
+        .ok_or_else(|| io_error_other!("null not found in interface name"))?;
     let ifname_str = CStr::from_bytes_with_nul(&ifnamebuf[0..=ifnamebuflen])
-        .wrap_err("failed to convert interface name")?
+        .map_err(|e| io_error_other!(e))?
         .to_str()
-        .wrap_err("invalid characters in interface name")?;
+        .map_err(|e| io_error_other!(e))?;
     Ok(ifname_str.to_owned())
 }
 
@@ -80,7 +80,7 @@ impl PlatformSupportNetlink {
     }
 
     // Figure out which interfaces have default routes
-    async fn refresh_default_route_interfaces(&mut self) -> EyreResult<()> {
+    async fn refresh_default_route_interfaces(&mut self) {
         self.default_route_interfaces.clear();
         let mut routesv4 = self
             .handle
@@ -112,15 +112,14 @@ impl PlatformSupportNetlink {
                 }
             }
         }
-        Ok(())
     }
 
-    fn get_interface_flags(&self, index: u32, ifname: &str) -> EyreResult<InterfaceFlags> {
-        let mut req = ifreq::from_name(ifname).wrap_err("failed to convert interface name")?;
+    fn get_interface_flags(&self, index: u32, ifname: &str) -> io::Result<InterfaceFlags> {
+        let mut req = ifreq::from_name(ifname)?;
 
         let sock = unsafe { socket(AF_INET as i32, SOCK_DGRAM, 0) };
         if sock < 0 {
-            return Err(io::Error::last_os_error()).wrap_err("failed to create socket");
+            return Err(io::Error::last_os_error());
         }
 
         cfg_if! {
@@ -132,7 +131,7 @@ impl PlatformSupportNetlink {
         }
         unsafe { close(sock) };
         if res < 0 {
-            return Err(io::Error::last_os_error()).wrap_err("failed to close socket");
+            return Err(io::Error::last_os_error());
         }
 
         let flags = req.get_flags() as c_int;
@@ -249,12 +248,12 @@ impl PlatformSupportNetlink {
         interfaces: &mut BTreeMap<String, NetworkInterface>,
     ) -> io::Result<()> {
         // Refresh the routes
-        self.refresh_default_route_interfaces().await?;
+        self.refresh_default_route_interfaces().await;
 
         // Ask for all the addresses we have
         let mut names = BTreeMap::<u32, String>::new();
         let mut addresses = self.handle.as_ref().unwrap().address().get().execute();
-        while let Some(msg) = addresses.try_next().await? {
+        while let Some(msg) = addresses.try_next().await.map_err(|e| io_error_other!(e))? {
             // Have we seen this interface index yet?
             // Get the name from the index, cached, if we can
             let ifname = match names.entry(msg.header.index) {
