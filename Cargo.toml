@@ -18,6 +18,7 @@ cursive_core = { git = "https://gitlab.com/veilid/cursive.git" }
 # keyvaluedb-memorydb = { path = "../keyvaluedb/keyvaluedb-memorydb" }
 # keyvaluedb-sqlite = { path = "../keyvaluedb/keyvaluedb-sqlite" }
 # keyvaluedb-web = { path = "../keyvaluedb/keyvaluedb-web" }
+# igd = { package = "veilid-igd", path = "../rust-igd" }
 
 [profile.release]
 opt-level = "s"

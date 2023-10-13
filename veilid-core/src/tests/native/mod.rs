@@ -13,8 +13,6 @@ use crate::*;
 #[allow(dead_code)]
 pub async fn run_all_tests() {
     // iOS and Android tests also run these.
-    info!("TEST: test_host_interface");
-    test_host_interface::test_all().await;
     info!("TEST: test_types");
     test_types::test_all().await;
     info!("TEST: test_veilid_core");
@@ -113,8 +111,6 @@ cfg_if! {
                     .init();
             });
         }
-
-        run_test!(test_host_interface);
 
         run_test!(test_types);
 

@@ -425,11 +425,11 @@ impl Network {
         trace!("network stopped");
     }
 
-    pub fn is_usable_interface_address(&self, _addr: IpAddr) -> bool {
+    pub fn is_stable_interface_address(&self, _addr: IpAddr) -> bool {
         false
     }
 
-    pub fn get_usable_interface_addresses(&self) -> Vec<IpAddr> {
+    pub fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
         Vec::new()
     }
 

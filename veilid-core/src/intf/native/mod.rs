@@ -12,6 +12,5 @@ pub use system::*;
 
 #[cfg(target_os = "android")]
 pub mod android;
-pub mod network_interfaces;
 
 use super::*;

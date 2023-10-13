@@ -10,7 +10,6 @@ use super::*;
 use crate::routing_table::*;
 use connection_manager::*;
 use discovery_context::*;
-use network_interfaces::*;
 use network_tcp::*;
 use protocol::tcp::RawTcpProtocolHandler;
 use protocol::udp::RawUdpProtocolHandler;
@@ -316,7 +315,7 @@ impl Network {
         if !from.ip().is_unspecified() {
             vec![*from]
         } else {
-            let addrs = self.get_usable_interface_addresses();
+            let addrs = self.get_stable_interface_addresses();
             addrs
                 .iter()
                 .filter_map(|a| {
@@ -358,13 +357,13 @@ impl Network {
         })
     }
 
-    pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
-        let usable_addrs = self.get_usable_interface_addresses();
-        usable_addrs.contains(&addr)
+    pub fn is_stable_interface_address(&self, addr: IpAddr) -> bool {
+        let stable_addrs = self.get_stable_interface_addresses();
+        stable_addrs.contains(&addr)
     }
 
-    pub fn get_usable_interface_addresses(&self) -> Vec<IpAddr> {
-        let addrs = self.unlocked_inner.interfaces.best_addresses();
+    pub fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
+        let addrs = self.unlocked_inner.interfaces.stable_addresses();
         let addrs: Vec<IpAddr> = addrs
             .into_iter()
             .filter(|addr| {
@@ -377,7 +376,13 @@ impl Network {
 
     // See if our interface addresses have changed, if so redo public dial info if necessary
     async fn check_interface_addresses(&self) -> EyreResult<bool> {
-        if !self.unlocked_inner.interfaces.refresh().await? {
+        if !self
+            .unlocked_inner
+            .interfaces
+            .refresh()
+            .await
+            .wrap_err("failed to check network interfaces")?
+        {
             return Ok(false);
         }
 
@@ -723,7 +728,7 @@ impl Network {
         {
             let mut inner = self.inner.lock();
             inner.enable_ipv4 = false;
-            for addr in self.get_usable_interface_addresses() {
+            for addr in self.get_stable_interface_addresses() {
                 if addr.is_ipv4() {
                     log_net!(debug "enable address {:?} as ipv4", addr);
                     inner.enable_ipv4 = true;

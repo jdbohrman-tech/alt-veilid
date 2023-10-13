@@ -1,3 +1,5 @@
+#![cfg(any(target_os = "linux", target_os = "android"))]
+
 use super::*;
 
 use alloc::collections::btree_map::Entry;
@@ -27,7 +29,7 @@ use std::io;
 use std::os::raw::c_int;
 use tools::*;
 
-fn get_interface_name(index: u32) -> EyreResult<String> {
+fn get_interface_name(index: u32) -> io::Result<String> {
     let mut ifnamebuf = [0u8; (IF_NAMESIZE + 1)];
     cfg_if! {
         if #[cfg(all(any(target_os = "android", target_os="linux"), any(target_arch = "arm", target_arch = "aarch64")))] {
@@ -69,12 +71,12 @@ pub struct PlatformSupportNetlink {
 }
 
 impl PlatformSupportNetlink {
-    pub fn new() -> EyreResult<Self> {
-        Ok(PlatformSupportNetlink {
+    pub fn new() -> Self {
+        PlatformSupportNetlink {
             connection_jh: None,
             handle: None,
             default_route_interfaces: BTreeSet::new(),
-        })
+        }
     }
 
     // Figure out which interfaces have default routes
@@ -245,18 +247,14 @@ impl PlatformSupportNetlink {
     async fn get_interfaces_internal(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
+    ) -> io::Result<()> {
         // Refresh the routes
         self.refresh_default_route_interfaces().await?;
 
         // Ask for all the addresses we have
         let mut names = BTreeMap::<u32, String>::new();
         let mut addresses = self.handle.as_ref().unwrap().address().get().execute();
-        while let Some(msg) = addresses
-            .try_next()
-            .await
-            .wrap_err("failed to iterate interface addresses")?
-        {
+        while let Some(msg) = addresses.try_next().await? {
             // Have we seen this interface index yet?
             // Get the name from the index, cached, if we can
             let ifname = match names.entry(msg.header.index) {
@@ -314,10 +312,9 @@ impl PlatformSupportNetlink {
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
+    ) -> io::Result<()> {
         // Get the netlink connection
-        let (connection, handle, _) = new_connection_with_socket::<RTNetLinkSocket>()
-            .wrap_err("failed to create rtnetlink socket")?;
+        let (connection, handle, _) = new_connection_with_socket::<RTNetLinkSocket>()?;
 
         // Spawn a connection handler
         let connection_jh = spawn(connection);

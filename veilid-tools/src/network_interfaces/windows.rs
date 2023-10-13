@@ -1,3 +1,5 @@
+#![cfg(target_os = "windows")]
+
 // Copyright 2018 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
@@ -28,8 +30,8 @@ use winapi::um::iptypes::{
 pub struct PlatformSupportWindows {}
 
 impl PlatformSupportWindows {
-    pub fn new() -> EyreResult<Self> {
-        Ok(PlatformSupportWindows {})
+    pub fn new() -> Self {
+        PlatformSupportWindows {}
     }
 
     fn get_interface_flags(intf: &IpAdapterAddresses) -> InterfaceFlags {
@@ -55,10 +57,9 @@ impl PlatformSupportWindows {
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
+    ) -> io::Result<()> {
         // Iterate all the interfaces
-        let windows_interfaces =
-            WindowsInterfaces::new().wrap_err("failed to get windows interfaces")?;
+        let windows_interfaces = WindowsInterfaces::new()?;
         for windows_interface in windows_interfaces.iter() {
             // Get name
             let intf_name = windows_interface.name();

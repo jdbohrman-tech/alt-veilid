@@ -1,18 +1,17 @@
+mod apple;
+mod netlink;
+mod sockaddr_tools;
 mod tools;
+mod windows;
 
 use crate::*;
 
 cfg_if::cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
-        mod netlink;
         use self::netlink::PlatformSupportNetlink as PlatformSupport;
     } else if #[cfg(target_os = "windows")] {
-        mod windows;
-        mod sockaddr_tools;
         use self::windows::PlatformSupportWindows as PlatformSupport;
     } else if #[cfg(any(target_os = "macos", target_os = "ios"))] {
-        mod apple;
-        mod sockaddr_tools;
         use self::apple::PlatformSupportApple as PlatformSupport;
     } else {
         compile_error!("No network interfaces support for this platform!");
@@ -315,13 +314,22 @@ impl fmt::Debug for NetworkInterfaces {
             .finish()?;
         if f.alternate() {
             writeln!(f)?;
-            writeln!(f, "// best_addresses: {:?}", inner.interface_address_cache)?;
+            writeln!(
+                f,
+                "// stable_addresses: {:?}",
+                inner.interface_address_cache
+            )?;
         }
         Ok(())
     }
 }
 
-#[allow(dead_code)]
+impl Default for NetworkInterfaces {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NetworkInterfaces {
     pub fn new() -> Self {
         Self {
@@ -344,14 +352,14 @@ impl NetworkInterfaces {
         inner.interface_address_cache.clear();
         inner.valid = false;
     }
-    // returns Ok(false) if refresh had no changes, Ok(true) if changes were present
-    pub async fn refresh(&self) -> EyreResult<bool> {
+    // returns false if refresh had no changes, true if changes were present
+    pub async fn refresh(&self) -> std::io::Result<bool> {
         let mut last_interfaces = {
             let mut last_interfaces = BTreeMap::<String, NetworkInterface>::new();
-            let mut platform_support = PlatformSupport::new()?;
-            if let Err(e) = platform_support.get_interfaces(&mut last_interfaces).await {
-                debug!("no network interfaces are enabled: {}", e);
-            }
+            let mut platform_support = PlatformSupport::new();
+            platform_support
+                .get_interfaces(&mut last_interfaces)
+                .await?;
             last_interfaces
         };
 
@@ -361,16 +369,16 @@ impl NetworkInterfaces {
 
         if last_interfaces != inner.interfaces {
             // get last address cache
-            let old_best_addresses = inner.interface_address_cache.clone();
+            let old_stable_addresses = inner.interface_address_cache.clone();
 
             // redo the address cache
-            Self::cache_best_addresses(&mut inner);
+            Self::cache_stable_addresses(&mut inner);
 
             // See if our best addresses have changed
-            if old_best_addresses != inner.interface_address_cache {
+            if old_stable_addresses != inner.interface_address_cache {
                 debug!(
                     "Network interface addresses changed: \nFrom: {:?}\n  To: {:?}\n",
-                    old_best_addresses, inner.interface_address_cache
+                    old_stable_addresses, inner.interface_address_cache
                 );
                 return Ok(true);
             }
@@ -385,14 +393,14 @@ impl NetworkInterfaces {
         f(&inner.interfaces)
     }
 
-    pub fn best_addresses(&self) -> Vec<IpAddr> {
+    pub fn stable_addresses(&self) -> Vec<IpAddr> {
         let inner = self.inner.lock();
         inner.interface_address_cache.clone()
     }
 
     /////////////////////////////////////////////
 
-    fn cache_best_addresses(inner: &mut NetworkInterfacesInner) {
+    fn cache_stable_addresses(inner: &mut NetworkInterfacesInner) {
         // Reduce interfaces to their best routable ip addresses
         let mut intf_addrs = Vec::new();
         for intf in inner.interfaces.values() {

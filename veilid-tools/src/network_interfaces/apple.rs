@@ -1,3 +1,4 @@
+#![cfg(any(target_os = "macos", target_os = "ios"))]
 #![allow(non_camel_case_types)]
 use super::*;
 
@@ -273,10 +274,10 @@ pub struct PlatformSupportApple {
 }
 
 impl PlatformSupportApple {
-    pub fn new() -> EyreResult<Self> {
-        Ok(PlatformSupportApple {
+    pub fn new() -> Self {
+        PlatformSupportApple {
             default_route_interfaces: BTreeSet::new(),
-        })
+        }
     }
 
     async fn refresh_default_route_interfaces(&mut self) -> EyreResult<()> {
@@ -433,11 +434,11 @@ impl PlatformSupportApple {
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
+    ) -> io::Result<()> {
         self.refresh_default_route_interfaces().await?;
 
         // Ask for all the addresses we have
-        let ifaddrs = IfAddrs::new().wrap_err("failed to get interface addresses")?;
+        let ifaddrs = IfAddrs::new()?;
         for ifaddr in ifaddrs.iter() {
             // Get the interface name
             let ifname = unsafe { CStr::from_ptr(ifaddr.ifa_name) }
