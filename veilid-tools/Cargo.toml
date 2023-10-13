@@ -14,7 +14,11 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
 default = ["rt-tokio"]
-rt-async-std = ["async-std", "async_executors/async_std", "rtnetlink/smol_socket"]
+rt-async-std = [
+    "async-std",
+    "async_executors/async_std",
+    "rtnetlink/smol_socket",
+]
 rt-tokio = [
     "tokio",
     "tokio-util",
@@ -26,7 +30,7 @@ rt-tokio = [
 rt-wasm-bindgen = ["async_executors/bindgen", "async_executors/timer"]
 
 veilid_tools_android_tests = ["dep:paranoid-android"]
-veilid_tools_ios_tests = ["dep:oslog", "dep:tracing-oslog"]
+veilid_tools_ios_tests = ["dep:tracing", "dep:oslog", "dep:tracing-oslog"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 network-result-extra = []
 network-result-info = []
