@@ -538,7 +538,7 @@ impl VeilidCrypto {
         veilid_core::ROUTE_ID_LENGTH
     }
 
-    /// Length of a route id in bytes afer encoding to base64url
+    /// Length of a route id in bytes after encoding to base64url
     #[wasm_bindgen(getter)]
     pub fn ROUTE_ID_LENGTH_ENCODED() -> usize {
         veilid_core::ROUTE_ID_LENGTH_ENCODED
