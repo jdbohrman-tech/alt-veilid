@@ -40,6 +40,7 @@ pub mod log_thru;
 pub mod must_join_handle;
 pub mod must_join_single_future;
 pub mod mutable_future;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod network_interfaces;
 pub mod network_result;
 pub mod random;
@@ -183,6 +184,7 @@ pub use must_join_single_future::*;
 #[doc(inline)]
 pub use mutable_future::*;
 #[doc(inline)]
+#[cfg(not(target_arch = "wasm32"))]
 pub use network_interfaces::*;
 #[doc(inline)]
 pub use network_result::*;
