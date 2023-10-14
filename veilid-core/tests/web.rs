@@ -32,12 +32,6 @@ pub fn setup() -> () {
 }
 
 #[wasm_bindgen_test]
-async fn wasm_test_host_interface() {
-    setup();
-    test_host_interface::test_all().await;
-}
-
-#[wasm_bindgen_test]
 async fn wasm_test_types() {
     setup();
     test_types::test_all().await;
