@@ -158,7 +158,7 @@ impl RoutingTable {
         for bsname in bsnames {
             unord.push(
                 async move {
-                    // look up boostrap node txt records
+                    // look up bootstrap node txt records
                     let bsnirecords = match intf::txt_lookup(&bsname).await {
                         Err(e) => {
                             warn!(
