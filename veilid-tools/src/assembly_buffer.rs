@@ -218,7 +218,7 @@ struct AssemblyBufferUnlockedInner {
 /// * Reassembly of fragments upon receipt accounting for:
 ///   * duplication
 ///   * drops
-///   * overlaops
+///   * overlaps
 ///     
 /// AssemblyBuffer does not try to replicate TCP or other highly reliable protocols. Here are some
 /// of the design limitations to be aware of when using AssemblyBuffer:
