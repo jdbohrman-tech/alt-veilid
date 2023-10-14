@@ -48,7 +48,7 @@ pub const SHARED_SECRET_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a route id in bytes
 #[allow(dead_code)]
 pub const ROUTE_ID_LENGTH: usize = CRYPTO_KEY_LENGTH;
-/// Length of a route id in bytes afer encoding to base64url
+/// Length of a route id in bytes after encoding to base64url
 #[allow(dead_code)]
 pub const ROUTE_ID_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a hash digest in bytes
