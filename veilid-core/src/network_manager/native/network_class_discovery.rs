@@ -22,7 +22,6 @@ impl Network {
 
                     editor.clear_dial_info_details(None, None);
                     editor.set_network_class(Some(NetworkClass::OutboundOnly));
-                    editor.clear_relay_node();
                     editor.commit(true).await;
                 }
             }
@@ -51,12 +50,10 @@ impl Network {
                     let mut add = false;
 
                     if let Some(edi) = existing_dial_info.get(&(pt, at)) {
-                        if did.class < edi.class {
-                            // Better dial info class was found, clear existing dialinfo for this pt/at pair
+                        if did.class <= edi.class {
+                            // Better or same dial info class was found, clear existing dialinfo for this pt/at pair
+                            // Only keep one dial info per protocol/address type combination
                             clear = true;
-                            add = true;
-                        } else if did.class == edi.class {
-                            // Same dial info class, just add dial info
                             add = true;
                         }
                         // Otherwise, don't upgrade, don't add, this is worse than what we have already
@@ -103,7 +100,7 @@ impl Network {
     ) -> EyreResult<()> {
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let (protocol_config, tcp_same_port) = {
-            let inner = self.inner.lock();
+            let mut inner = self.inner.lock();
             let protocol_config = inner.protocol_config.clone();
             let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
                 && protocol_config.inbound.contains(ProtocolType::WS)
@@ -112,6 +109,10 @@ impl Network {
             } else {
                 false
             };
+            // Allow network to be cleared if external addresses change
+            inner.network_already_cleared = false;
+
+            //
             (protocol_config, tcp_same_port)
         };
 
@@ -125,8 +126,7 @@ impl Network {
             .into_iter()
             .collect();
 
-        // Clear public dialinfo and network class in prep for discovery
-
+        // Set most permissive network config
         let mut editor = self
             .routing_table()
             .edit_routing_domain(RoutingDomain::PublicInternet);
@@ -136,10 +136,29 @@ impl Network {
             protocol_config.family_global,
             protocol_config.public_internet_capabilities.clone(),
         );
-        editor.clear_dial_info_details(None, None);
-        editor.set_network_class(None);
-        editor.clear_relay_node();
         editor.commit(true).await;
+
+        // Create a callback to clear the network if we need to 'start over'
+        let this = self.clone();
+        let clear_network_callback: ClearNetworkCallback = Arc::new(move || {
+            let this = this.clone();
+            Box::pin(async move {
+                // Ensure we only do this once per network class discovery
+                {
+                    let mut inner = this.inner.lock();
+                    if inner.network_already_cleared {
+                        return;
+                    }
+                    inner.network_already_cleared = true;
+                }
+                let mut editor = this
+                    .routing_table()
+                    .edit_routing_domain(RoutingDomain::PublicInternet);
+                editor.clear_dial_info_details(None, None);
+                editor.set_network_class(None);
+                editor.commit(true).await;
+            })
+        });
 
         // Process all protocol and address combinations
         let mut unord = FuturesUnordered::new();
@@ -152,6 +171,7 @@ impl Network {
                     self.clone(),
                     ProtocolType::UDP,
                     AddressType::IPV4,
+                    clear_network_callback.clone(),
                 );
                 udpv4_context
                     .discover(&mut unord)
@@ -166,6 +186,7 @@ impl Network {
                     self.clone(),
                     ProtocolType::UDP,
                     AddressType::IPV6,
+                    clear_network_callback.clone(),
                 );
                 udpv6_context
                     .discover(&mut unord)
@@ -182,6 +203,7 @@ impl Network {
                     self.clone(),
                     ProtocolType::TCP,
                     AddressType::IPV4,
+                    clear_network_callback.clone(),
                 );
                 tcpv4_context
                     .discover(&mut unord)
@@ -195,6 +217,7 @@ impl Network {
                     self.clone(),
                     ProtocolType::WS,
                     AddressType::IPV4,
+                    clear_network_callback.clone(),
                 );
                 wsv4_context
                     .discover(&mut unord)
@@ -211,6 +234,7 @@ impl Network {
                     self.clone(),
                     ProtocolType::TCP,
                     AddressType::IPV6,
+                    clear_network_callback.clone(),
                 );
                 tcpv6_context
                     .discover(&mut unord)
@@ -225,6 +249,7 @@ impl Network {
                     self.clone(),
                     ProtocolType::WS,
                     AddressType::IPV6,
+                    clear_network_callback.clone(),
                 );
                 wsv6_context
                     .discover(&mut unord)

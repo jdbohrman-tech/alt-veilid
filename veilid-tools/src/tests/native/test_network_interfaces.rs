@@ -2,7 +2,7 @@ use crate::*;
 
 cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
-        use intf::network_interfaces::NetworkInterfaces;
+        use network_interfaces::NetworkInterfaces;
 
         pub async fn test_network_interfaces() {
             info!("testing network interfaces");

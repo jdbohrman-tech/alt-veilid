@@ -499,14 +499,13 @@ checksum = "1181e1e0d1fce796a03db1ae795d67167da795f9cf4a39c37589e85ef57f26d3"
 
 [[package]]
 name = "attohttpc"
-version = "0.16.3"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdb8867f378f33f78a811a8eb9bf108ad99430d7aad43315dd9319c827ef6247"
+checksum = "8d9a9bf8b79a749ee0b911b91b671cc2b6c670bdbc7e3dfd537576ddc94bb2a2"
 dependencies = [
  "http",
  "log",
  "url",
- "wildmatch",
 ]
 
 [[package]]
@@ -5290,8 +5289,8 @@ dependencies = [
  "flume",
  "futures-util",
  "getrandom",
+ "glob",
  "hex",
- "ifstructs",
  "jni",
  "jni-sys",
  "js-sys",
@@ -5306,8 +5305,6 @@ dependencies = [
  "lz4_flex",
  "ndk",
  "ndk-glue",
- "netlink-packet-route",
- "netlink-sys",
  "nix 0.27.1",
  "num-traits",
  "once_cell",
@@ -5316,7 +5313,6 @@ dependencies = [
  "parking_lot 0.12.1",
  "paste",
  "range-set-blaze",
- "rtnetlink",
  "rustls",
  "rustls-pemfile",
  "schemars",
@@ -5380,6 +5376,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
+ "paranoid-android",
  "parking_lot 0.12.1",
  "serde",
  "serde_json",
@@ -5404,9 +5401,9 @@ dependencies = [
 
 [[package]]
 name = "veilid-igd"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28428a3f826ed334f995522e554d7c8c1a5a0e0a0248fc795a31022ddf436c9d"
+checksum = "ce2b3c073da0025538ff4cf5bea61a7a7a046c1bf060e2d0981c71800747551d"
 dependencies = [
  "attohttpc",
  "log",
@@ -5482,6 +5479,7 @@ dependencies = [
  "fn_name",
  "futures-util",
  "getrandom",
+ "ifstructs",
  "jni",
  "jni-sys",
  "js-sys",
@@ -5490,6 +5488,8 @@ dependencies = [
  "log",
  "ndk",
  "ndk-glue",
+ "netlink-packet-route",
+ "netlink-sys",
  "nix 0.27.1",
  "once_cell",
  "oslog",
@@ -5498,6 +5498,7 @@ dependencies = [
  "rand",
  "rand_core",
  "range-set-blaze",
+ "rtnetlink",
  "send_wrapper 0.6.0",
  "serial_test",
  "simplelog",
@@ -5515,6 +5516,7 @@ dependencies = [
  "wasm-bindgen-test",
  "wasm-logger",
  "wee_alloc",
+ "winapi",
 ]
 
 [[package]]
@@ -5778,12 +5780,6 @@ name = "widestring"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
-
-[[package]]
-name = "wildmatch"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f44b95f62d34113cf558c93511ac93027e03e9c29a60dd0fd70e6e025c7270a"
 
 [[package]]
 name = "winapi"

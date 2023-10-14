@@ -1,17 +1,19 @@
+#![cfg(any(target_os = "linux", target_os = "android"))]
+
 use super::*;
 
-use alloc::collections::btree_map::Entry;
 use futures_util::stream::TryStreamExt;
 use ifstructs::ifreq;
 use libc::{
-    close, if_indextoname, ioctl, socket, IFF_LOOPBACK, IFF_RUNNING, IF_NAMESIZE, SIOCGIFFLAGS,
-    SOCK_DGRAM,
+    close, if_indextoname, ioctl, socket, IFF_LOOPBACK, IFF_POINTOPOINT, IFF_RUNNING, IF_NAMESIZE,
+    SIOCGIFFLAGS, SOCK_DGRAM,
 };
 use netlink_packet_route::{
     nlas::address::Nla, AddressMessage, AF_INET, AF_INET6, IFA_F_DADFAILED, IFA_F_DEPRECATED,
     IFA_F_OPTIMISTIC, IFA_F_PERMANENT, IFA_F_TEMPORARY, IFA_F_TENTATIVE,
 };
 use rtnetlink::{new_connection_with_socket, Handle, IpVersion};
+use std::collections::btree_map::Entry;
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
         use netlink_sys::{SmolSocket as RTNetLinkSocket};
@@ -27,16 +29,16 @@ use std::io;
 use std::os::raw::c_int;
 use tools::*;
 
-fn get_interface_name(index: u32) -> EyreResult<String> {
+fn get_interface_name(index: u32) -> io::Result<String> {
     let mut ifnamebuf = [0u8; (IF_NAMESIZE + 1)];
     cfg_if! {
         if #[cfg(all(any(target_os = "android", target_os="linux"), any(target_arch = "arm", target_arch = "aarch64")))] {
             if unsafe { if_indextoname(index, ifnamebuf.as_mut_ptr()) }.is_null() {
-                bail!("if_indextoname returned null");
+                bail_io_error_other!("if_indextoname returned null");
             }
         } else {
             if unsafe { if_indextoname(index, ifnamebuf.as_mut_ptr() as *mut i8) }.is_null() {
-                bail!("if_indextoname returned null");
+                bail_io_error_other!("if_indextoname returned null");
             }
         }
     }
@@ -44,11 +46,11 @@ fn get_interface_name(index: u32) -> EyreResult<String> {
     let ifnamebuflen = ifnamebuf
         .iter()
         .position(|c| *c == 0u8)
-        .ok_or_else(|| eyre!("null not found in interface name"))?;
+        .ok_or_else(|| io_error_other!("null not found in interface name"))?;
     let ifname_str = CStr::from_bytes_with_nul(&ifnamebuf[0..=ifnamebuflen])
-        .wrap_err("failed to convert interface name")?
+        .map_err(|e| io_error_other!(e))?
         .to_str()
-        .wrap_err("invalid characters in interface name")?;
+        .map_err(|e| io_error_other!(e))?;
     Ok(ifname_str.to_owned())
 }
 
@@ -69,16 +71,16 @@ pub struct PlatformSupportNetlink {
 }
 
 impl PlatformSupportNetlink {
-    pub fn new() -> EyreResult<Self> {
-        Ok(PlatformSupportNetlink {
+    pub fn new() -> Self {
+        PlatformSupportNetlink {
             connection_jh: None,
             handle: None,
             default_route_interfaces: BTreeSet::new(),
-        })
+        }
     }
 
     // Figure out which interfaces have default routes
-    async fn refresh_default_route_interfaces(&mut self) -> EyreResult<()> {
+    async fn refresh_default_route_interfaces(&mut self) {
         self.default_route_interfaces.clear();
         let mut routesv4 = self
             .handle
@@ -110,15 +112,14 @@ impl PlatformSupportNetlink {
                 }
             }
         }
-        Ok(())
     }
 
-    fn get_interface_flags(&self, index: u32, ifname: &str) -> EyreResult<InterfaceFlags> {
-        let mut req = ifreq::from_name(ifname).wrap_err("failed to convert interface name")?;
+    fn get_interface_flags(&self, index: u32, ifname: &str) -> io::Result<InterfaceFlags> {
+        let mut req = ifreq::from_name(ifname)?;
 
         let sock = unsafe { socket(AF_INET as i32, SOCK_DGRAM, 0) };
         if sock < 0 {
-            return Err(io::Error::last_os_error()).wrap_err("failed to create socket");
+            return Err(io::Error::last_os_error());
         }
 
         cfg_if! {
@@ -130,7 +131,7 @@ impl PlatformSupportNetlink {
         }
         unsafe { close(sock) };
         if res < 0 {
-            return Err(io::Error::last_os_error()).wrap_err("failed to close socket");
+            return Err(io::Error::last_os_error());
         }
 
         let flags = req.get_flags() as c_int;
@@ -138,6 +139,7 @@ impl PlatformSupportNetlink {
         Ok(InterfaceFlags {
             is_loopback: (flags & IFF_LOOPBACK) != 0,
             is_running: (flags & IFF_RUNNING) != 0,
+            is_point_to_point: (flags & IFF_POINTOPOINT) != 0,
             has_default_route: self.default_route_interfaces.contains(&index),
         })
     }
@@ -244,23 +246,14 @@ impl PlatformSupportNetlink {
     async fn get_interfaces_internal(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
+    ) -> io::Result<()> {
         // Refresh the routes
-        self.refresh_default_route_interfaces().await?;
-
-        // If we have no routes, this isn't going to work
-        if self.default_route_interfaces.is_empty() {
-            bail!("no routes available for NetworkInterfaces");
-        }
+        self.refresh_default_route_interfaces().await;
 
         // Ask for all the addresses we have
         let mut names = BTreeMap::<u32, String>::new();
         let mut addresses = self.handle.as_ref().unwrap().address().get().execute();
-        while let Some(msg) = addresses
-            .try_next()
-            .await
-            .wrap_err("failed to iterate interface addresses")?
-        {
+        while let Some(msg) = addresses.try_next().await.map_err(|e| io_error_other!(e))? {
             // Have we seen this interface index yet?
             // Get the name from the index, cached, if we can
             let ifname = match names.entry(msg.header.index) {
@@ -318,10 +311,9 @@ impl PlatformSupportNetlink {
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
+    ) -> io::Result<()> {
         // Get the netlink connection
-        let (connection, handle, _) = new_connection_with_socket::<RTNetLinkSocket>()
-            .wrap_err("failed to create rtnetlink socket")?;
+        let (connection, handle, _) = new_connection_with_socket::<RTNetLinkSocket>()?;
 
         // Spawn a connection handler
         let connection_jh = spawn(connection);

@@ -384,6 +384,22 @@ impl RoutingTable {
                 let routing_table = self.clone();
                 unord.push(
                     async move {
+                        // Get what contact method would be used for contacting the bootstrap
+                        let bsdi = match routing_table
+                            .network_manager()
+                            .get_node_contact_method(nr.clone())
+                        {
+                            Ok(NodeContactMethod::Direct(v)) => v,
+                            Ok(v) => {
+                                log_rtab!(warn "invalid contact method for bootstrap: {:?}", v);
+                                return;
+                            }
+                            Err(e) => {
+                                log_rtab!(warn "unable to bootstrap: {}", e);
+                                return;
+                            }
+                        };
+
                         // Need VALID signed peer info, so ask bootstrap to find_node of itself
                         // which will ensure it has the bootstrap's signed peer info as part of the response
                         let _ = routing_table.find_target(crypto_kind, nr.clone()).await;
@@ -391,7 +407,10 @@ impl RoutingTable {
                         // Ensure we got the signed peer info
                         if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
                             log_rtab!(warn "bootstrap server is not responding");
-                            log_rtab!(debug "bootstrap server is not responding: {}", nr);
+                            log_rtab!(debug "bootstrap server is not responding for dialinfo: {}", bsdi);
+                            
+                            // Try a different dialinfo next time
+                            routing_table.network_manager().address_filter().set_dial_info_failed(bsdi);
                         } else {
                             // otherwise this bootstrap is valid, lets ask it to find ourselves now
                             routing_table.reverse_find_node(crypto_kind, nr, true).await

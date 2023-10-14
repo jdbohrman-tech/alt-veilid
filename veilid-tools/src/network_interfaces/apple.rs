@@ -1,11 +1,12 @@
+#![cfg(any(target_os = "macos", target_os = "ios"))]
 #![allow(non_camel_case_types)]
 use super::*;
 
 use libc::{
     close, freeifaddrs, getifaddrs, if_nametoindex, ifaddrs, ioctl, pid_t, sockaddr, sockaddr_in6,
-    socket, sysctl, time_t, AF_INET6, CTL_NET, IFF_BROADCAST, IFF_LOOPBACK, IFF_RUNNING, IFNAMSIZ,
-    NET_RT_FLAGS, PF_ROUTE, RTAX_DST, RTAX_GATEWAY, RTAX_MAX, RTA_DST, RTA_GATEWAY, RTF_GATEWAY,
-    SOCK_DGRAM,
+    socket, sysctl, time_t, AF_INET6, CTL_NET, IFF_BROADCAST, IFF_LOOPBACK, IFF_POINTOPOINT,
+    IFF_RUNNING, IFNAMSIZ, NET_RT_FLAGS, PF_ROUTE, RTAX_DST, RTAX_GATEWAY, RTAX_MAX, RTA_DST,
+    RTA_GATEWAY, RTF_GATEWAY, SOCK_DGRAM,
 };
 use sockaddr_tools::SockAddr;
 use std::ffi::CStr;
@@ -13,12 +14,15 @@ use std::io;
 use std::os::raw::{c_int, c_uchar, c_ulong, c_ushort, c_void};
 
 const SIOCGIFAFLAG_IN6: c_ulong = 0xC1206949;
+const SIOCGIFALIFETIME_IN6: c_ulong = 0xC1206951;
 const IN6_IFF_TENTATIVE: c_ushort = 0x0002;
 const IN6_IFF_DUPLICATED: c_ushort = 0x0004;
 const IN6_IFF_DETACHED: c_ushort = 0x0008;
+const IN6_IFF_AUTOCONF: c_ushort = 0x0040;
 const IN6_IFF_TEMPORARY: c_ushort = 0x0080;
 const IN6_IFF_DEPRECATED: c_ushort = 0x0010;
 const IN6_IFF_DYNAMIC: c_ushort = 0x0100;
+const IN6_IFF_SECURED: c_ushort = 0x0400;
 
 macro_rules! set_name {
     ($name_field:expr, $name_str:expr) => {{
@@ -198,6 +202,9 @@ impl in6_ifreq {
     pub fn get_flags6(&self) -> c_ushort {
         unsafe { self.ifr_ifru.ifru_flags6 as c_ushort }
     }
+    pub fn get_ia6t_expire(&self) -> time_t {
+        unsafe { self.ifr_ifru.ifru_lifetime.ia6t_expire as time_t }
+    }
 }
 
 pub fn do_broadcast(ifaddr: &ifaddrs) -> Option<IpAddr> {
@@ -267,13 +274,13 @@ pub struct PlatformSupportApple {
 }
 
 impl PlatformSupportApple {
-    pub fn new() -> EyreResult<Self> {
-        Ok(PlatformSupportApple {
+    pub fn new() -> Self {
+        PlatformSupportApple {
             default_route_interfaces: BTreeSet::new(),
-        })
+        }
     }
 
-    async fn refresh_default_route_interfaces(&mut self) -> EyreResult<()> {
+    async fn refresh_default_route_interfaces(&mut self) {
         self.default_route_interfaces.clear();
 
         let mut mib = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_FLAGS, RTF_GATEWAY];
@@ -293,7 +300,8 @@ impl PlatformSupportApple {
             )
         } < 0
         {
-            bail!("Unable to get memory size for routing table");
+            error!("Unable to get memory size for routing table");
+            return;
         }
 
         // Allocate a buffer
@@ -311,7 +319,8 @@ impl PlatformSupportApple {
             )
         } < 0
         {
-            bail!("Unable to get memory size for routing table");
+            error!("Unable to get memory size for routing table");
+            return;
         }
 
         // Process each routing message
@@ -360,61 +369,68 @@ impl PlatformSupportApple {
 
             mib_ptr = unsafe { mib_ptr.add((*rt).rtm_msglen.into()) };
         }
-
-        Ok(())
     }
 
-    fn get_interface_flags(&self, index: u32, flags: c_int) -> EyreResult<InterfaceFlags> {
-        Ok(InterfaceFlags {
+    fn get_interface_flags(&self, index: u32, flags: c_int) -> InterfaceFlags {
+        InterfaceFlags {
             is_loopback: (flags & IFF_LOOPBACK) != 0,
             is_running: (flags & IFF_RUNNING) != 0,
+            is_point_to_point: (flags & IFF_POINTOPOINT) != 0,
             has_default_route: self.default_route_interfaces.contains(&index),
-        })
+        }
     }
 
-    fn get_address_flags(ifname: &str, addr: sockaddr_in6) -> EyreResult<AddressFlags> {
+    fn get_address_flags(ifname: &str, addr: sockaddr_in6) -> io::Result<AddressFlags> {
+        let sock = unsafe { socket(AF_INET6, SOCK_DGRAM, 0) };
+        if sock < 0 {
+            return Err(io::Error::last_os_error());
+        }
+
         let mut req = in6_ifreq::from_name(ifname).unwrap();
         req.set_addr(addr);
 
-        let sock = unsafe { socket(AF_INET6, SOCK_DGRAM, 0) };
-        if sock < 0 {
-            bail!("Socket error {:?}", io::Error::last_os_error());
-        }
-
         let res = unsafe { ioctl(sock, SIOCGIFAFLAG_IN6, &mut req) };
-        unsafe { close(sock) };
         if res < 0 {
-            bail!(
-                "SIOCGIFAFLAG_IN6 failed with error on device '{}': {:?}",
-                ifname,
-                io::Error::last_os_error()
-            );
+            unsafe { close(sock) };
+            return Err(io::Error::last_os_error());
         }
-
         let flags = req.get_flags6();
 
+        let mut req = in6_ifreq::from_name(ifname).unwrap();
+        req.set_addr(addr);
+
+        let res = unsafe { ioctl(sock, SIOCGIFALIFETIME_IN6, &mut req) };
+        unsafe { close(sock) };
+        if res < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let expire = req.get_ia6t_expire();
+
+        let is_auto_generated_random_address =
+            flags & (IN6_IFF_SECURED | IN6_IFF_AUTOCONF) == (IN6_IFF_SECURED | IN6_IFF_AUTOCONF);
+
+        let is_temporary =
+            (flags & IN6_IFF_TEMPORARY) != 0 || (expire != 0 && is_auto_generated_random_address);
+        let is_dynamic = (flags & (IN6_IFF_DYNAMIC | IN6_IFF_AUTOCONF)) != 0;
+        let is_preferred = (flags
+            & (IN6_IFF_TENTATIVE | IN6_IFF_DUPLICATED | IN6_IFF_DETACHED | IN6_IFF_DEPRECATED))
+            == 0;
+
         Ok(AddressFlags {
-            is_temporary: (flags & IN6_IFF_TEMPORARY) != 0,
-            is_dynamic: (flags & IN6_IFF_DYNAMIC) != 0,
-            is_preferred: (flags
-                & (IN6_IFF_TENTATIVE | IN6_IFF_DUPLICATED | IN6_IFF_DETACHED | IN6_IFF_DEPRECATED))
-                == 0,
+            is_temporary,
+            is_dynamic,
+            is_preferred,
         })
     }
 
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
-        self.refresh_default_route_interfaces().await?;
-
-        // If we have no routes, this isn't going to work
-        if self.default_route_interfaces.is_empty() {
-            bail!("no routes available for NetworkInterfaces");
-        }
+    ) -> io::Result<()> {
+        self.refresh_default_route_interfaces().await;
 
         // Ask for all the addresses we have
-        let ifaddrs = IfAddrs::new().wrap_err("failed to get interface addresses")?;
+        let ifaddrs = IfAddrs::new()?;
         for ifaddr in ifaddrs.iter() {
             // Get the interface name
             let ifname = unsafe { CStr::from_ptr(ifaddr.ifa_name) }
@@ -427,7 +443,7 @@ impl PlatformSupportApple {
             // Map the name to a NetworkInterface
             if !interfaces.contains_key(&ifname) {
                 // If we have no NetworkInterface yet, make one
-                let flags = self.get_interface_flags(ifindex, ifaddr.ifa_flags as c_int)?;
+                let flags = self.get_interface_flags(ifindex, ifaddr.ifa_flags as c_int);
                 interfaces.insert(ifname.clone(), NetworkInterface::new(ifname.clone(), flags));
             }
             let intf = interfaces.get_mut(&ifname).unwrap();

@@ -26,7 +26,7 @@ struct PortMapValue {
 
 struct IGDManagerInner {
     local_ip_addrs: BTreeMap<AddressType, IpAddr>,
-    gateways: BTreeMap<AddressType, Arc<Gateway>>,
+    gateways: BTreeMap<IpAddr, Arc<Gateway>>,
     port_maps: BTreeMap<PortMapKey, PortMapValue>,
 }
 
@@ -121,17 +121,21 @@ impl IGDManager {
 
     fn find_gateway(
         inner: &mut IGDManagerInner,
-        address_type: AddressType,
+        local_ip: IpAddr,
     ) -> Option<Arc<Gateway>> {
-        if let Some(gw) = inner.gateways.get(&address_type) {
+
+        if let Some(gw) = inner.gateways.get(&local_ip) {
             return Some(gw.clone());
         }
 
-        let gateway = match address_type {
-            AddressType::IPV4 => {
-                match igd::search_gateway(SearchOptions::new_v4(
+        let gateway = match local_ip {
+            IpAddr::V4(v4) => {
+                let mut opts = SearchOptions::new_v4(
                     UPNP_GATEWAY_DETECT_TIMEOUT_MS as u64,
-                )) {
+                );
+                opts.bind_addr = SocketAddr::V4(SocketAddrV4::new(v4, 0));
+
+                match igd::search_gateway(opts) {
                     Ok(v) => v,
                     Err(e) => {
                         log_net!(debug "couldn't find ipv4 igd: {}", e);
@@ -139,11 +143,14 @@ impl IGDManager {
                     }
                 }
             }
-            AddressType::IPV6 => {
-                match igd::search_gateway(SearchOptions::new_v6(
+            IpAddr::V6(v6) => {
+                let mut opts = SearchOptions::new_v6(
                     Ipv6SearchScope::LinkLocal,
                     UPNP_GATEWAY_DETECT_TIMEOUT_MS as u64,
-                )) {
+                );
+                opts.bind_addr = SocketAddr::V6(SocketAddrV6::new(v6, 0, 0, 0));
+
+                match igd::search_gateway(opts) {
                     Ok(v) => v,
                     Err(e) => {
                         log_net!(debug "couldn't find ipv6 igd: {}", e);
@@ -151,17 +158,18 @@ impl IGDManager {
                     }
                 }
             }
+            
         };
         let gw = Arc::new(gateway);
-        inner.gateways.insert(address_type, gw.clone());
+        inner.gateways.insert(local_ip, gw.clone());
         Some(gw)
     }
 
     fn get_gateway(
         inner: &mut IGDManagerInner,
-        address_type: AddressType,
+        local_ip: IpAddr,
     ) -> Option<Arc<Gateway>> {
-        if let Some(gw) = inner.gateways.get(&address_type) {
+        if let Some(gw) = inner.gateways.get(&local_ip) {
             return Some(gw.clone());
         }
         None
@@ -191,8 +199,12 @@ impl IGDManager {
             let pmk = found?;
             let _pmv = inner.port_maps.remove(&pmk).expect("key found but remove failed");
 
+            
+            // Get local ip address
+            let local_ip = Self::find_local_ip(&mut inner, at)?;
+
             // Find gateway
-            let gw = Self::find_gateway(&mut inner, at)?;
+            let gw = Self::find_gateway(&mut inner, local_ip)?;
 
             // Unmap port
             match gw.remove_port(convert_llpt(llpt), mapped_port) {
@@ -233,7 +245,7 @@ impl IGDManager {
             let local_ip = Self::find_local_ip(&mut inner, at)?;
 
             // Find gateway
-            let gw = Self::find_gateway(&mut inner, at)?;
+            let gw = Self::find_gateway(&mut inner, local_ip)?;
 
             // Get external address
             let ext_ip = match gw.get_external_ip() {
@@ -325,20 +337,20 @@ impl IGDManager {
 
             // Process full renewals
             for (k, v) in full_renews {
-                    
-                // Get gateway for address type
-                let gw = match Self::get_gateway(&mut inner, k.at) {
-                    Some(gw) => gw,
-                    None => {
-                        return Err(eyre!("gateway missing for address type"));
-                    }
-                };
 
                 // Get local ip for address type
                 let local_ip = match Self::get_local_ip(&mut inner, k.at) {
                     Some(ip) => ip,
                     None => {
                         return Err(eyre!("local ip missing for address type"));
+                    }
+                };
+                
+                // Get gateway for interface
+                let gw = match Self::get_gateway(&mut inner, local_ip) {
+                    Some(gw) => gw,
+                    None => {
+                        return Err(eyre!("gateway missing for interface"));
                     }
                 };
 
@@ -370,19 +382,19 @@ impl IGDManager {
             // Process normal renewals
             for (k, mut v) in renews {
                     
-                // Get gateway for address type
-                let gw = match Self::get_gateway(&mut inner, k.at) {
-                    Some(gw) => gw,
-                    None => {
-                        return Err(eyre!("gateway missing for address type"));
-                    }
-                };
-
                 // Get local ip for address type
                 let local_ip = match Self::get_local_ip(&mut inner, k.at) {
                     Some(ip) => ip,
                     None => {
                         return Err(eyre!("local ip missing for address type"));
+                    }
+                };
+
+                // Get gateway for interface
+                let gw = match Self::get_gateway(&mut inner, local_ip) {
+                    Some(gw) => gw,
+                    None => {
+                        return Err(eyre!("gateway missing for address type"));
                     }
                 };
 

@@ -3,6 +3,7 @@
 
 mod test_assembly_buffer;
 mod test_async_peek_stream;
+mod test_network_interfaces;
 
 use super::*;
 
@@ -13,6 +14,8 @@ use super::*;
 pub async fn run_all_tests() {
     info!("TEST: exec_test_host_interface");
     test_host_interface::test_all().await;
+    info!("TEST: exec_test_network_interfaces");
+    test_network_interfaces::test_all().await;
     info!("TEST: exec_test_async_peek_stream");
     test_async_peek_stream::test_all().await;
     info!("TEST: exec_test_async_tag_lock");
@@ -79,6 +82,15 @@ cfg_if! {
             setup();
             block_on(async {
                 test_host_interface::test_all().await;
+            });
+        }
+
+        #[test]
+        #[serial]
+        fn run_test_network_interfaces() {
+            setup();
+            block_on(async {
+                test_network_interfaces::test_all().await;
             });
         }
 

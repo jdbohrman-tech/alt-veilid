@@ -10,7 +10,6 @@ use super::*;
 use crate::routing_table::*;
 use connection_manager::*;
 use discovery_context::*;
-use network_interfaces::*;
 use network_tcp::*;
 use protocol::tcp::RawTcpProtocolHandler;
 use protocol::udp::RawUdpProtocolHandler;
@@ -99,6 +98,8 @@ struct NetworkInner {
     enable_ipv6_local: bool,
     /// set if we need to calculate our public dial info again
     needs_public_dial_info_check: bool,
+    /// set if we have yet to clear the network during public dial info checking
+    network_already_cleared: bool,
     /// the punishment closure to enax
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     /// udp socket record for bound-first sockets, which are used to guarantee a port is available before
@@ -148,6 +149,7 @@ impl Network {
             network_started: false,
             network_needs_restart: false,
             needs_public_dial_info_check: false,
+            network_already_cleared: false,
             public_dial_info_check_punishment: None,
             protocol_config: Default::default(),
             static_public_dialinfo: ProtocolTypeSet::empty(),
@@ -313,7 +315,7 @@ impl Network {
         if !from.ip().is_unspecified() {
             vec![*from]
         } else {
-            let addrs = self.get_usable_interface_addresses();
+            let addrs = self.get_stable_interface_addresses();
             addrs
                 .iter()
                 .filter_map(|a| {
@@ -355,13 +357,13 @@ impl Network {
         })
     }
 
-    pub fn is_usable_interface_address(&self, addr: IpAddr) -> bool {
-        let usable_addrs = self.get_usable_interface_addresses();
-        usable_addrs.contains(&addr)
+    pub fn is_stable_interface_address(&self, addr: IpAddr) -> bool {
+        let stable_addrs = self.get_stable_interface_addresses();
+        stable_addrs.contains(&addr)
     }
 
-    pub fn get_usable_interface_addresses(&self) -> Vec<IpAddr> {
-        let addrs = self.unlocked_inner.interfaces.best_addresses();
+    pub fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
+        let addrs = self.unlocked_inner.interfaces.stable_addresses();
         let addrs: Vec<IpAddr> = addrs
             .into_iter()
             .filter(|addr| {
@@ -372,15 +374,20 @@ impl Network {
         addrs
     }
 
-    // See if our interface addresses have changed, if so we need to punt the network
-    // and redo all our addresses. This is overkill, but anything more accurate
-    // would require inspection of routing tables that we dont want to bother with
+    // See if our interface addresses have changed, if so redo public dial info if necessary
     async fn check_interface_addresses(&self) -> EyreResult<bool> {
-        if !self.unlocked_inner.interfaces.refresh().await? {
+        if !self
+            .unlocked_inner
+            .interfaces
+            .refresh()
+            .await
+            .wrap_err("failed to check network interfaces")?
+        {
             return Ok(false);
         }
 
-        self.inner.lock().network_needs_restart = true;
+        self.inner.lock().needs_public_dial_info_check = true;
+
         Ok(true)
     }
 
@@ -697,7 +704,7 @@ impl Network {
         self.unlocked_inner
             .interfaces
             .with_interfaces(|interfaces| {
-                trace!("interfaces: {:#?}", interfaces);
+                debug!("interfaces: {:#?}", interfaces);
 
                 for intf in interfaces.values() {
                     // Skip networks that we should never encounter
@@ -721,7 +728,7 @@ impl Network {
         {
             let mut inner = self.inner.lock();
             inner.enable_ipv4 = false;
-            for addr in self.get_usable_interface_addresses() {
+            for addr in self.get_stable_interface_addresses() {
                 if addr.is_ipv4() {
                     log_net!(debug "enable address {:?} as ipv4", addr);
                     inner.enable_ipv4 = true;
@@ -975,9 +982,8 @@ impl Network {
         _l: u64,
         _t: u64,
     ) -> EyreResult<()> {
-        if self.check_interface_addresses().await? {
-            info!("interface addresses changed, restarting network");
-        }
+        self.check_interface_addresses().await?;
+
         Ok(())
     }
 

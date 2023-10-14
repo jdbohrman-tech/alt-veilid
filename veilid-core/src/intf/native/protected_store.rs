@@ -48,11 +48,19 @@ impl ProtectedStore {
                 // Attempt to open the secure keyring
                 cfg_if! {
                     if #[cfg(target_os = "android")] {
-                        inner.keyring_manager = KeyringManager::new_secure(&c.program_name, crate::intf::android::get_android_globals()).ok();
+                        let maybe_km = KeyringManager::new_secure(&c.program_name, crate::intf::android::get_android_globals());
                     } else {
-                        inner.keyring_manager = KeyringManager::new_secure(&c.program_name).ok();
+                        let maybe_km = KeyringManager::new_secure(&c.program_name);
                     }
                 }
+
+                inner.keyring_manager = match maybe_km {
+                    Ok(v) => Some(v),
+                    Err(e) => {
+                        log_pstore!(error "Failed to create secure keyring manager: {}", e);
+                        None
+                    }
+                };
             }
             if (c.protected_store.always_use_insecure_storage
                 || c.protected_store.allow_insecure_fallback)
@@ -78,6 +86,7 @@ impl ProtectedStore {
                 );
             }
             if inner.keyring_manager.is_none() {
+                log_pstore!(error "QWERQWER");
                 bail!("Could not initialize the protected store.");
             }
             c.protected_store.delete

@@ -1,4 +1,8 @@
-use std::process::{Command, Stdio};
+use glob::glob;
+use std::{
+    env,
+    process::{Command, Stdio},
+};
 
 const CAPNP_VERSION: &str = "1.0.1"; // Keep in sync with scripts/install_capnp.sh
 const PROTOC_VERSION: &str = "24.3"; // Keep in sync with scripts/install_protoc.sh
@@ -110,5 +114,26 @@ fn main() {
             .file("proto/veilid.capnp")
             .run()
             .expect("compiling schema");
+    }
+
+    // Fix for missing __extenddftf2 on Android x86_64 Emulator
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    // if target_os == "android" || target_os == "linux" {
+    //     println!("cargo:rustc-link-lib=stdc++");
+    // } else {
+    //     println!("cargo:rustc-link-lib=c++");
+    // }
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    if target_arch == "x86_64" && target_os == "android" {
+        let missing_library = "clang_rt.builtins-x86_64-android";
+        let android_ndk_home = env::var("ANDROID_NDK_HOME").expect("ANDROID_NDK_HOME not set");
+        let lib_path = glob(&format!("{android_ndk_home}/**/lib{missing_library}.a"))
+            .expect("failed to glob")
+            .next()
+            .expect("Need libclang_rt.builtins-x86_64-android.a")
+            .unwrap();
+        let lib_dir = lib_path.parent().unwrap();
+        println!("cargo:rustc-link-search={}", lib_dir.display());
+        println!("cargo:rustc-link-lib=static={missing_library}");
     }
 }

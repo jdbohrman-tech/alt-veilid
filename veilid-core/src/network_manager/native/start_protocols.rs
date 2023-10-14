@@ -342,7 +342,7 @@ impl Network {
 
                 // See if this public address is also a local interface address we haven't registered yet
                 let is_interface_address = (|| {
-                    for ip_addr in self.get_usable_interface_addresses() {
+                    for ip_addr in self.get_stable_interface_addresses() {
                         if pdi_addr.ip() == ip_addr {
                             return true;
                         }
@@ -438,7 +438,7 @@ impl Network {
 
                 // See if this public address is also a local interface address
                 if !registered_addresses.contains(&gsa.ip())
-                    && self.is_usable_interface_address(gsa.ip())
+                    && self.is_stable_interface_address(gsa.ip())
                 {
                     editor_local_network.register_dial_info(pdi, DialInfoClass::Direct)?;
                 }
@@ -552,7 +552,7 @@ impl Network {
 
                 // See if this public address is also a local interface address
                 if !registered_addresses.contains(&gsa.ip())
-                    && self.is_usable_interface_address(gsa.ip())
+                    && self.is_stable_interface_address(gsa.ip())
                 {
                     editor_local_network.register_dial_info(pdi, DialInfoClass::Direct)?;
                 }
@@ -653,7 +653,7 @@ impl Network {
                 }
 
                 // See if this public address is also a local interface address
-                if self.is_usable_interface_address(pdi_addr.ip()) {
+                if self.is_stable_interface_address(pdi_addr.ip()) {
                     editor_local_network.register_dial_info(pdi, DialInfoClass::Direct)?;
                 }
             }

@@ -15,20 +15,23 @@ pub extern "C" fn run_veilid_tools_tests() {
 pub fn veilid_tools_setup_ios_tests() {
     cfg_if! {
         if #[cfg(feature = "tracing")] {
+            use tracing::level_filters::LevelFilter;
             use tracing_oslog::OsLogger;
             use tracing_subscriber::prelude::*;
+            use tracing_subscriber::filter::Targets;
 
-            let mut filters = filter::Targets::new();
+            let mut filters = Targets::new();
             for ig in DEFAULT_LOG_IGNORE_LIST {
-                filters = filters.with_target(ig, filter::LevelFilter::OFF);
+                filters = filters.with_target(ig, LevelFilter::OFF);
             }
             tracing_subscriber::registry()
+                .with(OsLogger::new("com.veilid.veilidtools-tests", "default"))
+                .with(LevelFilter::TRACE)
                 .with(filters)
-                .with(filter::LevelFilter::TRACE)
-                .with(OsLogger::new("com.veilid.veilidtools-tests", ""))
                 .init();
         } else {
             use oslog::OsLogger;
+            use log::LevelFilter;
 
             OsLogger::new("com.veilid.veilidtools-tests")
                 .level_filter(LevelFilter::Trace)

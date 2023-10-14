@@ -25,7 +25,6 @@ rt-async-std = [
     "async-std-resolver",
     "trust-dns-resolver",
     "async_executors/async_std",
-    "rtnetlink/smol_socket",
     "veilid-tools/rt-async-std",
 ]
 rt-tokio = [
@@ -36,7 +35,6 @@ rt-tokio = [
     "async_executors/tokio_tp",
     "async_executors/tokio_io",
     "async_executors/tokio_timer",
-    "rtnetlink/tokio_socket",
     "veilid-tools/rt-tokio",
 ]
 
@@ -170,7 +168,7 @@ keyvaluedb-sqlite = "0.1.1"
 
 # Network
 async-tungstenite = { version = "0.23.0", features = ["async-tls"] }
-igd = { package = "veilid-igd", version = "0.1.0" }
+igd = { package = "veilid-igd", version = "0.1.1" }
 async-tls = "0.12.0"
 webpki = "0.22.1"
 webpki-roots = "0.25.2"
@@ -238,16 +236,6 @@ ndk = { version = "0.7.0" }
 ndk-glue = { version = "0.7.0", features = ["logger"] }
 paranoid-android = { version = "0.2.1", optional = true }
 
-# Dependenices for all Unix (Linux, Android, MacOS, iOS)
-[target.'cfg(unix)'.dependencies]
-ifstructs = "0.1.1"
-
-# Dependencies for Linux or Android
-[target.'cfg(any(target_os = "android", target_os = "linux"))'.dependencies]
-rtnetlink = { version = "=0.13.1", default-features = false }
-netlink-sys = { version = "=0.8.5" }
-netlink-packet-route = { version = "=0.17.1" }
-
 # Dependencies for Windows
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3.9", features = ["iptypes", "iphlpapi"] }
@@ -279,6 +267,7 @@ wasm-logger = "0.2.0"
 
 [build-dependencies]
 capnpc = "0.18.0"
+glob = "0.3.1"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]

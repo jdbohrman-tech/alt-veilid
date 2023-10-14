@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 //////////////////////////////////////////////////////////
 

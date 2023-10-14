@@ -39,8 +39,11 @@ struct DiscoveryContextInner {
 struct DiscoveryContextUnlockedInner {
     routing_table: RoutingTable,
     net: Network,
+    clear_network_callback: ClearNetworkCallback,
+
     // per-protocol
     intf_addrs: Vec<SocketAddress>,
+    existing_external_address: Option<SocketAddress>,
     protocol_type: ProtocolType,
     address_type: AddressType,
 }
@@ -51,21 +54,45 @@ pub struct DiscoveryContext {
     inner: Arc<Mutex<DiscoveryContextInner>>,
 }
 
+pub type ClearNetworkCallback = Arc<dyn Fn() -> SendPinBoxFuture<()> + Send + Sync>;
+
 impl DiscoveryContext {
     pub fn new(
         routing_table: RoutingTable,
         net: Network,
         protocol_type: ProtocolType,
         address_type: AddressType,
+        clear_network_callback: ClearNetworkCallback,
     ) -> Self {
         let intf_addrs =
             Self::get_local_addresses(routing_table.clone(), protocol_type, address_type);
+
+        // Get the existing external address to check to see if it has changed
+        let existing_dial_info = routing_table.all_filtered_dial_info_details(
+            RoutingDomain::PublicInternet.into(),
+            &DialInfoFilter::default()
+                .with_address_type(address_type)
+                .with_protocol_type(protocol_type),
+        );
+        let existing_external_address = if existing_dial_info.len() == 1 {
+            Some(
+                existing_dial_info
+                    .first()
+                    .unwrap()
+                    .dial_info
+                    .socket_address(),
+            )
+        } else {
+            None
+        };
 
         Self {
             unlocked_inner: Arc::new(DiscoveryContextUnlockedInner {
                 routing_table,
                 net,
+                clear_network_callback,
                 intf_addrs,
+                existing_external_address,
                 protocol_type,
                 address_type,
             }),
@@ -629,6 +656,30 @@ impl DiscoveryContext {
         if !self.discover_external_addresses().await {
             // If we couldn't get an external address, then we should just try the whole network class detection again later
             return;
+        }
+
+        // Did external address change from the last time we made dialinfo?
+        // Disregard port for this because we only need to know if the ip address has changed
+        // If the port has changed it will change only for this protocol and will be overwritten individually by each protocol discover()
+        let some_clear_network_callback = {
+            let inner = self.inner.lock();
+            let ext_1 = inner.external_1.as_ref().unwrap().address.address();
+            let ext_2 = inner.external_2.as_ref().unwrap().address.address();
+            if (ext_1 != ext_2)
+                || Some(ext_1)
+                    != self
+                        .unlocked_inner
+                        .existing_external_address
+                        .map(|ea| ea.address())
+            {
+                // External address was not found, or has changed, go ahead and clear the network so we can do better
+                Some(self.unlocked_inner.clear_network_callback.clone())
+            } else {
+                None
+            }
+        };
+        if let Some(clear_network_callback) = some_clear_network_callback {
+            clear_network_callback().await;
         }
 
         // UPNP Automatic Mapping

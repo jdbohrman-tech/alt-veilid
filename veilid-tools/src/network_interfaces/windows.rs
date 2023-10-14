@@ -1,3 +1,5 @@
+#![cfg(target_os = "windows")]
+
 // Copyright 2018 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
@@ -13,7 +15,7 @@ use libc::{self, c_ulong, c_void, size_t};
 use std::ffi::CStr;
 use std::{io, ptr};
 use winapi::shared::ifdef::IfOperStatusUp;
-use winapi::shared::ipifcons::IF_TYPE_SOFTWARE_LOOPBACK;
+use winapi::shared::ipifcons::{IF_TYPE_SOFTWARE_LOOPBACK, IF_TYPE_TUNNEL};
 use winapi::shared::nldef::{
     IpDadStatePreferred, IpPrefixOriginDhcp, IpSuffixOriginDhcp, IpSuffixOriginRandom,
 };
@@ -28,14 +30,15 @@ use winapi::um::iptypes::{
 pub struct PlatformSupportWindows {}
 
 impl PlatformSupportWindows {
-    pub fn new() -> EyreResult<Self> {
-        Ok(PlatformSupportWindows {})
+    pub fn new() -> Self {
+        PlatformSupportWindows {}
     }
 
     fn get_interface_flags(intf: &IpAdapterAddresses) -> InterfaceFlags {
         InterfaceFlags {
             is_loopback: intf.get_flag_loopback(),
             is_running: intf.get_flag_running(),
+            is_point_to_point: intf.get_flag_point_to_point(),
             has_default_route: intf.get_has_default_route(),
         }
     }
@@ -54,17 +57,9 @@ impl PlatformSupportWindows {
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
-    ) -> EyreResult<()> {
-        //self.refresh_default_route_interfaces().await?;
-
-        // If we have no routes, this isn't going to work
-        // if self.default_route_interfaces.is_empty() {
-        //     return Err("no routes available for NetworkInterfaces".to_owned());
-        // }
-
+    ) -> io::Result<()> {
         // Iterate all the interfaces
-        let windows_interfaces =
-            WindowsInterfaces::new().wrap_err("failed to get windows interfaces")?;
+        let windows_interfaces = WindowsInterfaces::new()?;
         for windows_interface in windows_interfaces.iter() {
             // Get name
             let intf_name = windows_interface.name();
@@ -223,6 +218,9 @@ impl IpAdapterAddresses {
     }
     pub fn get_flag_running(&self) -> bool {
         unsafe { (*self.data).OperStatus == IfOperStatusUp }
+    }
+    pub fn get_flag_point_to_point(&self) -> bool {
+        unsafe { (*self.data).IfType == IF_TYPE_TUNNEL }
     }
     pub fn get_has_default_route(&self) -> bool {
         unsafe { !(*self.data).FirstGatewayAddress.is_null() }

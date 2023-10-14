@@ -14,10 +14,15 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
 default = ["rt-tokio"]
-rt-async-std = ["async-std", "async_executors/async_std"]
+rt-async-std = [
+    "async-std",
+    "async_executors/async_std",
+    "rtnetlink/smol_socket",
+]
 rt-tokio = [
     "tokio",
     "tokio-util",
+    "rtnetlink/tokio_socket",
     "async_executors/tokio_tp",
     "async_executors/tokio_io",
     "async_executors/tokio_timer",
@@ -25,7 +30,7 @@ rt-tokio = [
 rt-wasm-bindgen = ["async_executors/bindgen", "async_executors/timer"]
 
 veilid_tools_android_tests = ["dep:paranoid-android"]
-veilid_tools_ios_tests = ["dep:oslog", "dep:tracing-oslog"]
+veilid_tools_ios_tests = ["dep:tracing", "dep:oslog", "dep:tracing-oslog"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 network-result-extra = []
 network-result-info = []
@@ -69,7 +74,7 @@ futures-util = { version = "0.3.28", default-features = false, features = [
 chrono = "0.4.31"
 
 libc = "0.2.148"
-nix = { version = "0.27.1", features = [ "user" ] }
+nix = { version = "0.27.1", features = ["user"] }
 
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -82,6 +87,12 @@ getrandom = { version = "0.2", features = ["js"] }
 async-lock = "2.8.0"
 send_wrapper = { version = "0.6.0", features = ["futures"] }
 
+# Dependencies for Linux or Android
+[target.'cfg(any(target_os = "android", target_os = "linux"))'.dependencies]
+rtnetlink = { version = "=0.13.1", default-features = false }
+netlink-sys = { version = "=0.8.5" }
+netlink-packet-route = { version = "=0.17.1" }
+
 # Dependencies for Android
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21.1"
@@ -93,14 +104,17 @@ paranoid-android = { version = "0.2.1", optional = true }
 android_logger = "0.13.3"
 
 # Dependencies for Windows
-# [target.'cfg(target_os = "windows")'.dependencies]
-# windows = { version = "^0", features = [ "Win32_NetworkManagement_Dns", "Win32_Foundation", "alloc" ]}
-# windows-permissions = "^0"
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3.9", features = ["iptypes", "iphlpapi"] }
 
 # Dependencies for iOS
 [target.'cfg(target_os = "ios")'.dependencies]
 oslog = { version = "0.2.0", optional = true }
 tracing-oslog = { version = "0.1.2", optional = true }
+
+# Dependenices for all Unix (Linux, Android, MacOS, iOS)
+[target.'cfg(unix)'.dependencies]
+ifstructs = "0.1.1"
 
 ### DEV DEPENDENCIES
 
