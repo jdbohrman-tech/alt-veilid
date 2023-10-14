@@ -72,7 +72,7 @@ impl RoutingTable {
 
     /// Utility to find nodes that are closer to a key than our own node,
     /// preferring reliable nodes first, and returning their peer info
-    /// Can filter based on a particular set of capabiltiies
+    /// Can filter based on a particular set of capabilities
     pub fn find_preferred_peers_closer_to_key(
         &self,
         key: TypedKey,
