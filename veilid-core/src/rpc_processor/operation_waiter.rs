@@ -150,7 +150,7 @@ where
         Ok(())
     }
 
-    /// Wait for opeation to complete
+    /// Wait for operation to complete
     pub async fn wait_for_op(
         &self,
         mut handle: OperationWaitHandle<T, C>,
