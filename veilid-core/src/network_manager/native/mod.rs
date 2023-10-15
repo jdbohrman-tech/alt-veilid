@@ -104,7 +104,7 @@ struct NetworkInner {
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     /// udp socket record for bound-first sockets, which are used to guarantee a port is available before
     /// creating a 'reuseport' socket there. we don't want to pick ports that other programs are using
-    bound_first_udp: BTreeMap<u16, Option<(socket2::Socket, socket2::Socket)>>,
+    bound_first_udp: BTreeMap<u16, (Option<socket2::Socket>, Option<socket2::Socket>)>,
     /// mapping of protocol handlers to accept messages from a set of bound socket addresses
     inbound_udp_protocol_handlers: BTreeMap<SocketAddr, RawUdpProtocolHandler>,
     /// outbound udp protocol handler for udpv4
@@ -113,7 +113,7 @@ struct NetworkInner {
     outbound_udpv6_protocol_handler: Option<RawUdpProtocolHandler>,
     /// tcp socket record for bound-first sockets, which are used to guarantee a port is available before
     /// creating a 'reuseport' socket there. we don't want to pick ports that other programs are using
-    bound_first_tcp: BTreeMap<u16, Option<(socket2::Socket, socket2::Socket)>>,
+    bound_first_tcp: BTreeMap<u16, (Option<socket2::Socket>, Option<socket2::Socket>)>,
     /// TLS handling socket controller
     tls_acceptor: Option<TlsAcceptor>,
     /// Multiplexer record for protocols on low level TCP sockets

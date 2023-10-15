@@ -345,9 +345,14 @@ impl Network {
                 outbound.insert(ProtocolType::WSS);
             }
 
-            // XXX: See issue #92
-            let family_global = AddressTypeSet::from(AddressType::IPV4);
-            let family_local = AddressTypeSet::from(AddressType::IPV4);
+            let supported_address_types: AddressTypeSet = if is_ipv6_supported() {
+                AddressType::IPV4 | AddressType::IPV6
+            } else {
+                AddressType::IPV4.into()
+            };
+
+            let family_global = supported_address_types;
+            let family_local = supported_address_types;
 
             let public_internet_capabilities = {
                 PUBLIC_INTERNET_CAPABILITIES

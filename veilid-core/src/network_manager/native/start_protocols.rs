@@ -85,37 +85,44 @@ impl Network {
         if inner.bound_first_udp.contains_key(&udp_port) {
             return true;
         }
+
+        // Check for ipv6
+        let has_v6 = is_ipv6_supported();
+
         // If the address is specified, only use the specified port and fail otherwise
         let mut bound_first_socket_v4 = None;
         let mut bound_first_socket_v6 = None;
         if let Ok(bfs4) =
             new_bound_first_udp_socket(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), udp_port))
         {
-            if let Ok(bfs6) = new_bound_first_udp_socket(SocketAddr::new(
-                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-                udp_port,
-            )) {
-                bound_first_socket_v4 = Some(bfs4);
-                bound_first_socket_v6 = Some(bfs6);
-            }
-        }
-        if let (Some(bfs4), Some(bfs6)) = (bound_first_socket_v4, bound_first_socket_v6) {
-            cfg_if! {
-                if #[cfg(windows)] {
-                    // On windows, drop the socket. This is a race condition, but there's
-                    // no way around it. This isn't for security anyway, it's to prevent multiple copies of the
-                    // app from binding on the same port.
-                    drop(bfs4);
-                    drop(bfs6);
-                    inner.bound_first_udp.insert(udp_port, None);
-                } else {
-                    inner.bound_first_udp.insert(udp_port, Some((bfs4, bfs6)));
+            if has_v6 {
+                if let Ok(bfs6) = new_bound_first_udp_socket(SocketAddr::new(
+                    IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+                    udp_port,
+                )) {
+                    bound_first_socket_v4 = Some(bfs4);
+                    bound_first_socket_v6 = Some(bfs6);
                 }
+            } else {
+                bound_first_socket_v4 = Some(bfs4);
             }
-            true
-        } else {
-            false
         }
+
+        if bound_first_socket_v4.is_none() && (has_v6 && bound_first_socket_v6.is_none()) {
+            return false;
+        }
+
+        cfg_if! {
+            if #[cfg(windows)] {
+                // On windows, drop the socket. This is a race condition, but there's
+                // no way around it. This isn't for security anyway, it's to prevent multiple copies of the
+                // app from binding on the same port.
+                inner.bound_first_udp.insert(udp_port, (None, None));
+            } else {
+                inner.bound_first_udp.insert(udp_port, (bound_first_socket_v4, bound_first_socket_v6));
+            }
+        }
+        true
     }
 
     fn bind_first_tcp_port(&self, tcp_port: u16) -> bool {
@@ -123,37 +130,44 @@ impl Network {
         if inner.bound_first_tcp.contains_key(&tcp_port) {
             return true;
         }
+
+        // Check for ipv6
+        let has_v6 = is_ipv6_supported();
+
         // If the address is specified, only use the specified port and fail otherwise
         let mut bound_first_socket_v4 = None;
         let mut bound_first_socket_v6 = None;
         if let Ok(bfs4) =
             new_bound_first_tcp_socket(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), tcp_port))
         {
-            if let Ok(bfs6) = new_bound_first_tcp_socket(SocketAddr::new(
-                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-                tcp_port,
-            )) {
-                bound_first_socket_v4 = Some(bfs4);
-                bound_first_socket_v6 = Some(bfs6);
-            }
-        }
-        if let (Some(bfs4), Some(bfs6)) = (bound_first_socket_v4, bound_first_socket_v6) {
-            cfg_if! {
-                if #[cfg(windows)] {
-                    // On windows, drop the socket. This is a race condition, but there's
-                    // no way around it. This isn't for security anyway, it's to prevent multiple copies of the
-                    // app from binding on the same port.
-                    drop(bfs4);
-                    drop(bfs6);
-                    inner.bound_first_tcp.insert(tcp_port, None);
-                } else {
-                    inner.bound_first_tcp.insert(tcp_port, Some((bfs4, bfs6)));
+            if has_v6 {
+                if let Ok(bfs6) = new_bound_first_tcp_socket(SocketAddr::new(
+                    IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+                    tcp_port,
+                )) {
+                    bound_first_socket_v4 = Some(bfs4);
+                    bound_first_socket_v6 = Some(bfs6);
                 }
+            } else {
+                bound_first_socket_v4 = Some(bfs4);
             }
-            true
-        } else {
-            false
         }
+
+        if bound_first_socket_v4.is_none() && (has_v6 && bound_first_socket_v6.is_none()) {
+            return false;
+        }
+
+        cfg_if! {
+            if #[cfg(windows)] {
+                // On windows, drop the socket. This is a race condition, but there's
+                // no way around it. This isn't for security anyway, it's to prevent multiple copies of the
+                // app from binding on the same port.
+                inner.bound_first_tcp.insert(tcp_port, (None, None));
+            } else {
+                inner.bound_first_tcp.insert(tcp_port, (bound_first_socket_v4, bound_first_socket_v6));
+            }
+        }
+        true
     }
 
     pub(super) fn free_bound_first_ports(&self) {
@@ -204,10 +218,7 @@ impl Network {
         if listen_address.is_empty() {
             // If listen address is empty, find us a port iteratively
             let port = self.find_available_udp_port(5150)?;
-            let ip_addrs = vec![
-                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-            ];
+            let ip_addrs = available_unspecified_addresses();
             Ok((port, ip_addrs))
         } else {
             // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
@@ -227,10 +238,7 @@ impl Network {
         if listen_address.is_empty() {
             // If listen address is empty, find us a port iteratively
             let port = self.find_available_tcp_port(5150)?;
-            let ip_addrs = vec![
-                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-            ];
+            let ip_addrs = available_unspecified_addresses();
             Ok((port, ip_addrs))
         } else {
             // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
