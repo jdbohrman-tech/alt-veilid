@@ -239,13 +239,41 @@ pub fn compatible_unspecified_socket_addr(socket_addr: &SocketAddr) -> SocketAdd
     }
 }
 
+cfg_if! {
+    if #[cfg(not(target_arch = "wasm32"))] {
+        use std::net::UdpSocket;
+
+        static IPV6_IS_SUPPORTED: Mutex<Option<bool>> = Mutex::new(None);
+
+        pub fn is_ipv6_supported() -> bool {
+            let mut opt_supp = IPV6_IS_SUPPORTED.lock();
+            if let Some(supp) = *opt_supp {
+                return supp;
+            }
+            // Not exhaustive but for our use case it should be sufficient. If no local ports are available for binding, Veilid isn't going to work anyway :P
+            let supp = UdpSocket::bind(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 0, 0, 0)).is_ok();
+            *opt_supp = Some(supp);
+            supp
+        }
+    }
+}
+
+pub fn available_unspecified_addresses() -> Vec<IpAddr> {
+    if is_ipv6_supported() {
+        vec![
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+        ]
+    } else {
+        vec![IpAddr::V4(Ipv4Addr::UNSPECIFIED)]
+    }
+}
+
 pub fn listen_address_to_socket_addrs(listen_address: &str) -> Result<Vec<SocketAddr>, String> {
     // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
     // If the address is specified, only use the specified port and fail otherwise
-    let ip_addrs = [
-        IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-        IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-    ];
+
+    let ip_addrs = available_unspecified_addresses();
 
     Ok(if let Some(portstr) = listen_address.strip_prefix(':') {
         let port = portstr

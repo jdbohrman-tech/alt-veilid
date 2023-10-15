@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 use super::*;
 use core::sync::atomic::{AtomicI8, Ordering};
 use js_sys::{global, Reflect};
@@ -57,4 +59,26 @@ pub struct JsValueError(String);
 
 pub fn map_jsvalue_error(x: JsValue) -> JsValueError {
     JsValueError(x.as_string().unwrap_or_default())
+}
+
+static IPV6_IS_SUPPORTED: Mutex<Option<bool>> = Mutex::new(None);
+
+pub fn is_ipv6_supported() -> bool {
+    let mut opt_supp = IPV6_IS_SUPPORTED.lock();
+    if let Some(supp) = *opt_supp {
+        return supp;
+    }
+    // let supp = match UdpSocket::bind(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 0, 0, 0)) {
+    //     Ok(_) => true,
+    //     Err(e) => !matches!(
+    //         e.kind(),
+    //         std::io::ErrorKind::AddrNotAvailable | std::io::ErrorKind::Unsupported
+    //     ),
+    // };
+
+    // XXX: See issue #92
+    let supp = false;
+
+    *opt_supp = Some(supp);
+    supp
 }
