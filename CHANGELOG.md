@@ -8,6 +8,7 @@
 - Bootstrap is more robust in environments where some dialinfo won't work, like inbound UDP being firewalled off
 - CLI has timestamps in the log output
 - Base64 fixes for encoding
+- IPv6 capability detection for native platforms
 
 **Changed in Veilid 0.2.3**
 - Security fix for WS denial of service
