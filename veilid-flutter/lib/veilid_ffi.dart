@@ -246,6 +246,11 @@ const int messageStreamClose = 8;
 // Interface factory for high level Veilid API
 Veilid getVeilid() => VeilidFFI(_dylib);
 
+// Uint8List marshaling
+Uint8List convertUint8ListFromJson(dynamic json) =>
+    base64UrlNoPadDecode(json as String);
+dynamic convertUint8ListToJson(Uint8List data) => base64UrlNoPadEncode(data);
+
 // Parse handle async returns
 Future<T> processFuturePlain<T>(Future<dynamic> future) async =>
     future.then((value) {

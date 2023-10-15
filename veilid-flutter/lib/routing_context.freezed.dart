@@ -969,7 +969,7 @@ ValueData _$ValueDataFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$ValueData {
   int get seq => throw _privateConstructorUsedError;
-  @Uint8ListJsonConverter()
+  @Uint8ListJsonConverter.jsIsArray()
   Uint8List get data => throw _privateConstructorUsedError;
   FixedEncodedString43 get writer => throw _privateConstructorUsedError;
 
@@ -986,7 +986,7 @@ abstract class $ValueDataCopyWith<$Res> {
   @useResult
   $Res call(
       {int seq,
-      @Uint8ListJsonConverter() Uint8List data,
+      @Uint8ListJsonConverter.jsIsArray() Uint8List data,
       FixedEncodedString43 writer});
 }
 
@@ -1033,7 +1033,7 @@ abstract class _$$_ValueDataCopyWith<$Res> implements $ValueDataCopyWith<$Res> {
   @useResult
   $Res call(
       {int seq,
-      @Uint8ListJsonConverter() Uint8List data,
+      @Uint8ListJsonConverter.jsIsArray() Uint8List data,
       FixedEncodedString43 writer});
 }
 
@@ -1074,7 +1074,7 @@ class __$$_ValueDataCopyWithImpl<$Res>
 class _$_ValueData implements _ValueData {
   const _$_ValueData(
       {required this.seq,
-      @Uint8ListJsonConverter() required this.data,
+      @Uint8ListJsonConverter.jsIsArray() required this.data,
       required this.writer})
       : assert(seq >= 0, 'seq out of range');
 
@@ -1084,7 +1084,7 @@ class _$_ValueData implements _ValueData {
   @override
   final int seq;
   @override
-  @Uint8ListJsonConverter()
+  @Uint8ListJsonConverter.jsIsArray()
   final Uint8List data;
   @override
   final FixedEncodedString43 writer;
@@ -1126,7 +1126,7 @@ class _$_ValueData implements _ValueData {
 abstract class _ValueData implements ValueData {
   const factory _ValueData(
       {required final int seq,
-      @Uint8ListJsonConverter() required final Uint8List data,
+      @Uint8ListJsonConverter.jsIsArray() required final Uint8List data,
       required final FixedEncodedString43 writer}) = _$_ValueData;
 
   factory _ValueData.fromJson(Map<String, dynamic> json) =
@@ -1135,7 +1135,7 @@ abstract class _ValueData implements ValueData {
   @override
   int get seq;
   @override
-  @Uint8ListJsonConverter()
+  @Uint8ListJsonConverter.jsIsArray()
   Uint8List get data;
   @override
   FixedEncodedString43 get writer;

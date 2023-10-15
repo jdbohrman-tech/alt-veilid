@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:js' as js;
+import 'dart:js_interop' as js_interop;
 import 'dart:js_util' as js_util;
 import 'dart:typed_data';
 
@@ -13,14 +14,26 @@ Veilid getVeilid() => VeilidJS();
 
 Object wasm = js_util.getProperty(html.window, 'veilid_wasm');
 
+Uint8List convertUint8ListFromJson(dynamic json) => Uint8List.fromList(
+    ((json as js_interop.JSArray).dartify()! as List<Object?>)
+        .map((e) => e! as int)
+        .toList());
+
+dynamic convertUint8ListToJson(Uint8List data) => data.toList().jsify();
+
 Future<T> _wrapApiPromise<T>(Object p) => js_util
         .promiseToFuture<T>(p)
         .then((value) => value)
         // ignore: inference_failure_on_untyped_parameter
         .catchError((e) {
-      // Wrap all other errors in VeilidAPIExceptionInternal
-      throw VeilidAPIExceptionInternal(e.toString());
-    }, test: (e) => e is! VeilidAPIException);
+      try {
+        final ex = VeilidAPIException.fromJson(jsonDecode(e as String));
+        throw ex;
+      } on Exception catch (_) {
+        // Wrap all other errors in VeilidAPIExceptionInternal
+        throw VeilidAPIExceptionInternal(e.toString());
+      }
+    });
 
 class _Ctx {
   _Ctx(int id, this.js) : _id = id;
@@ -142,7 +155,11 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
         wasm,
         'routing_context_get_dht_value',
         [id, jsonEncode(key), subkey, forceRefresh]));
-    return opt == null ? null : ValueData.fromJson(jsonDecode(opt));
+    if (opt == null) {
+      return null;
+    }
+    final jsonOpt = jsonDecode(opt);
+    return jsonOpt == null ? null : ValueData.fromJson(jsonOpt);
   }
 
   @override
@@ -153,7 +170,11 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
         wasm,
         'routing_context_set_dht_value',
         [id, jsonEncode(key), subkey, base64UrlNoPadEncode(data)]));
-    return opt == null ? null : ValueData.fromJson(jsonDecode(opt));
+    if (opt == null) {
+      return null;
+    }
+    final jsonOpt = jsonDecode(opt);
+    return jsonOpt == null ? null : ValueData.fromJson(jsonOpt);
   }
 
   @override

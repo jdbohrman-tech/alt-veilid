@@ -80,14 +80,14 @@ Map<String, dynamic> _$$_ValueSubkeyRangeToJson(_$_ValueSubkeyRange instance) =>
 
 _$_ValueData _$$_ValueDataFromJson(Map<String, dynamic> json) => _$_ValueData(
       seq: json['seq'] as int,
-      data: const Uint8ListJsonConverter().fromJson(json['data'] as String),
+      data: const Uint8ListJsonConverter.jsIsArray().fromJson(json['data']),
       writer: FixedEncodedString43.fromJson(json['writer']),
     );
 
 Map<String, dynamic> _$$_ValueDataToJson(_$_ValueData instance) =>
     <String, dynamic>{
       'seq': instance.seq,
-      'data': const Uint8ListJsonConverter().toJson(instance.data),
+      'data': const Uint8ListJsonConverter.jsIsArray().toJson(instance.data),
       'writer': instance.writer.toJson(),
     };
 
@@ -109,7 +109,7 @@ Map<String, dynamic> _$$_SafetySpecToJson(_$_SafetySpec instance) =>
 
 _$_RouteBlob _$$_RouteBlobFromJson(Map<String, dynamic> json) => _$_RouteBlob(
       routeId: json['route_id'] as String,
-      blob: const Uint8ListJsonConverter().fromJson(json['blob'] as String),
+      blob: const Uint8ListJsonConverter().fromJson(json['blob']),
     );
 
 Map<String, dynamic> _$$_RouteBlobToJson(_$_RouteBlob instance) =>

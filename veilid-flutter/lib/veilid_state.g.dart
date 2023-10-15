@@ -129,8 +129,7 @@ Map<String, dynamic> _$$VeilidLogToJson(_$VeilidLog instance) =>
 
 _$VeilidAppMessage _$$VeilidAppMessageFromJson(Map<String, dynamic> json) =>
     _$VeilidAppMessage(
-      message:
-          const Uint8ListJsonConverter().fromJson(json['message'] as String),
+      message: const Uint8ListJsonConverter().fromJson(json['message']),
       sender: json['sender'] == null
           ? null
           : Typed<FixedEncodedString43>.fromJson(json['sender']),
@@ -146,8 +145,7 @@ Map<String, dynamic> _$$VeilidAppMessageToJson(_$VeilidAppMessage instance) =>
 
 _$VeilidAppCall _$$VeilidAppCallFromJson(Map<String, dynamic> json) =>
     _$VeilidAppCall(
-      message:
-          const Uint8ListJsonConverter().fromJson(json['message'] as String),
+      message: const Uint8ListJsonConverter().fromJson(json['message']),
       callId: json['call_id'] as String,
       sender: json['sender'] == null
           ? null

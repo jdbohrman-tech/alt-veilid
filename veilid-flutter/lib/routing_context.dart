@@ -123,7 +123,7 @@ class ValueData with _$ValueData {
   @Assert('seq >= 0', 'seq out of range')
   const factory ValueData({
     required int seq,
-    @Uint8ListJsonConverter() required Uint8List data,
+    @Uint8ListJsonConverter.jsIsArray() required Uint8List data,
     required PublicKey writer,
   }) = _ValueData;
 

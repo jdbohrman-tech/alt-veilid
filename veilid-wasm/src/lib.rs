@@ -345,11 +345,14 @@ pub fn release_routing_context(id: u32) -> i32 {
 
 #[wasm_bindgen()]
 pub fn routing_context_with_privacy(id: u32) -> u32 {
-    let rc = (*ROUTING_CONTEXTS).borrow();
-    let Some(routing_context) = rc.get(&id) else {
-        return 0;
+    let routing_context = {
+        let rc = (*ROUTING_CONTEXTS).borrow();
+        let Some(routing_context) = rc.get(&id) else {
+            return 0;
+        };
+        routing_context.clone()
     };
-    let Ok(routing_context) = routing_context.clone().with_privacy() else {
+    let Ok(routing_context) = routing_context.with_privacy() else {
         return 0;
     };
     add_routing_context(routing_context)
@@ -360,14 +363,14 @@ pub fn routing_context_with_custom_privacy(id: u32, safety_selection: String) ->
     let safety_selection: veilid_core::SafetySelection =
         veilid_core::deserialize_json(&safety_selection).unwrap();
 
-    let rc = (*ROUTING_CONTEXTS).borrow();
-    let Some(routing_context) = rc.get(&id) else {
-        return 0;
+    let routing_context = {
+        let rc = (*ROUTING_CONTEXTS).borrow();
+        let Some(routing_context) = rc.get(&id) else {
+            return 0;
+        };
+        routing_context.clone()
     };
-    let Ok(routing_context) = routing_context
-        .clone()
-        .with_custom_privacy(safety_selection)
-    else {
+    let Ok(routing_context) = routing_context.with_custom_privacy(safety_selection) else {
         return 0;
     };
     add_routing_context(routing_context)
@@ -377,11 +380,14 @@ pub fn routing_context_with_custom_privacy(id: u32, safety_selection: String) ->
 pub fn routing_context_with_sequencing(id: u32, sequencing: String) -> u32 {
     let sequencing: veilid_core::Sequencing = veilid_core::deserialize_json(&sequencing).unwrap();
 
-    let rc = (*ROUTING_CONTEXTS).borrow();
-    let Some(routing_context) = rc.get(&id) else {
-        return 0;
+    let routing_context = {
+        let rc = (*ROUTING_CONTEXTS).borrow();
+        let Some(routing_context) = rc.get(&id) else {
+            return 0;
+        };
+        routing_context.clone()
     };
-    let routing_context = routing_context.clone().with_sequencing(sequencing);
+    let routing_context = routing_context.with_sequencing(sequencing);
     add_routing_context(routing_context)
 }
 
@@ -1544,8 +1550,8 @@ pub fn crypto_crypt_no_auth(
 }
 
 #[wasm_bindgen()]
-pub fn now() -> u64 {
-    veilid_core::get_aligned_timestamp().as_u64()
+pub fn now() -> String {
+    veilid_core::get_aligned_timestamp().as_u64().to_string()
 }
 
 #[wasm_bindgen()]

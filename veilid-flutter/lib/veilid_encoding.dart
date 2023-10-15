@@ -1,8 +1,12 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+import 'veilid_stub.dart'
+    if (dart.library.io) 'veilid_ffi.dart'
+    if (dart.library.js) 'veilid_js.dart';
 
 String base64UrlNoPadEncode(List<int> bytes) {
   var x = base64Url.encode(bytes);
@@ -20,13 +24,20 @@ Uint8List base64UrlNoPadDecode(String source) {
 Uint8List base64UrlNoPadDecodeDynamic(dynamic source) =>
     base64UrlNoPadDecode(source as String);
 
-class Uint8ListJsonConverter implements JsonConverter<Uint8List, String> {
-  const Uint8ListJsonConverter();
+class Uint8ListJsonConverter implements JsonConverter<Uint8List, dynamic> {
+  const Uint8ListJsonConverter() : _jsIsArray = false;
+  const Uint8ListJsonConverter.jsIsArray() : _jsIsArray = true;
+
+  final bool _jsIsArray;
 
   @override
-  Uint8List fromJson(dynamic json) => base64UrlNoPadDecode(json as String);
+  Uint8List fromJson(dynamic json) => kIsWeb && _jsIsArray
+      ? convertUint8ListFromJson(json)
+      : base64UrlNoPadDecode(json as String);
   @override
-  String toJson(Uint8List data) => base64UrlNoPadEncode(data);
+  dynamic toJson(Uint8List data) => kIsWeb && _jsIsArray
+      ? convertUint8ListToJson(data)
+      : base64UrlNoPadEncode(data);
 }
 
 @immutable
