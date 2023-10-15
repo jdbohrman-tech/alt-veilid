@@ -1,3 +1,14 @@
+**Changed in Veilid 0.2.4**
+- Fixed issue with client API failing when ipv6 was disabled
+- Android fixed so it can move out of invalid network state
+- Numerous WASM binding fixes
+- IGD/UPNP fixes for Windows
+- Reduce network downtime when local ip addresses change (ipv6 temporary addresses)
+- Fix support for Android emulator
+- Bootstrap is more robust in environments where some dialinfo won't work, like inbound UDP being firewalled off
+- CLI has timestamps in the log output
+- Base64 fixes for encoding
+
 **Changed in Veilid 0.2.3**
 - Security fix for WS denial of service
 - Support for latest Rust 1.72
