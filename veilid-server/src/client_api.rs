@@ -2,7 +2,7 @@ use crate::settings::*;
 use crate::tools::*;
 use crate::veilid_logs::VeilidLogs;
 use cfg_if::*;
-use futures_util::{future::try_join_all, stream::FuturesUnordered, StreamExt};
+use futures_util::{future::join_all, stream::FuturesUnordered, StreamExt};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -31,7 +31,7 @@ cfg_if! {
 
 // --- Client API Server-Side ---------------------------------
 
-type ClientApiAllFuturesJoinHandle = MustJoinHandle<std::io::Result<Vec<()>>>;
+type ClientApiAllFuturesJoinHandle = MustJoinHandle<Vec<()>>;
 
 struct RequestLine {
     // Request to process
@@ -104,9 +104,7 @@ impl ClientApi {
             inner.join_handle.take().unwrap()
         };
         trace!("ClientApi::stop: waiting for stop");
-        if let Err(err) = jh.await {
-            eprintln!("{}", err);
-        }
+        jh.await;
         trace!("ClientApi::stop: stopped");
     }
 
@@ -428,10 +426,15 @@ impl ClientApi {
 
     #[instrument(level = "trace", skip(self))]
     pub fn run(&self, bind_addrs: Vec<SocketAddr>) {
-        let bind_futures = bind_addrs
-            .iter()
-            .map(|addr| self.clone().handle_incoming(*addr));
-        let bind_futures_join = try_join_all(bind_futures);
+        let bind_futures = bind_addrs.iter().copied().map(|addr| {
+            let this = self.clone();
+            async move {
+                if let Err(e) = this.handle_incoming(addr).await {
+                    warn!("Not binding client API to {}: {}", addr, e);
+                }
+            }
+        });
+        let bind_futures_join = join_all(bind_futures);
         self.inner.lock().join_handle = Some(spawn(bind_futures_join));
     }
 }
