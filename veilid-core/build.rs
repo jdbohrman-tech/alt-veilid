@@ -107,7 +107,10 @@ fn main() {
                 desired_protoc_major_version, protoc_version_string
             );
         } else if protoc_version_string != desired_protoc_version_string {
-            println!("protoc version may be untested: {}", protoc_version_string);
+            println!(
+                "cargo:warning=protoc version may be untested: {}",
+                protoc_version_string
+            );
         }
 
         ::capnpc::CompilerCommand::new()
