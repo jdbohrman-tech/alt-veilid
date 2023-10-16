@@ -82,7 +82,7 @@ fn main() {
             );
         } else if capnp_version_string != desired_capnp_version_string {
             println!(
-                "capnproto version may be untested: {}",
+                "cargo:warning=capnproto version may be untested: {}",
                 capnp_version_string
             );
         }
