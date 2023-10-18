@@ -50,7 +50,10 @@ fn get_protoc_version_string() -> String {
 }
 
 fn main() {
-    if std::env::var("DOCS_RS").is_ok() || std::env::var("BUILD_DOCS").is_ok() {
+    if std::env::var("DOCS_RS").is_ok()
+        || std::env::var("CARGO_CFG_DOC").is_ok()
+        || std::env::var("BUILD_DOCS").is_ok()
+    {
         return;
     }
 
