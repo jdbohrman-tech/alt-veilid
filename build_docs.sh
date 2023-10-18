@@ -1,3 +1,4 @@
 #!/bin/bash
-cargo doc --no-deps -p veilid-core
-cargo doc --no-deps -p veilid-tools
+export BUILD_DOCS=1
+cargo rustdoc -p veilid-core
+cargo rustdoc -p veilid-tools

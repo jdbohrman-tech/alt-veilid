@@ -50,74 +50,72 @@ fn get_protoc_version_string() -> String {
 }
 
 fn main() {
-    #[cfg(doc)]
-    return;
-
-    #[cfg(not(doc))]
-    {
-        let desired_capnp_version_string = get_desired_capnp_version_string();
-        let capnp_version_string = get_capnp_version_string();
-        let desired_protoc_version_string = get_desired_protoc_version_string();
-        let protoc_version_string = get_protoc_version_string();
-
-        // Check capnp version
-        let desired_capnp_major_version = desired_capnp_version_string
-            .split_once('.')
-            .unwrap()
-            .0
-            .parse::<usize>()
-            .expect("should be valid int");
-
-        if capnp_version_string
-            .split_once('.')
-            .unwrap()
-            .0
-            .parse::<usize>()
-            .expect("should be valid int")
-            != desired_capnp_major_version
-        {
-            panic!(
-                "capnproto version should be major version 1, preferably {} but is {}",
-                desired_capnp_version_string, capnp_version_string
-            );
-        } else if capnp_version_string != desired_capnp_version_string {
-            println!(
-                "cargo:warning=capnproto version may be untested: {}",
-                capnp_version_string
-            );
-        }
-
-        // Check protoc version
-        let desired_protoc_major_version = desired_protoc_version_string
-            .split_once('.')
-            .unwrap()
-            .0
-            .parse::<usize>()
-            .expect("should be valid int");
-        if protoc_version_string
-            .split_once('.')
-            .unwrap()
-            .0
-            .parse::<usize>()
-            .expect("should be valid int")
-            < desired_protoc_major_version
-        {
-            panic!(
-                "protoc version should be at least major version {} but is {}",
-                desired_protoc_major_version, protoc_version_string
-            );
-        } else if protoc_version_string != desired_protoc_version_string {
-            println!(
-                "cargo:warning=protoc version may be untested: {}",
-                protoc_version_string
-            );
-        }
-
-        ::capnpc::CompilerCommand::new()
-            .file("proto/veilid.capnp")
-            .run()
-            .expect("compiling schema");
+    if std::env::var("DOCS_RS").is_ok() || std::env::var("BUILD_DOCS").is_ok() {
+        return;
     }
+
+    let desired_capnp_version_string = get_desired_capnp_version_string();
+    let capnp_version_string = get_capnp_version_string();
+    let desired_protoc_version_string = get_desired_protoc_version_string();
+    let protoc_version_string = get_protoc_version_string();
+
+    // Check capnp version
+    let desired_capnp_major_version = desired_capnp_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
+        .expect("should be valid int");
+
+    if capnp_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
+        .expect("should be valid int")
+        != desired_capnp_major_version
+    {
+        panic!(
+            "capnproto version should be major version 1, preferably {} but is {}",
+            desired_capnp_version_string, capnp_version_string
+        );
+    } else if capnp_version_string != desired_capnp_version_string {
+        println!(
+            "cargo:warning=capnproto version may be untested: {}",
+            capnp_version_string
+        );
+    }
+
+    // Check protoc version
+    let desired_protoc_major_version = desired_protoc_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
+        .expect("should be valid int");
+    if protoc_version_string
+        .split_once('.')
+        .unwrap()
+        .0
+        .parse::<usize>()
+        .expect("should be valid int")
+        < desired_protoc_major_version
+    {
+        panic!(
+            "protoc version should be at least major version {} but is {}",
+            desired_protoc_major_version, protoc_version_string
+        );
+    } else if protoc_version_string != desired_protoc_version_string {
+        println!(
+            "cargo:warning=protoc version may be untested: {}",
+            protoc_version_string
+        );
+    }
+
+    ::capnpc::CompilerCommand::new()
+        .file("proto/veilid.capnp")
+        .run()
+        .expect("compiling schema");
 
     // Fix for missing __extenddftf2 on Android x86_64 Emulator
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
