@@ -54,11 +54,12 @@ impl fmt::Display for DialInfo {
                     SplitUrlHost::Hostname(_) => {
                         write!(f, "wss|{}|{}", di.socket_address.ip_addr(), di.request)
                     }
-                    SplitUrlHost::IpAddr(_) => {
-                        panic!(
-                            "secure websockets can not use ip address in request: {}",
-                            di.request
-                        );
+                    SplitUrlHost::IpAddr(a) => {
+                        if di.socket_address.ip_addr() == a {
+                            write!(f, "wss|{}", di.request)
+                        } else {
+                            panic!("resolved address does not match url: {}", di.request);
+                        }
                     }
                 }
             }
@@ -119,18 +120,23 @@ impl FromStr for DialInfo {
                 }
                 let url_port = split_url.port.unwrap_or(443u16);
 
-                let (a, rest) = rest.split_once('|').ok_or_else(|| {
-                    VeilidAPIError::parse_error(
-                        "DialInfo::from_str missing socket address '|' separator",
-                        s,
-                    )
-                })?;
+                match rest.split_once('|') {
+                    Some((sa, rest)) => {
+                        let address = Address::from_str(sa)?;
 
-                let address = Address::from_str(a)?;
-                DialInfo::try_wss(
-                    SocketAddress::new(address, url_port),
-                    format!("wss://{}", rest),
-                )
+                        DialInfo::try_wss(
+                            SocketAddress::new(address, url_port),
+                            format!("wss://{}", rest),
+                        )
+                    }
+                    None => {
+                        let address = Address::from_str(&split_url.host.to_string())?;
+                        DialInfo::try_wss(
+                            SocketAddress::new(address, url_port),
+                            format!("wss://{}", rest),
+                        )
+                    }
+                }
             }
             _ => Err(VeilidAPIError::parse_error(
                 "DialInfo::from_str has invalid scheme",
@@ -196,11 +202,13 @@ impl DialInfo {
         if url_port != socket_address.port() {
             apibail_parse_error!("socket address port doesn't match url port", url);
         }
-        if !matches!(split_url.host, SplitUrlHost::Hostname(_)) {
-            apibail_parse_error!(
-                "WSS url can not use address format, only hostname format",
-                url
-            );
+        if let SplitUrlHost::IpAddr(a) = split_url.host {
+            if socket_address.ip_addr() != a {
+                apibail_parse_error!(
+                    format!("request address does not match socket address: {}", a),
+                    socket_address
+                );
+            }
         }
         Ok(Self::WSS(DialInfoWSS {
             socket_address: socket_address.canonical(),
