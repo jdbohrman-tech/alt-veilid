@@ -1242,6 +1242,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctor"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37e366bff8cd32dd8754b0991fb66b279dc48f598c3a18914852a6673deef583"
+dependencies = [
+ "quote",
+ "syn 2.0.38",
+]
+
+[[package]]
 name = "ctrlc"
 version = "3.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2683,6 +2693,15 @@ name = "libc"
 version = "0.2.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a08173bc88b7955d1b3145aa561539096c421ac8debde8cbc3612ec635fee29b"
+
+[[package]]
+name = "libc-print"
+version = "0.1.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c17f111e2175c779daaf5e89fe3a3b0776b0adec218bc1159c56e4d3f58032f5"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "libloading"
@@ -5518,18 +5537,22 @@ name = "veilid-flutter"
 version = "0.2.4"
 dependencies = [
  "allo-isolate",
+ "android_log-sys 0.3.1",
  "async-std",
  "backtrace",
  "cfg-if 1.0.0",
+ "ctor",
  "data-encoding",
  "ffi-support",
  "futures-util",
  "hostname",
  "jni",
  "lazy_static",
+ "libc-print",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
+ "oslog",
  "paranoid-android",
  "parking_lot 0.12.1",
  "serde",
