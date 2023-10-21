@@ -17,9 +17,6 @@ use crate::veilid_api::*;
 
 use permutation::*;
 
-// NOCOMMIT
-//static DEBUG_COUNT: Mutex<i32> = Mutex::new(10);
-
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
 /// Remote private route cache entries expire in 5 minutes if they haven't been used
