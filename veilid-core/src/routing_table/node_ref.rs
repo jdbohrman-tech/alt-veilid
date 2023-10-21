@@ -379,7 +379,7 @@ impl NodeRef {
         entry: Arc<BucketEntry>,
         filter: Option<NodeRefFilter>,
     ) -> Self {
-        entry.ref_count.fetch_add(1u32, Ordering::Relaxed);
+        entry.ref_count.fetch_add(1u32, Ordering::AcqRel);
 
         Self {
             common: NodeRefBaseCommon {
@@ -438,7 +438,7 @@ impl Clone for NodeRef {
         self.common
             .entry
             .ref_count
-            .fetch_add(1u32, Ordering::Relaxed);
+            .fetch_add(1u32, Ordering::AcqRel);
 
         Self {
             common: NodeRefBaseCommon {
@@ -479,7 +479,7 @@ impl Drop for NodeRef {
             .common
             .entry
             .ref_count
-            .fetch_sub(1u32, Ordering::Relaxed)
+            .fetch_sub(1u32, Ordering::AcqRel)
             - 1;
         if new_ref_count == 0 {
             // get node ids with inner unlocked because nothing could be referencing this entry now

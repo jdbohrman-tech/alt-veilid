@@ -26,20 +26,21 @@ rt-tokio = [
     "tokio-util",
     "opentelemetry/rt-tokio",
 ]
+debug-load = ["dep:ctor", "dep:libc-print", "dep:android_log-sys", "dep:oslog"]
 
 [dependencies]
 veilid-core = { path = "../../veilid-core", default-features = false }
-tracing = { version = "^0", features = ["log", "attributes"] }
-tracing-subscriber = "^0"
-parking_lot = "^0"
-backtrace = "^0"
-serde_json = "^1"
-serde = "^1"
-futures-util = { version = "^0", default-features = false, features = [
+tracing = { version = "0.1.37", features = ["log", "attributes"] }
+tracing-subscriber = "0.3.17"
+parking_lot = "0.12.1"
+backtrace = "0.3.69"
+serde_json = "1.0.107"
+serde = "1.0.188"
+futures-util = { version = "0.3.28", default-features = false, features = [
     "alloc",
 ] }
-cfg-if = "^1"
-data-encoding = { version = "^2" }
+cfg-if = "1.0.0"
+data-encoding = { version = "2.4.0" }
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
@@ -48,19 +49,27 @@ tracing-opentelemetry = "0.21"
 opentelemetry = { version = "0.20" }
 opentelemetry-otlp = { version = "0.13" }
 opentelemetry-semantic-conventions = "0.12"
-async-std = { version = "^1", features = ["unstable"], optional = true }
-tokio = { version = "^1", features = ["full"], optional = true }
-tokio-stream = { version = "^0", features = ["net"], optional = true }
-tokio-util = { version = "^0", features = ["compat"], optional = true }
-allo-isolate = "^0"
-ffi-support = "^0"
-lazy_static = "^1"
-hostname = "^0"
+async-std = { version = "1.12.0", features = ["unstable"], optional = true }
+tokio = { version = "1.32.0", features = ["full"], optional = true }
+tokio-stream = { version = "0.1.14", features = ["net"], optional = true }
+tokio-util = { version = "0.7.8", features = ["compat"], optional = true }
+allo-isolate = "0.1.20"
+ffi-support = "0.4.4"
+lazy_static = "1.4.0"
+hostname = "0.3.1"
+ctor = { version = "0.2.5", optional = true }
+libc-print = { version = "0.1.22", optional = true }
+
 
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 
 # Dependencies for Android builds only
 [target.'cfg(target_os = "android")'.dependencies]
-jni = "^0"
+jni = "0.21.1"
 paranoid-android = "0.2.1"
+android_log-sys = { version = "0.3.1", optional = true }
+
+# Dependencies for Android builds only
+[target.'cfg(target_os = "ios")'.dependencies]
+oslog = { version = "0.2.0", default-features = false, optional = true }

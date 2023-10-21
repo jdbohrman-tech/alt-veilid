@@ -22,7 +22,7 @@ abstract class VeilidAPIException implements Exception {
         }
       case 'TryAgain':
         {
-          return VeilidAPIExceptionTryAgain();
+          return VeilidAPIExceptionTryAgain(json['message']! as String);
         }
       case 'Shutdown':
         {
@@ -30,7 +30,7 @@ abstract class VeilidAPIException implements Exception {
         }
       case 'InvalidTarget':
         {
-          return VeilidAPIExceptionInvalidTarget();
+          return VeilidAPIExceptionInvalidTarget(json['message']! as String);
         }
       case 'NoConnection':
         {
@@ -108,11 +108,14 @@ class VeilidAPIExceptionTimeout implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionTryAgain implements VeilidAPIException {
+  //
+  const VeilidAPIExceptionTryAgain(this.message);
+  final String message;
   @override
-  String toString() => 'VeilidAPIException: TryAgain';
+  String toString() => 'VeilidAPIException: TryAgain (message: $message)';
 
   @override
-  String toDisplayError() => 'Try again';
+  String toDisplayError() => 'Try again: (message: $message)';
 }
 
 @immutable
@@ -126,11 +129,15 @@ class VeilidAPIExceptionShutdown implements VeilidAPIException {
 
 @immutable
 class VeilidAPIExceptionInvalidTarget implements VeilidAPIException {
-  @override
-  String toString() => 'VeilidAPIException: InvalidTarget';
+  //
+  const VeilidAPIExceptionInvalidTarget(this.message);
+  final String message;
 
   @override
-  String toDisplayError() => 'Invalid target';
+  String toString() => 'VeilidAPIException: InvalidTarget (message: $message)';
+
+  @override
+  String toDisplayError() => 'Invalid target: (message: $message)';
 }
 
 @immutable

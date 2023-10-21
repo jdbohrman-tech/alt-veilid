@@ -32,7 +32,7 @@ impl RPCProcessor {
         key: TypedKey,
         subkey: ValueSubkey,
         last_descriptor: Option<SignedValueDescriptor>,
-    ) -> Result<NetworkResult<Answer<GetValueAnswer>>, RPCError> {
+    ) ->RPCNetworkResult<Answer<GetValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
         let Some(target) = dest.target() else {
@@ -168,7 +168,7 @@ impl RPCProcessor {
     pub(crate) async fn process_get_value_q(
         &self,
         msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) ->RPCNetworkResult<()> {
 
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {

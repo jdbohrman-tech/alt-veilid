@@ -10,7 +10,7 @@ impl RPCProcessor {
         routed_operation: RoutedOperation,
         route_hop: RouteHop,
         safety_route: SafetyRoute,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         // Make sure hop count makes sense
         if safety_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
             return Ok(NetworkResult::invalid_message(
@@ -69,7 +69,7 @@ impl RPCProcessor {
         next_route_node: RouteNode,
         safety_route_public_key: TypedKey,
         next_private_route: PrivateRoute,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         // Make sure hop count makes sense
         if next_private_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
             return Ok(NetworkResult::invalid_message(
@@ -122,7 +122,7 @@ impl RPCProcessor {
         vcrypto: CryptoSystemVersion,
         routed_operation: RoutedOperation,
         remote_sr_pubkey: TypedKey,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually? How to do this for safety routes?
         let node_id_secret = self.routing_table.node_id_secret_key(remote_sr_pubkey.kind);
@@ -170,7 +170,7 @@ impl RPCProcessor {
         routed_operation: RoutedOperation,
         remote_sr_pubkey: TypedKey,
         pr_pubkey: TypedKey,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         // Get sender id of the peer with the crypto kind of the route
         let Some(sender_id) = detail.peer_noderef.node_ids().get(pr_pubkey.kind) else {
             return Ok(NetworkResult::invalid_message(
@@ -246,7 +246,7 @@ impl RPCProcessor {
         routed_operation: RoutedOperation,
         remote_sr_pubkey: TypedKey,
         pr_pubkey: TypedKey,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
         if self.routing_table.node_ids().contains(&pr_pubkey) {
@@ -277,7 +277,7 @@ impl RPCProcessor {
         mut routed_operation: RoutedOperation,
         sr_pubkey: TypedKey,
         mut private_route: PrivateRoute,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         let Some(pr_first_hop) = private_route.pop_first_hop() else {
             return Ok(NetworkResult::invalid_message(
                 "switching from safety route to private route requires first hop",
@@ -341,7 +341,7 @@ impl RPCProcessor {
         route_hop_data: &RouteHopData,
         pr_pubkey: &TypedKey,
         route_operation: &mut RoutedOperation,
-    ) -> Result<NetworkResult<RouteHop>, RPCError> {
+    ) -> RPCNetworkResult<RouteHop> {
         // Get crypto kind
         let crypto_kind = pr_pubkey.kind;
         let Some(vcrypto) = self.crypto.get(crypto_kind) else {
@@ -402,10 +402,7 @@ impl RPCProcessor {
         feature = "verbose-tracing",
         instrument(level = "trace", skip(self), ret, err)
     )]
-    pub(crate) async fn process_route(
-        &self,
-        msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    pub(crate) async fn process_route(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
         if !routing_table.has_valid_network_class(msg.header.routing_domain()) {

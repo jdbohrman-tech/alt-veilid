@@ -60,21 +60,19 @@ impl StorageManager {
                 };
 
                 // send across the wire
-                let vres = rpc_processor
-                    .clone()
-                    .rpc_call_set_value(
-                        Destination::direct(next_node.clone()).with_safety(safety_selection),
-                        key,
-                        subkey,
-                        value,
-                        descriptor.clone(),
-                        send_descriptor,
-                    )
-                    .await?;
-                let sva = network_result_value_or_log!(vres => [ format!(": next_node={} safety_selection={:?} key={} subkey={} send_descriptor={}", next_node, safety_selection, key, subkey, send_descriptor) ] {
-                    // Any other failures, just try the next node and pretend this one never happened
-                    return Ok(None);
-                });
+                let sva = network_result_try!(
+                    rpc_processor
+                        .clone()
+                        .rpc_call_set_value(
+                            Destination::direct(next_node.clone()).with_safety(safety_selection),
+                            key,
+                            subkey,
+                            value,
+                            descriptor.clone(),
+                            send_descriptor,
+                        )
+                        .await?
+                );
 
                 // If the node was close enough to possibly set the value
                 if sva.answer.set {
@@ -91,7 +89,7 @@ impl StorageManager {
                             value.value_data(),
                         ) {
                             // Validation failed, ignore this value and pretend we never saw this node
-                            return Ok(None);
+                            return Ok(NetworkResult::invalid_message("Schema validation failed"));
                         }
 
                         // We have a prior value, ensure this is a newer sequence number
@@ -107,7 +105,7 @@ impl StorageManager {
                             // If the sequence number is older, or an equal sequence number,
                             // node should have not returned a value here.
                             // Skip this node and its closer list because it is misbehaving
-                            return Ok(None);
+                            return Ok(NetworkResult::invalid_message("Sequence number is older"));
                         }
                     } else {
                         // It was set on this node and no newer value was found and returned,
@@ -124,7 +122,7 @@ impl StorageManager {
                 #[cfg(feature = "network-result-extra")]
                 log_stor!(debug "SetValue fanout call returned peers {}", sva.answer.peers.len());
 
-                Ok(Some(sva.answer.peers))
+                Ok(NetworkResult::value(sva.answer.peers))
             }
         };
 

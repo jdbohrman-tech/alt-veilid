@@ -209,8 +209,7 @@ impl StorageManager {
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(rpc_processor) = inner.rpc_processor.clone() else {
-            // Offline, try again later
-            apibail_try_again!();
+            apibail_try_again!("offline, try again later");
         };
 
         // Drop the mutex so we dont block during network access
@@ -310,8 +309,7 @@ impl StorageManager {
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(rpc_processor) = inner.rpc_processor.clone() else {
-            // Offline, try again later
-            apibail_try_again!();
+            apibail_try_again!("offline, try again later");
         };
 
         // Drop the lock for network access

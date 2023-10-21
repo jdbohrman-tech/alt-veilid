@@ -58,7 +58,7 @@ impl<E: Send + 'static> TickTask<E> {
     }
 
     pub fn is_running(&self) -> bool {
-        self.running.load(core::sync::atomic::Ordering::Relaxed)
+        self.running.load(core::sync::atomic::Ordering::Acquire)
     }
 
     pub async fn stop(&self) -> Result<(), E> {
@@ -120,9 +120,9 @@ impl<E: Send + 'static> TickTask<E> {
         let running = self.running.clone();
         let routine = self.routine.get().unwrap()(stop_token, last_timestamp_us, now);
         let wrapped_routine = Box::pin(async move {
-            running.store(true, core::sync::atomic::Ordering::Relaxed);
+            running.store(true, core::sync::atomic::Ordering::Release);
             let out = routine.await;
-            running.store(false, core::sync::atomic::Ordering::Relaxed);
+            running.store(false, core::sync::atomic::Ordering::Release);
             out
         });
         match self.single_future.single_spawn(wrapped_routine).await {

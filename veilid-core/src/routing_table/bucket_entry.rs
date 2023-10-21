@@ -924,7 +924,7 @@ impl BucketEntry {
 
 impl Drop for BucketEntry {
     fn drop(&mut self) {
-        if self.ref_count.load(Ordering::Relaxed) != 0 {
+        if self.ref_count.load(Ordering::Acquire) != 0 {
             #[cfg(feature = "tracking")]
             {
                 println!("NodeRef Tracking");

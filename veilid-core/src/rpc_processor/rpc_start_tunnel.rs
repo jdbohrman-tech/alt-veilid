@@ -2,10 +2,7 @@ use super::*;
 
 impl RPCProcessor {
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
-    pub(crate) async fn process_start_tunnel_q(
-        &self,
-        msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    pub(crate) async fn process_start_tunnel_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         #[cfg(feature = "unstable-tunnels")]
         {

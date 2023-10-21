@@ -16,7 +16,7 @@ impl RPCProcessor {
         dest: Destination,
         node_id: TypedKey,
         capabilities: Vec<Capability>,
-    ) -> Result<NetworkResult<Answer<Vec<PeerInfo>>>, RPCError> {
+    ) -> RPCNetworkResult<Answer<Vec<PeerInfo>>> {
         // Ensure destination never has a private route
         if matches!(
             dest,
@@ -78,10 +78,7 @@ impl RPCProcessor {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
-    pub(crate) async fn process_find_node_q(
-        &self,
-        msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    pub(crate) async fn process_find_node_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}

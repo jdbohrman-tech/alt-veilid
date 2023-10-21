@@ -140,7 +140,7 @@ impl RoutingDomainEditor {
         log_rtab!(debug "[{:?}] COMMIT: {:?}", self.routing_domain, self.changes);
 
         // Apply changes
-        let mut changed = false;
+        let mut peer_info_changed = false;
         {
             let mut inner = self.routing_table.inner.write();
             inner.with_routing_domain_mut(self.routing_domain, |detail| {
@@ -167,22 +167,21 @@ impl RoutingDomainEditor {
                             detail
                                 .common_mut()
                                 .clear_dial_info_details(address_type, protocol_type);
-                            changed = true;
+                            peer_info_changed = true;
                         }
                         RoutingDomainChange::ClearRelayNode => {
                             info!("[{:?}] cleared relay node", self.routing_domain);
                             detail.common_mut().set_relay_node(None);
-                            changed = true;
+                            peer_info_changed = true;
                         }
                         RoutingDomainChange::SetRelayNode { relay_node } => {
                             info!("[{:?}] set relay node: {}", self.routing_domain, relay_node);
                             detail.common_mut().set_relay_node(Some(relay_node.clone()));
-                            changed = true;
+                            peer_info_changed = true;
                         }
                         RoutingDomainChange::SetRelayNodeKeepalive { ts } => {
                             debug!("[{:?}] relay node keepalive: {:?}", self.routing_domain, ts);
                             detail.common_mut().set_relay_node_last_keepalive(ts);
-                            changed = true;
                         }
                         RoutingDomainChange::AddDialInfoDetail { dial_info_detail } => {
                             info!(
@@ -195,7 +194,7 @@ impl RoutingDomainEditor {
                                 .common_mut()
                                 .add_dial_info_detail(dial_info_detail.clone());
 
-                            changed = true;
+                            peer_info_changed = true;
                         }
                         RoutingDomainChange::SetupNetwork {
                             outbound_protocols,
@@ -229,7 +228,7 @@ impl RoutingDomainEditor {
                                     address_types,
                                     capabilities.clone(),
                                 );
-                                changed = true;
+                                peer_info_changed = true;
                             }
                         }
                         RoutingDomainChange::SetNetworkClass { network_class } => {
@@ -246,19 +245,19 @@ impl RoutingDomainEditor {
                                     info!("[{:?}] cleared network class", self.routing_domain,);
                                 }
                                 detail.common_mut().set_network_class(network_class);
-                                changed = true;
+                                peer_info_changed = true;
                             }
                         }
                     }
                 }
             });
-            if changed {
+            if peer_info_changed {
                 // Allow signed node info updates at same timestamp for otherwise dead nodes if our network has changed
                 inner.reset_all_updated_since_last_network_change();
             }
         }
         // Clear the routespecstore cache if our PublicInternet dial info has changed
-        if changed && self.routing_domain == RoutingDomain::PublicInternet {
+        if peer_info_changed && self.routing_domain == RoutingDomain::PublicInternet {
             let rss = self.routing_table.route_spec_store();
             rss.reset();
         }

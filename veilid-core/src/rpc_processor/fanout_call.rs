@@ -8,7 +8,7 @@ where
     result: Option<Result<R, RPCError>>,
 }
 
-pub type FanoutCallReturnType = Result<Option<Vec<PeerInfo>>, RPCError>;
+pub type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
 pub type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 
 pub fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
@@ -132,7 +132,7 @@ where
 
             // Do the call for this node
             match (self.call_routine)(next_node.clone()).await {
-                Ok(Some(v)) => {
+                Ok(NetworkResult::Value(v)) => {
                     // Filter returned nodes
                     let filtered_v: Vec<PeerInfo> = v
                         .into_iter()
@@ -155,8 +155,11 @@ where
                         .register_find_node_answer(self.crypto_kind, filtered_v);
                     self.clone().add_to_fanout_queue(&new_nodes);
                 }
-                Ok(None) => {
+                #[allow(unused_variables)]
+                Ok(x) => {
                     // Call failed, node will not be considered again
+                    #[cfg(feature = "network-result-extra")]
+                    log_rpc!(debug "Fanout result {}: {:?}", &next_node, x);
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error

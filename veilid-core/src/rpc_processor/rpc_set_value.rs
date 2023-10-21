@@ -36,7 +36,7 @@ impl RPCProcessor {
         value: SignedValueData,
         descriptor: SignedValueDescriptor,
         send_descriptor: bool,
-    ) -> Result<NetworkResult<Answer<SetValueAnswer>>, RPCError> {
+    ) ->RPCNetworkResult<Answer<SetValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
         let Some(target) = dest.target() else {
@@ -182,7 +182,7 @@ impl RPCProcessor {
     pub(crate) async fn process_set_value_q(
         &self,
         msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) ->RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());

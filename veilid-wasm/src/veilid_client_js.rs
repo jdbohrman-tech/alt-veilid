@@ -30,7 +30,7 @@ pub struct VeilidClient {}
 #[wasm_bindgen(js_class = veilidClient)]
 impl VeilidClient {
     pub async fn initializeCore(platformConfig: VeilidWASMConfig) {
-        if INITIALIZED.swap(true, Ordering::Relaxed) {
+        if INITIALIZED.swap(true, Ordering::AcqRel) {
             return;
         }
         console_error_panic_hook::set_once();

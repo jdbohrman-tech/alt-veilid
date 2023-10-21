@@ -191,7 +191,7 @@ pub fn initialize_veilid_wasm() {
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 #[wasm_bindgen()]
 pub fn initialize_veilid_core(platform_config: String) {
-    if INITIALIZED.swap(true, Ordering::Relaxed) {
+    if INITIALIZED.swap(true, Ordering::AcqRel) {
         return;
     }
     let platform_config: VeilidWASMConfig = veilid_core::deserialize_json(&platform_config)

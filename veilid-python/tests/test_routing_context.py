@@ -105,7 +105,9 @@ async def test_routing_context_app_call_loopback():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
-        rc = await (await api.new_routing_context()).with_privacy()
+        rc = await (await (await api.new_routing_context()).with_privacy()).with_sequencing(
+            veilid.Sequencing.ENSURE_ORDERED
+        )
         async with rc:
             # make a new local private route
             prl, blob = await api.new_private_route()

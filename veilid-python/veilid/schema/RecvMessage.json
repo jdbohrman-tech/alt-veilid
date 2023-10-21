@@ -2974,7 +2974,8 @@
         {
           "type": "object",
           "required": [
-            "kind"
+            "kind",
+            "message"
           ],
           "properties": {
             "kind": {
@@ -2982,6 +2983,9 @@
               "enum": [
                 "TryAgain"
               ]
+            },
+            "message": {
+              "type": "string"
             }
           }
         },
@@ -3002,7 +3006,8 @@
         {
           "type": "object",
           "required": [
-            "kind"
+            "kind",
+            "message"
           ],
           "properties": {
             "kind": {
@@ -3010,6 +3015,9 @@
               "enum": [
                 "InvalidTarget"
               ]
+            },
+            "message": {
+              "type": "string"
             }
           }
         },

@@ -13,6 +13,8 @@ pub enum RPCError {
     Internal(String),
     #[error("[RPCError: Network({0})]")]
     Network(String),
+    #[error("[RPCError: TryAgain({0})]")]
+    TryAgain(String),
 }
 
 impl RPCError {
@@ -56,6 +58,25 @@ impl From<RPCError> for VeilidAPIError {
             RPCError::Protocol(message) => VeilidAPIError::Generic { message },
             RPCError::Internal(message) => VeilidAPIError::Internal { message },
             RPCError::Network(message) => VeilidAPIError::Generic { message },
+            RPCError::TryAgain(message) => VeilidAPIError::TryAgain { message },
+        }
+    }
+}
+
+pub(crate) type RPCNetworkResult<T> = Result<NetworkResult<T>, RPCError>;
+
+pub(crate) trait ToRPCNetworkResult<T> {
+    fn to_rpc_network_result(self) -> RPCNetworkResult<T>;
+}
+
+impl<T> ToRPCNetworkResult<T> for VeilidAPIResult<T> {
+    fn to_rpc_network_result(self) -> RPCNetworkResult<T> {
+        match self {
+            Err(VeilidAPIError::TryAgain { message }) => Err(RPCError::TryAgain(message)),
+            Err(VeilidAPIError::Timeout) => Ok(NetworkResult::timeout()),
+            Err(VeilidAPIError::Unimplemented { message }) => Err(RPCError::Unimplemented(message)),
+            Err(e) => Err(RPCError::internal(e)),
+            Ok(v) => Ok(NetworkResult::value(v)),
         }
     }
 }

@@ -50,7 +50,11 @@ impl Network {
                     let mut add = false;
 
                     if let Some(edi) = existing_dial_info.get(&(pt, at)) {
-                        if did.class <= edi.class {
+                        // Is the dial info class better than our existing dial info?
+                        // Or is the new dial info the same class, but different? Only change if things are different.
+                        if did.class < edi.class
+                            || (did.class == edi.class && did.dial_info != edi.dial_info)
+                        {
                             // Better or same dial info class was found, clear existing dialinfo for this pt/at pair
                             // Only keep one dial info per protocol/address type combination
                             clear = true;

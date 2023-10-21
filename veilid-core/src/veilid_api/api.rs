@@ -200,9 +200,11 @@ impl VeilidAPI {
     /// `VLD0:XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` but if the prefix is left off
     /// `XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` will be parsed with the 'best' cryptosystem
     /// available (at the time of this writing this is `VLD0`)
-    pub async fn parse_as_target<S: AsRef<str>>(&self, s: S) -> VeilidAPIResult<Target> {
+    pub async fn parse_as_target<S: ToString>(&self, s: S) -> VeilidAPIResult<Target> {
+        let s = s.to_string();
+
         // Is this a route id?
-        if let Ok(rrid) = RouteId::from_str(s.as_ref()) {
+        if let Ok(rrid) = RouteId::from_str(&s) {
             let routing_table = self.routing_table()?;
             let rss = routing_table.route_spec_store();
 
@@ -213,11 +215,11 @@ impl VeilidAPI {
         }
 
         // Is this a node id?
-        if let Ok(nid) = TypedKey::from_str(s.as_ref()) {
+        if let Ok(nid) = TypedKey::from_str(&s) {
             return Ok(Target::NodeId(nid));
         }
 
-        Err(VeilidAPIError::invalid_target())
+        Err(VeilidAPIError::parse_error("Unable to parse as target", s))
     }
 
     ////////////////////////////////////////////////////////////////
@@ -261,40 +263,28 @@ impl VeilidAPI {
         };
 
         let rss = self.routing_table()?.route_spec_store();
-        let r = rss
-            .allocate_route(
-                crypto_kinds,
-                stability,
-                sequencing,
-                default_route_hop_count,
-                Direction::Inbound.into(),
-                &[],
-            )
-            .map_err(VeilidAPIError::internal)?;
-        let Some(route_id) = r else {
-            apibail_generic!("unable to allocate route");
-        };
-        if !rss
-            .test_route(route_id)
-            .await
-            .map_err(VeilidAPIError::no_connection)?
-        {
+        let route_id = rss.allocate_route(
+            crypto_kinds,
+            stability,
+            sequencing,
+            default_route_hop_count,
+            Direction::Inbound.into(),
+            &[],
+        )?;
+        if !rss.test_route(route_id).await? {
             rss.release_route(route_id);
             apibail_generic!("allocated route failed to test");
         }
-        let private_routes = rss
-            .assemble_private_routes(&route_id, Some(true))
-            .map_err(VeilidAPIError::generic)?;
+        let private_routes = rss.assemble_private_routes(&route_id, Some(true))?;
         let blob = match RouteSpecStore::private_routes_to_blob(&private_routes) {
             Ok(v) => v,
             Err(e) => {
                 rss.release_route(route_id);
-                apibail_internal!(e);
+                return Err(e);
             }
         };
 
-        rss.mark_route_published(&route_id, true)
-            .map_err(VeilidAPIError::internal)?;
+        rss.mark_route_published(&route_id, true)?;
 
         Ok((route_id, blob))
     }
@@ -305,7 +295,6 @@ impl VeilidAPI {
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let rss = self.routing_table()?.route_spec_store();
         rss.import_remote_private_route(blob)
-            .map_err(|e| VeilidAPIError::invalid_argument(e, "blob", "private route blob"))
     }
 
     /// Release either a locally allocated or remotely imported private route
