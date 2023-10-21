@@ -162,7 +162,7 @@ pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
     (Arc::new(update_callback), Arc::new(config_callback))
 }
 
-fn config_callback(key: String) -> ConfigCallbackReturn {
+pub fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
         "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
         "namespace" => Ok(Box::<String>::default()),
@@ -191,7 +191,8 @@ fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.network_key_password" => Ok(Box::new(Option::<String>::None)),
         "network.routing_table.node_id" => Ok(Box::new(TypedKeyGroup::new())),
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
-        "network.routing_table.bootstrap" => Ok(Box::<Vec<String>>::default()),
+        // "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
+        "network.routing_table.bootstrap" => Ok(Box::new(vec!["bootstrap.veilid.net".to_string()])),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
         "network.routing_table.limit_attached_strong" => Ok(Box::new(16u32)),
@@ -325,7 +326,10 @@ pub async fn test_config() {
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
     assert_eq!(inner.network.routing_table.node_id.len(), 0);
     assert_eq!(inner.network.routing_table.node_id_secret.len(), 0);
-    assert_eq!(inner.network.routing_table.bootstrap, Vec::<String>::new());
+    assert_eq!(
+        inner.network.routing_table.bootstrap,
+        vec!["bootstrap.veilid.net"],
+    );
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);
     assert_eq!(inner.network.routing_table.limit_attached_strong, 16u32);
