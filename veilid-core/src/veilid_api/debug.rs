@@ -1096,8 +1096,7 @@ impl VeilidAPI {
             directions,
             &[],
         ) {
-            Ok(Some(v)) => format!("{}", v),
-            Ok(None) => "<unavailable>".to_string(),
+            Ok(v) => v.to_string(),
             Err(e) => {
                 format!("Route allocation failed: {}", e)
             }

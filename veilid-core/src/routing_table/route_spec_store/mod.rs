@@ -17,6 +17,9 @@ use crate::veilid_api::*;
 
 use permutation::*;
 
+// NOCOMMIT
+//static DEBUG_COUNT: Mutex<i32> = Mutex::new(10);
+
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
 /// Remote private route cache entries expire in 5 minutes if they haven't been used
@@ -151,20 +154,21 @@ impl RouteSpecStore {
     }
 
     /// Purge the route spec store
-    pub async fn purge(&self) -> EyreResult<()> {
+    pub async fn purge(&self) -> VeilidAPIResult<()> {
         {
             let inner = &mut *self.inner.lock();
             inner.content = Default::default();
             inner.cache = Default::default();
         }
-        self.save().await
+        self.save().await.map_err(VeilidAPIError::internal)
     }
 
     /// Create a new route
     /// Prefers nodes that are not currently in use by another route
     /// The route is not yet tested for its reachability
-    /// Returns None if no route could be allocated at this time
-    /// Returns Some route id string
+    /// Returns Err(VeilidAPIError::TryAgain) if no route could be allocated at this time
+    /// Returns other errors on failure
+    /// Returns Ok(route id string) on success
     #[instrument(level = "trace", skip(self), ret, err)]
     pub fn allocate_route(
         &self,
@@ -174,7 +178,7 @@ impl RouteSpecStore {
         hop_count: usize,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
-    ) -> EyreResult<Option<RouteId>> {
+    ) -> VeilidAPIResult<RouteId> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &mut *routing_table.inner.write();
@@ -203,21 +207,29 @@ impl RouteSpecStore {
         hop_count: usize,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
-    ) -> EyreResult<Option<RouteId>> {
+    ) -> VeilidAPIResult<RouteId> {
         use core::cmp::Ordering;
 
         if hop_count < 1 {
-            bail!("Not allocating route less than one hop in length");
+            apibail_invalid_argument!(
+                "Not allocating route less than one hop in length",
+                "hop_count",
+                hop_count
+            );
         }
 
         if hop_count > self.unlocked_inner.max_route_hop_count {
-            bail!("Not allocating route longer than max route hop count");
+            apibail_invalid_argument!(
+                "Not allocating route longer than max route hop count",
+                "hop_count",
+                hop_count
+            );
         }
 
         // Ensure we have a valid network class so our peer info is useful
         if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
             log_rtab!(debug "unable to allocate route until we have a valid PublicInternet network class");
-            return Ok(None);
+            apibail_try_again!();
         };
 
         // Get our peer info
@@ -370,7 +382,7 @@ impl RouteSpecStore {
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
         if nodes.len() < hop_count {
             log_rtab!(debug "not enough nodes to construct route at this time");
-            return Ok(None);
+            apibail_try_again!();
         }
 
         // Get peer info for everything
@@ -523,7 +535,7 @@ impl RouteSpecStore {
         }
         if route_nodes.is_empty() {
             log_rtab!(debug "unable to find unique route at this time");
-            return Ok(None);
+            apibail_try_again!();
         }
 
         drop(perm_func);
@@ -579,7 +591,7 @@ impl RouteSpecStore {
         // Keep route in spec store
         inner.content.add_detail(id, rssd);
 
-        Ok(Some(id))
+        Ok(id)
     }
 
     /// validate data using a private route's key and signature chain
@@ -651,17 +663,21 @@ impl RouteSpecStore {
         feature = "verbose-tracing",
         instrument(level = "trace", skip(self), ret, err)
     )]
-    async fn test_allocated_route(&self, private_route_id: RouteId) -> EyreResult<bool> {
+    async fn test_allocated_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
         // Make loopback route to test with
         let dest = {
             // Get the best private route for this id
             let (key, hop_count) = {
                 let inner = &mut *self.inner.lock();
                 let Some(rssd) = inner.content.get_detail(&private_route_id) else {
-                    bail!("route id not allocated");
+                    apibail_invalid_argument!(
+                        "route id not allocated",
+                        "private_route_id",
+                        private_route_id
+                    );
                 };
                 let Some(key) = rssd.get_best_route_set_key() else {
-                    bail!("no best key to test allocated route");
+                    apibail_internal!("no best key to test allocated route");
                 };
                 // Match the private route's hop length for safety route length
                 let hop_count = rssd.hop_count();
@@ -703,12 +719,12 @@ impl RouteSpecStore {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    async fn test_remote_route(&self, private_route_id: RouteId) -> EyreResult<bool> {
+    async fn test_remote_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
         // Make private route test
         let dest = {
             // Get the route to test
             let Some(private_route) = self.best_remote_private_route(&private_route_id) else {
-                bail!("no best key to test remote route");
+                apibail_internal!("no best key to test remote route");
             };
 
             // Always test routes with safety routes that are more likely to succeed
@@ -777,7 +793,7 @@ impl RouteSpecStore {
         feature = "verbose-tracing",
         instrument(level = "trace", skip(self), ret, err)
     )]
-    pub async fn test_route(&self, id: RouteId) -> EyreResult<bool> {
+    pub async fn test_route(&self, id: RouteId) -> VeilidAPIResult<bool> {
         let is_remote = self.is_route_id_remote(&id);
         if is_remote {
             self.test_remote_route(id).await
@@ -904,13 +920,14 @@ impl RouteSpecStore {
     }
 
     /// Compiles a safety route to the private route, with caching
-    /// Returns an Err() if the parameters are wrong
-    /// Returns Ok(None) if no allocation could happen at this time (not an error)
+    /// Returns Err(VeilidAPIError::TryAgain) if no allocation could happen at this time (not an error)
+    /// Returns other Err() if the parameters are wrong
+    /// Returns Ok(compiled route) on success
     pub fn compile_safety_route(
         &self,
         safety_selection: SafetySelection,
         mut private_route: PrivateRoute,
-    ) -> EyreResult<Option<CompiledRoute>> {
+    ) -> VeilidAPIResult<CompiledRoute> {
         // let profile_start_ts = get_timestamp();
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
@@ -920,7 +937,7 @@ impl RouteSpecStore {
         let crypto_kind = private_route.crypto_kind();
         let crypto = routing_table.crypto();
         let Some(vcrypto) = crypto.get(crypto_kind) else {
-            bail!("crypto not supported for route");
+            apibail_generic!("crypto not supported for route");
         };
         let pr_pubkey = private_route.public_key.value;
         let pr_hopcount = private_route.hop_count as usize;
@@ -928,7 +945,11 @@ impl RouteSpecStore {
 
         // Check private route hop count isn't larger than the max route hop count plus one for the 'first hop' header
         if pr_hopcount > (max_route_hop_count + 1) {
-            bail!("private route hop count too long");
+            apibail_invalid_argument!(
+                "private route hop count too long",
+                "private_route.hop_count",
+                pr_hopcount
+            );
         }
         // See if we are using a safety route, if not, short circuit this operation
         let safety_spec = match safety_selection {
@@ -937,24 +958,26 @@ impl RouteSpecStore {
             // Safety route stub with the node's public key as the safety route key since it's the 0th hop
             SafetySelection::Unsafe(sequencing) => {
                 let Some(pr_first_hop_node) = private_route.pop_first_hop() else {
-                    bail!("compiled private route should have first hop");
+                    apibail_generic!("compiled private route should have first hop");
                 };
 
                 let opt_first_hop = match pr_first_hop_node {
-                    RouteNode::NodeId(id) => {
-                        rti.lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id))?
-                    }
-                    RouteNode::PeerInfo(pi) => Some(rti.register_node_with_peer_info(
-                        routing_table.clone(),
-                        RoutingDomain::PublicInternet,
-                        *pi,
-                        false,
-                    )?),
+                    RouteNode::NodeId(id) => rti
+                        .lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id))
+                        .map_err(VeilidAPIError::internal)?,
+                    RouteNode::PeerInfo(pi) => Some(
+                        rti.register_node_with_peer_info(
+                            routing_table.clone(),
+                            RoutingDomain::PublicInternet,
+                            *pi,
+                            false,
+                        )
+                        .map_err(VeilidAPIError::internal)?,
+                    ),
                 };
                 if opt_first_hop.is_none() {
                     // Can't reach this private route any more
-                    log_rtab!(debug "can't reach private route any more");
-                    return Ok(None);
+                    apibail_generic!("can't reach private route any more");
                 }
                 let mut first_hop = opt_first_hop.unwrap();
 
@@ -963,14 +986,14 @@ impl RouteSpecStore {
 
                 // Return the compiled safety route
                 //println!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
-                return Ok(Some(CompiledRoute {
+                return Ok(CompiledRoute {
                     safety_route: SafetyRoute::new_stub(
                         routing_table.node_id(crypto_kind),
                         private_route,
                     ),
                     secret: routing_table.node_id_secret_key(crypto_kind),
                     first_hop,
-                }));
+                });
             }
         };
 
@@ -983,9 +1006,9 @@ impl RouteSpecStore {
             pr_pubkey
         } else {
             let Some(avoid_node_id) = private_route.first_hop_node_id() else {
-                bail!("compiled private route should have first hop");
+                apibail_generic!("compiled private route should have first hop");
             };
-            let Some(sr_pubkey) = self.get_route_for_safety_spec_inner(
+            self.get_route_for_safety_spec_inner(
                 inner,
                 rti,
                 crypto_kind,
@@ -993,22 +1016,17 @@ impl RouteSpecStore {
                 Direction::Outbound.into(),
                 &[avoid_node_id],
             )?
-            else {
-                // No safety route could be found for this spec
-                return Ok(None);
-            };
-            sr_pubkey
         };
 
         // Look up a few things from the safety route detail we want for the compiled route and don't borrow inner
         let Some(safety_route_id) = inner.content.get_id_by_key(&sr_pubkey) else {
-            bail!("route id missing");
+            apibail_generic!("safety route id missing");
         };
         let Some(safety_rssd) = inner.content.get_detail(&safety_route_id) else {
-            bail!("route set detail missing");
+            apibail_internal!("safety route set detail missing");
         };
         let Some(safety_rsd) = safety_rssd.get_route_by_key(&sr_pubkey) else {
-            bail!("route detail missing");
+            apibail_internal!("safety route detail missing");
         };
 
         // We can optimize the peer info in this safety route if it has been successfully
@@ -1040,7 +1058,7 @@ impl RouteSpecStore {
                 };
                 // Return compiled route
                 //println!("compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
-                return Ok(Some(compiled_route));
+                return Ok(compiled_route);
             }
         }
 
@@ -1071,10 +1089,10 @@ impl RouteSpecStore {
                     // Encrypt the previous blob ENC(nonce, DH(PKhop,SKsr))
                     let dh_secret = vcrypto
                         .cached_dh(&safety_rsd.hops[h], &safety_rsd.secret_key)
-                        .wrap_err("dh failed")?;
+                        .map_err(VeilidAPIError::internal)?;
                     let enc_msg_data = vcrypto
                         .encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
-                        .wrap_err("encryption failed")?;
+                        .map_err(VeilidAPIError::internal)?;
 
                     // Make route hop data
                     let route_hop_data = RouteHopData {
@@ -1098,7 +1116,7 @@ impl RouteSpecStore {
                                 })
                                 .flatten();
                             if pi.is_none() {
-                                bail!("peer info should exist for route but doesn't");
+                                apibail_internal!("peer info should exist for route but doesn't");
                             }
                             RouteNode::PeerInfo(Box::new(pi.unwrap()))
                         },
@@ -1123,10 +1141,10 @@ impl RouteSpecStore {
             // Encode first RouteHopData
             let dh_secret = vcrypto
                 .cached_dh(&safety_rsd.hops[0], &safety_rsd.secret_key)
-                .map_err(RPCError::map_internal("dh failed"))?;
+                .map_err(VeilidAPIError::internal)?;
             let enc_msg_data = vcrypto
                 .encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
-                .map_err(RPCError::map_internal("encryption failed"))?;
+                .map_err(VeilidAPIError::internal)?;
 
             let route_hop_data = RouteHopData {
                 nonce,
@@ -1159,7 +1177,7 @@ impl RouteSpecStore {
 
         // Return compiled route
         //println!("compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
-        Ok(Some(compiled_route))
+        Ok(compiled_route)
     }
 
     /// Get an allocated route that matches a particular safety spec
@@ -1175,14 +1193,22 @@ impl RouteSpecStore {
         safety_spec: &SafetySpec,
         direction: DirectionSet,
         avoid_nodes: &[TypedKey],
-    ) -> EyreResult<Option<PublicKey>> {
+    ) -> VeilidAPIResult<PublicKey> {
         // Ensure the total hop count isn't too long for our config
         let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
         if safety_spec.hop_count == 0 {
-            bail!("safety route hop count is zero");
+            apibail_invalid_argument!(
+                "safety route hop count is zero",
+                "safety_spec.hop_count",
+                safety_spec.hop_count
+            );
         }
         if safety_spec.hop_count > max_route_hop_count {
-            bail!("safety route hop count too long");
+            apibail_invalid_argument!(
+                "safety route hop count too long",
+                "safety_spec.hop_count",
+                safety_spec.hop_count
+            );
         }
 
         // See if the preferred route is here
@@ -1192,7 +1218,7 @@ impl RouteSpecStore {
                 if let Some(preferred_key) = preferred_rssd.get_route_set_keys().get(crypto_kind) {
                     // Only use the preferred route if it doesn't contain the avoid nodes
                     if !preferred_rssd.contains_nodes(avoid_nodes) {
-                        return Ok(Some(preferred_key.value));
+                        return Ok(preferred_key.value);
                     }
                 }
             }
@@ -1213,22 +1239,16 @@ impl RouteSpecStore {
             sr_route_id
         } else {
             // No route found, gotta allocate one
-            let Some(sr_route_id) = self
-                .allocate_route_inner(
-                    inner,
-                    rti,
-                    &[crypto_kind],
-                    safety_spec.stability,
-                    safety_spec.sequencing,
-                    safety_spec.hop_count,
-                    direction,
-                    avoid_nodes,
-                )
-                .map_err(RPCError::internal)?
-            else {
-                return Ok(None);
-            };
-            sr_route_id
+            self.allocate_route_inner(
+                inner,
+                rti,
+                &[crypto_kind],
+                safety_spec.stability,
+                safety_spec.sequencing,
+                safety_spec.hop_count,
+                direction,
+                avoid_nodes,
+            )?
         };
 
         let sr_pubkey = inner
@@ -1240,7 +1260,7 @@ impl RouteSpecStore {
             .unwrap()
             .value;
 
-        Ok(Some(sr_pubkey))
+        Ok(sr_pubkey)
     }
 
     /// Get a private route to use for the answer to question
@@ -1253,7 +1273,7 @@ impl RouteSpecStore {
         crypto_kind: CryptoKind,
         safety_spec: &SafetySpec,
         avoid_nodes: &[TypedKey],
-    ) -> EyreResult<Option<PublicKey>> {
+    ) -> VeilidAPIResult<PublicKey> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &mut *routing_table.inner.write();
@@ -1273,30 +1293,35 @@ impl RouteSpecStore {
         key: &PublicKey,
         rsd: &RouteSpecDetail,
         optimized: bool,
-    ) -> EyreResult<PrivateRoute> {
+    ) -> VeilidAPIResult<PrivateRoute> {
         let routing_table = self.unlocked_inner.routing_table.clone();
         let rti = &*routing_table.inner.read();
 
         // Ensure we get the crypto for it
         let crypto = routing_table.network_manager().crypto();
         let Some(vcrypto) = crypto.get(rsd.crypto_kind) else {
-            bail!("crypto not supported for route");
+            apibail_invalid_argument!(
+                "crypto not supported for route",
+                "rsd.crypto_kind",
+                rsd.crypto_kind
+            );
         };
 
         // Ensure our network class is valid before attempting to assemble any routes
         if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
-            let peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
-            bail!(
-                "can't make private routes until our node info is valid: {:?}",
-                peer_info
-            );
+            log_rtab!(debug "unable to assemble route until we have a valid PublicInternet network class");
+            apibail_try_again!();
         }
 
         // Make innermost route hop to our own node
         let mut route_hop = RouteHop {
             node: if optimized {
                 let Some(node_id) = routing_table.node_ids().get(rsd.crypto_kind) else {
-                    bail!("missing node id for crypto kind");
+                    apibail_invalid_argument!(
+                        "missing node id for crypto kind",
+                        "rsd.crypto_kind",
+                        rsd.crypto_kind
+                    );
                 };
                 RouteNode::NodeId(node_id.value)
             } else {
@@ -1320,12 +1345,9 @@ impl RouteSpecStore {
             };
 
             // Encrypt the previous blob ENC(nonce, DH(PKhop,SKpr))
-            let dh_secret = vcrypto
-                .cached_dh(&rsd.hops[h], &rsd.secret_key)
-                .wrap_err("dh failed")?;
-            let enc_msg_data = vcrypto
-                .encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)
-                .wrap_err("encryption failed")?;
+            let dh_secret = vcrypto.cached_dh(&rsd.hops[h], &rsd.secret_key)?;
+            let enc_msg_data =
+                vcrypto.encrypt_aead(blob_data.as_slice(), &nonce, &dh_secret, None)?;
             let route_hop_data = RouteHopData {
                 nonce,
                 blob: enc_msg_data,
@@ -1346,7 +1368,7 @@ impl RouteSpecStore {
                         })
                         .flatten();
                     if pi.is_none() {
-                        bail!("peer info should exist for route but doesn't",);
+                        apibail_internal!("peer info should exist for route but doesn't");
                     }
                     RouteNode::PeerInfo(Box::new(pi.unwrap()))
                 },
@@ -1373,13 +1395,13 @@ impl RouteSpecStore {
         &self,
         key: &PublicKey,
         optimized: Option<bool>,
-    ) -> EyreResult<PrivateRoute> {
+    ) -> VeilidAPIResult<PrivateRoute> {
         let inner = &*self.inner.lock();
         let Some(rsid) = inner.content.get_id_by_key(key) else {
-            bail!("route key does not exist");
+            apibail_invalid_argument!("route key does not exist", "key", key);
         };
         let Some(rssd) = inner.content.get_detail(&rsid) else {
-            bail!("route id does not exist");
+            apibail_internal!("route id does not exist");
         };
 
         // See if we can optimize this compilation yet
@@ -1406,10 +1428,10 @@ impl RouteSpecStore {
         &self,
         id: &RouteId,
         optimized: Option<bool>,
-    ) -> EyreResult<Vec<PrivateRoute>> {
+    ) -> VeilidAPIResult<Vec<PrivateRoute>> {
         let inner = &*self.inner.lock();
         let Some(rssd) = inner.content.get_detail(id) else {
-            bail!("route id does not exist");
+            apibail_invalid_argument!("route id does not exist", "id", id);
         };
 
         // See if we can optimize this compilation yet
@@ -1433,7 +1455,7 @@ impl RouteSpecStore {
         feature = "verbose-tracing",
         instrument(level = "trace", skip(self, blob), ret, err)
     )]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> EyreResult<RouteId> {
+    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let cur_ts = get_aligned_timestamp();
 
         // decode the pr blob
@@ -1450,7 +1472,7 @@ impl RouteSpecStore {
         for private_route in &private_routes {
             // ensure private route has first hop
             if !matches!(private_route.hops, PrivateRouteHops::FirstHop(_)) {
-                bail!("private route must have first hop");
+                apibail_generic!("private route must have first hop");
             }
 
             // ensure this isn't also an allocated route
@@ -1528,7 +1550,7 @@ impl RouteSpecStore {
         &self,
         key: &PublicKey,
         cur_ts: Timestamp,
-    ) -> EyreResult<()> {
+    ) -> VeilidAPIResult<()> {
         let our_node_info_ts = self
             .unlocked_inner
             .routing_table
@@ -1550,7 +1572,7 @@ impl RouteSpecStore {
             }
         }
 
-        bail!("private route is missing from store: {}", key);
+        apibail_invalid_argument!("private route is missing from store", "key", key);
     }
 
     /// Get the route statistics for any route we know about, local or remote
@@ -1603,10 +1625,10 @@ impl RouteSpecStore {
     /// Mark route as published
     /// When first deserialized, routes must be re-published in order to ensure they remain
     /// in the RouteSpecStore.
-    pub fn mark_route_published(&self, id: &RouteId, published: bool) -> EyreResult<()> {
+    pub fn mark_route_published(&self, id: &RouteId, published: bool) -> VeilidAPIResult<()> {
         let inner = &mut *self.inner.lock();
         let Some(rssd) = inner.content.get_detail_mut(id) else {
-            bail!("route does not exist");
+            apibail_invalid_argument!("route does not exist", "id", id);
         };
         rssd.set_published(published);
         Ok(())
@@ -1624,13 +1646,13 @@ impl RouteSpecStore {
     }
 
     /// Convert private route list to binary blob
-    pub fn private_routes_to_blob(private_routes: &[PrivateRoute]) -> EyreResult<Vec<u8>> {
+    pub fn private_routes_to_blob(private_routes: &[PrivateRoute]) -> VeilidAPIResult<Vec<u8>> {
         let mut buffer = vec![];
 
         // Serialize count
         let pr_count = private_routes.len();
         if pr_count > MAX_CRYPTO_KINDS {
-            bail!("too many crypto kinds to encode blob");
+            apibail_internal!("too many crypto kinds to encode blob");
         }
         let pr_count = pr_count as u8;
         buffer.push(pr_count);
@@ -1641,25 +1663,31 @@ impl RouteSpecStore {
             let mut pr_builder = pr_message.init_root::<veilid_capnp::private_route::Builder>();
 
             encode_private_route(private_route, &mut pr_builder)
-                .wrap_err("failed to encode private route")?;
+                .map_err(VeilidAPIError::internal)?;
 
             capnp::serialize_packed::write_message(&mut buffer, &pr_message)
-                .map_err(RPCError::internal)
-                .wrap_err("failed to convert builder to vec")?;
+                .map_err(RPCError::internal)?;
         }
         Ok(buffer)
     }
 
-    /// Convert binary blob to private route
-    pub fn blob_to_private_routes(crypto: Crypto, blob: Vec<u8>) -> EyreResult<Vec<PrivateRoute>> {
+    /// Convert binary blob to private route vector
+    pub fn blob_to_private_routes(
+        crypto: Crypto,
+        blob: Vec<u8>,
+    ) -> VeilidAPIResult<Vec<PrivateRoute>> {
         // Deserialize count
         if blob.is_empty() {
-            bail!("not deserializing empty private route blob");
+            apibail_invalid_argument!(
+                "not deserializing empty private route blob",
+                "blob.is_empty",
+                true
+            );
         }
 
         let pr_count = blob[0] as usize;
         if pr_count > MAX_CRYPTO_KINDS {
-            bail!("too many crypto kinds to decode blob");
+            apibail_invalid_argument!("too many crypto kinds to decode blob", "blob[0]", pr_count);
         }
 
         // Deserialize stream of private routes
@@ -1670,18 +1698,17 @@ impl RouteSpecStore {
                 &mut pr_slice,
                 capnp::message::ReaderOptions::new(),
             )
-            .map_err(RPCError::internal)
-            .wrap_err("failed to make message reader")?;
+            .map_err(|e| VeilidAPIError::invalid_argument("failed to read blob", "e", e))?;
 
             let pr_reader = reader
                 .get_root::<veilid_capnp::private_route::Reader>()
-                .map_err(RPCError::internal)
-                .wrap_err("failed to make reader for private_route")?;
-            let private_route =
-                decode_private_route(&pr_reader).wrap_err("failed to decode private route")?;
-            private_route
-                .validate(crypto.clone())
-                .wrap_err("failed to validate private route")?;
+                .map_err(VeilidAPIError::internal)?;
+            let private_route = decode_private_route(&pr_reader).map_err(|e| {
+                VeilidAPIError::invalid_argument("failed to decode private route", "e", e)
+            })?;
+            private_route.validate(crypto.clone()).map_err(|e| {
+                VeilidAPIError::invalid_argument("failed to validate private route", "e", e)
+            })?;
 
             out.push(private_route);
         }
@@ -1693,7 +1720,7 @@ impl RouteSpecStore {
     }
 
     /// Generate RouteId from typed key set of route public keys
-    fn generate_allocated_route_id(&self, rssd: &RouteSetSpecDetail) -> EyreResult<RouteId> {
+    fn generate_allocated_route_id(&self, rssd: &RouteSetSpecDetail) -> VeilidAPIResult<RouteId> {
         let route_set_keys = rssd.get_route_set_keys();
         let crypto = self.unlocked_inner.routing_table.crypto();
 
@@ -1708,7 +1735,7 @@ impl RouteSpecStore {
             idbytes.extend_from_slice(&tk.value.bytes);
         }
         let Some(best_kind) = best_kind else {
-            bail!("no compatible crypto kinds in route");
+            apibail_internal!("no compatible crypto kinds in route");
         };
         let vcrypto = crypto.get(best_kind).unwrap();
 
@@ -1716,7 +1743,10 @@ impl RouteSpecStore {
     }
 
     /// Generate RouteId from set of private routes    
-    fn generate_remote_route_id(&self, private_routes: &[PrivateRoute]) -> EyreResult<RouteId> {
+    fn generate_remote_route_id(
+        &self,
+        private_routes: &[PrivateRoute],
+    ) -> VeilidAPIResult<RouteId> {
         let crypto = self.unlocked_inner.routing_table.crypto();
 
         let mut idbytes = Vec::with_capacity(PUBLIC_KEY_LENGTH * private_routes.len());
@@ -1731,7 +1761,7 @@ impl RouteSpecStore {
             idbytes.extend_from_slice(&private_route.public_key.value.bytes);
         }
         let Some(best_kind) = best_kind else {
-            bail!("no compatible crypto kinds in route");
+            apibail_internal!("no compatible crypto kinds in route");
         };
         let vcrypto = crypto.get(best_kind).unwrap();
 

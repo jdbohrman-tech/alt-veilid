@@ -18,21 +18,21 @@ extern "C" {
 
 pub fn is_browser() -> bool {
     static CACHE: AtomicI8 = AtomicI8::new(-1);
-    let cache = CACHE.load(Ordering::Relaxed);
+    let cache = CACHE.load(Ordering::AcqRel);
     if cache != -1 {
         return cache != 0;
     }
 
     let res = Reflect::has(global().as_ref(), &"navigator".into()).unwrap_or_default();
 
-    CACHE.store(res as i8, Ordering::Relaxed);
+    CACHE.store(res as i8, Ordering::AcqRel);
 
     res
 }
 
 pub fn is_browser_https() -> bool {
     static CACHE: AtomicI8 = AtomicI8::new(-1);
-    let cache = CACHE.load(Ordering::Relaxed);
+    let cache = CACHE.load(Ordering::AcqRel);
     if cache != -1 {
         return cache != 0;
     }
@@ -41,7 +41,7 @@ pub fn is_browser_https() -> bool {
         .map(|res| res.is_truthy())
         .unwrap_or_default();
 
-    CACHE.store(res as i8, Ordering::Relaxed);
+    CACHE.store(res as i8, Ordering::AcqRel);
 
     res
 }

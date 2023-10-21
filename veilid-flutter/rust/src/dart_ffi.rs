@@ -17,35 +17,39 @@ use veilid_core::tools::*;
 use veilid_core::Encodable as _;
 
 // Detect flutter load/unload
-#[ctor::ctor]
-fn onload() {
-    cfg_if! {
-        if #[cfg(target_os="android")] {
-            use android_log_sys::*;
-            use std::ffi::{CString, c_int, c_char};
-            unsafe {
-                let tag = CString::new("veilid").unwrap();
-                let text = CString::new(">>> VEILID-FLUTTER LOADED <<<").unwrap();
-                __android_log_write(LogPriority::INFO as c_int, tag.as_ptr() as *const c_char, text.as_ptr() as *const c_char);
+cfg_if! {
+    if #[cfg(feature="debug-load")] {
+        #[ctor::ctor]
+        fn onload() {
+            cfg_if! {
+                if #[cfg(target_os="android")] {
+                    use android_log_sys::*;
+                    use std::ffi::{CString, c_int, c_char};
+                    unsafe {
+                        let tag = CString::new("veilid").unwrap();
+                        let text = CString::new(">>> VEILID-FLUTTER LOADED <<<").unwrap();
+                        __android_log_write(LogPriority::INFO as c_int, tag.as_ptr() as *const c_char, text.as_ptr() as *const c_char);
+                    }
+                } else {
+                    libc_print::libc_println!(">>> VEILID-FLUTTER LOADED <<<");
+                }
             }
-        } else {
-            libc_print::libc_println!(">>> VEILID-FLUTTER LOADED <<<");
         }
-    }
-}
-#[ctor::dtor]
-fn onunload() {
-    cfg_if! {
-        if #[cfg(target_os="android")] {
-            use android_log_sys::*;
-            use std::ffi::{CString, c_int, c_char};
-            unsafe {
-                let tag = CString::new("veilid").unwrap();
-                let text = CString::new(">>> VEILID-FLUTTER UNLOADED <<<").unwrap();
-                __android_log_write(LogPriority::INFO as c_int, tag.as_ptr() as *const c_char, text.as_ptr() as *const c_char);
+        #[ctor::dtor]
+        fn onunload() {
+            cfg_if! {
+                if #[cfg(target_os="android")] {
+                    use android_log_sys::*;
+                    use std::ffi::{CString, c_int, c_char};
+                    unsafe {
+                        let tag = CString::new("veilid").unwrap();
+                        let text = CString::new(">>> VEILID-FLUTTER UNLOADED <<<").unwrap();
+                        __android_log_write(LogPriority::INFO as c_int, tag.as_ptr() as *const c_char, text.as_ptr() as *const c_char);
+                    }
+                } else {
+                    libc_print::libc_println!(">>> VEILID-FLUTTER UNLOADED <<<");
+                }
             }
-        } else {
-            libc_print::libc_println!(">>> VEILID-FLUTTER UNLOADED <<<");
         }
     }
 }

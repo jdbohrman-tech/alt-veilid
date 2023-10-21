@@ -413,7 +413,7 @@ impl AssemblyBuffer {
             .await;
 
         // Get a message seq
-        let seq = self.unlocked_inner.next_seq.fetch_add(1, Ordering::Relaxed);
+        let seq = self.unlocked_inner.next_seq.fetch_add(1, Ordering::AcqRel);
 
         // Chunk it up
         let mut offset = 0usize;

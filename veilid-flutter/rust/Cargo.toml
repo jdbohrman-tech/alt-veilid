@@ -26,6 +26,7 @@ rt-tokio = [
     "tokio-util",
     "opentelemetry/rt-tokio",
 ]
+debug-load = ["dep:ctor", "dep:libc-print", "dep:android_log-sys", "dep:oslog"]
 
 [dependencies]
 veilid-core = { path = "../../veilid-core", default-features = false }
@@ -56,9 +57,8 @@ allo-isolate = "0.1.20"
 ffi-support = "0.4.4"
 lazy_static = "1.4.0"
 hostname = "0.3.1"
-# loader debugging
-ctor = "0.2.5"
-libc-print = "0.1.22"
+ctor = { version = "0.2.5", optional = true }
+libc-print = { version = "0.1.22", optional = true }
 
 
 # Dependencies for WASM builds only
@@ -68,8 +68,8 @@ libc-print = "0.1.22"
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21.1"
 paranoid-android = "0.2.1"
-android_log-sys = "0.3.1"
+android_log-sys = { version = "0.3.1", optional = true }
 
 # Dependencies for Android builds only
 [target.'cfg(target_os = "ios")'.dependencies]
-oslog = { version = "0.2.0", default-features = false }
+oslog = { version = "0.2.0", default-features = false, optional = true }

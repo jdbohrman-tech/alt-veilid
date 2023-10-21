@@ -205,15 +205,19 @@ impl RoutingTable {
             for _n in 0..routes_to_allocate {
                 // Parameters here must be the most inclusive safety route spec
                 // These will be used by test_remote_route as well
-                if let Some(k) = rss.allocate_route(
+                match rss.allocate_route(
                     &VALID_CRYPTO_KINDS,
                     Stability::default(),
                     Sequencing::EnsureOrdered,
                     default_route_hop_count,
                     DirectionSet::all(),
                     &[],
-                )? {
-                    newly_allocated_routes.push(k);
+                ) {
+                    Err(VeilidAPIError::TryAgain) => {}
+                    Err(e) => return Err(e.into()),
+                    Ok(v) => {
+                        newly_allocated_routes.push(v);
+                    }
                 }
             }
 

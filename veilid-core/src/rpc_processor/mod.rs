@@ -652,14 +652,16 @@ impl RPCProcessor {
         // Compile the safety route with the private route
         let compiled_route: CompiledRoute = match rss
             .compile_safety_route(safety_selection, remote_private_route)
-            .map_err(RPCError::internal)?
         {
-            Some(cr) => cr,
-            None => {
+            Err(VeilidAPIError::TryAgain) => {
                 return Ok(NetworkResult::no_connection_other(
                     "private route could not be compiled at this time",
                 ))
             }
+            Err(e) => {
+                return Err(RPCError::internal(e));
+            }
+            Ok(v) => v,
         };
         let sr_is_stub = compiled_route.safety_route.is_stub();
         let sr_pubkey = compiled_route.safety_route.public_key.value;
