@@ -132,6 +132,13 @@ impl RoutingTable {
                     async move {
                         let success = match rss.test_route(r).await {
                             Ok(v) => v,
+                            // Route was already removed
+                            Err(VeilidAPIError::InvalidArgument {
+                                context: _,
+                                argument: _,
+                                value: _,
+                            }) => false,
+                            // Other failures
                             Err(e) => {
                                 log_rtab!(error "Test route failed: {}", e);
                                 ctx.lock().failed = true;
