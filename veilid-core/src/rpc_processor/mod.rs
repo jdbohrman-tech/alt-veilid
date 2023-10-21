@@ -469,24 +469,15 @@ impl RPCProcessor {
         let call_routine = |next_node: NodeRef| {
             let this = self.clone();
             async move {
-                match this
+                let v = network_result_try!(this
                     .clone()
                     .rpc_call_find_node(
                         Destination::direct(next_node).with_safety(safety_selection),
                         node_id,
                         vec![],
                     )
-                    .await
-                {
-                    Ok(v) => {
-                        let v = network_result_value_or_log!(v => [ format!(": node_id={} count={} fanout={} fanout={} safety_selection={:?}", node_id, count, fanout, timeout_us, safety_selection) ] {
-                            // Any other failures, just try the next node
-                            return Ok(None);
-                        });
-                        Ok(Some(v.answer))
-                    }
-                    Err(e) => Err(e),
-                }
+                    .await?);
+                Ok(NetworkResult::value(v.answer))
             }
         };
 
@@ -636,7 +627,7 @@ impl RPCProcessor {
         remote_private_route: PrivateRoute,
         reply_private_route: Option<PublicKey>,
         message_data: Vec<u8>,
-    ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
+    ) -> RPCNetworkResult<RenderedOperation> {
         let routing_table = self.routing_table();
         let rss = routing_table.route_spec_store();
 
@@ -650,19 +641,8 @@ impl RPCProcessor {
         };
 
         // Compile the safety route with the private route
-        let compiled_route: CompiledRoute = match rss
-            .compile_safety_route(safety_selection, remote_private_route)
-        {
-            Err(VeilidAPIError::TryAgain) => {
-                return Ok(NetworkResult::no_connection_other(
-                    "private route could not be compiled at this time",
-                ))
-            }
-            Err(e) => {
-                return Err(RPCError::internal(e));
-            }
-            Ok(v) => v,
-        };
+        let compiled_route: CompiledRoute = network_result_try!(rss
+            .compile_safety_route(safety_selection, remote_private_route).to_rpc_network_result()?);
         let sr_is_stub = compiled_route.safety_route.is_stub();
         let sr_pubkey = compiled_route.safety_route.public_key.value;
 
@@ -723,7 +703,7 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         operation: &RPCOperation,
-    ) -> Result<NetworkResult<RenderedOperation>, RPCError> {
+    ) ->RPCNetworkResult<RenderedOperation> {
         let out: NetworkResult<RenderedOperation>;
 
         // Encode message to a builder and make a message reader for it
@@ -1162,7 +1142,7 @@ impl RPCProcessor {
         dest: Destination,
         question: RPCQuestion,
         context: Option<QuestionContext>,
-    ) -> Result<NetworkResult<WaitableReply>, RPCError> {
+    ) ->RPCNetworkResult<WaitableReply> {
         // Get sender peer info if we should send that
         let spi = self.get_sender_peer_info(&dest);
 
@@ -1258,7 +1238,7 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         statement: RPCStatement,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) ->RPCNetworkResult<()> {
         // Get sender peer info if we should send that
         let spi = self.get_sender_peer_info(&dest);
 
@@ -1333,7 +1313,7 @@ impl RPCProcessor {
         &self,
         request: RPCMessage,
         answer: RPCAnswer,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) ->RPCNetworkResult<()> {
         // Extract destination from respond_to
         let dest = network_result_try!(self.get_respond_to_destination(&request));
 
@@ -1459,7 +1439,7 @@ impl RPCProcessor {
     async fn process_rpc_message(
         &self,
         encoded_msg: RPCMessageEncoded,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) ->RPCNetworkResult<()> {
         let address_filter = self.network_manager.address_filter();
 
         // Decode operation appropriately based on header detail

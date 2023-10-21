@@ -22,7 +22,7 @@ impl RPCProcessor {
     pub async fn rpc_call_status(
         self,
         dest: Destination,
-    ) -> Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError> {
+    ) -> RPCNetworkResult<Answer<Option<SenderInfo>>> {
         let (opt_target_nr, routing_domain, node_status) = match dest.get_safety_selection() {
             SafetySelection::Unsafe(_) => {
                 let (opt_target_nr, routing_domain) = match &dest {
@@ -197,10 +197,7 @@ impl RPCProcessor {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
-    pub(crate) async fn process_status_q(
-        &self,
-        msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the question
         let kind = msg.operation.kind().clone();
         let status_q = match kind {

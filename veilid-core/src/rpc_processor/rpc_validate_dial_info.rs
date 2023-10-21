@@ -56,10 +56,7 @@ impl RPCProcessor {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
-    pub(crate) async fn process_validate_dial_info(
-        &self,
-        msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         let routing_table = self.routing_table();
         if !routing_table.has_valid_network_class(msg.header.routing_domain()) {
             return Ok(NetworkResult::service_unavailable(

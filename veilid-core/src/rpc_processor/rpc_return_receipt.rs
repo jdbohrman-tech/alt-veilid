@@ -11,7 +11,7 @@ impl RPCProcessor {
         self,
         dest: Destination,
         receipt: D,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         let receipt = receipt.as_ref().to_vec();
 
         let return_receipt = RPCOperationReturnReceipt::new(receipt)?;
@@ -25,10 +25,7 @@ impl RPCProcessor {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
-    pub(crate) async fn process_return_receipt(
-        &self,
-        msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    pub(crate) async fn process_return_receipt(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
         let receipt = match kind {

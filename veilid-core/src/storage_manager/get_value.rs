@@ -54,19 +54,17 @@ impl StorageManager {
             let context = context.clone();
             let last_descriptor = last_subkey_result.descriptor.clone();
             async move {
-                let vres = rpc_processor
-                    .clone()
-                    .rpc_call_get_value(
-                        Destination::direct(next_node.clone()).with_safety(safety_selection),
-                        key,
-                        subkey,
-                        last_descriptor,
-                    )
-                    .await?;
-                let gva = network_result_value_or_log!(vres => [ format!(": next_node={} safety_selection={:?} key={} subkey={}", next_node, safety_selection, key, subkey) ] {
-                    // Any other failures, just try the next node
-                    return Ok(None);
-                });
+                let gva = network_result_try!(
+                    rpc_processor
+                        .clone()
+                        .rpc_call_get_value(
+                            Destination::direct(next_node.clone()).with_safety(safety_selection),
+                            key,
+                            subkey,
+                            last_descriptor,
+                        )
+                        .await?
+                );
 
                 // Keep the descriptor if we got one. If we had a last_descriptor it will
                 // already be validated by rpc_call_get_value
@@ -87,8 +85,9 @@ impl StorageManager {
                     let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema) else {
                         // Got a value but no descriptor for it
                         // Move to the next node
-                        log_stor!(debug "Got value with no descriptor");
-                        return Ok(None);
+                        return Ok(NetworkResult::invalid_message(
+                            "Got value with no descriptor",
+                        ));
                     };
 
                     // Validate with schema
@@ -99,8 +98,10 @@ impl StorageManager {
                     ) {
                         // Validation failed, ignore this value
                         // Move to the next node
-                        log_stor!(debug "Schema validation failed on subkey {}", subkey);
-                        return Ok(None);
+                        return Ok(NetworkResult::invalid_message(format!(
+                            "Schema validation failed on subkey {}",
+                            subkey
+                        )));
                     }
 
                     // If we have a prior value, see if this is a newer sequence number
@@ -112,7 +113,7 @@ impl StorageManager {
                             // If sequence number is the same, the data should be the same
                             if prior_value.value_data() != value.value_data() {
                                 // Move to the next node
-                                return Ok(None);
+                                return Ok(NetworkResult::invalid_message("value data mismatch"));
                             }
                             // Increase the consensus count for the existing value
                             ctx.value_count += 1;
@@ -136,7 +137,7 @@ impl StorageManager {
                 #[cfg(feature = "network-result-extra")]
                 log_stor!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
-                Ok(Some(gva.answer.peers))
+                Ok(NetworkResult::value(gva.answer.peers))
             }
         };
 

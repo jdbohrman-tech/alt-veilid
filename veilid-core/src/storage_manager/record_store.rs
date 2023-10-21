@@ -337,7 +337,7 @@ where
             .unwrap();
         if !self.total_storage_space.check_limit() {
             self.total_storage_space.rollback();
-            apibail_try_again!();
+            apibail_try_again!("out of storage space");
         }
 
         // Save to record table
@@ -650,7 +650,7 @@ where
             .add(new_subkey_size as u64)
             .unwrap();
         if !self.total_storage_space.check_limit() {
-            apibail_try_again!();
+            apibail_try_again!("out of storage space");
         }
 
         // Write subkey

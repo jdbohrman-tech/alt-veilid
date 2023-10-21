@@ -218,7 +218,7 @@ impl<T> NetworkResult<T> {
             Self::Value(v) => NetworkResult::<X>::Value(f(v)),
         }
     }
-    pub fn into_result(self) -> Result<T, io::Error> {
+    pub fn into_io_result(self) -> Result<T, io::Error> {
         match self {
             Self::Timeout => Err(io::Error::new(io::ErrorKind::TimedOut, "Timed out")),
             Self::ServiceUnavailable(s) => Err(io::Error::new(

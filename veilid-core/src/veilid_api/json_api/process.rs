@@ -220,7 +220,7 @@ impl JsonRequestProcessor {
             return Ok(Target::NodeId(nid));
         }
 
-        Err(VeilidAPIError::invalid_target())
+        Err(VeilidAPIError::parse_error("Unable to parse as target", s))
     }
 
     //////////////////////////////////////////////////////////////////////////////////////

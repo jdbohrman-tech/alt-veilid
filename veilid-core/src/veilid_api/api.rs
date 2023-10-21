@@ -200,9 +200,11 @@ impl VeilidAPI {
     /// `VLD0:XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` but if the prefix is left off
     /// `XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` will be parsed with the 'best' cryptosystem
     /// available (at the time of this writing this is `VLD0`)
-    pub async fn parse_as_target<S: AsRef<str>>(&self, s: S) -> VeilidAPIResult<Target> {
+    pub async fn parse_as_target<S: ToString>(&self, s: S) -> VeilidAPIResult<Target> {
+        let s = s.to_string();
+
         // Is this a route id?
-        if let Ok(rrid) = RouteId::from_str(s.as_ref()) {
+        if let Ok(rrid) = RouteId::from_str(&s) {
             let routing_table = self.routing_table()?;
             let rss = routing_table.route_spec_store();
 
@@ -213,11 +215,11 @@ impl VeilidAPI {
         }
 
         // Is this a node id?
-        if let Ok(nid) = TypedKey::from_str(s.as_ref()) {
+        if let Ok(nid) = TypedKey::from_str(&s) {
             return Ok(Target::NodeId(nid));
         }
 
-        Err(VeilidAPIError::invalid_target())
+        Err(VeilidAPIError::parse_error("Unable to parse as target", s))
     }
 
     ////////////////////////////////////////////////////////////////

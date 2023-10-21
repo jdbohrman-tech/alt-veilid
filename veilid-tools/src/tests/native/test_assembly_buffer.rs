@@ -52,7 +52,7 @@ pub async fn test_single_out_in() {
         // Send to input
         let r_message = assbuf_in
             .insert_frame(&frame, r_remote_addr)
-            .into_result()
+            .into_io_result()
             .expect("should get a value")
             .expect("should get something out");
 
@@ -114,7 +114,7 @@ pub async fn test_one_frag_out_in() {
         // Send to input
         let r_message = assbuf_in
             .insert_frame(&frame, r_remote_addr)
-            .into_result()
+            .into_io_result()
             .expect("should get a value");
 
         // We should have gotten the same message
@@ -179,7 +179,7 @@ pub async fn test_many_frags_out_in() {
         // Send to input
         let r_message = assbuf_in
             .insert_frame(&frame, r_remote_addr)
-            .into_result()
+            .into_io_result()
             .expect("should get a value");
 
         // We should have gotten the same message
@@ -244,7 +244,7 @@ pub async fn test_many_frags_out_in_single_host() {
         // Send to input
         let r_message = assbuf_in
             .insert_frame(&frame, r_remote_addr)
-            .into_result()
+            .into_io_result()
             .expect("should get a value");
 
         // We should have gotten the same message
@@ -322,7 +322,7 @@ pub async fn test_many_frags_with_drops() {
         // Send to input
         let r_message = assbuf_in
             .insert_frame(&frame, r_remote_addr)
-            .into_result()
+            .into_io_result()
             .expect("should get a value");
 
         // We should have gotten the same message
@@ -399,7 +399,7 @@ pub async fn test_many_frags_reordered() {
         // Send to input
         let r_message = assbuf_in
             .insert_frame(&frame, r_remote_addr)
-            .into_result()
+            .into_io_result()
             .expect("should get a value");
 
         // We should have gotten the same message

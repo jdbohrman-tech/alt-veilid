@@ -19,8 +19,8 @@ macro_rules! apibail_timeout {
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! apibail_try_again {
-    () => {
-        return Err(VeilidAPIError::try_again())
+    ($x:expr) => {
+        return Err(VeilidAPIError::try_again($x))
     };
 }
 
@@ -83,8 +83,8 @@ macro_rules! apibail_key_not_found {
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! apibail_invalid_target {
-    () => {
-        return Err(VeilidAPIError::invalid_target())
+    ($x:expr) => {
+        return Err(VeilidAPIError::invalid_target($x))
     };
 }
 
@@ -116,12 +116,12 @@ pub enum VeilidAPIError {
     AlreadyInitialized,
     #[error("Timeout")]
     Timeout,
-    #[error("TryAgain")]
-    TryAgain,
+    #[error("TryAgain: {message}")]
+    TryAgain { message: String },
     #[error("Shutdown")]
     Shutdown,
-    #[error("Invalid target")]
-    InvalidTarget,
+    #[error("Invalid target: {message}")]
+    InvalidTarget { message: String },
     #[error("No connection: {message}")]
     NoConnection { message: String },
     #[error("Key not found: {key}")]
@@ -158,14 +158,18 @@ impl VeilidAPIError {
     pub fn timeout() -> Self {
         Self::Timeout
     }
-    pub fn try_again() -> Self {
-        Self::TryAgain
+    pub fn try_again<T: ToString>(msg: T) -> Self {
+        Self::TryAgain {
+            message: msg.to_string(),
+        }
     }
     pub fn shutdown() -> Self {
         Self::Shutdown
     }
-    pub fn invalid_target() -> Self {
-        Self::InvalidTarget
+    pub fn invalid_target<T: ToString>(msg: T) -> Self {
+        Self::InvalidTarget {
+            message: msg.to_string(),
+        }
     }
     pub fn no_connection<T: ToString>(msg: T) -> Self {
         Self::NoConnection {
@@ -211,6 +215,21 @@ impl VeilidAPIError {
     pub fn generic<T: ToString>(msg: T) -> Self {
         Self::Generic {
             message: msg.to_string(),
+        }
+    }
+
+    pub(crate) fn from_network_result<T>(nr: NetworkResult<T>) -> Result<T, Self> {
+        match nr {
+            NetworkResult::Timeout => Err(VeilidAPIError::timeout()),
+            NetworkResult::ServiceUnavailable(m) => Err(VeilidAPIError::invalid_target(m)),
+            NetworkResult::NoConnection(m) => Err(VeilidAPIError::no_connection(m)),
+            NetworkResult::AlreadyExists(m) => {
+                Err(VeilidAPIError::generic(format!("Already exists: {}", m)))
+            }
+            NetworkResult::InvalidMessage(m) => {
+                Err(VeilidAPIError::parse_error("Invalid message", m))
+            }
+            NetworkResult::Value(v) => Ok(v),
         }
     }
 }

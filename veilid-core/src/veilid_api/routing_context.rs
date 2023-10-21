@@ -126,7 +126,7 @@ impl RoutingContext {
                     .await
                 {
                     Ok(Some(nr)) => nr,
-                    Ok(None) => apibail_invalid_target!(),
+                    Ok(None) => apibail_invalid_target!("could not resolve node id"),
                     Err(e) => return Err(e.into()),
                 };
                 // Apply sequencing to match safety selection
@@ -142,7 +142,7 @@ impl RoutingContext {
                 let rss = self.api.routing_table()?.route_spec_store();
 
                 let Some(private_route) = rss.best_remote_private_route(&rsid) else {
-                    apibail_invalid_target!();
+                    apibail_invalid_target!("could not get remote private route");
                 };
 
                 Ok(rpc_processor::Destination::PrivateRoute {
@@ -174,10 +174,7 @@ impl RoutingContext {
         let answer = match rpc_processor.rpc_call_app_call(dest, message).await {
             Ok(NetworkResult::Value(v)) => v,
             Ok(NetworkResult::Timeout) => apibail_timeout!(),
-            Ok(NetworkResult::ServiceUnavailable(e)) => {
-                log_network_result!(format!("app_call: ServiceUnavailable({})", e));
-                apibail_try_again!()
-            }
+            Ok(NetworkResult::ServiceUnavailable(e)) => apibail_invalid_target!(e),
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
                 apibail_no_connection!(e);
             }
@@ -207,10 +204,7 @@ impl RoutingContext {
         match rpc_processor.rpc_call_app_message(dest, message).await {
             Ok(NetworkResult::Value(())) => {}
             Ok(NetworkResult::Timeout) => apibail_timeout!(),
-            Ok(NetworkResult::ServiceUnavailable(e)) => {
-                log_network_result!(format!("app_message: ServiceUnavailable({})", e));
-                apibail_try_again!()
-            }
+            Ok(NetworkResult::ServiceUnavailable(e)) => apibail_invalid_target!(e),
             Ok(NetworkResult::NoConnection(e)) | Ok(NetworkResult::AlreadyExists(e)) => {
                 apibail_no_connection!(e);
             }

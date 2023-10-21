@@ -213,7 +213,9 @@ impl RoutingTable {
                     DirectionSet::all(),
                     &[],
                 ) {
-                    Err(VeilidAPIError::TryAgain) => {}
+                    Err(VeilidAPIError::TryAgain { message }) => {
+                        log_rtab!(debug "Route allocation unavailable: {}", message);
+                    }
                     Err(e) => return Err(e.into()),
                     Ok(v) => {
                         newly_allocated_routes.push(v);

@@ -11,7 +11,7 @@ impl RPCProcessor {
         self,
         dest: Destination,
         signal_info: SignalInfo,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    ) -> RPCNetworkResult<()> {
         // Ensure destination never has a private route
         if matches!(
             dest,
@@ -33,10 +33,7 @@ impl RPCProcessor {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
-    pub(crate) async fn process_signal(
-        &self,
-        msg: RPCMessage,
-    ) -> Result<NetworkResult<()>, RPCError> {
+    pub(crate) async fn process_signal(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());

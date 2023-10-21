@@ -55,6 +55,7 @@ class VeilidAPIErrorTryAgain(VeilidAPIError):
     """Operation could not be performed at this time, retry again later"""
 
     label = "Try again"
+    message: str
 
 
 @dataclass
@@ -69,6 +70,7 @@ class VeilidAPIErrorInvalidTarget(VeilidAPIError):
     """Target of operation is not valid"""
 
     label = "Invalid target"
+    message: str
 
 
 @dataclass

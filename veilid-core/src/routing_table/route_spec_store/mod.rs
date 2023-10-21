@@ -228,8 +228,9 @@ impl RouteSpecStore {
 
         // Ensure we have a valid network class so our peer info is useful
         if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
-            log_rtab!(debug "unable to allocate route until we have a valid PublicInternet network class");
-            apibail_try_again!();
+            apibail_try_again!(
+                "unable to allocate route until we have a valid PublicInternet network class"
+            );
         };
 
         // Get our peer info
@@ -381,8 +382,7 @@ impl RouteSpecStore {
 
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
         if nodes.len() < hop_count {
-            log_rtab!(debug "not enough nodes to construct route at this time");
-            apibail_try_again!();
+            apibail_try_again!("not enough nodes to construct route at this time");
         }
 
         // Get peer info for everything
@@ -534,8 +534,7 @@ impl RouteSpecStore {
             }
         }
         if route_nodes.is_empty() {
-            log_rtab!(debug "unable to find unique route at this time");
-            apibail_try_again!();
+            apibail_try_again!("unable to find unique route at this time");
         }
 
         drop(perm_func);
@@ -1309,8 +1308,9 @@ impl RouteSpecStore {
 
         // Ensure our network class is valid before attempting to assemble any routes
         if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
-            log_rtab!(debug "unable to assemble route until we have a valid PublicInternet network class");
-            apibail_try_again!();
+            apibail_try_again!(
+                "unable to assemble route until we have a valid PublicInternet network class"
+            );
         }
 
         // Make innermost route hop to our own node

@@ -164,7 +164,7 @@ impl RPCProcessor {
     pub(super) fn get_destination_respond_to(
         &self,
         dest: &Destination,
-    ) -> Result<NetworkResult<RespondTo>, RPCError> {
+    ) -> RPCNetworkResult<RespondTo> {
         let routing_table = self.routing_table();
         let rss = routing_table.route_spec_store();
 
@@ -180,21 +180,13 @@ impl RPCProcessor {
                 SafetySelection::Safe(safety_spec) => {
                     // Sent directly but with a safety route, respond to private route
                     let crypto_kind = target.best_node_id().kind;
-                    let pr_key = match rss.get_private_route_for_safety_spec(
-                        crypto_kind,
-                        safety_spec,
-                        &target.node_ids(),
-                    ) {
-                        Err(VeilidAPIError::TryAgain) => {
-                            return Ok(NetworkResult::no_connection_other(
-                                "no private route for response at this time",
-                            ));
-                        }
-                        Err(e) => {
-                            return Err(RPCError::internal(e));
-                        }
-                        Ok(v) => v,
-                    };
+                    let pr_key = network_result_try!(rss
+                        .get_private_route_for_safety_spec(
+                            crypto_kind,
+                            safety_spec,
+                            &target.node_ids(),
+                        )
+                        .to_rpc_network_result()?);
 
                     // Get the assembled route for response
                     let private_route = rss
@@ -219,21 +211,9 @@ impl RPCProcessor {
 
                     let mut avoid_nodes = relay.node_ids();
                     avoid_nodes.add_all(&target.node_ids());
-                    let pr_key = match rss.get_private_route_for_safety_spec(
-                        crypto_kind,
-                        safety_spec,
-                        &avoid_nodes,
-                    ) {
-                        Err(VeilidAPIError::TryAgain) => {
-                            return Ok(NetworkResult::no_connection_other(
-                                "no private route for response at this time",
-                            ));
-                        }
-                        Err(e) => {
-                            return Err(RPCError::internal(e));
-                        }
-                        Ok(v) => v,
-                    };
+                    let pr_key = network_result_try!(rss
+                        .get_private_route_for_safety_spec(crypto_kind, safety_spec, &avoid_nodes,)
+                        .to_rpc_network_result()?);
 
                     // Get the assembled route for response
                     let private_route = rss
@@ -259,7 +239,7 @@ impl RPCProcessor {
                     SafetySelection::Unsafe(_) => {
                         // Sent to a private route with no safety route, use a stub safety route for the response
                         if !routing_table.has_valid_network_class(RoutingDomain::PublicInternet) {
-                            return Ok(NetworkResult::no_connection_other(
+                            return Ok(NetworkResult::service_unavailable(
                                 "Own node info must be valid to use private route",
                             ));
                         }
@@ -292,21 +272,13 @@ impl RPCProcessor {
                             private_route.public_key.value
                         } else {
                             // Get the private route to respond to that matches the safety route spec we sent the request with
-                            match rss.get_private_route_for_safety_spec(
-                                crypto_kind,
-                                safety_spec,
-                                &[avoid_node_id],
-                            ) {
-                                Err(VeilidAPIError::TryAgain) => {
-                                    return Ok(NetworkResult::no_connection_other(
-                                        "no private route for response at this time",
-                                    ));
-                                }
-                                Err(e) => {
-                                    return Err(RPCError::internal(e));
-                                }
-                                Ok(v) => v,
-                            }
+                            network_result_try!(rss
+                                .get_private_route_for_safety_spec(
+                                    crypto_kind,
+                                    safety_spec,
+                                    &[avoid_node_id],
+                                )
+                                .to_rpc_network_result()?)
                         };
 
                         // Get the assembled route for response
