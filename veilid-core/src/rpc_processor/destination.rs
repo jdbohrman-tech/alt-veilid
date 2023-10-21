@@ -189,9 +189,9 @@ impl RPCProcessor {
                         .to_rpc_network_result()?);
 
                     // Get the assembled route for response
-                    let private_route = rss
+                    let private_route = network_result_try!(rss
                         .assemble_private_route(&pr_key, None)
-                        .map_err(RPCError::internal)?;
+                        .to_rpc_network_result()?);
 
                     Ok(NetworkResult::Value(RespondTo::PrivateRoute(private_route)))
                 }
@@ -216,9 +216,9 @@ impl RPCProcessor {
                         .to_rpc_network_result()?);
 
                     // Get the assembled route for response
-                    let private_route = rss
+                    let private_route = network_result_try!(rss
                         .assemble_private_route(&pr_key, None)
-                        .map_err(RPCError::internal)?;
+                        .to_rpc_network_result()?);
 
                     Ok(NetworkResult::Value(RespondTo::PrivateRoute(private_route)))
                 }
@@ -282,9 +282,9 @@ impl RPCProcessor {
                         };
 
                         // Get the assembled route for response
-                        let private_route = rss
+                        let private_route = network_result_try!(rss
                             .assemble_private_route(&pr_key, None)
-                            .map_err(RPCError::internal)?;
+                            .to_rpc_network_result()?);
 
                         Ok(NetworkResult::Value(RespondTo::PrivateRoute(private_route)))
                     }
