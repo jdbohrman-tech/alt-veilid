@@ -17,6 +17,8 @@ pub async fn run_all_tests() {
     test_types::test_all().await;
     info!("TEST: test_veilid_core");
     test_veilid_core::test_all().await;
+    info!("TEST: test_dht");
+    test_dht::test_all().await;
     info!("TEST: test_veilid_config");
     test_veilid_config::test_all().await;
     info!("TEST: test_connection_table");
@@ -133,5 +135,7 @@ cfg_if! {
         run_test!(veilid_api, test_serialize_json);
 
         run_test!(routing_table, test_serialize_routing_table);
+
+        run_test!(test_dht);
     }
 }
