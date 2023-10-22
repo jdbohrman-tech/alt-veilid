@@ -192,7 +192,12 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.routing_table.node_id" => Ok(Box::new(TypedKeyGroup::new())),
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
         // "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
+        #[cfg(not(target_arch = "wasm32"))]
         "network.routing_table.bootstrap" => Ok(Box::new(vec!["bootstrap.veilid.net".to_string()])),
+        #[cfg(target_arch = "wasm32")]
+        "network.routing_table.bootstrap" => Ok(Box::new(vec![
+            "ws://bootstrap.veilid.net:5150/ws".to_string(),
+        ])),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
         "network.routing_table.limit_attached_strong" => Ok(Box::new(16u32)),
@@ -326,9 +331,15 @@ pub async fn test_config() {
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
     assert_eq!(inner.network.routing_table.node_id.len(), 0);
     assert_eq!(inner.network.routing_table.node_id_secret.len(), 0);
+    #[cfg(not(target_arch = "wasm32"))]
     assert_eq!(
         inner.network.routing_table.bootstrap,
         vec!["bootstrap.veilid.net"],
+    );
+    #[cfg(target_arch = "wasm32")]
+    assert_eq!(
+        inner.network.routing_table.bootstrap,
+        vec!["ws://bootstrap.veilid.net:5150/ws"],
     );
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);

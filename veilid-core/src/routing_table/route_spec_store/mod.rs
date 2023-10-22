@@ -192,7 +192,7 @@ impl RouteSpecStore {
         )
     }
 
-    #[instrument(level = "trace", skip(self, inner, rti), ret, err)]
+    #[instrument(level = "trace", skip(self, inner, rti), ret, err(level=Level::DEBUG))]
     #[allow(clippy::too_many_arguments)]
     fn allocate_route_inner(
         &self,
