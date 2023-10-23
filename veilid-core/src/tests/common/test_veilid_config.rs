@@ -361,7 +361,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.dht.min_peer_refresh_time_ms, 60_000u32);
     assert_eq!(
         inner.network.dht.validate_dial_info_receipt_time_ms,
-        5_000u32
+        2_000u32
     );
 
     assert!(!inner.network.upnp);
@@ -381,7 +381,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.application.http.url, None);
 
     assert!(inner.network.protocol.udp.enabled);
-    assert_eq!(inner.network.protocol.udp.socket_pool_size, 16u32);
+    assert_eq!(inner.network.protocol.udp.socket_pool_size, 0u32);
     assert_eq!(inner.network.protocol.udp.listen_address, "");
     assert_eq!(inner.network.protocol.udp.public_address, None);
     assert!(inner.network.protocol.tcp.connect);
