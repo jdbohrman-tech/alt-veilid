@@ -2,9 +2,9 @@
 #![cfg(target_arch = "wasm32")]
 #![recursion_limit = "256"]
 
-use cfg_if::*;
 use parking_lot::Once;
 use serial_test::serial;
+use tracing::*;
 use veilid_core::tests::*;
 use wasm_bindgen_test::*;
 
@@ -18,17 +18,12 @@ static SETUP_ONCE: Once = Once::new();
 pub fn setup() -> () {
     SETUP_ONCE.call_once(|| {
         console_error_panic_hook::set_once();
-        cfg_if! {
-            if #[cfg(feature = "tracing")] {
-                let mut builder = tracing_wasm::WASMLayerConfigBuilder::new();
-                builder.set_report_logs_in_timings(false);
-                builder.set_max_level(Level::TRACE);
-                builder.set_console_config(tracing_wasm::ConsoleConfig::ReportWithConsoleColor);
-                tracing_wasm::set_as_global_default_with_config(builder.build());
-            } else {
-                wasm_logger::init(wasm_logger::Config::default());
-            }
-        }
+
+        let mut builder = tracing_wasm::WASMLayerConfigBuilder::new();
+        builder.set_report_logs_in_timings(false);
+        builder.set_max_level(Level::DEBUG);
+        builder.set_console_config(tracing_wasm::ConsoleConfig::ReportWithoutConsoleColor);
+        tracing_wasm::set_as_global_default_with_config(builder.build());
     });
 }
 

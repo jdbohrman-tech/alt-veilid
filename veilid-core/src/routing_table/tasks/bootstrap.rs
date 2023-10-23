@@ -252,55 +252,105 @@ impl RoutingTable {
         Ok(merged_bootstrap_records)
     }
 
-    // 'direct' bootstrap task routine for systems incapable of resolving TXT records, such as browser WASM
-    #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn direct_bootstrap_task_routine(
-        self,
-        stop_token: StopToken,
-        bootstrap_dialinfos: Vec<DialInfo>,
-    ) -> EyreResult<()> {
-        let mut unord = FuturesUnordered::new();
-        let network_manager = self.network_manager();
+    //#[instrument(level = "trace", skip(self), err)]
+    pub(crate) fn bootstrap_with_peer(self, crypto_kinds: Vec<CryptoKind>, pi: PeerInfo, unord: &FuturesUnordered<SendPinBoxFuture<()>>) {
 
-        for bootstrap_di in bootstrap_dialinfos {
-            log_rtab!(debug "direct bootstrap with: {}", bootstrap_di);
-            let peer_info = network_manager.boot_request(bootstrap_di).await?;
+        log_rtab!(
+            "--- bootstrapping {} with {:?}",
+            pi.node_ids(),
+            pi.signed_node_info().node_info().dial_info_detail_list()
+        );
 
-            log_rtab!(debug "  direct bootstrap peerinfo: {:?}", peer_info);
-
-            // Got peer info, let's add it to the routing table
-            for pi in peer_info {
-                // Register the node
-                let nr = match self.register_node_with_peer_info(
-                    RoutingDomain::PublicInternet,
-                    pi,
-                    false,
-                ) {
-                    Ok(nr) => nr,
-                    Err(e) => {
-                        log_rtab!(error "failed to register direct bootstrap peer info: {}", e);
-                        continue;
-                    }
-                };
-
-                // Add this our futures to process in parallel
-                for crypto_kind in VALID_CRYPTO_KINDS {
-                    let routing_table = self.clone();
-                    let nr = nr.clone();
-                    unord.push(
-                        // lets ask bootstrap to find ourselves now
-                        async move { routing_table.reverse_find_node(crypto_kind, nr, true).await }
-                            .instrument(Span::current()),
-                    );
-                }
+        let nr =
+        match self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, true) {
+            Ok(nr) => nr,
+            Err(e) => {
+                log_rtab!(error "failed to register bootstrap peer info: {}", e);
+                return;
             }
+        };
+        
+        // Add this our futures to process in parallel
+        for crypto_kind in crypto_kinds {
+
+            // Bootstrap this crypto kind
+            let nr = nr.clone();
+            let routing_table = self.clone();
+            unord.push(Box::pin(
+                async move {
+                    // Get what contact method would be used for contacting the bootstrap
+                    let bsdi = match routing_table
+                        .network_manager()
+                        .get_node_contact_method(nr.clone())
+                    {
+                        Ok(NodeContactMethod::Direct(v)) => v,
+                        Ok(v) => {
+                            log_rtab!(warn "invalid contact method for bootstrap: {:?}", v);
+                            return;
+                        }
+                        Err(e) => {
+                            log_rtab!(warn "unable to bootstrap: {}", e);
+                            return;
+                        }
+                    };
+
+                    // Need VALID signed peer info, so ask bootstrap to find_node of itself
+                    // which will ensure it has the bootstrap's signed peer info as part of the response
+                    let _ = routing_table.find_target(crypto_kind, nr.clone()).await;
+
+                    // Ensure we got the signed peer info
+                    if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
+                        log_rtab!(warn "bootstrap server is not responding");
+                        log_rtab!(debug "bootstrap server is not responding for dialinfo: {}", bsdi);
+                        
+                        // Try a different dialinfo next time
+                        routing_table.network_manager().address_filter().set_dial_info_failed(bsdi);
+                    } else {
+                        // otherwise this bootstrap is valid, lets ask it to find ourselves now
+                        routing_table.reverse_find_node(crypto_kind, nr, true).await
+                    }
+                }
+                .instrument(Span::current()),
+            ));
+        }
+    }
+
+    #[instrument(level = "trace", skip(self), err)]
+    pub(crate) async fn bootstrap_with_peer_list(self, peers: Vec<PeerInfo>, stop_token: StopToken) -> EyreResult<()> {
+
+        log_rtab!(debug "  bootstrapped peers: {:?}", &peers);
+
+        // Get crypto kinds to bootstrap
+        let crypto_kinds = self.get_bootstrap_crypto_kinds();
+
+        log_rtab!(debug "  bootstrapped crypto kinds: {:?}", &crypto_kinds);
+
+        // Run all bootstrap operations concurrently
+        let mut unord = FuturesUnordered::<SendPinBoxFuture<()>>::new();
+        for peer in peers {
+            self.clone().bootstrap_with_peer(crypto_kinds.clone(), peer, &unord);
         }
 
         // Wait for all bootstrap operations to complete before we complete the singlefuture
         while let Ok(Some(_)) = unord.next().timeout_at(stop_token.clone()).await {}
-
         Ok(())
     }
+
+    // Get counts by crypto kind and figure out which crypto kinds need bootstrapping
+    fn get_bootstrap_crypto_kinds(&self) -> Vec<CryptoKind> {
+        let entry_count = self.inner.read().cached_entry_counts();
+        let mut crypto_kinds = Vec::new();
+        for crypto_kind in VALID_CRYPTO_KINDS {
+            // Do we need to bootstrap this crypto kind?
+            let eckey = (RoutingDomain::PublicInternet, crypto_kind);
+            let cnt = entry_count.get(&eckey).copied().unwrap_or_default();
+            if cnt == 0 {
+                crypto_kinds.push(crypto_kind);
+            }
+        }
+        crypto_kinds
+    }
+
 
     #[instrument(level = "trace", skip(self), err)]
     pub(crate) async fn bootstrap_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
@@ -315,9 +365,6 @@ impl RoutingTable {
 
         log_rtab!(debug "--- bootstrap_task");
 
-        // Get counts by crypto kind
-        let entry_count = self.inner.read().cached_entry_counts();
-
         // See if we are specifying a direct dialinfo for bootstrap, if so use the direct mechanism
         let mut bootstrap_dialinfos = Vec::<DialInfo>::new();
         for b in &bootstrap {
@@ -327,102 +374,48 @@ impl RoutingTable {
                 }
             }
         }
-        if !bootstrap_dialinfos.is_empty() {
-            return self
-                .direct_bootstrap_task_routine(stop_token, bootstrap_dialinfos)
-                .await;
-        }
+        
+        // Get a peer list from bootstrap to process
+        let peers = if !bootstrap_dialinfos.is_empty() {
+            // Direct bootstrap
+            let network_manager = self.network_manager();
 
-        // If not direct, resolve bootstrap servers and recurse their TXT entries
-        let bsrecs = self.resolve_bootstrap(bootstrap).await?;
-
-        // Run all bootstrap operations concurrently
-        let mut unord = FuturesUnordered::new();
-        for bsrec in bsrecs {
-            log_rtab!(
-                "--- bootstrapping {} with {:?}",
-                &bsrec.node_ids,
-                &bsrec.dial_info_details
-            );
-
-            // Get crypto support from list of node ids
-            let crypto_support = bsrec.node_ids.kinds();
-
-            // Make unsigned SignedNodeInfo
-            let sni =
-                SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo::new(
-                    NetworkClass::InboundCapable, // Bootstraps are always inbound capable
-                    ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
-                    AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
-                    bsrec.envelope_support, // Envelope support is as specified in the bootstrap list
-                    crypto_support,         // Crypto support is derived from list of node ids
-                    vec![],                 // Bootstrap needs no capabilities
-                    bsrec.dial_info_details, // Dial info is as specified in the bootstrap list
-                )));
-
-            let pi = PeerInfo::new(bsrec.node_ids, sni);
-
-            let nr =
-                match self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, true) {
-                    Ok(nr) => nr,
-                    Err(e) => {
-                        log_rtab!(error "failed to register bootstrap peer info: {}", e);
-                        continue;
+            let mut peer_map = HashMap::<TypedKeyGroup, PeerInfo>::new();
+            for bootstrap_di in bootstrap_dialinfos {
+                log_rtab!(debug "direct bootstrap with: {}", bootstrap_di);
+                let peers = network_manager.boot_request(bootstrap_di).await?;
+                for peer in peers {
+                    if !peer_map.contains_key(peer.node_ids()) {
+                        peer_map.insert(peer.node_ids().clone(), peer);
                     }
-                };
-            // Add this our futures to process in parallel
-            for crypto_kind in VALID_CRYPTO_KINDS {
-                // Do we need to bootstrap this crypto kind?
-                let eckey = (RoutingDomain::PublicInternet, crypto_kind);
-                let cnt = entry_count.get(&eckey).copied().unwrap_or_default();
-                if cnt != 0 {
-                    continue;
                 }
-
-                // Bootstrap this crypto kind
-                let nr = nr.clone();
-                let routing_table = self.clone();
-                unord.push(
-                    async move {
-                        // Get what contact method would be used for contacting the bootstrap
-                        let bsdi = match routing_table
-                            .network_manager()
-                            .get_node_contact_method(nr.clone())
-                        {
-                            Ok(NodeContactMethod::Direct(v)) => v,
-                            Ok(v) => {
-                                log_rtab!(warn "invalid contact method for bootstrap: {:?}", v);
-                                return;
-                            }
-                            Err(e) => {
-                                log_rtab!(warn "unable to bootstrap: {}", e);
-                                return;
-                            }
-                        };
-
-                        // Need VALID signed peer info, so ask bootstrap to find_node of itself
-                        // which will ensure it has the bootstrap's signed peer info as part of the response
-                        let _ = routing_table.find_target(crypto_kind, nr.clone()).await;
-
-                        // Ensure we got the signed peer info
-                        if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
-                            log_rtab!(warn "bootstrap server is not responding");
-                            log_rtab!(debug "bootstrap server is not responding for dialinfo: {}", bsdi);
-                            
-                            // Try a different dialinfo next time
-                            routing_table.network_manager().address_filter().set_dial_info_failed(bsdi);
-                        } else {
-                            // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                            routing_table.reverse_find_node(crypto_kind, nr, true).await
-                        }
-                    }
-                    .instrument(Span::current()),
-                );
             }
-        }
+            peer_map.into_values().collect()
+        } else {
+            // If not direct, resolve bootstrap servers and recurse their TXT entries
+            let bsrecs = self.resolve_bootstrap(bootstrap).await?;
+            let peers : Vec<PeerInfo> = bsrecs.into_iter().map(|bsrec| {
+                // Get crypto support from list of node ids
+                let crypto_support = bsrec.node_ids.kinds();
 
-        // Wait for all bootstrap operations to complete before we complete the singlefuture
-        while let Ok(Some(_)) = unord.next().timeout_at(stop_token.clone()).await {}
-        Ok(())
+                // Make unsigned SignedNodeInfo
+                let sni =
+                    SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(NodeInfo::new(
+                        NetworkClass::InboundCapable, // Bootstraps are always inbound capable
+                        ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
+                        AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
+                        bsrec.envelope_support, // Envelope support is as specified in the bootstrap list
+                        crypto_support,         // Crypto support is derived from list of node ids
+                        vec![],                 // Bootstrap needs no capabilities
+                        bsrec.dial_info_details, // Dial info is as specified in the bootstrap list
+                    )));
+
+                PeerInfo::new(bsrec.node_ids, sni)
+            }).collect();
+
+            peers
+        };
+
+        self.clone().bootstrap_with_peer_list(peers, stop_token).await        
     }
 }

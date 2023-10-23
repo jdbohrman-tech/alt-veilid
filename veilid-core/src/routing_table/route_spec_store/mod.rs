@@ -166,7 +166,7 @@ impl RouteSpecStore {
     /// Returns Err(VeilidAPIError::TryAgain) if no route could be allocated at this time
     /// Returns other errors on failure
     /// Returns Ok(route id string) on success
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), ret, err(level=Level::TRACE))]
     pub fn allocate_route(
         &self,
         crypto_kinds: &[CryptoKind],
@@ -192,7 +192,7 @@ impl RouteSpecStore {
         )
     }
 
-    #[instrument(level = "trace", skip(self, inner, rti), ret, err(level=Level::DEBUG))]
+    #[instrument(level = "trace", skip(self, inner, rti), ret, err(level=Level::TRACE))]
     #[allow(clippy::too_many_arguments)]
     fn allocate_route_inner(
         &self,

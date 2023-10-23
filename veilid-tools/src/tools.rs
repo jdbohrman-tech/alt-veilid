@@ -87,15 +87,7 @@ pub fn system_boxed<'a, Out>(
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
-
-        // xxx: for now until wasm threads are more stable, and/or we bother with web workers
-        pub fn get_concurrency() -> u32 {
-            1
-        }
-
-    } else {
-
+    if #[cfg(not(target_arch = "wasm32"))] {
         pub fn get_concurrency() -> u32 {
             std::thread::available_parallelism()
                 .map(|x| x.get())
@@ -104,7 +96,6 @@ cfg_if! {
                     1
                 }) as u32
         }
-
     }
 }
 
