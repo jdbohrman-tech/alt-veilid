@@ -401,6 +401,12 @@ impl NetworkConnection {
             connection_manager
                 .report_connection_finished(connection_id)
                 .await;
+
+            // Close the low level socket
+            if let Err(e) = protocol_connection.close().await {
+                log_net!(debug "Protocol connection close error: {}", e);
+            }
+            
         }.instrument(trace_span!("process_connection")))
     }
 
