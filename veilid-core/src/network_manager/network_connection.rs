@@ -54,9 +54,9 @@ impl DummyNetworkConnection {
     pub fn descriptor(&self) -> ConnectionDescriptor {
         self.descriptor
     }
-    // pub fn close(&self) -> io::Result<()> {
-    //     Ok(())
-    // }
+    pub fn close(&self) -> io::Result<NetworkResult<()>> {
+        Ok(NetworkResult::Value(()))
+    }
     pub fn send(&self, _message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         Ok(NetworkResult::Value(()))
     }

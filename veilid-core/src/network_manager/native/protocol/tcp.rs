@@ -22,25 +22,30 @@ impl RawTcpNetworkConnection {
         self.descriptor
     }
 
-    // #[instrument(level = "trace", err, skip(self))]
-    // pub async fn close(&mut self) -> io::Result<NetworkResult<()>> {
-    //     // Make an attempt to flush the stream
-    //     self.stream.clone().close().await?;
-    //     // Then shut down the write side of the socket to effect a clean close
-    //     cfg_if! {
-    //         if #[cfg(feature="rt-async-std")] {
-    //             self.tcp_stream
-    //                 .shutdown(async_std::net::Shutdown::Write)
-    //         } else if #[cfg(feature="rt-tokio")] {
-    //             use tokio::io::AsyncWriteExt;
-    //             self.tcp_stream.get_mut()
-    //                 .shutdown()
-    //                 .await
-    //         } else {
-    //              compile_error!("needs executor implementation")
-    //          }
-    //     }
-    // }
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", err, skip(self))
+    )]
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        // Make an attempt to flush the stream
+        self.stream.clone().close().await?;
+        Ok(NetworkResult::value(()))
+
+        // // Then shut down the write side of the socket to effect a clean close
+        // cfg_if! {
+        //     if #[cfg(feature="rt-async-std")] {
+        //         self.tcp_stream
+        //             .shutdown(async_std::net::Shutdown::Write)
+        //     } else if #[cfg(feature="rt-tokio")] {
+        //         use tokio::io::AsyncWriteExt;
+        //         self.tcp_stream.get_mut()
+        //             .shutdown()
+        //             .await
+        //     } else {
+        //          compile_error!("needs executor implementation")
+        //      }
+        // }
+    }
 
     async fn send_internal(
         stream: &mut AsyncPeekStream,

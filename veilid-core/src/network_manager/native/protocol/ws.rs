@@ -77,15 +77,24 @@ where
         self.descriptor
     }
 
-    // #[instrument(level = "trace", err, skip(self))]
-    // pub async fn close(&self) -> io::Result<()> {
-    //     // Make an attempt to flush the stream
-    //     self.stream.clone().close().await.map_err(to_io_error_other)?;
-    //     // Then forcibly close the socket
-    //     self.tcp_stream
-    //         .shutdown(Shutdown::Both)
-    //         .map_err(to_io_error_other)
-    // }
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", err, skip(self))
+    )]
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        // Make an attempt to flush the stream
+        self.stream
+            .clone()
+            .close()
+            .await
+            .map_err(to_io_error_other)?;
+        // // Then forcibly close the socket
+        // self.tcp_stream
+        //     .shutdown(Shutdown::Both)
+        //     .map_err(to_io_error_other)
+
+        Ok(NetworkResult::value(()))
+    }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {

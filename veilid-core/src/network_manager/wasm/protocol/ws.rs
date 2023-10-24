@@ -5,7 +5,7 @@ use std::io;
 use ws_stream_wasm::*;
 
 struct WebsocketNetworkConnectionInner {
-    _ws_meta: WsMeta,
+    ws_meta: WsMeta,
     ws_stream: CloneStream<WsStream>,
 }
 
@@ -49,7 +49,7 @@ impl WebsocketNetworkConnection {
         Self {
             descriptor,
             inner: Arc::new(WebsocketNetworkConnectionInner {
-                _ws_meta: ws_meta,
+                ws_meta,
                 ws_stream: CloneStream::new(ws_stream),
             }),
         }
@@ -59,10 +59,14 @@ impl WebsocketNetworkConnection {
         self.descriptor
     }
 
-    // #[instrument(level = "trace", err, skip(self))]
-    // pub async fn close(&self) -> io::Result<()> {
-    //     self.inner.ws_meta.close().await.map_err(to_io).map(drop)
-    // }
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", err, skip(self))
+    )]
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        let _ = self.inner.ws_meta.close().await.map_err(to_io)?;
+        Ok(NetworkResult::value(()))
+    }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {

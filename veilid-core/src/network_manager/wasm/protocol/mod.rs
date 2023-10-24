@@ -41,13 +41,12 @@ impl ProtocolNetworkConnection {
             Self::Ws(w) => w.descriptor(),
         }
     }
-
-    // pub async fn close(&self) -> io::Result<NetworkResult<()>> {
-    //     match self {
-    //         Self::Dummy(d) => d.close(),
-    //         Self::Ws(w) => w.close().await,
-    //     }
-    // }
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        match self {
+            Self::Dummy(d) => d.close(),
+            Self::Ws(w) => w.close().await,
+        }
+    }
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         match self {
             Self::Dummy(d) => d.send(message),
