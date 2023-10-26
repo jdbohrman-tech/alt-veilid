@@ -14,7 +14,7 @@ use network_tcp::*;
 use protocol::tcp::RawTcpProtocolHandler;
 use protocol::udp::RawUdpProtocolHandler;
 use protocol::ws::WebsocketProtocolHandler;
-pub use protocol::*;
+pub(in crate::network_manager) use protocol::*;
 
 use async_tls::TlsAcceptor;
 use futures_util::StreamExt;
@@ -137,7 +137,7 @@ struct NetworkUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct Network {
+pub(in crate::network_manager) struct Network {
     config: VeilidConfig,
     inner: Arc<Mutex<NetworkInner>>,
     unlocked_inner: Arc<NetworkUnlockedInner>,

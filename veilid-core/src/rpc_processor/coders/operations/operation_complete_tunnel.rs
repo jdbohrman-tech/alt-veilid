@@ -2,7 +2,7 @@ use super::*;
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub struct RPCOperationCompleteTunnelQ {
+pub(in crate::rpc_processor) struct RPCOperationCompleteTunnelQ {
     id: TunnelId,
     local_mode: TunnelMode,
     depth: u8,
@@ -77,7 +77,7 @@ impl RPCOperationCompleteTunnelQ {
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub enum RPCOperationCompleteTunnelA {
+pub(in crate::rpc_processor) enum RPCOperationCompleteTunnelA {
     Tunnel(FullTunnel),
     Error(TunnelError),
 }

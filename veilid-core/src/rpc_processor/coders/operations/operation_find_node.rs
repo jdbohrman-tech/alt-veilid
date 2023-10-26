@@ -3,7 +3,7 @@ use super::*;
 const MAX_FIND_NODE_A_PEERS_LEN: usize = 20;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationFindNodeQ {
+pub(in crate::rpc_processor) struct RPCOperationFindNodeQ {
     node_id: TypedKey,
     capabilities: Vec<Capability>,
 }
@@ -74,7 +74,7 @@ impl RPCOperationFindNodeQ {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationFindNodeA {
+pub(in crate::rpc_processor) struct RPCOperationFindNodeA {
     peers: Vec<PeerInfo>,
 }
 

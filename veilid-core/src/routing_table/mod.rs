@@ -57,8 +57,8 @@ const CACHE_VALIDITY_KEY: &[u8] = b"cache_validity_key";
 // Critical sections
 const LOCK_TAG_TICK: &str = "TICK";
 
-pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
-pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
+type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
+type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
 pub struct LowLevelPortInfo {
     pub low_level_protocol_ports: LowLevelProtocolPorts,
@@ -66,11 +66,12 @@ pub struct LowLevelPortInfo {
 }
 pub type RoutingTableEntryFilter<'t> =
     Box<dyn FnMut(&RoutingTableInner, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
-pub type SerializedBuckets = Vec<Vec<u8>>;
-pub type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
+
+type SerializedBuckets = Vec<Vec<u8>>;
+type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct RoutingTableHealth {
+pub(crate) struct RoutingTableHealth {
     /// Number of reliable (long-term responsive) entries in the routing table
     pub reliable_entry_count: usize,
     /// Number of unreliable (occasionally unresponsive) entries in the routing table
@@ -87,7 +88,12 @@ pub struct RoutingTableHealth {
 
 pub type BucketIndex = (CryptoKind, usize);
 
-pub struct RoutingTableUnlockedInner {
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RecentPeersEntry {
+    pub last_connection: ConnectionDescriptor,
+}
+
+pub(crate) struct RoutingTableUnlockedInner {
     // Accessors
     config: VeilidConfig,
     network_manager: NetworkManager,
@@ -192,7 +198,7 @@ impl RoutingTableUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct RoutingTable {
+pub(crate) struct RoutingTable {
     inner: Arc<RwLock<RoutingTableInner>>,
     unlocked_inner: Arc<RoutingTableUnlockedInner>,
 }
@@ -788,7 +794,7 @@ impl RoutingTable {
     /// Only one protocol per low level protocol/port combination is required
     /// For example, if WS/WSS and TCP protocols are on the same low-level TCP port, only TCP keepalives will be required
     /// and we do not need to do WS/WSS keepalive as well. If they are on different ports, then we will need WS/WSS keepalives too.
-    pub fn get_low_level_port_info(&self) -> LowLevelPortInfo {
+    fn get_low_level_port_info(&self) -> LowLevelPortInfo {
         let mut low_level_protocol_ports =
             BTreeSet::<(LowLevelProtocolType, AddressType, u16)>::new();
         let mut protocol_to_port =

@@ -6,7 +6,7 @@ use stop_token::future::FutureExt;
 /////////////////////////////////////////////////////////////////
 
 #[derive(Clone)]
-pub struct ListenerState {
+pub(in crate::network_manager) struct ListenerState {
     pub protocol_accept_handlers: Vec<Box<dyn ProtocolAcceptHandler + 'static>>,
     pub tls_protocol_handlers: Vec<Box<dyn ProtocolAcceptHandler + 'static>>,
     pub tls_acceptor: Option<TlsAcceptor>,

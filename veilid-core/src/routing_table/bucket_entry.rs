@@ -29,18 +29,18 @@ const NEVER_REACHED_PING_COUNT: u32 = 3;
 // Do not change order here, it will mess up other sorts
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum BucketEntryState {
+pub(crate) enum BucketEntryState {
     Dead,
     Unreliable,
     Reliable,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub struct LastConnectionKey(ProtocolType, AddressType);
+pub(crate) struct LastConnectionKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BucketEntryPublicInternet {
+pub(crate) struct BucketEntryPublicInternet {
     /// The PublicInternet node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
     /// The last node info timestamp of ours that this entry has seen
@@ -51,7 +51,7 @@ pub struct BucketEntryPublicInternet {
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BucketEntryLocalNetwork {
+pub(crate) struct BucketEntryLocalNetwork {
     /// The LocalNetwork node info
     signed_node_info: Option<Box<SignedNodeInfo>>,
     /// The last node info timestamp of ours that this entry has seen
@@ -62,7 +62,7 @@ pub struct BucketEntryLocalNetwork {
 
 /// The data associated with each bucket entry
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BucketEntryInner {
+pub(crate) struct BucketEntryInner {
     /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
     validated_node_ids: TypedKeyGroup,
     /// The node ids claimed by the remote node that use cryptography versions we do not support
@@ -828,7 +828,7 @@ impl BucketEntryInner {
 }
 
 #[derive(Debug)]
-pub struct BucketEntry {
+pub(crate) struct BucketEntry {
     pub(super) ref_count: AtomicU32,
     inner: RwLock<BucketEntryInner>,
 }

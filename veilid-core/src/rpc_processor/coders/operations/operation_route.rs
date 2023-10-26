@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone)]
-pub struct RoutedOperation {
+pub(crate) struct RoutedOperation {
     sequencing: Sequencing,
     signatures: Vec<Signature>,
     nonce: Nonce,
@@ -106,7 +106,7 @@ impl RoutedOperation {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationRoute {
+pub(crate) struct RPCOperationRoute {
     safety_route: SafetyRoute,
     operation: RoutedOperation,
 }

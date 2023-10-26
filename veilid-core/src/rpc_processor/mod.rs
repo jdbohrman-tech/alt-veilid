@@ -42,7 +42,6 @@ use super::*;
 use crypto::*;
 use futures_util::StreamExt;
 use network_manager::*;
-use receipt_manager::*;
 use routing_table::*;
 use stop_token::future::FutureExt;
 use storage_manager::*;
@@ -186,7 +185,7 @@ struct WaitableReply {
     timeout_us: TimestampDuration,
     node_ref: NodeRef,
     send_ts: Timestamp,
-    send_data_kind: SendDataKind,
+    send_data_method: SendDataMethod,
     safety_route: Option<PublicKey>,
     remote_private_route: Option<PublicKey>,
     reply_private_route: Option<PublicKey>,
@@ -1199,7 +1198,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let send_data_method = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1222,7 +1221,7 @@ impl RPCProcessor {
             timeout_us,
             node_ref,
             send_ts,
-            send_data_kind,
+            send_data_method,
             safety_route,
             remote_private_route,
             reply_private_route,
@@ -1284,7 +1283,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let _send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let _send_data_method = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
                 network_result_raise!(res);

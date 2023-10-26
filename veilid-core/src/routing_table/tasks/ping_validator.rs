@@ -109,8 +109,10 @@ impl RoutingTable {
 
             unord.push(
                 async move {
-                    rpc.rpc_call_status(Destination::direct(relay_nr_filtered))
-                        .await
+                    let out = rpc
+                        .rpc_call_status(Destination::direct(relay_nr_filtered), true)
+                        .await;
+                    out
                 }
                 .instrument(Span::current())
                 .boxed(),
@@ -145,7 +147,7 @@ impl RoutingTable {
             let rpc = rpc.clone();
             log_rtab!("--> Validator ping to {:?}", nr);
             unord.push(
-                async move { rpc.rpc_call_status(Destination::direct(nr)).await }
+                async move { rpc.rpc_call_status(Destination::direct(nr), false).await }
                     .instrument(Span::current())
                     .boxed(),
             );
@@ -173,7 +175,7 @@ impl RoutingTable {
 
             // Just do a single ping with the best protocol for all the nodes
             unord.push(
-                async move { rpc.rpc_call_status(Destination::direct(nr)).await }
+                async move { rpc.rpc_call_status(Destination::direct(nr), false).await }
                     .instrument(Span::current())
                     .boxed(),
             );

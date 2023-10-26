@@ -11,6 +11,7 @@ mod connection_manager;
 mod connection_table;
 mod direct_boot;
 mod network_connection;
+mod receipt_manager;
 mod send_data;
 mod stats;
 mod tasks;
@@ -21,11 +22,11 @@ pub mod tests;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-pub use connection_manager::*;
-pub use direct_boot::*;
-pub use network_connection::*;
-pub use send_data::*;
-pub use stats::*;
+pub(crate) use connection_manager::*;
+pub(crate) use network_connection::*;
+pub(crate) use receipt_manager::*;
+pub(crate) use stats::*;
+
 pub use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -34,12 +35,10 @@ use connection_handle::*;
 use crypto::*;
 use futures_util::stream::FuturesUnordered;
 use hashlink::LruCache;
-use intf::*;
 #[cfg(not(target_arch = "wasm32"))]
 use native::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::{LOCAL_NETWORK_CAPABILITIES, MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
-use receipt_manager::*;
 use routing_table::*;
 use rpc_processor::*;
 use storage_manager::*;
@@ -90,11 +89,14 @@ struct ClientWhitelistEntry {
     last_seen_ts: Timestamp,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum SendDataKind {
-    Direct(ConnectionDescriptor),
-    Indirect,
-    Existing(ConnectionDescriptor),
+#[derive(Clone, Debug)]
+pub(crate) struct SendDataMethod {
+    /// How the data was sent, possibly to a relay
+    pub contact_method: NodeContactMethod,
+    /// Pre-relayed contact method
+    pub opt_relayed_contact_method: Option<NodeContactMethod>,
+    /// The connection used to send the data
+    pub connection_descriptor: ConnectionDescriptor,
 }
 
 /// Mechanism required to contact another node
@@ -141,7 +143,6 @@ struct NetworkManagerUnlockedInner {
     // Handles
     config: VeilidConfig,
     storage_manager: StorageManager,
-    protected_store: ProtectedStore,
     table_store: TableStore,
     #[cfg(feature = "unstable-blockstore")]
     block_store: BlockStore,
@@ -160,7 +161,7 @@ struct NetworkManagerUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct NetworkManager {
+pub(crate) struct NetworkManager {
     inner: Arc<Mutex<NetworkManagerInner>>,
     unlocked_inner: Arc<NetworkManagerUnlockedInner>,
 }
@@ -178,7 +179,6 @@ impl NetworkManager {
     fn new_unlocked_inner(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -187,7 +187,6 @@ impl NetworkManager {
         NetworkManagerUnlockedInner {
             config: config.clone(),
             storage_manager,
-            protected_store,
             table_store,
             #[cfg(feature = "unstable-blockstore")]
             block_store,
@@ -206,7 +205,6 @@ impl NetworkManager {
     pub fn new(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -243,7 +241,6 @@ impl NetworkManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
                 storage_manager,
-                protected_store,
                 table_store,
                 #[cfg(feature = "unstable-blockstore")]
                 block_store,
@@ -267,9 +264,6 @@ impl NetworkManager {
     }
     pub fn storage_manager(&self) -> StorageManager {
         self.unlocked_inner.storage_manager.clone()
-    }
-    pub fn protected_store(&self) -> ProtectedStore {
-        self.unlocked_inner.protected_store.clone()
     }
     pub fn table_store(&self) -> TableStore {
         self.unlocked_inner.table_store.clone()
@@ -297,13 +291,22 @@ impl NetworkManager {
             .unwrap()
             .clone()
     }
-    pub fn net(&self) -> Network {
+    fn net(&self) -> Network {
         self.unlocked_inner
             .components
             .read()
             .as_ref()
             .unwrap()
             .net
+            .clone()
+    }
+    fn receipt_manager(&self) -> ReceiptManager {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .unwrap()
+            .receipt_manager
             .clone()
     }
     pub fn rpc_processor(&self) -> RPCProcessor {
@@ -313,15 +316,6 @@ impl NetworkManager {
             .as_ref()
             .unwrap()
             .rpc_processor
-            .clone()
-    }
-    pub fn receipt_manager(&self) -> ReceiptManager {
-        self.unlocked_inner
-            .components
-            .read()
-            .as_ref()
-            .unwrap()
-            .receipt_manager
             .clone()
     }
     pub fn connection_manager(&self) -> ConnectionManager {
@@ -814,7 +808,7 @@ impl NetworkManager {
         node_ref: NodeRef,
         destination_node_ref: Option<NodeRef>,
         body: B,
-    ) -> EyreResult<NetworkResult<SendDataKind>> {
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
         let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
         let best_node_id = destination_node_ref.best_node_id();
 
@@ -1115,5 +1109,9 @@ impl NetworkManager {
 
         // Inform caller that we dealt with the envelope locally
         Ok(true)
+    }
+
+    pub fn debug_restart_network(&self) {
+        self.net().restart_network();
     }
 }

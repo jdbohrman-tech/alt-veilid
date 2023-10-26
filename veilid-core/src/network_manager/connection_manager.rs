@@ -37,7 +37,7 @@ impl core::fmt::Debug for ConnectionManagerArc {
 }
 
 #[derive(Debug, Clone)]
-pub struct ConnectionManager {
+pub(crate) struct ConnectionManager {
     arc: Arc<ConnectionManagerArc>,
 }
 
@@ -139,10 +139,12 @@ impl ConnectionManager {
     }
 
     // Internal routine to see if we should keep this connection
-    // from being LRU removed. Used on our initiated relay connections.
+    // from being LRU removed. Used on our initiated relay connections and allocated routes
     fn should_protect_connection(&self, conn: &NetworkConnection) -> bool {
         let netman = self.network_manager();
         let routing_table = netman.routing_table();
+
+        // See if this is a relay connection
         let remote_address = conn.connection_descriptor().remote_address().address();
         let Some(routing_domain) = routing_table.routing_domain_for_address(remote_address) else {
             return false;
@@ -162,6 +164,7 @@ impl ConnectionManager {
                 return true;
             }
         }
+
         false
     }
 
@@ -233,11 +236,17 @@ impl ConnectionManager {
     }
 
     // Returns a network connection if one already is established
-    //#[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection(&self, descriptor: ConnectionDescriptor) -> Option<ConnectionHandle> {
         self.arc
             .connection_table
             .get_connection_by_descriptor(descriptor)
+    }
+
+    // Protects a network connection if one already is established
+    pub fn protect_connection(&self, descriptor: ConnectionDescriptor) -> bool {
+        self.arc
+            .connection_table
+            .protect_connection_by_descriptor(descriptor)
     }
 
     /// Called when we want to create a new connection or get the current one that already exists

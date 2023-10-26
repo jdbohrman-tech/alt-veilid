@@ -2,7 +2,7 @@ use super::*;
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub struct RPCOperationCancelTunnelQ {
+pub(in crate::rpc_processor) struct RPCOperationCancelTunnelQ {
     id: TunnelId,
 }
 
@@ -40,7 +40,7 @@ impl RPCOperationCancelTunnelQ {
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub enum RPCOperationCancelTunnelA {
+pub(in crate::rpc_processor) enum RPCOperationCancelTunnelA {
     Tunnel(TunnelId),
     Error(TunnelError),
 }

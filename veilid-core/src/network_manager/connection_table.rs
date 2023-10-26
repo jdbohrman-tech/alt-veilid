@@ -4,7 +4,7 @@ use hashlink::LruCache;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[derive(ThisError, Debug)]
-pub enum ConnectionTableAddError {
+pub(in crate::network_manager) enum ConnectionTableAddError {
     #[error("Connection already added to table")]
     AlreadyExists(NetworkConnection),
     #[error("Connection address was filtered")]
@@ -23,7 +23,7 @@ impl ConnectionTableAddError {
 ///////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
-pub struct ConnectionTableInner {
+struct ConnectionTableInner {
     max_connections: Vec<usize>,
     conn_by_id: Vec<LruCache<NetworkConnectionId, NetworkConnection>>,
     protocol_index_by_id: BTreeMap<NetworkConnectionId, usize>,
@@ -33,7 +33,7 @@ pub struct ConnectionTableInner {
 }
 
 #[derive(Debug)]
-pub struct ConnectionTable {
+pub(in crate::network_manager) struct ConnectionTable {
     inner: Arc<Mutex<ConnectionTableInner>>,
 }
 
@@ -219,6 +219,18 @@ impl ConnectionTable {
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
+    #[allow(dead_code)]
+    pub fn protect_connection_by_id(&self, id: NetworkConnectionId) -> bool {
+        let mut inner = self.inner.lock();
+        let Some(protocol_index) = inner.protocol_index_by_id.get(&id).copied() else {
+            return false;
+        };
+        let out = inner.conn_by_id[protocol_index].get_mut(&id).unwrap();
+        out.protect();
+        true
+    }
+
+    //#[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection_by_descriptor(
         &self,
         descriptor: ConnectionDescriptor,
@@ -229,6 +241,19 @@ impl ConnectionTable {
         let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
         let out = inner.conn_by_id[protocol_index].get(&id).unwrap();
         Some(out.get_handle())
+    }
+
+    //#[instrument(level = "trace", skip(self), ret)]
+    pub fn protect_connection_by_descriptor(&self, descriptor: ConnectionDescriptor) -> bool {
+        let mut inner = self.inner.lock();
+
+        let Some(id) = inner.id_by_descriptor.get(&descriptor).copied() else {
+            return false;
+        };
+        let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
+        let out = inner.conn_by_id[protocol_index].get_mut(&id).unwrap();
+        out.protect();
+        true
     }
 
     // #[instrument(level = "trace", skip(self), ret)]

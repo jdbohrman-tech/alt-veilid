@@ -4,7 +4,7 @@ const MAX_WATCH_VALUE_Q_SUBKEYS_LEN: usize = 512;
 const MAX_WATCH_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationWatchValueQ {
+pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
     key: TypedKey,
     subkeys: ValueSubkeyRangeSet,
     expiration: u64,
@@ -199,7 +199,7 @@ impl RPCOperationWatchValueQ {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationWatchValueA {
+pub(in crate::rpc_processor) struct RPCOperationWatchValueA {
     expiration: u64,
     peers: Vec<PeerInfo>,
 }

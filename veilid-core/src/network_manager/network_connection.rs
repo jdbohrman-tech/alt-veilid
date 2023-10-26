@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
         ///////////////////////////////////////////////////////////
         // Accept
 
-        pub trait ProtocolAcceptHandler: ProtocolAcceptHandlerClone + Send + Sync {
+        pub(in crate::network_manager) trait ProtocolAcceptHandler: ProtocolAcceptHandlerClone + Send + Sync {
             fn on_accept(
                 &self,
                 stream: AsyncPeekStream,
@@ -20,7 +20,7 @@ cfg_if::cfg_if! {
             ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>>;
         }
 
-        pub trait ProtocolAcceptHandlerClone {
+        pub(in crate::network_manager)  trait ProtocolAcceptHandlerClone {
             fn clone_box(&self) -> Box<dyn ProtocolAcceptHandler>;
         }
 
@@ -38,7 +38,7 @@ cfg_if::cfg_if! {
             }
         }
 
-        pub type NewProtocolAcceptHandler =
+        pub(in crate::network_manager) type NewProtocolAcceptHandler =
             dyn Fn(VeilidConfig, bool) -> Box<dyn ProtocolAcceptHandler> + Send;
     }
 }

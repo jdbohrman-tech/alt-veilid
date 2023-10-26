@@ -764,7 +764,7 @@ impl VeilidAPI {
             }
 
             let netman = self.network_manager()?;
-            netman.net().restart_network();
+            netman.debug_restart_network();
 
             Ok("Network restarted".to_owned())
         } else {
@@ -930,7 +930,7 @@ impl VeilidAPI {
 
         // Send a StatusQ
         let out = match rpc
-            .rpc_call_status(dest)
+            .rpc_call_status(dest, false)
             .await
             .map_err(VeilidAPIError::internal)?
         {

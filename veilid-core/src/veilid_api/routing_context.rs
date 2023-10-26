@@ -1,4 +1,5 @@
 use super::*;
+use routing_table::NodeRefBase;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -16,15 +17,6 @@ pub struct RoutingContextInner {}
 pub struct RoutingContextUnlockedInner {
     /// Safety routing requirements
     safety_selection: SafetySelection,
-}
-
-impl Drop for RoutingContextInner {
-    fn drop(&mut self) {
-        // self.api
-        //     .borrow_mut()
-        //     .routing_contexts
-        //     //.remove(&self.id);
-    }
 }
 
 /// Routing contexts are the way you specify the communication preferences for Veilid.

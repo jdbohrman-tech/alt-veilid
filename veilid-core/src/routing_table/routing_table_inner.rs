@@ -6,13 +6,8 @@ pub const RECENT_PEERS_TABLE_SIZE: usize = 64;
 pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 //////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, Copy)]
-pub struct RecentPeersEntry {
-    pub last_connection: ConnectionDescriptor,
-}
-
 /// RoutingTable rwlock-internal data
-pub struct RoutingTableInner {
+pub(crate) struct RoutingTableInner {
     /// Extra pointer to unlocked members to simplify access
     pub(super) unlocked_inner: Arc<RoutingTableUnlockedInner>,
     /// Routing table buckets that hold references to entries, per crypto kind

@@ -4,7 +4,7 @@ const MAX_APP_CALL_Q_MESSAGE_LEN: usize = 32768;
 const MAX_APP_CALL_A_MESSAGE_LEN: usize = 32768;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationAppCallQ {
+pub(in crate::rpc_processor) struct RPCOperationAppCallQ {
     message: Vec<u8>,
 }
 
@@ -46,7 +46,7 @@ impl RPCOperationAppCallQ {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationAppCallA {
+pub(in crate::rpc_processor) struct RPCOperationAppCallA {
     message: Vec<u8>,
 }
 

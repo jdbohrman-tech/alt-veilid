@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct RPCStatement {
+pub(in crate::rpc_processor) struct RPCStatement {
     detail: RPCStatementDetail,
 }
 
@@ -33,7 +33,7 @@ impl RPCStatement {
 }
 
 #[derive(Debug, Clone)]
-pub enum RPCStatementDetail {
+pub(in crate::rpc_processor) enum RPCStatementDetail {
     ValidateDialInfo(Box<RPCOperationValidateDialInfo>),
     Route(Box<RPCOperationRoute>),
     ValueChanged(Box<RPCOperationValueChanged>),

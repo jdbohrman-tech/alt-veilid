@@ -69,7 +69,7 @@ impl fmt::Debug for AddressFilterUnlockedInner {
 }
 
 #[derive(Clone, Debug)]
-pub struct AddressFilter {
+pub(crate) struct AddressFilter {
     unlocked_inner: Arc<AddressFilterUnlockedInner>,
     inner: Arc<Mutex<AddressFilterInner>>,
 }

@@ -4,7 +4,7 @@ use alloc::fmt;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub struct NodeRefBaseCommon {
+pub(crate) struct NodeRefBaseCommon {
     routing_table: RoutingTable,
     entry: Arc<BucketEntry>,
     filter: Option<NodeRefFilter>,
@@ -15,7 +15,7 @@ pub struct NodeRefBaseCommon {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub trait NodeRefBase: Sized {
+pub(crate) trait NodeRefBase: Sized {
     // Common field access
     fn common(&self) -> &NodeRefBaseCommon;
     fn common_mut(&mut self) -> &mut NodeRefBaseCommon;
@@ -314,6 +314,17 @@ pub trait NodeRefBase: Sized {
         })
     }
 
+    fn protect_last_connection(&self) -> bool {
+        if let Some(descriptor) = self.last_connection() {
+            self.routing_table()
+                .network_manager()
+                .connection_manager()
+                .protect_connection(descriptor)
+        } else {
+            false
+        }
+    }
+
     fn has_any_dial_info(&self) -> bool {
         self.operate(|_rti, e| {
             for rtd in RoutingDomain::all() {
@@ -369,7 +380,7 @@ pub trait NodeRefBase: Sized {
 
 /// Reference to a routing table entry
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRef {
+pub(crate) struct NodeRef {
     common: NodeRefBaseCommon,
 }
 
@@ -496,7 +507,7 @@ impl Drop for NodeRef {
 /// For internal use inside the RoutingTable module where you have
 /// already locked a RoutingTableInner
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRefLocked<'a> {
+pub(crate) struct NodeRefLocked<'a> {
     inner: Mutex<&'a RoutingTableInner>,
     nr: NodeRef,
 }
@@ -559,7 +570,7 @@ impl<'a> fmt::Debug for NodeRefLocked<'a> {
 /// For internal use inside the RoutingTable module where you have
 /// already locked a RoutingTableInner
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRefLockedMut<'a> {
+pub(crate) struct NodeRefLockedMut<'a> {
     inner: Mutex<&'a mut RoutingTableInner>,
     nr: NodeRef,
 }

@@ -8,7 +8,7 @@ use super::*;
 use std::io;
 
 #[derive(Debug)]
-pub enum ProtocolNetworkConnection {
+pub(in crate::network_manager) enum ProtocolNetworkConnection {
     Dummy(DummyNetworkConnection),
     RawTcp(tcp::RawTcpNetworkConnection),
     WsAccepted(ws::WebSocketNetworkConnectionAccepted),

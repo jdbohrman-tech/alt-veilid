@@ -3,7 +3,7 @@ use super::*;
 const MAX_APP_MESSAGE_MESSAGE_LEN: usize = 32768;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationAppMessage {
+pub(in crate::rpc_processor) struct RPCOperationAppMessage {
     message: Vec<u8>,
 }
 

@@ -22,6 +22,7 @@ impl RPCProcessor {
     pub async fn rpc_call_status(
         self,
         dest: Destination,
+        protect: bool,
     ) -> RPCNetworkResult<Answer<Option<SenderInfo>>> {
         let (opt_target_nr, routing_domain, node_status) = match dest.get_safety_selection() {
             SafetySelection::Unsafe(_) => {
@@ -110,8 +111,20 @@ impl RPCProcessor {
         let waitable_reply =
             network_result_try!(self.question(dest.clone(), question, None).await?);
 
+        // Optionally protect the connection in the event this for a relay or route keepalive
+        if protect {
+            self.network_manager()
+                .connection_manager()
+                .protect_connection(
+                    waitable_reply
+                        .send_data_method
+                        .connection_descriptor
+                        .clone(),
+                );
+        }
+
         // Note what kind of ping this was and to what peer scope
-        let send_data_kind = waitable_reply.send_data_kind;
+        let send_data_method = waitable_reply.send_data_method.clone();
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
@@ -149,32 +162,29 @@ impl RPCProcessor {
             } => {
                 if matches!(safety_selection, SafetySelection::Unsafe(_)) {
                     if let Some(sender_info) = sender_info {
-                        match send_data_kind {
-                            SendDataKind::Direct(connection_descriptor) => {
-                                // Directly requested status that actually gets sent directly and not over a relay will tell us what our IP address appears as
-                                // If this changes, we'd want to know about that to reset the networking stack
-                                match routing_domain {
-                                    RoutingDomain::PublicInternet => self
-                                        .network_manager()
-                                        .report_public_internet_socket_address(
-                                            sender_info.socket_address,
-                                            connection_descriptor,
-                                            target,
-                                        ),
-                                    RoutingDomain::LocalNetwork => {
-                                        self.network_manager().report_local_network_socket_address(
-                                            sender_info.socket_address,
-                                            connection_descriptor,
-                                            target,
-                                        )
-                                    }
+                        if send_data_method.opt_relayed_contact_method.is_none()
+                            && matches!(
+                                send_data_method.contact_method,
+                                NodeContactMethod::Direct(_)
+                            )
+                        {
+                            // Directly requested status that actually gets sent directly and not over a relay will tell us what our IP address appears as
+                            // If this changes, we'd want to know about that to reset the networking stack
+                            match routing_domain {
+                                RoutingDomain::PublicInternet => self
+                                    .network_manager()
+                                    .report_public_internet_socket_address(
+                                        sender_info.socket_address,
+                                        send_data_method.connection_descriptor,
+                                        target,
+                                    ),
+                                RoutingDomain::LocalNetwork => {
+                                    self.network_manager().report_local_network_socket_address(
+                                        sender_info.socket_address,
+                                        send_data_method.connection_descriptor,
+                                        target,
+                                    )
                                 }
-                            }
-                            SendDataKind::Indirect => {
-                                // Do nothing in this case, as the socket address returned here would be for any node other than ours
-                            }
-                            SendDataKind::Existing(_) => {
-                                // Do nothing in this case, as an existing connection could not have a different public address or it would have been reset
                             }
                         };
                         opt_sender_info = Some(sender_info.clone());

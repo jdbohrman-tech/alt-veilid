@@ -2,7 +2,7 @@ use super::*;
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub struct RPCOperationStartTunnelQ {
+pub(in crate::rpc_processor) struct RPCOperationStartTunnelQ {
     id: TunnelId,
     local_mode: TunnelMode,
     depth: u8,
@@ -67,7 +67,7 @@ impl RPCOperationStartTunnelQ {
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub enum RPCOperationStartTunnelA {
+pub(in crate::rpc_processor) enum RPCOperationStartTunnelA {
     Partial(PartialTunnel),
     Error(TunnelError),
 }

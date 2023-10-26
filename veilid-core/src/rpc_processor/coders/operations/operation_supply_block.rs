@@ -3,7 +3,7 @@ use super::*;
 const MAX_SUPPLY_BLOCK_A_PEERS_LEN: usize = 20;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationSupplyBlockQ {
+pub(in crate::rpc_processor) struct RPCOperationSupplyBlockQ {
     block_id: TypedKey,
 }
 
@@ -43,7 +43,7 @@ impl RPCOperationSupplyBlockQ {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationSupplyBlockA {
+pub(in crate::rpc_processor) struct RPCOperationSupplyBlockA {
     expiration: u64,
     peers: Vec<PeerInfo>,
 }

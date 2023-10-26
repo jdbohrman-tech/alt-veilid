@@ -5,7 +5,7 @@ const MAX_FIND_BLOCK_A_SUPPLIERS_LEN: usize = 10;
 const MAX_FIND_BLOCK_A_PEERS_LEN: usize = 10;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationFindBlockQ {
+pub(in crate::rpc_processor) struct RPCOperationFindBlockQ {
     block_id: TypedKey,
 }
 
@@ -45,7 +45,7 @@ impl RPCOperationFindBlockQ {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationFindBlockA {
+pub(in crate::rpc_processor) struct RPCOperationFindBlockA {
     data: Vec<u8>,
     suppliers: Vec<PeerInfo>,
     peers: Vec<PeerInfo>,

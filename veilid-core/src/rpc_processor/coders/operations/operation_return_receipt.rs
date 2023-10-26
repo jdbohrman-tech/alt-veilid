@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationReturnReceipt {
+pub(in crate::rpc_processor) struct RPCOperationReturnReceipt {
     receipt: Vec<u8>,
 }
 

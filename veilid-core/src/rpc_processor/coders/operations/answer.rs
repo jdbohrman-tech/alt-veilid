@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct RPCAnswer {
+pub(in crate::rpc_processor) struct RPCAnswer {
     detail: RPCAnswerDetail,
 }
 
@@ -30,7 +30,7 @@ impl RPCAnswer {
 }
 
 #[derive(Debug, Clone)]
-pub enum RPCAnswerDetail {
+pub(in crate::rpc_processor) enum RPCAnswerDetail {
     StatusA(Box<RPCOperationStatusA>),
     FindNodeA(Box<RPCOperationFindNodeA>),
     AppCallA(Box<RPCOperationAppCallA>),

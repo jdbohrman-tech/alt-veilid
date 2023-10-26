@@ -2,7 +2,7 @@ use super::*;
 use sockets::*;
 
 #[derive(Clone)]
-pub struct RawUdpProtocolHandler {
+pub(in crate::network_manager) struct RawUdpProtocolHandler {
     socket: Arc<UdpSocket>,
     assembly_buffer: AssemblyBuffer,
     address_filter: Option<AddressFilter>,

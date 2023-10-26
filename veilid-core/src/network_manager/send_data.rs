@@ -10,11 +10,11 @@ impl NetworkManager {
     /// could be established.
     ///
     /// Sending to a node requires determining a NetworkClass compatible mechanism
-    pub fn send_data(
+    pub(crate) fn send_data(
         &self,
         destination_node_ref: NodeRef,
         data: Vec<u8>,
-    ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataKind>>> {
+    ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataMethod>>> {
         let this = self.clone();
         Box::pin(
             async move {
@@ -31,9 +31,11 @@ impl NetworkManager {
                             destination_node_ref
                                 .set_last_connection(connection_descriptor, get_aligned_timestamp());
 
-                            return Ok(NetworkResult::value(SendDataKind::Existing(
+                            return Ok(NetworkResult::value(SendDataMethod {
+                                opt_relayed_contact_method: None,
+                                contact_method: NodeContactMethod::Existing,
                                 connection_descriptor,
-                            )));
+                            }));
                         }
                         Some(data) => {
                             // Couldn't send data to existing connection
@@ -49,16 +51,16 @@ impl NetworkManager {
                 // No existing connection was found or usable, so we proceed to see how to make a new one
                 
                 // Get the best way to contact this node
-                let contact_method = this.get_node_contact_method(destination_node_ref.clone())?;
+                let possibly_relayed_contact_method = this.get_node_contact_method(destination_node_ref.clone())?;
 
                 // If we need to relay, do it
-                let (contact_method, target_node_ref, relayed) = match contact_method {
+                let (contact_method, target_node_ref, opt_relayed_contact_method) = match possibly_relayed_contact_method.clone() {
                     NodeContactMethod::OutboundRelay(relay_nr)
                     | NodeContactMethod::InboundRelay(relay_nr) => {
                         let cm = this.get_node_contact_method(relay_nr.clone())?;
-                        (cm, relay_nr, true)
+                        (cm, relay_nr, Some(possibly_relayed_contact_method))
                     }
-                    cm => (cm, destination_node_ref.clone(), false),
+                    cm => (cm, destination_node_ref.clone(), None),
                 };
                 
                 #[cfg(feature = "verbose-tracing")]
@@ -68,7 +70,7 @@ impl NetworkManager {
                 );
 
                 // Try the contact method
-                let sdk = match contact_method {
+                let mut send_data_method = match contact_method {
                     NodeContactMethod::OutboundRelay(relay_nr) => {
                         // Relay loop or multiple relays
                         bail!(
@@ -117,11 +119,9 @@ impl NetworkManager {
                         )
                     }
                 };
+                send_data_method.opt_relayed_contact_method = opt_relayed_contact_method;
 
-                if relayed {
-                    return Ok(NetworkResult::value(SendDataKind::Indirect));
-                }
-                Ok(NetworkResult::value(sdk))
+                Ok(NetworkResult::value(send_data_method))
             }
             .instrument(trace_span!("send_data")),
         )
@@ -132,7 +132,7 @@ impl NetworkManager {
         &self,
         target_node_ref: NodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataKind>> {
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last connection we've seen this peer on
         let Some(connection_descriptor) = target_node_ref.last_connection() else {
             return Ok(NetworkResult::no_connection_other(
@@ -154,9 +154,11 @@ impl NetworkManager {
         // Update timestamp for this last connection since we just sent to it
         target_node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
-        Ok(NetworkResult::value(SendDataKind::Existing(
-            connection_descriptor,
-        )))
+        Ok(NetworkResult::value(SendDataMethod{
+            contact_method: NodeContactMethod::Existing,
+            opt_relayed_contact_method: None,
+            connection_descriptor 
+        }))
     }
 
     /// Send data using NodeContactMethod::Unreachable
@@ -164,7 +166,7 @@ impl NetworkManager {
         &self,
         target_node_ref: NodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataKind>> {
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // Try to send data to the last socket we've seen this peer on
         let Some(connection_descriptor) = target_node_ref.last_connection() else {
             return Ok(NetworkResult::no_connection_other(
@@ -186,9 +188,11 @@ impl NetworkManager {
         // Update timestamp for this last connection since we just sent to it
         target_node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
-        Ok(NetworkResult::value(SendDataKind::Existing(
+        Ok(NetworkResult::value(SendDataMethod {
             connection_descriptor,
-        )))
+            contact_method: NodeContactMethod::Existing,
+            opt_relayed_contact_method: None,
+        }))
     }
 
     /// Send data using NodeContactMethod::SignalReverse
@@ -197,7 +201,7 @@ impl NetworkManager {
         relay_nr: NodeRef,
         target_node_ref: NodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataKind>> {
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(connection_descriptor) = target_node_ref.last_connection() {
             match self
@@ -210,9 +214,11 @@ impl NetworkManager {
                     target_node_ref
                         .set_last_connection(connection_descriptor, get_aligned_timestamp());
 
-                    return Ok(NetworkResult::value(SendDataKind::Existing(
-                        connection_descriptor,
-                    )));
+                    return Ok(NetworkResult::value(SendDataMethod{
+                        contact_method: NodeContactMethod::Existing,
+                        opt_relayed_contact_method: None,
+                        connection_descriptor 
+                    }));
                 }
                 Some(data) => {
                     // Couldn't send data to existing connection
@@ -226,12 +232,14 @@ impl NetworkManager {
         };
 
         let connection_descriptor = network_result_try!(
-            self.do_reverse_connect(relay_nr, target_node_ref, data)
+            self.do_reverse_connect(relay_nr.clone(), target_node_ref.clone(), data)
                 .await?
         );
-        Ok(NetworkResult::value(SendDataKind::Direct(
+        Ok(NetworkResult::value(SendDataMethod {
             connection_descriptor,
-        )))
+            contact_method: NodeContactMethod::SignalReverse(relay_nr, target_node_ref),
+            opt_relayed_contact_method: None,
+        }))
     }
 
     /// Send data using NodeContactMethod::SignalHolePunch
@@ -240,7 +248,7 @@ impl NetworkManager {
         relay_nr: NodeRef,
         target_node_ref: NodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataKind>> {
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(connection_descriptor) = target_node_ref.last_connection() {
             match self
@@ -253,9 +261,11 @@ impl NetworkManager {
                     target_node_ref
                         .set_last_connection(connection_descriptor, get_aligned_timestamp());
 
-                    return Ok(NetworkResult::value(SendDataKind::Existing(
-                        connection_descriptor,
-                    )));
+                    return Ok(NetworkResult::value(SendDataMethod{
+                        contact_method: NodeContactMethod::Existing,
+                        opt_relayed_contact_method: None,
+                        connection_descriptor 
+                    }));
                 }
                 Some(data) => {
                     // Couldn't send data to existing connection
@@ -269,10 +279,12 @@ impl NetworkManager {
         };
 
         let connection_descriptor =
-            network_result_try!(self.do_hole_punch(relay_nr, target_node_ref, data).await?);
-        Ok(NetworkResult::value(SendDataKind::Direct(
+            network_result_try!(self.do_hole_punch(relay_nr.clone(), target_node_ref.clone(), data).await?);
+        Ok(NetworkResult::value(SendDataMethod {
             connection_descriptor,
-        )))
+            contact_method: NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref),
+            opt_relayed_contact_method: None,
+        }))
     }
 
     /// Send data using NodeContactMethod::Direct
@@ -281,7 +293,7 @@ impl NetworkManager {
         node_ref: NodeRef,
         dial_info: DialInfo,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataKind>> {
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // Since we have the best dial info already, we can find a connection to use by protocol type
         let node_ref = node_ref.filtered_clone(NodeRefFilter::from(dial_info.make_filter()));
 
@@ -302,9 +314,11 @@ impl NetworkManager {
                     // Update timestamp for this last connection since we just sent to it
                     node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
-                    return Ok(NetworkResult::value(SendDataKind::Existing(
-                        connection_descriptor,
-                    )));
+                    return Ok(NetworkResult::value(SendDataMethod{
+                        contact_method: NodeContactMethod::Existing,
+                        opt_relayed_contact_method: None,
+                        connection_descriptor 
+                    }));
                 }
                 Some(d) => {
                     // Connection couldn't send, kill it
@@ -318,14 +332,16 @@ impl NetworkManager {
 
         // New direct connection was necessary for this dial info
         let connection_descriptor =
-            network_result_try!(self.net().send_data_to_dial_info(dial_info, data).await?);
+            network_result_try!(self.net().send_data_to_dial_info(dial_info.clone(), data).await?);
 
         // If we connected to this node directly, save off the last connection so we can use it again
         node_ref.set_last_connection(connection_descriptor, get_aligned_timestamp());
 
-        Ok(NetworkResult::value(SendDataKind::Direct(
+        Ok(NetworkResult::value(SendDataMethod {
             connection_descriptor,
-        )))
+            contact_method: NodeContactMethod::Direct(dial_info),
+            opt_relayed_contact_method: None,
+        }))    
     }
 
     /// Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access

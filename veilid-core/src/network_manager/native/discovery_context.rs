@@ -49,12 +49,12 @@ struct DiscoveryContextUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct DiscoveryContext {
+pub(super) struct DiscoveryContext {
     unlocked_inner: Arc<DiscoveryContextUnlockedInner>,
     inner: Arc<Mutex<DiscoveryContextInner>>,
 }
 
-pub type ClearNetworkCallback = Arc<dyn Fn() -> SendPinBoxFuture<()> + Send + Sync>;
+pub(super) type ClearNetworkCallback = Arc<dyn Fn() -> SendPinBoxFuture<()> + Send + Sync>;
 
 impl DiscoveryContext {
     pub fn new(
@@ -135,7 +135,7 @@ impl DiscoveryContext {
     async fn request_public_address(&self, node_ref: NodeRef) -> Option<SocketAddress> {
         let rpc = self.unlocked_inner.routing_table.rpc_processor();
 
-        let res = network_result_value_or_log!(match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
+        let res = network_result_value_or_log!(match rpc.rpc_call_status(Destination::direct(node_ref.clone()), false).await {
                 Ok(v) => v,
                 Err(e) => {
                     log_net!(error
