@@ -27,21 +27,22 @@ mod tunnel;
 mod typed_key;
 mod typed_signature;
 
-pub use address::*;
-pub use address_type_set::*;
-pub use dial_info::*;
-pub use dial_info_class::*;
-pub use dial_info_detail::*;
-pub use key256::*;
-pub use network_class::*;
-pub use node_info::*;
-pub use node_status::*;
-pub use nonce::*;
-pub use operations::*;
-pub use peer_info::*;
-pub use private_safety_route::*;
-pub use protocol_type_set::*;
-pub use sender_info::*;
+pub(in crate::rpc_processor) use operations::*;
+
+pub(crate) use address::*;
+pub(crate) use address_type_set::*;
+pub(crate) use dial_info::*;
+pub(crate) use dial_info_class::*;
+pub(crate) use dial_info_detail::*;
+pub(crate) use key256::*;
+pub(crate) use network_class::*;
+pub(crate) use node_info::*;
+pub(crate) use node_status::*;
+pub(crate) use nonce::*;
+pub(crate) use peer_info::*;
+pub(crate) use private_safety_route::*;
+pub(crate) use protocol_type_set::*;
+pub(crate) use sender_info::*;
 pub use sequencing::*;
 pub use signal_info::*;
 pub use signature512::*;
@@ -59,14 +60,14 @@ pub use typed_signature::*;
 use super::*;
 
 #[derive(Debug, Clone)]
-pub enum QuestionContext {
+pub(in crate::rpc_processor) enum QuestionContext {
     GetValue(ValidateGetValueContext),
     SetValue(ValidateSetValueContext),
 }
 
 #[derive(Clone)]
-pub struct RPCValidateContext {
+pub(in crate::rpc_processor) struct RPCValidateContext {
     pub crypto: Crypto,
-    pub rpc_processor: RPCProcessor,
+    // pub rpc_processor: RPCProcessor,
     pub question_context: Option<QuestionContext>,
 }

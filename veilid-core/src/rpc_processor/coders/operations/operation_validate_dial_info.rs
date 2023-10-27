@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationValidateDialInfo {
+pub(in crate::rpc_processor) struct RPCOperationValidateDialInfo {
     dial_info: DialInfo,
     receipt: Vec<u8>,
     redirect: bool,

@@ -27,7 +27,7 @@ enum RoutingDomainChange {
     },
 }
 
-pub struct RoutingDomainEditor {
+pub(crate) struct RoutingDomainEditor {
     routing_table: RoutingTable,
     routing_domain: RoutingDomain,
     changes: Vec<RoutingDomainChange>,

@@ -67,7 +67,7 @@ impl NetworkManager {
             .add_down(bytes);
     }
 
-    // Get stats
+    #[allow(dead_code)]
     pub fn get_stats(&self) -> NetworkManagerStats {
         let inner = self.inner.lock();
         inner.stats.clone()

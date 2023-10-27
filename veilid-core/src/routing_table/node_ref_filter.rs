@@ -35,6 +35,7 @@ impl NodeRefFilter {
         self.dial_info_filter = self.dial_info_filter.with_protocol_type(protocol_type);
         self
     }
+    #[allow(dead_code)]
     pub fn with_protocol_type_set(mut self, protocol_set: ProtocolTypeSet) -> Self {
         self.dial_info_filter = self.dial_info_filter.with_protocol_type_set(protocol_set);
         self
@@ -43,6 +44,7 @@ impl NodeRefFilter {
         self.dial_info_filter = self.dial_info_filter.with_address_type(address_type);
         self
     }
+    #[allow(dead_code)]
     pub fn with_address_type_set(mut self, address_set: AddressTypeSet) -> Self {
         self.dial_info_filter = self.dial_info_filter.with_address_type_set(address_set);
         self
@@ -54,6 +56,7 @@ impl NodeRefFilter {
             .filtered(&other_filter.dial_info_filter);
         self
     }
+    #[allow(dead_code)]
     pub fn is_dead(&self) -> bool {
         self.dial_info_filter.is_dead() || self.routing_domain_set.is_empty()
     }

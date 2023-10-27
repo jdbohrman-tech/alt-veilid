@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RouteStats {
+pub(crate) struct RouteStats {
     /// Consecutive failed to send count
     #[serde(skip)]
     pub failed_to_send: u32,
@@ -94,6 +94,7 @@ impl RouteStats {
     }
 
     /// Get the transfer stats
+    #[allow(dead_code)]
     pub fn transfer_stats(&self) -> &TransferStatsDownUp {
         &self.transfer_stats_down_up
     }

@@ -9,7 +9,7 @@ struct CompiledRouteCacheKey {
 
 /// Compiled route (safety route + private route)
 #[derive(Clone, Debug)]
-pub struct CompiledRoute {
+pub(crate) struct CompiledRoute {
     /// The safety route attached to the private route
     pub safety_route: SafetyRoute,
     /// The secret used to encrypt the message payload
@@ -20,7 +20,7 @@ pub struct CompiledRoute {
 
 /// Ephemeral data used to help the RouteSpecStore operate efficiently
 #[derive(Debug)]
-pub struct RouteSpecStoreCache {
+pub(super) struct RouteSpecStoreCache {
     /// How many times nodes have been used
     used_nodes: HashMap<PublicKey, usize>,
     /// How many times nodes have been used at the terminal point of a route

@@ -28,7 +28,6 @@ impl AttachmentManager {
     fn new_unlocked_inner(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -58,7 +57,6 @@ impl AttachmentManager {
     pub fn new(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -68,7 +66,6 @@ impl AttachmentManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
                 storage_manager,
-                protected_store,
                 table_store,
                 #[cfg(feature = "unstable-blockstore")]
                 block_store,

@@ -112,12 +112,6 @@ pub(crate) trait NodeRefBase: Sized {
     fn best_node_id(&self) -> TypedKey {
         self.operate(|_rti, e| e.best_node_id())
     }
-    fn has_updated_since_last_network_change(&self) -> bool {
-        self.operate(|_rti, e| e.has_updated_since_last_network_change())
-    }
-    fn set_updated_since_last_network_change(&self) {
-        self.operate_mut(|_rti, e| e.set_updated_since_last_network_change(true));
-    }
     fn update_node_status(&self, routing_domain: RoutingDomain, node_status: NodeStatus) {
         self.operate_mut(|_rti, e| {
             e.update_node_status(routing_domain, node_status);
@@ -583,9 +577,9 @@ impl<'a> NodeRefLockedMut<'a> {
         }
     }
 
-    pub fn unlocked(&self) -> NodeRef {
-        self.nr.clone()
-    }
+    // pub fn unlocked(&self) -> NodeRef {
+    //     self.nr.clone()
+    // }
 }
 
 impl<'a> NodeRefBase for NodeRefLockedMut<'a> {

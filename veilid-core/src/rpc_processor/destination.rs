@@ -2,7 +2,7 @@ use super::*;
 
 /// Where to send an RPC message
 #[derive(Debug, Clone)]
-pub enum Destination {
+pub(crate) enum Destination {
     /// Send to node directly
     Direct {
         /// The node to send to

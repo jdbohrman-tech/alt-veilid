@@ -29,13 +29,12 @@ mod rpc_complete_tunnel;
 #[cfg(feature = "unstable-tunnels")]
 mod rpc_start_tunnel;
 
-pub use coders::*;
-pub use destination::*;
-pub use fanout_call::*;
-pub use fanout_queue::*;
-pub use operation_waiter::*;
-pub use rpc_error::*;
-pub use rpc_status::*;
+pub(crate) use coders::*;
+pub(crate) use destination::*;
+pub(crate) use operation_waiter::*;
+pub(crate) use rpc_error::*;
+pub(crate) use rpc_status::*;
+pub(crate) use fanout_call::*;
 
 use super::*;
 
@@ -43,6 +42,7 @@ use crypto::*;
 use futures_util::StreamExt;
 use network_manager::*;
 use routing_table::*;
+use fanout_queue::*;
 use stop_token::future::FutureExt;
 use storage_manager::*;
 
@@ -268,13 +268,13 @@ enum RPCKind {
 
 /////////////////////////////////////////////////////////////////////
 
-pub struct RPCProcessorInner {
+struct RPCProcessorInner {
     send_channel: Option<flume::Sender<(Option<Id>, RPCMessageEncoded)>>,
     stop_source: Option<StopSource>,
     worker_join_handles: Vec<MustJoinHandle<()>>,
 }
 
-pub struct RPCProcessorUnlockedInner {
+struct RPCProcessorUnlockedInner {
     timeout_us: TimestampDuration,
     queue_size: u32,
     concurrency: u32,
@@ -286,7 +286,7 @@ pub struct RPCProcessorUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct RPCProcessor {
+pub(crate) struct RPCProcessor {
     crypto: Crypto,
     config: VeilidConfig,
     network_manager: NetworkManager,
@@ -974,11 +974,16 @@ impl RPCProcessor {
         safety_route: Option<PublicKey>,
         remote_private_route: Option<PublicKey>,
     ) {
-        let wants_answer = matches!(rpc_kind, RPCKind::Question);
-
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
-            node_ref.stats_question_sent(send_ts, bytes, wants_answer);
+            let wants_answer = matches!(rpc_kind, RPCKind::Question);
+            let is_answer = matches!(rpc_kind, RPCKind::Answer);
+
+            if is_answer {
+                node_ref.stats_answer_sent(bytes);
+            } else {
+                node_ref.stats_question_sent(send_ts, bytes, wants_answer);
+            }
             return;
         }
 
@@ -1422,7 +1427,7 @@ impl RPCProcessor {
         // Validate the RPC operation
         let validate_context = RPCValidateContext {
             crypto: self.crypto.clone(),
-            rpc_processor: self.clone(),
+            // rpc_processor: self.clone(),
             question_context,
         };
         operation.validate(&validate_context)?;

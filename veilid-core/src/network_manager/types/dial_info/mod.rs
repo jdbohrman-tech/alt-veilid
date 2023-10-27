@@ -234,6 +234,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address.address(),
         }
     }
+    #[allow(dead_code)]
     pub fn set_address(&mut self, address: Address) {
         match self {
             Self::UDP(di) => di.socket_address.set_address(address),
@@ -453,6 +454,7 @@ impl DialInfo {
             }
         }
     }
+    #[allow(dead_code)]
     pub async fn to_url(&self) -> String {
         match self {
             DialInfo::UDP(di) => intf::ptr_lookup(di.socket_address.ip_addr())

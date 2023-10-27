@@ -1,7 +1,7 @@
 use super::*;
 use core::convert::TryInto;
 
-pub fn decode_key256(public_key: &veilid_capnp::key256::Reader) -> PublicKey {
+pub(crate) fn decode_key256(public_key: &veilid_capnp::key256::Reader) -> PublicKey {
     let u0 = public_key.get_u0().to_be_bytes();
     let u1 = public_key.get_u1().to_be_bytes();
     let u2 = public_key.get_u2().to_be_bytes();
@@ -16,7 +16,7 @@ pub fn decode_key256(public_key: &veilid_capnp::key256::Reader) -> PublicKey {
     PublicKey::new(x)
 }
 
-pub fn encode_key256(key: &PublicKey, builder: &mut veilid_capnp::key256::Builder) {
+pub(crate) fn encode_key256(key: &PublicKey, builder: &mut veilid_capnp::key256::Builder) {
     builder.set_u0(u64::from_be_bytes(
         key.bytes[0..8]
             .try_into()

@@ -1,7 +1,7 @@
 use super::*;
 use core::convert::TryInto;
 
-pub fn encode_address(
+pub(crate) fn encode_address(
     address: &Address,
     builder: &mut veilid_capnp::address::Builder,
 ) -> Result<(), RPCError> {
@@ -37,7 +37,7 @@ pub fn encode_address(
     Ok(())
 }
 
-pub fn decode_address(reader: &veilid_capnp::address::Reader) -> Result<Address, RPCError> {
+pub(crate) fn decode_address(reader: &veilid_capnp::address::Reader) -> Result<Address, RPCError> {
     match reader.reborrow().which() {
         Ok(veilid_capnp::address::Which::Ipv4(Ok(v4))) => {
             let v4b = v4.get_addr().to_be_bytes();

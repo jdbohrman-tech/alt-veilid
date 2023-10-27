@@ -2,7 +2,7 @@ use super::*;
 
 /// What remote private routes have seen
 #[derive(Debug, Clone, Default)]
-pub struct RemotePrivateRouteInfo {
+pub(crate) struct RemotePrivateRouteInfo {
     /// The private routes themselves
     private_routes: Vec<PrivateRoute>,
     /// Did this remote private route see our node info due to no safety route in use

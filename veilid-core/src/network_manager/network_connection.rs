@@ -45,25 +45,25 @@ cfg_if::cfg_if! {
 ///////////////////////////////////////////////////////////
 // Dummy protocol network connection for testing
 
-#[derive(Debug)]
-pub struct DummyNetworkConnection {
-    descriptor: ConnectionDescriptor,
-}
+// #[derive(Debug)]
+// pub struct DummyNetworkConnection {
+//     descriptor: ConnectionDescriptor,
+// }
 
-impl DummyNetworkConnection {
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
-    }
-    pub fn close(&self) -> io::Result<NetworkResult<()>> {
-        Ok(NetworkResult::Value(()))
-    }
-    pub fn send(&self, _message: Vec<u8>) -> io::Result<NetworkResult<()>> {
-        Ok(NetworkResult::Value(()))
-    }
-    pub fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
-        Ok(NetworkResult::Value(Vec::new()))
-    }
-}
+// impl DummyNetworkConnection {
+//     pub fn descriptor(&self) -> ConnectionDescriptor {
+//         self.descriptor
+//     }
+//     pub fn close(&self) -> io::Result<NetworkResult<()>> {
+//         Ok(NetworkResult::Value(()))
+//     }
+//     pub fn send(&self, _message: Vec<u8>) -> io::Result<NetworkResult<()>> {
+//         Ok(NetworkResult::Value(()))
+//     }
+//     pub fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
+//         Ok(NetworkResult::Value(Vec::new()))
+//     }
+// }
 
 ///////////////////////////////////////////////////////////
 // Top-level protocol independent network connection object

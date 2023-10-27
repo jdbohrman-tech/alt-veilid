@@ -102,6 +102,7 @@ impl RoutingTableInner {
         self.with_routing_domain(domain, |rd| rd.common().relay_node_last_keepalive())
     }
 
+    #[allow(dead_code)]
     pub fn has_dial_info(&self, domain: RoutingDomain) -> bool {
         self.with_routing_domain(domain, |rd| !rd.common().dial_info_details().is_empty())
     }
@@ -233,7 +234,7 @@ impl RoutingTableInner {
         let cur_ts = get_aligned_timestamp();
         self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, v| {
             v.with_mut(rti, |_rti, e| {
-                e.set_updated_since_last_network_change(false)
+                e.reset_updated_since_last_network_change();
             });
             Option::<()>::None
         });
@@ -265,6 +266,7 @@ impl RoutingTableInner {
     }
 
     /// Return the domain's filter for what we can receivein the form of a dial info filter
+    #[allow(dead_code)]
     pub fn get_inbound_dial_info_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.common().inbound_dial_info_filter()
@@ -272,6 +274,7 @@ impl RoutingTableInner {
     }
 
     /// Return the domain's filter for what we can receive in the form of a node ref filter
+    #[allow(dead_code)]
     pub fn get_inbound_node_ref_filter(&self, routing_domain: RoutingDomain) -> NodeRefFilter {
         let dif = self.get_inbound_dial_info_filter(routing_domain);
         NodeRefFilter::new()
@@ -336,7 +339,7 @@ impl RoutingTableInner {
             self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, e| {
                 e.with_mut(rti, |_rti, e| {
                     e.clear_signed_node_info(RoutingDomain::LocalNetwork);
-                    e.set_updated_since_last_network_change(false);
+                    e.reset_updated_since_last_network_change();
                 });
                 Option::<()>::None
             });
@@ -462,32 +465,6 @@ impl RoutingTableInner {
         count
     }
 
-    /// Count entries per crypto kind that match some criteria
-    pub fn get_entry_count_per_crypto_kind(
-        &self,
-        routing_domain_set: RoutingDomainSet,
-        min_state: BucketEntryState,
-    ) -> BTreeMap<CryptoKind, usize> {
-        let mut counts = BTreeMap::new();
-        let cur_ts = get_aligned_timestamp();
-        self.with_entries(cur_ts, min_state, |rti, e| {
-            if let Some(crypto_kinds) = e.with_inner(|e| {
-                if e.best_routing_domain(rti, routing_domain_set).is_some() {
-                    Some(e.crypto_kinds())
-                } else {
-                    None
-                }
-            }) {
-                // Got crypto kinds, add to map
-                for ck in crypto_kinds {
-                    counts.entry(ck).and_modify(|x| *x += 1).or_insert(1);
-                }
-            }
-            Option::<()>::None
-        });
-        counts
-    }
-
     /// Iterate entries with a filter
     pub fn with_entries<T, F: FnMut(&RoutingTableInner, Arc<BucketEntry>) -> Option<T>>(
         &self,
@@ -527,7 +504,7 @@ impl RoutingTableInner {
         None
     }
 
-    pub fn get_nodes_needing_ping(
+    pub(super) fn get_nodes_needing_ping(
         &self,
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
@@ -575,6 +552,7 @@ impl RoutingTableInner {
         node_refs
     }
 
+    #[allow(dead_code)]
     pub fn get_all_nodes(&self, outer_self: RoutingTable, cur_ts: Timestamp) -> Vec<NodeRef> {
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count());
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |_rti, entry| {

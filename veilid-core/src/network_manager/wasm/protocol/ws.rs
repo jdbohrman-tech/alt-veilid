@@ -117,7 +117,7 @@ impl WebsocketNetworkConnection {
 ///////////////////////////////////////////////////////////
 ///
 
-pub struct WebsocketProtocolHandler {}
+pub(in crate::network_manager) struct WebsocketProtocolHandler {}
 
 impl WebsocketProtocolHandler {
     #[instrument(level = "trace", ret, err)]

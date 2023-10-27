@@ -109,10 +109,8 @@ impl RoutingTable {
 
             unord.push(
                 async move {
-                    let out = rpc
-                        .rpc_call_status(Destination::direct(relay_nr_filtered), true)
-                        .await;
-                    out
+                    rpc.rpc_call_status(Destination::direct(relay_nr_filtered), true)
+                        .await
                 }
                 .instrument(Span::current())
                 .boxed(),

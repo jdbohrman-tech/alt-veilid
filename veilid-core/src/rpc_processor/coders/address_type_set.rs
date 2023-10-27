@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn encode_address_type_set(
+pub(crate) fn encode_address_type_set(
     address_type_set: &AddressTypeSet,
     builder: &mut veilid_capnp::address_type_set::Builder,
 ) -> Result<(), RPCError> {
@@ -10,7 +10,7 @@ pub fn encode_address_type_set(
     Ok(())
 }
 
-pub fn decode_address_type_set(
+pub(crate) fn decode_address_type_set(
     reader: &veilid_capnp::address_type_set::Reader,
 ) -> Result<AddressTypeSet, RPCError> {
     let mut out = AddressTypeSet::new();

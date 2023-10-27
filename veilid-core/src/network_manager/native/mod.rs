@@ -690,10 +690,6 @@ impl Network {
 
     /////////////////////////////////////////////////////////////////
 
-    pub fn get_protocol_config(&self) -> ProtocolConfig {
-        self.inner.lock().protocol_config.clone()
-    }
-
     #[instrument(level = "debug", err, skip_all)]
     pub async fn startup(&self) -> EyreResult<()> {
         // initialize interfaces

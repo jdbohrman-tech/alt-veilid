@@ -2,7 +2,7 @@ use super::*;
 
 /// Mechanism required to contact another node
 #[derive(Clone, Debug)]
-pub enum ContactMethod {
+pub(crate) enum ContactMethod {
     /// Node is not reachable by any means
     Unreachable,
     /// Connection should have already existed
@@ -20,7 +20,7 @@ pub enum ContactMethod {
 }
 
 #[derive(Debug)]
-pub struct RoutingDomainDetailCommon {
+pub(crate) struct RoutingDomainDetailCommon {
     routing_domain: RoutingDomain,
     network_class: Option<NetworkClass>,
     outbound_protocols: ProtocolTypeSet,
@@ -216,6 +216,7 @@ impl RoutingDomainDetailCommon {
         f(cpi.as_ref().unwrap())
     }
 
+    #[allow(dead_code)]
     pub fn inbound_dial_info_filter(&self) -> DialInfoFilter {
         DialInfoFilter::all()
             .with_protocol_type_set(self.inbound_protocols)
@@ -233,7 +234,7 @@ impl RoutingDomainDetailCommon {
 }
 
 /// General trait for all routing domains
-pub trait RoutingDomainDetail {
+pub(crate) trait RoutingDomainDetail {
     // Common accessors
     fn common(&self) -> &RoutingDomainDetailCommon;
     fn common_mut(&mut self) -> &mut RoutingDomainDetailCommon;

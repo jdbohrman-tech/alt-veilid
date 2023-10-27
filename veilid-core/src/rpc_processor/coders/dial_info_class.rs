@@ -1,6 +1,8 @@
 use super::*;
 
-pub fn encode_dial_info_class(dial_info_class: DialInfoClass) -> veilid_capnp::DialInfoClass {
+pub(crate) fn encode_dial_info_class(
+    dial_info_class: DialInfoClass,
+) -> veilid_capnp::DialInfoClass {
     match dial_info_class {
         DialInfoClass::Direct => veilid_capnp::DialInfoClass::Direct,
         DialInfoClass::Mapped => veilid_capnp::DialInfoClass::Mapped,
@@ -11,7 +13,9 @@ pub fn encode_dial_info_class(dial_info_class: DialInfoClass) -> veilid_capnp::D
     }
 }
 
-pub fn decode_dial_info_class(dial_info_class: veilid_capnp::DialInfoClass) -> DialInfoClass {
+pub(crate) fn decode_dial_info_class(
+    dial_info_class: veilid_capnp::DialInfoClass,
+) -> DialInfoClass {
     match dial_info_class {
         veilid_capnp::DialInfoClass::Direct => DialInfoClass::Direct,
         veilid_capnp::DialInfoClass::Mapped => DialInfoClass::Mapped,

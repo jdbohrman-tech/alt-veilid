@@ -115,12 +115,7 @@ impl RPCProcessor {
         if protect {
             self.network_manager()
                 .connection_manager()
-                .protect_connection(
-                    waitable_reply
-                        .send_data_method
-                        .connection_descriptor
-                        .clone(),
-                );
+                .protect_connection(waitable_reply.send_data_method.connection_descriptor);
         }
 
         // Note what kind of ping this was and to what peer scope

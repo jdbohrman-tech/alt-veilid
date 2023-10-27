@@ -1,4 +1,5 @@
 use super::*;
+use crate::veilid_api::*;
 
 mod permutation;
 mod remote_private_route_info;
@@ -7,15 +8,14 @@ mod route_spec_store_cache;
 mod route_spec_store_content;
 mod route_stats;
 
-pub use remote_private_route_info::*;
-pub use route_set_spec_detail::*;
-pub use route_spec_store_cache::*;
-pub use route_spec_store_content::*;
-pub use route_stats::*;
-
-use crate::veilid_api::*;
-
 use permutation::*;
+use remote_private_route_info::*;
+use route_set_spec_detail::*;
+use route_spec_store_cache::*;
+use route_spec_store_content::*;
+
+pub(crate) use route_spec_store_cache::CompiledRoute;
+pub(crate) use route_stats::*;
 
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
@@ -27,14 +27,14 @@ const ROUTE_MIN_IDLE_TIME_MS: u32 = 30_000;
 const COMPILED_ROUTE_CACHE_SIZE: usize = 256;
 
 #[derive(Debug)]
-pub struct RouteSpecStoreInner {
+struct RouteSpecStoreInner {
     /// Serialize RouteSpecStore content
     content: RouteSpecStoreContent,
     /// RouteSpecStore cache
     cache: RouteSpecStoreCache,
 }
 
-pub struct RouteSpecStoreUnlockedInner {
+struct RouteSpecStoreUnlockedInner {
     /// Handle to routing table
     routing_table: RoutingTable,
     /// Maximum number of hops in a route
@@ -54,7 +54,7 @@ impl fmt::Debug for RouteSpecStoreUnlockedInner {
 
 /// The routing table's storage for private/safety routes
 #[derive(Clone, Debug)]
-pub struct RouteSpecStore {
+pub(crate) struct RouteSpecStore {
     inner: Arc<Mutex<RouteSpecStoreInner>>,
     unlocked_inner: Arc<RouteSpecStoreUnlockedInner>,
 }

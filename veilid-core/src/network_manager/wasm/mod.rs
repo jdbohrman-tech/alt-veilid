@@ -63,7 +63,7 @@ struct NetworkUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct Network {
+pub(in crate::network_manager) struct Network {
     config: VeilidConfig,
     inner: Arc<Mutex<NetworkInner>>,
     unlocked_inner: Arc<NetworkUnlockedInner>,
@@ -457,10 +457,6 @@ impl Network {
 
     pub fn needs_public_dial_info_check(&self) -> bool {
         false
-    }
-
-    pub fn get_protocol_config(&self) -> ProtocolConfig {
-        self.inner.lock().protocol_config.clone()
     }
 
     //////////////////////////////////////////

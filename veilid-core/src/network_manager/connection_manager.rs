@@ -84,10 +84,6 @@ impl ConnectionManager {
         self.arc.network_manager.clone()
     }
 
-    pub fn connection_initial_timeout_ms(&self) -> u32 {
-        self.arc.connection_initial_timeout_ms
-    }
-
     pub fn connection_inactivity_timeout_ms(&self) -> u32 {
         self.arc.connection_inactivity_timeout_ms
     }

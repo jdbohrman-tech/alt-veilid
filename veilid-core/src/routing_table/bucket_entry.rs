@@ -175,6 +175,7 @@ impl BucketEntryInner {
     }
 
     // Less is faster
+    #[allow(dead_code)]
     pub fn cmp_fastest(e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Lower latency to the front
         if let Some(e1_latency) = &e1.peer_stats.latency {
@@ -234,6 +235,7 @@ impl BucketEntryInner {
         }
     }
 
+    #[allow(dead_code)]
     pub fn sort_fastest_reliable_fn(cur_ts: Timestamp) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
@@ -537,6 +539,7 @@ impl BucketEntryInner {
         self.envelope_support = envelope_support;
     }
 
+    #[allow(dead_code)]
     pub fn envelope_support(&self) -> Vec<u8> {
         self.envelope_support.clone()
     }
@@ -617,12 +620,8 @@ impl BucketEntryInner {
         }
     }
 
-    pub fn set_updated_since_last_network_change(&mut self, updated: bool) {
-        self.updated_since_last_network_change = updated;
-    }
-
-    pub fn has_updated_since_last_network_change(&self) -> bool {
-        self.updated_since_last_network_change
+    pub fn reset_updated_since_last_network_change(&mut self) {
+        self.updated_since_last_network_change = false;
     }
 
     ///// stats methods

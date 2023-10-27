@@ -121,14 +121,6 @@ pub(crate) struct PrivateRoute {
 }
 
 impl PrivateRoute {
-    /// Empty private route is the form used when receiving the last hop
-    pub fn new_empty(public_key: TypedKey) -> Self {
-        Self {
-            public_key,
-            hop_count: 0,
-            hops: PrivateRouteHops::Empty,
-        }
-    }
     /// Stub route is the form used when no privacy is required, but you need to specify the destination for a safety route
     pub fn new_stub(public_key: TypedKey, node: RouteNode) -> Self {
         Self {

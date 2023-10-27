@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RouteSpecDetail {
+pub(crate) struct RouteSpecDetail {
     /// Crypto kind
     pub crypto_kind: CryptoKind,
     /// Secret key
@@ -11,7 +11,7 @@ pub struct RouteSpecDetail {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RouteSetSpecDetail {
+pub(crate) struct RouteSetSpecDetail {
     /// Route set per crypto kind
     route_set: BTreeMap<PublicKey, RouteSpecDetail>,
     /// Route noderefs
@@ -53,9 +53,6 @@ impl RouteSetSpecDetail {
     pub fn get_route_by_key(&self, key: &PublicKey) -> Option<&RouteSpecDetail> {
         self.route_set.get(key)
     }
-    pub fn get_route_by_key_mut(&mut self, key: &PublicKey) -> Option<&mut RouteSpecDetail> {
-        self.route_set.get_mut(key)
-    }
     pub fn get_route_set_keys(&self) -> TypedKeyGroup {
         let mut tks = TypedKeyGroup::new();
         for (k, v) in &self.route_set {
@@ -73,11 +70,6 @@ impl RouteSetSpecDetail {
         &self,
     ) -> alloc::collections::btree_map::Iter<PublicKey, RouteSpecDetail> {
         self.route_set.iter()
-    }
-    pub fn iter_route_set_mut(
-        &mut self,
-    ) -> alloc::collections::btree_map::IterMut<PublicKey, RouteSpecDetail> {
-        self.route_set.iter_mut()
     }
     pub fn get_stats(&self) -> &RouteStats {
         &self.stats
