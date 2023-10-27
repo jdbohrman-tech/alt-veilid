@@ -430,18 +430,6 @@ impl Network {
         trace!("network stopped");
     }
 
-    pub fn is_stable_interface_address(&self, _addr: IpAddr) -> bool {
-        false
-    }
-
-    pub fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
-        Vec::new()
-    }
-
-    pub fn get_local_port(&self, _protocol_type: ProtocolType) -> Option<u16> {
-        None
-    }
-
     pub fn get_preferred_local_address(&self, _dial_info: &DialInfo) -> Option<SocketAddr> {
         None
     }
