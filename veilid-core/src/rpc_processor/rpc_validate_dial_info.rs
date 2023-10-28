@@ -6,6 +6,7 @@ impl RPCProcessor {
         feature = "verbose-tracing",
         instrument(level = "trace", skip(self), ret, err)
     )]
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub async fn rpc_call_validate_dial_info(
         self,
         peer: NodeRef,

@@ -279,6 +279,7 @@ struct RPCProcessorUnlockedInner {
     queue_size: u32,
     concurrency: u32,
     max_route_hop_count: usize,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     validate_dial_info_receipt_time_ms: u32,
     update_callback: UpdateCallback,
     waiting_rpc_table: OperationWaiter<RPCMessage, Option<QuestionContext>>,

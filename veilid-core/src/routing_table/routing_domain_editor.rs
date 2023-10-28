@@ -13,6 +13,7 @@ enum RoutingDomainChange {
     SetRelayNodeKeepalive {
         ts: Option<Timestamp>,
     },
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     AddDialInfoDetail {
         dial_info_detail: DialInfoDetail,
     },

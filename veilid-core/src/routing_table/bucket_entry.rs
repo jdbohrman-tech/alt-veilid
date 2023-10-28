@@ -240,6 +240,7 @@ impl BucketEntryInner {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn clear_signed_node_info(&mut self, routing_domain: RoutingDomain) {
         // Get the correct signed_node_info for the chosen routing domain
         let opt_current_sni = match routing_domain {

@@ -259,6 +259,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address.ip_addr(),
         }
     }
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn port(&self) -> u16 {
         match self {
             Self::UDP(di) => di.socket_address.port(),
@@ -267,6 +268,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address.port(),
         }
     }
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn set_port(&mut self, port: u16) {
         match self {
             Self::UDP(di) => di.socket_address.set_port(port),
@@ -275,6 +277,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address.set_port(port),
         }
     }
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn to_socket_addr(&self) -> SocketAddr {
         match self {
             Self::UDP(di) => di.socket_address.socket_addr(),

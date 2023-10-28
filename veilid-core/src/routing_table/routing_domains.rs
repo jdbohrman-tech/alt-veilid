@@ -536,6 +536,7 @@ impl Default for LocalNetworkRoutingDomainDetail {
 }
 
 impl LocalNetworkRoutingDomainDetail {
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn set_local_networks(&mut self, mut local_networks: Vec<(IpAddr, IpAddr)>) -> bool {
         local_networks.sort();
         if local_networks == self.local_networks {

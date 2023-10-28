@@ -461,6 +461,7 @@ impl RoutingTable {
     }
 
     /// Set up the local network routing domain with our local routing table configuration
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn configure_local_network_routing_domain(&self, local_networks: Vec<(IpAddr, IpAddr)>) {
         log_net!(debug "configure_local_network_routing_domain: {:#?}", local_networks);
         self.inner
@@ -501,6 +502,7 @@ impl RoutingTable {
             .all_filtered_dial_info_details(routing_domain_set, filter)
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn ensure_dial_info_is_valid(&self, domain: RoutingDomain, dial_info: &DialInfo) -> bool {
         self.inner
             .read()
@@ -755,6 +757,7 @@ impl RoutingTable {
     }
 
     /// Makes a filter that finds nodes with a matching inbound dialinfo
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn make_inbound_dial_info_entry_filter<'a>(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,

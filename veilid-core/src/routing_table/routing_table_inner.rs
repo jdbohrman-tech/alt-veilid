@@ -111,6 +111,7 @@ impl RoutingTableInner {
         self.with_routing_domain(domain, |rd| rd.common().dial_info_details().clone())
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn first_filtered_dial_info_detail(
         &self,
         routing_domain_set: RoutingDomainSet,
@@ -323,6 +324,7 @@ impl RoutingTableInner {
         }
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn configure_local_network_routing_domain(
         &mut self,
         local_networks: Vec<(IpAddr, IpAddr)>,

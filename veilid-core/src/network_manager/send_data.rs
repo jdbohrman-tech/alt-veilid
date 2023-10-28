@@ -9,7 +9,8 @@ impl NetworkManager {
     /// in this case, if it matches the node ref's filters and no more permissive connection
     /// could be established.
     ///
-    /// Sending to a node requires determining a NetworkClass compatible mechanism
+    /// Sending to a node requires determining a NetworkClass compatible contact method 
+    /// between the source and destination node
     pub(crate) fn send_data(
         &self,
         destination_node_ref: NodeRef,
