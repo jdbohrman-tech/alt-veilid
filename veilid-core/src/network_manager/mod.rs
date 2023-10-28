@@ -670,7 +670,7 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let peer_nr = match routing_table.register_node_with_peer_info(
+                let mut peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
                     peer_info,
                     false,
@@ -684,10 +684,10 @@ impl NetworkManager {
                     }
                 };
 
-                // Restrict reverse connection to same protocol as inbound signal
-                let peer_nr = peer_nr.filtered_clone(NodeRefFilter::from(
-                    signal_connection_descriptor.protocol_type(),
-                ));
+                // Restrict reverse connection to same sequencing requirement as inbound signal
+                if signal_connection_descriptor.protocol_type().is_ordered() {
+                    peer_nr.set_sequencing(Sequencing::EnsureOrdered);
+                }
 
                 // Make a reverse connection to the peer and send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -1030,17 +1030,11 @@ impl NetworkManager {
                 }
             };
 
-            if let Some(relay_nr) = some_relay_nr {
+            if let Some(mut relay_nr) = some_relay_nr {
                 // Ensure the protocol used to forward is of the same sequencing requirement
                 // Address type is allowed to change if connectivity is better
-                let relay_nr = if connection_descriptor.protocol_type().is_ordered() {
-                    // XXX: this is a little redundant
-                    let (_, nrf) = NodeRefFilter::new().with_sequencing(Sequencing::EnsureOrdered);
-                    let mut relay_nr = relay_nr.filtered_clone(nrf);
+                if connection_descriptor.protocol_type().is_ordered() {
                     relay_nr.set_sequencing(Sequencing::EnsureOrdered);
-                    relay_nr
-                } else {
-                    relay_nr
                 };
 
                 // Relay the packet to the desired destination

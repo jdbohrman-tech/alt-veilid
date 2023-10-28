@@ -454,6 +454,7 @@ impl NetworkManager {
                     bail!("signalreverse target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
                 relay_nr.set_sequencing(sequencing);
+                let target_node_ref = target_node_ref.filtered_clone(NodeRefFilter::from(dial_info_filter));
                 NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
             }
             ContactMethod::SignalHolePunch(relay_key, target_key) => {
@@ -474,7 +475,7 @@ impl NetworkManager {
                 // if any other protocol were possible here we could update this and do_hole_punch
                 // but tcp hole punch is very very unreliable it seems
                 let udp_target_node_ref = target_node_ref
-                    .filtered_clone(NodeRefFilter::new().with_protocol_type(ProtocolType::UDP));
+                    .filtered_clone(NodeRefFilter::new().with_dial_info_filter(dial_info_filter).with_protocol_type(ProtocolType::UDP));
 
                 NodeContactMethod::SignalHolePunch(relay_nr, udp_target_node_ref)
             }

@@ -97,6 +97,15 @@ impl From<AddressType> for DialInfoFilter {
     }
 }
 
+impl From<ConnectionDescriptor> for DialInfoFilter {
+    fn from(other: ConnectionDescriptor) -> Self {
+        Self {
+            protocol_type_set: ProtocolTypeSet::from(other.protocol_type()),
+            address_type_set: AddressTypeSet::from(other.address_type()),
+        }
+    }
+}
+
 pub trait MatchesDialInfoFilter {
     fn matches_filter(&self, filter: &DialInfoFilter) -> bool;
 }

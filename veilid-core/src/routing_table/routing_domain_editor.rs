@@ -214,7 +214,7 @@ impl RoutingDomainEditor {
 
                             if this_changed {
                                 info!(
-                                    "[{:?}] setup network: {:?} {:?} {:?} {:?}",
+                                    "[{:?}] setup network: outbound {:?} inbound {:?} address types {:?} capabilities {:?}",
                                     self.routing_domain,
                                     outbound_protocols,
                                     inbound_protocols,

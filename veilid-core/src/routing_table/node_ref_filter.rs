@@ -111,3 +111,12 @@ impl From<AddressType> for NodeRefFilter {
         }
     }
 }
+
+impl From<ConnectionDescriptor> for NodeRefFilter {
+    fn from(other: ConnectionDescriptor) -> Self {
+        Self {
+            routing_domain_set: RoutingDomainSet::all(),
+            dial_info_filter: DialInfoFilter::from(other),
+        }
+    }
+}
