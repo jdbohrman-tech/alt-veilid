@@ -6,6 +6,7 @@ version = "0.2.3"
 authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
 license = "MPL-2.0"
+resolver = "2"
 
 [[bin]]
 name = "veilid-cli"
