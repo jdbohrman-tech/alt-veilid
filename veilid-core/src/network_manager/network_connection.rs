@@ -95,7 +95,17 @@ pub struct NetworkConnection {
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
     protected: bool,
+    ref_count: usize,
 }
+
+impl Drop for NetworkConnection {
+    fn drop(&mut self) {
+        if self.ref_count != 0 && self.stop_source.is_some() {
+            log_net!(error "ref_count for network connection should be zero: {:?}", self.ref_count);
+        }
+    }
+}
+
 
 impl NetworkConnection {
     pub(super) fn dummy(id: NetworkConnectionId, descriptor: ConnectionDescriptor) -> Self {
@@ -114,6 +124,7 @@ impl NetworkConnection {
             sender,
             stop_source: None,
             protected: false,
+            ref_count: 0,
         }
     }
 
@@ -160,6 +171,7 @@ impl NetworkConnection {
             sender,
             stop_source: Some(stop_source),
             protected: false,
+            ref_count: 0,
         }
     }
 
@@ -175,12 +187,20 @@ impl NetworkConnection {
         ConnectionHandle::new(self.connection_id, self.descriptor, self.sender.clone())
     }
 
-    pub fn is_protected(&self) -> bool {
-        self.protected
+    pub fn is_in_use(&self) -> bool {
+        self.protected || self.ref_count > 0
     }
 
     pub fn protect(&mut self) {
         self.protected = true;
+    }
+
+    pub fn change_ref_count(&mut self, add: bool) {
+        if add {
+            self.ref_count += 1;
+        } else {
+            self.ref_count -= 1; 
+        }
     }
 
     pub fn close(&mut self) {

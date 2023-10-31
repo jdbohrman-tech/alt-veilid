@@ -308,17 +308,6 @@ pub(crate) trait NodeRefBase: Sized {
         })
     }
 
-    fn protect_last_connection(&self) -> bool {
-        if let Some(descriptor) = self.last_connection() {
-            self.routing_table()
-                .network_manager()
-                .connection_manager()
-                .protect_connection(descriptor)
-        } else {
-            false
-        }
-    }
-
     fn has_any_dial_info(&self) -> bool {
         self.operate(|_rti, e| {
             for rtd in RoutingDomain::all() {

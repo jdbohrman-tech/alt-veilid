@@ -189,6 +189,7 @@ struct WaitableReply {
     safety_route: Option<PublicKey>,
     remote_private_route: Option<PublicKey>,
     reply_private_route: Option<PublicKey>,
+    _connection_ref_scope: ConnectionRefScope,
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1147,7 +1148,8 @@ impl RPCProcessor {
         dest: Destination,
         question: RPCQuestion,
         context: Option<QuestionContext>,
-    ) ->RPCNetworkResult<WaitableReply> {
+        protect: bool,
+    ) -> RPCNetworkResult<WaitableReply> {
         // Get sender peer info if we should send that
         let spi = self.get_sender_peer_info(&dest);
 
@@ -1157,7 +1159,7 @@ impl RPCProcessor {
 
         // Log rpc send
         #[cfg(feature = "verbose-tracing")]
-        debug!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
+        debug!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest, protect);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1221,6 +1223,16 @@ impl RPCProcessor {
             remote_private_route,
         );
 
+
+        // Ref the connection so it doesn't go away until we're done with the waitable reply
+        let connection_ref_scope = self
+            .network_manager()
+            .connection_manager()
+            .connection_ref_scope(
+                send_data_method.connection_descriptor,
+                protect,
+            );
+
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
             handle,
@@ -1231,6 +1243,7 @@ impl RPCProcessor {
             safety_route,
             remote_private_route,
             reply_private_route,
+            _connection_ref_scope: connection_ref_scope,
         }))
     }
 

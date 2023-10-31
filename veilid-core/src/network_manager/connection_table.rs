@@ -9,6 +9,8 @@ pub(in crate::network_manager) enum ConnectionTableAddError {
     AlreadyExists(NetworkConnection),
     #[error("Connection address was filtered")]
     AddressFilter(NetworkConnection, AddressFilterError),
+    #[error("Connection table is full")]
+    TableFull(NetworkConnection),
 }
 
 impl ConnectionTableAddError {
@@ -18,6 +20,14 @@ impl ConnectionTableAddError {
     pub fn address_filter(conn: NetworkConnection, err: AddressFilterError) -> Self {
         ConnectionTableAddError::AddressFilter(conn, err)
     }
+    pub fn table_full(conn: NetworkConnection) -> Self {
+        ConnectionTableAddError::TableFull(conn)
+    }
+}
+
+pub(crate) enum ConnectionRefKind {
+    AddRef,
+    RemoveRef,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -176,30 +186,34 @@ impl ConnectionTable {
             }
         };
 
+        // if we have reached the maximum number of connections per protocol type
+        // then drop the least recently used connection that is not protected or referenced
+        let mut out_conn = None;
+        if inner.conn_by_id[protocol_index].len() >= inner.max_connections[protocol_index] {
+            // Find a free connection to terminate to make room
+            let dead_k = {
+                let Some(lruk) = inner.conn_by_id[protocol_index].iter().find_map(|(k, v)| {
+                    if !v.is_in_use() {
+                        Some(*k)
+                    } else {
+                        None
+                    }
+                }) else {
+                    // Can't make room, connection table is full
+                    return Err(ConnectionTableAddError::table_full(network_connection));
+                };
+                lruk
+            };
+
+            let dead_conn = Self::remove_connection_records(&mut inner, dead_k);
+            log_net!(debug "== LRU Connection Killed: {} -> {}", dead_k, dead_conn.debug_print(get_aligned_timestamp()));
+
+            out_conn = Some(dead_conn);
+        }
+
         // Add the connection to the table
         let res = inner.conn_by_id[protocol_index].insert(id, network_connection);
         assert!(res.is_none());
-
-        // if we have reached the maximum number of connections per protocol type
-        // then drop the least recently used connection
-        let mut out_conn = None;
-        if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
-            while let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
-                let lruk = *lruk;
-
-                // Don't LRU protected connections
-                if lru_conn.is_protected() {
-                    // Mark as recently used
-                    log_net!(debug "== No LRU Out for PROTECTED connection: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
-                    inner.conn_by_id[protocol_index].get(&lruk);
-                    continue;
-                }
-
-                log_net!(debug "== LRU Connection Killed: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
-                out_conn = Some(Self::remove_connection_records(&mut inner, lruk));
-                break;
-            }
-        }
 
         // add connection records
         inner.protocol_index_by_id.insert(id, protocol_index);
@@ -219,18 +233,6 @@ impl ConnectionTable {
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    #[allow(dead_code)]
-    pub fn protect_connection_by_id(&self, id: NetworkConnectionId) -> bool {
-        let mut inner = self.inner.lock();
-        let Some(protocol_index) = inner.protocol_index_by_id.get(&id).copied() else {
-            return false;
-        };
-        let out = inner.conn_by_id[protocol_index].get_mut(&id).unwrap();
-        out.protect();
-        true
-    }
-
-    //#[instrument(level = "trace", skip(self), ret)]
     pub fn get_connection_by_descriptor(
         &self,
         descriptor: ConnectionDescriptor,
@@ -244,7 +246,12 @@ impl ConnectionTable {
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    pub fn protect_connection_by_descriptor(&self, descriptor: ConnectionDescriptor) -> bool {
+    pub fn ref_connection_by_descriptor(
+        &self,
+        descriptor: ConnectionDescriptor,
+        ref_type: ConnectionRefKind,
+        protect: bool,
+    ) -> bool {
         let mut inner = self.inner.lock();
 
         let Some(id) = inner.id_by_descriptor.get(&descriptor).copied() else {
@@ -252,7 +259,14 @@ impl ConnectionTable {
         };
         let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
         let out = inner.conn_by_id[protocol_index].get_mut(&id).unwrap();
-        out.protect();
+        match ref_type {
+            ConnectionRefKind::AddRef => out.change_ref_count(true),
+            ConnectionRefKind::RemoveRef => out.change_ref_count(false),
+        }
+        if protect {
+            out.protect();
+        }
+
         true
     }
 

@@ -109,14 +109,7 @@ impl RPCProcessor {
 
         // Send the info request
         let waitable_reply =
-            network_result_try!(self.question(dest.clone(), question, None).await?);
-
-        // Optionally protect the connection in the event this for a relay or route keepalive
-        if protect {
-            self.network_manager()
-                .connection_manager()
-                .protect_connection(waitable_reply.send_data_method.connection_descriptor);
-        }
+            network_result_try!(self.question(dest.clone(), question, None, protect).await?);
 
         // Note what kind of ping this was and to what peer scope
         let send_data_method = waitable_reply.send_data_method.clone();
