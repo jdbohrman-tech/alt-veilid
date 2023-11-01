@@ -101,7 +101,7 @@ pub struct NetworkConnection {
 impl Drop for NetworkConnection {
     fn drop(&mut self) {
         if self.ref_count != 0 && self.stop_source.is_some() {
-            log_net!(error "ref_count for network connection should be zero: {:?}", self.ref_count);
+            log_net!(error "ref_count for network connection should be zero: {:?}", self);
         }
     }
 }
@@ -302,6 +302,9 @@ impl NetworkConnection {
                                 // xxx: causes crash (Missing otel data span extensions)
                                 // recv_span.follows_from(span_id);
                     
+                                // Touch the LRU for this connection
+                                connection_manager.touch_connection_by_id(connection_id);
+
                                 // send the packet
                                 if let Err(e) = Self::send_internal(
                                     &protocol_connection,
@@ -366,6 +369,11 @@ impl NetworkConnection {
                                         log_net!(debug "failed to process received envelope: {}", e);
                                         RecvLoopAction::Finish
                                     } else {
+                                        
+                                        // Touch the LRU for this connection
+                                        connection_manager.touch_connection_by_id(connection_id);
+
+
                                         RecvLoopAction::Recv
                                     }
                                 }

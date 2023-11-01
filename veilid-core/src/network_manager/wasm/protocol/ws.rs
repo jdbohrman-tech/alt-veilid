@@ -64,7 +64,8 @@ impl WebsocketNetworkConnection {
         instrument(level = "trace", err, skip(self))
     )]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
-        let _ = self.inner.ws_meta.close().await.map_err(to_io)?;
+        let x = self.inner.ws_meta.close().await.map_err(to_io);
+        info!("close result: {:?}", x);
         Ok(NetworkResult::value(()))
     }
 

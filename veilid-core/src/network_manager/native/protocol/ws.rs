@@ -1,21 +1,25 @@
 use super::*;
 
 use async_tls::TlsConnector;
+use async_tungstenite::tungstenite::error::ProtocolError;
 use async_tungstenite::tungstenite::handshake::server::{
     Callback, ErrorResponse, Request, Response,
 };
 use async_tungstenite::tungstenite::http::StatusCode;
-use async_tungstenite::tungstenite::protocol::Message;
+use async_tungstenite::tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message};
+use async_tungstenite::tungstenite::Error;
 use async_tungstenite::{accept_hdr_async, client_async, WebSocketStream};
 use futures_util::{AsyncRead, AsyncWrite, SinkExt};
 use sockets::*;
 
-/// Maximum number of websocket request headers to permit
+// Maximum number of websocket request headers to permit
 const MAX_WS_HEADERS: usize = 24;
-/// Maximum size of any one specific websocket header
+// Maximum size of any one specific websocket header
 const MAX_WS_HEADER_LENGTH: usize = 512;
-/// Maximum total size of headers and request including newlines
+// Maximum total size of headers and request including newlines
 const MAX_WS_BEFORE_BODY: usize = 2048;
+// Wait time for connection close
+// const MAX_CONNECTION_CLOSE_WAIT_US: u64 = 5_000_000;
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
@@ -31,14 +35,14 @@ cfg_if! {
     }
 }
 
-fn err_to_network_result<T>(err: async_tungstenite::tungstenite::Error) -> NetworkResult<T> {
+fn err_to_network_result<T>(err: Error) -> NetworkResult<T> {
     match err {
-        async_tungstenite::tungstenite::Error::ConnectionClosed
-        | async_tungstenite::tungstenite::Error::AlreadyClosed
-        | async_tungstenite::tungstenite::Error::Io(_)
-        | async_tungstenite::tungstenite::Error::Protocol(
-            async_tungstenite::tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
-        ) => NetworkResult::NoConnection(to_io_error_other(err)),
+        Error::ConnectionClosed
+        | Error::AlreadyClosed
+        | Error::Io(_)
+        | Error::Protocol(ProtocolError::ResetWithoutClosingHandshake) => {
+            NetworkResult::NoConnection(to_io_error_other(err))
+        }
         _ => NetworkResult::InvalidMessage(err.to_string()),
     }
 }
@@ -82,35 +86,55 @@ where
         instrument(level = "trace", err, skip(self))
     )]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
-        // Make an attempt to flush the stream
-        self.stream
-            .clone()
-            .close()
+        // Make an attempt to close the stream normally
+        let mut stream = self.stream.clone();
+        stream
+            .send(Message::Close(Some(CloseFrame {
+                code: CloseCode::Normal,
+                reason: "".into(),
+            })))
             .await
             .map_err(to_io_error_other)?;
-        // // Then forcibly close the socket
-        // self.tcp_stream
-        //     .shutdown(Shutdown::Both)
-        //     .map_err(to_io_error_other)
+        // match stream.flush().await {
+        //     Ok(()) => Ok(NetworkResult::value(())),
+        //     Err(Error::Io(ioerr)) => Err(ioerr).into_network_result(),
+        //     Err(Error::ConnectionClosed) => Ok(NetworkResult::value(())),
+        //     Err(e) => Err(to_io_error_other(e)),
+        // }
+
+        stream.close().await.map_err(to_io_error_other)?;
 
         Ok(NetworkResult::value(()))
+
+        // Drive connection to close
+        /*
+        let cur_ts = get_timestamp();
+        loop {
+            match stream.flush().await {
+                Ok(()) => {}
+                Err(Error::Io(ioerr)) => {
+                    break Err(ioerr).into_network_result();
+                }
+                Err(Error::ConnectionClosed) => {
+                    break Ok(NetworkResult::value(()));
+                }
+                Err(e) => {
+                    break Err(to_io_error_other(e));
+                }
+            }
+            if get_timestamp().saturating_sub(cur_ts) >= MAX_CONNECTION_CLOSE_WAIT_US {
+                return Ok(NetworkResult::Timeout);
+            }
+        }
+        */
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
-            bail_io_error_other!("received too large WS message");
+            bail_io_error_other!("sending too large WS message");
         }
         let out = match self.stream.clone().send(Message::binary(message)).await {
-            Ok(v) => NetworkResult::value(v),
-            Err(e) => err_to_network_result(e),
-        };
-        if !out.is_value() {
-            #[cfg(feature = "verbose-tracing")]
-            tracing::Span::current().record("network_result", &tracing::field::display(&out));
-            return Ok(out);
-        }
-        let out = match self.stream.clone().flush().await {
             Ok(v) => NetworkResult::value(v),
             Err(e) => err_to_network_result(e),
         };

@@ -64,7 +64,7 @@ pub async fn test_add_get_remove() {
     assert_ne!(a4, c5.connection_descriptor());
 
     assert_eq!(table.connection_count(), 0);
-    assert_eq!(table.get_connection_by_descriptor(a1), None);
+    assert_eq!(table.peek_connection_by_descriptor(a1), None);
     table.add_connection(c1).unwrap();
     assert!(table.add_connection(c1b).is_err());
 
@@ -72,13 +72,13 @@ pub async fn test_add_get_remove() {
     assert!(table.remove_connection_by_id(4.into()).is_none());
     assert!(table.remove_connection_by_id(5.into()).is_none());
     assert_eq!(table.connection_count(), 1);
-    assert_eq!(table.get_connection_by_descriptor(a1), Some(c1h.clone()));
-    assert_eq!(table.get_connection_by_descriptor(a1), Some(c1h.clone()));
+    assert_eq!(table.peek_connection_by_descriptor(a1), Some(c1h.clone()));
+    assert_eq!(table.peek_connection_by_descriptor(a1), Some(c1h.clone()));
     assert_eq!(table.connection_count(), 1);
     assert_err!(table.add_connection(c2));
     assert_eq!(table.connection_count(), 1);
-    assert_eq!(table.get_connection_by_descriptor(a1), Some(c1h.clone()));
-    assert_eq!(table.get_connection_by_descriptor(a1), Some(c1h.clone()));
+    assert_eq!(table.peek_connection_by_descriptor(a1), Some(c1h.clone()));
+    assert_eq!(table.peek_connection_by_descriptor(a1), Some(c1h.clone()));
     assert_eq!(table.connection_count(), 1);
     assert_eq!(
         table
@@ -90,8 +90,8 @@ pub async fn test_add_get_remove() {
     assert_eq!(table.connection_count(), 0);
     assert!(table.remove_connection_by_id(2.into()).is_none());
     assert_eq!(table.connection_count(), 0);
-    assert_eq!(table.get_connection_by_descriptor(a2), None);
-    assert_eq!(table.get_connection_by_descriptor(a1), None);
+    assert_eq!(table.peek_connection_by_descriptor(a2), None);
+    assert_eq!(table.peek_connection_by_descriptor(a1), None);
     assert_eq!(table.connection_count(), 0);
     let c1 = NetworkConnection::dummy(6.into(), a1);
     table.add_connection(c1).unwrap();

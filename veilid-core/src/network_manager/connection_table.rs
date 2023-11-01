@@ -25,6 +25,7 @@ impl ConnectionTableAddError {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum ConnectionRefKind {
     AddRef,
     RemoveRef,
@@ -97,8 +98,9 @@ impl ConnectionTable {
             let mut inner = self.inner.lock();
             let unord = FuturesUnordered::new();
             for table in &mut inner.conn_by_id {
-                for (_, v) in table.drain() {
+                for (_, mut v) in table.drain() {
                     trace!("connection table join: {:?}", v);
+                    v.close();
                     unord.push(v);
                 }
             }
@@ -206,8 +208,6 @@ impl ConnectionTable {
             };
 
             let dead_conn = Self::remove_connection_records(&mut inner, dead_k);
-            log_net!(debug "== LRU Connection Killed: {} -> {}", dead_k, dead_conn.debug_print(get_aligned_timestamp()));
-
             out_conn = Some(dead_conn);
         }
 
@@ -224,24 +224,28 @@ impl ConnectionTable {
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    #[allow(dead_code)]
-    pub fn get_connection_by_id(&self, id: NetworkConnectionId) -> Option<ConnectionHandle> {
+    pub fn touch_connection_by_id(&self, id: NetworkConnectionId) {
         let mut inner = self.inner.lock();
-        let protocol_index = *inner.protocol_index_by_id.get(&id)?;
-        let out = inner.conn_by_id[protocol_index].get(&id).unwrap();
-        Some(out.get_handle())
+        let Some(protocol_index) = inner.protocol_index_by_id.get(&id).copied() else {
+            return;
+        };
+        let _ = inner.conn_by_id[protocol_index].get(&id).unwrap();
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    pub fn get_connection_by_descriptor(
+    pub fn peek_connection_by_descriptor(
         &self,
         descriptor: ConnectionDescriptor,
     ) -> Option<ConnectionHandle> {
-        let mut inner = self.inner.lock();
+        if descriptor.protocol_type() == ProtocolType::UDP {
+            return None;
+        }
+
+        let inner = self.inner.lock();
 
         let id = *inner.id_by_descriptor.get(&descriptor)?;
         let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
-        let out = inner.conn_by_id[protocol_index].get(&id).unwrap();
+        let out = inner.conn_by_id[protocol_index].peek(&id).unwrap();
         Some(out.get_handle())
     }
 
@@ -252,9 +256,14 @@ impl ConnectionTable {
         ref_type: ConnectionRefKind,
         protect: bool,
     ) -> bool {
+        if descriptor.protocol_type() == ProtocolType::UDP {
+            return false;
+        }
+
         let mut inner = self.inner.lock();
 
         let Some(id) = inner.id_by_descriptor.get(&descriptor).copied() else {
+            log_net!(error "failed to ref descriptor: {:?} ({:?})", descriptor, ref_type);
             return false;
         };
         let protocol_index = Self::protocol_to_index(descriptor.protocol_type());

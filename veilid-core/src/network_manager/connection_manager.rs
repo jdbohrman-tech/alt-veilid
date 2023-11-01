@@ -204,7 +204,7 @@ impl ConnectionManager {
             Ok(Some(conn)) => {
                 // Connection added and a different one LRU'd out
                 // Send it to be terminated
-                // log_net!(debug "== LRU kill connection due to limit: {:?}", conn);
+                log_net!(debug "== LRU kill connection due to limit: {:?}", conn.debug_print(get_aligned_timestamp()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
             }
             Err(ConnectionTableAddError::AddressFilter(conn, e)) => {
@@ -219,6 +219,7 @@ impl ConnectionManager {
             Err(ConnectionTableAddError::AlreadyExists(conn)) => {
                 // Connection already exists
                 let desc = conn.connection_descriptor();
+                log_net!(debug "== Connection already exists: {:?}", conn.debug_print(get_aligned_timestamp()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection already exists: {:?}",
@@ -228,6 +229,7 @@ impl ConnectionManager {
             Err(ConnectionTableAddError::TableFull(conn)) => {
                 // Connection table is full
                 let desc = conn.connection_descriptor();
+                log_net!(debug "== Connection table full: {:?}", conn.debug_print(get_aligned_timestamp()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection table is full: {:?}",
@@ -242,7 +244,12 @@ impl ConnectionManager {
     pub fn get_connection(&self, descriptor: ConnectionDescriptor) -> Option<ConnectionHandle> {
         self.arc
             .connection_table
-            .get_connection_by_descriptor(descriptor)
+            .peek_connection_by_descriptor(descriptor)
+    }
+
+    // Returns a network connection if one already is established
+    pub(super) fn touch_connection_by_id(&self, id: NetworkConnectionId) {
+        self.arc.connection_table.touch_connection_by_id(id)
     }
 
     // Protects a network connection if one already is established
