@@ -40,7 +40,8 @@ fn err_to_network_result<T>(err: Error) -> NetworkResult<T> {
         Error::ConnectionClosed
         | Error::AlreadyClosed
         | Error::Io(_)
-        | Error::Protocol(ProtocolError::ResetWithoutClosingHandshake) => {
+        | Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)
+        | Error::Protocol(ProtocolError::SendAfterClosing) => {
             NetworkResult::NoConnection(to_io_error_other(err))
         }
         _ => NetworkResult::InvalidMessage(err.to_string()),
@@ -88,23 +89,20 @@ where
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
         // Make an attempt to close the stream normally
         let mut stream = self.stream.clone();
-        stream
+        let out = match stream
             .send(Message::Close(Some(CloseFrame {
                 code: CloseCode::Normal,
                 reason: "".into(),
             })))
             .await
-            .map_err(to_io_error_other)?;
-        // match stream.flush().await {
-        //     Ok(()) => Ok(NetworkResult::value(())),
-        //     Err(Error::Io(ioerr)) => Err(ioerr).into_network_result(),
-        //     Err(Error::ConnectionClosed) => Ok(NetworkResult::value(())),
-        //     Err(e) => Err(to_io_error_other(e)),
-        // }
+        {
+            Ok(v) => NetworkResult::value(v),
+            Err(e) => err_to_network_result(e),
+        };
 
-        stream.close().await.map_err(to_io_error_other)?;
+        let _ = stream.close().await;
 
-        Ok(NetworkResult::value(()))
+        Ok(out)
 
         // Drive connection to close
         /*
