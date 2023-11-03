@@ -21,7 +21,7 @@ impl RPCProcessor {
         );
 
         // Send the app call question
-        let waitable_reply = network_result_try!(self.question(dest, question, None, false).await?);
+        let waitable_reply = network_result_try!(self.question(dest, question, None).await?);
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {

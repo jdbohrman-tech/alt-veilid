@@ -75,9 +75,7 @@ where
                 return Err(());
             }
         };
-        if maybe_jh.is_some() {
-            let mut jh = maybe_jh.unwrap();
-
+        if let Some(mut jh) = maybe_jh {
             // See if we finished, if so, return the value of the last execution
             if let Poll::Ready(r) = poll!(&mut jh) {
                 out = Some(r);
@@ -110,8 +108,7 @@ where
                 return Err(());
             }
         };
-        if maybe_jh.is_some() {
-            let jh = maybe_jh.unwrap();
+        if let Some(jh) = maybe_jh {
             // Wait for return value of the last execution
             out = Some(jh.await);
             // Task finished, unlock with nothing
@@ -141,9 +138,7 @@ where
         };
         let mut run = true;
 
-        if maybe_jh.is_some() {
-            let mut jh = maybe_jh.unwrap();
-
+        if let Some(mut jh) = maybe_jh {
             // See if we finished, if so, return the value of the last execution
             if let Poll::Ready(r) = poll!(&mut jh) {
                 out = Some(r);
@@ -183,8 +178,7 @@ where
             }
         };
         let mut run = true;
-        if maybe_jh.is_some() {
-            let mut jh = maybe_jh.unwrap();
+        if let Some(mut jh) = maybe_jh {
             // See if we finished, if so, return the value of the last execution
             if let Poll::Ready(r) = poll!(&mut jh) {
                 out = Some(r);

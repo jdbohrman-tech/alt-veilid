@@ -86,7 +86,7 @@ pub struct NetworkConnectionStats {
 pub type NetworkConnectionId = AlignedU64;
 
 #[derive(Debug)]
-pub struct NetworkConnection {
+pub(in crate::network_manager) struct NetworkConnection {
     connection_id: NetworkConnectionId,
     descriptor: ConnectionDescriptor,
     processor: Option<MustJoinHandle<()>>,
@@ -94,7 +94,7 @@ pub struct NetworkConnection {
     stats: Arc<Mutex<NetworkConnectionStats>>,
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
-    protected: bool,
+    protected_nr: Option<NodeRef>,
     ref_count: usize,
 }
 
@@ -123,7 +123,7 @@ impl NetworkConnection {
             })),
             sender,
             stop_source: None,
-            protected: false,
+            protected_nr: None,
             ref_count: 0,
         }
     }
@@ -170,7 +170,7 @@ impl NetworkConnection {
             stats,
             sender,
             stop_source: Some(stop_source),
-            protected: false,
+            protected_nr: None,
             ref_count: 0,
         }
     }
@@ -188,19 +188,23 @@ impl NetworkConnection {
     }
 
     pub fn is_in_use(&self) -> bool {
-        self.protected || self.ref_count > 0
+        self.ref_count > 0
     }
 
-    pub fn protect(&mut self) {
-        self.protected = true;
+    pub fn protected_node_ref(&self) -> Option<NodeRef>{
+        self.protected_nr.clone()
     }
 
-    pub fn change_ref_count(&mut self, add: bool) {
-        if add {
-            self.ref_count += 1;
-        } else {
-            self.ref_count -= 1; 
-        }
+    pub fn protect(&mut self, protect_nr: NodeRef) {
+        self.protected_nr = Some(protect_nr);
+    }
+
+    pub fn add_ref(&mut self) {
+        self.ref_count += 1;
+    }
+
+    pub fn remove_ref(&mut self) {
+        self.ref_count -= 1;
     }
 
     pub fn close(&mut self) {
@@ -373,7 +377,6 @@ impl NetworkConnection {
                                         // Touch the LRU for this connection
                                         connection_manager.touch_connection_by_id(connection_id);
 
-
                                         RecvLoopAction::Recv
                                     }
                                 }
@@ -439,13 +442,19 @@ impl NetworkConnection {
     }
 
     pub fn debug_print(&self, cur_ts: Timestamp) -> String {
-        format!("{} <- {} | {} | est {} sent {} rcvd {}",
+        format!("{} <- {} | {} | est {} sent {} rcvd {} refcount {}{}",
             self.descriptor.remote_address(), 
             self.descriptor.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
             self.connection_id.as_u64(),
             debug_duration(cur_ts.as_u64().saturating_sub(self.established_time.as_u64())),
             self.stats().last_message_sent_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
             self.stats().last_message_recv_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
+            self.ref_count, 
+            if let Some(pnr) = &self.protected_nr {
+                format!(" PROTECTED:{}",pnr)
+            } else {
+                "".to_owned()
+            }
         )
     }
 }

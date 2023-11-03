@@ -73,8 +73,7 @@ pub async fn test_nothing() {
 
     a.write_all(&outbuf).await.unwrap();
 
-    let mut inbuf: Vec<u8> = Vec::new();
-    inbuf.resize(outbuf.len(), 0u8);
+    let mut inbuf: Vec<u8> = vec![0; outbuf.len()];
     c.read_exact(&mut inbuf).await.unwrap();
 
     assert_eq!(inbuf, outbuf);
@@ -88,8 +87,7 @@ pub async fn test_no_peek() {
 
     a.write_all(&outbuf).await.unwrap();
 
-    let mut inbuf: Vec<u8> = Vec::new();
-    inbuf.resize(outbuf.len(), 0u8);
+    let mut inbuf: Vec<u8> = vec![0; outbuf.len()];
     c.read_exact(&mut inbuf).await.unwrap();
 
     assert_eq!(inbuf, outbuf);
@@ -104,14 +102,12 @@ pub async fn test_peek_all_read() {
     a.write_all(&outbuf).await.unwrap();
 
     // peek everything
-    let mut peekbuf1: Vec<u8> = Vec::new();
-    peekbuf1.resize(outbuf.len(), 0u8);
+    let mut peekbuf1: Vec<u8> = vec![0; outbuf.len()];
     let peeksize1 = c.peek(&mut peekbuf1).await.unwrap();
 
     assert_eq!(peeksize1, peekbuf1.len());
     // read everything
-    let mut inbuf: Vec<u8> = Vec::new();
-    inbuf.resize(outbuf.len(), 0u8);
+    let mut inbuf: Vec<u8> = vec![0; outbuf.len()];
     c.read_exact(&mut inbuf).await.unwrap();
 
     assert_eq!(inbuf, outbuf);
@@ -128,13 +124,11 @@ pub async fn test_peek_some_read() {
     a.write_all(&outbuf).await.unwrap();
 
     // peek partially
-    let mut peekbuf1: Vec<u8> = Vec::new();
-    peekbuf1.resize(outbuf.len() / 2, 0u8);
+    let mut peekbuf1: Vec<u8> = vec![0; outbuf.len() / 2];
     let peeksize1 = c.peek(&mut peekbuf1).await.unwrap();
     assert_eq!(peeksize1, peekbuf1.len());
     // read everything
-    let mut inbuf: Vec<u8> = Vec::new();
-    inbuf.resize(outbuf.len(), 0u8);
+    let mut inbuf: Vec<u8> = vec![0; outbuf.len()];
     c.read_exact(&mut inbuf).await.unwrap();
 
     assert_eq!(inbuf, outbuf);
@@ -151,20 +145,17 @@ pub async fn test_peek_some_peek_some_read() {
     a.write_all(&outbuf).await.unwrap();
 
     // peek partially
-    let mut peekbuf1: Vec<u8> = Vec::new();
-    peekbuf1.resize(outbuf.len() / 4, 0u8);
+    let mut peekbuf1: Vec<u8> = vec![0; outbuf.len() / 4];
     let peeksize1 = c.peek(&mut peekbuf1).await.unwrap();
     assert_eq!(peeksize1, peekbuf1.len());
 
     // peek partially
-    let mut peekbuf2: Vec<u8> = Vec::new();
-    peekbuf2.resize(peeksize1 + 1, 0u8);
+    let mut peekbuf2: Vec<u8> = vec![0; peeksize1 + 1];
     let peeksize2 = c.peek(&mut peekbuf2).await.unwrap();
     assert_eq!(peeksize2, peekbuf2.len());
 
     // read everything
-    let mut inbuf: Vec<u8> = Vec::new();
-    inbuf.resize(outbuf.len(), 0u8);
+    let mut inbuf: Vec<u8> = vec![0; outbuf.len()];
     c.read_exact(&mut inbuf).await.unwrap();
 
     assert_eq!(inbuf, outbuf);
@@ -182,25 +173,21 @@ pub async fn test_peek_some_read_peek_some_read() {
     a.write_all(&outbuf).await.unwrap();
 
     // peek partially
-    let mut peekbuf1: Vec<u8> = Vec::new();
-    peekbuf1.resize(outbuf.len() / 4, 0u8);
+    let mut peekbuf1: Vec<u8> = vec![0; outbuf.len() / 4];
     let peeksize1 = c.peek(&mut peekbuf1).await.unwrap();
     assert_eq!(peeksize1, peekbuf1.len());
 
     // read partially
-    let mut inbuf1: Vec<u8> = Vec::new();
-    inbuf1.resize(peeksize1 - 1, 0u8);
+    let mut inbuf1: Vec<u8> = vec![0; peeksize1 - 1];
     c.read_exact(&mut inbuf1).await.unwrap();
 
     // peek partially
-    let mut peekbuf2: Vec<u8> = Vec::new();
-    peekbuf2.resize(2, 0u8);
+    let mut peekbuf2: Vec<u8> = vec![0; 2];
     let peeksize2 = c.peek(&mut peekbuf2).await.unwrap();
     assert_eq!(peeksize2, peekbuf2.len());
 
     // read partially
-    let mut inbuf2: Vec<u8> = Vec::new();
-    inbuf2.resize(2, 0u8);
+    let mut inbuf2: Vec<u8> = vec![0; 2];
     c.read_exact(&mut inbuf2).await.unwrap();
 
     assert_eq!(peekbuf1, outbuf[0..peeksize1].to_vec());
@@ -219,25 +206,21 @@ pub async fn test_peek_some_read_peek_all_read() {
     a.write_all(&outbuf).await.unwrap();
 
     // peek partially
-    let mut peekbuf1: Vec<u8> = Vec::new();
-    peekbuf1.resize(outbuf.len() / 4, 0u8);
+    let mut peekbuf1: Vec<u8> = vec![0; outbuf.len() / 4];
     let peeksize1 = c.peek(&mut peekbuf1).await.unwrap();
     assert_eq!(peeksize1, peekbuf1.len());
 
     // read partially
-    let mut inbuf1: Vec<u8> = Vec::new();
-    inbuf1.resize(peeksize1 + 1, 0u8);
+    let mut inbuf1: Vec<u8> = vec![0; peeksize1 + 1];
     c.read_exact(&mut inbuf1).await.unwrap();
 
     // peek past end
-    let mut peekbuf2: Vec<u8> = Vec::new();
-    peekbuf2.resize(outbuf.len(), 0u8);
+    let mut peekbuf2: Vec<u8> = vec![0; outbuf.len()];
     let peeksize2 = c.peek(&mut peekbuf2).await.unwrap();
     assert_eq!(peeksize2, outbuf.len() - (peeksize1 + 1));
 
     // read remaining
-    let mut inbuf2: Vec<u8> = Vec::new();
-    inbuf2.resize(peeksize2, 0u8);
+    let mut inbuf2: Vec<u8> = vec![0; peeksize2];
     c.read_exact(&mut inbuf2).await.unwrap();
 
     assert_eq!(peekbuf1, outbuf[0..peeksize1].to_vec());
@@ -259,29 +242,24 @@ pub async fn test_peek_some_read_peek_some_read_all_read() {
     a.write_all(&outbuf).await.unwrap();
 
     // peek partially
-    let mut peekbuf1: Vec<u8> = Vec::new();
-    peekbuf1.resize(outbuf.len() / 4, 0u8);
+    let mut peekbuf1: Vec<u8> = vec![0; outbuf.len() / 4];
     let peeksize1 = c.peek(&mut peekbuf1).await.unwrap();
     assert_eq!(peeksize1, peekbuf1.len());
 
     // read partially
-    let mut inbuf1: Vec<u8> = Vec::new();
-    inbuf1.resize(peeksize1 - 1, 0u8);
+    let mut inbuf1: Vec<u8> = vec![0; peeksize1 - 1];
     c.read_exact(&mut inbuf1).await.unwrap();
 
     // peek partially
-    let mut peekbuf2: Vec<u8> = Vec::new();
-    peekbuf2.resize(2, 0u8);
+    let mut peekbuf2: Vec<u8> = vec![0; 2];
     let peeksize2 = c.peek(&mut peekbuf2).await.unwrap();
     assert_eq!(peeksize2, peekbuf2.len());
     // read partially
-    let mut inbuf2: Vec<u8> = Vec::new();
-    inbuf2.resize(1, 0u8);
+    let mut inbuf2: Vec<u8> = vec![0; 1];
     c.read_exact(&mut inbuf2).await.unwrap();
 
     // read remaining
-    let mut inbuf3: Vec<u8> = Vec::new();
-    inbuf3.resize(outbuf.len() - peeksize1, 0u8);
+    let mut inbuf3: Vec<u8> = vec![0; outbuf.len() - peeksize1];
     c.read_exact(&mut inbuf3).await.unwrap();
 
     assert_eq!(peekbuf1, outbuf[0..peeksize1].to_vec());
@@ -304,29 +282,24 @@ pub async fn test_peek_exact_read_peek_exact_read_all_read() {
     a.write_all(&outbuf).await.unwrap();
 
     // peek partially
-    let mut peekbuf1: Vec<u8> = Vec::new();
-    peekbuf1.resize(outbuf.len() / 4, 0u8);
+    let mut peekbuf1: Vec<u8> = vec![0; outbuf.len() / 4];
     let peeksize1 = c.peek_exact(&mut peekbuf1).await.unwrap();
     assert_eq!(peeksize1, peekbuf1.len());
 
     // read partially
-    let mut inbuf1: Vec<u8> = Vec::new();
-    inbuf1.resize(peeksize1 - 1, 0u8);
+    let mut inbuf1: Vec<u8> = vec![0; peeksize1 - 1];
     c.read_exact(&mut inbuf1).await.unwrap();
 
     // peek partially
-    let mut peekbuf2: Vec<u8> = Vec::new();
-    peekbuf2.resize(2, 0u8);
+    let mut peekbuf2: Vec<u8> = vec![0; 2];
     let peeksize2 = c.peek_exact(&mut peekbuf2).await.unwrap();
     assert_eq!(peeksize2, peekbuf2.len());
     // read partially
-    let mut inbuf2: Vec<u8> = Vec::new();
-    inbuf2.resize(1, 0u8);
+    let mut inbuf2: Vec<u8> = vec![0; 1];
     c.read_exact(&mut inbuf2).await.unwrap();
 
     // read remaining
-    let mut inbuf3: Vec<u8> = Vec::new();
-    inbuf3.resize(outbuf.len() - peeksize1, 0u8);
+    let mut inbuf3: Vec<u8> = vec![0; outbuf.len() - peeksize1];
     c.read_exact(&mut inbuf3).await.unwrap();
 
     assert_eq!(peekbuf1, outbuf[0..peeksize1].to_vec());

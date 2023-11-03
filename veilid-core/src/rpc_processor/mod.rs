@@ -1148,7 +1148,6 @@ impl RPCProcessor {
         dest: Destination,
         question: RPCQuestion,
         context: Option<QuestionContext>,
-        protect: bool,
     ) -> RPCNetworkResult<WaitableReply> {
         // Get sender peer info if we should send that
         let spi = self.get_sender_peer_info(&dest);
@@ -1228,10 +1227,7 @@ impl RPCProcessor {
         let connection_ref_scope = self
             .network_manager()
             .connection_manager()
-            .connection_ref_scope(
-                send_data_method.connection_descriptor,
-                protect,
-            );
+            .connection_ref_scope(send_data_method.connection_descriptor);
 
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {

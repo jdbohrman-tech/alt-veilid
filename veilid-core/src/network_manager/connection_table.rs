@@ -195,7 +195,7 @@ impl ConnectionTable {
             // Find a free connection to terminate to make room
             let dead_k = {
                 let Some(lruk) = inner.conn_by_id[protocol_index].iter().find_map(|(k, v)| {
-                    if !v.is_in_use() {
+                    if !v.is_in_use() && v.protected_node_ref().is_none() {
                         Some(*k)
                     } else {
                         None
@@ -254,7 +254,6 @@ impl ConnectionTable {
         &self,
         descriptor: ConnectionDescriptor,
         ref_type: ConnectionRefKind,
-        protect: bool,
     ) -> bool {
         if descriptor.protocol_type() == ProtocolType::UDP {
             return false;
@@ -269,11 +268,8 @@ impl ConnectionTable {
         let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
         let out = inner.conn_by_id[protocol_index].get_mut(&id).unwrap();
         match ref_type {
-            ConnectionRefKind::AddRef => out.change_ref_count(true),
-            ConnectionRefKind::RemoveRef => out.change_ref_count(false),
-        }
-        if protect {
-            out.protect();
+            ConnectionRefKind::AddRef => out.add_ref(),
+            ConnectionRefKind::RemoveRef => out.remove_ref(),
         }
 
         true

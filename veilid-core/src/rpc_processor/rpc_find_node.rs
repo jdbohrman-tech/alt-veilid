@@ -41,8 +41,7 @@ impl RPCProcessor {
         let debug_string = format!("FindNode(node_id={}) => {}", node_id, dest);
 
         // Send the find_node request
-        let waitable_reply =
-            network_result_try!(self.question(dest, find_node_q, None, false).await?);
+        let waitable_reply = network_result_try!(self.question(dest, find_node_q, None).await?);
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {

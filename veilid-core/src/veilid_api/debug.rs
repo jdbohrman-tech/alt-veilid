@@ -930,7 +930,7 @@ impl VeilidAPI {
 
         // Send a StatusQ
         let out = match rpc
-            .rpc_call_status(dest, false)
+            .rpc_call_status(dest)
             .await
             .map_err(VeilidAPIError::internal)?
         {

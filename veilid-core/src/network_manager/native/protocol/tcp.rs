@@ -27,8 +27,8 @@ impl RawTcpNetworkConnection {
         instrument(level = "trace", err, skip(self))
     )]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
-        // Make an attempt to flush the stream
-        self.stream.clone().close().await?;
+        let mut stream = self.stream.clone();
+        let _ = stream.close().await;
         Ok(NetworkResult::value(()))
 
         // // Then shut down the write side of the socket to effect a clean close

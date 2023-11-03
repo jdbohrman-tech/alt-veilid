@@ -22,7 +22,6 @@ impl RPCProcessor {
     pub async fn rpc_call_status(
         self,
         dest: Destination,
-        protect: bool,
     ) -> RPCNetworkResult<Answer<Option<SenderInfo>>> {
         let (opt_target_nr, routing_domain, node_status) = match dest.get_safety_selection() {
             SafetySelection::Unsafe(_) => {
@@ -109,7 +108,7 @@ impl RPCProcessor {
 
         // Send the info request
         let waitable_reply =
-            network_result_try!(self.question(dest.clone(), question, None, protect).await?);
+            network_result_try!(self.question(dest.clone(), question, None).await?);
 
         // Note what kind of ping this was and to what peer scope
         let send_data_method = waitable_reply.send_data_method.clone();

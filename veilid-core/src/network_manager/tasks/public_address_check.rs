@@ -192,7 +192,7 @@ impl NetworkManager {
                 let pait = inner
                     .public_address_inconsistencies_table
                     .entry(addr_proto_type_key)
-                    .or_insert_with(HashMap::new);
+                    .or_default();
                 for i in &inconsistencies {
                     pait.insert(*i, exp_ts);
                 }
@@ -204,7 +204,7 @@ impl NetworkManager {
                     let pait = inner
                         .public_address_inconsistencies_table
                         .entry(addr_proto_type_key)
-                        .or_insert_with(HashMap::new);
+                        .or_default();
                     let exp_ts = get_aligned_timestamp()
                         + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
                     for i in inconsistencies {

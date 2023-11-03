@@ -78,7 +78,7 @@ impl RPCProcessor {
         log_rpc!(debug "{}", debug_string);
 
         let waitable_reply = network_result_try!(
-            self.question(dest.clone(), question, Some(question_context), false)
+            self.question(dest.clone(), question, Some(question_context))
                 .await?
         );
 

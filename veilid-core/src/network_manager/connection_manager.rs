@@ -17,33 +17,22 @@ enum ConnectionManagerEvent {
 pub(crate) struct ConnectionRefScope {
     connection_manager: ConnectionManager,
     descriptor: ConnectionDescriptor,
-    protect: bool,
 }
 
 impl ConnectionRefScope {
-    pub fn new(
-        connection_manager: ConnectionManager,
-        descriptor: ConnectionDescriptor,
-        protect: bool,
-    ) -> Self {
-        connection_manager.connection_ref(descriptor, ConnectionRefKind::AddRef, protect);
+    pub fn new(connection_manager: ConnectionManager, descriptor: ConnectionDescriptor) -> Self {
+        connection_manager.connection_ref(descriptor, ConnectionRefKind::AddRef);
         Self {
             connection_manager,
             descriptor,
-            protect,
         }
     }
 }
 
 impl Drop for ConnectionRefScope {
     fn drop(&mut self) {
-        if !self.protect {
-            self.connection_manager.connection_ref(
-                self.descriptor,
-                ConnectionRefKind::RemoveRef,
-                false,
-            );
-        }
+        self.connection_manager
+            .connection_ref(self.descriptor, ConnectionRefKind::RemoveRef);
     }
 }
 
@@ -169,6 +158,33 @@ impl ConnectionManager {
         debug!("finished connection manager shutdown");
     }
 
+    // Internal routine to see if we should keep this connection
+    // from being LRU removed. Used on our initiated relay connections.
+    fn should_protect_connection(&self, conn: &NetworkConnection) -> Option<NodeRef> {
+        let netman = self.network_manager();
+        let routing_table = netman.routing_table();
+        let remote_address = conn.connection_descriptor().remote_address().address();
+        let Some(routing_domain) = routing_table.routing_domain_for_address(remote_address) else {
+            return None;
+        };
+        let Some(rn) = routing_table.relay_node(routing_domain) else {
+            return None;
+        };
+        let relay_nr = rn.filtered_clone(
+            NodeRefFilter::new()
+                .with_routing_domain(routing_domain)
+                .with_address_type(conn.connection_descriptor().address_type())
+                .with_protocol_type(conn.connection_descriptor().protocol_type()),
+        );
+        let dids = relay_nr.all_filtered_dial_info_details();
+        for did in dids {
+            if did.dial_info.address() == remote_address {
+                return Some(relay_nr);
+            }
+        }
+        None
+    }
+
     // Internal routine to register new connection atomically.
     // Registers connection in the connection table for later access
     // and spawns a message processing loop for the connection
@@ -193,8 +209,14 @@ impl ConnectionManager {
             None => bail!("not creating connection because we are stopping"),
         };
 
-        let conn = NetworkConnection::from_protocol(self.clone(), stop_token, prot_conn, id);
+        let mut conn = NetworkConnection::from_protocol(self.clone(), stop_token, prot_conn, id);
         let handle = conn.get_handle();
+
+        // See if this should be a protected connection
+        if let Some(protect_nr) = self.should_protect_connection(&conn) {
+            log_net!(debug "== PROTECTING connection: {} -> {} for node {}", id, conn.debug_print(get_aligned_timestamp()), protect_nr);
+            conn.protect(protect_nr);
+        }
 
         // Add to the connection table
         match self.arc.connection_table.add_connection(conn) {
@@ -253,22 +275,13 @@ impl ConnectionManager {
     }
 
     // Protects a network connection if one already is established
-    fn connection_ref(
-        &self,
-        descriptor: ConnectionDescriptor,
-        kind: ConnectionRefKind,
-        protect: bool,
-    ) {
+    fn connection_ref(&self, descriptor: ConnectionDescriptor, kind: ConnectionRefKind) {
         self.arc
             .connection_table
-            .ref_connection_by_descriptor(descriptor, kind, protect);
+            .ref_connection_by_descriptor(descriptor, kind);
     }
-    pub fn connection_ref_scope(
-        &self,
-        descriptor: ConnectionDescriptor,
-        protect: bool,
-    ) -> ConnectionRefScope {
-        ConnectionRefScope::new(self.clone(), descriptor, protect)
+    pub fn connection_ref_scope(&self, descriptor: ConnectionDescriptor) -> ConnectionRefScope {
+        ConnectionRefScope::new(self.clone(), descriptor)
     }
 
     /// Called when we want to create a new connection or get the current one that already exists
@@ -446,6 +459,11 @@ impl ConnectionManager {
 
         // Inform the processor of the event
         if let Some(conn) = conn {
+            // If the connection closed while it was protected, report it on the node the connection was established on
+            // In-use connections will already get reported because they will cause a 'question_lost' stat on the remote node
+            if let Some(protect_nr) = conn.protected_node_ref() {
+                protect_nr.report_protected_connection_dropped();
+            }
             let _ = sender.send_async(ConnectionManagerEvent::Dead(conn)).await;
         }
     }

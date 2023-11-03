@@ -42,6 +42,7 @@ impl NetworkManager {
             .self_stats
             .transfer_stats_accounting
             .add_up(bytes);
+        #[allow(clippy::unwrap_or_default)]
         inner
             .stats
             .per_address_stats
@@ -58,6 +59,7 @@ impl NetworkManager {
             .self_stats
             .transfer_stats_accounting
             .add_down(bytes);
+        #[allow(clippy::unwrap_or_default)]
         inner
             .stats
             .per_address_stats

@@ -703,7 +703,7 @@ impl RouteSpecStore {
 
         // Test with double-round trip ping to self
         let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
-        let _res = match rpc_processor.rpc_call_status(dest, true).await? {
+        let _res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
                 // Did not error, but did not come back, just return false
@@ -746,7 +746,7 @@ impl RouteSpecStore {
 
         // Test with double-round trip ping to self
         let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
-        let _res = match rpc_processor.rpc_call_status(dest, true).await? {
+        let _res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
                 // Did not error, but did not come back, just return false
