@@ -53,7 +53,7 @@ test_build:
     - *earthly_setup
     - earthly --use-inline-cache +unit-tests-linux --BASE=container $project_args
   resource_group: test
-  when: manual
+  # when: manual
 
 release_job:
   stage: release
