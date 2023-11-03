@@ -237,3 +237,6 @@ veilid-python/demo/.demokeys
 
 ## Ignore emacs backup files
 ~*
+
+# Earthly temporary build output
+.tmp-earthly-out/

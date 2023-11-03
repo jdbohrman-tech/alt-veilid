@@ -11,6 +11,7 @@ edition = "2021"
 [lib]
 # staticlib for iOS tests, cydlib for android tests, rlib for everything else
 crate-type = ["cdylib", "staticlib", "rlib"]
+path = "src/lib.rs"
 
 [features]
 default = ["rt-tokio"]

@@ -8,9 +8,11 @@ authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
 build = "build.rs"
 license = "MPL-2.0"
+resolver = "2"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
+path = "src/lib.rs"
 
 [features]
 
