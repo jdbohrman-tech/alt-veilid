@@ -54,7 +54,7 @@ pub struct WebsocketNetworkConnection<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     stream: CloneStream<WebSocketStream<T>>,
 }
 
@@ -71,15 +71,15 @@ impl<T> WebsocketNetworkConnection<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    pub fn new(descriptor: ConnectionDescriptor, stream: WebSocketStream<T>) -> Self {
+    pub fn new(flow: Flow, stream: WebSocketStream<T>) -> Self {
         Self {
-            descriptor,
+            flow,
             stream: CloneStream::new(stream),
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
     }
 
     #[cfg_attr(
@@ -286,7 +286,7 @@ impl WebsocketProtocolHandler {
             PeerAddress::new(SocketAddress::from_socket_addr(socket_addr), protocol_type);
 
         let conn = ProtocolNetworkConnection::WsAccepted(WebsocketNetworkConnection::new(
-            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
+            Flow::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ws_stream,
         ));
 
@@ -335,8 +335,8 @@ impl WebsocketProtocolHandler {
         #[cfg(feature = "rt-tokio")]
         let tcp_stream = tcp_stream.compat();
 
-        // Make our connection descriptor
-        let descriptor = ConnectionDescriptor::new(
+        // Make our flow
+        let flow = Flow::new(
             dial_info.peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
         );
@@ -350,14 +350,14 @@ impl WebsocketProtocolHandler {
                 .map_err(to_io_error_other)?;
 
             Ok(NetworkResult::Value(ProtocolNetworkConnection::Wss(
-                WebsocketNetworkConnection::new(descriptor, ws_stream),
+                WebsocketNetworkConnection::new(flow, ws_stream),
             )))
         } else {
             let (ws_stream, _response) = client_async(request, tcp_stream)
                 .await
                 .map_err(to_io_error_other)?;
             Ok(NetworkResult::Value(ProtocolNetworkConnection::Ws(
-                WebsocketNetworkConnection::new(descriptor, ws_stream),
+                WebsocketNetworkConnection::new(flow, ws_stream),
             )))
         }
     }

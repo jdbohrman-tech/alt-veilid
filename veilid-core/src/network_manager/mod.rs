@@ -95,8 +95,8 @@ pub(crate) struct SendDataMethod {
     pub contact_method: NodeContactMethod,
     /// Pre-relayed contact method
     pub opt_relayed_contact_method: Option<NodeContactMethod>,
-    /// The connection used to send the data
-    pub connection_descriptor: ConnectionDescriptor,
+    /// The specific flow used to send the data
+    pub unique_flow: UniqueFlow,
 }
 
 /// Mechanism required to contact another node
@@ -127,6 +127,11 @@ struct NodeContactMethodCacheKey {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct PublicAddressCheckCacheKey(ProtocolType, AddressType);
+
+enum SendDataToExistingFlowResult {
+    Sent(UniqueFlow),
+    NotSent(Vec<u8>),
+}
 
 // The mutable state of the network manager
 struct NetworkManagerInner {
@@ -661,7 +666,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), err)]
     pub async fn handle_signal(
         &self,
-        signal_connection_descriptor: ConnectionDescriptor,
+        signal_flow: Flow,
         signal_info: SignalInfo,
     ) -> EyreResult<NetworkResult<()>> {
         match signal_info {
@@ -685,7 +690,7 @@ impl NetworkManager {
                 };
 
                 // Restrict reverse connection to same sequencing requirement as inbound signal
-                if signal_connection_descriptor.protocol_type().is_ordered() {
+                if signal_flow.protocol_type().is_ordered() {
                     peer_nr.set_sequencing(Sequencing::EnsureOrdered);
                 }
 
@@ -730,7 +735,7 @@ impl NetworkManager {
 
                 // Do our half of the hole punch by sending an empty packet
                 // Both sides will do this and then the receipt will get sent over the punched hole
-                let connection_descriptor = network_result_try!(
+                let unique_flow = network_result_try!(
                     self.net()
                         .send_data_to_dial_info(
                             hole_punch_dial_info_detail.dial_info.clone(),
@@ -742,7 +747,7 @@ impl NetworkManager {
                 // XXX: do we need a delay here? or another hole punch packet?
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
-                peer_nr.set_last_connection(connection_descriptor, get_aligned_timestamp());
+                peer_nr.set_last_flow(unique_flow.flow, get_aligned_timestamp());
 
                 // Return the receipt using the same dial info send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -867,28 +872,20 @@ impl NetworkManager {
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len())))]
-    async fn on_recv_envelope(
-        &self,
-        data: &mut [u8],
-        connection_descriptor: ConnectionDescriptor,
-    ) -> EyreResult<bool> {
+    async fn on_recv_envelope(&self, data: &mut [u8], flow: Flow) -> EyreResult<bool> {
         #[cfg(feature = "verbose-tracing")]
         let root = span!(
             parent: None,
             Level::TRACE,
             "on_recv_envelope",
             "data.len" = data.len(),
-            "descriptor" = ?connection_descriptor
+            "flow" = ?flow
         );
         #[cfg(feature = "verbose-tracing")]
         let _root_enter = root.enter();
 
-        log_net!(
-            "envelope of {} bytes received from {:?}",
-            data.len(),
-            connection_descriptor
-        );
-        let remote_addr = connection_descriptor.remote_address().ip_addr();
+        log_net!("envelope of {} bytes received from {:?}", data.len(), flow);
+        let remote_addr = flow.remote_address().ip_addr();
 
         // Network accounting
         self.stats_packet_rcvd(remote_addr, ByteCount::new(data.len() as u64));
@@ -910,18 +907,18 @@ impl NetworkManager {
         // Get the routing domain for this data
         let routing_domain = match self
             .routing_table()
-            .routing_domain_for_address(connection_descriptor.remote_address().address())
+            .routing_domain_for_address(flow.remote_address().address())
         {
             Some(rd) => rd,
             None => {
-                log_net!(debug "no routing domain for envelope received from {:?}", connection_descriptor);
+                log_net!(debug "no routing domain for envelope received from {:?}", flow);
                 return Ok(false);
             }
         };
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(self.handle_boot_request(connection_descriptor).await? => [ format!(": connection_descriptor={:?}", connection_descriptor) ] {});
+            network_result_value_or_log!(self.handle_boot_request(flow).await? => [ format!(": flow={:?}", flow) ] {});
             return Ok(true);
         }
 
@@ -968,7 +965,7 @@ impl NetworkManager {
                 log_net!(debug
                     "Timestamp behind: {}ms ({})",
                     timestamp_to_secs(ts.saturating_sub(ets).as_u64()) * 1000f64,
-                    connection_descriptor.remote()
+                    flow.remote()
                 );
                 return Ok(false);
             }
@@ -978,7 +975,7 @@ impl NetworkManager {
                 log_net!(debug
                     "Timestamp ahead: {}ms ({})",
                     timestamp_to_secs(ets.saturating_sub(ts).as_u64()) * 1000f64,
-                    connection_descriptor.remote()
+                    flow.remote()
                 );
                 return Ok(false);
             }
@@ -1033,7 +1030,7 @@ impl NetworkManager {
             if let Some(mut relay_nr) = some_relay_nr {
                 // Ensure the protocol used to forward is of the same sequencing requirement
                 // Address type is allowed to change if connectivity is better
-                if connection_descriptor.protocol_type().is_ordered() {
+                if flow.protocol_type().is_ordered() {
                     relay_nr.set_sequencing(Sequencing::EnsureOrdered);
                 };
 
@@ -1080,7 +1077,7 @@ impl NetworkManager {
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
             envelope.get_sender_typed_id(),
-            connection_descriptor,
+            flow,
             ts,
         ) {
             Ok(v) => v,
@@ -1093,13 +1090,7 @@ impl NetworkManager {
         source_noderef.add_envelope_version(envelope.get_version());
 
         // Pass message to RPC system
-        rpc.enqueue_direct_message(
-            envelope,
-            source_noderef,
-            connection_descriptor,
-            routing_domain,
-            body,
-        )?;
+        rpc.enqueue_direct_message(envelope, source_noderef, flow, routing_domain, body)?;
 
         // Inform caller that we dealt with the envelope locally
         Ok(true)

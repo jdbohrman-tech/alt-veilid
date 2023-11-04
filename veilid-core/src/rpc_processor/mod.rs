@@ -54,8 +54,8 @@ struct RPCMessageHeaderDetailDirect {
     envelope: Envelope,
     /// The noderef of the peer that sent the message (not the original sender). Ensures node doesn't get evicted from routing table until we're done with it
     peer_noderef: NodeRef,
-    /// The connection from the peer sent the message (not the original sender)
-    connection_descriptor: ConnectionDescriptor,
+    /// The flow from the peer sent the message (not the original sender)
+    flow: Flow,
     /// The routing domain the message was sent through
     routing_domain: RoutingDomain,
 }
@@ -189,7 +189,7 @@ struct WaitableReply {
     safety_route: Option<PublicKey>,
     remote_private_route: Option<PublicKey>,
     reply_private_route: Option<PublicKey>,
-    _connection_ref_scope: ConnectionRefScope,
+    _opt_connection_ref_scope: Option<ConnectionRefScope>,
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1158,7 +1158,7 @@ impl RPCProcessor {
 
         // Log rpc send
         #[cfg(feature = "verbose-tracing")]
-        debug!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest, protect);
+        debug!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1224,10 +1224,10 @@ impl RPCProcessor {
 
 
         // Ref the connection so it doesn't go away until we're done with the waitable reply
-        let connection_ref_scope = self
+        let opt_connection_ref_scope = send_data_method.unique_flow.connection_id.and_then(|id| self
             .network_manager()
             .connection_manager()
-            .connection_ref_scope(send_data_method.connection_descriptor);
+            .try_connection_ref_scope(id));
 
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
@@ -1239,7 +1239,7 @@ impl RPCProcessor {
             safety_route,
             remote_private_route,
             reply_private_route,
-            _connection_ref_scope: connection_ref_scope,
+            _opt_connection_ref_scope: opt_connection_ref_scope,
         }))
     }
 
@@ -1660,7 +1660,7 @@ impl RPCProcessor {
         &self,
         envelope: Envelope,
         peer_noderef: NodeRef,
-        connection_descriptor: ConnectionDescriptor,
+        flow: Flow,
         routing_domain: RoutingDomain,
         body: Vec<u8>,
     ) -> EyreResult<()> {
@@ -1668,7 +1668,7 @@ impl RPCProcessor {
             detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
                 envelope,
                 peer_noderef,
-                connection_descriptor,
+                flow,
                 routing_domain,
             }),
             timestamp: get_aligned_timestamp(),

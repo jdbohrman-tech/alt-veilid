@@ -65,16 +65,16 @@ impl Network {
                                 .timeout_at(stop_token.clone())
                                 .await
                             {
-                                Ok(Ok((size, descriptor))) => {
+                                Ok(Ok((size, flow))) => {
                                     // Network accounting
                                     network_manager.stats_packet_rcvd(
-                                        descriptor.remote_address().ip_addr(),
+                                        flow.remote_address().ip_addr(),
                                         ByteCount::new(size as u64),
                                     );
 
                                     // Pass it up for processing
                                     if let Err(e) = network_manager
-                                        .on_recv_envelope(&mut data[..size], descriptor)
+                                        .on_recv_envelope(&mut data[..size], flow)
                                         .await
                                     {
                                         log_net!(debug "failed to process received udp envelope: {}", e);

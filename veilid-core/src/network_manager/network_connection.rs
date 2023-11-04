@@ -47,12 +47,12 @@ cfg_if::cfg_if! {
 
 // #[derive(Debug)]
 // pub struct DummyNetworkConnection {
-//     descriptor: ConnectionDescriptor,
+//     flow: Flow,
 // }
 
 // impl DummyNetworkConnection {
-//     pub fn descriptor(&self) -> ConnectionDescriptor {
-//         self.descriptor
+//     pub fn flow(&self) -> Flow {
+//         self.flow
 //     }
 //     pub fn close(&self) -> io::Result<NetworkResult<()>> {
 //         Ok(NetworkResult::Value(()))
@@ -83,12 +83,10 @@ pub struct NetworkConnectionStats {
 }
 
 
-pub type NetworkConnectionId = AlignedU64;
-
 #[derive(Debug)]
 pub(in crate::network_manager) struct NetworkConnection {
     connection_id: NetworkConnectionId,
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     processor: Option<MustJoinHandle<()>>,
     established_time: Timestamp,
     stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -108,13 +106,13 @@ impl Drop for NetworkConnection {
 
 
 impl NetworkConnection {
-    pub(super) fn dummy(id: NetworkConnectionId, descriptor: ConnectionDescriptor) -> Self {
+    pub(super) fn dummy(id: NetworkConnectionId, flow: Flow) -> Self {
         // Create handle for sending (dummy is immediately disconnected)
         let (sender, _receiver) = flume::bounded(get_concurrency() as usize);
 
         Self {
             connection_id: id,
-            descriptor,
+            flow,
             processor: None,
             established_time: get_aligned_timestamp(),
             stats: Arc::new(Mutex::new(NetworkConnectionStats {
@@ -134,8 +132,8 @@ impl NetworkConnection {
         protocol_connection: ProtocolNetworkConnection,
         connection_id: NetworkConnectionId,
     ) -> Self {
-        // Get descriptor
-        let descriptor = protocol_connection.descriptor();
+        // Get flow
+        let flow = protocol_connection.flow();
 
         // Create handle for sending
         let (sender, receiver) = flume::bounded(get_concurrency() as usize);
@@ -155,7 +153,7 @@ impl NetworkConnection {
             local_stop_token,
             manager_stop_token,
             connection_id,
-            descriptor,
+            flow,
             receiver,
             protocol_connection,
             stats.clone(),
@@ -164,7 +162,7 @@ impl NetworkConnection {
         // Return the connection
         Self {
             connection_id,
-            descriptor,
+            flow,
             processor: Some(processor),
             established_time: get_aligned_timestamp(),
             stats,
@@ -179,12 +177,20 @@ impl NetworkConnection {
         self.connection_id
     }
 
-    pub fn connection_descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
+    }
+
+    #[allow(dead_code)]
+    pub fn unique_flow(&self) -> UniqueFlow {
+        UniqueFlow {
+            flow: self.flow,
+            connection_id: Some(self.connection_id),
+        }
     }
 
     pub fn get_handle(&self) -> ConnectionHandle {
-        ConnectionHandle::new(self.connection_id, self.descriptor, self.sender.clone())
+        ConnectionHandle::new(self.connection_id, self.flow, self.sender.clone())
     }
 
     pub fn is_in_use(&self) -> bool {
@@ -264,7 +270,7 @@ impl NetworkConnection {
         local_stop_token: StopToken,
         manager_stop_token: StopToken,
         connection_id: NetworkConnectionId,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         receiver: flume::Receiver<(Option<Id>, Vec<u8>)>,
         protocol_connection: ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -272,7 +278,7 @@ impl NetworkConnection {
         Box::pin(async move {
             log_net!(
                 "== Starting process_connection loop for id={}, {:?}", connection_id,
-                descriptor
+                flow
             );
 
             let network_manager = connection_manager.network_manager();
@@ -286,7 +292,7 @@ impl NetworkConnection {
             let new_timer = || {
                 sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
-                    log_net!("== Connection timeout on {:?}", descriptor);
+                    log_net!("== Connection timeout on {:?}", flow);
                     RecvLoopAction::Timeout
                 })
             };
@@ -341,7 +347,7 @@ impl NetworkConnection {
                         .then(|res| async {
                             match res {
                                 Ok(v) => {
-                                    let peer_address = protocol_connection.descriptor().remote();
+                                    let peer_address = protocol_connection.flow().remote();
 
                                     // Check to see if it is punished
                                     if address_filter.is_ip_addr_punished(peer_address.socket_addr().ip()) {
@@ -367,7 +373,7 @@ impl NetworkConnection {
 
                                     // Pass received messages up to the network manager for processing
                                     if let Err(e) = network_manager
-                                        .on_recv_envelope(message.as_mut_slice(), descriptor)
+                                        .on_recv_envelope(message.as_mut_slice(), flow)
                                         .await
                                     {
                                         log_net!(debug "failed to process received envelope: {}", e);
@@ -424,8 +430,8 @@ impl NetworkConnection {
             }
 
             log_net!(
-                "== Connection loop finished descriptor={:?}",
-                descriptor
+                "== Connection loop finished flow={:?}",
+                flow
             );
 
             // Let the connection manager know the receive loop exited
@@ -443,8 +449,8 @@ impl NetworkConnection {
 
     pub fn debug_print(&self, cur_ts: Timestamp) -> String {
         format!("{} <- {} | {} | est {} sent {} rcvd {} refcount {}{}",
-            self.descriptor.remote_address(), 
-            self.descriptor.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
+            self.flow.remote_address(), 
+            self.flow.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
             self.connection_id.as_u64(),
             debug_duration(cur_ts.as_u64().saturating_sub(self.established_time.as_u64())),
             self.stats().last_message_sent_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),

@@ -38,7 +38,7 @@ struct ConnectionTableInner {
     max_connections: Vec<usize>,
     conn_by_id: Vec<LruCache<NetworkConnectionId, NetworkConnection>>,
     protocol_index_by_id: BTreeMap<NetworkConnectionId, usize>,
-    id_by_descriptor: BTreeMap<ConnectionDescriptor, NetworkConnectionId>,
+    id_by_flow: BTreeMap<Flow, NetworkConnectionId>,
     ids_by_remote: BTreeMap<PeerAddress, Vec<NetworkConnectionId>>,
     address_filter: AddressFilter,
 }
@@ -67,7 +67,7 @@ impl ConnectionTable {
                     LruCache::new_unbounded(),
                 ],
                 protocol_index_by_id: BTreeMap::new(),
-                id_by_descriptor: BTreeMap::new(),
+                id_by_flow: BTreeMap::new(),
                 ids_by_remote: BTreeMap::new(),
                 address_filter,
             })),
@@ -105,7 +105,7 @@ impl ConnectionTable {
                 }
             }
             inner.protocol_index_by_id.clear();
-            inner.id_by_descriptor.clear();
+            inner.id_by_flow.clear();
             inner.ids_by_remote.clear();
             unord
         };
@@ -151,14 +151,14 @@ impl ConnectionTable {
     ) -> Result<Option<NetworkConnection>, ConnectionTableAddError> {
         // Get indices for network connection table
         let id = network_connection.connection_id();
-        let descriptor = network_connection.connection_descriptor();
-        let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
-        let remote = descriptor.remote();
+        let flow = network_connection.flow();
+        let protocol_index = Self::protocol_to_index(flow.protocol_type());
+        let remote = flow.remote();
 
         let mut inner = self.inner.lock();
 
-        // Two connections to the same descriptor should be rejected (soft rejection)
-        if inner.id_by_descriptor.contains_key(&descriptor) {
+        // Two connections to the same flow should be rejected (soft rejection)
+        if inner.id_by_flow.contains_key(&flow) {
             return Err(ConnectionTableAddError::already_exists(network_connection));
         }
 
@@ -169,14 +169,14 @@ impl ConnectionTable {
         if inner.protocol_index_by_id.get(&id).is_some() {
             panic!("duplicate id to protocol index: {:#?}", network_connection);
         }
-        if let Some(ids) = inner.ids_by_remote.get(&descriptor.remote()) {
+        if let Some(ids) = inner.ids_by_remote.get(&flow.remote()) {
             if ids.contains(&id) {
                 panic!("duplicate id by remote: {:#?}", network_connection);
             }
         }
 
         // Filter by ip for connection limits
-        let ip_addr = descriptor.remote_address().ip_addr();
+        let ip_addr = flow.remote_address().ip_addr();
         match inner.address_filter.add_connection(ip_addr) {
             Ok(()) => {}
             Err(e) => {
@@ -217,10 +217,24 @@ impl ConnectionTable {
 
         // add connection records
         inner.protocol_index_by_id.insert(id, protocol_index);
-        inner.id_by_descriptor.insert(descriptor, id);
+        inner.id_by_flow.insert(flow, id);
         inner.ids_by_remote.entry(remote).or_default().push(id);
 
         Ok(out_conn)
+    }
+
+    //#[instrument(level = "trace", skip(self), ret)]
+    pub fn peek_connection_by_flow(&self, flow: Flow) -> Option<ConnectionHandle> {
+        if flow.protocol_type() == ProtocolType::UDP {
+            return None;
+        }
+
+        let inner = self.inner.lock();
+
+        let id = *inner.id_by_flow.get(&flow)?;
+        let protocol_index = Self::protocol_to_index(flow.protocol_type());
+        let out = inner.conn_by_id[protocol_index].peek(&id).unwrap();
+        Some(out.get_handle())
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
@@ -233,45 +247,21 @@ impl ConnectionTable {
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    pub fn peek_connection_by_descriptor(
+    pub fn ref_connection_by_id(
         &self,
-        descriptor: ConnectionDescriptor,
-    ) -> Option<ConnectionHandle> {
-        if descriptor.protocol_type() == ProtocolType::UDP {
-            return None;
-        }
-
-        let inner = self.inner.lock();
-
-        let id = *inner.id_by_descriptor.get(&descriptor)?;
-        let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
-        let out = inner.conn_by_id[protocol_index].peek(&id).unwrap();
-        Some(out.get_handle())
-    }
-
-    //#[instrument(level = "trace", skip(self), ret)]
-    pub fn ref_connection_by_descriptor(
-        &self,
-        descriptor: ConnectionDescriptor,
+        id: NetworkConnectionId,
         ref_type: ConnectionRefKind,
     ) -> bool {
-        if descriptor.protocol_type() == ProtocolType::UDP {
-            return false;
-        }
-
         let mut inner = self.inner.lock();
-
-        let Some(id) = inner.id_by_descriptor.get(&descriptor).copied() else {
-            log_net!(error "failed to ref descriptor: {:?} ({:?})", descriptor, ref_type);
+        let Some(protocol_index) = inner.protocol_index_by_id.get(&id).copied() else {
+            // Sometimes network connections die before we can ref/unref them
             return false;
         };
-        let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
         let out = inner.conn_by_id[protocol_index].get_mut(&id).unwrap();
         match ref_type {
             ConnectionRefKind::AddRef => out.add_ref(),
             ConnectionRefKind::RemoveRef => out.remove_ref(),
         }
-
         true
     }
 
@@ -299,7 +289,7 @@ impl ConnectionTable {
         if let Some(best_port) = best_port {
             for id in all_ids_by_remote {
                 let nc = inner.conn_by_id[protocol_index].peek(id).unwrap();
-                if let Some(local_addr) = nc.connection_descriptor().local() {
+                if let Some(local_addr) = nc.flow().local() {
                     if local_addr.port() == best_port {
                         let nc = inner.conn_by_id[protocol_index].get(id).unwrap();
                         return Some(nc.get_handle());
@@ -326,13 +316,13 @@ impl ConnectionTable {
 
     // pub fn drain_filter<F>(&self, mut filter: F) -> Vec<NetworkConnection>
     // where
-    //     F: FnMut(ConnectionDescriptor) -> bool,
+    //     F: FnMut(Flow) -> bool,
     // {
     //     let mut inner = self.inner.lock();
     //     let mut filtered_ids = Vec::new();
     //     for cbi in &mut inner.conn_by_id {
     //         for (id, conn) in cbi {
-    //             if filter(conn.connection_descriptor()) {
+    //             if filter(conn.flow()) {
     //                 filtered_ids.push(*id);
     //             }
     //         }
@@ -359,11 +349,11 @@ impl ConnectionTable {
         let protocol_index = inner.protocol_index_by_id.remove(&id).unwrap();
         // conn_by_id
         let conn = inner.conn_by_id[protocol_index].remove(&id).unwrap();
-        // id_by_descriptor
-        let descriptor = conn.connection_descriptor();
-        inner.id_by_descriptor.remove(&descriptor).unwrap();
+        // id_by_flow
+        let flow = conn.flow();
+        inner.id_by_flow.remove(&flow).unwrap();
         // ids_by_remote
-        let remote = descriptor.remote();
+        let remote = flow.remote();
         let ids = inner.ids_by_remote.get_mut(&remote).unwrap();
         for (n, elem) in ids.iter().enumerate() {
             if *elem == id {

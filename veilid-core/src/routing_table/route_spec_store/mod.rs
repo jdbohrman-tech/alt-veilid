@@ -661,9 +661,9 @@ impl RouteSpecStore {
     )]
     async fn test_allocated_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
         // Make loopback route to test with
-        let dest = {
-            // Get the best private route for this id
-            let (key, hop_count) = {
+        let (dest, hops) = {
+            // Get the best allocated route for this id
+            let (key, hops) = {
                 let inner = &mut *self.inner.lock();
                 let Some(rssd) = inner.content.get_detail(&private_route_id) else {
                     apibail_invalid_argument!(
@@ -675,9 +675,10 @@ impl RouteSpecStore {
                 let Some(key) = rssd.get_best_route_set_key() else {
                     apibail_internal!("no best key to test allocated route");
                 };
-                // Match the private route's hop length for safety route length
-                let hop_count = rssd.hop_count();
-                (key, hop_count)
+                // Get the hops so we can match the route's hop length for safety
+                // route length as well as marking nodes as unreliable if this fails
+                let hops = rssd.hops_node_refs();
+                (key, hops)
             };
 
             // Get the private route to send to
@@ -686,6 +687,8 @@ impl RouteSpecStore {
             let stability = Stability::Reliable;
             // Routes should test with the most likely to succeed sequencing they are capable of
             let sequencing = Sequencing::PreferOrdered;
+            // Hop count for safety spec should match the private route spec
+            let hop_count = hops.len();
 
             let safety_spec = SafetySpec {
                 preferred_route: Some(private_route_id),
@@ -695,10 +698,13 @@ impl RouteSpecStore {
             };
             let safety_selection = SafetySelection::Safe(safety_spec);
 
-            Destination::PrivateRoute {
-                private_route,
-                safety_selection,
-            }
+            (
+                Destination::PrivateRoute {
+                    private_route,
+                    safety_selection,
+                },
+                hops,
+            )
         };
 
         // Test with double-round trip ping to self
@@ -706,7 +712,12 @@ impl RouteSpecStore {
         let _res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
-                // Did not error, but did not come back, just return false
+                // Did not error, but did not come back, mark the nodes as failed to send, and then return false
+                // This will prevent those node from immediately being included in the next allocated route,
+                // avoiding the same route being constructed to replace this one when it is removed.
+                for hop in hops {
+                    hop.report_failed_route_test();
+                }
                 return Ok(false);
             }
         };

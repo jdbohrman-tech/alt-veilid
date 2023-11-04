@@ -90,7 +90,7 @@ pub type BucketIndex = (CryptoKind, usize);
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RecentPeersEntry {
-    pub last_connection: ConnectionDescriptor,
+    pub last_connection: Flow,
 }
 
 pub(crate) struct RoutingTableUnlockedInner {
@@ -662,13 +662,13 @@ impl RoutingTable {
     pub fn register_node_with_existing_connection(
         &self,
         node_id: TypedKey,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         timestamp: Timestamp,
     ) -> EyreResult<NodeRef> {
         self.inner.write().register_node_with_existing_connection(
             self.clone(),
             node_id,
-            descriptor,
+            flow,
             timestamp,
         )
     }
@@ -698,7 +698,7 @@ impl RoutingTable {
         for e in &recent_peers {
             let mut dead = true;
             if let Ok(Some(nr)) = self.lookup_node_ref(*e) {
-                if let Some(last_connection) = nr.last_connection() {
+                if let Some(last_connection) = nr.last_flow() {
                     out.push((*e, RecentPeersEntry { last_connection }));
                     dead = false;
                 }

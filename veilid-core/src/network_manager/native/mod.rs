@@ -578,75 +578,79 @@ impl Network {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
-    pub async fn send_data_to_existing_connection(
+    pub async fn send_data_to_existing_flow(
         &self,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         data: Vec<u8>,
-    ) -> EyreResult<Option<Vec<u8>>> {
+    ) -> EyreResult<SendDataToExistingFlowResult> {
         let data_len = data.len();
 
         // Handle connectionless protocol
-        if descriptor.protocol_type() == ProtocolType::UDP {
+        if flow.protocol_type() == ProtocolType::UDP {
             // send over the best udp socket we have bound since UDP is not connection oriented
-            let peer_socket_addr = descriptor.remote().socket_addr();
+            let peer_socket_addr = flow.remote().socket_addr();
             if let Some(ph) = self.find_best_udp_protocol_handler(
                 &peer_socket_addr,
-                &descriptor.local().map(|sa| sa.socket_addr()),
+                &flow.local().map(|sa| sa.socket_addr()),
             ) {
                 network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
                     .await
-                    .wrap_err("sending data to existing connection")? => [ format!(": data.len={}, descriptor={:?}", data.len(), descriptor) ] 
-                    { return Ok(Some(data)); } );
+                    .wrap_err("sending data to existing connection")? => [ format!(": data.len={}, flow={:?}", data.len(), flow) ] 
+                    { return Ok(SendDataToExistingFlowResult::NotSent(data)); } );
 
                 // Network accounting
                 self.network_manager()
                     .stats_packet_sent(peer_socket_addr.ip(), ByteCount::new(data_len as u64));
 
                 // Data was consumed
-                return Ok(None);
+                let unique_flow = UniqueFlow {
+                    flow,
+                    connection_id: None,
+                };
+                return Ok(SendDataToExistingFlowResult::Sent(unique_flow));
             }
         }
 
         // Handle connection-oriented protocols
 
         // Try to send to the exact existing connection if one exists
-        if let Some(conn) = self.connection_manager().get_connection(descriptor) {
+        if let Some(conn) = self.connection_manager().get_connection(flow) {
             // connection exists, send over it
             match conn.send_async(data).await {
                 ConnectionHandleSendResult::Sent => {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
-                        descriptor.remote().socket_addr().ip(),
+                        flow.remote().socket_addr().ip(),
                         ByteCount::new(data_len as u64),
                     );
 
                     // Data was consumed
-                    return Ok(None);
+                    return Ok(SendDataToExistingFlowResult::Sent(conn.unique_flow()));
                 }
                 ConnectionHandleSendResult::NotSent(data) => {
                     // Couldn't send
                     // Pass the data back out so we don't own it any more
-                    return Ok(Some(data));
+                    return Ok(SendDataToExistingFlowResult::NotSent(data));
                 }
             }
         }
         // Connection didn't exist
         // Pass the data back out so we don't own it any more
-        Ok(Some(data))
+        Ok(SendDataToExistingFlowResult::NotSent(data))
     }
 
     // Send data directly to a dial info, possibly without knowing which node it is going to
-    // Returns a descriptor for the connection used to send the data
+    // Returns a flow for the connection used to send the data
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_to_dial_info(
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
         self.record_dial_info_failure(dial_info.clone(), async move {
             let data_len = data.len();
-            let connection_descriptor;
+            let unique_flow;
             if dial_info.protocol_type() == ProtocolType::UDP {
                 // Handle connectionless protocol
                 let peer_socket_addr = dial_info.to_socket_addr();
@@ -658,10 +662,14 @@ impl Network {
                         ));
                     }
                 };
-                connection_descriptor = network_result_try!(ph
+                let flow = network_result_try!(ph
                     .send_message(data, peer_socket_addr)
                     .await
                     .wrap_err("failed to send data to dial info")?);
+                unique_flow = UniqueFlow {
+                    flow,
+                    connection_id: None,
+                };
             } else {
                 // Handle connection-oriented protocols
                 let conn = network_result_try!(
@@ -676,14 +684,14 @@ impl Network {
                         "failed to send",
                     )));
                 }
-                connection_descriptor = conn.connection_descriptor();
+                unique_flow = conn.unique_flow();
             }
 
             // Network accounting
             self.network_manager()
                 .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
-            Ok(NetworkResult::value(connection_descriptor))
+            Ok(NetworkResult::value(unique_flow))
         })
         .await
     }

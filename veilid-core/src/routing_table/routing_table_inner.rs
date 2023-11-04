@@ -378,7 +378,7 @@ impl RoutingTableInner {
             for bucket in &self.buckets[&ck] {
                 for entry in bucket.entries() {
                     entry.1.with_mut_inner(|e| {
-                        e.clear_last_connections();
+                        e.clear_last_flows();
                     });
                 }
             }
@@ -853,7 +853,7 @@ impl RoutingTableInner {
         &mut self,
         outer_self: RoutingTable,
         node_id: TypedKey,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         timestamp: Timestamp,
     ) -> EyreResult<NodeRef> {
         let nr = self.create_node_ref(outer_self, &TypedKeyGroup::from(node_id), |_rti, e| {
@@ -861,8 +861,7 @@ impl RoutingTableInner {
             e.touch_last_seen(timestamp);
         })?;
         // set the most recent node address for connection finding and udp replies
-        nr.locked_mut(self)
-            .set_last_connection(descriptor, timestamp);
+        nr.locked_mut(self).set_last_flow(flow, timestamp);
         Ok(nr)
     }
 
@@ -912,7 +911,7 @@ impl RoutingTableInner {
         }
     }
 
-    pub fn touch_recent_peer(&mut self, node_id: TypedKey, last_connection: ConnectionDescriptor) {
+    pub fn touch_recent_peer(&mut self, node_id: TypedKey, last_connection: Flow) {
         self.recent_peers
             .insert(node_id, RecentPeersEntry { last_connection });
     }

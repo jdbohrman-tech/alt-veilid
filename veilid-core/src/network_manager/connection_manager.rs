@@ -16,23 +16,25 @@ enum ConnectionManagerEvent {
 #[derive(Debug)]
 pub(crate) struct ConnectionRefScope {
     connection_manager: ConnectionManager,
-    descriptor: ConnectionDescriptor,
+    id: NetworkConnectionId,
 }
 
 impl ConnectionRefScope {
-    pub fn new(connection_manager: ConnectionManager, descriptor: ConnectionDescriptor) -> Self {
-        connection_manager.connection_ref(descriptor, ConnectionRefKind::AddRef);
-        Self {
-            connection_manager,
-            descriptor,
+    pub fn try_new(connection_manager: ConnectionManager, id: NetworkConnectionId) -> Option<Self> {
+        if !connection_manager.connection_ref(id, ConnectionRefKind::AddRef) {
+            return None;
         }
+        Some(Self {
+            connection_manager,
+            id,
+        })
     }
 }
 
 impl Drop for ConnectionRefScope {
     fn drop(&mut self) {
         self.connection_manager
-            .connection_ref(self.descriptor, ConnectionRefKind::RemoveRef);
+            .connection_ref(self.id, ConnectionRefKind::RemoveRef);
     }
 }
 
@@ -163,7 +165,7 @@ impl ConnectionManager {
     fn should_protect_connection(&self, conn: &NetworkConnection) -> Option<NodeRef> {
         let netman = self.network_manager();
         let routing_table = netman.routing_table();
-        let remote_address = conn.connection_descriptor().remote_address().address();
+        let remote_address = conn.flow().remote_address().address();
         let Some(routing_domain) = routing_table.routing_domain_for_address(remote_address) else {
             return None;
         };
@@ -173,8 +175,8 @@ impl ConnectionManager {
         let relay_nr = rn.filtered_clone(
             NodeRefFilter::new()
                 .with_routing_domain(routing_domain)
-                .with_address_type(conn.connection_descriptor().address_type())
-                .with_protocol_type(conn.connection_descriptor().protocol_type()),
+                .with_address_type(conn.flow().address_type())
+                .with_protocol_type(conn.flow().protocol_type()),
         );
         let dids = relay_nr.all_filtered_dial_info_details();
         for did in dids {
@@ -231,7 +233,7 @@ impl ConnectionManager {
             }
             Err(ConnectionTableAddError::AddressFilter(conn, e)) => {
                 // Connection filtered
-                let desc = conn.connection_descriptor();
+                let desc = conn.flow();
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection filtered: {:?} ({})",
@@ -240,7 +242,7 @@ impl ConnectionManager {
             }
             Err(ConnectionTableAddError::AlreadyExists(conn)) => {
                 // Connection already exists
-                let desc = conn.connection_descriptor();
+                let desc = conn.flow();
                 log_net!(debug "== Connection already exists: {:?}", conn.debug_print(get_aligned_timestamp()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
@@ -250,7 +252,7 @@ impl ConnectionManager {
             }
             Err(ConnectionTableAddError::TableFull(conn)) => {
                 // Connection table is full
-                let desc = conn.connection_descriptor();
+                let desc = conn.flow();
                 log_net!(debug "== Connection table full: {:?}", conn.debug_print(get_aligned_timestamp()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
@@ -263,10 +265,8 @@ impl ConnectionManager {
     }
 
     // Returns a network connection if one already is established
-    pub fn get_connection(&self, descriptor: ConnectionDescriptor) -> Option<ConnectionHandle> {
-        self.arc
-            .connection_table
-            .peek_connection_by_descriptor(descriptor)
+    pub fn get_connection(&self, flow: Flow) -> Option<ConnectionHandle> {
+        self.arc.connection_table.peek_connection_by_flow(flow)
     }
 
     // Returns a network connection if one already is established
@@ -275,13 +275,11 @@ impl ConnectionManager {
     }
 
     // Protects a network connection if one already is established
-    fn connection_ref(&self, descriptor: ConnectionDescriptor, kind: ConnectionRefKind) {
-        self.arc
-            .connection_table
-            .ref_connection_by_descriptor(descriptor, kind);
+    fn connection_ref(&self, id: NetworkConnectionId, kind: ConnectionRefKind) -> bool {
+        self.arc.connection_table.ref_connection_by_id(id, kind)
     }
-    pub fn connection_ref_scope(&self, descriptor: ConnectionDescriptor) -> ConnectionRefScope {
-        ConnectionRefScope::new(self.clone(), descriptor)
+    pub fn try_connection_ref_scope(&self, id: NetworkConnectionId) -> Option<ConnectionRefScope> {
+        ConnectionRefScope::try_new(self.clone(), id)
     }
 
     /// Called when we want to create a new connection or get the current one that already exists
@@ -385,14 +383,22 @@ impl ConnectionManager {
         // Process async commands
         while let Ok(Ok(event)) = receiver.recv_async().timeout_at(stop_token.clone()).await {
             match event {
-                ConnectionManagerEvent::Accepted(conn) => {
+                ConnectionManagerEvent::Accepted(prot_conn) => {
+                    // Async lock on the remote address for atomicity per remote
+                    let _lock_guard = self
+                        .arc
+                        .address_lock_table
+                        .lock_tag(prot_conn.flow().remote_address().socket_addr())
+                        .await;
+
                     let mut inner = self.arc.inner.lock();
                     match &mut *inner {
                         Some(inner) => {
                             // Register the connection
                             // We don't care if this fails, since nobody here asked for the inbound connection.
                             // If it does, we just drop the connection
-                            let _ = self.on_new_protocol_network_connection(inner, conn);
+
+                            let _ = self.on_new_protocol_network_connection(inner, prot_conn);
                         }
                         None => {
                             // If this somehow happens, we're shutting down
@@ -400,6 +406,12 @@ impl ConnectionManager {
                     };
                 }
                 ConnectionManagerEvent::Dead(mut conn) => {
+                    let _lock_guard = self
+                        .arc
+                        .address_lock_table
+                        .lock_tag(conn.flow().remote_address().socket_addr())
+                        .await;
+
                     conn.close();
                     conn.await;
                 }

@@ -45,13 +45,13 @@ impl ProtocolNetworkConnection {
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
+    pub fn flow(&self) -> Flow {
         match self {
-            //            Self::Dummy(d) => d.descriptor(),
-            Self::RawTcp(t) => t.descriptor(),
-            Self::WsAccepted(w) => w.descriptor(),
-            Self::Ws(w) => w.descriptor(),
-            Self::Wss(w) => w.descriptor(),
+            //            Self::Dummy(d) => d.flow(),
+            Self::RawTcp(t) => t.flow(),
+            Self::WsAccepted(w) => w.flow(),
+            Self::Ws(w) => w.flow(),
+            Self::Wss(w) => w.flow(),
         }
     }
 

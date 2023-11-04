@@ -36,7 +36,7 @@ pub(crate) enum BucketEntryState {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub(crate) struct LastConnectionKey(ProtocolType, AddressType);
+pub(crate) struct LastFlowKey(ProtocolType, AddressType);
 
 /// Bucket entry information specific to the LocalNetwork RoutingDomain
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,9 +75,9 @@ pub(crate) struct BucketEntryInner {
     /// has the same timestamp, because if we change our own IP address or network class it may be possible for nodes that were
     /// unreachable may now be reachable with the same SignedNodeInfo/DialInfo
     updated_since_last_network_change: bool,
-    /// The last connection descriptors used to contact this node, per protocol type
+    /// The last flows used to contact this node, per protocol type
     #[serde(skip)]
-    last_connections: BTreeMap<LastConnectionKey, (ConnectionDescriptor, Timestamp)>,
+    last_flows: BTreeMap<LastFlowKey, (Flow, Timestamp)>,
     /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
     /// The node info for this entry on the localnetwork routing domain
@@ -304,7 +304,7 @@ impl BucketEntryInner {
         // The latest connection would have been the one we got the new node info
         // over so that connection is still valid.
         if node_info_changed {
-            self.clear_last_connections_except_latest();
+            self.clear_last_flows_except_latest();
         }
     }
 
@@ -333,7 +333,7 @@ impl BucketEntryInner {
         }
 
         // Check connections
-        let last_connections = self.last_connections(
+        let last_connections = self.last_flows(
             rti,
             true,
             NodeRefFilter::from(routing_domain),
@@ -387,7 +387,7 @@ impl BucketEntryInner {
         }
         // Check connections
         let mut best_routing_domain: Option<RoutingDomain> = None;
-        let last_connections = self.last_connections(
+        let last_connections = self.last_flows(
             rti,
             true,
             NodeRefFilter::from(routing_domain_set),
@@ -408,77 +408,77 @@ impl BucketEntryInner {
         best_routing_domain
     }
 
-    fn descriptor_to_key(&self, last_connection: ConnectionDescriptor) -> LastConnectionKey {
-        LastConnectionKey(
-            last_connection.protocol_type(),
-            last_connection.address_type(),
+    fn flow_to_key(&self, last_flow: Flow) -> LastFlowKey {
+        LastFlowKey(
+            last_flow.protocol_type(),
+            last_flow.address_type(),
         )
     }
 
-    // Stores a connection descriptor in this entry's table of last connections
-    pub fn set_last_connection(&mut self, last_connection: ConnectionDescriptor, timestamp: Timestamp) {
+    // Stores a flow in this entry's table of last flows
+    pub fn set_last_flow(&mut self, last_flow: Flow, timestamp: Timestamp) {
         if self.is_punished {
             // Don't record connection if this entry is currently punished
             return;
         }
-        let key = self.descriptor_to_key(last_connection);
-        self.last_connections
-            .insert(key, (last_connection, timestamp));
+        let key = self.flow_to_key(last_flow);
+        self.last_flows
+            .insert(key, (last_flow, timestamp));
     }
 
-     // Removes a connection descriptor in this entry's table of last connections
-    pub fn clear_last_connection(&mut self, last_connection: ConnectionDescriptor) {
-        let key = self.descriptor_to_key(last_connection);
-        self.last_connections
+     // Removes a flow in this entry's table of last flows
+    pub fn remove_last_flow(&mut self, last_flow: Flow) {
+        let key = self.flow_to_key(last_flow);
+        self.last_flows
             .remove(&key);
     }
 
-    // Clears the table of last connections to ensure we create new ones and drop any existing ones
-    pub fn clear_last_connections(&mut self) {
-        self.last_connections.clear();
+    // Clears the table of last flows to ensure we create new ones and drop any existing ones
+    pub fn clear_last_flows(&mut self) {
+        self.last_flows.clear();
     }
 
-    // Clears the table of last connections except the most recent one
-    pub fn clear_last_connections_except_latest(&mut self) {
-        if self.last_connections.is_empty() {
+    // Clears the table of last flows except the most recent one
+    pub fn clear_last_flows_except_latest(&mut self) {
+        if self.last_flows.is_empty() {
             // No last_connections
             return;
         }
-        let mut dead_keys = Vec::with_capacity(self.last_connections.len()-1);
-        let mut most_recent_connection = None;
-        let mut most_recent_connection_time = 0u64;
-        for (k, v) in &self.last_connections {
+        let mut dead_keys = Vec::with_capacity(self.last_flows.len()-1);
+        let mut most_recent_flow = None;
+        let mut most_recent_flow_time = 0u64;
+        for (k, v) in &self.last_flows {
             let lct = v.1.as_u64();
-            if lct > most_recent_connection_time {
-                most_recent_connection = Some(k);
-                most_recent_connection_time = lct;
+            if lct > most_recent_flow_time {
+                most_recent_flow = Some(k);
+                most_recent_flow_time = lct;
             }
         }
-        let Some(most_recent_connection) = most_recent_connection else {
+        let Some(most_recent_flow) = most_recent_flow else {
             return;
         };
-        for k in self.last_connections.keys() {
-            if k != most_recent_connection {
+        for k in self.last_flows.keys() {
+            if k != most_recent_flow {
                 dead_keys.push(k.clone());
             }
         }
         for dk in dead_keys {
-            self.last_connections.remove(&dk);
+            self.last_flows.remove(&dk);
         }
     }
 
-    // Gets all the 'last connections' that match a particular filter, and their accompanying timestamps of last use
-    pub(super) fn last_connections(
+    // Gets all the 'last flows' that match a particular filter, and their accompanying timestamps of last use
+    pub(super) fn last_flows(
         &self,
         rti: &RoutingTableInner,
         only_live: bool,
         filter: NodeRefFilter,
-    ) -> Vec<(ConnectionDescriptor, Timestamp)> {
+    ) -> Vec<(Flow, Timestamp)> {
         let connection_manager =
             rti.unlocked_inner.network_manager.connection_manager();
 
-        let mut out: Vec<(ConnectionDescriptor, Timestamp)> = self
-            .last_connections
+        let mut out: Vec<(Flow, Timestamp)> = self
+            .last_flows
             .iter()
             .filter_map(|(k, v)| {
                 let include = {
@@ -564,7 +564,7 @@ impl BucketEntryInner {
     pub fn set_punished(&mut self, punished: bool) {
         self.is_punished = punished;
         if punished {
-            self.clear_last_connections();
+            self.clear_last_flows();
         }
     }
 
@@ -845,7 +845,7 @@ impl BucketEntry {
             unsupported_node_ids: TypedKeyGroup::new(),
             envelope_support: Vec::new(),
             updated_since_last_network_change: false,
-            last_connections: BTreeMap::new(),
+            last_flows: BTreeMap::new(),
             local_network: BucketEntryLocalNetwork {
                 last_seen_our_node_info_ts: Timestamp::new(0u64),
                 signed_node_info: None,

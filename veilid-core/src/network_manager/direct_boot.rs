@@ -3,10 +3,7 @@ use super::*;
 impl NetworkManager {
     // Direct bootstrap request handler (separate fallback mechanism from cheaper TXT bootstrap mechanism)
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub(crate) async fn handle_boot_request(
-        &self,
-        descriptor: ConnectionDescriptor,
-    ) -> EyreResult<NetworkResult<()>> {
+    pub(crate) async fn handle_boot_request(&self, flow: Flow) -> EyreResult<NetworkResult<()>> {
         let routing_table = self.routing_table();
 
         // Get a bunch of nodes with the various
@@ -22,14 +19,14 @@ impl NetworkManager {
         // Reply with a chunk of signed routing table
         match self
             .net()
-            .send_data_to_existing_connection(descriptor, json_bytes)
+            .send_data_to_existing_flow(flow, json_bytes)
             .await?
         {
-            None => {
+            SendDataToExistingFlowResult::Sent(_) => {
                 // Bootstrap reply was sent
                 Ok(NetworkResult::value(()))
             }
-            Some(_) => Ok(NetworkResult::no_connection_other(
+            SendDataToExistingFlowResult::NotSent(_) => Ok(NetworkResult::no_connection_other(
                 "bootstrap reply could not be sent",
             )),
         }

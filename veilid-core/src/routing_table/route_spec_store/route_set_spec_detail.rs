@@ -86,6 +86,9 @@ impl RouteSetSpecDetail {
     pub fn hop_count(&self) -> usize {
         self.hop_node_refs.len()
     }
+    pub fn hops_node_refs(&self) -> Vec<NodeRef> {
+        self.hop_node_refs.clone()
+    }
     pub fn hop_node_ref(&self, idx: usize) -> Option<NodeRef> {
         self.hop_node_refs.get(idx).cloned()
     }

@@ -3,7 +3,7 @@ use futures_util::{AsyncReadExt, AsyncWriteExt};
 use sockets::*;
 
 pub struct RawTcpNetworkConnection {
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     stream: AsyncPeekStream,
 }
 
@@ -14,12 +14,12 @@ impl fmt::Debug for RawTcpNetworkConnection {
 }
 
 impl RawTcpNetworkConnection {
-    pub fn new(descriptor: ConnectionDescriptor, stream: AsyncPeekStream) -> Self {
-        Self { descriptor, stream }
+    pub fn new(flow: Flow, stream: AsyncPeekStream) -> Self {
+        Self { flow, stream }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
     }
 
     #[cfg_attr(
@@ -152,7 +152,7 @@ impl RawTcpProtocolHandler {
             ProtocolType::TCP,
         );
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
-            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
+            Flow::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ps,
         ));
 
@@ -186,7 +186,7 @@ impl RawTcpProtocolHandler {
 
         // Wrap the stream in a network connection and return it
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
-            ConnectionDescriptor::new(
+            Flow::new(
                 PeerAddress::new(
                     SocketAddress::from_socket_addr(socket_addr),
                     ProtocolType::TCP,

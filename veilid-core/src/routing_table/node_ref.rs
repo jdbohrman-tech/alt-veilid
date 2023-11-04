@@ -273,13 +273,13 @@ pub(crate) trait NodeRefBase: Sized {
 
     /// Get the most recent 'last connection' to this node
     /// Filtered first and then sorted by ordering preference and then by most recent
-    fn last_connection(&self) -> Option<ConnectionDescriptor> {
+    fn last_flow(&self) -> Option<Flow> {
         self.operate(|rti, e| {
             // apply sequencing to filter and get sort
             let sequencing = self.common().sequencing;
             let filter = self.common().filter.unwrap_or_default();
             let (ordered, filter) = filter.with_sequencing(sequencing);
-            let mut last_connections = e.last_connections(rti, true, filter);
+            let mut last_connections = e.last_flows(rti, true, filter);
 
             if ordered {
                 last_connections.sort_by(|a, b| {
@@ -292,19 +292,19 @@ pub(crate) trait NodeRefBase: Sized {
     }
 
     fn clear_last_connections(&self) {
-        self.operate_mut(|_rti, e| e.clear_last_connections())
+        self.operate_mut(|_rti, e| e.clear_last_flows())
     }
 
-    fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: Timestamp) {
+    fn set_last_flow(&self, flow: Flow, ts: Timestamp) {
         self.operate_mut(|rti, e| {
-            e.set_last_connection(connection_descriptor, ts);
-            rti.touch_recent_peer(e.best_node_id(), connection_descriptor);
+            e.set_last_flow(flow, ts);
+            rti.touch_recent_peer(e.best_node_id(), flow);
         })
     }
 
-    fn clear_last_connection(&self, connection_descriptor: ConnectionDescriptor) {
+    fn clear_last_connection(&self, flow: Flow) {
         self.operate_mut(|_rti, e| {
-            e.clear_last_connection(connection_descriptor);
+            e.remove_last_flow(flow);
         })
     }
 
@@ -322,6 +322,10 @@ pub(crate) trait NodeRefBase: Sized {
     }
 
     fn report_protected_connection_dropped(&self) {
+        self.stats_failed_to_send(get_aligned_timestamp(), false);
+    }
+
+    fn report_failed_route_test(&self) {
         self.stats_failed_to_send(get_aligned_timestamp(), false);
     }
 

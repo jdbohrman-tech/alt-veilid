@@ -17,9 +17,9 @@ impl RawUdpProtocolHandler {
         }
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.descriptor)))]
-    pub async fn recv_message(&self, data: &mut [u8]) -> io::Result<(usize, ConnectionDescriptor)> {
-        let (message_len, descriptor) = loop {
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.flow)))]
+    pub async fn recv_message(&self, data: &mut [u8]) -> io::Result<(usize, Flow)> {
+        let (message_len, flow) = loop {
             // Get a packet
             let (size, remote_addr) = network_result_value_or_log!(self.socket.recv_from(data).await.into_network_result()? => continue);
 
@@ -64,33 +64,33 @@ impl RawUdpProtocolHandler {
             // Copy assemble message out if we got one
             data[0..message.len()].copy_from_slice(&message);
 
-            // Return a connection descriptor and the amount of data in the message
+            // Return a flow and the amount of data in the message
             let peer_addr = PeerAddress::new(
                 SocketAddress::from_socket_addr(remote_addr),
                 ProtocolType::UDP,
             );
             let local_socket_addr = self.socket.local_addr()?;
-            let descriptor = ConnectionDescriptor::new(
+            let flow = Flow::new(
                 peer_addr,
                 SocketAddress::from_socket_addr(local_socket_addr),
             );
 
-            break (message.len(), descriptor);
+            break (message.len(), flow);
         };
 
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.len", message_len);
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.descriptor", format!("{:?}", descriptor).as_str());
-        Ok((message_len, descriptor))
+        tracing::Span::current().record("ret.flow", format!("{:?}", flow).as_str());
+        Ok((message_len, flow))
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.descriptor)))]
+    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.flow)))]
     pub async fn send_message(
         &self,
         data: Vec<u8>,
         remote_addr: SocketAddr,
-    ) -> io::Result<NetworkResult<ConnectionDescriptor>> {
+    ) -> io::Result<NetworkResult<Flow>> {
         if data.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large UDP message");
         }
@@ -121,21 +121,21 @@ impl RawUdpProtocolHandler {
                 .await?
         );
 
-        // Return a connection descriptor for the sent message
+        // Return a flow for the sent message
         let peer_addr = PeerAddress::new(
             SocketAddress::from_socket_addr(remote_addr),
             ProtocolType::UDP,
         );
         let local_socket_addr = self.socket.local_addr()?;
 
-        let descriptor = ConnectionDescriptor::new(
+        let flow = Flow::new(
             peer_addr,
             SocketAddress::from_socket_addr(local_socket_addr),
         );
 
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.descriptor", format!("{:?}", descriptor).as_str());
-        Ok(NetworkResult::value(descriptor))
+        tracing::Span::current().record("ret.flow", format!("{:?}", flow).as_str());
+        Ok(NetworkResult::value(flow))
     }
 
     #[instrument(level = "trace", err)]

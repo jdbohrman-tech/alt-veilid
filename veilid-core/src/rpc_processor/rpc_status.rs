@@ -162,13 +162,13 @@ impl RPCProcessor {
                                     .network_manager()
                                     .report_public_internet_socket_address(
                                         sender_info.socket_address,
-                                        send_data_method.connection_descriptor,
+                                        send_data_method.unique_flow.flow,
                                         target,
                                     ),
                                 RoutingDomain::LocalNetwork => {
                                     self.network_manager().report_local_network_socket_address(
                                         sender_info.socket_address,
-                                        send_data_method.connection_descriptor,
+                                        send_data_method.unique_flow.flow,
                                         target,
                                     )
                                 }
@@ -208,7 +208,7 @@ impl RPCProcessor {
 
         let (node_status, sender_info) = match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
-                let connection_descriptor = detail.connection_descriptor;
+                let flow = detail.flow;
                 let routing_domain = detail.routing_domain;
 
                 // Ensure the node status from the question is the kind for the routing domain we received the request in
@@ -222,7 +222,7 @@ impl RPCProcessor {
 
                 // Get the peer address in the returned sender info
                 let sender_info = SenderInfo {
-                    socket_address: *connection_descriptor.remote_address(),
+                    socket_address: *flow.remote_address(),
                 };
 
                 // Make status answer

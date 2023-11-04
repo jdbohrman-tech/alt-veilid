@@ -35,10 +35,10 @@ impl ProtocolNetworkConnection {
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
+    pub fn flow(&self) -> Flow {
         match self {
-            //            Self::Dummy(d) => d.descriptor(),
-            Self::Ws(w) => w.descriptor(),
+            //            Self::Dummy(d) => d.flow(),
+            Self::Ws(w) => w.flow(),
         }
     }
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {

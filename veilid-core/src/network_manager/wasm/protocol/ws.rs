@@ -34,7 +34,7 @@ fn to_io(err: WsErr) -> io::Error {
 
 #[derive(Clone)]
 pub struct WebsocketNetworkConnection {
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     inner: Arc<WebsocketNetworkConnectionInner>,
 }
 
@@ -45,9 +45,9 @@ impl fmt::Debug for WebsocketNetworkConnection {
 }
 
 impl WebsocketNetworkConnection {
-    pub fn new(descriptor: ConnectionDescriptor, ws_meta: WsMeta, ws_stream: WsStream) -> Self {
+    pub fn new(flow: Flow, ws_meta: WsMeta, ws_stream: WsStream) -> Self {
         Self {
-            descriptor,
+            flow,
             inner: Arc::new(WebsocketNetworkConnectionInner {
                 ws_meta,
                 ws_stream: CloneStream::new(ws_stream),
@@ -55,8 +55,8 @@ impl WebsocketNetworkConnection {
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
     }
 
     #[cfg_attr(
@@ -147,9 +147,9 @@ impl WebsocketProtocolHandler {
             .into_network_result())
         .into_network_result()?);
 
-        // Make our connection descriptor
+        // Make our flow
         let wnc = WebsocketNetworkConnection::new(
-            ConnectionDescriptor::new_no_local(dial_info.peer_address()),
+            Flow::new_no_local(dial_info.peer_address()),
             wsmeta,
             wsio,
         );

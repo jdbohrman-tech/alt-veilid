@@ -248,11 +248,11 @@ impl Network {
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
     pub async fn send_data_to_existing_connection(
         &self,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         data: Vec<u8>,
     ) -> EyreResult<Option<Vec<u8>>> {
         let data_len = data.len();
-        match descriptor.protocol_type() {
+        match flow.protocol_type() {
             ProtocolType::UDP => {
                 bail!("no support for UDP protocol")
             }
@@ -265,13 +265,13 @@ impl Network {
         // Handle connection-oriented protocols
 
         // Try to send to the exact existing connection if one exists
-        if let Some(conn) = self.connection_manager().get_connection(descriptor) {
+        if let Some(conn) = self.connection_manager().get_connection(flow) {
             // connection exists, send over it
             match conn.send_async(data).await {
                 ConnectionHandleSendResult::Sent => {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
-                        descriptor.remote().socket_addr().ip(),
+                        flow.remote().socket_addr().ip(),
                         ByteCount::new(data_len as u64),
                     );
 
@@ -295,7 +295,7 @@ impl Network {
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
+    ) -> EyreResult<NetworkResult<Flow>> {
         self.record_dial_info_failure(dial_info.clone(), async move {
             let data_len = data.len();
             if dial_info.protocol_type() == ProtocolType::UDP {
@@ -318,13 +318,13 @@ impl Network {
                     "failed to send",
                 )));
             }
-            let connection_descriptor = conn.connection_descriptor();
+            let flow = conn.flow();
 
             // Network accounting
             self.network_manager()
                 .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
-            Ok(NetworkResult::value(connection_descriptor))
+            Ok(NetworkResult::value(flow))
         })
         .await
     }
