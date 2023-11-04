@@ -167,6 +167,7 @@ impl RouteSpecStore {
     /// Returns other errors on failure
     /// Returns Ok(route id string) on success
     #[instrument(level = "trace", skip(self), ret, err(level=Level::TRACE))]
+    #[allow(clippy::too_many_arguments)]
     pub fn allocate_route(
         &self,
         crypto_kinds: &[CryptoKind],
@@ -175,6 +176,7 @@ impl RouteSpecStore {
         hop_count: usize,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
+        automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
@@ -189,6 +191,7 @@ impl RouteSpecStore {
             hop_count,
             directions,
             avoid_nodes,
+            automatic,
         )
     }
 
@@ -204,6 +207,7 @@ impl RouteSpecStore {
         hop_count: usize,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
+        automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         use core::cmp::Ordering;
 
@@ -576,6 +580,7 @@ impl RouteSpecStore {
             directions,
             stability,
             can_do_sequenced,
+            automatic,
         );
 
         // make id
@@ -1255,6 +1260,7 @@ impl RouteSpecStore {
                 safety_spec.hop_count,
                 direction,
                 avoid_nodes,
+                true,
             )?
         };
 

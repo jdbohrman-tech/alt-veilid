@@ -29,6 +29,8 @@ pub(crate) struct RouteSetSpecDetail {
     can_do_sequenced: bool,
     /// Stats
     stats: RouteStats,
+    /// Automatically allocated route vs manually allocated route
+    automatic: bool,
 }
 
 impl RouteSetSpecDetail {
@@ -39,6 +41,7 @@ impl RouteSetSpecDetail {
         directions: DirectionSet,
         stability: Stability,
         can_do_sequenced: bool,
+        automatic: bool,
     ) -> Self {
         Self {
             route_set,
@@ -48,6 +51,7 @@ impl RouteSetSpecDetail {
             stability,
             can_do_sequenced,
             stats: RouteStats::new(cur_ts),
+            automatic,
         }
     }
     pub fn get_route_by_key(&self, key: &PublicKey) -> Option<&RouteSpecDetail> {
@@ -114,6 +118,9 @@ impl RouteSetSpecDetail {
             }
         }
         false
+    }
+    pub fn is_automatic(&self) -> bool {
+        self.automatic
     }
 
     /// Generate a key for the cache that can be used to uniquely identify this route's contents

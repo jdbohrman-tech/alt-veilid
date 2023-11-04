@@ -1095,6 +1095,7 @@ impl VeilidAPI {
             hop_count,
             directions,
             &[],
+            false,
         ) {
             Ok(v) => v.to_string(),
             Err(e) => {

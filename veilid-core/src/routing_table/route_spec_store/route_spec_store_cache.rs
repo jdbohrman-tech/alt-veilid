@@ -110,8 +110,10 @@ impl RouteSpecStoreCache {
             self.invalidate_compiled_route_cache(pk);
         }
 
-        // Mark it as dead for the update
-        self.dead_routes.push(id);
+        // Mark it as dead for the update if it wasn't automatically created
+        if !rssd.is_automatic() {
+            self.dead_routes.push(id);
+        }
 
         true
     }
