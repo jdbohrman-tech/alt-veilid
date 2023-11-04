@@ -246,11 +246,11 @@ impl Network {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
-    pub async fn send_data_to_existing_connection(
+    pub async fn send_data_to_existing_flow(
         &self,
         flow: Flow,
         data: Vec<u8>,
-    ) -> EyreResult<Option<Vec<u8>>> {
+    ) -> EyreResult<SendDataToExistingFlowResult> {
         let data_len = data.len();
         match flow.protocol_type() {
             ProtocolType::UDP => {
@@ -276,18 +276,18 @@ impl Network {
                     );
 
                     // Data was consumed
-                    return Ok(None);
+                    return Ok(SendDataToExistingFlowResult::Sent(conn.unique_flow()));
                 }
                 ConnectionHandleSendResult::NotSent(data) => {
                     // Couldn't send
                     // Pass the data back out so we don't own it any more
-                    return Ok(Some(data));
+                    return Ok(SendDataToExistingFlowResult::NotSent(data));
                 }
             }
         }
         // Connection didn't exist
         // Pass the data back out so we don't own it any more
-        Ok(Some(data))
+        Ok(SendDataToExistingFlowResult::NotSent(data))
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
@@ -295,7 +295,7 @@ impl Network {
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<Flow>> {
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
         self.record_dial_info_failure(dial_info.clone(), async move {
             let data_len = data.len();
             if dial_info.protocol_type() == ProtocolType::UDP {
@@ -318,13 +318,13 @@ impl Network {
                     "failed to send",
                 )));
             }
-            let flow = conn.flow();
+            let unique_flow = conn.unique_flow();
 
             // Network accounting
             self.network_manager()
                 .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
-            Ok(NetworkResult::value(flow))
+            Ok(NetworkResult::value(unique_flow))
         })
         .await
     }
