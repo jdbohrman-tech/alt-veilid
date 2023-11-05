@@ -764,7 +764,7 @@ impl VeilidAPI {
             }
 
             let netman = self.network_manager()?;
-            netman.net().restart_network();
+            netman.debug_restart_network();
 
             Ok("Network restarted".to_owned())
         } else {
@@ -1095,6 +1095,7 @@ impl VeilidAPI {
             hop_count,
             directions,
             &[],
+            false,
         ) {
             Ok(v) => v.to_string(),
             Err(e) => {

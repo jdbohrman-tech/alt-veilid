@@ -20,20 +20,20 @@ use super::*;
 use crate::crypto::*;
 use crate::network_manager::*;
 use crate::rpc_processor::*;
+
 use bucket::*;
 use hashlink::LruCache;
 
-pub use bucket_entry::*;
-pub use debug::*;
-pub use find_peers::*;
-pub use node_ref::*;
-pub use node_ref_filter::*;
-pub use privacy::*;
-pub use route_spec_store::*;
-pub use routing_domain_editor::*;
-pub use routing_domains::*;
-pub use routing_table_inner::*;
-pub use stats_accounting::*;
+pub(crate) use bucket_entry::*;
+pub(crate) use node_ref::*;
+pub(crate) use node_ref_filter::*;
+pub(crate) use privacy::*;
+pub(crate) use route_spec_store::*;
+pub(crate) use routing_domain_editor::*;
+pub(crate) use routing_domains::*;
+pub(crate) use routing_table_inner::*;
+pub(crate) use stats_accounting::*;
+
 pub use types::*;
 
 //////////////////////////////////////////////////////////////////////////
@@ -57,20 +57,21 @@ const CACHE_VALIDITY_KEY: &[u8] = b"cache_validity_key";
 // Critical sections
 const LOCK_TAG_TICK: &str = "TICK";
 
-pub type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
-pub type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
+type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
+type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
 pub struct LowLevelPortInfo {
     pub low_level_protocol_ports: LowLevelProtocolPorts,
     pub protocol_to_port: ProtocolToPortMapping,
 }
-pub type RoutingTableEntryFilter<'t> =
+pub(crate) type RoutingTableEntryFilter<'t> =
     Box<dyn FnMut(&RoutingTableInner, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
-pub type SerializedBuckets = Vec<Vec<u8>>;
-pub type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
+
+type SerializedBuckets = Vec<Vec<u8>>;
+type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct RoutingTableHealth {
+pub(crate) struct RoutingTableHealth {
     /// Number of reliable (long-term responsive) entries in the routing table
     pub reliable_entry_count: usize,
     /// Number of unreliable (occasionally unresponsive) entries in the routing table
@@ -87,7 +88,12 @@ pub struct RoutingTableHealth {
 
 pub type BucketIndex = (CryptoKind, usize);
 
-pub struct RoutingTableUnlockedInner {
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RecentPeersEntry {
+    pub last_connection: Flow,
+}
+
+pub(crate) struct RoutingTableUnlockedInner {
     // Accessors
     config: VeilidConfig,
     network_manager: NetworkManager,
@@ -192,7 +198,7 @@ impl RoutingTableUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct RoutingTable {
+pub(crate) struct RoutingTable {
     inner: Arc<RwLock<RoutingTableInner>>,
     unlocked_inner: Arc<RoutingTableUnlockedInner>,
 }
@@ -455,6 +461,7 @@ impl RoutingTable {
     }
 
     /// Set up the local network routing domain with our local routing table configuration
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn configure_local_network_routing_domain(&self, local_networks: Vec<(IpAddr, IpAddr)>) {
         log_net!(debug "configure_local_network_routing_domain: {:#?}", local_networks);
         self.inner
@@ -481,22 +488,8 @@ impl RoutingTable {
         self.inner.read().relay_node_last_keepalive(domain)
     }
 
-    pub fn has_dial_info(&self, domain: RoutingDomain) -> bool {
-        self.inner.read().has_dial_info(domain)
-    }
-
     pub fn dial_info_details(&self, domain: RoutingDomain) -> Vec<DialInfoDetail> {
         self.inner.read().dial_info_details(domain)
-    }
-
-    pub fn first_filtered_dial_info_detail(
-        &self,
-        routing_domain_set: RoutingDomainSet,
-        filter: &DialInfoFilter,
-    ) -> Option<DialInfoDetail> {
-        self.inner
-            .read()
-            .first_filtered_dial_info_detail(routing_domain_set, filter)
     }
 
     pub fn all_filtered_dial_info_details(
@@ -509,20 +502,11 @@ impl RoutingTable {
             .all_filtered_dial_info_details(routing_domain_set, filter)
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn ensure_dial_info_is_valid(&self, domain: RoutingDomain, dial_info: &DialInfo) -> bool {
         self.inner
             .read()
             .ensure_dial_info_is_valid(domain, dial_info)
-    }
-
-    pub fn node_info_is_valid_in_routing_domain(
-        &self,
-        routing_domain: RoutingDomain,
-        node_info: &NodeInfo,
-    ) -> bool {
-        self.inner
-            .read()
-            .node_info_is_valid_in_routing_domain(routing_domain, node_info)
     }
 
     pub fn signed_node_info_is_valid_in_routing_domain(
@@ -581,20 +565,6 @@ impl RoutingTable {
         self.inner.read().get_network_class(routing_domain)
     }
 
-    /// Return the domain's filter for what we can receivein the form of a dial info filter
-    pub fn get_inbound_dial_info_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
-        self.inner
-            .read()
-            .get_inbound_dial_info_filter(routing_domain)
-    }
-
-    /// Return the domain's filter for what we can receive in the form of a node ref filter
-    pub fn get_inbound_node_ref_filter(&self, routing_domain: RoutingDomain) -> NodeRefFilter {
-        self.inner
-            .read()
-            .get_inbound_node_ref_filter(routing_domain)
-    }
-
     /// Return the domain's filter for what we can send out in the form of a dial info filter
     pub fn get_outbound_dial_info_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
         self.inner
@@ -619,27 +589,7 @@ impl RoutingTable {
         self.inner.write().purge_last_connections();
     }
 
-    pub fn get_entry_count(
-        &self,
-        routing_domain_set: RoutingDomainSet,
-        min_state: BucketEntryState,
-        crypto_kinds: &[CryptoKind],
-    ) -> usize {
-        self.inner
-            .read()
-            .get_entry_count(routing_domain_set, min_state, crypto_kinds)
-    }
-
-    pub fn get_entry_count_per_crypto_kind(
-        &self,
-        routing_domain_set: RoutingDomainSet,
-        min_state: BucketEntryState,
-    ) -> BTreeMap<CryptoKind, usize> {
-        self.inner
-            .read()
-            .get_entry_count_per_crypto_kind(routing_domain_set, min_state)
-    }
-
+    /// See which nodes need to be pinged
     pub fn get_nodes_needing_ping(
         &self,
         routing_domain: RoutingDomain,
@@ -648,11 +598,6 @@ impl RoutingTable {
         self.inner
             .read()
             .get_nodes_needing_ping(self.clone(), routing_domain, cur_ts)
-    }
-
-    pub fn get_all_nodes(&self, cur_ts: Timestamp) -> Vec<NodeRef> {
-        let inner = self.inner.read();
-        inner.get_all_nodes(self.clone(), cur_ts)
     }
 
     fn queue_bucket_kicks(&self, node_ids: TypedKeyGroup) {
@@ -717,13 +662,13 @@ impl RoutingTable {
     pub fn register_node_with_existing_connection(
         &self,
         node_id: TypedKey,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         timestamp: Timestamp,
     ) -> EyreResult<NodeRef> {
         self.inner.write().register_node_with_existing_connection(
             self.clone(),
             node_id,
-            descriptor,
+            flow,
             timestamp,
         )
     }
@@ -753,7 +698,7 @@ impl RoutingTable {
         for e in &recent_peers {
             let mut dead = true;
             if let Ok(Some(nr)) = self.lookup_node_ref(*e) {
-                if let Some(last_connection) = nr.last_connection() {
+                if let Some(last_connection) = nr.last_flow() {
                     out.push((*e, RecentPeersEntry { last_connection }));
                     dead = false;
                 }
@@ -774,12 +719,6 @@ impl RoutingTable {
         out
     }
 
-    pub fn touch_recent_peer(&self, node_id: TypedKey, last_connection: ConnectionDescriptor) {
-        self.inner
-            .write()
-            .touch_recent_peer(node_id, last_connection)
-    }
-
     //////////////////////////////////////////////////////////////////////
     // Find Nodes
 
@@ -788,7 +727,7 @@ impl RoutingTable {
     /// Only one protocol per low level protocol/port combination is required
     /// For example, if WS/WSS and TCP protocols are on the same low-level TCP port, only TCP keepalives will be required
     /// and we do not need to do WS/WSS keepalive as well. If they are on different ports, then we will need WS/WSS keepalives too.
-    pub fn get_low_level_port_info(&self) -> LowLevelPortInfo {
+    fn get_low_level_port_info(&self) -> LowLevelPortInfo {
         let mut low_level_protocol_ports =
             BTreeSet::<(LowLevelProtocolType, AddressType, u16)>::new();
         let mut protocol_to_port =
@@ -818,6 +757,7 @@ impl RoutingTable {
     }
 
     /// Makes a filter that finds nodes with a matching inbound dialinfo
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn make_inbound_dial_info_entry_filter<'a>(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
@@ -976,27 +916,6 @@ impl RoutingTable {
             }
         }
         out
-    }
-
-    pub fn find_peers_with_sort_and_filter<C, T, O>(
-        &self,
-        node_count: usize,
-        cur_ts: Timestamp,
-        filters: VecDeque<RoutingTableEntryFilter>,
-        compare: C,
-        transform: T,
-    ) -> Vec<O>
-    where
-        C: for<'a, 'b> FnMut(
-            &'a RoutingTableInner,
-            &'b Option<Arc<BucketEntry>>,
-            &'b Option<Arc<BucketEntry>>,
-        ) -> core::cmp::Ordering,
-        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O + Send,
-    {
-        self.inner
-            .read()
-            .find_peers_with_sort_and_filter(node_count, cur_ts, filters, compare, transform)
     }
 
     pub fn find_preferred_fastest_nodes<'a, T, O>(

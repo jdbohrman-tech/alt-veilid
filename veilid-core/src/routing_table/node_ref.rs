@@ -4,7 +4,7 @@ use alloc::fmt;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub struct NodeRefBaseCommon {
+pub(crate) struct NodeRefBaseCommon {
     routing_table: RoutingTable,
     entry: Arc<BucketEntry>,
     filter: Option<NodeRefFilter>,
@@ -15,7 +15,7 @@ pub struct NodeRefBaseCommon {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub trait NodeRefBase: Sized {
+pub(crate) trait NodeRefBase: Sized {
     // Common field access
     fn common(&self) -> &NodeRefBaseCommon;
     fn common_mut(&mut self) -> &mut NodeRefBaseCommon;
@@ -111,12 +111,6 @@ pub trait NodeRefBase: Sized {
     }
     fn best_node_id(&self) -> TypedKey {
         self.operate(|_rti, e| e.best_node_id())
-    }
-    fn has_updated_since_last_network_change(&self) -> bool {
-        self.operate(|_rti, e| e.has_updated_since_last_network_change())
-    }
-    fn set_updated_since_last_network_change(&self) {
-        self.operate_mut(|_rti, e| e.set_updated_since_last_network_change(true));
     }
     fn update_node_status(&self, routing_domain: RoutingDomain, node_status: NodeStatus) {
         self.operate_mut(|_rti, e| {
@@ -279,13 +273,13 @@ pub trait NodeRefBase: Sized {
 
     /// Get the most recent 'last connection' to this node
     /// Filtered first and then sorted by ordering preference and then by most recent
-    fn last_connection(&self) -> Option<ConnectionDescriptor> {
+    fn last_flow(&self) -> Option<Flow> {
         self.operate(|rti, e| {
             // apply sequencing to filter and get sort
             let sequencing = self.common().sequencing;
             let filter = self.common().filter.unwrap_or_default();
             let (ordered, filter) = filter.with_sequencing(sequencing);
-            let mut last_connections = e.last_connections(rti, true, filter);
+            let mut last_connections = e.last_flows(rti, true, filter);
 
             if ordered {
                 last_connections.sort_by(|a, b| {
@@ -298,19 +292,19 @@ pub trait NodeRefBase: Sized {
     }
 
     fn clear_last_connections(&self) {
-        self.operate_mut(|_rti, e| e.clear_last_connections())
+        self.operate_mut(|_rti, e| e.clear_last_flows())
     }
 
-    fn set_last_connection(&self, connection_descriptor: ConnectionDescriptor, ts: Timestamp) {
+    fn set_last_flow(&self, flow: Flow, ts: Timestamp) {
         self.operate_mut(|rti, e| {
-            e.set_last_connection(connection_descriptor, ts);
-            rti.touch_recent_peer(e.best_node_id(), connection_descriptor);
+            e.set_last_flow(flow, ts);
+            rti.touch_recent_peer(e.best_node_id(), flow);
         })
     }
 
-    fn clear_last_connection(&self, connection_descriptor: ConnectionDescriptor) {
+    fn clear_last_connection(&self, flow: Flow) {
         self.operate_mut(|_rti, e| {
-            e.clear_last_connection(connection_descriptor);
+            e.remove_last_flow(flow);
         })
     }
 
@@ -325,6 +319,14 @@ pub trait NodeRefBase: Sized {
             }
             false
         })
+    }
+
+    fn report_protected_connection_dropped(&self) {
+        self.stats_failed_to_send(get_aligned_timestamp(), false);
+    }
+
+    fn report_failed_route_test(&self) {
+        self.stats_failed_to_send(get_aligned_timestamp(), false);
     }
 
     fn stats_question_sent(&self, ts: Timestamp, bytes: Timestamp, expects_answer: bool) {
@@ -369,7 +371,7 @@ pub trait NodeRefBase: Sized {
 
 /// Reference to a routing table entry
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRef {
+pub(crate) struct NodeRef {
     common: NodeRefBaseCommon,
 }
 
@@ -496,7 +498,7 @@ impl Drop for NodeRef {
 /// For internal use inside the RoutingTable module where you have
 /// already locked a RoutingTableInner
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRefLocked<'a> {
+pub(crate) struct NodeRefLocked<'a> {
     inner: Mutex<&'a RoutingTableInner>,
     nr: NodeRef,
 }
@@ -559,7 +561,7 @@ impl<'a> fmt::Debug for NodeRefLocked<'a> {
 /// For internal use inside the RoutingTable module where you have
 /// already locked a RoutingTableInner
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRefLockedMut<'a> {
+pub(crate) struct NodeRefLockedMut<'a> {
     inner: Mutex<&'a mut RoutingTableInner>,
     nr: NodeRef,
 }
@@ -572,9 +574,9 @@ impl<'a> NodeRefLockedMut<'a> {
         }
     }
 
-    pub fn unlocked(&self) -> NodeRef {
-        self.nr.clone()
-    }
+    // pub fn unlocked(&self) -> NodeRef {
+    //     self.nr.clone()
+    // }
 }
 
 impl<'a> NodeRefBase for NodeRefLockedMut<'a> {

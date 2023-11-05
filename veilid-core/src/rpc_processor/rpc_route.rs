@@ -272,7 +272,8 @@ impl RPCProcessor {
         feature = "verbose-tracing",
         instrument(level = "trace", skip_all, err)
     )]
-    pub(crate) async fn process_private_route_first_hop(
+
+    async fn process_private_route_first_hop(
         &self,
         mut routed_operation: RoutedOperation,
         sr_pubkey: TypedKey,
@@ -336,7 +337,7 @@ impl RPCProcessor {
     }
 
     /// Decrypt route hop data and sign routed operation
-    pub(crate) fn decrypt_private_route_hop_data(
+    fn decrypt_private_route_hop_data(
         &self,
         route_hop_data: &RouteHopData,
         pr_pubkey: &TypedKey,

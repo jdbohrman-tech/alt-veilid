@@ -5,9 +5,9 @@ use super::*;
 use std::io;
 
 #[derive(Debug)]
-pub enum ProtocolNetworkConnection {
+pub(in crate::network_manager) enum ProtocolNetworkConnection {
     #[allow(dead_code)]
-    Dummy(DummyNetworkConnection),
+    //Dummy(DummyNetworkConnection),
     Ws(ws::WebsocketNetworkConnection),
     //WebRTC(wrtc::WebRTCNetworkConnection),
 }
@@ -35,29 +35,28 @@ impl ProtocolNetworkConnection {
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
+    pub fn flow(&self) -> Flow {
         match self {
-            Self::Dummy(d) => d.descriptor(),
-            Self::Ws(w) => w.descriptor(),
+            //            Self::Dummy(d) => d.flow(),
+            Self::Ws(w) => w.flow(),
         }
     }
-
-    // pub async fn close(&self) -> io::Result<NetworkResult<()>> {
-    //     match self {
-    //         Self::Dummy(d) => d.close(),
-    //         Self::Ws(w) => w.close().await,
-    //     }
-    // }
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        match self {
+            //            Self::Dummy(d) => d.close(),
+            Self::Ws(w) => w.close().await,
+        }
+    }
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         match self {
-            Self::Dummy(d) => d.send(message),
+            //            Self::Dummy(d) => d.send(message),
             Self::Ws(w) => w.send(message).await,
         }
     }
 
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         match self {
-            Self::Dummy(d) => d.recv(),
+            //            Self::Dummy(d) => d.recv(),
             Self::Ws(w) => w.recv().await,
         }
     }

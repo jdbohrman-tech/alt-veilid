@@ -140,7 +140,6 @@ impl ServicesContext {
         let attachment_manager = AttachmentManager::new(
             self.config.clone(),
             storage_manager,
-            protected_store,
             table_store,
             #[cfg(feature = "unstable-blockstore")]
             block_store,
@@ -199,7 +198,7 @@ impl ServicesContext {
 
 /////////////////////////////////////////////////////////////////////////////
 ///
-pub struct VeilidCoreContext {
+pub(crate) struct VeilidCoreContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
     // Services

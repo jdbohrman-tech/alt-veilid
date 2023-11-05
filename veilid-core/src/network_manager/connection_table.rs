@@ -4,11 +4,13 @@ use hashlink::LruCache;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[derive(ThisError, Debug)]
-pub enum ConnectionTableAddError {
+pub(in crate::network_manager) enum ConnectionTableAddError {
     #[error("Connection already added to table")]
     AlreadyExists(NetworkConnection),
     #[error("Connection address was filtered")]
     AddressFilter(NetworkConnection, AddressFilterError),
+    #[error("Connection table is full")]
+    TableFull(NetworkConnection),
 }
 
 impl ConnectionTableAddError {
@@ -18,22 +20,31 @@ impl ConnectionTableAddError {
     pub fn address_filter(conn: NetworkConnection, err: AddressFilterError) -> Self {
         ConnectionTableAddError::AddressFilter(conn, err)
     }
+    pub fn table_full(conn: NetworkConnection) -> Self {
+        ConnectionTableAddError::TableFull(conn)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ConnectionRefKind {
+    AddRef,
+    RemoveRef,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
-pub struct ConnectionTableInner {
+struct ConnectionTableInner {
     max_connections: Vec<usize>,
     conn_by_id: Vec<LruCache<NetworkConnectionId, NetworkConnection>>,
     protocol_index_by_id: BTreeMap<NetworkConnectionId, usize>,
-    id_by_descriptor: BTreeMap<ConnectionDescriptor, NetworkConnectionId>,
+    id_by_flow: BTreeMap<Flow, NetworkConnectionId>,
     ids_by_remote: BTreeMap<PeerAddress, Vec<NetworkConnectionId>>,
     address_filter: AddressFilter,
 }
 
 #[derive(Debug)]
-pub struct ConnectionTable {
+pub(in crate::network_manager) struct ConnectionTable {
     inner: Arc<Mutex<ConnectionTableInner>>,
 }
 
@@ -56,7 +67,7 @@ impl ConnectionTable {
                     LruCache::new_unbounded(),
                 ],
                 protocol_index_by_id: BTreeMap::new(),
-                id_by_descriptor: BTreeMap::new(),
+                id_by_flow: BTreeMap::new(),
                 ids_by_remote: BTreeMap::new(),
                 address_filter,
             })),
@@ -87,13 +98,14 @@ impl ConnectionTable {
             let mut inner = self.inner.lock();
             let unord = FuturesUnordered::new();
             for table in &mut inner.conn_by_id {
-                for (_, v) in table.drain() {
+                for (_, mut v) in table.drain() {
                     trace!("connection table join: {:?}", v);
+                    v.close();
                     unord.push(v);
                 }
             }
             inner.protocol_index_by_id.clear();
-            inner.id_by_descriptor.clear();
+            inner.id_by_flow.clear();
             inner.ids_by_remote.clear();
             unord
         };
@@ -139,14 +151,14 @@ impl ConnectionTable {
     ) -> Result<Option<NetworkConnection>, ConnectionTableAddError> {
         // Get indices for network connection table
         let id = network_connection.connection_id();
-        let descriptor = network_connection.connection_descriptor();
-        let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
-        let remote = descriptor.remote();
+        let flow = network_connection.flow();
+        let protocol_index = Self::protocol_to_index(flow.protocol_type());
+        let remote = flow.remote();
 
         let mut inner = self.inner.lock();
 
-        // Two connections to the same descriptor should be rejected (soft rejection)
-        if inner.id_by_descriptor.contains_key(&descriptor) {
+        // Two connections to the same flow should be rejected (soft rejection)
+        if inner.id_by_flow.contains_key(&flow) {
             return Err(ConnectionTableAddError::already_exists(network_connection));
         }
 
@@ -157,14 +169,14 @@ impl ConnectionTable {
         if inner.protocol_index_by_id.get(&id).is_some() {
             panic!("duplicate id to protocol index: {:#?}", network_connection);
         }
-        if let Some(ids) = inner.ids_by_remote.get(&descriptor.remote()) {
+        if let Some(ids) = inner.ids_by_remote.get(&flow.remote()) {
             if ids.contains(&id) {
                 panic!("duplicate id by remote: {:#?}", network_connection);
             }
         }
 
         // Filter by ip for connection limits
-        let ip_addr = descriptor.remote_address().ip_addr();
+        let ip_addr = flow.remote_address().ip_addr();
         match inner.address_filter.add_connection(ip_addr) {
             Ok(()) => {}
             Err(e) => {
@@ -176,59 +188,81 @@ impl ConnectionTable {
             }
         };
 
+        // if we have reached the maximum number of connections per protocol type
+        // then drop the least recently used connection that is not protected or referenced
+        let mut out_conn = None;
+        if inner.conn_by_id[protocol_index].len() >= inner.max_connections[protocol_index] {
+            // Find a free connection to terminate to make room
+            let dead_k = {
+                let Some(lruk) = inner.conn_by_id[protocol_index].iter().find_map(|(k, v)| {
+                    if !v.is_in_use() && v.protected_node_ref().is_none() {
+                        Some(*k)
+                    } else {
+                        None
+                    }
+                }) else {
+                    // Can't make room, connection table is full
+                    return Err(ConnectionTableAddError::table_full(network_connection));
+                };
+                lruk
+            };
+
+            let dead_conn = Self::remove_connection_records(&mut inner, dead_k);
+            out_conn = Some(dead_conn);
+        }
+
         // Add the connection to the table
         let res = inner.conn_by_id[protocol_index].insert(id, network_connection);
         assert!(res.is_none());
 
-        // if we have reached the maximum number of connections per protocol type
-        // then drop the least recently used connection
-        let mut out_conn = None;
-        if inner.conn_by_id[protocol_index].len() > inner.max_connections[protocol_index] {
-            while let Some((lruk, lru_conn)) = inner.conn_by_id[protocol_index].peek_lru() {
-                let lruk = *lruk;
-
-                // Don't LRU protected connections
-                if lru_conn.is_protected() {
-                    // Mark as recently used
-                    log_net!(debug "== No LRU Out for PROTECTED connection: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
-                    inner.conn_by_id[protocol_index].get(&lruk);
-                    continue;
-                }
-
-                log_net!(debug "== LRU Connection Killed: {} -> {}", lruk, lru_conn.debug_print(get_aligned_timestamp()));
-                out_conn = Some(Self::remove_connection_records(&mut inner, lruk));
-                break;
-            }
-        }
-
         // add connection records
         inner.protocol_index_by_id.insert(id, protocol_index);
-        inner.id_by_descriptor.insert(descriptor, id);
+        inner.id_by_flow.insert(flow, id);
         inner.ids_by_remote.entry(remote).or_default().push(id);
 
         Ok(out_conn)
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    #[allow(dead_code)]
-    pub fn get_connection_by_id(&self, id: NetworkConnectionId) -> Option<ConnectionHandle> {
-        let mut inner = self.inner.lock();
-        let protocol_index = *inner.protocol_index_by_id.get(&id)?;
-        let out = inner.conn_by_id[protocol_index].get(&id).unwrap();
+    pub fn peek_connection_by_flow(&self, flow: Flow) -> Option<ConnectionHandle> {
+        if flow.protocol_type() == ProtocolType::UDP {
+            return None;
+        }
+
+        let inner = self.inner.lock();
+
+        let id = *inner.id_by_flow.get(&flow)?;
+        let protocol_index = Self::protocol_to_index(flow.protocol_type());
+        let out = inner.conn_by_id[protocol_index].peek(&id).unwrap();
         Some(out.get_handle())
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    pub fn get_connection_by_descriptor(
-        &self,
-        descriptor: ConnectionDescriptor,
-    ) -> Option<ConnectionHandle> {
+    pub fn touch_connection_by_id(&self, id: NetworkConnectionId) {
         let mut inner = self.inner.lock();
+        let Some(protocol_index) = inner.protocol_index_by_id.get(&id).copied() else {
+            return;
+        };
+        let _ = inner.conn_by_id[protocol_index].get(&id).unwrap();
+    }
 
-        let id = *inner.id_by_descriptor.get(&descriptor)?;
-        let protocol_index = Self::protocol_to_index(descriptor.protocol_type());
-        let out = inner.conn_by_id[protocol_index].get(&id).unwrap();
-        Some(out.get_handle())
+    //#[instrument(level = "trace", skip(self), ret)]
+    pub fn ref_connection_by_id(
+        &self,
+        id: NetworkConnectionId,
+        ref_type: ConnectionRefKind,
+    ) -> bool {
+        let mut inner = self.inner.lock();
+        let Some(protocol_index) = inner.protocol_index_by_id.get(&id).copied() else {
+            // Sometimes network connections die before we can ref/unref them
+            return false;
+        };
+        let out = inner.conn_by_id[protocol_index].get_mut(&id).unwrap();
+        match ref_type {
+            ConnectionRefKind::AddRef => out.add_ref(),
+            ConnectionRefKind::RemoveRef => out.remove_ref(),
+        }
+        true
     }
 
     // #[instrument(level = "trace", skip(self), ret)]
@@ -255,7 +289,7 @@ impl ConnectionTable {
         if let Some(best_port) = best_port {
             for id in all_ids_by_remote {
                 let nc = inner.conn_by_id[protocol_index].peek(id).unwrap();
-                if let Some(local_addr) = nc.connection_descriptor().local() {
+                if let Some(local_addr) = nc.flow().local() {
                     if local_addr.port() == best_port {
                         let nc = inner.conn_by_id[protocol_index].get(id).unwrap();
                         return Some(nc.get_handle());
@@ -282,13 +316,13 @@ impl ConnectionTable {
 
     // pub fn drain_filter<F>(&self, mut filter: F) -> Vec<NetworkConnection>
     // where
-    //     F: FnMut(ConnectionDescriptor) -> bool,
+    //     F: FnMut(Flow) -> bool,
     // {
     //     let mut inner = self.inner.lock();
     //     let mut filtered_ids = Vec::new();
     //     for cbi in &mut inner.conn_by_id {
     //         for (id, conn) in cbi {
-    //             if filter(conn.connection_descriptor()) {
+    //             if filter(conn.flow()) {
     //                 filtered_ids.push(*id);
     //             }
     //         }
@@ -315,11 +349,11 @@ impl ConnectionTable {
         let protocol_index = inner.protocol_index_by_id.remove(&id).unwrap();
         // conn_by_id
         let conn = inner.conn_by_id[protocol_index].remove(&id).unwrap();
-        // id_by_descriptor
-        let descriptor = conn.connection_descriptor();
-        inner.id_by_descriptor.remove(&descriptor).unwrap();
+        // id_by_flow
+        let flow = conn.flow();
+        inner.id_by_flow.remove(&flow).unwrap();
         // ids_by_remote
-        let remote = descriptor.remote();
+        let remote = flow.remote();
         let ids = inner.ids_by_remote.get_mut(&remote).unwrap();
         for (n, elem) in ids.iter().enumerate() {
             if *elem == id {

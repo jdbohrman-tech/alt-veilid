@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RouteSpecDetail {
+pub(crate) struct RouteSpecDetail {
     /// Crypto kind
     pub crypto_kind: CryptoKind,
     /// Secret key
@@ -11,7 +11,7 @@ pub struct RouteSpecDetail {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RouteSetSpecDetail {
+pub(crate) struct RouteSetSpecDetail {
     /// Route set per crypto kind
     route_set: BTreeMap<PublicKey, RouteSpecDetail>,
     /// Route noderefs
@@ -29,6 +29,8 @@ pub struct RouteSetSpecDetail {
     can_do_sequenced: bool,
     /// Stats
     stats: RouteStats,
+    /// Automatically allocated route vs manually allocated route
+    automatic: bool,
 }
 
 impl RouteSetSpecDetail {
@@ -39,6 +41,7 @@ impl RouteSetSpecDetail {
         directions: DirectionSet,
         stability: Stability,
         can_do_sequenced: bool,
+        automatic: bool,
     ) -> Self {
         Self {
             route_set,
@@ -48,13 +51,11 @@ impl RouteSetSpecDetail {
             stability,
             can_do_sequenced,
             stats: RouteStats::new(cur_ts),
+            automatic,
         }
     }
     pub fn get_route_by_key(&self, key: &PublicKey) -> Option<&RouteSpecDetail> {
         self.route_set.get(key)
-    }
-    pub fn get_route_by_key_mut(&mut self, key: &PublicKey) -> Option<&mut RouteSpecDetail> {
-        self.route_set.get_mut(key)
     }
     pub fn get_route_set_keys(&self) -> TypedKeyGroup {
         let mut tks = TypedKeyGroup::new();
@@ -74,11 +75,6 @@ impl RouteSetSpecDetail {
     ) -> alloc::collections::btree_map::Iter<PublicKey, RouteSpecDetail> {
         self.route_set.iter()
     }
-    pub fn iter_route_set_mut(
-        &mut self,
-    ) -> alloc::collections::btree_map::IterMut<PublicKey, RouteSpecDetail> {
-        self.route_set.iter_mut()
-    }
     pub fn get_stats(&self) -> &RouteStats {
         &self.stats
     }
@@ -93,6 +89,9 @@ impl RouteSetSpecDetail {
     }
     pub fn hop_count(&self) -> usize {
         self.hop_node_refs.len()
+    }
+    pub fn hops_node_refs(&self) -> Vec<NodeRef> {
+        self.hop_node_refs.clone()
     }
     pub fn hop_node_ref(&self, idx: usize) -> Option<NodeRef> {
         self.hop_node_refs.get(idx).cloned()
@@ -119,6 +118,9 @@ impl RouteSetSpecDetail {
             }
         }
         false
+    }
+    pub fn is_automatic(&self) -> bool {
+        self.automatic
     }
 
     /// Generate a key for the cache that can be used to uniquely identify this route's contents

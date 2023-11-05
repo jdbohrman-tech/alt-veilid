@@ -19,7 +19,6 @@ pub(crate) fn mock_routing_table() -> routing_table::RoutingTable {
     let network_manager = network_manager::NetworkManager::new(
         veilid_config.clone(),
         storage_manager,
-        protected_store.clone(),
         table_store.clone(),
         #[cfg(feature = "unstable-blockstore")]
         block_store.clone(),

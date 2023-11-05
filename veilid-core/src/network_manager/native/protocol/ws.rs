@@ -1,21 +1,25 @@
 use super::*;
 
 use async_tls::TlsConnector;
+use async_tungstenite::tungstenite::error::ProtocolError;
 use async_tungstenite::tungstenite::handshake::server::{
     Callback, ErrorResponse, Request, Response,
 };
 use async_tungstenite::tungstenite::http::StatusCode;
-use async_tungstenite::tungstenite::protocol::Message;
+use async_tungstenite::tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message};
+use async_tungstenite::tungstenite::Error;
 use async_tungstenite::{accept_hdr_async, client_async, WebSocketStream};
 use futures_util::{AsyncRead, AsyncWrite, SinkExt};
 use sockets::*;
 
-/// Maximum number of websocket request headers to permit
+// Maximum number of websocket request headers to permit
 const MAX_WS_HEADERS: usize = 24;
-/// Maximum size of any one specific websocket header
+// Maximum size of any one specific websocket header
 const MAX_WS_HEADER_LENGTH: usize = 512;
-/// Maximum total size of headers and request including newlines
+// Maximum total size of headers and request including newlines
 const MAX_WS_BEFORE_BODY: usize = 2048;
+// Wait time for connection close
+// const MAX_CONNECTION_CLOSE_WAIT_US: u64 = 5_000_000;
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
@@ -31,14 +35,15 @@ cfg_if! {
     }
 }
 
-fn err_to_network_result<T>(err: async_tungstenite::tungstenite::Error) -> NetworkResult<T> {
+fn err_to_network_result<T>(err: Error) -> NetworkResult<T> {
     match err {
-        async_tungstenite::tungstenite::Error::ConnectionClosed
-        | async_tungstenite::tungstenite::Error::AlreadyClosed
-        | async_tungstenite::tungstenite::Error::Io(_)
-        | async_tungstenite::tungstenite::Error::Protocol(
-            async_tungstenite::tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
-        ) => NetworkResult::NoConnection(to_io_error_other(err)),
+        Error::ConnectionClosed
+        | Error::AlreadyClosed
+        | Error::Io(_)
+        | Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)
+        | Error::Protocol(ProtocolError::SendAfterClosing) => {
+            NetworkResult::NoConnection(to_io_error_other(err))
+        }
         _ => NetworkResult::InvalidMessage(err.to_string()),
     }
 }
@@ -49,7 +54,7 @@ pub struct WebsocketNetworkConnection<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     stream: CloneStream<WebSocketStream<T>>,
 }
 
@@ -66,42 +71,68 @@ impl<T> WebsocketNetworkConnection<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    pub fn new(descriptor: ConnectionDescriptor, stream: WebSocketStream<T>) -> Self {
+    pub fn new(flow: Flow, stream: WebSocketStream<T>) -> Self {
         Self {
-            descriptor,
+            flow,
             stream: CloneStream::new(stream),
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
     }
 
-    // #[instrument(level = "trace", err, skip(self))]
-    // pub async fn close(&self) -> io::Result<()> {
-    //     // Make an attempt to flush the stream
-    //     self.stream.clone().close().await.map_err(to_io_error_other)?;
-    //     // Then forcibly close the socket
-    //     self.tcp_stream
-    //         .shutdown(Shutdown::Both)
-    //         .map_err(to_io_error_other)
-    // }
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", err, skip(self))
+    )]
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        // Make an attempt to close the stream normally
+        let mut stream = self.stream.clone();
+        let out = match stream
+            .send(Message::Close(Some(CloseFrame {
+                code: CloseCode::Normal,
+                reason: "".into(),
+            })))
+            .await
+        {
+            Ok(v) => NetworkResult::value(v),
+            Err(e) => err_to_network_result(e),
+        };
+
+        let _ = stream.close().await;
+
+        Ok(out)
+
+        // Drive connection to close
+        /*
+        let cur_ts = get_timestamp();
+        loop {
+            match stream.flush().await {
+                Ok(()) => {}
+                Err(Error::Io(ioerr)) => {
+                    break Err(ioerr).into_network_result();
+                }
+                Err(Error::ConnectionClosed) => {
+                    break Ok(NetworkResult::value(()));
+                }
+                Err(e) => {
+                    break Err(to_io_error_other(e));
+                }
+            }
+            if get_timestamp().saturating_sub(cur_ts) >= MAX_CONNECTION_CLOSE_WAIT_US {
+                return Ok(NetworkResult::Timeout);
+            }
+        }
+        */
+    }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
-            bail_io_error_other!("received too large WS message");
+            bail_io_error_other!("sending too large WS message");
         }
         let out = match self.stream.clone().send(Message::binary(message)).await {
-            Ok(v) => NetworkResult::value(v),
-            Err(e) => err_to_network_result(e),
-        };
-        if !out.is_value() {
-            #[cfg(feature = "verbose-tracing")]
-            tracing::Span::current().record("network_result", &tracing::field::display(&out));
-            return Ok(out);
-        }
-        let out = match self.stream.clone().flush().await {
             Ok(v) => NetworkResult::value(v),
             Err(e) => err_to_network_result(e),
         };
@@ -153,7 +184,7 @@ struct WebsocketProtocolHandlerArc {
 }
 
 #[derive(Clone)]
-pub struct WebsocketProtocolHandler
+pub(in crate::network_manager) struct WebsocketProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {
@@ -255,7 +286,7 @@ impl WebsocketProtocolHandler {
             PeerAddress::new(SocketAddress::from_socket_addr(socket_addr), protocol_type);
 
         let conn = ProtocolNetworkConnection::WsAccepted(WebsocketNetworkConnection::new(
-            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
+            Flow::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ws_stream,
         ));
 
@@ -304,8 +335,8 @@ impl WebsocketProtocolHandler {
         #[cfg(feature = "rt-tokio")]
         let tcp_stream = tcp_stream.compat();
 
-        // Make our connection descriptor
-        let descriptor = ConnectionDescriptor::new(
+        // Make our flow
+        let flow = Flow::new(
             dial_info.peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
         );
@@ -319,14 +350,14 @@ impl WebsocketProtocolHandler {
                 .map_err(to_io_error_other)?;
 
             Ok(NetworkResult::Value(ProtocolNetworkConnection::Wss(
-                WebsocketNetworkConnection::new(descriptor, ws_stream),
+                WebsocketNetworkConnection::new(flow, ws_stream),
             )))
         } else {
             let (ws_stream, _response) = client_async(request, tcp_stream)
                 .await
                 .map_err(to_io_error_other)?;
             Ok(NetworkResult::Value(ProtocolNetworkConnection::Ws(
-                WebsocketNetworkConnection::new(descriptor, ws_stream),
+                WebsocketNetworkConnection::new(flow, ws_stream),
             )))
         }
     }

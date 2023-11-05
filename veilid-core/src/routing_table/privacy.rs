@@ -5,7 +5,7 @@ use super::*;
 
 /// An encrypted private/safety route hop
 #[derive(Clone, Debug)]
-pub struct RouteHopData {
+pub(crate) struct RouteHopData {
     /// The nonce used in the encryption ENC(Xn,DH(PKn,SKapr))
     pub nonce: Nonce,
     /// The encrypted blob
@@ -14,7 +14,7 @@ pub struct RouteHopData {
 
 /// How to find a route node
 #[derive(Clone, Debug)]
-pub enum RouteNode {
+pub(crate) enum RouteNode {
     /// Route node is optimized, no contact method information as this node id has been seen before
     NodeId(PublicKey),
     /// Route node with full contact method information to ensure the peer is reachable
@@ -79,7 +79,7 @@ impl RouteNode {
 
 /// An unencrypted private/safety route hop
 #[derive(Clone, Debug)]
-pub struct RouteHop {
+pub(crate) struct RouteHop {
     /// The location of the hop
     pub node: RouteNode,
     /// The encrypted blob to pass to the next hop as its data (None for stubs)
@@ -93,7 +93,7 @@ impl RouteHop {
 
 /// The kind of hops a private route can have
 #[derive(Clone, Debug)]
-pub enum PrivateRouteHops {
+pub(crate) enum PrivateRouteHops {
     /// The first hop of a private route, unencrypted, route_hops == total hop count
     FirstHop(Box<RouteHop>),
     /// Private route internal node. Has > 0 private route hops left but < total hop count
@@ -113,7 +113,7 @@ impl PrivateRouteHops {
 }
 /// A private route for receiver privacy
 #[derive(Clone, Debug)]
-pub struct PrivateRoute {
+pub(crate) struct PrivateRoute {
     /// The public key used for the entire route
     pub public_key: TypedKey,
     pub hop_count: u8,
@@ -121,14 +121,6 @@ pub struct PrivateRoute {
 }
 
 impl PrivateRoute {
-    /// Empty private route is the form used when receiving the last hop
-    pub fn new_empty(public_key: TypedKey) -> Self {
-        Self {
-            public_key,
-            hop_count: 0,
-            hops: PrivateRouteHops::Empty,
-        }
-    }
     /// Stub route is the form used when no privacy is required, but you need to specify the destination for a safety route
     pub fn new_stub(public_key: TypedKey, node: RouteNode) -> Self {
         Self {
@@ -225,7 +217,7 @@ impl fmt::Display for PrivateRoute {
 }
 
 #[derive(Clone, Debug)]
-pub enum SafetyRouteHops {
+pub(crate) enum SafetyRouteHops {
     /// Has >= 1 safety route hops
     Data(RouteHopData),
     /// Has 0 safety route hops
@@ -233,7 +225,7 @@ pub enum SafetyRouteHops {
 }
 
 #[derive(Clone, Debug)]
-pub struct SafetyRoute {
+pub(crate) struct SafetyRoute {
     pub public_key: TypedKey,
     pub hop_count: u8,
     pub hops: SafetyRouteHops,

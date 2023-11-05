@@ -42,6 +42,7 @@ impl NetworkManager {
             .self_stats
             .transfer_stats_accounting
             .add_up(bytes);
+        #[allow(clippy::unwrap_or_default)]
         inner
             .stats
             .per_address_stats
@@ -58,6 +59,7 @@ impl NetworkManager {
             .self_stats
             .transfer_stats_accounting
             .add_down(bytes);
+        #[allow(clippy::unwrap_or_default)]
         inner
             .stats
             .per_address_stats
@@ -67,7 +69,7 @@ impl NetworkManager {
             .add_down(bytes);
     }
 
-    // Get stats
+    #[allow(dead_code)]
     pub fn get_stats(&self) -> NetworkManagerStats {
         let inner = self.inner.lock();
         inner.stats.clone()

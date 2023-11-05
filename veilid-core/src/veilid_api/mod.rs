@@ -24,7 +24,6 @@ pub use crypto::*;
 #[cfg(feature = "unstable-blockstore")]
 pub use intf::BlockStore;
 pub use intf::ProtectedStore;
-pub use routing_table::{NodeRef, NodeRefBase};
 pub use table_store::{TableDB, TableDBTransaction, TableStore};
 
 use crate::*;

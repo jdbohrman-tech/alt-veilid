@@ -63,7 +63,7 @@ struct NetworkUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct Network {
+pub(in crate::network_manager) struct Network {
     config: VeilidConfig,
     inner: Arc<Mutex<NetworkInner>>,
     unlocked_inner: Arc<NetworkUnlockedInner>,
@@ -246,13 +246,13 @@ impl Network {
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
-    pub async fn send_data_to_existing_connection(
+    pub async fn send_data_to_existing_flow(
         &self,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         data: Vec<u8>,
-    ) -> EyreResult<Option<Vec<u8>>> {
+    ) -> EyreResult<SendDataToExistingFlowResult> {
         let data_len = data.len();
-        match descriptor.protocol_type() {
+        match flow.protocol_type() {
             ProtocolType::UDP => {
                 bail!("no support for UDP protocol")
             }
@@ -265,29 +265,29 @@ impl Network {
         // Handle connection-oriented protocols
 
         // Try to send to the exact existing connection if one exists
-        if let Some(conn) = self.connection_manager().get_connection(descriptor) {
+        if let Some(conn) = self.connection_manager().get_connection(flow) {
             // connection exists, send over it
             match conn.send_async(data).await {
                 ConnectionHandleSendResult::Sent => {
                     // Network accounting
                     self.network_manager().stats_packet_sent(
-                        descriptor.remote().socket_addr().ip(),
+                        flow.remote().socket_addr().ip(),
                         ByteCount::new(data_len as u64),
                     );
 
                     // Data was consumed
-                    return Ok(None);
+                    return Ok(SendDataToExistingFlowResult::Sent(conn.unique_flow()));
                 }
                 ConnectionHandleSendResult::NotSent(data) => {
                     // Couldn't send
                     // Pass the data back out so we don't own it any more
-                    return Ok(Some(data));
+                    return Ok(SendDataToExistingFlowResult::NotSent(data));
                 }
             }
         }
         // Connection didn't exist
         // Pass the data back out so we don't own it any more
-        Ok(Some(data))
+        Ok(SendDataToExistingFlowResult::NotSent(data))
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
@@ -295,7 +295,7 @@ impl Network {
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<ConnectionDescriptor>> {
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
         self.record_dial_info_failure(dial_info.clone(), async move {
             let data_len = data.len();
             if dial_info.protocol_type() == ProtocolType::UDP {
@@ -318,13 +318,13 @@ impl Network {
                     "failed to send",
                 )));
             }
-            let connection_descriptor = conn.connection_descriptor();
+            let unique_flow = conn.unique_flow();
 
             // Network accounting
             self.network_manager()
                 .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
-            Ok(NetworkResult::value(connection_descriptor))
+            Ok(NetworkResult::value(unique_flow))
         })
         .await
     }
@@ -430,18 +430,6 @@ impl Network {
         trace!("network stopped");
     }
 
-    pub fn is_stable_interface_address(&self, _addr: IpAddr) -> bool {
-        false
-    }
-
-    pub fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
-        Vec::new()
-    }
-
-    pub fn get_local_port(&self, _protocol_type: ProtocolType) -> Option<u16> {
-        None
-    }
-
     pub fn get_preferred_local_address(&self, _dial_info: &DialInfo) -> Option<SocketAddr> {
         None
     }
@@ -457,10 +445,6 @@ impl Network {
 
     pub fn needs_public_dial_info_check(&self) -> bool {
         false
-    }
-
-    pub fn get_protocol_config(&self) -> ProtocolConfig {
-        self.inner.lock().protocol_config.clone()
     }
 
     //////////////////////////////////////////

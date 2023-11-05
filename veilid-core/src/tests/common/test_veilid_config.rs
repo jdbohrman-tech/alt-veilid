@@ -181,10 +181,10 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         }
         "network.connection_initial_timeout_ms" => Ok(Box::new(2_000u32)),
         "network.connection_inactivity_timeout_ms" => Ok(Box::new(60_000u32)),
-        "network.max_connections_per_ip4" => Ok(Box::new(8u32)),
-        "network.max_connections_per_ip6_prefix" => Ok(Box::new(8u32)),
+        "network.max_connections_per_ip4" => Ok(Box::new(32u32)),
+        "network.max_connections_per_ip6_prefix" => Ok(Box::new(32u32)),
         "network.max_connections_per_ip6_prefix_size" => Ok(Box::new(56u32)),
-        "network.max_connection_frequency_per_min" => Ok(Box::new(8u32)),
+        "network.max_connection_frequency_per_min" => Ok(Box::new(128u32)),
         "network.client_whitelist_timeout_ms" => Ok(Box::new(300_000u32)),
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
@@ -192,13 +192,18 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.routing_table.node_id" => Ok(Box::new(TypedKeyGroup::new())),
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
         // "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
+        #[cfg(not(target_arch = "wasm32"))]
         "network.routing_table.bootstrap" => Ok(Box::new(vec!["bootstrap.veilid.net".to_string()])),
+        #[cfg(target_arch = "wasm32")]
+        "network.routing_table.bootstrap" => Ok(Box::new(vec![
+            "ws://bootstrap.veilid.net:5150/ws".to_string(),
+        ])),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
         "network.routing_table.limit_attached_strong" => Ok(Box::new(16u32)),
         "network.routing_table.limit_attached_good" => Ok(Box::new(8u32)),
         "network.routing_table.limit_attached_weak" => Ok(Box::new(4u32)),
-        "network.rpc.concurrency" => Ok(Box::new(2u32)),
+        "network.rpc.concurrency" => Ok(Box::new(0u32)),
         "network.rpc.queue_size" => Ok(Box::new(1024u32)),
         "network.rpc.max_timestamp_behind_ms" => Ok(Box::new(Some(10_000u32))),
         "network.rpc.max_timestamp_ahead_ms" => Ok(Box::new(Some(10_000u32))),
@@ -217,7 +222,7 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.dht.set_value_fanout" => Ok(Box::new(4u32)),
         "network.dht.min_peer_count" => Ok(Box::new(20u32)),
         "network.dht.min_peer_refresh_time_ms" => Ok(Box::new(60_000u32)),
-        "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(5_000u32)),
+        "network.dht.validate_dial_info_receipt_time_ms" => Ok(Box::new(2_000u32)),
         "network.dht.local_subkey_cache_size" => Ok(Box::new(128u32)),
         "network.dht.local_max_subkey_cache_memory_mb" => Ok(Box::new(256u32)),
         "network.dht.remote_subkey_cache_size" => Ok(Box::new(1024u32)),
@@ -226,7 +231,7 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.dht.remote_max_storage_space_mb" => Ok(Box::new(64u32)),
         "network.upnp" => Ok(Box::new(false)),
         "network.detect_address_changes" => Ok(Box::new(true)),
-        "network.restricted_nat_retries" => Ok(Box::new(3u32)),
+        "network.restricted_nat_retries" => Ok(Box::new(0u32)),
         "network.tls.certificate_path" => Ok(Box::new(get_certfile_path())),
         "network.tls.private_key_path" => Ok(Box::new(get_keyfile_path())),
         "network.tls.connection_initial_timeout_ms" => Ok(Box::new(2_000u32)),
@@ -239,7 +244,7 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.application.http.path" => Ok(Box::new(String::from("app"))),
         "network.application.http.url" => Ok(Box::new(Option::<String>::None)),
         "network.protocol.udp.enabled" => Ok(Box::new(true)),
-        "network.protocol.udp.socket_pool_size" => Ok(Box::new(16u32)),
+        "network.protocol.udp.socket_pool_size" => Ok(Box::new(0u32)),
         "network.protocol.udp.listen_address" => Ok(Box::new("".to_owned())),
         "network.protocol.udp.public_address" => Ok(Box::new(Option::<String>::None)),
         "network.protocol.tcp.connect" => Ok(Box::new(true)),
@@ -247,15 +252,15 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.protocol.tcp.max_connections" => Ok(Box::new(32u32)),
         "network.protocol.tcp.listen_address" => Ok(Box::new("".to_owned())),
         "network.protocol.tcp.public_address" => Ok(Box::new(Option::<String>::None)),
-        "network.protocol.ws.connect" => Ok(Box::new(false)),
-        "network.protocol.ws.listen" => Ok(Box::new(false)),
-        "network.protocol.ws.max_connections" => Ok(Box::new(16u32)),
+        "network.protocol.ws.connect" => Ok(Box::new(true)),
+        "network.protocol.ws.listen" => Ok(Box::new(true)),
+        "network.protocol.ws.max_connections" => Ok(Box::new(32u32)),
         "network.protocol.ws.listen_address" => Ok(Box::new("".to_owned())),
         "network.protocol.ws.path" => Ok(Box::new(String::from("ws"))),
         "network.protocol.ws.url" => Ok(Box::new(Option::<String>::None)),
-        "network.protocol.wss.connect" => Ok(Box::new(false)),
+        "network.protocol.wss.connect" => Ok(Box::new(true)),
         "network.protocol.wss.listen" => Ok(Box::new(false)),
-        "network.protocol.wss.max_connections" => Ok(Box::new(16u32)),
+        "network.protocol.wss.max_connections" => Ok(Box::new(32u32)),
         "network.protocol.wss.listen_address" => Ok(Box::new("".to_owned())),
         "network.protocol.wss.path" => Ok(Box::new(String::from("ws"))),
         "network.protocol.wss.url" => Ok(Box::new(Option::<String>::None)),
@@ -311,24 +316,30 @@ pub async fn test_config() {
     );
     assert_eq!(inner.network.connection_initial_timeout_ms, 2_000u32);
     assert_eq!(inner.network.connection_inactivity_timeout_ms, 60_000u32);
-    assert_eq!(inner.network.max_connections_per_ip4, 8u32);
-    assert_eq!(inner.network.max_connections_per_ip6_prefix, 8u32);
+    assert_eq!(inner.network.max_connections_per_ip4, 32u32);
+    assert_eq!(inner.network.max_connections_per_ip6_prefix, 32u32);
     assert_eq!(inner.network.max_connections_per_ip6_prefix_size, 56u32);
-    assert_eq!(inner.network.max_connection_frequency_per_min, 8u32);
+    assert_eq!(inner.network.max_connection_frequency_per_min, 128u32);
     assert_eq!(inner.network.client_whitelist_timeout_ms, 300_000u32);
     assert_eq!(inner.network.reverse_connection_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.network_key_password, Option::<String>::None);
-    assert_eq!(inner.network.rpc.concurrency, 2u32);
+    assert_eq!(inner.network.rpc.concurrency, 0u32);
     assert_eq!(inner.network.rpc.queue_size, 1024u32);
     assert_eq!(inner.network.rpc.timeout_ms, 5_000u32);
     assert_eq!(inner.network.rpc.max_route_hop_count, 4u8);
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
     assert_eq!(inner.network.routing_table.node_id.len(), 0);
     assert_eq!(inner.network.routing_table.node_id_secret.len(), 0);
+    #[cfg(not(target_arch = "wasm32"))]
     assert_eq!(
         inner.network.routing_table.bootstrap,
         vec!["bootstrap.veilid.net"],
+    );
+    #[cfg(target_arch = "wasm32")]
+    assert_eq!(
+        inner.network.routing_table.bootstrap,
+        vec!["ws://bootstrap.veilid.net:5150/ws"],
     );
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);
@@ -350,12 +361,12 @@ pub async fn test_config() {
     assert_eq!(inner.network.dht.min_peer_refresh_time_ms, 60_000u32);
     assert_eq!(
         inner.network.dht.validate_dial_info_receipt_time_ms,
-        5_000u32
+        2_000u32
     );
 
     assert!(!inner.network.upnp);
     assert!(inner.network.detect_address_changes);
-    assert_eq!(inner.network.restricted_nat_retries, 3u32);
+    assert_eq!(inner.network.restricted_nat_retries, 0u32);
     assert_eq!(inner.network.tls.certificate_path, get_certfile_path());
     assert_eq!(inner.network.tls.private_key_path, get_keyfile_path());
     assert_eq!(inner.network.tls.connection_initial_timeout_ms, 2_000u32);
@@ -368,8 +379,9 @@ pub async fn test_config() {
     assert_eq!(inner.network.application.http.listen_address, "");
     assert_eq!(inner.network.application.http.path, "app");
     assert_eq!(inner.network.application.http.url, None);
+
     assert!(inner.network.protocol.udp.enabled);
-    assert_eq!(inner.network.protocol.udp.socket_pool_size, 16u32);
+    assert_eq!(inner.network.protocol.udp.socket_pool_size, 0u32);
     assert_eq!(inner.network.protocol.udp.listen_address, "");
     assert_eq!(inner.network.protocol.udp.public_address, None);
     assert!(inner.network.protocol.tcp.connect);
@@ -377,15 +389,15 @@ pub async fn test_config() {
     assert_eq!(inner.network.protocol.tcp.max_connections, 32u32);
     assert_eq!(inner.network.protocol.tcp.listen_address, "");
     assert_eq!(inner.network.protocol.tcp.public_address, None);
-    assert!(!inner.network.protocol.ws.connect);
-    assert!(!inner.network.protocol.ws.listen);
-    assert_eq!(inner.network.protocol.ws.max_connections, 16u32);
+    assert!(inner.network.protocol.ws.connect);
+    assert!(inner.network.protocol.ws.listen);
+    assert_eq!(inner.network.protocol.ws.max_connections, 32u32);
     assert_eq!(inner.network.protocol.ws.listen_address, "");
     assert_eq!(inner.network.protocol.ws.path, "ws");
     assert_eq!(inner.network.protocol.ws.url, None);
-    assert!(!inner.network.protocol.wss.connect);
+    assert!(inner.network.protocol.wss.connect);
     assert!(!inner.network.protocol.wss.listen);
-    assert_eq!(inner.network.protocol.wss.max_connections, 16u32);
+    assert_eq!(inner.network.protocol.wss.max_connections, 32u32);
     assert_eq!(inner.network.protocol.wss.listen_address, "");
     assert_eq!(inner.network.protocol.wss.path, "ws");
     assert_eq!(inner.network.protocol.wss.url, None);

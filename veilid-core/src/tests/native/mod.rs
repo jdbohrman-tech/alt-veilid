@@ -1,11 +1,6 @@
 //! Test suite for Native
 #![cfg(not(target_arch = "wasm32"))]
-use crate::crypto::tests::*;
-use crate::network_manager::tests::*;
-use crate::routing_table;
-use crate::table_store::tests::*;
-use crate::tests::common::*;
-use crate::veilid_api;
+use crate::tests::*;
 use crate::*;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -101,15 +96,15 @@ cfg_if! {
 
         pub fn setup() {
             SETUP_ONCE.call_once(|| {
-                use tracing_subscriber::{filter, fmt, prelude::*};
-                let mut filters = filter::Targets::new().with_default(filter::LevelFilter::INFO);
+                use tracing_subscriber::{EnvFilter, filter::LevelFilter, fmt, prelude::*};
+                let mut env_filter = EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).from_env_lossy();
                 for ig in DEFAULT_LOG_IGNORE_LIST {
-                    filters = filters.with_target(ig, filter::LevelFilter::OFF);
+                    env_filter = env_filter.add_directive(format!("{}=off", ig).parse().unwrap());
                 }
                 let fmt_layer = fmt::layer();
                 tracing_subscriber::registry()
                     .with(fmt_layer)
-                    .with(filters)
+                    .with(env_filter)
                     .init();
             });
         }

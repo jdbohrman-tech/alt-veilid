@@ -8,8 +8,8 @@ use super::*;
 use std::io;
 
 #[derive(Debug)]
-pub enum ProtocolNetworkConnection {
-    Dummy(DummyNetworkConnection),
+pub(in crate::network_manager) enum ProtocolNetworkConnection {
+    //    Dummy(DummyNetworkConnection),
     RawTcp(tcp::RawTcpNetworkConnection),
     WsAccepted(ws::WebSocketNetworkConnectionAccepted),
     Ws(ws::WebsocketNetworkConnectionWS),
@@ -45,29 +45,29 @@ impl ProtocolNetworkConnection {
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
+    pub fn flow(&self) -> Flow {
         match self {
-            Self::Dummy(d) => d.descriptor(),
-            Self::RawTcp(t) => t.descriptor(),
-            Self::WsAccepted(w) => w.descriptor(),
-            Self::Ws(w) => w.descriptor(),
-            Self::Wss(w) => w.descriptor(),
+            //            Self::Dummy(d) => d.flow(),
+            Self::RawTcp(t) => t.flow(),
+            Self::WsAccepted(w) => w.flow(),
+            Self::Ws(w) => w.flow(),
+            Self::Wss(w) => w.flow(),
         }
     }
 
-    // pub async fn close(&self) -> io::Result<NetworkResult<()>> {
-    //     match self {
-    //         Self::Dummy(d) => d.close(),
-    //         Self::RawTcp(t) => t.close().await,
-    //         Self::WsAccepted(w) => w.close().await,
-    //         Self::Ws(w) => w.close().await,
-    //         Self::Wss(w) => w.close().await,
-    //     }
-    // }
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        match self {
+            //            Self::Dummy(d) => d.close(),
+            Self::RawTcp(t) => t.close().await,
+            Self::WsAccepted(w) => w.close().await,
+            Self::Ws(w) => w.close().await,
+            Self::Wss(w) => w.close().await,
+        }
+    }
 
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         match self {
-            Self::Dummy(d) => d.send(message),
+            //            Self::Dummy(d) => d.send(message),
             Self::RawTcp(t) => t.send(message).await,
             Self::WsAccepted(w) => w.send(message).await,
             Self::Ws(w) => w.send(message).await,
@@ -76,7 +76,7 @@ impl ProtocolNetworkConnection {
     }
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         match self {
-            Self::Dummy(d) => d.recv(),
+            //            Self::Dummy(d) => d.recv(),
             Self::RawTcp(t) => t.recv().await,
             Self::WsAccepted(w) => w.recv().await,
             Self::Ws(w) => w.recv().await,

@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub struct ConnectionHandle {
-    id: NetworkConnectionId,
-    descriptor: ConnectionDescriptor,
+    connection_id: NetworkConnectionId,
+    flow: Flow,
     channel: flume::Sender<(Option<Id>, Vec<u8>)>,
 }
 
@@ -15,32 +15,42 @@ pub enum ConnectionHandleSendResult {
 
 impl ConnectionHandle {
     pub(super) fn new(
-        id: NetworkConnectionId,
-        descriptor: ConnectionDescriptor,
+        connection_id: NetworkConnectionId,
+        flow: Flow,
         channel: flume::Sender<(Option<Id>, Vec<u8>)>,
     ) -> Self {
         Self {
-            id,
-            descriptor,
+            connection_id,
+            flow,
             channel,
         }
     }
 
+    #[allow(dead_code)]
     pub fn connection_id(&self) -> NetworkConnectionId {
-        self.id
+        self.connection_id
     }
 
-    pub fn connection_descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    #[allow(dead_code)]
+    pub fn flow(&self) -> Flow {
+        self.flow
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(self, message), fields(message.len = message.len())))]
-    pub fn send(&self, message: Vec<u8>) -> ConnectionHandleSendResult {
-        match self.channel.send((Span::current().id(), message)) {
-            Ok(()) => ConnectionHandleSendResult::Sent,
-            Err(e) => ConnectionHandleSendResult::NotSent(e.0 .1),
+    pub fn unique_flow(&self) -> UniqueFlow {
+        UniqueFlow {
+            flow: self.flow,
+            connection_id: Some(self.connection_id),
         }
     }
+
+    // #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(self, message), fields(message.len = message.len())))]
+    // pub fn send(&self, message: Vec<u8>) -> ConnectionHandleSendResult {
+    //     match self.channel.send((Span::current().id(), message)) {
+    //         Ok(()) => ConnectionHandleSendResult::Sent,
+    //         Err(e) => ConnectionHandleSendResult::NotSent(e.0 .1),
+    //     }
+    // }
+
     #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(self, message), fields(message.len = message.len())))]
     pub async fn send_async(&self, message: Vec<u8>) -> ConnectionHandleSendResult {
         match self
@@ -56,7 +66,7 @@ impl ConnectionHandle {
 
 impl PartialEq for ConnectionHandle {
     fn eq(&self, other: &Self) -> bool {
-        self.descriptor == other.descriptor
+        self.connection_id == other.connection_id && self.flow == other.flow
     }
 }
 

@@ -2,7 +2,7 @@ use super::*;
 use crate::storage_manager::SignedValueData;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationValueChanged {
+pub(in crate::rpc_processor) struct RPCOperationValueChanged {
     key: TypedKey,
     subkeys: ValueSubkeyRangeSet,
     count: u32,

@@ -270,6 +270,7 @@ impl VeilidAPI {
             default_route_hop_count,
             Direction::Inbound.into(),
             &[],
+            false,
         )?;
         if !rss.test_route(route_id).await? {
             rss.release_route(route_id);

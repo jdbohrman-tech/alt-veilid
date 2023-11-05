@@ -253,13 +253,15 @@ tracing-oslog = { version = "0.1.2", optional = true }
 
 ### DEV DEPENDENCIES
 
-[dev-dependencies]
-serial_test = "2.0.0"
-
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 simplelog = { version = "0.12.1", features = ["test"] }
+serial_test = "2.0.0"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+serial_test = { version = "2.0.0", default-features = false, features = [
+    "async",
+] }
 wasm-bindgen-test = "0.3.37"
 console_error_panic_hook = "0.1.7"
 wee_alloc = "0.4.5"

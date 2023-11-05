@@ -13,6 +13,7 @@ enum RoutingDomainChange {
     SetRelayNodeKeepalive {
         ts: Option<Timestamp>,
     },
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     AddDialInfoDetail {
         dial_info_detail: DialInfoDetail,
     },
@@ -27,7 +28,7 @@ enum RoutingDomainChange {
     },
 }
 
-pub struct RoutingDomainEditor {
+pub(crate) struct RoutingDomainEditor {
     routing_table: RoutingTable,
     routing_domain: RoutingDomain,
     changes: Vec<RoutingDomainChange>,
@@ -214,7 +215,7 @@ impl RoutingDomainEditor {
 
                             if this_changed {
                                 info!(
-                                    "[{:?}] setup network: {:?} {:?} {:?} {:?}",
+                                    "[{:?}] setup network: outbound {:?} inbound {:?} address types {:?} capabilities {:?}",
                                     self.routing_domain,
                                     outbound_protocols,
                                     inbound_protocols,

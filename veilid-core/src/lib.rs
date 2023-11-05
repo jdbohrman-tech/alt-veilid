@@ -49,7 +49,6 @@ mod core_context;
 mod crypto;
 mod intf;
 mod network_manager;
-mod receipt_manager;
 mod routing_table;
 mod rpc_processor;
 mod storage_manager;

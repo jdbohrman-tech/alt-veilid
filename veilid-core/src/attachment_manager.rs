@@ -4,7 +4,7 @@ use network_manager::*;
 use routing_table::*;
 use storage_manager::*;
 
-pub struct AttachmentManagerInner {
+struct AttachmentManagerInner {
     last_attachment_state: AttachmentState,
     last_routing_table_health: Option<RoutingTableHealth>,
     maintain_peers: bool,
@@ -13,13 +13,13 @@ pub struct AttachmentManagerInner {
     attachment_maintainer_jh: Option<MustJoinHandle<()>>,
 }
 
-pub struct AttachmentManagerUnlockedInner {
+struct AttachmentManagerUnlockedInner {
     config: VeilidConfig,
     network_manager: NetworkManager,
 }
 
 #[derive(Clone)]
-pub struct AttachmentManager {
+pub(crate) struct AttachmentManager {
     inner: Arc<Mutex<AttachmentManagerInner>>,
     unlocked_inner: Arc<AttachmentManagerUnlockedInner>,
 }
@@ -28,7 +28,6 @@ impl AttachmentManager {
     fn new_unlocked_inner(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -38,7 +37,6 @@ impl AttachmentManager {
             network_manager: NetworkManager::new(
                 config,
                 storage_manager,
-                protected_store,
                 table_store,
                 #[cfg(feature = "unstable-blockstore")]
                 block_store,
@@ -59,7 +57,6 @@ impl AttachmentManager {
     pub fn new(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -69,7 +66,6 @@ impl AttachmentManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
                 storage_manager,
-                protected_store,
                 table_store,
                 #[cfg(feature = "unstable-blockstore")]
                 block_store,

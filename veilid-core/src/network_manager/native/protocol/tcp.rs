@@ -3,7 +3,7 @@ use futures_util::{AsyncReadExt, AsyncWriteExt};
 use sockets::*;
 
 pub struct RawTcpNetworkConnection {
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     stream: AsyncPeekStream,
 }
 
@@ -14,33 +14,38 @@ impl fmt::Debug for RawTcpNetworkConnection {
 }
 
 impl RawTcpNetworkConnection {
-    pub fn new(descriptor: ConnectionDescriptor, stream: AsyncPeekStream) -> Self {
-        Self { descriptor, stream }
+    pub fn new(flow: Flow, stream: AsyncPeekStream) -> Self {
+        Self { flow, stream }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
     }
 
-    // #[instrument(level = "trace", err, skip(self))]
-    // pub async fn close(&mut self) -> io::Result<NetworkResult<()>> {
-    //     // Make an attempt to flush the stream
-    //     self.stream.clone().close().await?;
-    //     // Then shut down the write side of the socket to effect a clean close
-    //     cfg_if! {
-    //         if #[cfg(feature="rt-async-std")] {
-    //             self.tcp_stream
-    //                 .shutdown(async_std::net::Shutdown::Write)
-    //         } else if #[cfg(feature="rt-tokio")] {
-    //             use tokio::io::AsyncWriteExt;
-    //             self.tcp_stream.get_mut()
-    //                 .shutdown()
-    //                 .await
-    //         } else {
-    //              compile_error!("needs executor implementation")
-    //          }
-    //     }
-    // }
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", err, skip(self))
+    )]
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        let mut stream = self.stream.clone();
+        let _ = stream.close().await;
+        Ok(NetworkResult::value(()))
+
+        // // Then shut down the write side of the socket to effect a clean close
+        // cfg_if! {
+        //     if #[cfg(feature="rt-async-std")] {
+        //         self.tcp_stream
+        //             .shutdown(async_std::net::Shutdown::Write)
+        //     } else if #[cfg(feature="rt-tokio")] {
+        //         use tokio::io::AsyncWriteExt;
+        //         self.tcp_stream.get_mut()
+        //             .shutdown()
+        //             .await
+        //     } else {
+        //          compile_error!("needs executor implementation")
+        //      }
+        // }
+    }
 
     async fn send_internal(
         stream: &mut AsyncPeekStream,
@@ -107,7 +112,7 @@ impl RawTcpNetworkConnection {
 ///
 
 #[derive(Clone)]
-pub struct RawTcpProtocolHandler
+pub(in crate::network_manager) struct RawTcpProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {
@@ -147,7 +152,7 @@ impl RawTcpProtocolHandler {
             ProtocolType::TCP,
         );
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
-            ConnectionDescriptor::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
+            Flow::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ps,
         ));
 
@@ -181,7 +186,7 @@ impl RawTcpProtocolHandler {
 
         // Wrap the stream in a network connection and return it
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
-            ConnectionDescriptor::new(
+            Flow::new(
                 PeerAddress::new(
                     SocketAddress::from_socket_addr(socket_addr),
                     ProtocolType::TCP,

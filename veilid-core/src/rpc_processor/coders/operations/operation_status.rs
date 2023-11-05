@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationStatusQ {
+pub(in crate::rpc_processor) struct RPCOperationStatusQ {
     node_status: Option<NodeStatus>,
 }
 
@@ -43,7 +43,7 @@ impl RPCOperationStatusQ {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationStatusA {
+pub(in crate::rpc_processor) struct RPCOperationStatusA {
     node_status: Option<NodeStatus>,
     sender_info: Option<SenderInfo>,
 }

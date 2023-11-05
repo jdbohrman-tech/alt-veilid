@@ -1,4 +1,5 @@
 use super::*;
+use crate::veilid_api::*;
 
 mod permutation;
 mod remote_private_route_info;
@@ -7,15 +8,14 @@ mod route_spec_store_cache;
 mod route_spec_store_content;
 mod route_stats;
 
-pub use remote_private_route_info::*;
-pub use route_set_spec_detail::*;
-pub use route_spec_store_cache::*;
-pub use route_spec_store_content::*;
-pub use route_stats::*;
-
-use crate::veilid_api::*;
-
 use permutation::*;
+use remote_private_route_info::*;
+use route_set_spec_detail::*;
+use route_spec_store_cache::*;
+use route_spec_store_content::*;
+
+pub(crate) use route_spec_store_cache::CompiledRoute;
+pub(crate) use route_stats::*;
 
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
@@ -27,14 +27,14 @@ const ROUTE_MIN_IDLE_TIME_MS: u32 = 30_000;
 const COMPILED_ROUTE_CACHE_SIZE: usize = 256;
 
 #[derive(Debug)]
-pub struct RouteSpecStoreInner {
+struct RouteSpecStoreInner {
     /// Serialize RouteSpecStore content
     content: RouteSpecStoreContent,
     /// RouteSpecStore cache
     cache: RouteSpecStoreCache,
 }
 
-pub struct RouteSpecStoreUnlockedInner {
+struct RouteSpecStoreUnlockedInner {
     /// Handle to routing table
     routing_table: RoutingTable,
     /// Maximum number of hops in a route
@@ -54,7 +54,7 @@ impl fmt::Debug for RouteSpecStoreUnlockedInner {
 
 /// The routing table's storage for private/safety routes
 #[derive(Clone, Debug)]
-pub struct RouteSpecStore {
+pub(crate) struct RouteSpecStore {
     inner: Arc<Mutex<RouteSpecStoreInner>>,
     unlocked_inner: Arc<RouteSpecStoreUnlockedInner>,
 }
@@ -166,7 +166,8 @@ impl RouteSpecStore {
     /// Returns Err(VeilidAPIError::TryAgain) if no route could be allocated at this time
     /// Returns other errors on failure
     /// Returns Ok(route id string) on success
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", skip(self), ret, err(level=Level::TRACE))]
+    #[allow(clippy::too_many_arguments)]
     pub fn allocate_route(
         &self,
         crypto_kinds: &[CryptoKind],
@@ -175,6 +176,7 @@ impl RouteSpecStore {
         hop_count: usize,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
+        automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.unlocked_inner.routing_table.clone();
@@ -189,10 +191,11 @@ impl RouteSpecStore {
             hop_count,
             directions,
             avoid_nodes,
+            automatic,
         )
     }
 
-    #[instrument(level = "trace", skip(self, inner, rti), ret, err)]
+    #[instrument(level = "trace", skip(self, inner, rti), ret, err(level=Level::TRACE))]
     #[allow(clippy::too_many_arguments)]
     fn allocate_route_inner(
         &self,
@@ -204,6 +207,7 @@ impl RouteSpecStore {
         hop_count: usize,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
+        automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         use core::cmp::Ordering;
 
@@ -576,6 +580,7 @@ impl RouteSpecStore {
             directions,
             stability,
             can_do_sequenced,
+            automatic,
         );
 
         // make id
@@ -661,9 +666,9 @@ impl RouteSpecStore {
     )]
     async fn test_allocated_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
         // Make loopback route to test with
-        let dest = {
-            // Get the best private route for this id
-            let (key, hop_count) = {
+        let (dest, hops) = {
+            // Get the best allocated route for this id
+            let (key, hops) = {
                 let inner = &mut *self.inner.lock();
                 let Some(rssd) = inner.content.get_detail(&private_route_id) else {
                     apibail_invalid_argument!(
@@ -675,9 +680,10 @@ impl RouteSpecStore {
                 let Some(key) = rssd.get_best_route_set_key() else {
                     apibail_internal!("no best key to test allocated route");
                 };
-                // Match the private route's hop length for safety route length
-                let hop_count = rssd.hop_count();
-                (key, hop_count)
+                // Get the hops so we can match the route's hop length for safety
+                // route length as well as marking nodes as unreliable if this fails
+                let hops = rssd.hops_node_refs();
+                (key, hops)
             };
 
             // Get the private route to send to
@@ -686,6 +692,8 @@ impl RouteSpecStore {
             let stability = Stability::Reliable;
             // Routes should test with the most likely to succeed sequencing they are capable of
             let sequencing = Sequencing::PreferOrdered;
+            // Hop count for safety spec should match the private route spec
+            let hop_count = hops.len();
 
             let safety_spec = SafetySpec {
                 preferred_route: Some(private_route_id),
@@ -695,10 +703,13 @@ impl RouteSpecStore {
             };
             let safety_selection = SafetySelection::Safe(safety_spec);
 
-            Destination::PrivateRoute {
-                private_route,
-                safety_selection,
-            }
+            (
+                Destination::PrivateRoute {
+                    private_route,
+                    safety_selection,
+                },
+                hops,
+            )
         };
 
         // Test with double-round trip ping to self
@@ -706,7 +717,12 @@ impl RouteSpecStore {
         let _res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
-                // Did not error, but did not come back, just return false
+                // Did not error, but did not come back, mark the nodes as failed to send, and then return false
+                // This will prevent those node from immediately being included in the next allocated route,
+                // avoiding the same route being constructed to replace this one when it is removed.
+                for hop in hops {
+                    hop.report_failed_route_test();
+                }
                 return Ok(false);
             }
         };
@@ -1244,6 +1260,7 @@ impl RouteSpecStore {
                 safety_spec.hop_count,
                 direction,
                 avoid_nodes,
+                true,
             )?
         };
 

@@ -1,6 +1,6 @@
 use super::*;
 
-pub struct FanoutQueue {
+pub(in crate::rpc_processor) struct FanoutQueue {
     crypto_kind: CryptoKind,
     current_nodes: VecDeque<NodeRef>,
     returned_nodes: HashSet<TypedKey>,

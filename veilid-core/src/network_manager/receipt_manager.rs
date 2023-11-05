@@ -7,7 +7,8 @@ use routing_table::*;
 use stop_token::future::FutureExt;
 
 #[derive(Clone, Debug)]
-pub enum ReceiptEvent {
+#[allow(dead_code)]
+pub(crate) enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand { inbound_noderef: NodeRef },
     ReturnedSafety,
@@ -17,14 +18,14 @@ pub enum ReceiptEvent {
 }
 
 #[derive(Clone, Debug)]
-pub enum ReceiptReturned {
+pub(super) enum ReceiptReturned {
     OutOfBand,
     InBand { inbound_noderef: NodeRef },
     Safety,
     Private { private_route: PublicKey },
 }
 
-pub trait ReceiptCallback: Send + 'static {
+pub(crate) trait ReceiptCallback: Send + 'static {
     fn call(
         &self,
         event: ReceiptEvent,
@@ -52,6 +53,7 @@ where
 type ReceiptCallbackType = Box<dyn ReceiptCallback>;
 type ReceiptSingleShotType = SingleShotEventual<ReceiptEvent>;
 
+#[allow(dead_code)]
 enum ReceiptRecordCallbackType {
     Normal(ReceiptCallbackType),
     SingleShot(Option<ReceiptSingleShotType>),
@@ -69,7 +71,7 @@ impl fmt::Debug for ReceiptRecordCallbackType {
     }
 }
 
-pub struct ReceiptRecord {
+struct ReceiptRecord {
     expiration_ts: Timestamp,
     receipt: Receipt,
     expected_returns: u32,
@@ -90,6 +92,7 @@ impl fmt::Debug for ReceiptRecord {
 }
 
 impl ReceiptRecord {
+    #[allow(dead_code)]
     pub fn new(
         receipt: Receipt,
         expiration_ts: Timestamp,
@@ -147,7 +150,7 @@ impl PartialOrd for ReceiptRecordTimestampSort {
 
 ///////////////////////////////////
 
-pub struct ReceiptManagerInner {
+struct ReceiptManagerInner {
     network_manager: NetworkManager,
     records_by_nonce: BTreeMap<Nonce, Arc<Mutex<ReceiptRecord>>>,
     next_oldest_ts: Option<Timestamp>,
@@ -156,7 +159,7 @@ pub struct ReceiptManagerInner {
 }
 
 #[derive(Clone)]
-pub struct ReceiptManager {
+pub(super) struct ReceiptManager {
     inner: Arc<Mutex<ReceiptManagerInner>>,
 }
 
@@ -314,6 +317,7 @@ impl ReceiptManager {
         debug!("finished receipt manager shutdown");
     }
 
+    #[allow(dead_code)]
     pub fn record_receipt(
         &self,
         receipt: Receipt,
@@ -369,6 +373,7 @@ impl ReceiptManager {
         inner.next_oldest_ts = new_next_oldest_ts;
     }
 
+    #[allow(dead_code)]
     pub async fn cancel_receipt(&self, nonce: &Nonce) -> EyreResult<()> {
         log_rpc!(debug "== Cancel Receipt {}", nonce.encode());
 

@@ -30,6 +30,7 @@ impl SocketAddress {
     pub fn port(&self) -> u16 {
         self.port
     }
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn set_port(&mut self, port: u16) {
         self.port = port
     }

@@ -29,34 +29,34 @@ mod operation_complete_tunnel;
 #[cfg(feature = "unstable-tunnels")]
 mod operation_start_tunnel;
 
-pub use answer::*;
-pub use operation::*;
-pub use operation_app_call::*;
-pub use operation_app_message::*;
-pub use operation_find_node::*;
-pub use operation_get_value::*;
-pub use operation_return_receipt::*;
-pub use operation_route::*;
-pub use operation_set_value::*;
-pub use operation_signal::*;
-pub use operation_status::*;
-pub use operation_validate_dial_info::*;
-pub use operation_value_changed::*;
-pub use operation_watch_value::*;
-pub use question::*;
-pub use respond_to::*;
-pub use statement::*;
+pub(in crate::rpc_processor) use answer::*;
+pub(in crate::rpc_processor) use operation::*;
+pub(in crate::rpc_processor) use operation_app_call::*;
+pub(in crate::rpc_processor) use operation_app_message::*;
+pub(in crate::rpc_processor) use operation_find_node::*;
+pub(in crate::rpc_processor) use operation_get_value::*;
+pub(in crate::rpc_processor) use operation_return_receipt::*;
+pub(in crate::rpc_processor) use operation_route::*;
+pub(in crate::rpc_processor) use operation_set_value::*;
+pub(in crate::rpc_processor) use operation_signal::*;
+pub(in crate::rpc_processor) use operation_status::*;
+pub(in crate::rpc_processor) use operation_validate_dial_info::*;
+pub(in crate::rpc_processor) use operation_value_changed::*;
+pub(in crate::rpc_processor) use operation_watch_value::*;
+pub(in crate::rpc_processor) use question::*;
+pub(in crate::rpc_processor) use respond_to::*;
+pub(in crate::rpc_processor) use statement::*;
 
 #[cfg(feature = "unstable-blockstore")]
-pub use operation_find_block::*;
+pub(in crate::rpc_processor) use operation_find_block::*;
 #[cfg(feature = "unstable-blockstore")]
-pub use operation_supply_block::*;
+pub(in crate::rpc_processor) use operation_supply_block::*;
 
 #[cfg(feature = "unstable-tunnels")]
-pub use operation_cancel_tunnel::*;
+pub(in crate::rpc_processor) use operation_cancel_tunnel::*;
 #[cfg(feature = "unstable-tunnels")]
-pub use operation_complete_tunnel::*;
+pub(in crate::rpc_processor) use operation_complete_tunnel::*;
 #[cfg(feature = "unstable-tunnels")]
-pub use operation_start_tunnel::*;
+pub(in crate::rpc_processor) use operation_start_tunnel::*;
 
 use super::*;

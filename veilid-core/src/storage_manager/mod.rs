@@ -44,7 +44,7 @@ struct StorageManagerUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct StorageManager {
+pub(crate) struct StorageManager {
     unlocked_inner: Arc<StorageManagerUnlockedInner>,
     inner: Arc<AsyncMutex<StorageManagerInner>>,
 }

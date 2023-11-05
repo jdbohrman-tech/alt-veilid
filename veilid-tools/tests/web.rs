@@ -22,7 +22,7 @@ pub fn setup() -> () {
                 let mut builder = tracing_wasm::WASMLayerConfigBuilder::new();
                 builder.set_report_logs_in_timings(false);
                 builder.set_max_level(Level::TRACE);
-                builder.set_console_config(tracing_wasm::ConsoleConfig::ReportWithConsoleColor);
+                builder.set_console_config(tracing_wasm::ConsoleConfig::ReportWithoutConsoleColor);
                 tracing_wasm::set_as_global_default_with_config(builder.build());
             } else {
                 wasm_logger::init(wasm_logger::Config::default());

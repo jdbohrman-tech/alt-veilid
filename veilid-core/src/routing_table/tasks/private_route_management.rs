@@ -219,6 +219,7 @@ impl RoutingTable {
                     default_route_hop_count,
                     DirectionSet::all(),
                     &[],
+                    true,
                 ) {
                     Err(VeilidAPIError::TryAgain { message }) => {
                         log_rtab!(debug "Route allocation unavailable: {}", message);

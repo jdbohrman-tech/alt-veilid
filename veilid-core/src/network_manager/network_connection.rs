@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
         ///////////////////////////////////////////////////////////
         // Accept
 
-        pub trait ProtocolAcceptHandler: ProtocolAcceptHandlerClone + Send + Sync {
+        pub(in crate::network_manager) trait ProtocolAcceptHandler: ProtocolAcceptHandlerClone + Send + Sync {
             fn on_accept(
                 &self,
                 stream: AsyncPeekStream,
@@ -20,7 +20,7 @@ cfg_if::cfg_if! {
             ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>>;
         }
 
-        pub trait ProtocolAcceptHandlerClone {
+        pub(in crate::network_manager)  trait ProtocolAcceptHandlerClone {
             fn clone_box(&self) -> Box<dyn ProtocolAcceptHandler>;
         }
 
@@ -38,32 +38,32 @@ cfg_if::cfg_if! {
             }
         }
 
-        pub type NewProtocolAcceptHandler =
+        pub(in crate::network_manager) type NewProtocolAcceptHandler =
             dyn Fn(VeilidConfig, bool) -> Box<dyn ProtocolAcceptHandler> + Send;
     }
 }
 ///////////////////////////////////////////////////////////
 // Dummy protocol network connection for testing
 
-#[derive(Debug)]
-pub struct DummyNetworkConnection {
-    descriptor: ConnectionDescriptor,
-}
+// #[derive(Debug)]
+// pub struct DummyNetworkConnection {
+//     flow: Flow,
+// }
 
-impl DummyNetworkConnection {
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
-    }
-    // pub fn close(&self) -> io::Result<()> {
-    //     Ok(())
-    // }
-    pub fn send(&self, _message: Vec<u8>) -> io::Result<NetworkResult<()>> {
-        Ok(NetworkResult::Value(()))
-    }
-    pub fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
-        Ok(NetworkResult::Value(Vec::new()))
-    }
-}
+// impl DummyNetworkConnection {
+//     pub fn flow(&self) -> Flow {
+//         self.flow
+//     }
+//     pub fn close(&self) -> io::Result<NetworkResult<()>> {
+//         Ok(NetworkResult::Value(()))
+//     }
+//     pub fn send(&self, _message: Vec<u8>) -> io::Result<NetworkResult<()>> {
+//         Ok(NetworkResult::Value(()))
+//     }
+//     pub fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
+//         Ok(NetworkResult::Value(Vec::new()))
+//     }
+// }
 
 ///////////////////////////////////////////////////////////
 // Top-level protocol independent network connection object
@@ -83,28 +83,36 @@ pub struct NetworkConnectionStats {
 }
 
 
-pub type NetworkConnectionId = AlignedU64;
-
 #[derive(Debug)]
-pub struct NetworkConnection {
+pub(in crate::network_manager) struct NetworkConnection {
     connection_id: NetworkConnectionId,
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     processor: Option<MustJoinHandle<()>>,
     established_time: Timestamp,
     stats: Arc<Mutex<NetworkConnectionStats>>,
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     stop_source: Option<StopSource>,
-    protected: bool,
+    protected_nr: Option<NodeRef>,
+    ref_count: usize,
 }
 
+impl Drop for NetworkConnection {
+    fn drop(&mut self) {
+        if self.ref_count != 0 && self.stop_source.is_some() {
+            log_net!(error "ref_count for network connection should be zero: {:?}", self);
+        }
+    }
+}
+
+
 impl NetworkConnection {
-    pub(super) fn dummy(id: NetworkConnectionId, descriptor: ConnectionDescriptor) -> Self {
+    pub(super) fn dummy(id: NetworkConnectionId, flow: Flow) -> Self {
         // Create handle for sending (dummy is immediately disconnected)
         let (sender, _receiver) = flume::bounded(get_concurrency() as usize);
 
         Self {
             connection_id: id,
-            descriptor,
+            flow,
             processor: None,
             established_time: get_aligned_timestamp(),
             stats: Arc::new(Mutex::new(NetworkConnectionStats {
@@ -113,7 +121,8 @@ impl NetworkConnection {
             })),
             sender,
             stop_source: None,
-            protected: false,
+            protected_nr: None,
+            ref_count: 0,
         }
     }
 
@@ -123,8 +132,8 @@ impl NetworkConnection {
         protocol_connection: ProtocolNetworkConnection,
         connection_id: NetworkConnectionId,
     ) -> Self {
-        // Get descriptor
-        let descriptor = protocol_connection.descriptor();
+        // Get flow
+        let flow = protocol_connection.flow();
 
         // Create handle for sending
         let (sender, receiver) = flume::bounded(get_concurrency() as usize);
@@ -144,7 +153,7 @@ impl NetworkConnection {
             local_stop_token,
             manager_stop_token,
             connection_id,
-            descriptor,
+            flow,
             receiver,
             protocol_connection,
             stats.clone(),
@@ -153,13 +162,14 @@ impl NetworkConnection {
         // Return the connection
         Self {
             connection_id,
-            descriptor,
+            flow,
             processor: Some(processor),
             established_time: get_aligned_timestamp(),
             stats,
             sender,
             stop_source: Some(stop_source),
-            protected: false,
+            protected_nr: None,
+            ref_count: 0,
         }
     }
 
@@ -167,20 +177,40 @@ impl NetworkConnection {
         self.connection_id
     }
 
-    pub fn connection_descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
+    }
+
+    #[allow(dead_code)]
+    pub fn unique_flow(&self) -> UniqueFlow {
+        UniqueFlow {
+            flow: self.flow,
+            connection_id: Some(self.connection_id),
+        }
     }
 
     pub fn get_handle(&self) -> ConnectionHandle {
-        ConnectionHandle::new(self.connection_id, self.descriptor, self.sender.clone())
+        ConnectionHandle::new(self.connection_id, self.flow, self.sender.clone())
     }
 
-    pub fn is_protected(&self) -> bool {
-        self.protected
+    pub fn is_in_use(&self) -> bool {
+        self.ref_count > 0
     }
 
-    pub fn protect(&mut self) {
-        self.protected = true;
+    pub fn protected_node_ref(&self) -> Option<NodeRef>{
+        self.protected_nr.clone()
+    }
+
+    pub fn protect(&mut self, protect_nr: NodeRef) {
+        self.protected_nr = Some(protect_nr);
+    }
+
+    pub fn add_ref(&mut self) {
+        self.ref_count += 1;
+    }
+
+    pub fn remove_ref(&mut self) {
+        self.ref_count -= 1;
     }
 
     pub fn close(&mut self) {
@@ -240,7 +270,7 @@ impl NetworkConnection {
         local_stop_token: StopToken,
         manager_stop_token: StopToken,
         connection_id: NetworkConnectionId,
-        descriptor: ConnectionDescriptor,
+        flow: Flow,
         receiver: flume::Receiver<(Option<Id>, Vec<u8>)>,
         protocol_connection: ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -248,7 +278,7 @@ impl NetworkConnection {
         Box::pin(async move {
             log_net!(
                 "== Starting process_connection loop for id={}, {:?}", connection_id,
-                descriptor
+                flow
             );
 
             let network_manager = connection_manager.network_manager();
@@ -262,7 +292,7 @@ impl NetworkConnection {
             let new_timer = || {
                 sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
-                    log_net!("== Connection timeout on {:?}", descriptor);
+                    log_net!("== Connection timeout on {:?}", flow);
                     RecvLoopAction::Timeout
                 })
             };
@@ -282,6 +312,9 @@ impl NetworkConnection {
                                 // xxx: causes crash (Missing otel data span extensions)
                                 // recv_span.follows_from(span_id);
                     
+                                // Touch the LRU for this connection
+                                connection_manager.touch_connection_by_id(connection_id);
+
                                 // send the packet
                                 if let Err(e) = Self::send_internal(
                                     &protocol_connection,
@@ -314,7 +347,7 @@ impl NetworkConnection {
                         .then(|res| async {
                             match res {
                                 Ok(v) => {
-                                    let peer_address = protocol_connection.descriptor().remote();
+                                    let peer_address = protocol_connection.flow().remote();
 
                                     // Check to see if it is punished
                                     if address_filter.is_ip_addr_punished(peer_address.socket_addr().ip()) {
@@ -340,12 +373,16 @@ impl NetworkConnection {
 
                                     // Pass received messages up to the network manager for processing
                                     if let Err(e) = network_manager
-                                        .on_recv_envelope(message.as_mut_slice(), descriptor)
+                                        .on_recv_envelope(message.as_mut_slice(), flow)
                                         .await
                                     {
                                         log_net!(debug "failed to process received envelope: {}", e);
                                         RecvLoopAction::Finish
                                     } else {
+                                        
+                                        // Touch the LRU for this connection
+                                        connection_manager.touch_connection_by_id(connection_id);
+
                                         RecvLoopAction::Recv
                                     }
                                 }
@@ -393,25 +430,37 @@ impl NetworkConnection {
             }
 
             log_net!(
-                "== Connection loop finished descriptor={:?}",
-                descriptor
+                "== Connection loop finished flow={:?}",
+                flow
             );
 
             // Let the connection manager know the receive loop exited
             connection_manager
                 .report_connection_finished(connection_id)
                 .await;
+
+            // Close the low level socket
+            if let Err(e) = protocol_connection.close().await {
+                log_net!(debug "Protocol connection close error: {}", e);
+            }
+            
         }.instrument(trace_span!("process_connection")))
     }
 
     pub fn debug_print(&self, cur_ts: Timestamp) -> String {
-        format!("{} <- {} | {} | est {} sent {} rcvd {}",
-            self.descriptor.remote_address(), 
-            self.descriptor.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
+        format!("{} <- {} | {} | est {} sent {} rcvd {} refcount {}{}",
+            self.flow.remote_address(), 
+            self.flow.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
             self.connection_id.as_u64(),
             debug_duration(cur_ts.as_u64().saturating_sub(self.established_time.as_u64())),
             self.stats().last_message_sent_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
             self.stats().last_message_recv_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
+            self.ref_count, 
+            if let Some(pnr) = &self.protected_nr {
+                format!(" PROTECTED:{}",pnr)
+            } else {
+                "".to_owned()
+            }
         )
     }
 }

@@ -1,7 +1,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use super::*;
-use core::sync::atomic::{AtomicI8, Ordering};
+use core::sync::atomic::{AtomicI8, AtomicU32, Ordering};
 use js_sys::{global, Reflect};
 use wasm_bindgen::prelude::*;
 
@@ -81,4 +81,20 @@ pub fn is_ipv6_supported() -> bool {
 
     *opt_supp = Some(supp);
     supp
+}
+
+pub fn get_concurrency() -> u32 {
+    static CACHE: AtomicU32 = AtomicU32::new(0);
+    let cache = CACHE.load(Ordering::Acquire);
+    if cache != 0 {
+        return cache;
+    }
+
+    let res = js_sys::eval("navigator.hardwareConcurrency")
+        .map(|res| res.as_f64().unwrap_or(1.0f64) as u32)
+        .unwrap_or(1);
+
+    CACHE.store(res, Ordering::Release);
+
+    res
 }

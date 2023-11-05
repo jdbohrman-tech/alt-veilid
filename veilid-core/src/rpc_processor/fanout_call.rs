@@ -8,14 +8,14 @@ where
     result: Option<Result<R, RPCError>>,
 }
 
-pub type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
-pub type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
+pub(crate) type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
+pub(crate) type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 
-pub fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
+pub(crate) fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
     Arc::new(|_, _| true)
 }
 
-pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeInfoFilter {
+pub(crate) fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeInfoFilter {
     Arc::new(move |_, ni| ni.has_capabilities(&caps))
 }
 
@@ -34,7 +34,7 @@ pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeIn
 /// If the algorithm times out, a Timeout result is returned, however operations will still have been performed and a
 /// timeout is not necessarily indicative of an algorithmic 'failure', just that no definitive stopping condition was found
 /// in the given time
-pub struct FanoutCall<R, F, C, D>
+pub(crate) struct FanoutCall<R, F, C, D>
 where
     R: Unpin,
     F: Future<Output = FanoutCallReturnType>,

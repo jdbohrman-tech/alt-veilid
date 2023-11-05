@@ -49,8 +49,8 @@ impl RPCProcessor {
 
         // Can't allow anything other than direct packets here, as handling reverse connections
         // or anything like via signals over private routes would deanonymize the route
-        let connection_descriptor = match &msg.header.detail {
-            RPCMessageHeaderDetail::Direct(d) => d.connection_descriptor,
+        let flow = match &msg.header.detail {
+            RPCMessageHeaderDetail::Direct(d) => d.flow,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
                 return Ok(NetworkResult::invalid_message("signal must be direct"));
             }
@@ -70,7 +70,7 @@ impl RPCProcessor {
         let network_manager = self.network_manager();
         let signal_info = signal.destructure();
         network_manager
-            .handle_signal(connection_descriptor, signal_info)
+            .handle_signal(flow, signal_info)
             .await
             .map_err(RPCError::network)
     }

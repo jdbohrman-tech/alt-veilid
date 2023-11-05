@@ -1,7 +1,6 @@
 use super::*;
 
 // Ordering here matters, IPV6 is preferred to IPV4 in dial info sorts
-// See issue #236 for eventual resolution of this unfortunate implementation
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Address {
     IPV6(Ipv6Addr),
@@ -21,6 +20,7 @@ impl Address {
             SocketAddr::V6(v6) => Address::IPV6(*v6.ip()),
         }
     }
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn from_ip_addr(addr: IpAddr) -> Address {
         match addr {
             IpAddr::V4(v4) => Address::IPV4(v4),
@@ -31,18 +31,6 @@ impl Address {
         match self {
             Address::IPV4(_) => AddressType::IPV4,
             Address::IPV6(_) => AddressType::IPV6,
-        }
-    }
-    pub fn address_string(&self) -> String {
-        match self {
-            Address::IPV4(v4) => v4.to_string(),
-            Address::IPV6(v6) => v6.to_string(),
-        }
-    }
-    pub fn address_string_with_port(&self, port: u16) -> String {
-        match self {
-            Address::IPV4(v4) => format!("{}:{}", v4, port),
-            Address::IPV6(v6) => format!("[{}]:{}", v6, port),
         }
     }
     pub fn is_unspecified(&self) -> bool {

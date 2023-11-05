@@ -11,6 +11,7 @@ mod connection_manager;
 mod connection_table;
 mod direct_boot;
 mod network_connection;
+mod receipt_manager;
 mod send_data;
 mod stats;
 mod tasks;
@@ -21,11 +22,11 @@ pub mod tests;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-pub use connection_manager::*;
-pub use direct_boot::*;
-pub use network_connection::*;
-pub use send_data::*;
-pub use stats::*;
+pub(crate) use connection_manager::*;
+pub(crate) use network_connection::*;
+pub(crate) use receipt_manager::*;
+pub(crate) use stats::*;
+
 pub use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -34,12 +35,10 @@ use connection_handle::*;
 use crypto::*;
 use futures_util::stream::FuturesUnordered;
 use hashlink::LruCache;
-use intf::*;
 #[cfg(not(target_arch = "wasm32"))]
 use native::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::{LOCAL_NETWORK_CAPABILITIES, MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
-use receipt_manager::*;
 use routing_table::*;
 use rpc_processor::*;
 use storage_manager::*;
@@ -90,11 +89,14 @@ struct ClientWhitelistEntry {
     last_seen_ts: Timestamp,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum SendDataKind {
-    Direct(ConnectionDescriptor),
-    Indirect,
-    Existing(ConnectionDescriptor),
+#[derive(Clone, Debug)]
+pub(crate) struct SendDataMethod {
+    /// How the data was sent, possibly to a relay
+    pub contact_method: NodeContactMethod,
+    /// Pre-relayed contact method
+    pub opt_relayed_contact_method: Option<NodeContactMethod>,
+    /// The specific flow used to send the data
+    pub unique_flow: UniqueFlow,
 }
 
 /// Mechanism required to contact another node
@@ -126,6 +128,11 @@ struct NodeContactMethodCacheKey {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct PublicAddressCheckCacheKey(ProtocolType, AddressType);
 
+enum SendDataToExistingFlowResult {
+    Sent(UniqueFlow),
+    NotSent(Vec<u8>),
+}
+
 // The mutable state of the network manager
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
@@ -141,7 +148,6 @@ struct NetworkManagerUnlockedInner {
     // Handles
     config: VeilidConfig,
     storage_manager: StorageManager,
-    protected_store: ProtectedStore,
     table_store: TableStore,
     #[cfg(feature = "unstable-blockstore")]
     block_store: BlockStore,
@@ -160,7 +166,7 @@ struct NetworkManagerUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct NetworkManager {
+pub(crate) struct NetworkManager {
     inner: Arc<Mutex<NetworkManagerInner>>,
     unlocked_inner: Arc<NetworkManagerUnlockedInner>,
 }
@@ -178,7 +184,6 @@ impl NetworkManager {
     fn new_unlocked_inner(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -187,7 +192,6 @@ impl NetworkManager {
         NetworkManagerUnlockedInner {
             config: config.clone(),
             storage_manager,
-            protected_store,
             table_store,
             #[cfg(feature = "unstable-blockstore")]
             block_store,
@@ -206,7 +210,6 @@ impl NetworkManager {
     pub fn new(
         config: VeilidConfig,
         storage_manager: StorageManager,
-        protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
         crypto: Crypto,
@@ -243,7 +246,6 @@ impl NetworkManager {
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
                 config,
                 storage_manager,
-                protected_store,
                 table_store,
                 #[cfg(feature = "unstable-blockstore")]
                 block_store,
@@ -267,9 +269,6 @@ impl NetworkManager {
     }
     pub fn storage_manager(&self) -> StorageManager {
         self.unlocked_inner.storage_manager.clone()
-    }
-    pub fn protected_store(&self) -> ProtectedStore {
-        self.unlocked_inner.protected_store.clone()
     }
     pub fn table_store(&self) -> TableStore {
         self.unlocked_inner.table_store.clone()
@@ -297,13 +296,22 @@ impl NetworkManager {
             .unwrap()
             .clone()
     }
-    pub fn net(&self) -> Network {
+    fn net(&self) -> Network {
         self.unlocked_inner
             .components
             .read()
             .as_ref()
             .unwrap()
             .net
+            .clone()
+    }
+    fn receipt_manager(&self) -> ReceiptManager {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .unwrap()
+            .receipt_manager
             .clone()
     }
     pub fn rpc_processor(&self) -> RPCProcessor {
@@ -313,15 +321,6 @@ impl NetworkManager {
             .as_ref()
             .unwrap()
             .rpc_processor
-            .clone()
-    }
-    pub fn receipt_manager(&self) -> ReceiptManager {
-        self.unlocked_inner
-            .components
-            .read()
-            .as_ref()
-            .unwrap()
-            .receipt_manager
             .clone()
     }
     pub fn connection_manager(&self) -> ConnectionManager {
@@ -667,7 +666,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self), err)]
     pub async fn handle_signal(
         &self,
-        signal_connection_descriptor: ConnectionDescriptor,
+        signal_flow: Flow,
         signal_info: SignalInfo,
     ) -> EyreResult<NetworkResult<()>> {
         match signal_info {
@@ -676,7 +675,7 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let peer_nr = match routing_table.register_node_with_peer_info(
+                let mut peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
                     peer_info,
                     false,
@@ -690,10 +689,10 @@ impl NetworkManager {
                     }
                 };
 
-                // Restrict reverse connection to same protocol as inbound signal
-                let peer_nr = peer_nr.filtered_clone(NodeRefFilter::from(
-                    signal_connection_descriptor.protocol_type(),
-                ));
+                // Restrict reverse connection to same sequencing requirement as inbound signal
+                if signal_flow.protocol_type().is_ordered() {
+                    peer_nr.set_sequencing(Sequencing::EnsureOrdered);
+                }
 
                 // Make a reverse connection to the peer and send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -736,7 +735,7 @@ impl NetworkManager {
 
                 // Do our half of the hole punch by sending an empty packet
                 // Both sides will do this and then the receipt will get sent over the punched hole
-                let connection_descriptor = network_result_try!(
+                let unique_flow = network_result_try!(
                     self.net()
                         .send_data_to_dial_info(
                             hole_punch_dial_info_detail.dial_info.clone(),
@@ -748,7 +747,7 @@ impl NetworkManager {
                 // XXX: do we need a delay here? or another hole punch packet?
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
-                peer_nr.set_last_connection(connection_descriptor, get_aligned_timestamp());
+                peer_nr.set_last_flow(unique_flow.flow, get_aligned_timestamp());
 
                 // Return the receipt using the same dial info send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -814,7 +813,7 @@ impl NetworkManager {
         node_ref: NodeRef,
         destination_node_ref: Option<NodeRef>,
         body: B,
-    ) -> EyreResult<NetworkResult<SendDataKind>> {
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
         let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
         let best_node_id = destination_node_ref.best_node_id();
 
@@ -873,28 +872,20 @@ impl NetworkManager {
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len())))]
-    async fn on_recv_envelope(
-        &self,
-        data: &mut [u8],
-        connection_descriptor: ConnectionDescriptor,
-    ) -> EyreResult<bool> {
+    async fn on_recv_envelope(&self, data: &mut [u8], flow: Flow) -> EyreResult<bool> {
         #[cfg(feature = "verbose-tracing")]
         let root = span!(
             parent: None,
             Level::TRACE,
             "on_recv_envelope",
             "data.len" = data.len(),
-            "descriptor" = ?connection_descriptor
+            "flow" = ?flow
         );
         #[cfg(feature = "verbose-tracing")]
         let _root_enter = root.enter();
 
-        log_net!(
-            "envelope of {} bytes received from {:?}",
-            data.len(),
-            connection_descriptor
-        );
-        let remote_addr = connection_descriptor.remote_address().ip_addr();
+        log_net!("envelope of {} bytes received from {:?}", data.len(), flow);
+        let remote_addr = flow.remote_address().ip_addr();
 
         // Network accounting
         self.stats_packet_rcvd(remote_addr, ByteCount::new(data.len() as u64));
@@ -916,18 +907,18 @@ impl NetworkManager {
         // Get the routing domain for this data
         let routing_domain = match self
             .routing_table()
-            .routing_domain_for_address(connection_descriptor.remote_address().address())
+            .routing_domain_for_address(flow.remote_address().address())
         {
             Some(rd) => rd,
             None => {
-                log_net!(debug "no routing domain for envelope received from {:?}", connection_descriptor);
+                log_net!(debug "no routing domain for envelope received from {:?}", flow);
                 return Ok(false);
             }
         };
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(self.handle_boot_request(connection_descriptor).await? => [ format!(": connection_descriptor={:?}", connection_descriptor) ] {});
+            network_result_value_or_log!(self.handle_boot_request(flow).await? => [ format!(": flow={:?}", flow) ] {});
             return Ok(true);
         }
 
@@ -974,7 +965,7 @@ impl NetworkManager {
                 log_net!(debug
                     "Timestamp behind: {}ms ({})",
                     timestamp_to_secs(ts.saturating_sub(ets).as_u64()) * 1000f64,
-                    connection_descriptor.remote()
+                    flow.remote()
                 );
                 return Ok(false);
             }
@@ -984,7 +975,7 @@ impl NetworkManager {
                 log_net!(debug
                     "Timestamp ahead: {}ms ({})",
                     timestamp_to_secs(ets.saturating_sub(ts).as_u64()) * 1000f64,
-                    connection_descriptor.remote()
+                    flow.remote()
                 );
                 return Ok(false);
             }
@@ -1036,17 +1027,11 @@ impl NetworkManager {
                 }
             };
 
-            if let Some(relay_nr) = some_relay_nr {
+            if let Some(mut relay_nr) = some_relay_nr {
                 // Ensure the protocol used to forward is of the same sequencing requirement
                 // Address type is allowed to change if connectivity is better
-                let relay_nr = if connection_descriptor.protocol_type().is_ordered() {
-                    // XXX: this is a little redundant
-                    let (_, nrf) = NodeRefFilter::new().with_sequencing(Sequencing::EnsureOrdered);
-                    let mut relay_nr = relay_nr.filtered_clone(nrf);
+                if flow.protocol_type().is_ordered() {
                     relay_nr.set_sequencing(Sequencing::EnsureOrdered);
-                    relay_nr
-                } else {
-                    relay_nr
                 };
 
                 // Relay the packet to the desired destination
@@ -1092,7 +1077,7 @@ impl NetworkManager {
         // Cache the envelope information in the routing table
         let source_noderef = match routing_table.register_node_with_existing_connection(
             envelope.get_sender_typed_id(),
-            connection_descriptor,
+            flow,
             ts,
         ) {
             Ok(v) => v,
@@ -1105,15 +1090,13 @@ impl NetworkManager {
         source_noderef.add_envelope_version(envelope.get_version());
 
         // Pass message to RPC system
-        rpc.enqueue_direct_message(
-            envelope,
-            source_noderef,
-            connection_descriptor,
-            routing_domain,
-            body,
-        )?;
+        rpc.enqueue_direct_message(envelope, source_noderef, flow, routing_domain, body)?;
 
         // Inform caller that we dealt with the envelope locally
         Ok(true)
+    }
+
+    pub fn debug_restart_network(&self) {
+        self.net().restart_network();
     }
 }

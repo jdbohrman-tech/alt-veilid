@@ -305,6 +305,8 @@ impl Network {
 
         // All done
 
+        log_net!(debug "Network class discovery finished with address_types {:?}", all_address_types);
+
         // Set the address types we've seen
         editor.setup_network(
             protocol_config.outbound,

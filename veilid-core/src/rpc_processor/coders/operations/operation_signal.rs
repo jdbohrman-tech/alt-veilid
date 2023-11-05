@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationSignal {
+pub(in crate::rpc_processor) struct RPCOperationSignal {
     signal_info: SignalInfo,
 }
 

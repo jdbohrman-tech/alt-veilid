@@ -5,7 +5,7 @@ use std::io;
 use ws_stream_wasm::*;
 
 struct WebsocketNetworkConnectionInner {
-    _ws_meta: WsMeta,
+    ws_meta: WsMeta,
     ws_stream: CloneStream<WsStream>,
 }
 
@@ -34,7 +34,7 @@ fn to_io(err: WsErr) -> io::Error {
 
 #[derive(Clone)]
 pub struct WebsocketNetworkConnection {
-    descriptor: ConnectionDescriptor,
+    flow: Flow,
     inner: Arc<WebsocketNetworkConnectionInner>,
 }
 
@@ -45,24 +45,29 @@ impl fmt::Debug for WebsocketNetworkConnection {
 }
 
 impl WebsocketNetworkConnection {
-    pub fn new(descriptor: ConnectionDescriptor, ws_meta: WsMeta, ws_stream: WsStream) -> Self {
+    pub fn new(flow: Flow, ws_meta: WsMeta, ws_stream: WsStream) -> Self {
         Self {
-            descriptor,
+            flow,
             inner: Arc::new(WebsocketNetworkConnectionInner {
-                _ws_meta: ws_meta,
+                ws_meta,
                 ws_stream: CloneStream::new(ws_stream),
             }),
         }
     }
 
-    pub fn descriptor(&self) -> ConnectionDescriptor {
-        self.descriptor
+    pub fn flow(&self) -> Flow {
+        self.flow
     }
 
-    // #[instrument(level = "trace", err, skip(self))]
-    // pub async fn close(&self) -> io::Result<()> {
-    //     self.inner.ws_meta.close().await.map_err(to_io).map(drop)
-    // }
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", err, skip(self))
+    )]
+    pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        let x = self.inner.ws_meta.close().await.map_err(to_io);
+        log_net!(debug "close result: {:?}", x);
+        Ok(NetworkResult::value(()))
+    }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
@@ -113,7 +118,7 @@ impl WebsocketNetworkConnection {
 ///////////////////////////////////////////////////////////
 ///
 
-pub struct WebsocketProtocolHandler {}
+pub(in crate::network_manager) struct WebsocketProtocolHandler {}
 
 impl WebsocketProtocolHandler {
     #[instrument(level = "trace", ret, err)]
@@ -142,9 +147,9 @@ impl WebsocketProtocolHandler {
             .into_network_result())
         .into_network_result()?);
 
-        // Make our connection descriptor
+        // Make our flow
         let wnc = WebsocketNetworkConnection::new(
-            ConnectionDescriptor::new_no_local(dial_info.peer_address()),
+            Flow::new_no_local(dial_info.peer_address()),
             wsmeta,
             wsio,
         );

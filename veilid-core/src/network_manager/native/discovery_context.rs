@@ -49,12 +49,12 @@ struct DiscoveryContextUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct DiscoveryContext {
+pub(super) struct DiscoveryContext {
     unlocked_inner: Arc<DiscoveryContextUnlockedInner>,
     inner: Arc<Mutex<DiscoveryContextInner>>,
 }
 
-pub type ClearNetworkCallback = Arc<dyn Fn() -> SendPinBoxFuture<()> + Send + Sync>;
+pub(super) type ClearNetworkCallback = Arc<dyn Fn() -> SendPinBoxFuture<()> + Send + Sync>;
 
 impl DiscoveryContext {
     pub fn new(

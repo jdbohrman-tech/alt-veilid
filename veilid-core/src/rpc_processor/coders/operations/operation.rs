@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub enum RPCOperationKind {
+pub(in crate::rpc_processor) enum RPCOperationKind {
     Question(Box<RPCQuestion>),
     Statement(Box<RPCStatement>),
     Answer(Box<RPCAnswer>),
@@ -60,7 +60,7 @@ impl RPCOperationKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperation {
+pub(in crate::rpc_processor) struct RPCOperation {
     op_id: OperationId,
     opt_sender_peer_info: Option<PeerInfo>,
     target_node_info_ts: Timestamp,

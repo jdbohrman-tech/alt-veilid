@@ -29,21 +29,20 @@ mod rpc_complete_tunnel;
 #[cfg(feature = "unstable-tunnels")]
 mod rpc_start_tunnel;
 
-pub use coders::*;
-pub use destination::*;
-pub use fanout_call::*;
-pub use fanout_queue::*;
-pub use operation_waiter::*;
-pub use rpc_error::*;
-pub use rpc_status::*;
+pub(crate) use coders::*;
+pub(crate) use destination::*;
+pub(crate) use operation_waiter::*;
+pub(crate) use rpc_error::*;
+pub(crate) use rpc_status::*;
+pub(crate) use fanout_call::*;
 
 use super::*;
 
 use crypto::*;
 use futures_util::StreamExt;
 use network_manager::*;
-use receipt_manager::*;
 use routing_table::*;
+use fanout_queue::*;
 use stop_token::future::FutureExt;
 use storage_manager::*;
 
@@ -55,8 +54,8 @@ struct RPCMessageHeaderDetailDirect {
     envelope: Envelope,
     /// The noderef of the peer that sent the message (not the original sender). Ensures node doesn't get evicted from routing table until we're done with it
     peer_noderef: NodeRef,
-    /// The connection from the peer sent the message (not the original sender)
-    connection_descriptor: ConnectionDescriptor,
+    /// The flow from the peer sent the message (not the original sender)
+    flow: Flow,
     /// The routing domain the message was sent through
     routing_domain: RoutingDomain,
 }
@@ -186,10 +185,11 @@ struct WaitableReply {
     timeout_us: TimestampDuration,
     node_ref: NodeRef,
     send_ts: Timestamp,
-    send_data_kind: SendDataKind,
+    send_data_method: SendDataMethod,
     safety_route: Option<PublicKey>,
     remote_private_route: Option<PublicKey>,
     reply_private_route: Option<PublicKey>,
+    _opt_connection_ref_scope: Option<ConnectionRefScope>,
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -269,17 +269,18 @@ enum RPCKind {
 
 /////////////////////////////////////////////////////////////////////
 
-pub struct RPCProcessorInner {
+struct RPCProcessorInner {
     send_channel: Option<flume::Sender<(Option<Id>, RPCMessageEncoded)>>,
     stop_source: Option<StopSource>,
     worker_join_handles: Vec<MustJoinHandle<()>>,
 }
 
-pub struct RPCProcessorUnlockedInner {
+struct RPCProcessorUnlockedInner {
     timeout_us: TimestampDuration,
     queue_size: u32,
     concurrency: u32,
     max_route_hop_count: usize,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     validate_dial_info_receipt_time_ms: u32,
     update_callback: UpdateCallback,
     waiting_rpc_table: OperationWaiter<RPCMessage, Option<QuestionContext>>,
@@ -287,7 +288,7 @@ pub struct RPCProcessorUnlockedInner {
 }
 
 #[derive(Clone)]
-pub struct RPCProcessor {
+pub(crate) struct RPCProcessor {
     crypto: Crypto,
     config: VeilidConfig,
     network_manager: NetworkManager,
@@ -975,11 +976,16 @@ impl RPCProcessor {
         safety_route: Option<PublicKey>,
         remote_private_route: Option<PublicKey>,
     ) {
-        let wants_answer = matches!(rpc_kind, RPCKind::Question);
-
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
-            node_ref.stats_question_sent(send_ts, bytes, wants_answer);
+            let wants_answer = matches!(rpc_kind, RPCKind::Question);
+            let is_answer = matches!(rpc_kind, RPCKind::Answer);
+
+            if is_answer {
+                node_ref.stats_answer_sent(bytes);
+            } else {
+                node_ref.stats_question_sent(send_ts, bytes, wants_answer);
+            }
             return;
         }
 
@@ -1142,7 +1148,7 @@ impl RPCProcessor {
         dest: Destination,
         question: RPCQuestion,
         context: Option<QuestionContext>,
-    ) ->RPCNetworkResult<WaitableReply> {
+    ) -> RPCNetworkResult<WaitableReply> {
         // Get sender peer info if we should send that
         let spi = self.get_sender_peer_info(&dest);
 
@@ -1199,7 +1205,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let send_data_method = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Question, send_ts, node_ref.clone(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1216,16 +1222,24 @@ impl RPCProcessor {
             remote_private_route,
         );
 
+
+        // Ref the connection so it doesn't go away until we're done with the waitable reply
+        let opt_connection_ref_scope = send_data_method.unique_flow.connection_id.and_then(|id| self
+            .network_manager()
+            .connection_manager()
+            .try_connection_ref_scope(id));
+
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
             handle,
             timeout_us,
             node_ref,
             send_ts,
-            send_data_kind,
+            send_data_method,
             safety_route,
             remote_private_route,
             reply_private_route,
+            _opt_connection_ref_scope: opt_connection_ref_scope,
         }))
     }
 
@@ -1284,7 +1298,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let _send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let _send_data_method = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Statement, send_ts, node_ref.clone(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1423,7 +1437,7 @@ impl RPCProcessor {
         // Validate the RPC operation
         let validate_context = RPCValidateContext {
             crypto: self.crypto.clone(),
-            rpc_processor: self.clone(),
+            // rpc_processor: self.clone(),
             question_context,
         };
         operation.validate(&validate_context)?;
@@ -1646,7 +1660,7 @@ impl RPCProcessor {
         &self,
         envelope: Envelope,
         peer_noderef: NodeRef,
-        connection_descriptor: ConnectionDescriptor,
+        flow: Flow,
         routing_domain: RoutingDomain,
         body: Vec<u8>,
     ) -> EyreResult<()> {
@@ -1654,7 +1668,7 @@ impl RPCProcessor {
             detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
                 envelope,
                 peer_noderef,
-                connection_descriptor,
+                flow,
                 routing_domain,
             }),
             timestamp: get_aligned_timestamp(),

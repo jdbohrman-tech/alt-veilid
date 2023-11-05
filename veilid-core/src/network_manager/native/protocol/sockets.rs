@@ -112,9 +112,9 @@ pub fn new_unbound_tcp_socket(domain: Domain) -> io::Result<Socket> {
 #[instrument(level = "trace", ret)]
 pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
-    if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
-        log_net!(error "Couldn't set TCP linger: {}", e);
-    }
+    // if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
+    //     log_net!(error "Couldn't set TCP linger: {}", e);
+    // }
     if let Err(e) = socket.set_nodelay(true) {
         log_net!(error "Couldn't set TCP nodelay: {}", e);
     }
@@ -148,9 +148,9 @@ pub fn new_bound_first_tcp_socket(local_address: SocketAddr) -> io::Result<Socke
     let domain = Domain::for_address(local_address);
 
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
-    if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
-        log_net!(error "Couldn't set TCP linger: {}", e);
-    }
+    // if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
+    //     log_net!(error "Couldn't set TCP linger: {}", e);
+    // }
     if let Err(e) = socket.set_nodelay(true) {
         log_net!(error "Couldn't set TCP nodelay: {}", e);
     }

@@ -31,7 +31,7 @@ impl NetworkManager {
     pub fn report_local_network_socket_address(
         &self,
         _socket_address: SocketAddress,
-        _connection_descriptor: ConnectionDescriptor,
+        _flow: Flow,
         _reporting_peer: NodeRef,
     ) {
         // XXX: Nothing here yet.
@@ -43,11 +43,11 @@ impl NetworkManager {
     pub fn report_public_internet_socket_address(
         &self,
         socket_address: SocketAddress, // the socket address as seen by the remote peer
-        connection_descriptor: ConnectionDescriptor, // the connection descriptor used
+        flow: Flow,                    // the flow used
         reporting_peer: NodeRef,       // the peer's noderef reporting the socket address
     ) {
         #[cfg(feature = "network-result-extra")]
-        debug!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
+        debug!("report_global_socket_address\nsocket_address: {:#?}\nflow: {:#?}\nreporting_peer: {:#?}", socket_address, flow, reporting_peer);
 
         // Ignore these reports if we are currently detecting public dial info
         let net = self.net();
@@ -77,10 +77,7 @@ impl NetworkManager {
         });
 
         // Get the ip(block) this report is coming from
-        let reporting_ipblock = ip_to_ipblock(
-            ip6_prefix_size,
-            connection_descriptor.remote_address().ip_addr(),
-        );
+        let reporting_ipblock = ip_to_ipblock(ip6_prefix_size, flow.remote_address().ip_addr());
 
         // Reject public address reports from nodes that we know are behind symmetric nat or
         // nodes that must be using a relay for everything
@@ -105,10 +102,8 @@ impl NetworkManager {
         let mut inner = self.inner.lock();
         let inner = &mut *inner;
 
-        let addr_proto_type_key = PublicAddressCheckCacheKey(
-            connection_descriptor.protocol_type(),
-            connection_descriptor.address_type(),
-        );
+        let addr_proto_type_key =
+            PublicAddressCheckCacheKey(flow.protocol_type(), flow.address_type());
         if inner
             .public_address_inconsistencies_table
             .get(&addr_proto_type_key)
@@ -136,7 +131,7 @@ impl NetworkManager {
             NetworkClass::InboundCapable
         ) {
             // Get the dial info filter for this connection so we can check if we have any public dialinfo that may have changed
-            let dial_info_filter = connection_descriptor.make_dial_info_filter();
+            let dial_info_filter = flow.make_dial_info_filter();
 
             // Get current external ip/port from registered global dialinfo
             let current_addresses: BTreeSet<SocketAddress> = routing_table
@@ -192,7 +187,7 @@ impl NetworkManager {
                 let pait = inner
                     .public_address_inconsistencies_table
                     .entry(addr_proto_type_key)
-                    .or_insert_with(HashMap::new);
+                    .or_default();
                 for i in &inconsistencies {
                     pait.insert(*i, exp_ts);
                 }
@@ -204,7 +199,7 @@ impl NetworkManager {
                     let pait = inner
                         .public_address_inconsistencies_table
                         .entry(addr_proto_type_key)
-                        .or_insert_with(HashMap::new);
+                        .or_default();
                     let exp_ts = get_aligned_timestamp()
                         + PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US;
                     for i in inconsistencies {
@@ -267,7 +262,7 @@ impl NetworkManager {
                 net.set_needs_public_dial_info_check(bad_public_address_detection_punishment);
             } else {
                 warn!("Public address may have changed. Restarting the server may be required.");
-                warn!("report_global_socket_address\nsocket_address: {:#?}\nconnection_descriptor: {:#?}\nreporting_peer: {:#?}", socket_address, connection_descriptor, reporting_peer);
+                warn!("report_global_socket_address\nsocket_address: {:#?}\nflow: {:#?}\nreporting_peer: {:#?}", socket_address, flow, reporting_peer);
                 warn!(
                     "public_address_check_cache: {:#?}",
                     inner.public_address_check_cache

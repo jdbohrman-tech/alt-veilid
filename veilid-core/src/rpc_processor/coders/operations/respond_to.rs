@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub enum RespondTo {
+pub(in crate::rpc_processor) enum RespondTo {
     Sender,
     PrivateRoute(PrivateRoute),
 }

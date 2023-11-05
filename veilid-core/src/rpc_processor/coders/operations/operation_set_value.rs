@@ -4,7 +4,7 @@ use crate::storage_manager::{SignedValueData, SignedValueDescriptor};
 const MAX_SET_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Clone)]
-pub struct ValidateSetValueContext {
+pub(in crate::rpc_processor) struct ValidateSetValueContext {
     pub descriptor: SignedValueDescriptor,
     pub subkey: ValueSubkey,
     pub vcrypto: CryptoSystemVersion,
@@ -21,7 +21,7 @@ impl fmt::Debug for ValidateSetValueContext {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationSetValueQ {
+pub(in crate::rpc_processor) struct RPCOperationSetValueQ {
     key: TypedKey,
     subkey: ValueSubkey,
     value: SignedValueData,
@@ -110,7 +110,7 @@ impl RPCOperationSetValueQ {
 }
 
 #[derive(Debug, Clone)]
-pub struct RPCOperationSetValueA {
+pub(in crate::rpc_processor) struct RPCOperationSetValueA {
     set: bool,
     value: Option<SignedValueData>,
     peers: Vec<PeerInfo>,
