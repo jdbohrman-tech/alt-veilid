@@ -33,9 +33,10 @@ class Operation(StrEnum):
 class RoutingContextOperation(StrEnum):
     INVALID_ID = "InvalidId"
     RELEASE = "Release"
-    WITH_PRIVACY = "WithPrivacy"
-    WITH_CUSTOM_PRIVACY = "WithCustomPrivacy"
+    WITH_DEFAULT_SAFETY = "WithDefaultSafety"
+    WITH_SAFETY = "WithSafety"
     WITH_SEQUENCING = "WithSequencing"
+    SAFETY = "Safety"
     APP_CALL = "AppCall"
     APP_MESSAGE = "AppMessage"
     CREATE_DHT_RECORD = "CreateDhtRecord"

@@ -68,20 +68,18 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  VeilidRoutingContextJS withPrivacy() {
+  VeilidRoutingContextJS withDefaultSafety() {
     final id = _ctx.requireId();
     final int newId =
-        js_util.callMethod(wasm, 'routing_context_with_privacy', [id]);
+        js_util.callMethod(wasm, 'routing_context_with_default_safety', [id]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
 
   @override
-  VeilidRoutingContextJS withCustomPrivacy(SafetySelection safetySelection) {
+  VeilidRoutingContextJS withSafety(SafetySelection safetySelection) {
     final id = _ctx.requireId();
     final newId = js_util.callMethod<int>(
-        wasm,
-        'routing_context_with_custom_privacy',
-        [id, jsonEncode(safetySelection)]);
+        wasm, 'routing_context_with_safety', [id, jsonEncode(safetySelection)]);
 
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
   }
@@ -92,6 +90,15 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
     final newId = js_util.callMethod<int>(
         wasm, 'routing_context_with_sequencing', [id, jsonEncode(sequencing)]);
     return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+  }
+
+  @override
+  Future<SafetySelection> safety() async {
+    final id = _ctx.requireId();
+    return SafetySelection.fromJson(jsonDecode(await _wrapApiPromise(
+        js_util.callMethod(wasm, 'routing_context_safety', [
+      id,
+    ]))));
   }
 
   @override

@@ -328,7 +328,7 @@ fn add_routing_context(routing_context: veilid_core::RoutingContext) -> u32 {
 pub fn routing_context() -> Promise {
     wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
-        let routing_context = veilid_api.routing_context();
+        let routing_context = veilid_api.routing_context()?;
         let new_id = add_routing_context(routing_context);
         APIResult::Ok(new_id)
     })
@@ -344,7 +344,7 @@ pub fn release_routing_context(id: u32) -> i32 {
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_with_privacy(id: u32) -> u32 {
+pub fn routing_context_with_default_safety(id: u32) -> u32 {
     let routing_context = {
         let rc = (*ROUTING_CONTEXTS).borrow();
         let Some(routing_context) = rc.get(&id) else {
@@ -352,14 +352,14 @@ pub fn routing_context_with_privacy(id: u32) -> u32 {
         };
         routing_context.clone()
     };
-    let Ok(routing_context) = routing_context.with_privacy() else {
+    let Ok(routing_context) = routing_context.with_default_safety() else {
         return 0;
     };
     add_routing_context(routing_context)
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_with_custom_privacy(id: u32, safety_selection: String) -> u32 {
+pub fn routing_context_with_safety(id: u32, safety_selection: String) -> u32 {
     let safety_selection: veilid_core::SafetySelection =
         veilid_core::deserialize_json(&safety_selection).unwrap();
 
@@ -370,7 +370,7 @@ pub fn routing_context_with_custom_privacy(id: u32, safety_selection: String) ->
         };
         routing_context.clone()
     };
-    let Ok(routing_context) = routing_context.with_custom_privacy(safety_selection) else {
+    let Ok(routing_context) = routing_context.with_safety(safety_selection) else {
         return 0;
     };
     add_routing_context(routing_context)
@@ -389,6 +389,26 @@ pub fn routing_context_with_sequencing(id: u32, sequencing: String) -> u32 {
     };
     let routing_context = routing_context.with_sequencing(sequencing);
     add_routing_context(routing_context)
+}
+
+#[wasm_bindgen()]
+pub fn routing_context_safety(id: u32) -> Promise {
+    wrap_api_future_json(async move {
+        let routing_context = {
+            let rc = (*ROUTING_CONTEXTS).borrow();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+                    "routing_context_safety",
+                    "id",
+                    id,
+                ));
+            };
+            routing_context.clone()
+        };
+
+        let safety_selection = routing_context.safety();
+        APIResult::Ok(safety_selection)
+    })
 }
 
 #[wasm_bindgen()]

@@ -446,26 +446,26 @@ class _JsonRoutingContext(RoutingContext):
         )
         self.done = True
 
-    async def with_privacy(self, release=True) -> Self:
+    async def with_default_safety(self, release=True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
                 validate=validate_rc_op,
                 rc_id=self.rc_id,
-                rc_op=RoutingContextOperation.WITH_PRIVACY,
+                rc_op=RoutingContextOperation.WITH_DEFAULT_SAFETY,
             )
         )
         if release:
             await self.release()
         return self.__class__(self.api, new_rc_id)
 
-    async def with_custom_privacy(self, safety_selection: SafetySelection, release=True) -> Self:
+    async def with_safety(self, safety_selection: SafetySelection, release=True) -> Self:
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
                 validate=validate_rc_op,
                 rc_id=self.rc_id,
-                rc_op=RoutingContextOperation.WITH_CUSTOM_PRIVACY,
+                rc_op=RoutingContextOperation.WITH_SAFETY,
                 safety_selection=safety_selection,
             )
         )
@@ -487,6 +487,19 @@ class _JsonRoutingContext(RoutingContext):
             await self.release()
         return self.__class__(self.api, new_rc_id)
 
+    async def safety(
+        self
+    ) -> SafetySelection:
+        return SafetySelection.from_json(
+            raise_api_result(
+                await self.api.send_ndjson_request(
+                    Operation.ROUTING_CONTEXT,
+                    validate=validate_rc_op,
+                    rc_id=self.rc_id,
+                    rc_op=RoutingContextOperation.SAFETY,
+                )
+            )
+        )
     async def app_call(self, target: TypedKey | RouteId, message: bytes) -> bytes:
         return urlsafe_b64decode_no_pad(
             raise_api_result(

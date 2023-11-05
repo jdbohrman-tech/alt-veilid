@@ -37,7 +37,12 @@ impl Default for Stability {
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi, namespace))]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(from_wasm_abi, into_wasm_abi, namespace)
+)]
+
 pub enum SafetySelection {
     /// Don't use a safety route, only specify the sequencing preference
     Unsafe(Sequencing),

@@ -16,7 +16,7 @@ wasm-pack build $WASM_PACK_FLAGS --target bundler --weak-refs
 cd tests
 npm install
 original_tmpdir=$TMPDIR
-mkdir --parents ~/tmp
+mkdir -p ~/tmp
 export TMPDIR=~/tmp
 npm run test:headless
 export TMPDIR=$original_tmpdir

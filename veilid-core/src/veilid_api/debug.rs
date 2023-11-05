@@ -1394,10 +1394,10 @@ impl VeilidAPI {
         )
         .ok();
 
-        // Get routing context with optional privacy
-        let rc = self.routing_context();
+        // Get routing context with optional safety
+        let rc = self.routing_context()?;
         let rc = if let Some(ss) = ss {
-            match rc.with_custom_privacy(ss) {
+            match rc.with_safety(ss) {
                 Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
                 Ok(v) => v,
             }
@@ -1453,9 +1453,9 @@ impl VeilidAPI {
         };
 
         // Get routing context with optional privacy
-        let rc = self.routing_context();
+        let rc = self.routing_context()?;
         let rc = if let Some(ss) = ss {
-            match rc.with_custom_privacy(ss) {
+            match rc.with_safety(ss) {
                 Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
                 Ok(v) => v,
             }
@@ -1514,9 +1514,9 @@ impl VeilidAPI {
         let data = get_debug_argument_at(&args, 4, "debug_record_set", "data", get_data)?;
 
         // Get routing context with optional privacy
-        let rc = self.routing_context();
+        let rc = self.routing_context()?;
         let rc = if let Some(ss) = ss {
-            match rc.with_custom_privacy(ss) {
+            match rc.with_safety(ss) {
                 Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
                 Ok(v) => v,
             }
@@ -1560,7 +1560,7 @@ impl VeilidAPI {
         let key = get_debug_argument_at(&args, 1, "debug_record_delete", "key", get_typed_key)?;
 
         // Do a record delete
-        let rc = self.routing_context();
+        let rc = self.routing_context()?;
         match rc.delete_dht_record(key).await {
             Err(e) => return Ok(format!("Can't delete DHT record: {}", e)),
             Ok(v) => v,

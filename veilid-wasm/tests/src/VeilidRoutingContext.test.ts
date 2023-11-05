@@ -46,15 +46,15 @@ describe('VeilidRoutingContext', () => {
       routingContext.free();
     });
 
-    it('should create with privacy', async () => {
-      const routingContext = VeilidRoutingContext.create().withPrivacy();
+    it('should create with default safety', async () => {
+      const routingContext = VeilidRoutingContext.create().withDefaultSafety();
       expect(routingContext instanceof VeilidRoutingContext).toBe(true);
 
       routingContext.free();
     });
 
-    it('should create with custom privacy', async () => {
-      const routingContext = VeilidRoutingContext.create().withCustomPrivacy({
+    it('should create with safety', async () => {
+      const routingContext = VeilidRoutingContext.create().withSafety({
         Safe: {
           hop_count: 2,
           sequencing: 'EnsureOrdered',
@@ -80,7 +80,6 @@ describe('VeilidRoutingContext', () => {
 
     before('create routing context', () => {
       routingContext = VeilidRoutingContext.create()
-        .withPrivacy()
         .withSequencing('EnsureOrdered');
     });
 

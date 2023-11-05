@@ -235,20 +235,22 @@ impl JsonRequestProcessor {
                 self.release_routing_context(rcr.rc_id);
                 RoutingContextResponseOp::Release {}
             }
-            RoutingContextRequestOp::WithPrivacy => RoutingContextResponseOp::WithPrivacy {
-                result: to_json_api_result(
-                    routing_context
-                        .clone()
-                        .with_privacy()
-                        .map(|new_rc| self.add_routing_context(new_rc)),
-                ),
-            },
-            RoutingContextRequestOp::WithCustomPrivacy { safety_selection } => {
-                RoutingContextResponseOp::WithCustomPrivacy {
+            RoutingContextRequestOp::WithDefaultSafety => {
+                RoutingContextResponseOp::WithDefaultSafety {
                     result: to_json_api_result(
                         routing_context
                             .clone()
-                            .with_custom_privacy(safety_selection)
+                            .with_default_safety()
+                            .map(|new_rc| self.add_routing_context(new_rc)),
+                    ),
+                }
+            }
+            RoutingContextRequestOp::WithSafety { safety_selection } => {
+                RoutingContextResponseOp::WithSafety {
+                    result: to_json_api_result(
+                        routing_context
+                            .clone()
+                            .with_safety(safety_selection)
                             .map(|new_rc| self.add_routing_context(new_rc)),
                     ),
                 }
@@ -259,6 +261,9 @@ impl JsonRequestProcessor {
                         .add_routing_context(routing_context.clone().with_sequencing(sequencing)),
                 }
             }
+            RoutingContextRequestOp::Safety => RoutingContextResponseOp::Safety {
+                value: routing_context.safety(),
+            },
             RoutingContextRequestOp::AppCall { target, message } => {
                 RoutingContextResponseOp::AppCall {
                     result: to_json_api_result_with_vec_u8(
@@ -597,7 +602,11 @@ impl JsonRequestProcessor {
                 result: to_json_api_result(self.api.app_call_reply(call_id, message).await),
             },
             RequestOp::NewRoutingContext => ResponseOp::NewRoutingContext {
-                value: self.add_routing_context(self.api.routing_context()),
+                result: to_json_api_result(
+                    self.api
+                        .routing_context()
+                        .map(|rc| self.add_routing_context(rc)),
+                ),
             },
             RequestOp::RoutingContext(rcr) => {
                 let routing_context = match self.lookup_routing_context(id, rcr.rc_id) {

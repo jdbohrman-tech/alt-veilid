@@ -189,8 +189,8 @@ impl VeilidAPI {
     // Routing Context
 
     /// Get a new `RoutingContext` object to use to send messages over the Veilid network.
-    pub fn routing_context(&self) -> RoutingContext {
-        RoutingContext::new(self.clone())
+    pub fn routing_context(&self) -> VeilidAPIResult<RoutingContext> {
+        RoutingContext::try_new(self.clone())
     }
 
     /// Parse a string into a target object that can be used in a [RoutingContext]

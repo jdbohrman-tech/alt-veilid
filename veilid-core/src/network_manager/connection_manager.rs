@@ -372,7 +372,51 @@ impl ConnectionManager {
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// Callbacks
+    /// Asynchronous Event Processor
+
+    async fn process_connection_manager_event(
+        &self,
+        event: ConnectionManagerEvent,
+        allow_accept: bool,
+    ) {
+        match event {
+            ConnectionManagerEvent::Accepted(prot_conn) => {
+                if !allow_accept {
+                    return;
+                }
+                // Async lock on the remote address for atomicity per remote
+                let _lock_guard = self
+                    .arc
+                    .address_lock_table
+                    .lock_tag(prot_conn.flow().remote_address().socket_addr())
+                    .await;
+
+                let mut inner = self.arc.inner.lock();
+                match &mut *inner {
+                    Some(inner) => {
+                        // Register the connection
+                        // We don't care if this fails, since nobody here asked for the inbound connection.
+                        // If it does, we just drop the connection
+
+                        let _ = self.on_new_protocol_network_connection(inner, prot_conn);
+                    }
+                    None => {
+                        // If this somehow happens, we're shutting down
+                    }
+                };
+            }
+            ConnectionManagerEvent::Dead(mut conn) => {
+                let _lock_guard = self
+                    .arc
+                    .address_lock_table
+                    .lock_tag(conn.flow().remote_address().socket_addr())
+                    .await;
+
+                conn.close();
+                conn.await;
+            }
+        }
+    }
 
     #[instrument(level = "trace", skip_all)]
     async fn async_processor(
@@ -382,40 +426,11 @@ impl ConnectionManager {
     ) {
         // Process async commands
         while let Ok(Ok(event)) = receiver.recv_async().timeout_at(stop_token.clone()).await {
-            match event {
-                ConnectionManagerEvent::Accepted(prot_conn) => {
-                    // Async lock on the remote address for atomicity per remote
-                    let _lock_guard = self
-                        .arc
-                        .address_lock_table
-                        .lock_tag(prot_conn.flow().remote_address().socket_addr())
-                        .await;
-
-                    let mut inner = self.arc.inner.lock();
-                    match &mut *inner {
-                        Some(inner) => {
-                            // Register the connection
-                            // We don't care if this fails, since nobody here asked for the inbound connection.
-                            // If it does, we just drop the connection
-
-                            let _ = self.on_new_protocol_network_connection(inner, prot_conn);
-                        }
-                        None => {
-                            // If this somehow happens, we're shutting down
-                        }
-                    };
-                }
-                ConnectionManagerEvent::Dead(mut conn) => {
-                    let _lock_guard = self
-                        .arc
-                        .address_lock_table
-                        .lock_tag(conn.flow().remote_address().socket_addr())
-                        .await;
-
-                    conn.close();
-                    conn.await;
-                }
-            }
+            self.process_connection_manager_event(event, true).await;
+        }
+        // Ensure receiver is drained completely
+        for event in receiver.drain() {
+            self.process_connection_manager_event(event, false).await;
         }
     }
 

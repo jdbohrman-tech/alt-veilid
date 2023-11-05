@@ -21,9 +21,9 @@ pub struct RoutingContextUnlockedInner {
 
 /// Routing contexts are the way you specify the communication preferences for Veilid.
 ///
-/// By default routing contexts are 'direct' from node to node, offering no privacy. To enable sender
-/// privacy, use [RoutingContext::with_privacy()]. To enable receiver privacy, you should send to a private route RouteId that you have
-/// imported, rather than directly to a NodeId.
+/// By default routing contexts have 'safety routing' enabled which offers sender privacy.
+/// privacy. To disable this and send RPC operations straight from the node use [RoutingContext::with_safety()] with a [SafetySelection::Unsafe] parameter.
+/// To enable receiver privacy, you should send to a private route RouteId that you have imported, rather than directly to a NodeId.
 ///
 #[derive(Clone)]
 pub struct RoutingContext {
@@ -36,17 +36,26 @@ pub struct RoutingContext {
 impl RoutingContext {
     ////////////////////////////////////////////////////////////////
 
-    pub(super) fn new(api: VeilidAPI) -> Self {
-        Self {
+    pub(super) fn try_new(api: VeilidAPI) -> VeilidAPIResult<Self> {
+        let config = api.config()?;
+        let c = config.get();
+
+        Ok(Self {
             api,
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
-                safety_selection: SafetySelection::Unsafe(Sequencing::default()),
+                safety_selection: SafetySelection::Safe(SafetySpec {
+                    preferred_route: None,
+                    hop_count: c.network.rpc.default_route_hop_count as usize,
+                    stability: Stability::default(),
+                    sequencing: Sequencing::default(),
+                }),
             }),
-        }
+        })
     }
 
-    /// Turn on sender privacy, enabling the use of safety routes.
+    /// Turn on sender privacy, enabling the use of safety routes. This is the default and
+    /// calling this function is only necessary if you have previously disable safety or used other parameters.
     ///
     /// Default values for hop count, stability and sequencing preferences are used.
     ///
@@ -54,12 +63,12 @@ impl RoutingContext {
     /// * Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
     /// * Sequencing default is to have no preference for ordered vs unordered message delivery
     ///
-    /// To modify these defaults, use [RoutingContext::with_custom_privacy()].
-    pub fn with_privacy(self) -> VeilidAPIResult<Self> {
+    /// To customize the safety selection in use, use [RoutingContext::with_safety()].
+    pub fn with_default_safety(self) -> VeilidAPIResult<Self> {
         let config = self.api.config()?;
         let c = config.get();
 
-        self.with_custom_privacy(SafetySelection::Safe(SafetySpec {
+        self.with_safety(SafetySelection::Safe(SafetySpec {
             preferred_route: None,
             hop_count: c.network.rpc.default_route_hop_count as usize,
             stability: Stability::default(),
@@ -67,8 +76,8 @@ impl RoutingContext {
         }))
     }
 
-    /// Turn on privacy using a custom [SafetySelection]
-    pub fn with_custom_privacy(self, safety_selection: SafetySelection) -> VeilidAPIResult<Self> {
+    /// Use a custom [SafetySelection]. Can be used to disable safety via [SafetySelection::Unsafe]
+    pub fn with_safety(self, safety_selection: SafetySelection) -> VeilidAPIResult<Self> {
         Ok(Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
@@ -93,6 +102,11 @@ impl RoutingContext {
                 },
             }),
         }
+    }
+
+    /// Get the safety selection in use on this routing context
+    pub fn safety(&self) -> SafetySelection {
+        self.unlocked_inner.safety_selection
     }
 
     fn sequencing(&self) -> Sequencing {
