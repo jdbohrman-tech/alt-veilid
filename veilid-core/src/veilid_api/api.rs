@@ -268,7 +268,7 @@ impl VeilidAPI {
             stability,
             sequencing,
             default_route_hop_count,
-            Direction::Inbound.into(),
+            DirectionSet::all(),
             &[],
             false,
         )?;

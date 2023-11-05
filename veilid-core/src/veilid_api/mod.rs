@@ -31,7 +31,7 @@ use attachment_manager::AttachmentManager;
 use core::fmt;
 use core_context::{api_shutdown, VeilidCoreContext};
 use network_manager::NetworkManager;
-use routing_table::{Direction, RouteSpecStore, RoutingTable};
+use routing_table::{DirectionSet, RouteSpecStore, RoutingTable};
 use rpc_processor::*;
 use storage_manager::StorageManager;
 
