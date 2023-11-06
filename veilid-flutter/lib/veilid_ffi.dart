@@ -1193,9 +1193,8 @@ class VeilidFFI extends Veilid {
                 Uint32 Function(Uint32), _RoutingContextWithDefaultSafetyDart>(
             'routing_context_with_default_safety'),
         _routingContextWithSafety = dylib.lookupFunction<
-                Uint32 Function(Uint32, Pointer<Utf8>),
-                _RoutingContextWithSafetyDart>(
-            'routing_context_with_custom_privacy'),
+            Uint32 Function(Uint32, Pointer<Utf8>),
+            _RoutingContextWithSafetyDart>('routing_context_with_safety'),
         _routingContextWithSequencing = dylib.lookupFunction<
                 Uint32 Function(Uint32, Pointer<Utf8>),
                 _RoutingContextWithSequencingDart>(
