@@ -309,6 +309,10 @@ impl StorageManager {
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(rpc_processor) = inner.rpc_processor.clone() else {
+            // Return the existing value if we have one if we aren't online
+            if let Some(last_subkey_result_value) = last_subkey_result.value {
+                return Ok(Some(last_subkey_result_value.into_value_data()));
+            }
             apibail_try_again!("offline, try again later");
         };
 
