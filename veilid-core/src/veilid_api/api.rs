@@ -234,8 +234,8 @@ impl VeilidAPI {
     pub async fn new_private_route(&self) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
-            Stability::default(),
-            Sequencing::default(),
+            Stability::Reliable,
+            Sequencing::PreferOrdered,
         )
         .await
     }

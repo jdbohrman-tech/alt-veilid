@@ -48,7 +48,7 @@ impl RoutingContext {
                     preferred_route: None,
                     hop_count: c.network.rpc.default_route_hop_count as usize,
                     stability: Stability::default(),
-                    sequencing: Sequencing::default(),
+                    sequencing: Sequencing::PreferOrdered,
                 }),
             }),
         })
@@ -61,7 +61,7 @@ impl RoutingContext {
     ///
     /// * Hop count default is dependent on config, but is set to 1 extra hop.
     /// * Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
-    /// * Sequencing default is to have no preference for ordered vs unordered message delivery
+    /// * Sequencing default is to prefer ordered before unordered message delivery
     ///
     /// To customize the safety selection in use, use [RoutingContext::with_safety()].
     pub fn with_default_safety(self) -> VeilidAPIResult<Self> {
@@ -72,7 +72,7 @@ impl RoutingContext {
             preferred_route: None,
             hop_count: c.network.rpc.default_route_hop_count as usize,
             stability: Stability::default(),
-            sequencing: Sequencing::default(),
+            sequencing: Sequencing::PreferOrdered,
         }))
     }
 
