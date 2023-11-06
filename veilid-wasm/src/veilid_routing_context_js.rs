@@ -13,7 +13,7 @@ impl VeilidRoutingContext {
     pub fn new() -> APIResult<VeilidRoutingContext> {
         let veilid_api = get_veilid_api()?;
         APIResult::Ok(VeilidRoutingContext {
-            inner_routing_context: veilid_api.routing_context(),
+            inner_routing_context: veilid_api.routing_context()?,
         })
     }
 
@@ -105,30 +105,30 @@ impl VeilidRoutingContext {
         APIResult::Ok(self.inner_routing_context.clone())
     }
 
-    /// Turn on sender privacy, enabling the use of safety routes.
+    /// Turn on sender privacy, enabling the use of safety routes. This is the default and
+    /// calling this function is only necessary if you have previously disable safety or used other parameters.
     /// Returns a new instance of VeilidRoutingContext - does not mutate.
     ///
     /// Default values for hop count, stability and sequencing preferences are used.
     ///
-    /// Hop count default is dependent on config, but is set to 1 extra hop.
-    /// Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
-    /// Sequencing default is to have no preference for ordered vs unordered message delivery
-    pub fn withPrivacy(&self) -> APIResult<VeilidRoutingContext> {
+    /// * Hop count default is dependent on config, but is set to 1 extra hop.
+    /// * Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
+    /// * Sequencing default is to have no preference for ordered vs unordered message delivery
+    ///
+    /// To customize the safety selection in use, use [VeilidRoutingContext::withSafety].
+    pub fn withDefaultSafety(&self) -> APIResult<VeilidRoutingContext> {
         let routing_context = self.getRoutingContext()?;
         APIResult::Ok(VeilidRoutingContext {
-            inner_routing_context: routing_context.with_privacy()?,
+            inner_routing_context: routing_context.with_default_safety()?,
         })
     }
 
-    /// Turn on privacy using a custom `SafetySelection`.
+    /// Use a custom [SafetySelection]. Can be used to disable safety via [SafetySelection::Unsafe]
     /// Returns a new instance of VeilidRoutingContext - does not mutate.
-    pub fn withCustomPrivacy(
-        &self,
-        safety_selection: SafetySelection,
-    ) -> APIResult<VeilidRoutingContext> {
+    pub fn withSafety(&self, safety_selection: SafetySelection) -> APIResult<VeilidRoutingContext> {
         let routing_context = self.getRoutingContext()?;
         APIResult::Ok(VeilidRoutingContext {
-            inner_routing_context: routing_context.with_custom_privacy(safety_selection)?,
+            inner_routing_context: routing_context.with_safety(safety_selection)?,
         })
     }
 
@@ -141,6 +141,14 @@ impl VeilidRoutingContext {
         })
     }
 
+    /// Get the safety selection in use on this routing context
+    /// @returns the SafetySelection currently in use if successful.
+    pub fn safety(&self) -> APIResult<SafetySelection> {
+        let routing_context = self.getRoutingContext()?;
+
+        let safety_selection = routing_context.safety();
+        APIResult::Ok(safety_selection)
+    }
     /// App-level unidirectional message that does not expect any value to be returned.
     ///
     /// Veilid apps may use this for arbitrary message passing.

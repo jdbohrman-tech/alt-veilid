@@ -18,13 +18,14 @@ pub struct RoutingContextResponse {
 #[serde(tag = "rc_op")]
 pub enum RoutingContextRequestOp {
     Release,
-    WithPrivacy,
-    WithCustomPrivacy {
+    WithDefaultSafety,
+    WithSafety {
         safety_selection: SafetySelection,
     },
     WithSequencing {
         sequencing: Sequencing,
     },
+    Safety,
     AppCall {
         target: String,
         #[serde(with = "as_human_base64")]
@@ -88,16 +89,19 @@ pub enum RoutingContextRequestOp {
 pub enum RoutingContextResponseOp {
     InvalidId,
     Release,
-    WithPrivacy {
+    WithDefaultSafety {
         #[serde(flatten)]
         result: ApiResult<u32>,
     },
-    WithCustomPrivacy {
+    WithSafety {
         #[serde(flatten)]
         result: ApiResult<u32>,
     },
     WithSequencing {
         value: u32,
+    },
+    Safety {
+        value: SafetySelection,
     },
     AppCall {
         #[serde(flatten)]

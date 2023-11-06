@@ -189,8 +189,8 @@ impl VeilidAPI {
     // Routing Context
 
     /// Get a new `RoutingContext` object to use to send messages over the Veilid network.
-    pub fn routing_context(&self) -> RoutingContext {
-        RoutingContext::new(self.clone())
+    pub fn routing_context(&self) -> VeilidAPIResult<RoutingContext> {
+        RoutingContext::try_new(self.clone())
     }
 
     /// Parse a string into a target object that can be used in a [RoutingContext]
@@ -234,8 +234,8 @@ impl VeilidAPI {
     pub async fn new_private_route(&self) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
-            Stability::default(),
-            Sequencing::default(),
+            Stability::Reliable,
+            Sequencing::PreferOrdered,
         )
         .await
     }

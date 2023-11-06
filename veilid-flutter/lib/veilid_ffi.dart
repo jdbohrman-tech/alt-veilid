@@ -45,12 +45,15 @@ typedef _DetachDart = void Function(int);
 typedef _RoutingContextDart = void Function(int);
 // fn release_routing_context(id: u32)
 typedef _ReleaseRoutingContextDart = int Function(int);
-// fn routing_context_with_privacy(id: u32) -> u32
-typedef _RoutingContextWithPrivacyDart = int Function(int);
-// fn routing_context_with_custom_privacy(id: u32, stability: FfiStr)
-typedef _RoutingContextWithCustomPrivacyDart = int Function(int, Pointer<Utf8>);
+// fn routing_context_with_default_safety(id: u32) -> u32
+typedef _RoutingContextWithDefaultSafetyDart = int Function(int);
+// fn routing_context_with_safety(id: u32, stability: FfiStr)
+typedef _RoutingContextWithSafetyDart = int Function(int, Pointer<Utf8>);
 // fn routing_context_with_sequencing(id: u32, sequencing: FfiStr)
 typedef _RoutingContextWithSequencingDart = int Function(int, Pointer<Utf8>);
+// fn routing_context_safety(port: i64,
+//    id: u32)
+typedef _RoutingContextSafetyDart = void Function(int, int);
 // fn routing_context_app_call(port: i64,
 //    id: u32, target: FfiStr, request: FfiStr)
 typedef _RoutingContextAppCallDart = void Function(
@@ -525,16 +528,16 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  VeilidRoutingContextFFI withPrivacy() {
+  VeilidRoutingContextFFI withDefaultSafety() {
     _ctx.ensureValid();
-    final newId = _ctx.ffi._routingContextWithPrivacy(_ctx.id!);
+    final newId = _ctx.ffi._routingContextWithDefaultSafety(_ctx.id!);
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
 
   @override
-  VeilidRoutingContextFFI withCustomPrivacy(SafetySelection safetySelection) {
+  VeilidRoutingContextFFI withSafety(SafetySelection safetySelection) {
     _ctx.ensureValid();
-    final newId = _ctx.ffi._routingContextWithCustomPrivacy(
+    final newId = _ctx.ffi._routingContextWithSafety(
         _ctx.id!, jsonEncode(safetySelection).toNativeUtf8());
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
   }
@@ -545,6 +548,17 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final newId = _ctx.ffi._routingContextWithSequencing(
         _ctx.id!, jsonEncode(sequencing).toNativeUtf8());
     return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
+  }
+
+  @override
+  Future<SafetySelection> safety() async {
+    _ctx.ensureValid();
+    final recvPort = ReceivePort('routing_context_safety');
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextSafety(sendPort.nativePort, _ctx.id!);
+    final out = await processFutureJson<SafetySelection>(
+        SafetySelection.fromJson, recvPort.first);
+    return out;
   }
 
   @override
@@ -1175,17 +1189,19 @@ class VeilidFFI extends Veilid {
                 'routing_context'),
         _releaseRoutingContext = dylib.lookupFunction<Int32 Function(Uint32),
             _ReleaseRoutingContextDart>('release_routing_context'),
-        _routingContextWithPrivacy = dylib.lookupFunction<
-            Uint32 Function(Uint32),
-            _RoutingContextWithPrivacyDart>('routing_context_with_privacy'),
-        _routingContextWithCustomPrivacy = dylib.lookupFunction<
-                Uint32 Function(Uint32, Pointer<Utf8>),
-                _RoutingContextWithCustomPrivacyDart>(
-            'routing_context_with_custom_privacy'),
+        _routingContextWithDefaultSafety = dylib.lookupFunction<
+                Uint32 Function(Uint32), _RoutingContextWithDefaultSafetyDart>(
+            'routing_context_with_default_safety'),
+        _routingContextWithSafety = dylib.lookupFunction<
+            Uint32 Function(Uint32, Pointer<Utf8>),
+            _RoutingContextWithSafetyDart>('routing_context_with_safety'),
         _routingContextWithSequencing = dylib.lookupFunction<
                 Uint32 Function(Uint32, Pointer<Utf8>),
                 _RoutingContextWithSequencingDart>(
             'routing_context_with_sequencing'),
+        _routingContextSafety = dylib.lookupFunction<
+            Void Function(Int64, Uint32),
+            _RoutingContextSafetyDart>('routing_context_safety'),
         _routingContextAppCall = dylib.lookupFunction<
             Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _RoutingContextAppCallDart>('routing_context_app_call'),
@@ -1383,9 +1399,10 @@ class VeilidFFI extends Veilid {
 
   final _RoutingContextDart _routingContext;
   final _ReleaseRoutingContextDart _releaseRoutingContext;
-  final _RoutingContextWithPrivacyDart _routingContextWithPrivacy;
-  final _RoutingContextWithCustomPrivacyDart _routingContextWithCustomPrivacy;
+  final _RoutingContextWithDefaultSafetyDart _routingContextWithDefaultSafety;
+  final _RoutingContextWithSafetyDart _routingContextWithSafety;
   final _RoutingContextWithSequencingDart _routingContextWithSequencing;
+  final _RoutingContextSafetyDart _routingContextSafety;
   final _RoutingContextAppCallDart _routingContextAppCall;
   final _RoutingContextAppMessageDart _routingContextAppMessage;
   final _RoutingContextCreateDHTRecordDart _routingContextCreateDHTRecord;

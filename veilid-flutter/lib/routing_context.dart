@@ -239,9 +239,10 @@ abstract class VeilidRoutingContext {
   void close();
 
   // Modifiers
-  VeilidRoutingContext withPrivacy();
-  VeilidRoutingContext withCustomPrivacy(SafetySelection safetySelection);
+  VeilidRoutingContext withDefaultSafety();
+  VeilidRoutingContext withSafety(SafetySelection safetySelection);
   VeilidRoutingContext withSequencing(Sequencing sequencing);
+  Future<SafetySelection> safety();
 
   // App call/message
   Future<Uint8List> appCall(String target, Uint8List request);

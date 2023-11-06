@@ -407,7 +407,7 @@ fn add_routing_context(
 pub extern "C" fn routing_context(port: i64) {
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
-        let routing_context = veilid_api.routing_context();
+        let routing_context = veilid_api.routing_context()?;
         let mut rc = ROUTING_CONTEXTS.lock();
         let new_id = add_routing_context(&mut rc, routing_context);
         APIResult::Ok(new_id)
@@ -424,12 +424,12 @@ pub extern "C" fn release_routing_context(id: u32) -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn routing_context_with_privacy(id: u32) -> u32 {
+pub extern "C" fn routing_context_with_default_safety(id: u32) -> u32 {
     let mut rc = ROUTING_CONTEXTS.lock();
     let Some(routing_context) = rc.get(&id) else {
         return 0;
     };
-    let Ok(routing_context) = routing_context.clone().with_privacy() else {
+    let Ok(routing_context) = routing_context.clone().with_default_safety() else {
         return 0;
     };
 
@@ -437,7 +437,7 @@ pub extern "C" fn routing_context_with_privacy(id: u32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn routing_context_with_custom_privacy(id: u32, safety_selection: FfiStr) -> u32 {
+pub extern "C" fn routing_context_with_safety(id: u32, safety_selection: FfiStr) -> u32 {
     let safety_selection: veilid_core::SafetySelection =
         veilid_core::deserialize_opt_json(safety_selection.into_opt_string()).unwrap();
 
@@ -445,10 +445,7 @@ pub extern "C" fn routing_context_with_custom_privacy(id: u32, safety_selection:
     let Some(routing_context) = rc.get(&id) else {
         return 0;
     };
-    let Ok(routing_context) = routing_context
-        .clone()
-        .with_custom_privacy(safety_selection)
-    else {
+    let Ok(routing_context) = routing_context.clone().with_safety(safety_selection) else {
         return 0;
     };
 
@@ -469,6 +466,23 @@ pub extern "C" fn routing_context_with_sequencing(id: u32, sequencing: FfiStr) -
     add_routing_context(&mut rc, routing_context)
 }
 
+#[no_mangle]
+pub extern "C" fn routing_context_safety(port: i64, id: u32) {
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let routing_context = {
+            let rc = ROUTING_CONTEXTS.lock();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+                    "routing_context_app_call",
+                    "id",
+                    id,
+                ));
+            };
+            routing_context.clone()
+        };
+        APIResult::Ok(routing_context.safety())
+    });
+}
 #[no_mangle]
 pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, request: FfiStr) {
     let target_string: String = target.into_opt_string().unwrap();

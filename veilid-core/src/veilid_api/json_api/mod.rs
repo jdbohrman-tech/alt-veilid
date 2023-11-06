@@ -173,7 +173,8 @@ pub enum ResponseOp {
     },
     // Routing Context
     NewRoutingContext {
-        value: u32,
+        #[serde(flatten)]
+        result: ApiResult<u32>,
     },
     RoutingContext(Box<RoutingContextResponse>),
     // TableDb

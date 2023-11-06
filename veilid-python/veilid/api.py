@@ -22,17 +22,21 @@ class RoutingContext(ABC):
         pass
 
     @abstractmethod
-    async def with_privacy(self, release=True) -> Self:
+    async def with_default_safety(self, release=True) -> Self:
         pass
 
     @abstractmethod
-    async def with_custom_privacy(
+    async def with_safety(
         self, safety_selection: types.SafetySelection, release=True
     ) -> Self:
         pass
 
     @abstractmethod
     async def with_sequencing(self, sequencing: types.Sequencing, release=True) -> Self:
+        pass
+
+    @abstractmethod
+    async def safety(self) -> types.SafetySelection:
         pass
 
     @abstractmethod

@@ -215,7 +215,7 @@
             "rc_op": {
               "type": "string",
               "enum": [
-                "WithPrivacy"
+                "WithDefaultSafety"
               ]
             }
           }
@@ -230,7 +230,7 @@
             "rc_op": {
               "type": "string",
               "enum": [
-                "WithCustomPrivacy"
+                "WithSafety"
               ]
             },
             "safety_selection": {
@@ -253,6 +253,20 @@
             },
             "sequencing": {
               "$ref": "#/definitions/Sequencing"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "rc_op"
+          ],
+          "properties": {
+            "rc_op": {
+              "type": "string",
+              "enum": [
+                "Safety"
+              ]
             }
           }
         },
