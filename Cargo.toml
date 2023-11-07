@@ -12,7 +12,6 @@ resolver = "2"
 [patch.crates-io]
 cursive = { git = "https://gitlab.com/veilid/cursive.git" }
 cursive_core = { git = "https://gitlab.com/veilid/cursive.git" }
-async-tls = { git = "https://github.com/async-rs/async-tls", rev = "c58588a" }
 
 # For local development
 # keyvaluedb = { path = "../keyvaluedb/keyvaluedb" }

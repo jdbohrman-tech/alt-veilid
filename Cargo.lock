@@ -489,18 +489,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4eb2cdb97421e01129ccb49169d8279ed21e829929144f4a22a6e54ac549ca1"
 
 [[package]]
-name = "async-tls"
-version = "0.12.0"
-source = "git+https://github.com/async-rs/async-tls?rev=c58588a#c58588a276e6180f3ef99f4ec3bf9176c5f0f58c"
-dependencies = [
- "futures-core",
- "futures-io",
- "rustls",
- "rustls-pemfile",
- "webpki-roots 0.22.6",
-]
-
-[[package]]
 name = "async-trait"
 version = "0.1.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -517,7 +505,6 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1e9efbe14612da0a19fb983059a0b621e9cf6225d7018ecab4f9988215540dc"
 dependencies = [
- "async-tls",
  "futures-io",
  "futures-util",
  "log",
@@ -5438,6 +5425,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
+name = "veilid-async-tls"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f273e0e7f394ba1d52a1613411cb7442641f2625eb25cfd13d31965d8da558ee"
+dependencies = [
+ "futures-core",
+ "futures-io",
+ "rustls",
+ "rustls-pemfile",
+ "webpki-roots 0.22.6",
+]
+
+[[package]]
+name = "veilid-async-tungstenite"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ae5d6d02764ce82b7fdae4360bd497fe8df7a08a5901ef15a49e1ee2f734e2d"
+dependencies = [
+ "futures-io",
+ "futures-util",
+ "log",
+ "pin-project-lite",
+ "tungstenite",
+ "veilid-async-tls",
+]
+
+[[package]]
 name = "veilid-bugsalot"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5489,8 +5503,6 @@ dependencies = [
  "async-lock 2.8.0",
  "async-std",
  "async-std-resolver",
- "async-tls",
- "async-tungstenite",
  "async_executors",
  "backtrace",
  "blake3",
@@ -5562,6 +5574,8 @@ dependencies = [
  "tracing-wasm",
  "trust-dns-resolver",
  "tsify",
+ "veilid-async-tls",
+ "veilid-async-tungstenite",
  "veilid-bugsalot",
  "veilid-hashlink",
  "veilid-igd",
@@ -5645,7 +5659,6 @@ version = "0.2.5"
 dependencies = [
  "ansi_term",
  "async-std",
- "async-tungstenite",
  "backtrace",
  "cfg-if 1.0.0",
  "clap 4.4.7",
@@ -5683,6 +5696,7 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "url",
+ "veilid-async-tungstenite",
  "veilid-bugsalot",
  "veilid-core",
  "wg",

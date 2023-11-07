@@ -51,7 +51,9 @@ tokio = { version = "^1", features = ["full", "tracing"], optional = true }
 console-subscriber = { version = "^0", optional = true }
 tokio-stream = { version = "^0", features = ["net"], optional = true }
 tokio-util = { version = "^0", features = ["compat"], optional = true }
-async-tungstenite = { version = "^0", features = ["async-tls"] }
+async-tungstenite = { package = "veilid-async-tungstenite", version = "^0", features = [
+    "async-tls",
+] }
 color-eyre = { version = "^0", default-features = false }
 backtrace = "^0"
 clap = { version = "4", features = ["derive", "string", "wrap_help"] }
