@@ -67,7 +67,7 @@ pub use veilid_tools as tools;
 
 /// The on-the-wire serialization format for Veilid RPC
 pub mod veilid_capnp {
-    include!(concat!(env!("OUT_DIR"), "/proto/veilid_capnp.rs"));
+    include!("../proto/veilid_capnp.rs");
 }
 
 #[doc(hidden)]

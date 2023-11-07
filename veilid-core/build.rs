@@ -117,6 +117,7 @@ fn main() {
 
     ::capnpc::CompilerCommand::new()
         .file("proto/veilid.capnp")
+        .output_path(".")
         .run()
         .expect("compiling schema");
 
