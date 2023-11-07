@@ -1,3 +1,19 @@
+**Changed in Veilid 0.2.5**
+- API BREAKING CHANGES: 
+  - on `RoutingContext`: `with_privacy()` renamed to `with_default_safety()`
+  - on `RoutingContext`: `with_custom_privacy()` renamed to `with_safety()`
+  - on `RoutingContext`: `safety()` method added that returns the current `SafetySelection`
+  - Routing contexts are now safety-route-enabled by default. To disable, use `with_safety()` with `SafetySelection::Unsafe`.
+- WASM now works better with updated connection manager code
+- Async-std flavor of veilid-core now builds correctly again
+- Safety route allocation is bidirectional
+- Connection table LRU cache now has protection for relays and in-use RPC question/answers
+- Dead route notifications are now sent only for manually allocated routes
+- Allocated routes that fail tests now have their nodes marked as 'failure to send' so they go 'unreliable' and get re-tested. Also the same route will not immediately be reallocated as a result.
+- DHT tests ported from Python to Rust
+- Rustls updated to latest release
+- Protected connections (such as relays) that drop result in marking the node as 'failure to send' so a different relay gets chosen
+
 **Changed in Veilid 0.2.4**
 - Fixed issue with client API failing when ipv6 was disabled
 - Android fixed so it can move out of invalid network state
