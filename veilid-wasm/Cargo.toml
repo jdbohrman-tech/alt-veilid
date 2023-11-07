@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-wasm"
-version = "0.2.4"
+version = "0.2.5"
 # ---
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
@@ -16,7 +16,7 @@ default = ["veilid-core/default-wasm"]
 crypto-test = ["veilid-core/crypto-test"]
 
 [dependencies]
-veilid-core = { version = "0.2.4", path = "../veilid-core", default-features = false }
+veilid-core = { version = "0.2.5", path = "../veilid-core", default-features = false }
 
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-wasm = "^0"
