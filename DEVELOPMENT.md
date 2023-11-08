@@ -22,8 +22,11 @@ welcome!
 
 Running the setup script requires:
 
-* Android SDK and NDK
 * Rust
+
+Optionally, to build for Android:
+
+* Android SDK and NDK
 
 You may decide to use Android Studio [here](https://developer.android.com/studio)
 to maintain your Android dependencies. If so, use the dependency manager
@@ -95,11 +98,14 @@ Development of Veilid on MacOS is possible on both Intel and ARM hardware.
 
 Development requires:
 
-* Android Studio
 * Xcode, preferably latest version
 * Homebrew [here](https://brew.sh)
-* Android SDK and NDK
 * Rust
+
+Optionally, to build for Android:
+
+* Android Studio
+* Android SDK and NDK
 
 You will need to use Android Studio [here](https://developer.android.com/studio)
 to maintain your Android dependencies. Use the SDK Manager in the IDE to install the following packages (use package details view to select version):
