@@ -17,75 +17,75 @@ if ! lsb_release -d | grep -qEi 'debian|buntu|mint' && [ -z "$(command -v dnf)" 
     echo Not a supported Linux
     exit 1
 fi
+
 while true; do
-read -p "Did you install Android SDK? Y/N " response
+    read -p "Did you install Android SDK? Y/N " response
 
-case $response in
-	[yY] ) echo Checking android setup...;
+    case $response in
+    [yY] ) echo Checking android setup...;
 
-# ensure ANDROID_SDK_ROOT is defined and exists
-if [ -d "$ANDROID_SDK_ROOT" ]; then
-    echo '[X] $ANDROID_SDK_ROOT is defined and exists' 
-else
-    echo '$ANDROID_SDK_ROOT is not defined or does not exist'
-    exit 1
-fi
+        # ensure ANDROID_SDK_ROOT is defined and exists
+        if [ -d "$ANDROID_SDK_ROOT" ]; then
+            echo '[X] $ANDROID_SDK_ROOT is defined and exists' 
+        else
+            echo '$ANDROID_SDK_ROOT is not defined or does not exist'
+            exit 1
+        fi
 
-# ensure Android Command Line Tools exist
-if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
-    echo '[X] Android command line tools are installed' 
-else
-    echo 'Android command line tools are not installed'
-    exit 1
-fi
+        # ensure Android Command Line Tools exist
+        if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
+            echo '[X] Android command line tools are installed' 
+        else
+            echo 'Android command line tools are not installed'
+            exit 1
+        fi
 
-# ensure ANDROID_NDK_HOME is defined and exists
-if [ -d "$ANDROID_NDK_HOME" ]; then
-    echo '[X] $ANDROID_NDK_HOME is defined and exists' 
-else
-    echo '$ANDROID_NDK_HOME is not defined or does not exist'
-    exit 1
-fi
+        # ensure ANDROID_NDK_HOME is defined and exists
+        if [ -d "$ANDROID_NDK_HOME" ]; then
+            echo '[X] $ANDROID_NDK_HOME is defined and exists' 
+        else
+            echo '$ANDROID_NDK_HOME is not defined or does not exist'
+            exit 1
+        fi
 
-# ensure ndk is installed
-if [ -f "$ANDROID_NDK_HOME/ndk-build" ]; then
-    echo '[X] Android NDK is installed at the location $ANDROID_NDK_HOME' 
-else
-    echo 'Android NDK is not installed at the location $ANDROID_NDK_HOME'
-    exit 1
-fi
+        # ensure ndk is installed
+        if [ -f "$ANDROID_NDK_HOME/ndk-build" ]; then
+            echo '[X] Android NDK is installed at the location $ANDROID_NDK_HOME' 
+        else
+            echo 'Android NDK is not installed at the location $ANDROID_NDK_HOME'
+            exit 1
+        fi
 
-# ensure cmake is installed
-if [ -d "$ANDROID_SDK_ROOT/cmake" ]; then
-    echo '[X] Android SDK CMake is installed' 
-else
-    echo 'Android SDK CMake is not installed'
-    exit 1
-fi
+        # ensure cmake is installed
+        if [ -d "$ANDROID_SDK_ROOT/cmake" ]; then
+            echo '[X] Android SDK CMake is installed' 
+        else
+            echo 'Android SDK CMake is not installed'
+            exit 1
+        fi
 
-# ensure emulator is installed
-if [ -d "$ANDROID_SDK_ROOT/emulator" ]; then
-    echo '[X] Android SDK emulator is installed' 
-else
-    echo 'Android SDK emulator is not installed'
-    exit 1
-fi
+        # ensure emulator is installed
+        if [ -d "$ANDROID_SDK_ROOT/emulator" ]; then
+            echo '[X] Android SDK emulator is installed' 
+        else
+            echo 'Android SDK emulator is not installed'
+            exit 1
+        fi
 
-# ensure adb is installed
-if command -v adb &> /dev/null; then 
-    echo '[X] adb is available in the path'
-else
-    echo 'adb is not available in the path'
-    exit 1
-fi
-break;;
-[nN] ) echo Skipping android SDK config check...;
-break;;
-
-* ) echo invalid response;;
-
-esac
+        # ensure adb is installed
+        if command -v adb &> /dev/null; then 
+            echo '[X] adb is available in the path'
+        else
+            echo 'adb is not available in the path'
+            exit 1
+        fi
+        break;;
+    [nN] ) echo Skipping Android SDK config check...;
+        break;;
+    * ) echo invalid response;;
+    esac
 done
+
 # ensure rustup is installed
 if command -v rustup &> /dev/null; then 
     echo '[X] rustup is available in the path'
@@ -119,7 +119,21 @@ cargo install wasm-bindgen-cli wasm-pack cargo-edit
 # install pip packages
 pip3 install --upgrade bumpversion
 
-# Install capnproto using the same mechanism as our earthly build
-$SCRIPTDIR/../scripts/earthly/install_capnproto.sh
-# Install protoc using the same mechanism as our earthly build
-$SCRIPTDIR/../scripts/earthly/install_protoc.sh
+# install capnp
+while true; do
+    read -p "Will you be modifying the capnproto schema? Y/N (say N if unsure)" response
+
+    case $response in
+    [yY] ) echo Installing capnproto...;
+
+        # Install capnproto using the same mechanism as our earthly build
+        $SCRIPTDIR/../scripts/earthly/install_capnproto.sh
+
+        break;;
+    [nN] ) echo Skipping capnproto installation...;
+        break;;
+    * ) echo invalid response;;
+    esac
+done
+
+

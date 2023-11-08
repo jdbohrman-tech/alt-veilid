@@ -7,69 +7,77 @@ if [ ! "$(uname)" == "Darwin" ]; then
     echo Not running on MacOS
     exit 1
 fi
-read -p "Did you install Android SDK? Y/N " response
-case $response in
-	[yY] ) echo Checking android setup...;
 
-# ensure ANDROID_SDK_ROOT is defined and exists
-if [ -d "$ANDROID_SDK_ROOT" ]; then
-    echo '[X] $ANDROID_SDK_ROOT is defined and exists' 
-else
-    echo '$ANDROID_SDK_ROOT is not defined or does not exist'
-    exit 1
-fi
+while true; do
 
-# ensure Android Command Line Tools exist
-if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
-    echo '[X] Android command line tools are installed' 
-else
-    echo 'Android command line tools are not installed'
-    exit 1
-fi
+    read -p "Did you install Android SDK? Y/N " response
+    case $response in
+        [yY] ) echo Checking android setup...;
+        # ensure ANDROID_SDK_ROOT is defined and exists
+        if [ -d "$ANDROID_SDK_ROOT" ]; then
+            echo '[X] $ANDROID_SDK_ROOT is defined and exists' 
+        else
+            echo '$ANDROID_SDK_ROOT is not defined or does not exist'
+            exit 1
+        fi
 
-# ensure Android SDK packages are installed
-$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
+        # ensure Android Command Line Tools exist
+        if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
+            echo '[X] Android command line tools are installed' 
+        else
+            echo 'Android command line tools are not installed'
+            exit 1
+        fi
 
-# ensure ANDROID_NDK_HOME is defined and exists
-if [ -d "$ANDROID_NDK_HOME" ]; then
-    echo '[X] $ANDROID_NDK_HOME is defined and exists' 
-else
-    echo '$ANDROID_NDK_HOME is not defined or does not exist'
-    exit 1
-fi
+        # ensure Android SDK packages are installed
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33
 
-# ensure ndk is installed
-if [ -f "$ANDROID_NDK_HOME/ndk-build" ]; then
-    echo '[X] Android NDK is installed at the location $ANDROID_NDK_HOME' 
-else
-    echo 'Android NDK is not installed at the location $ANDROID_NDK_HOME'
-    exit 1
-fi
+        # ensure ANDROID_NDK_HOME is defined and exists
+        if [ -d "$ANDROID_NDK_HOME" ]; then
+            echo '[X] $ANDROID_NDK_HOME is defined and exists' 
+        else
+            echo '$ANDROID_NDK_HOME is not defined or does not exist'
+            exit 1
+        fi
 
-# ensure cmake is installed
-if [ -d "$ANDROID_SDK_ROOT/cmake" ]; then
-    echo '[X] Android SDK CMake is installed' 
-else
-    echo 'Android SDK CMake is not installed'
-    exit 1
-fi
+        # ensure ndk is installed
+        if [ -f "$ANDROID_NDK_HOME/ndk-build" ]; then
+            echo '[X] Android NDK is installed at the location $ANDROID_NDK_HOME' 
+        else
+            echo 'Android NDK is not installed at the location $ANDROID_NDK_HOME'
+            exit 1
+        fi
 
-# ensure emulator is installed
-if [ -d "$ANDROID_SDK_ROOT/emulator" ]; then
-    echo '[X] Android SDK emulator is installed' 
-else
-    echo 'Android SDK emulator is not installed'
-    exit 1
-fi
+        # ensure cmake is installed
+        if [ -d "$ANDROID_SDK_ROOT/cmake" ]; then
+            echo '[X] Android SDK CMake is installed' 
+        else
+            echo 'Android SDK CMake is not installed'
+            exit 1
+        fi
 
-# ensure adb is installed
-if command -v adb &> /dev/null; then 
-    echo '[X] adb is available in the path'
-else
-    echo 'adb is not available in the path'
-    exit 1
-fi
-esac
+        # ensure emulator is installed
+        if [ -d "$ANDROID_SDK_ROOT/emulator" ]; then
+            echo '[X] Android SDK emulator is installed' 
+        else
+            echo 'Android SDK emulator is not installed'
+            exit 1
+        fi
+
+        # ensure adb is installed
+        if command -v adb &> /dev/null; then 
+            echo '[X] adb is available in the path'
+        else
+            echo 'adb is not available in the path'
+            exit 1
+        fi
+        break;;
+    [nN] ) echo Skipping Android SDK config check...;
+        break;;
+
+    * ) echo invalid response;;
+    esac
+done
 
 # ensure brew is installed
 if command -v brew &> /dev/null; then 
@@ -130,7 +138,7 @@ if [ "$BREW_USER" == "" ]; then
         BREW_USER=`whoami`
     fi
 fi
-sudo -H -u $BREW_USER brew install capnp cmake wabt llvm protobuf openjdk@17 jq
+sudo -H -u $BREW_USER brew install capnp cmake wabt llvm openjdk@17 jq
 
 # install targets
 rustup target add aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android

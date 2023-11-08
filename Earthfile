@@ -26,22 +26,6 @@ deps-base:
     RUN apt-get -y update
     RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev
 
-# Install Cap'n Proto
-deps-capnp:
-    FROM +deps-base
-    COPY scripts/earthly/install_capnproto.sh /
-    RUN /bin/bash /install_capnproto.sh 1; rm /install_capnproto.sh
-    SAVE ARTIFACT /usr/local/bin/capnp* bin/
-    SAVE ARTIFACT /usr/local/lib/lib* lib/
-    SAVE ARTIFACT /usr/local/lib/pkgconfig lib/
-
-# Install protoc
-deps-protoc:
-    FROM +deps-base
-    COPY scripts/earthly/install_protoc.sh /
-    RUN /bin/bash /install_protoc.sh; rm /install_protoc.sh
-    SAVE ARTIFACT /usr/local/bin/protoc bin/protoc
-
 # Install Rust
 deps-rust:
     FROM +deps-base
@@ -75,11 +59,6 @@ deps-rust:
 # Install android tooling
 deps-android:
     FROM +deps-base
-    BUILD +deps-protoc
-    COPY +deps-protoc/bin/* /usr/local/bin/
-    BUILD +deps-capnp
-    COPY +deps-capnp/bin/* /usr/local/bin/
-    COPY +deps-capnp/lib/* /usr/local/lib/
     BUILD +deps-rust
     COPY +deps-rust/cargo /usr/local/cargo
     COPY +deps-rust/rustup /usr/local/rustup
@@ -96,11 +75,6 @@ deps-android:
 # Just linux build not android
 deps-linux:
     FROM +deps-base
-    BUILD +deps-protoc
-    COPY +deps-protoc/bin/* /usr/local/bin/
-    BUILD +deps-capnp
-    COPY +deps-capnp/bin/* /usr/local/bin/
-    COPY +deps-capnp/lib/* /usr/local/lib/
     BUILD +deps-rust
     COPY +deps-rust/cargo /usr/local/cargo
     COPY +deps-rust/rustup /usr/local/rustup
