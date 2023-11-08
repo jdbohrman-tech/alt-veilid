@@ -16,7 +16,7 @@ fn get_capnp_version_string() -> String {
         .arg("--version")
         .stdout(Stdio::piped())
         .output()
-        .expect("capnp was not in the PATH");
+        .expect("capnp was not in the PATH, and is required for the build when you have changed any .capnp files");
     let s = String::from_utf8(output.stdout)
         .expect("'capnp --version' output was not a valid string")
         .trim()
