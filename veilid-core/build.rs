@@ -1,3 +1,4 @@
+use filetime::{set_file_mtime, FileTime};
 use glob::glob;
 use std::{
     env, fs, io,
@@ -84,6 +85,9 @@ fn do_capnp_build() {
         .output_path(".")
         .run()
         .expect("compiling schema");
+
+    // If successful, update modification time
+    set_file_mtime("proto/veilid_capnp.rs", FileTime::now()).unwrap();
 }
 
 // Fix for missing __extenddftf2 on Android x86_64 Emulator
@@ -113,6 +117,7 @@ fn main() {
     }
 
     if is_input_file_outdated("./proto/veilid.capnp", "./proto/veilid_capnp.rs").unwrap() {
+        println!("cargo:warning=rebuilding proto/veilid_capnp.rs because it is older than proto/veilid.capnp");
         do_capnp_build();
     }
 
