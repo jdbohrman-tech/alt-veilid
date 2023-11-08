@@ -106,7 +106,7 @@ android_logger = "0.13.3"
 
 # Dependencies for Windows
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3.9", features = ["iptypes", "iphlpapi"] }
+winapi = { version = "0.3.9", features = ["iptypes", "iphlpapi", "winerror"] }
 
 # Dependencies for iOS
 [target.'cfg(target_os = "ios")'.dependencies]
