@@ -334,6 +334,11 @@ async fn wait_for_public_internet_ready(api: &VeilidAPI) {
 }
 
 pub async fn test_all() {
+    if intf::env_variable_is_defined("CI") {
+        info!("skipping DHT test in CI");
+        return;
+    }
+
     let (update_callback, config_callback) = setup_veilid_core();
     let api = api_startup(update_callback, config_callback)
         .await

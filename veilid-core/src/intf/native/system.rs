@@ -191,3 +191,10 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
         }
     }
 }
+
+pub fn env_variable_is_defined<S: AsRef<str>>(s: S) -> bool {
+    match std::env::var(s.as_ref()) {
+        Ok(v) => !v.is_empty(),
+        Err(_) => false,
+    }
+}
