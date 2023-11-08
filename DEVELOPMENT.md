@@ -24,7 +24,7 @@ Running the setup script requires:
 
 * Rust
 
-Optionally, to build for Android:
+#### Optionally, to build for Android:
 
 * Android SDK and NDK
 
@@ -102,7 +102,7 @@ Development requires:
 * Homebrew [here](https://brew.sh)
 * Rust
 
-Optionally, to build for Android:
+#### Optionally, to build for Android:
 
 * Android Studio
 * Android SDK and NDK
