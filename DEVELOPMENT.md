@@ -63,13 +63,12 @@ sdkmanager --install "cmake;3.22.1"
 ```
 
 Export environment variables and add the Android SDK platform-tools directory to
-your path.
+your path. See [instructions here](https://developer.android.com/tools/variables).
 
 ```shell
 cat << EOF >> ~/.profile 
-export ANDROID_SDK_ROOT=<path to sdk>
-export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.1.8937393
-export PATH=\$PATH:$ANDROID_SDK_ROOT/platform-tools
+export ANDROID_HOME=<path to sdk>
+export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools
 EOF
 ```
 
@@ -119,13 +118,12 @@ to maintain your Android dependencies. Use the SDK Manager in the IDE to install
 #### Setup command line environment
 
 Export environment variables and add the Android SDK platform-tools directory to
-your path.
+your path. See [instructions here](https://developer.android.com/tools/variables).
 
 ```shell
 cat << EOF >> ~/.zshenv
-export ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
-export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/25.1.8937393
-export PATH=\$PATH:$HOME/Library/Android/sdk/platform-tools
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools
 EOF
 ```
 

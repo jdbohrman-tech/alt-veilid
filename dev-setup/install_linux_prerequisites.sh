@@ -9,20 +9,20 @@ fi
 if [ ! -z "$(command -v apt)" ]; then
     # Install APT dependencies
     sudo apt update -y
-    sudo apt install -y openjdk-11-jdk-headless iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip llvm wabt python3-pip
+    sudo apt install -y openjdk-17-jdk-headless iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip llvm wabt python3-pip
 elif [ ! -z "$(command -v dnf)" ]; then
     # DNF (formerly yum)
     sudo dnf update -y
     # libgirepository -> gobject-introspection
     # iproute2 -> iproute
-    # openjdk-11-jdk-headless -> java-11-openjdk-headless
+    # openjdk-17-jdk-headless -> java-11-openjdk-headless
     # checkinstall does not appear to be a thing in Fedora 38 repos
     #
     # Seems like iproute and file might come preinstalled but I put
     # them in anyway
     #
     # Also Fedora doesn't come with pip
-    sudo dnf install -y java-11-openjdk-headless iproute curl cmake openssl-devel openssl git file pkg-config dbus-devel dbus-glib gobject-introspection-devel cairo-devel unzip llvm wabt python3-pip gcc-c++
+    sudo dnf install -y java-17-openjdk-headless iproute curl cmake openssl-devel openssl git file pkg-config dbus-devel dbus-glib gobject-introspection-devel cairo-devel unzip llvm wabt python3-pip gcc-c++
     # build-essentials
     sudo dnf groupinstall -y 'Development Tools'
 fi
@@ -50,8 +50,7 @@ rm -rf $HOME/Android/cmdline-tools $HOME/Android/cmdline-tools.zip
 cat >> $HOME/.profile <<END
 source "\$HOME/.cargo/env"
 export PATH=\$PATH:\$HOME/Android/Sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin:\$HOME/Android/Sdk/platform-tools:\$HOME/Android/Sdk/cmdline-tools/latest/bin
-export ANDROID_NDK_HOME=\$HOME/Android/Sdk/ndk/25.1.8937393
-export ANDROID_SDK_ROOT=\$HOME/Android/Sdk
+export ANDROID_HOME=\$HOME/Android/Sdk
 END
 break ;;
 [nN] ) echo Skipping Android SDK;

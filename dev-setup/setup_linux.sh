@@ -24,31 +24,24 @@ while true; do
     case $response in
     [yY] ) echo Checking android setup...;
 
-        # ensure ANDROID_SDK_ROOT is defined and exists
-        if [ -d "$ANDROID_SDK_ROOT" ]; then
-            echo '[X] $ANDROID_SDK_ROOT is defined and exists' 
+        # ensure ANDROID_HOME is defined and exists
+        if [ -d "$ANDROID_HOME" ]; then
+            echo '[X] $ANDROID_HOME is defined and exists'
         else
-            echo '$ANDROID_SDK_ROOT is not defined or does not exist'
+            echo '$ANDROID_HOME is not defined or does not exist'
             exit 1
         fi
 
         # ensure Android Command Line Tools exist
-        if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
+        if [ -d "$ANDROID_HOME/cmdline-tools/latest/bin" ]; then
             echo '[X] Android command line tools are installed' 
         else
             echo 'Android command line tools are not installed'
             exit 1
         fi
 
-        # ensure ANDROID_NDK_HOME is defined and exists
-        if [ -d "$ANDROID_NDK_HOME" ]; then
-            echo '[X] $ANDROID_NDK_HOME is defined and exists' 
-        else
-            echo '$ANDROID_NDK_HOME is not defined or does not exist'
-            exit 1
-        fi
-
         # ensure ndk is installed
+        ANDROID_NDK_HOME="$ANDROID_HOME/ndk/25.1.8937393"
         if [ -f "$ANDROID_NDK_HOME/ndk-build" ]; then
             echo '[X] Android NDK is installed at the location $ANDROID_NDK_HOME' 
         else
@@ -57,7 +50,7 @@ while true; do
         fi
 
         # ensure cmake is installed
-        if [ -d "$ANDROID_SDK_ROOT/cmake" ]; then
+        if [ -d "$ANDROID_HOME/cmake" ]; then
             echo '[X] Android SDK CMake is installed' 
         else
             echo 'Android SDK CMake is not installed'
@@ -65,7 +58,7 @@ while true; do
         fi
 
         # ensure emulator is installed
-        if [ -d "$ANDROID_SDK_ROOT/emulator" ]; then
+        if [ -d "$ANDROID_HOME/emulator" ]; then
             echo '[X] Android SDK emulator is installed' 
         else
             echo 'Android SDK emulator is not installed'
