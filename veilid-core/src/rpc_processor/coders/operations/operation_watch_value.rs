@@ -9,8 +9,7 @@ pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
     subkeys: ValueSubkeyRangeSet,
     expiration: u64,
     count: u32,
-    watcher: PublicKey,
-    signature: Signature,
+    opt_watch_signature: Option<(PublicKey, Signature)>,
 }
 
 impl RPCOperationWatchValueQ {
@@ -20,8 +19,8 @@ impl RPCOperationWatchValueQ {
         subkeys: ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
-        watcher: PublicKey,
-        signature: Signature,
+        opt_watcher: Option<KeyPair>,
+        vcrypto: CryptoSystemVersion,
     ) -> Result<Self, RPCError> {
         // Needed because RangeSetBlaze uses different types here all the time
         #[allow(clippy::unnecessary_cast)]
@@ -30,31 +29,46 @@ impl RPCOperationWatchValueQ {
         if subkeys_len > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
+
+        let opt_watch_signature = if let Some(watcher) = opt_watcher {
+            let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count);
+            let signature = vcrypto
+                .sign(&watcher.key, &watcher.secret, &signature_data)
+                .map_err(RPCError::protocol)?;
+            Some((watcher.key, signature))
+        } else {
+            None
+        };
+
         Ok(Self {
             key,
             subkeys,
             expiration,
             count,
-            watcher,
-            signature,
+            opt_watch_signature,
         })
     }
 
     // signature covers: key, subkeys, expiration, count, using watcher key
-    fn make_signature_data(&self) -> Vec<u8> {
+    fn make_signature_data(
+        key: &TypedKey,
+        subkeys: &ValueSubkeyRangeSet,
+        expiration: u64,
+        count: u32,
+    ) -> Vec<u8> {
         // Needed because RangeSetBlaze uses different types here all the time
         #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = self.subkeys.len() as usize;
+        let subkeys_len = subkeys.len() as usize;
 
         let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 4);
-        sig_data.extend_from_slice(&self.key.kind.0);
-        sig_data.extend_from_slice(&self.key.value.bytes);
-        for sk in self.subkeys.ranges() {
+        sig_data.extend_from_slice(&key.kind.0);
+        sig_data.extend_from_slice(&key.value.bytes);
+        for sk in subkeys.ranges() {
             sig_data.extend_from_slice(&sk.start().to_le_bytes());
             sig_data.extend_from_slice(&sk.end().to_le_bytes());
         }
-        sig_data.extend_from_slice(&self.expiration.to_le_bytes());
-        sig_data.extend_from_slice(&self.count.to_le_bytes());
+        sig_data.extend_from_slice(&expiration.to_le_bytes());
+        sig_data.extend_from_slice(&count.to_le_bytes());
         sig_data
     }
 
@@ -63,11 +77,13 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("unsupported cryptosystem"));
         };
 
-        let sig_data = self.make_signature_data();
-        vcrypto
-            .verify(&self.watcher, &sig_data, &self.signature)
-            .map_err(RPCError::protocol)?;
-
+        if let Some(watch_signature) = self.opt_watch_signature {
+            let sig_data =
+                Self::make_signature_data(&self.key, &self.subkeys, self.expiration, self.count);
+            vcrypto
+                .verify(&watch_signature.0, &sig_data, &watch_signature.1)
+                .map_err(RPCError::protocol)?;
+        }
         Ok(())
     }
 
@@ -92,13 +108,8 @@ impl RPCOperationWatchValueQ {
     }
 
     #[allow(dead_code)]
-    pub fn watcher(&self) -> &PublicKey {
-        &self.watcher
-    }
-
-    #[allow(dead_code)]
-    pub fn signature(&self) -> &Signature {
-        &self.signature
+    pub fn opt_watch_signature(&self) -> Option<&(PublicKey, Signature)> {
+        self.opt_watch_signature.as_ref()
     }
 
     #[allow(dead_code)]
@@ -109,16 +120,14 @@ impl RPCOperationWatchValueQ {
         ValueSubkeyRangeSet,
         u64,
         u32,
-        PublicKey,
-        Signature,
+        Option<(PublicKey, Signature)>,
     ) {
         (
             self.key,
             self.subkeys,
             self.expiration,
             self.count,
-            self.watcher,
-            self.signature,
+            self.opt_watch_signature,
         )
     }
 
@@ -151,19 +160,24 @@ impl RPCOperationWatchValueQ {
         let expiration = reader.get_expiration();
         let count = reader.get_count();
 
-        let w_reader = reader.get_watcher().map_err(RPCError::protocol)?;
-        let watcher = decode_key256(&w_reader);
+        let opt_watch_signature = if reader.has_watcher() {
+            let w_reader = reader.get_watcher().map_err(RPCError::protocol)?;
+            let watcher = decode_key256(&w_reader);
 
-        let s_reader = reader.get_signature().map_err(RPCError::protocol)?;
-        let signature = decode_signature512(&s_reader);
+            let s_reader = reader.get_signature().map_err(RPCError::protocol)?;
+            let signature = decode_signature512(&s_reader);
+
+            Some((watcher, signature))
+        } else {
+            None
+        };
 
         Ok(Self {
             key,
             subkeys,
             expiration,
             count,
-            watcher,
-            signature,
+            opt_watch_signature,
         })
     }
 
@@ -188,11 +202,13 @@ impl RPCOperationWatchValueQ {
         builder.set_expiration(self.expiration);
         builder.set_count(self.count);
 
-        let mut w_builder = builder.reborrow().init_watcher();
-        encode_key256(&self.watcher, &mut w_builder);
+        if let Some(watch_signature) = self.opt_watch_signature {
+            let mut w_builder = builder.reborrow().init_watcher();
+            encode_key256(&watch_signature.0, &mut w_builder);
 
-        let mut s_builder = builder.reborrow().init_signature();
-        encode_signature512(&self.signature, &mut s_builder);
+            let mut s_builder = builder.reborrow().init_signature();
+            encode_signature512(&watch_signature.1, &mut s_builder);
+        }
 
         Ok(())
     }

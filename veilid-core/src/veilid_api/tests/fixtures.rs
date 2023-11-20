@@ -144,6 +144,8 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
                 remote_max_records: 17,
                 remote_max_subkey_cache_memory_mb: 18,
                 remote_max_storage_space_mb: 19,
+                public_watch_limit: 20,
+                member_watch_limit: 21,
             },
             upnp: true,
             detect_address_changes: false,

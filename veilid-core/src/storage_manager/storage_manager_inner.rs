@@ -204,7 +204,10 @@ impl StorageManagerInner {
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
-        let local_record_detail = LocalRecordDetail { safety_selection };
+        let local_record_detail = LocalRecordDetail {
+            safety_selection,
+            value_nodes: vec![],
+        };
         let record =
             Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
 
@@ -243,7 +246,10 @@ impl StorageManagerInner {
         let local_record = Record::new(
             cur_ts,
             remote_record.descriptor().clone(),
-            LocalRecordDetail { safety_selection },
+            LocalRecordDetail {
+                safety_selection,
+                value_nodes: vec![],
+            },
         )?;
         local_record_store.new_record(key, local_record).await?;
 
@@ -379,7 +385,10 @@ impl StorageManagerInner {
         let record = Record::<LocalRecordDetail>::new(
             get_aligned_timestamp(),
             signed_value_descriptor,
-            LocalRecordDetail { safety_selection },
+            LocalRecordDetail {
+                safety_selection,
+                value_nodes: vec![],
+            },
         )?;
         local_record_store.new_record(key, record).await?;
 
@@ -398,6 +407,53 @@ impl StorageManagerInner {
         // Make DHT Record Descriptor to return
         let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
         Ok(descriptor)
+    }
+
+    pub fn get_value_nodes(&mut self, key: TypedKey) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
+        // Get local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+
+        // Get routing table to see if we still know about these nodes
+        let Some(routing_table) = self.rpc_processor.map(|r| r.routing_table()) else {
+            apibail_try_again!("offline, try again later");
+        };
+
+        let opt_value_nodes = local_record_store.with_record(key, |r| {
+            let d = r.detail();
+            d.value_nodes
+                .iter()
+                .copied()
+                .filter_map(|x| {
+                    routing_table
+                        .lookup_node_ref(TypedKey::new(key.kind, x))
+                        .ok()
+                        .flatten()
+                })
+                .collect()
+        });
+
+        Ok(opt_value_nodes)
+    }
+
+    pub fn set_value_nodes(
+        &mut self,
+        key: TypedKey,
+        value_nodes: Vec<NodeRef>,
+    ) -> VeilidAPIResult<()> {
+        // Get local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        local_record_store.with_record_mut(key, |r| {
+            let d = r.detail_mut();
+            d.value_nodes = value_nodes
+                .into_iter()
+                .filter_map(|x| x.node_ids().get(key.kind).map(|k| k.value))
+                .collect();
+        });
+        Ok(())
     }
 
     pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<()> {

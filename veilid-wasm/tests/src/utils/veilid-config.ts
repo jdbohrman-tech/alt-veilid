@@ -88,6 +88,8 @@ export const veilidCoreStartupConfig = {
       remote_max_records: 65536,
       remote_max_subkey_cache_memory_mb: 256,
       remote_max_storage_space_mb: 0,
+      public_watch_limit: 32,
+      member_watch_limit: 8,
     },
     upnp: true,
     detect_address_changes: true,

@@ -301,6 +301,8 @@ pub struct VeilidConfigDHT {
     pub remote_max_records: u32,
     pub remote_max_subkey_cache_memory_mb: u32,
     pub remote_max_storage_space_mb: u32,
+    pub public_watch_limit: u32,
+    pub member_watch_limit: u32,
 }
 
 impl Default for VeilidConfigDHT {
@@ -758,6 +760,8 @@ impl VeilidConfig {
             get_config!(inner.network.dht.remote_max_records);
             get_config!(inner.network.dht.remote_max_subkey_cache_memory_mb);
             get_config!(inner.network.dht.remote_max_storage_space_mb);
+            get_config!(inner.network.dht.public_watch_limit);
+            get_config!(inner.network.dht.member_watch_limit);
             get_config!(inner.network.rpc.concurrency);
             get_config!(inner.network.rpc.queue_size);
             get_config!(inner.network.rpc.max_timestamp_behind_ms);

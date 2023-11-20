@@ -4,12 +4,20 @@ use super::*;
 struct OutboundSetValueContext {
     /// The latest value of the subkey, may be the value passed in
     pub value: SignedValueData,
-    /// The consensus count for the value we have received
-    pub set_count: usize,
+    /// The nodes that have set the value so far (up to the consensus count)
+    pub value_nodes: Vec<NodeRef>,
     /// The number of non-sets since the last set we have received
     pub missed_since_last_set: usize,
     /// The parsed schema from the descriptor if we have one
     pub schema: DHTSchema,
+}
+
+/// The result of the outbound_set_value operation
+struct OutboundSetValueResult {
+    /// The value that was set
+    pub signed_value_data: SignedValueData,
+    /// And where it was set to
+    pub value_nodes: Vec<NodeRef>,
 }
 
 impl StorageManager {
@@ -22,7 +30,7 @@ impl StorageManager {
         safety_selection: SafetySelection,
         value: SignedValueData,
         descriptor: SignedValueDescriptor,
-    ) -> VeilidAPIResult<SignedValueData> {
+    ) -> VeilidAPIResult<OutboundSetValueResult> {
         let routing_table = rpc_processor.routing_table();
 
         // Get the DHT parameters for 'SetValue'
@@ -40,7 +48,7 @@ impl StorageManager {
         let schema = descriptor.schema()?;
         let context = Arc::new(Mutex::new(OutboundSetValueContext {
             value,
-            set_count: 0,
+            value_nodes: vec![],
             missed_since_last_set: 0,
             schema,
         }));
@@ -99,7 +107,7 @@ impl StorageManager {
                             // If the sequence number is greater, keep it
                             ctx.value = value;
                             // One node has shown us this value so far
-                            ctx.set_count = 1;
+                            ctx.value_nodes = vec![next_node];
                             ctx.missed_since_last_set = 0;
                         } else {
                             // If the sequence number is older, or an equal sequence number,
@@ -110,7 +118,7 @@ impl StorageManager {
                     } else {
                         // It was set on this node and no newer value was found and returned,
                         // so increase our consensus count
-                        ctx.set_count += 1;
+                        ctx.value_nodes.push(next_node);
                         ctx.missed_since_last_set = 0;
                     }
                 } else {
@@ -131,13 +139,13 @@ impl StorageManager {
             let ctx = context.lock();
 
             // If we have reached sufficient consensus, return done
-            if ctx.set_count >= consensus_count {
+            if ctx.value_nodes.len() >= consensus_count {
                 return Some(());
             }
             // If we have missed more than our consensus count since our last set, return done
             // This keeps the traversal from searching too many nodes when we aren't converging
             // Only do this if we have gotten at least half our desired sets.
-            if ctx.set_count >= ((consensus_count + 1) / 2)
+            if ctx.value_nodes.len() >= ((consensus_count + 1) / 2)
                 && ctx.missed_since_last_set >= consensus_count
             {
                 return Some(());
@@ -162,35 +170,44 @@ impl StorageManager {
             TimeoutOr::Timeout => {
                 // Return the best answer we've got
                 let ctx = context.lock();
-                if ctx.set_count >= consensus_count {
+                if ctx.value_nodes.len() >= consensus_count {
                     log_stor!(debug "SetValue Fanout Timeout Consensus");
                 } else {
-                    log_stor!(debug "SetValue Fanout Timeout Non-Consensus: {}", ctx.set_count);
+                    log_stor!(debug "SetValue Fanout Timeout Non-Consensus: {}", ctx.value_nodes.len());
                 }
 
-                Ok(ctx.value.clone())
+                Ok(OutboundSetValueResult {
+                    signed_value_data: ctx.value.clone(),
+                    value_nodes: ctx.value_nodes.clone(),
+                })
             }
             // If we finished with or without consensus (enough nodes returning the same value)
             TimeoutOr::Value(Ok(Some(()))) => {
                 // Return the best answer we've got
                 let ctx = context.lock();
-                if ctx.set_count >= consensus_count {
+                if ctx.value_nodes.len() >= consensus_count {
                     log_stor!(debug "SetValue Fanout Consensus");
                 } else {
-                    log_stor!(debug "SetValue Fanout Non-Consensus: {}", ctx.set_count);
+                    log_stor!(debug "SetValue Fanout Non-Consensus: {}", ctx.value_nodes.len());
                 }
-                Ok(ctx.value.clone())
+                Ok(OutboundSetValueResult {
+                    signed_value_data: ctx.value.clone(),
+                    value_nodes: ctx.value_nodes.clone(),
+                })
             }
             // If we ran out of nodes before getting consensus)
             TimeoutOr::Value(Ok(None)) => {
                 // Return the best answer we've got
                 let ctx = context.lock();
-                if ctx.set_count >= consensus_count {
+                if ctx.value_nodes.len() >= consensus_count {
                     log_stor!(debug "SetValue Fanout Exhausted Consensus");
                 } else {
-                    log_stor!(debug "SetValue Fanout Exhausted Non-Consensus: {}", ctx.set_count);
+                    log_stor!(debug "SetValue Fanout Exhausted Non-Consensus: {}", ctx.value_nodes.len());
                 }
-                Ok(ctx.value.clone())
+                Ok(OutboundSetValueResult {
+                    signed_value_data: ctx.value.clone(),
+                    value_nodes: ctx.value_nodes.clone(),
+                })
             }
             // Failed
             TimeoutOr::Value(Err(e)) => {

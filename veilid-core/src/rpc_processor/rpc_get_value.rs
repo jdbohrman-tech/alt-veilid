@@ -37,7 +37,7 @@ impl RPCProcessor {
         // and get the target noderef so we can validate the response
         let Some(target) = dest.target() else {
             return Err(RPCError::internal(
-                "Never send set value requests over private routes",
+                "Never send get value requests over private routes",
             ));
         };
 

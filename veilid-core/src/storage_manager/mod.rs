@@ -8,6 +8,7 @@ mod set_value;
 mod storage_manager_inner;
 mod tasks;
 mod types;
+mod watch_value;
 
 use keys::*;
 use limited_size::*;
@@ -186,9 +187,7 @@ impl StorageManager {
             .map(|r| r.unwrap())
     }
 
-    /// Open an existing local record if it exists,
-    /// and if it doesnt exist locally, try to pull it from the network and
-    /// open it and return the opened descriptor
+    /// Open an existing local record if it exists, and if it doesnt exist locally, try to pull it from the network and open it and return the opened descriptor
     pub async fn open_record(
         &self,
         key: TypedKey,
@@ -218,7 +217,7 @@ impl StorageManager {
         // No last descriptor, no last value
         // Use the safety selection we opened the record with
         let subkey: ValueSubkey = 0;
-        let subkey_result = self
+        let result = self
             .outbound_get_value(
                 rpc_processor,
                 key,
@@ -229,7 +228,7 @@ impl StorageManager {
             .await?;
 
         // If we got nothing back, the key wasn't found
-        if subkey_result.value.is_none() && subkey_result.descriptor.is_none() {
+        if result.subkey_result.value.is_none() && result.subkey_result.descriptor.is_none() {
             // No result
             apibail_key_not_found!(key);
         };
@@ -250,7 +249,7 @@ impl StorageManager {
 
         // Open the new record
         inner
-            .open_new_record(key, writer, subkey, subkey_result, safety_selection)
+            .open_new_record(key, writer, subkey, result.subkey_result, safety_selection)
             .await
     }
 
@@ -278,9 +277,6 @@ impl StorageManager {
     }
 
     /// Get the value of a subkey from an opened local record
-    /// may refresh the record, and will if it is forced to or the subkey is not available locally yet
-    /// Returns Ok(None) if no value was found
-    /// Returns Ok(Some(value)) is a value was found online or locally
     pub async fn get_value(
         &self,
         key: TypedKey,
@@ -325,7 +321,7 @@ impl StorageManager {
             .value
             .as_ref()
             .map(|v| v.value_data().seq());
-        let subkey_result = self
+        let result = self
             .outbound_get_value(
                 rpc_processor,
                 key,
@@ -336,14 +332,17 @@ impl StorageManager {
             .await?;
 
         // See if we got a value back
-        let Some(subkey_result_value) = subkey_result.value else {
+        let Some(subkey_result_value) = result.subkey_result.value else {
             // If we got nothing back then we also had nothing beforehand, return nothing
             return Ok(None);
         };
 
+        // Keep the list of nodes that returned a value for later reference
+        let mut inner = self.lock().await?;
+        inner.set_value_nodes(key, result.value_nodes)?;
+
         // If we got a new value back then write it to the opened record
         if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
-            let mut inner = self.lock().await?;
             inner
                 .handle_set_local_value(key, subkey, subkey_result_value.clone())
                 .await?;
@@ -352,9 +351,6 @@ impl StorageManager {
     }
 
     /// Set the value of a subkey on an opened local record
-    /// Puts changes to the network immediately and may refresh the record if the there is a newer subkey available online
-    /// Returns Ok(None) if the value was set
-    /// Returns Ok(Some(newer value)) if a newer value was found online
     pub async fn set_value(
         &self,
         key: TypedKey,
@@ -450,7 +446,7 @@ impl StorageManager {
         drop(inner);
 
         // Use the safety selection we opened the record with
-        let final_signed_value_data = self
+        let result = self
             .outbound_set_value(
                 rpc_processor,
                 key,
@@ -464,35 +460,102 @@ impl StorageManager {
         // Whatever record we got back, store it locally, might be newer than the one we asked to save
         let mut inner = self.lock().await?;
         inner
-            .handle_set_local_value(key, subkey, final_signed_value_data.clone())
+            .handle_set_local_value(key, subkey, result.signed_value_data.clone())
             .await?;
 
         // Return the new value if it differs from what was asked to set
-        if final_signed_value_data.value_data() != signed_value_data.value_data() {
-            return Ok(Some(final_signed_value_data.into_value_data()));
+        if result.signed_value_data.value_data() != signed_value_data.value_data() {
+            return Ok(Some(result.signed_value_data.into_value_data()));
         }
 
         // If the original value was set, return None
         Ok(None)
     }
 
+    /// Add a watch to a DHT value
     pub async fn watch_values(
         &self,
-        _key: TypedKey,
-        _subkeys: ValueSubkeyRangeSet,
-        _expiration: Timestamp,
-        _count: u32,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        expiration: Timestamp,
+        count: u32,
     ) -> VeilidAPIResult<Timestamp> {
-        let _inner = self.lock().await?;
-        unimplemented!();
+        let inner = self.lock().await?;
+
+        // Get the safety selection and the writer we opened this record with
+        let (safety_selection, opt_writer) = {
+            let Some(opened_record) = inner.opened_records.get(&key) else {
+                apibail_generic!("record not open");
+            };
+            (
+                opened_record.safety_selection(),
+                opened_record.writer().cloned(),
+            )
+        };
+
+        // Get rpc processor and drop mutex so we don't block while requesting the watch from the network
+        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+            apibail_try_again!("offline, try again later");
+        };
+
+        // Drop the lock for network access
+        drop(inner);
+
+        // Use the safety selection we opened the record with
+        let expiration_ts = self
+            .outbound_watch_value(
+                rpc_processor,
+                key,
+                subkeys,
+                expiration,
+                count,
+                safety_selection,
+                opt_writer,
+            )
+            .await?;
+
+        Ok(expiration_ts)
     }
 
-    pub async fn cancel_watch_values(
-        &self,
-        _key: TypedKey,
-        _subkeys: ValueSubkeyRangeSet,
-    ) -> VeilidAPIResult<bool> {
-        let _inner = self.lock().await?;
-        unimplemented!();
-    }
+    // pub async fn cancel_watch_values(
+    //     &self,
+    //     key: TypedKey,
+    //     subkeys: ValueSubkeyRangeSet,
+    // ) -> VeilidAPIResult<bool> {
+    //     let inner = self.lock().await?;
+
+    //     // // Get the safety selection and the writer we opened this record with
+    //     // let (safety_selection, opt_writer) = {
+    //     //     let Some(opened_record) = inner.opened_records.get(&key) else {
+    //     //         apibail_generic!("record not open");
+    //     //     };
+    //     //     (
+    //     //         opened_record.safety_selection(),
+    //     //         opened_record.writer().cloned(),
+    //     //     )
+    //     // };
+
+    //     // // Get rpc processor and drop mutex so we don't block while requesting the watch from the network
+    //     // let Some(rpc_processor) = inner.rpc_processor.clone() else {
+    //     //     apibail_try_again!("offline, try again later");
+    //     // };
+
+    //     // // Drop the lock for network access
+    //     // drop(inner);
+
+    //     // // Use the safety selection we opened the record with
+    //     // let expiration_ts = self
+    //     //     .outbound_watch_value(
+    //     //         rpc_processor,
+    //     //         key,
+    //     //         subkeys,
+    //     //         expiration,
+    //     //         count,
+    //     //         safety_selection,
+    //     //         opt_writer,
+    //     //     )
+    //     //     .await?;
+
+    //     // Ok(expiration_ts)
+    // }
 }

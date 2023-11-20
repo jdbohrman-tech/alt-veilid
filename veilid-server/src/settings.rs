@@ -109,6 +109,8 @@ core:
             remote_max_records: 65536
             remote_max_subkey_cache_memory_mb: %REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%
             remote_max_storage_space_mb: 0
+            public_watch_limit: 32
+            member_watch_limit: 8
         upnp: true
         detect_address_changes: true
         restricted_nat_retries: 0
@@ -562,6 +564,8 @@ pub struct Dht {
     pub remote_max_records: u32,
     pub remote_max_subkey_cache_memory_mb: u32,
     pub remote_max_storage_space_mb: u32,
+    pub public_watch_limit: u32,
+    pub member_watch_limit: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -948,6 +952,8 @@ impl Settings {
             value
         );
         set_config_value!(inner.core.network.dht.remote_max_storage_space_mb, value);
+        set_config_value!(inner.core.network.dht.public_watch_limit, value);
+        set_config_value!(inner.core.network.dht.member_watch_limit, value);
         set_config_value!(inner.core.network.upnp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
         set_config_value!(inner.core.network.restricted_nat_retries, value);
@@ -1189,7 +1195,12 @@ impl Settings {
                 "network.dht.remote_max_storage_space_mb" => {
                     Ok(Box::new(inner.core.network.dht.remote_max_storage_space_mb))
                 }
-
+                "network.dht.public_watch_limit" => {
+                    Ok(Box::new(inner.core.network.dht.public_watch_limit))
+                }
+                "network.dht.member_watch_limit" => {
+                    Ok(Box::new(inner.core.network.dht.member_watch_limit))
+                }
                 "network.upnp" => Ok(Box::new(inner.core.network.upnp)),
                 "network.detect_address_changes" => {
                     Ok(Box::new(inner.core.network.detect_address_changes))

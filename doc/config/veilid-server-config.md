@@ -255,6 +255,9 @@ dht:
     remote_max_records: 65536
     remote_max_subkey_cache_memory_mb: %REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%
     remote_max_storage_space_mb: 0
+    public_watch_limit: 32
+    member_watch_limit: 8
+
 ```
 
 #### core:network:tls

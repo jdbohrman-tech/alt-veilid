@@ -356,8 +356,8 @@ struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
-    watcher                 @4  :PublicKey;             # the watcher performing the watch, can be the owner or a schema member
-    signature               @5  :Signature;             # signature of the watcher, must be one of the schema members or the key owner. signature covers: key, subkeys, expiration, count
+    watcher                 @4  :PublicKey;             # optional: the watcher performing the watch, can be the owner or a schema member
+    signature               @5  :Signature;             # optional: signature of the watcher, must be one of the schema members or the key owner. signature covers: key, subkeys, expiration, count
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {

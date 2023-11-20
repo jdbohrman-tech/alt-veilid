@@ -79,9 +79,9 @@ where
             + self.record_data_size
     }
 
-    // pub fn detail(&self) -> &D {
-    //     &self.detail
-    // }
+    pub fn detail(&self) -> &D {
+        &self.detail
+    }
     pub fn detail_mut(&mut self) -> &mut D {
         &mut self.detail
     }

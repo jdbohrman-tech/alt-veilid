@@ -263,26 +263,29 @@ class VeilidConfigTLS with _$VeilidConfigTLS {
 ////////////
 @freezed
 class VeilidConfigDHT with _$VeilidConfigDHT {
-  const factory VeilidConfigDHT(
-      {required int resolveNodeTimeoutMs,
-      required int resolveNodeCount,
-      required int resolveNodeFanout,
-      required int maxFindNodeCount,
-      required int getValueTimeoutMs,
-      required int getValueCount,
-      required int getValueFanout,
-      required int setValueTimeoutMs,
-      required int setValueCount,
-      required int setValueFanout,
-      required int minPeerCount,
-      required int minPeerRefreshTimeMs,
-      required int validateDialInfoReceiptTimeMs,
-      required int localSubkeyCacheSize,
-      required int localMaxSubkeyCacheMemoryMb,
-      required int remoteSubkeyCacheSize,
-      required int remoteMaxRecords,
-      required int remoteMaxSubkeyCacheMemoryMb,
-      required int remoteMaxStorageSpaceMb}) = _VeilidConfigDHT;
+  const factory VeilidConfigDHT({
+    required int resolveNodeTimeoutMs,
+    required int resolveNodeCount,
+    required int resolveNodeFanout,
+    required int maxFindNodeCount,
+    required int getValueTimeoutMs,
+    required int getValueCount,
+    required int getValueFanout,
+    required int setValueTimeoutMs,
+    required int setValueCount,
+    required int setValueFanout,
+    required int minPeerCount,
+    required int minPeerRefreshTimeMs,
+    required int validateDialInfoReceiptTimeMs,
+    required int localSubkeyCacheSize,
+    required int localMaxSubkeyCacheMemoryMb,
+    required int remoteSubkeyCacheSize,
+    required int remoteMaxRecords,
+    required int remoteMaxSubkeyCacheMemoryMb,
+    required int remoteMaxStorageSpaceMb,
+    required int publicWatchLimit,
+    required int memberWatchLimit,
+  }) = _VeilidConfigDHT;
 
   factory VeilidConfigDHT.fromJson(dynamic json) =>
       _$VeilidConfigDHTFromJson(json as Map<String, dynamic>);
