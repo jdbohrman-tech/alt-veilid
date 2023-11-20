@@ -2,7 +2,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub struct WatchValueAnswer {
-    pub expiration_ts: Option<Timestamp>,
+    pub expiration_ts: Timestamp,
+    pub peers: Vec<PeerInfo>,
 }
 
 impl RPCProcessor {
@@ -16,8 +17,9 @@ impl RPCProcessor {
     #[cfg_attr(
         feature = "verbose-tracing",        
         instrument(level = "trace", skip(self), 
-            fields(ret.expiration_ts,
-                ret.latency
+            fields(ret.expiration,
+                ret.latency,
+                ret.peers.len
             ),err)
     )]
     pub async fn rpc_call_watch_value(
@@ -62,7 +64,7 @@ impl RPCProcessor {
             expiration.as_u64(),
             count,
             opt_watcher,
-            vcrypto,
+            vcrypto.clone(),
         )?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
@@ -74,7 +76,7 @@ impl RPCProcessor {
 
         let waitable_reply =
             network_result_try!(self.question(dest.clone(), question, None).await?);
-xxxxx continue here
+
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
@@ -83,36 +85,24 @@ xxxxx continue here
 
         // Get the right answer type
         let (_, _, _, kind) = msg.operation.destructure();
-        let get_value_a = match kind {
+        let watch_value_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
-                RPCAnswerDetail::GetValueA(a) => a,
-                _ => return Ok(NetworkResult::invalid_message("not a getvalue answer")),
+                RPCAnswerDetail::WatchValueA(a) => a,
+                _ => return Ok(NetworkResult::invalid_message("not a watchvalue answer")),
             },
             _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
-        let (value, peers, descriptor) = get_value_a.destructure();
+        let (expiration, peers) = watch_value_a.destructure();
         #[cfg(feature = "debug-dht")]
         {
-            let debug_string_value = value
-                .as_ref()
-                .map(|v| {
-                    format!(
-                        " len={} seq={} writer={}",
-                        v.value_data().data().len(),
-                        v.value_data().seq(),
-                        v.value_data().writer(),
-                    )
-                })
-                .unwrap_or_default();
-
             let debug_string_answer = format!(
-                "OUT <== GetValueA({} #{}{}{} peers={}) <= {}",
+                "OUT <== WatchValueA({} {}#{:?}@{} peers={}) <= {}",
                 key,
-                subkey,
-                debug_string_value,
-                if descriptor.is_some() { " +desc" } else { "" },
-                peers.len(),
+                if opt_watcher.is_some() { "+W " } else { "" },
+                subkeys,
+                expiration,
+                peer.len()
                 dest
             );
 
@@ -142,23 +132,15 @@ xxxxx continue here
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.latency", latency.as_u64());
         #[cfg(feature = "verbose-tracing")]
-        if let Some(value) = &value {
-            tracing::Span::current().record("ret.value.data.len", value.value_data().data().len());
-            tracing::Span::current().record("ret.value.data.seq", value.value_data().seq());
-            tracing::Span::current().record(
-                "ret.value.data.writer",
-                value.value_data().writer().to_string(),
-            );
-        }
+        tracing::Span::current().record("ret.expiration", latency.as_u64());
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.peers.len", peers.len());
 
         Ok(NetworkResult::value(Answer::new(
             latency,
-            GetValueAnswer {
-                value,
+            WatchValueAnswer {
+                expiration_ts: Timestamp::new(expiration),
                 peers,
-                descriptor,
             },
         )))
     }
