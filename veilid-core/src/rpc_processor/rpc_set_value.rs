@@ -96,6 +96,8 @@ impl RPCProcessor {
                 .await?
         );
 
+        // Keep the reply private route that was used to return with the answer
+        let reply_private_route = waitable_reply.reply_private_route.clone();
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
@@ -174,6 +176,7 @@ impl RPCProcessor {
 
         Ok(NetworkResult::value(Answer::new(
             latency,
+            reply_private_route,
             SetValueAnswer { set, value, peers },
         )))
     }

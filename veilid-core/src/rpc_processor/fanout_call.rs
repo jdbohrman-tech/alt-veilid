@@ -219,7 +219,10 @@ where
         Ok(())
     }
 
-    pub async fn run(self: Arc<Self>) -> TimeoutOr<Result<Option<R>, RPCError>> {
+    pub async fn run(
+        self: Arc<Self>,
+        opt_init_fanout_queue: Option<Vec<NodeRef>>,
+    ) -> TimeoutOr<Result<Option<R>, RPCError>> {
         // Get timeout in milliseconds
         let timeout_ms = match us_to_ms(self.timeout_us.as_u64()).map_err(RPCError::internal) {
             Ok(v) => v,
@@ -229,7 +232,9 @@ where
         };
 
         // Initialize closest nodes list
-        if let Err(e) = self.clone().init_closest_nodes() {
+        if let Some(init_fanout_queue) = opt_init_fanout_queue {
+            self.clone().add_to_fanout_queue(&init_fanout_queue);
+        } else if let Err(e) = self.clone().init_closest_nodes() {
             return TimeoutOr::value(Err(e));
         }
 

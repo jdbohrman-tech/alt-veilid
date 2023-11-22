@@ -350,6 +350,8 @@ impl RoutingContext {
     /// Cancels a watch early
     ///
     /// This is a convenience function that cancels watching all subkeys in a range
+    /// Returns Ok(true) if there is any remaining watch for this record
+    /// Returns Ok(false) if the entire watch has been cancelled
     pub async fn cancel_dht_watch(
         &self,
         key: TypedKey,

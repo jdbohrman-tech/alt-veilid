@@ -196,12 +196,16 @@ struct WaitableReply {
 
 #[derive(Clone, Debug, Default)]
 pub struct Answer<T> {
-    pub latency: TimestampDuration, // how long it took to get this answer
-    pub answer: T,                  // the answer itself
+    /// Hpw long it took to get this answer
+    pub latency: TimestampDuration, 
+    /// The private route requested to receive the reply
+    pub reply_private_route: Option<PublicKey>,
+    /// The answer itself
+    pub answer: T,                  
 }
 impl<T> Answer<T> {
-    pub fn new(latency: TimestampDuration, answer: T) -> Self {
-        Self { latency, answer }
+    pub fn new(latency: TimestampDuration, reply_private_route: Option<PublicKey>, answer: T) -> Self {
+        Self { latency, reply_private_route, answer }
     }
 }
 
@@ -512,7 +516,7 @@ impl RPCProcessor {
             check_done,
         );
 
-        fanout_call.run().await
+        fanout_call.run(None).await
     }
 
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference

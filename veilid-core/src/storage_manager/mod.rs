@@ -255,19 +255,52 @@ impl StorageManager {
 
     /// Close an opened local record
     pub async fn close_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
-        let mut inner = self.lock().await?;
-        inner.close_record(key)
+        let (opened_record, opt_rpc_processor) = {
+            let mut inner = self.lock().await?;
+            (inner.close_record(key)?, inner.rpc_processor.clone())
+        };
+
+        // Send a one-time cancel request for the watch if we have one and we're online
+        if let Some(active_watch) = opened_record.active_watch() {
+            if let Some(rpc_processor) = opt_rpc_processor {
+                // Use the safety selection we opened the record with
+                // Use the writer we opened with as the 'watcher' as well
+                let opt_owvresult = self
+                    .outbound_watch_value(
+                        rpc_processor,
+                        key,
+                        ValueSubkeyRangeSet::full(),
+                        Timestamp::new(0),
+                        0,
+                        opened_record.safety_selection(),
+                        opened_record.writer().cloned(),
+                        Some(active_watch.watch_node),
+                    )
+                    .await?;
+                if let Some(owvresult) = opt_owvresult {
+                    if owvresult.expiration_ts.as_u64() != 0 {
+                        log_stor!(debug
+                            "close record watch cancel got unexpected expiration: {}",
+                            owvresult.expiration_ts
+                        );
+                    }
+                } else {
+                    log_stor!(debug "close record watch cancel unsuccessful");
+                }
+            } else {
+                log_stor!(debug "skipping last-ditch watch cancel because we are offline");
+            }
+        }
+
+        Ok(())
     }
 
     /// Delete a local record
     pub async fn delete_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
-        let mut inner = self.lock().await?;
-
         // Ensure the record is closed
-        if inner.opened_records.contains_key(&key) {
-            inner.close_record(key)?;
-        }
+        self.close_record(key).await?;
 
+        let mut inner = self.lock().await?;
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
@@ -482,14 +515,22 @@ impl StorageManager {
     ) -> VeilidAPIResult<Timestamp> {
         let inner = self.lock().await?;
 
+        // Rewrite subkey range if empty to full
+        let subkeys = if subkeys.is_empty() {
+            ValueSubkeyRangeSet::full()
+        } else {
+            subkeys
+        };
+
         // Get the safety selection and the writer we opened this record with
-        let (safety_selection, opt_writer) = {
+        let (safety_selection, opt_writer, opt_watch_node) = {
             let Some(opened_record) = inner.opened_records.get(&key) else {
                 apibail_generic!("record not open");
             };
             (
                 opened_record.safety_selection(),
                 opened_record.writer().cloned(),
+                opened_record.active_watch().map(|aw| aw.watch_node.clone()),
             )
         };
 
@@ -502,60 +543,112 @@ impl StorageManager {
         drop(inner);
 
         // Use the safety selection we opened the record with
-        let expiration_ts = self
+        // Use the writer we opened with as the 'watcher' as well
+        let opt_owvresult = self
             .outbound_watch_value(
                 rpc_processor,
                 key,
-                subkeys,
+                subkeys.clone(),
                 expiration,
                 count,
                 safety_selection,
                 opt_writer,
+                opt_watch_node,
             )
             .await?;
 
-        Ok(expiration_ts)
+        // If we did not get a valid response return a zero timestamp
+        let Some(owvresult) = opt_owvresult else {
+            return Ok(Timestamp::new(0));
+        };
+
+        // Clear any existing watch if the watch succeeded or got cancelled
+        let mut inner = self.lock().await?;
+        let Some(opened_record) = inner.opened_records.get_mut(&key) else {
+            apibail_generic!("record not open");
+        };
+        opened_record.clear_active_watch();
+
+        // Get the minimum expiration timestamp we will accept
+        let rpc_timeout_us = {
+            let c = self.unlocked_inner.config.get();
+            TimestampDuration::from(ms_to_us(c.network.rpc.timeout_ms))
+        };
+        let cur_ts = get_timestamp();
+        let min_expiration_ts = cur_ts + rpc_timeout_us.as_u64();
+
+        // If the expiration time is less than our minimum expiration time or greater than the requested time, consider this watch cancelled
+        if owvresult.expiration_ts.as_u64() < min_expiration_ts
+            || owvresult.expiration_ts.as_u64() > expiration.as_u64()
+        {
+            // Don't set the watch so we ignore any stray valuechanged messages
+            return Ok(Timestamp::new(0));
+        }
+
+        // If we requested a cancellation, then consider this watch cancelled
+        if count == 0 {
+            return Ok(Timestamp::new(0));
+        }
+
+        // Keep a record of the watch
+        opened_record.set_active_watch(ActiveWatch {
+            expiration_ts: owvresult.expiration_ts,
+            watch_node: owvresult.watch_node,
+            opt_value_changed_route: owvresult.opt_value_changed_route,
+            subkeys,
+            count,
+        });
+
+        Ok(owvresult.expiration_ts)
     }
 
-    // pub async fn cancel_watch_values(
-    //     &self,
-    //     key: TypedKey,
-    //     subkeys: ValueSubkeyRangeSet,
-    // ) -> VeilidAPIResult<bool> {
-    //     let inner = self.lock().await?;
+    pub async fn cancel_watch_values(
+        &self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+    ) -> VeilidAPIResult<bool> {
+        let (subkeys, active_watch) = {
+            let inner = self.lock().await?;
+            let Some(opened_record) = inner.opened_records.get(&key) else {
+                apibail_generic!("record not open");
+            };
 
-    //     // // Get the safety selection and the writer we opened this record with
-    //     // let (safety_selection, opt_writer) = {
-    //     //     let Some(opened_record) = inner.opened_records.get(&key) else {
-    //     //         apibail_generic!("record not open");
-    //     //     };
-    //     //     (
-    //     //         opened_record.safety_selection(),
-    //     //         opened_record.writer().cloned(),
-    //     //     )
-    //     // };
+            // See what watch we have currently if any
+            let Some(active_watch) = opened_record.active_watch() else {
+                // If we didn't have an active watch, then we can just return false because there's nothing to do here
+                return Ok(false);
+            };
 
-    //     // // Get rpc processor and drop mutex so we don't block while requesting the watch from the network
-    //     // let Some(rpc_processor) = inner.rpc_processor.clone() else {
-    //     //     apibail_try_again!("offline, try again later");
-    //     // };
+            // Rewrite subkey range if empty to full
+            let subkeys = if subkeys.is_empty() {
+                ValueSubkeyRangeSet::full()
+            } else {
+                subkeys
+            };
 
-    //     // // Drop the lock for network access
-    //     // drop(inner);
+            // Reduce the subkey range
+            let new_subkeys = active_watch.subkeys.difference(&subkeys);
 
-    //     // // Use the safety selection we opened the record with
-    //     // let expiration_ts = self
-    //     //     .outbound_watch_value(
-    //     //         rpc_processor,
-    //     //         key,
-    //     //         subkeys,
-    //     //         expiration,
-    //     //         count,
-    //     //         safety_selection,
-    //     //         opt_writer,
-    //     //     )
-    //     //     .await?;
+            (new_subkeys, active_watch)
+        };
 
-    //     // Ok(expiration_ts)
-    // }
+        // If we have no subkeys left, then set the count to zero to indicate a full cancellation
+        let count = if subkeys.is_empty() {
+            0
+        } else {
+            active_watch.count
+        };
+
+        // Update the watch
+        let expiration_ts = self
+            .watch_values(key, subkeys, active_watch.expiration_ts, count)
+            .await?;
+
+        // A zero expiration time means the watch is done or nothing is left, and the watch is no longer active
+        if expiration_ts.as_u64() == 0 {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
 }

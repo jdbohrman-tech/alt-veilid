@@ -16,6 +16,11 @@ impl ValueSubkeyRangeSet {
             data: Default::default(),
         }
     }
+    pub fn full() -> Self {
+        let mut data = RangeSetBlaze::new();
+        data.ranges_insert(u32::MIN..=u32::MAX);
+        Self { data }
+    }
     pub fn new_with_data(data: RangeSetBlaze<ValueSubkey>) -> Self {
         Self { data }
     }
@@ -23,6 +28,23 @@ impl ValueSubkeyRangeSet {
         let mut data = RangeSetBlaze::new();
         data.insert(value);
         Self { data }
+    }
+
+    pub fn interset(&self, other: &ValueSubkeyRangeSet) -> ValueSubkeyRangeSet {
+        Self::new_with_data(self.data & other.data)
+    }
+    pub fn difference(&self, other: &ValueSubkeyRangeSet) -> ValueSubkeyRangeSet {
+        Self::new_with_data(self.data - other.data)
+    }
+    pub fn union(&self, other: &ValueSubkeyRangeSet) -> ValueSubkeyRangeSet {
+        Self::new_with_data(self.data | other.data)
+    }
+
+    pub fn data(&self) -> RangeSetBlaze<ValueSubkey> {
+        self.data().clone()
+    }
+    pub fn into_data(self) -> RangeSetBlaze<ValueSubkey> {
+        self.data()
     }
 }
 

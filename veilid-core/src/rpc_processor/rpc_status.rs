@@ -113,6 +113,9 @@ impl RPCProcessor {
         // Note what kind of ping this was and to what peer scope
         let send_data_method = waitable_reply.send_data_method.clone();
 
+        // Keep the reply private route that was used to return with the answer
+        let reply_private_route = waitable_reply.reply_private_route.clone();
+
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
@@ -190,7 +193,11 @@ impl RPCProcessor {
                 // sender info is irrelevant over relays and routes
             }
         };
-        Ok(NetworkResult::value(Answer::new(latency, opt_sender_info)))
+        Ok(NetworkResult::value(Answer::new(
+            latency,
+            reply_private_route,
+            opt_sender_info,
+        )))
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]

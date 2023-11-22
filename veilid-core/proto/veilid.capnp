@@ -361,7 +361,7 @@ struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
-    expiration              @0  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch failed)
+    expiration              @0  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch was rejected). if watch is being cancelled (with count = 0), this will be the non-zero former expiration time.
     peers                   @1  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
 }
 

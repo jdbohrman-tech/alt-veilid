@@ -409,9 +409,9 @@ impl StorageManagerInner {
         Ok(descriptor)
     }
 
-    pub fn get_value_nodes(&mut self, key: TypedKey) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
+    pub fn get_value_nodes(&self, key: TypedKey) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
         // Get local record store
-        let Some(local_record_store) = self.local_record_store.as_mut() else {
+        let Some(local_record_store) = self.local_record_store.as_ref() else {
             apibail_not_initialized!();
         };
 
@@ -456,11 +456,11 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<()> {
-        let Some(_opened_record) = self.opened_records.remove(&key) else {
+    pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<OpenedRecord> {
+        let Some(opened_record) = self.opened_records.remove(&key) else {
             apibail_generic!("record not open");
         };
-        Ok(())
+        Ok(opened_record)
     }
 
     pub async fn handle_get_local_value(
