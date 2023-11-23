@@ -249,7 +249,7 @@ pub struct VeilidConfigNetwork {
     pub max_connections_per_ip6_prefix: u32,
     pub max_connections_per_ip6_prefix_size: u32,
     pub max_connection_frequency_per_min: u32,
-    pub client_whitelist_timeout_ms: u32,
+    pub client_allowlist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
@@ -486,7 +486,7 @@ impl VeilidConfig {
             get_config!(inner.network.max_connections_per_ip6_prefix);
             get_config!(inner.network.max_connections_per_ip6_prefix_size);
             get_config!(inner.network.max_connection_frequency_per_min);
-            get_config!(inner.network.client_whitelist_timeout_ms);
+            get_config!(inner.network.client_allowlist_timeout_ms);
             get_config!(inner.network.reverse_connection_receipt_time_ms);
             get_config!(inner.network.hole_punch_receipt_time_ms);
             get_config!(inner.network.network_key_password);

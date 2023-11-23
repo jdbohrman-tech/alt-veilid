@@ -101,7 +101,7 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
             max_connections_per_ip6_prefix: 4000,
             max_connections_per_ip6_prefix_size: 5000,
             max_connection_frequency_per_min: 6000,
-            client_whitelist_timeout_ms: 7000,
+            client_allowlist_timeout_ms: 7000,
             reverse_connection_receipt_time_ms: 8000,
             hole_punch_receipt_time_ms: 9000,
             network_key_password: None,

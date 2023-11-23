@@ -44,7 +44,7 @@ export const veilidCoreStartupConfig = {
     max_connections_per_ip6_prefix: 32,
     max_connections_per_ip6_prefix_size: 56,
     max_connection_frequency_per_min: 128,
-    client_whitelist_timeout_ms: 300000,
+    client_allowlist_timeout_ms: 300000,
     reverse_connection_receipt_time_ms: 5000,
     hole_punch_receipt_time_ms: 5000,
     network_key_password: '',

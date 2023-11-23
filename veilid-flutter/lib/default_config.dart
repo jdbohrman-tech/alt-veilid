@@ -93,7 +93,7 @@ Future<VeilidConfig> getDefaultVeilidConfig(String programName) async {
       maxConnectionsPerIp6Prefix: 32,
       maxConnectionsPerIp6PrefixSize: 56,
       maxConnectionFrequencyPerMin: 128,
-      clientWhitelistTimeoutMs: 300000,
+      clientAllowlistTimeoutMs: 300000,
       reverseConnectionReceiptTimeMs: 5000,
       holePunchReceiptTimeMs: 5000,
       routingTable: VeilidConfigRoutingTable(
