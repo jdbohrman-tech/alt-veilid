@@ -39,7 +39,7 @@ impl RPCProcessor {
     ) ->RPCNetworkResult<Answer<SetValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
-        let Some(target) = dest.target() else {
+        let Some(target) = dest.node() else {
             return Err(RPCError::internal(
                 "Never send set value requests over private routes",
             ));

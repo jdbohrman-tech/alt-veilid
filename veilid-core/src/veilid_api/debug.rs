@@ -888,7 +888,7 @@ impl VeilidAPI {
 
         match &dest {
             Destination::Direct {
-                target,
+                node: target,
                 safety_selection: _,
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\n",
@@ -897,7 +897,7 @@ impl VeilidAPI {
             )),
             Destination::Relay {
                 relay,
-                target,
+                node: target,
                 safety_selection: _,
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\nRelay Entry:\n{}\n",

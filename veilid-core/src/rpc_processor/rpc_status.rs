@@ -27,7 +27,7 @@ impl RPCProcessor {
             SafetySelection::Unsafe(_) => {
                 let (opt_target_nr, routing_domain) = match &dest {
                     Destination::Direct {
-                        target,
+                        node: target,
                         safety_selection: _,
                     } => {
                         let routing_domain = match target.best_routing_domain() {
@@ -52,7 +52,7 @@ impl RPCProcessor {
                     }
                     Destination::Relay {
                         relay,
-                        target,
+                        node: target,
                         safety_selection: _,
                     } => {
                         let routing_domain = match relay.best_routing_domain() {
@@ -147,7 +147,7 @@ impl RPCProcessor {
         let mut opt_sender_info = None;
         match dest {
             Destination::Direct {
-                target,
+                node: target,
                 safety_selection,
             } => {
                 if matches!(safety_selection, SafetySelection::Unsafe(_)) {
@@ -183,7 +183,7 @@ impl RPCProcessor {
             }
             Destination::Relay {
                 relay: _,
-                target: _,
+                node: _,
                 safety_selection: _,
             }
             | Destination::PrivateRoute {

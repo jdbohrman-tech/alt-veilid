@@ -123,40 +123,14 @@ impl RoutingContext {
 
     async fn get_destination(&self, target: Target) -> VeilidAPIResult<rpc_processor::Destination> {
         let rpc_processor = self.api.rpc_processor()?;
-
-        match target {
-            Target::NodeId(node_id) => {
-                // Resolve node
-                let mut nr = match rpc_processor
-                    .resolve_node(node_id, self.unlocked_inner.safety_selection)
-                    .await
-                {
-                    Ok(Some(nr)) => nr,
-                    Ok(None) => apibail_invalid_target!("could not resolve node id"),
-                    Err(e) => return Err(e.into()),
-                };
-                // Apply sequencing to match safety selection
-                nr.set_sequencing(self.sequencing());
-
-                Ok(rpc_processor::Destination::Direct {
-                    target: nr,
-                    safety_selection: self.unlocked_inner.safety_selection,
-                })
-            }
-            Target::PrivateRoute(rsid) => {
-                // Get remote private route
-                let rss = self.api.routing_table()?.route_spec_store();
-
-                let Some(private_route) = rss.best_remote_private_route(&rsid) else {
-                    apibail_invalid_target!("could not get remote private route");
-                };
-
-                Ok(rpc_processor::Destination::PrivateRoute {
-                    private_route,
-                    safety_selection: self.unlocked_inner.safety_selection,
-                })
-            }
-        }
+        rpc_processor
+            .resolve_target_to_destination(
+                target,
+                self.unlocked_inner.safety_selection,
+                self.sequencing(),
+            )
+            .await
+            .map_err(VeilidAPIError::invalid_target)
     }
 
     ////////////////////////////////////////////////////////////////

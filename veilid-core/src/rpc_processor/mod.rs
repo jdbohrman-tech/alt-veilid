@@ -732,12 +732,12 @@ impl RPCProcessor {
         // To where are we sending the request
         match dest {
             Destination::Direct {
-                target: ref node_ref,
+                node: ref node_ref,
                 safety_selection,
             }
             | Destination::Relay {
                 relay: ref node_ref,
-                target: _,
+                node: _,
                 safety_selection,
             } => {
                 // Send to a node without a private route
@@ -746,7 +746,7 @@ impl RPCProcessor {
                 // Get the actual destination node id accounting for relays
                 let (node_ref, destination_node_ref) = if let Destination::Relay {
                     relay: _,
-                    ref target,
+                    node: ref target,
                     safety_selection: _,
                 } = dest
                 {
@@ -854,12 +854,12 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         let target = match dest {
             Destination::Direct {
-                target,
+                node: target,
                 safety_selection: _,
             } => target.clone(),
             Destination::Relay {
                 relay: _,
-                target,
+                node: target,
                 safety_selection: _,
             } => target.clone(),
             Destination::PrivateRoute {

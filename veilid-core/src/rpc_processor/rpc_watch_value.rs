@@ -33,7 +33,7 @@ impl RPCProcessor {
     ) -> RPCNetworkResult<Answer<WatchValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
-        let Some(target) = dest.target() else {
+        let Some(target) = dest.node() else {
             return Err(RPCError::internal(
                 "Never send watch value requests over private routes",
             ));
@@ -151,12 +151,101 @@ impl RPCProcessor {
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_watch_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+        // Ensure this never came over a private route, safety route is okay though
+        match &msg.header.detail {
+            RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
+            RPCMessageHeaderDetail::PrivateRouted(_) => {
+                return Ok(NetworkResult::invalid_message(
+                    "not processing watch value request over private route",
+                ))
+            }
+        }
+
         // Ignore if disabled
         let routing_table = self.routing_table();
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
         if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
             return Ok(NetworkResult::service_unavailable("dht is not available"));
         }
-        Err(RPCError::unimplemented("process_watch_value_q"))
+
+        // Get the question
+        let kind = msg.operation.kind().clone();
+        let watch_value_q = match kind {
+            RPCOperationKind::Question(q) => match q.destructure() {
+                (_, RPCQuestionDetail::WatchValueQ(q)) => q,
+                _ => panic!("not a watchvalue question"),
+            },
+            _ => panic!("not a question"),
+        };
+
+        // Destructure
+        let (key, subkeys, expiration, count, opt_watch_signature) = watch_value_q.destructure();
+        let opt_watcher = opt_watch_signature.map(|ws| ws.0);
+
+        // Get target for ValueChanged notifications
+        let dest = network_result_try!(self.get_respond_to_destination(&msg));
+        let target = dest.get_target();
+
+        #[cfg(feature = "debug-dht")]
+        {
+            let debug_string = format!(
+                "IN <=== WatchValueQ({} {}#{:?}@{}+{}) <== {}",
+                key,
+                if opt_watcher.is_some() { "+W " } else { "" },
+                subkeys,
+                expiration,
+                count,
+                msg.header.direct_sender_node_id()
+            );
+
+            log_rpc!(debug "{}", debug_string);
+        }
+
+        // See if we have this record ourselves, if so, accept the watch
+        let storage_manager = self.storage_manager();
+        let ret_expiration = network_result_try!(storage_manager
+            .inbound_watch_value(
+                key,
+                subkeys,
+                Timestamp::new(expiration),
+                count,
+                target,
+                opt_watcher
+            )
+            .await
+            .map_err(RPCError::internal)?);
+
+        // Get the nodes that we know about that are closer to the the key than our own node
+        let routing_table = self.routing_table();
+        let closer_to_key_peers = if ret_expiration.as_u64() == 0 {
+            network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]))
+        } else {
+            vec![]
+        };
+
+        #[cfg(feature = "debug-dht")]
+        {
+            let debug_string_answer = format!(
+                "IN ===> WatchValueA({} #{} expiration={} peers={}) ==> {}",
+                key,
+                subkeys,
+                ret_expiration,
+                closer_to_key_peers.len(),
+                msg.header.direct_sender_node_id()
+            );
+
+            log_rpc!(debug "{}", debug_string_answer);
+        }
+
+        // Make WatchValue answer
+        let watch_value_a =
+            RPCOperationWatchValueA::new(ret_expiration.as_u64(), closer_to_key_peers)?;
+
+        // Send GetValue answer
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::WatchValueA(Box::new(watch_value_a))),
+        )
+        .await
     }
 }

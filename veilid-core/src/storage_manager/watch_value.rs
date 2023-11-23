@@ -172,21 +172,39 @@ impl StorageManager {
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
-        // xxx more here
-    ) -> VeilidAPIResult<NetworkResult<SubkeyResult>> {
+        target: Target,
+        opt_watcher: Option<CryptoKey>,
+    ) -> VeilidAPIResult<NetworkResult<Timestamp>> {
         let mut inner = self.lock().await?;
-        let res = match inner
-            .handle_watch_remote_value(key, subkeys, expiration, count)
-            .await
-        {
-            Ok(res) => res,
-            Err(VeilidAPIError::Internal { message }) => {
-                apibail_internal!(message);
-            }
-            Err(e) => {
-                return Ok(NetworkResult::invalid_message(e));
+
+        // See if this is a remote or local value
+        let (_is_local, opt_expiration_ts) = {
+            // See if the subkey we are watching has a local value
+            let opt_expiration_ts = inner
+                .handle_watch_local_value(key, subkeys, expiration, count, target, opt_watcher)
+                .await?;
+            if opt_expiration_ts.is_some() {
+                (true, opt_expiration_ts)
+            } else {
+                // See if the subkey we are watching is a remote value
+                let opt_expiration_ts = inner
+                    .handle_watch_remote_value(key, subkeys, expiration, count, target, opt_watcher)
+                    .await?;
+                (false, opt_expiration_ts)
             }
         };
-        Ok(NetworkResult::value(res))
+
+        Ok(NetworkResult::value(opt_expiration_ts.unwrap_or_default()))
+    }
+
+    /// Handle a received 'Value Changed' statement
+    pub async fn inbound_value_changed(
+        &self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        count: u32,
+        value: SignedValueData,
+    ) -> VeilidAPIResult<()> {
+        //
     }
 }

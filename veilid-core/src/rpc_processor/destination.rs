@@ -6,7 +6,7 @@ pub(crate) enum Destination {
     /// Send to node directly
     Direct {
         /// The node to send to
-        target: NodeRef,
+        node: NodeRef,
         /// Require safety route or not
         safety_selection: SafetySelection,
     },
@@ -15,7 +15,7 @@ pub(crate) enum Destination {
         /// The relay to send to
         relay: NodeRef,
         /// The final destination the relay should send to
-        target: NodeRef,
+        node: NodeRef,
         /// Require safety route or not
         safety_selection: SafetySelection,
     },
@@ -29,15 +29,15 @@ pub(crate) enum Destination {
 }
 
 impl Destination {
-    pub fn target(&self) -> Option<NodeRef> {
+    pub fn node(&self) -> Option<NodeRef> {
         match self {
             Destination::Direct {
-                target,
+                node: target,
                 safety_selection: _,
             } => Some(target.clone()),
             Destination::Relay {
                 relay: _,
-                target,
+                node: target,
                 safety_selection: _,
             } => Some(target.clone()),
             Destination::PrivateRoute {
@@ -46,18 +46,18 @@ impl Destination {
             } => None,
         }
     }
-    pub fn direct(target: NodeRef) -> Self {
-        let sequencing = target.sequencing();
+    pub fn direct(node: NodeRef) -> Self {
+        let sequencing = node.sequencing();
         Self::Direct {
-            target,
+            node,
             safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
-    pub fn relay(relay: NodeRef, target: NodeRef) -> Self {
-        let sequencing = relay.sequencing().max(target.sequencing());
+    pub fn relay(relay: NodeRef, node: NodeRef) -> Self {
+        let sequencing = relay.sequencing().max(node.sequencing());
         Self::Relay {
             relay,
-            target,
+            node,
             safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
@@ -71,19 +71,19 @@ impl Destination {
     pub fn with_safety(self, safety_selection: SafetySelection) -> Self {
         match self {
             Destination::Direct {
-                target,
+                node,
                 safety_selection: _,
             } => Self::Direct {
-                target,
+                node,
                 safety_selection,
             },
             Destination::Relay {
                 relay,
-                target,
+                node,
                 safety_selection: _,
             } => Self::Relay {
                 relay,
-                target,
+                node,
                 safety_selection,
             },
             Destination::PrivateRoute {
@@ -99,12 +99,12 @@ impl Destination {
     pub fn get_safety_selection(&self) -> &SafetySelection {
         match self {
             Destination::Direct {
-                target: _,
+                node: _,
                 safety_selection,
             } => safety_selection,
             Destination::Relay {
                 relay: _,
-                target: _,
+                node: _,
                 safety_selection,
             } => safety_selection,
             Destination::PrivateRoute {
@@ -113,13 +113,31 @@ impl Destination {
             } => safety_selection,
         }
     }
+
+    pub fn get_target(&self) -> Target {
+        match self {
+            Destination::Direct {
+                node,
+                safety_selection: _,
+            }
+            | Destination::Relay {
+                relay: _,
+                node,
+                safety_selection: _,
+            } => Target::NodeId(node.best_node_id()),
+            Destination::PrivateRoute {
+                private_route,
+                safety_selection: _,
+            } => Target::PrivateRoute(private_route.public_key.value),
+        }
+    }
 }
 
 impl fmt::Display for Destination {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Destination::Direct {
-                target,
+                node,
                 safety_selection,
             } => {
                 let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
@@ -128,11 +146,11 @@ impl fmt::Display for Destination {
                     ""
                 };
 
-                write!(f, "{}{}", target, sr)
+                write!(f, "{}{}", node, sr)
             }
             Destination::Relay {
                 relay,
-                target,
+                node,
                 safety_selection,
             } => {
                 let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
@@ -141,7 +159,7 @@ impl fmt::Display for Destination {
                     ""
                 };
 
-                write!(f, "{}@{}{}", target, relay, sr)
+                write!(f, "{}@{}{}", node, relay, sr)
             }
             Destination::PrivateRoute {
                 private_route,
@@ -160,6 +178,46 @@ impl fmt::Display for Destination {
 }
 
 impl RPCProcessor {
+    /// Convert a 'Target' into a 'Destination'
+    pub async fn resolve_target_to_destination(
+        &self,
+        target: Target,
+        safety_selection: SafetySelection,
+        sequencing: Sequencing,
+    ) -> Result<rpc_processor::Destination, RPCError> {
+        match target {
+            Target::NodeId(node_id) => {
+                // Resolve node
+                let mut nr = match self.resolve_node(node_id, safety_selection).await? {
+                    Some(nr) => nr,
+                    None => {
+                        return Err(RPCError::network("could not resolve node id"));
+                    }
+                };
+                // Apply sequencing to match safety selection
+                nr.set_sequencing(sequencing);
+
+                Ok(rpc_processor::Destination::Direct {
+                    node: nr,
+                    safety_selection,
+                })
+            }
+            Target::PrivateRoute(rsid) => {
+                // Get remote private route
+                let rss = self.routing_table().route_spec_store();
+
+                let Some(private_route) = rss.best_remote_private_route(&rsid) else {
+                    return Err(RPCError::network("could not get remote private route"));
+                };
+
+                Ok(rpc_processor::Destination::PrivateRoute {
+                    private_route,
+                    safety_selection,
+                })
+            }
+        }
+    }
+
     /// Convert the 'Destination' into a 'RespondTo' for a response
     pub(super) fn get_destination_respond_to(
         &self,
@@ -170,7 +228,7 @@ impl RPCProcessor {
 
         match dest {
             Destination::Direct {
-                target,
+                node: target,
                 safety_selection,
             } => match safety_selection {
                 SafetySelection::Unsafe(_) => {
@@ -198,7 +256,7 @@ impl RPCProcessor {
             },
             Destination::Relay {
                 relay,
-                target,
+                node: target,
                 safety_selection,
             } => match safety_selection {
                 SafetySelection::Unsafe(_) => {

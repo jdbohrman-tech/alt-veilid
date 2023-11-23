@@ -243,18 +243,26 @@ impl StorageManager {
         want_descriptor: bool,
     ) -> VeilidAPIResult<NetworkResult<SubkeyResult>> {
         let mut inner = self.lock().await?;
-        let res = match inner
-            .handle_get_remote_value(key, subkey, want_descriptor)
-            .await
-        {
-            Ok(res) => res,
-            Err(VeilidAPIError::Internal { message }) => {
-                apibail_internal!(message);
-            }
-            Err(e) => {
-                return Ok(NetworkResult::invalid_message(e));
+
+        // See if this is a remote or local value
+        let (_is_local, last_subkey_result) = {
+            // See if the subkey we are getting has a last known local value
+            let mut last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+            // If this is local, it must have a descriptor already
+            if last_subkey_result.descriptor.is_some() {
+                if !want_descriptor {
+                    last_subkey_result.descriptor = None;
+                }
+                (true, last_subkey_result)
+            } else {
+                // See if the subkey we are getting has a last known remote value
+                let last_subkey_result = inner
+                    .handle_get_remote_value(key, subkey, want_descriptor)
+                    .await?;
+                (false, last_subkey_result)
             }
         };
-        Ok(NetworkResult::value(res))
+
+        Ok(NetworkResult::value(last_subkey_result))
     }
 }
