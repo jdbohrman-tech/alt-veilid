@@ -230,16 +230,29 @@ impl RPCProcessor {
             log_rpc!(debug "{}", debug_string);
         }
 
-        // See if we have this record ourselves
-        let storage_manager = self.storage_manager();
-        let subkey_result = network_result_try!(storage_manager
-            .inbound_get_value(key, subkey, want_descriptor)
-            .await
-            .map_err(RPCError::internal)?);
-        
+        // See if we would have accepted this as a set
+        let set_value_count = {
+            let c = self.config.get();
+            c.network.dht.set_value_count as usize
+        };
+        let (subkey_result_value, subkey_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
+            // Not close enough
+            (None, None)
+        } else {
+            // Close enough, lets get it
+
+            // See if we have this record ourselves
+            let storage_manager = self.storage_manager();
+            let subkey_result = network_result_try!(storage_manager
+                .inbound_get_value(key, subkey, want_descriptor)
+                .await
+                .map_err(RPCError::internal)?);
+            (subkey_result.value, subkey_result.descriptor)
+        };
+
         #[cfg(feature="debug-dht")]
         {
-            let debug_string_value = subkey_result.value.as_ref().map(|v| {
+            let debug_string_value = subkey_result_value.as_ref().map(|v| {
                 format!(" len={} seq={} writer={}",
                     v.value_data().data().len(),
                     v.value_data().seq(),
@@ -252,7 +265,7 @@ impl RPCProcessor {
                 key,
                 subkey,
                 debug_string_value,
-                if subkey_result.descriptor.is_some() {
+                if subkey_result_descriptor.is_some() {
                     " +desc"
                 } else {
                     ""
@@ -266,9 +279,9 @@ impl RPCProcessor {
             
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(
-            subkey_result.value,
+            subkey_result_value,
             closer_to_key_peers,
-            subkey_result.descriptor,
+            subkey_result_descriptor,
         )?;
 
         // Send GetValue answer
