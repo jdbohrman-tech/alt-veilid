@@ -551,9 +551,12 @@ impl Network {
                             .wrap_err("connect failure")?
                         }
                         ProtocolType::WS | ProtocolType::WSS => {
-                            WebsocketProtocolHandler::connect(None, &dial_info, connect_timeout_ms)
-                                .await
-                                .wrap_err("connect failure")?
+                            WebsocketProtocolHandler::connect(
+                                None,
+                                &dial_info,
+                                connect_timeout_ms)
+                            .await
+                            .wrap_err("connect failure")?
                         }
                     });
 

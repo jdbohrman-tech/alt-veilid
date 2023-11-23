@@ -67,7 +67,7 @@ core:
         max_connections_per_ip6_prefix: 32
         max_connections_per_ip6_prefix_size: 56
         max_connection_frequency_per_min: 128
-        client_whitelist_timeout_ms: 300000 
+        client_allowlist_timeout_ms: 300000 
         reverse_connection_receipt_time_ms: 5000 
         hole_punch_receipt_time_ms: 5000 
         network_key_password: null
@@ -588,7 +588,7 @@ pub struct Network {
     pub max_connections_per_ip6_prefix: u32,
     pub max_connections_per_ip6_prefix_size: u32,
     pub max_connection_frequency_per_min: u32,
-    pub client_whitelist_timeout_ms: u32,
+    pub client_allowlist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
     pub network_key_password: Option<String>,
@@ -1008,7 +1008,7 @@ impl Settings {
             value
         );
         set_config_value!(inner.core.network.max_connection_frequency_per_min, value);
-        set_config_value!(inner.core.network.client_whitelist_timeout_ms, value);
+        set_config_value!(inner.core.network.client_allowlist_timeout_ms, value);
         set_config_value!(inner.core.network.reverse_connection_receipt_time_ms, value);
         set_config_value!(inner.core.network.hole_punch_receipt_time_ms, value);
         set_config_value!(inner.core.network.network_key_password, value);
@@ -1184,8 +1184,8 @@ impl Settings {
                 "network.max_connection_frequency_per_min" => Ok(Box::new(
                     inner.core.network.max_connection_frequency_per_min,
                 )),
-                "network.client_whitelist_timeout_ms" => {
-                    Ok(Box::new(inner.core.network.client_whitelist_timeout_ms))
+                "network.client_allowlist_timeout_ms" => {
+                    Ok(Box::new(inner.core.network.client_allowlist_timeout_ms))
                 }
                 "network.reverse_connection_receipt_time_ms" => Ok(Box::new(
                     inner.core.network.reverse_connection_receipt_time_ms,
@@ -1594,7 +1594,7 @@ mod tests {
         assert_eq!(s.core.network.max_connections_per_ip6_prefix, 32u32);
         assert_eq!(s.core.network.max_connections_per_ip6_prefix_size, 56u32);
         assert_eq!(s.core.network.max_connection_frequency_per_min, 128u32);
-        assert_eq!(s.core.network.client_whitelist_timeout_ms, 300_000u32);
+        assert_eq!(s.core.network.client_allowlist_timeout_ms, 300_000u32);
         assert_eq!(s.core.network.reverse_connection_receipt_time_ms, 5_000u32);
         assert_eq!(s.core.network.hole_punch_receipt_time_ms, 5_000u32);
         assert_eq!(s.core.network.network_key_password, None);

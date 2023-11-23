@@ -335,7 +335,7 @@ class VeilidConfigNetwork with _$VeilidConfigNetwork {
     required int maxConnectionsPerIp6Prefix,
     required int maxConnectionsPerIp6PrefixSize,
     required int maxConnectionFrequencyPerMin,
-    required int clientWhitelistTimeoutMs,
+    required int clientAllowlistTimeoutMs,
     required int reverseConnectionReceiptTimeMs,
     required int holePunchReceiptTimeMs,
     required VeilidConfigRoutingTable routingTable,

@@ -85,7 +85,7 @@ struct NetworkComponents {
 }
 
 #[derive(Debug)]
-struct ClientWhitelistEntry {
+struct ClientAllowlistEntry {
     last_seen_ts: Timestamp,
 }
 
@@ -136,7 +136,7 @@ enum SendDataToExistingFlowResult {
 // The mutable state of the network manager
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
-    client_whitelist: LruCache<TypedKey, ClientWhitelistEntry>,
+    client_allowlist: LruCache<TypedKey, ClientAllowlistEntry>,
     node_contact_method_cache: LruCache<NodeContactMethodCacheKey, NodeContactMethod>,
     public_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
@@ -175,7 +175,7 @@ impl NetworkManager {
     fn new_inner() -> NetworkManagerInner {
         NetworkManagerInner {
             stats: NetworkManagerStats::default(),
-            client_whitelist: LruCache::new_unbounded(),
+            client_allowlist: LruCache::new_unbounded(),
             node_contact_method_cache: LruCache::new(NODE_CONTACT_METHOD_CACHE_SIZE),
             public_address_check_cache: BTreeMap::new(),
             public_address_inconsistencies_table: BTreeMap::new(),
@@ -453,14 +453,14 @@ impl NetworkManager {
         debug!("finished network manager shutdown");
     }
 
-    pub fn update_client_whitelist(&self, client: TypedKey) {
+    pub fn update_client_allowlist(&self, client: TypedKey) {
         let mut inner = self.inner.lock();
-        match inner.client_whitelist.entry(client) {
+        match inner.client_allowlist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp()
             }
             hashlink::lru_cache::Entry::Vacant(entry) => {
-                entry.insert(ClientWhitelistEntry {
+                entry.insert(ClientAllowlistEntry {
                     last_seen_ts: get_aligned_timestamp(),
                 });
             }
@@ -468,10 +468,10 @@ impl NetworkManager {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn check_client_whitelist(&self, client: TypedKey) -> bool {
+    pub fn check_client_allowlist(&self, client: TypedKey) -> bool {
         let mut inner = self.inner.lock();
 
-        match inner.client_whitelist.entry(client) {
+        match inner.client_allowlist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
                 entry.get_mut().last_seen_ts = get_aligned_timestamp();
                 true
@@ -480,20 +480,20 @@ impl NetworkManager {
         }
     }
 
-    pub fn purge_client_whitelist(&self) {
-        let timeout_ms = self.with_config(|c| c.network.client_whitelist_timeout_ms);
+    pub fn purge_client_allowlist(&self) {
+        let timeout_ms = self.with_config(|c| c.network.client_allowlist_timeout_ms);
         let mut inner = self.inner.lock();
         let cutoff_timestamp =
             get_aligned_timestamp() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
-        // Remove clients from the whitelist that haven't been since since our whitelist timeout
+        // Remove clients from the allowlist that haven't been since since our allowlist timeout
         while inner
-            .client_whitelist
+            .client_allowlist
             .peek_lru()
             .map(|v| v.1.last_seen_ts < cutoff_timestamp)
             .unwrap_or_default()
         {
-            let (k, v) = inner.client_whitelist.remove_lru().unwrap();
-            trace!(key=?k, value=?v, "purge_client_whitelist: remove_lru")
+            let (k, v) = inner.client_allowlist.remove_lru().unwrap();
+            trace!(key=?k, value=?v, "purge_client_allowlist: remove_lru")
         }
     }
 
@@ -998,7 +998,7 @@ impl NetworkManager {
             // This is a costly operation, so only outbound-relay permitted
             // nodes are allowed to do this, for example PWA users
 
-            let some_relay_nr = if self.check_client_whitelist(sender_id) {
+            let some_relay_nr = if self.check_client_allowlist(sender_id) {
                 // Full relay allowed, do a full resolve_node
                 match rpc
                     .resolve_node(recipient_id, SafetySelection::Unsafe(Sequencing::default()))
@@ -1011,7 +1011,7 @@ impl NetworkManager {
                     }
                 }
             } else {
-                // If this is not a node in the client whitelist, only allow inbound relay
+                // If this is not a node in the client allowlist, only allow inbound relay
                 // which only performs a lightweight lookup before passing the packet back out
 
                 // See if we have the node in our routing table

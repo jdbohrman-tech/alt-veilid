@@ -185,7 +185,7 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.max_connections_per_ip6_prefix" => Ok(Box::new(32u32)),
         "network.max_connections_per_ip6_prefix_size" => Ok(Box::new(56u32)),
         "network.max_connection_frequency_per_min" => Ok(Box::new(128u32)),
-        "network.client_whitelist_timeout_ms" => Ok(Box::new(300_000u32)),
+        "network.client_allowlist_timeout_ms" => Ok(Box::new(300_000u32)),
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.network_key_password" => Ok(Box::new(Option::<String>::None)),
@@ -320,7 +320,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.max_connections_per_ip6_prefix, 32u32);
     assert_eq!(inner.network.max_connections_per_ip6_prefix_size, 56u32);
     assert_eq!(inner.network.max_connection_frequency_per_min, 128u32);
-    assert_eq!(inner.network.client_whitelist_timeout_ms, 300_000u32);
+    assert_eq!(inner.network.client_allowlist_timeout_ms, 300_000u32);
     assert_eq!(inner.network.reverse_connection_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.hole_punch_receipt_time_ms, 5_000u32);
     assert_eq!(inner.network.network_key_password, Option::<String>::None);

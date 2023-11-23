@@ -78,8 +78,8 @@ impl NetworkManager {
         // Run the receipt manager tick
         receipt_manager.tick().await?;
 
-        // Purge the client whitelist
-        self.purge_client_whitelist();
+        // Purge the client allowlist
+        self.purge_client_allowlist();
 
         Ok(())
     }

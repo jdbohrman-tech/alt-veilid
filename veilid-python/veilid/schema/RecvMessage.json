@@ -3565,7 +3565,7 @@
       "type": "object",
       "required": [
         "application",
-        "client_whitelist_timeout_ms",
+        "client_allowlist_timeout_ms",
         "connection_inactivity_timeout_ms",
         "connection_initial_timeout_ms",
         "detect_address_changes",
@@ -3587,7 +3587,7 @@
         "application": {
           "$ref": "#/definitions/VeilidConfigApplication"
         },
-        "client_whitelist_timeout_ms": {
+        "client_allowlist_timeout_ms": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0

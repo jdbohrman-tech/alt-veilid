@@ -194,7 +194,7 @@ class VeilidConfigNetwork(ConfigBase):
     max_connections_per_ip6_prefix: int
     max_connections_per_ip6_prefix_size: int
     max_connection_frequency_per_min: int
-    client_whitelist_timeout_ms: int
+    client_allowlist_timeout_ms: int
     reverse_connection_receipt_time_ms: int
     hole_punch_receipt_time_ms: int
     network_key_password: Optional[str]
