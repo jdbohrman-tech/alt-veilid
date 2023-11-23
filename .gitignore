@@ -234,6 +234,7 @@ cython_debug/
 veilid-python/demo/.demokeys
 
 .vscode/
+.idea/
 
 ## Ignore emacs backup files
 ~*
