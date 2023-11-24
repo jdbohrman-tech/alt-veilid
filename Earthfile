@@ -105,6 +105,8 @@ code-linux:
     ARG BASE=local
     IF [ "$BASE" = "local" ]
         FROM +build-linux-cache
+    ELSE IF [ "$BASE" = "uncached" ]
+        FROM +deps-linux
     ELSE
         ARG CI_REGISTRY_IMAGE=registry.gitlab.com/veilid/veilid
         FROM $CI_REGISTRY_IMAGE/build-cache:latest
@@ -128,12 +130,12 @@ clippy:
 build-release:
     FROM +code-linux
     RUN cargo build --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    SAVE ARTIFACT ./target/release AS LOCAL ./target/release
+    SAVE ARTIFACT ./target/release AS LOCAL ./target/earthly/release
 
 build:
     FROM +code-linux
     RUN cargo build -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    SAVE ARTIFACT ./target/debug AS LOCAL ./target/debug
+    SAVE ARTIFACT ./target/debug AS LOCAL ./target/earthly/debug
 
 build-linux-amd64:
     FROM +code-linux
