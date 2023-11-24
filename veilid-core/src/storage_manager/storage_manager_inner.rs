@@ -39,6 +39,8 @@ fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         max_records: None,
         max_subkey_cache_memory_mb: Some(c.network.dht.local_max_subkey_cache_memory_mb as usize),
         max_storage_space_mb: None,
+        public_watch_limit: c.network.dht.public_watch_limit,
+        member_watch_limit: c.network.dht.member_watch_limit,
     }
 }
 
@@ -51,6 +53,8 @@ fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         max_records: Some(c.network.dht.remote_max_records as usize),
         max_subkey_cache_memory_mb: Some(c.network.dht.remote_max_subkey_cache_memory_mb as usize),
         max_storage_space_mb: Some(c.network.dht.remote_max_storage_space_mb as usize),
+        public_watch_limit: c.network.dht.public_watch_limit,
+        member_watch_limit: c.network.dht.member_watch_limit,
     }
 }
 
@@ -505,6 +509,24 @@ impl StorageManagerInner {
         Ok(())
     }
 
+    pub async fn handle_watch_local_value(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        expiration: Timestamp,
+        count: u32,
+        target: Target,
+        opt_watcher: Option<CryptoKey>,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+        // See if it's in the local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        local_record_store
+            .watch_subkeys(key, subkeys, expiration, count, target, opt_watcher)
+            .await
+    }
+
     pub async fn handle_get_remote_value(
         &mut self,
         key: TypedKey,
@@ -559,6 +581,24 @@ impl StorageManagerInner {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn handle_watch_remote_value(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        expiration: Timestamp,
+        count: u32,
+        target: Target,
+        opt_watcher: Option<CryptoKey>,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+        // See if it's in the remote record store
+        let Some(remote_record_store) = self.remote_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        remote_record_store
+            .watch_subkeys(key, subkeys, expiration, count, target, opt_watcher)
+            .await
     }
 
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]

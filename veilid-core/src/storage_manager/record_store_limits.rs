@@ -13,4 +13,8 @@ pub struct RecordStoreLimits {
     pub max_subkey_cache_memory_mb: Option<usize>,
     /// Limit on the amount of storage space to use for subkey data and record data
     pub max_storage_space_mb: Option<usize>,
+    /// Max number of anonymous watches
+    pub public_watch_limit: u32,
+    /// Max number of watches per schema member
+    pub member_watch_limit: u32,
 }

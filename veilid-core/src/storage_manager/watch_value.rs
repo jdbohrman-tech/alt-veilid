@@ -181,7 +181,14 @@ impl StorageManager {
         let (_is_local, opt_expiration_ts) = {
             // See if the subkey we are watching has a local value
             let opt_expiration_ts = inner
-                .handle_watch_local_value(key, subkeys, expiration, count, target, opt_watcher)
+                .handle_watch_local_value(
+                    key,
+                    subkeys.clone(),
+                    expiration,
+                    count,
+                    target.clone(),
+                    opt_watcher,
+                )
                 .await?;
             if opt_expiration_ts.is_some() {
                 (true, opt_expiration_ts)

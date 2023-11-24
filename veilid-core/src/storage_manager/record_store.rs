@@ -13,13 +13,32 @@ struct DeadRecord<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
-    // The key used in the record_index
+    /// The key used in the record_index
     key: RecordTableKey,
-    // The actual record
+    /// The actual record
     record: Record<D>,
-    // True if this record is accounted for in the total storage
-    // and needs to have the statistics updated or not when purged
+    /// True if this record is accounted for in the total storage
+    /// and needs to have the statistics updated or not when purged
     in_total_storage: bool,
+}
+
+/// An individual watch
+#[derive(Debug, Clone)]
+struct WatchedRecordWatch {
+    subkeys: ValueSubkeyRangeSet,
+    expiration: Timestamp,
+    count: u32,
+    target: Target,
+    opt_watcher: Option<CryptoKey>,
+}
+
+#[derive(Debug, Clone)]
+/// A record being watched for changes
+struct WatchedRecord {
+    /// Number of watchers that are anonymous
+    anon_count: usize,
+    /// The list of active watchers
+    watchers: Vec<WatchedRecordWatch>,
 }
 
 pub struct RecordStore<D>
@@ -46,6 +65,8 @@ where
     dead_records: Vec<DeadRecord<D>>,
     /// The list of records that have changed since last flush to disk (optimization for batched writes)
     changed_records: HashSet<RecordTableKey>,
+    /// The list of records being watched for changes
+    watched_records: HashMap<RecordTableKey, WatchedRecord>,
 
     /// A mutex to ensure we handle this concurrently
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
@@ -93,6 +114,7 @@ where
             ),
             dead_records: Vec::new(),
             changed_records: HashSet::new(),
+            watched_records: HashMap::new(),
             purge_dead_records_mutex: Arc::new(AsyncMutex::new(())),
         }
     }
@@ -673,6 +695,22 @@ where
         self.total_storage_space.commit().unwrap();
 
         Ok(())
+    }
+
+    /// Add a record watch for changes
+    pub async fn watch_subkeys(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        expiration: Timestamp,
+        count: u32,
+        target: Target,
+        opt_watcher: Option<CryptoKey>,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+
+        // If we have a watcher and it is in the record's schema
+        // then we have a guaranteed watch slot for it
+        xxx continue here
     }
 
     /// LRU out some records until we reclaim the amount of space requested
