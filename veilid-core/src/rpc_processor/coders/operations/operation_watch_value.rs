@@ -9,7 +9,8 @@ pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
     subkeys: ValueSubkeyRangeSet,
     expiration: u64,
     count: u32,
-    opt_watch_signature: Option<(PublicKey, Signature)>,
+    watcher: PublicKey,
+    signature: Signature,
 }
 
 impl RPCOperationWatchValueQ {
@@ -19,7 +20,7 @@ impl RPCOperationWatchValueQ {
         subkeys: ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
-        opt_watcher: Option<KeyPair>,
+        watcher: KeyPair,
         vcrypto: CryptoSystemVersion,
     ) -> Result<Self, RPCError> {
         // Needed because RangeSetBlaze uses different types here all the time
@@ -30,22 +31,18 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
 
-        let opt_watch_signature = if let Some(watcher) = opt_watcher {
-            let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count);
-            let signature = vcrypto
-                .sign(&watcher.key, &watcher.secret, &signature_data)
-                .map_err(RPCError::protocol)?;
-            Some((watcher.key, signature))
-        } else {
-            None
-        };
+        let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count);
+        let signature = vcrypto
+            .sign(&watcher.key, &watcher.secret, &signature_data)
+            .map_err(RPCError::protocol)?;
 
         Ok(Self {
             key,
             subkeys,
             expiration,
             count,
-            opt_watch_signature,
+            watcher: watcher.key,
+            signature,
         })
     }
 
@@ -77,13 +74,11 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("unsupported cryptosystem"));
         };
 
-        if let Some(watch_signature) = self.opt_watch_signature {
-            let sig_data =
-                Self::make_signature_data(&self.key, &self.subkeys, self.expiration, self.count);
-            vcrypto
-                .verify(&watch_signature.0, &sig_data, &watch_signature.1)
-                .map_err(RPCError::protocol)?;
-        }
+        let sig_data =
+            Self::make_signature_data(&self.key, &self.subkeys, self.expiration, self.count);
+        vcrypto
+            .verify(&self.watcher, &sig_data, &self.signature)
+            .map_err(RPCError::protocol)?;
         Ok(())
     }
 
@@ -108,10 +103,13 @@ impl RPCOperationWatchValueQ {
     }
 
     #[allow(dead_code)]
-    pub fn opt_watch_signature(&self) -> Option<&(PublicKey, Signature)> {
-        self.opt_watch_signature.as_ref()
+    pub fn watcher(&self) -> &PublicKey {
+        &self.watcher
     }
-
+    #[allow(dead_code)]
+    pub fn signature(&self) -> &Signature {
+        &self.signature
+    }
     #[allow(dead_code)]
     pub fn destructure(
         self,
@@ -120,14 +118,16 @@ impl RPCOperationWatchValueQ {
         ValueSubkeyRangeSet,
         u64,
         u32,
-        Option<(PublicKey, Signature)>,
+        PublicKey,
+        Signature,
     ) {
         (
             self.key,
             self.subkeys,
             self.expiration,
             self.count,
-            self.opt_watch_signature,
+            self.watcher,
+            self.signature,
         )
     }
 
@@ -160,24 +160,19 @@ impl RPCOperationWatchValueQ {
         let expiration = reader.get_expiration();
         let count = reader.get_count();
 
-        let opt_watch_signature = if reader.has_watcher() {
-            let w_reader = reader.get_watcher().map_err(RPCError::protocol)?;
-            let watcher = decode_key256(&w_reader);
+        let w_reader = reader.get_watcher().map_err(RPCError::protocol)?;
+        let watcher = decode_key256(&w_reader);
 
-            let s_reader = reader.get_signature().map_err(RPCError::protocol)?;
-            let signature = decode_signature512(&s_reader);
-
-            Some((watcher, signature))
-        } else {
-            None
-        };
+        let s_reader = reader.get_signature().map_err(RPCError::protocol)?;
+        let signature = decode_signature512(&s_reader);
 
         Ok(Self {
             key,
             subkeys,
             expiration,
             count,
-            opt_watch_signature,
+            watcher,
+            signature,
         })
     }
 
@@ -202,13 +197,11 @@ impl RPCOperationWatchValueQ {
         builder.set_expiration(self.expiration);
         builder.set_count(self.count);
 
-        if let Some(watch_signature) = self.opt_watch_signature {
-            let mut w_builder = builder.reborrow().init_watcher();
-            encode_key256(&watch_signature.0, &mut w_builder);
+        let mut w_builder = builder.reborrow().init_watcher();
+        encode_key256(&self.watcher, &mut w_builder);
 
-            let mut s_builder = builder.reborrow().init_signature();
-            encode_signature512(&watch_signature.1, &mut s_builder);
-        }
+        let mut s_builder = builder.reborrow().init_signature();
+        encode_signature512(&self.signature, &mut s_builder);
 
         Ok(())
     }

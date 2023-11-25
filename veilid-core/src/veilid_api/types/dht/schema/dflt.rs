@@ -53,6 +53,11 @@ impl DHTSchemaDFLT {
         // Subkey out of range
         false
     }
+
+    /// Check if a key is a schema member
+    pub fn is_member(&self, key: &PublicKey) -> bool {
+        false
+    }
 }
 
 impl TryFrom<&[u8]> for DHTSchemaDFLT {

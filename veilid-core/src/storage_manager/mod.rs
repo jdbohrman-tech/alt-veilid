@@ -42,6 +42,9 @@ struct StorageManagerUnlockedInner {
     // Background processes
     flush_record_stores_task: TickTask<EyreReport>,
     offline_subkey_writes_task: TickTask<EyreReport>,
+
+    // Anonymous watch keys
+    anonymous_watch_keys: TypedKeyPairGroup,
 }
 
 #[derive(Clone)]
@@ -57,6 +60,14 @@ impl StorageManager {
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
     ) -> StorageManagerUnlockedInner {
+        // Generate keys to use for anonymous watches
+        let mut anonymous_watch_keys = TypedKeyPairGroup::new();
+        for ck in VALID_CRYPTO_KINDS {
+            let vcrypto = crypto.get(ck).unwrap();
+            let kp = vcrypto.generate_keypair();
+            anonymous_watch_keys.add(TypedKeyPair::new(ck, kp));
+        }
+
         StorageManagerUnlockedInner {
             config,
             crypto,
@@ -65,6 +76,7 @@ impl StorageManager {
             block_store,
             flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
             offline_subkey_writes_task: TickTask::new(OFFLINE_SUBKEY_WRITES_INTERVAL_SECS),
+            anonymous_watch_keys,
         }
     }
     fn new_inner(unlocked_inner: Arc<StorageManagerUnlockedInner>) -> StorageManagerInner {

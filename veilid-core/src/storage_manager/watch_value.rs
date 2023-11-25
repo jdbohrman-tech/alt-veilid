@@ -49,6 +49,15 @@ impl StorageManager {
             inner.get_value_nodes(key)?
         };
 
+        // Get the appropriate watcher key
+        let watcher = opt_watcher.unwrap_or_else(|| {
+            self.unlocked_inner
+                .anonymous_watch_keys
+                .get(key.kind)
+                .unwrap()
+                .value
+        });
+
         // Make do-watch-value answer context
         let context = Arc::new(Mutex::new(OutboundWatchValueContext {
             opt_watch_value_result: None,
@@ -69,7 +78,7 @@ impl StorageManager {
                             subkeys,
                             expiration,
                             count,
-                            opt_watcher
+                            watcher
                         )
                         .await?
                 );
@@ -173,7 +182,7 @@ impl StorageManager {
         expiration: Timestamp,
         count: u32,
         target: Target,
-        opt_watcher: Option<CryptoKey>,
+        watcher: CryptoKey,
     ) -> VeilidAPIResult<NetworkResult<Timestamp>> {
         let mut inner = self.lock().await?;
 
@@ -187,7 +196,7 @@ impl StorageManager {
                     expiration,
                     count,
                     target.clone(),
-                    opt_watcher,
+                    watcher,
                 )
                 .await?;
             if opt_expiration_ts.is_some() {
@@ -195,7 +204,7 @@ impl StorageManager {
             } else {
                 // See if the subkey we are watching is a remote value
                 let opt_expiration_ts = inner
-                    .handle_watch_remote_value(key, subkeys, expiration, count, target, opt_watcher)
+                    .handle_watch_remote_value(key, subkeys, expiration, count, target, watcher)
                     .await?;
                 (false, opt_expiration_ts)
             }

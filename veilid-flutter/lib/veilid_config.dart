@@ -285,6 +285,7 @@ class VeilidConfigDHT with _$VeilidConfigDHT {
     required int remoteMaxStorageSpaceMb,
     required int publicWatchLimit,
     required int memberWatchLimit,
+    required int maxWatchExpirationMs,
   }) = _VeilidConfigDHT;
 
   factory VeilidConfigDHT.fromJson(dynamic json) =>

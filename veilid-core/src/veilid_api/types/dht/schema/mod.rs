@@ -59,6 +59,14 @@ impl DHTSchema {
             DHTSchema::SMPL(s) => s.check_subkey_value_data(owner, subkey, value_data),
         }
     }
+
+    /// Check if a key is a schema member
+    pub fn is_member(&self, key: &PublicKey) -> bool {
+        match self {
+            DHTSchema::DFLT(d) => d.is_member(key),
+            DHTSchema::SMPL(s) => s.is_member(key),
+        }
+    }
 }
 
 impl Default for DHTSchema {

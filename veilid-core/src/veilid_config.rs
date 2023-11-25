@@ -303,6 +303,7 @@ pub struct VeilidConfigDHT {
     pub remote_max_storage_space_mb: u32,
     pub public_watch_limit: u32,
     pub member_watch_limit: u32,
+    pub max_watch_expiration_ms: u32,
 }
 
 impl Default for VeilidConfigDHT {

@@ -29,14 +29,12 @@ struct WatchedRecordWatch {
     expiration: Timestamp,
     count: u32,
     target: Target,
-    opt_watcher: Option<CryptoKey>,
+    watcher: CryptoKey,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 /// A record being watched for changes
 struct WatchedRecord {
-    /// Number of watchers that are anonymous
-    anon_count: usize,
     /// The list of active watchers
     watchers: Vec<WatchedRecordWatch>,
 }
@@ -698,19 +696,136 @@ where
     }
 
     /// Add a record watch for changes
-    pub async fn watch_subkeys(
+    pub async fn watch_record(
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
         target: Target,
-        opt_watcher: Option<CryptoKey>,
+        watcher: CryptoKey,
     ) -> VeilidAPIResult<Option<Timestamp>> {
+        // If subkeys is empty or count is zero then we're cancelling a watch completely
+        if subkeys.is_empty() || count == 0 {
+            return self.cancel_watch(key, target, watcher).await;
+        }
 
-        // If we have a watcher and it is in the record's schema
-        // then we have a guaranteed watch slot for it
-        xxx continue here
+        // See if expiration timestamp is too far in the future or not enough in the future
+        let cur_ts = get_timestamp();
+        let max_ts = cur_ts + self.limits.max_watch_expiration.as_u64();
+        let min_ts = cur_ts + self.limits.min_watch_expiration.as_u64();
+        if expiration.as_u64() < min_ts || expiration.as_u64() > max_ts {
+            return Ok(None);
+        }
+
+        // Get the record being watched
+        let Some(is_member) = self.with_record_mut(key, |record| {
+            // Check if the watcher specified is a schema member
+            let schema = record.schema();
+            (*record.owner()) == watcher || schema.is_member(&watcher)
+        }) else {
+            // Record not found
+            return Ok(None);
+        };
+
+        // See if we are updating an existing watch
+        // with the watcher matched on target
+        let mut watch_count = 0;
+        let rtk = RecordTableKey { key };
+        if let Some(watch) = self.watched_records.get_mut(&rtk) {
+            for w in &mut watch.watchers {
+                if w.watcher == watcher {
+                    watch_count += 1;
+
+                    // Only one watch for an anonymous watcher
+                    // Allow members to have one watch per target
+                    if !is_member || w.target == target {
+                        // Updating an existing watch
+                        w.subkeys = subkeys;
+                        w.expiration = expiration;
+                        w.count = count;
+                        return Ok(Some(expiration));
+                    }
+                }
+            }
+        }
+
+        // Adding a new watcher to a watch
+        // Check watch table for limits
+        if is_member {
+            // Member watch
+            if watch_count >= self.limits.member_watch_limit {
+                // Too many watches
+                return Ok(None);
+            }
+        } else {
+            // Public watch
+            if watch_count >= self.limits.public_watch_limit {
+                // Too many watches
+                return Ok(None);
+            }
+        }
+
+        // Ok this is an acceptable new watch, add it
+        let watch = self.watched_records.entry(rtk).or_default();
+        watch.watchers.push(WatchedRecordWatch {
+            subkeys,
+            expiration,
+            count,
+            target,
+            watcher,
+        });
+        Ok(Some(expiration))
+    }
+
+    /// Add a record watch for changes
+    async fn cancel_watch(
+        &mut self,
+        key: TypedKey,
+        target: Target,
+        watcher: CryptoKey,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+        // Get the record being watched
+        let Some(is_member) = self.with_record_mut(key, |record| {
+            // Check if the watcher specified is a schema member
+            let schema = record.schema();
+            (*record.owner()) == watcher || schema.is_member(&watcher)
+        }) else {
+            // Record not found
+            return Ok(None);
+        };
+
+        // See if we are cancelling an existing watch
+        // with the watcher matched on target
+        let rtk = RecordTableKey { key };
+        let mut is_empty = false;
+        let mut ret_timestamp = None;
+        if let Some(watch) = self.watched_records.get_mut(&rtk) {
+            let mut dead_watcher = None;
+            for (wn, w) in watch.watchers.iter_mut().enumerate() {
+                if w.watcher == watcher {
+                    // Only one watch for an anonymous watcher
+                    // Allow members to have one watch per target
+                    if !is_member || w.target == target {
+                        // Canceling an existing watch
+                        dead_watcher = Some(wn);
+                        ret_timestamp = Some(w.expiration);
+                        break;
+                    }
+                }
+            }
+            if let Some(dw) = dead_watcher {
+                watch.watchers.remove(dw);
+                if watch.watchers.len() == 0 {
+                    is_empty = true;
+                }
+            }
+        }
+        if is_empty {
+            self.watched_records.remove(&rtk);
+        }
+
+        Ok(ret_timestamp)
     }
 
     /// LRU out some records until we reclaim the amount of space requested

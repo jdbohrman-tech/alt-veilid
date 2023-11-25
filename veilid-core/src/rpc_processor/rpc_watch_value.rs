@@ -29,7 +29,7 @@ impl RPCProcessor {
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
-        opt_watcher: Option<KeyPair>,
+        watcher: KeyPair,
     ) -> RPCNetworkResult<Answer<WatchValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
@@ -48,13 +48,8 @@ impl RPCProcessor {
         };
 
         let debug_string = format!(
-            "OUT ==> WatchValueQ({} {}#{:?}@{}+{}) => {}",
-            key,
-            if opt_watcher.is_some() { "+W " } else { "" },
-            subkeys,
-            expiration,
-            count,
-            dest
+            "OUT ==> WatchValueQ({} {}@{}+{}) => {} (watcher={})",
+            key, subkeys, expiration, count, dest, watcher.key
         );
 
         // Send the watchvalue question
@@ -63,7 +58,7 @@ impl RPCProcessor {
             subkeys,
             expiration.as_u64(),
             count,
-            opt_watcher,
+            watcher,
             vcrypto.clone(),
         )?;
         let question = RPCQuestion::new(
@@ -179,8 +174,7 @@ impl RPCProcessor {
         };
 
         // Destructure
-        let (key, subkeys, expiration, count, opt_watch_signature) = watch_value_q.destructure();
-        let opt_watcher = opt_watch_signature.map(|ws| ws.0);
+        let (key, subkeys, expiration, count, watcher, signature) = watch_value_q.destructure();
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
@@ -189,13 +183,13 @@ impl RPCProcessor {
         #[cfg(feature = "debug-dht")]
         {
             let debug_string = format!(
-                "IN <=== WatchValueQ({} {}#{:?}@{}+{}) <== {}",
+                "IN <=== WatchValueQ({} {}@{}+{}) <== {} (watcher={})",
                 key,
-                if opt_watcher.is_some() { "+W " } else { "" },
                 subkeys,
                 expiration,
                 count,
-                msg.header.direct_sender_node_id()
+                msg.header.direct_sender_node_id(),
+                watcher
             );
 
             log_rpc!(debug "{}", debug_string);
@@ -227,7 +221,7 @@ impl RPCProcessor {
                     Timestamp::new(expiration),
                     count,
                     target,
-                    opt_watcher
+                    watcher
                 )
                 .await
                 .map_err(RPCError::internal)?)

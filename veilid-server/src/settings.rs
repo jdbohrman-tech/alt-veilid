@@ -111,6 +111,7 @@ core:
             remote_max_storage_space_mb: 0
             public_watch_limit: 32
             member_watch_limit: 8
+            max_watch_expiration_ms: 600000
         upnp: true
         detect_address_changes: true
         restricted_nat_retries: 0
@@ -566,6 +567,7 @@ pub struct Dht {
     pub remote_max_storage_space_mb: u32,
     pub public_watch_limit: u32,
     pub member_watch_limit: u32,
+    pub max_watch_expiration_ms: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -954,6 +956,7 @@ impl Settings {
         set_config_value!(inner.core.network.dht.remote_max_storage_space_mb, value);
         set_config_value!(inner.core.network.dht.public_watch_limit, value);
         set_config_value!(inner.core.network.dht.member_watch_limit, value);
+        set_config_value!(inner.core.network.dht.max_watch_expiration_ms, value);
         set_config_value!(inner.core.network.upnp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
         set_config_value!(inner.core.network.restricted_nat_retries, value);
@@ -1200,6 +1203,9 @@ impl Settings {
                 }
                 "network.dht.member_watch_limit" => {
                     Ok(Box::new(inner.core.network.dht.member_watch_limit))
+                }
+                "network.dht.max_watch_expiration_ms" => {
+                    Ok(Box::new(inner.core.network.dht.max_watch_expiration_ms))
                 }
                 "network.upnp" => Ok(Box::new(inner.core.network.upnp)),
                 "network.detect_address_changes" => {
@@ -1526,6 +1532,9 @@ mod tests {
             s.core.network.dht.validate_dial_info_receipt_time_ms,
             2_000u32
         );
+        assert_eq!(s.core.network.dht.public_watch_limit, 32u32);
+        assert_eq!(s.core.network.dht.member_watch_limit, 8u32);
+        assert_eq!(s.core.network.dht.max_watch_expiration_ms, 600_000u32);
         //
         assert!(s.core.network.upnp);
         assert!(s.core.network.detect_address_changes);

@@ -1,10 +1,9 @@
 use super::*;
-use routing_table::NodeRefBase;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// Valid destinations for a message sent over a routing context
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Target {
     /// Node by its public key
     NodeId(TypedKey),
