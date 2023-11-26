@@ -174,7 +174,7 @@ impl RPCProcessor {
         };
 
         // Destructure
-        let (key, subkeys, expiration, count, watcher, signature) = watch_value_q.destructure();
+        let (key, subkeys, expiration, count, watcher, _signature) = watch_value_q.destructure();
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));

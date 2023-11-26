@@ -1,5 +1,6 @@
 pub mod flush_record_stores;
 pub mod offline_subkey_writes;
+pub mod send_value_changes;
 
 use super::*;
 
@@ -47,23 +48,54 @@ impl StorageManager {
                     )
                 });
         }
+        // Set send value changes tick task
+        debug!("starting send value changes task");
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .send_value_changes_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(
+                        this.clone()
+                            .send_value_changes_task_routine(
+                                s,
+                                Timestamp::new(l),
+                                Timestamp::new(t),
+                            )
+                            .instrument(trace_span!(
+                                parent: None,
+                                "StorageManager send value changes task routine"
+                            )),
+                    )
+                });
+        }
     }
 
     pub async fn tick(&self) -> EyreResult<()> {
-        // Run the rolling transfers task
+        // Run the flush stores task
         self.unlocked_inner.flush_record_stores_task.tick().await?;
 
-        // Run offline subkey writes task if there's work to be done
-        if self.online_writes_ready().await?.is_some() && self.has_offline_subkey_writes().await? {
-            self.unlocked_inner
-                .offline_subkey_writes_task
-                .tick()
-                .await?;
+        // Run online-only tasks
+        if self.online_writes_ready().await?.is_some() {
+            // Run offline subkey writes task if there's work to be done
+            if self.has_offline_subkey_writes().await? {
+                self.unlocked_inner
+                    .offline_subkey_writes_task
+                    .tick()
+                    .await?;
+            }
+
+            // Send value changed notifications
+            self.unlocked_inner.send_value_changes_task.tick().await?;
         }
         Ok(())
     }
 
     pub(crate) async fn cancel_tasks(&self) {
+        debug!("stopping send value changes task");
+        if let Err(e) = self.unlocked_inner.send_value_changes_task.stop().await {
+            warn!("send_value_changes_task not stopped: {}", e);
+        }
         debug!("stopping flush record stores task");
         if let Err(e) = self.unlocked_inner.flush_record_stores_task.stop().await {
             warn!("flush_record_stores_task not stopped: {}", e);

@@ -146,6 +146,7 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
                 remote_max_storage_space_mb: 19,
                 public_watch_limit: 20,
                 member_watch_limit: 21,
+                max_watch_expiration_ms: 22,
             },
             upnp: true,
             detect_address_changes: false,

@@ -1,9 +1,9 @@
 use super::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record<D>
 where
-    D: fmt::Debug + Clone + Serialize,
+    D: fmt::Debug + Serialize,
 {
     descriptor: SignedValueDescriptor,
     subkey_count: usize,
@@ -15,7 +15,7 @@ where
 
 impl<D> Record<D>
 where
-    D: fmt::Debug + Clone + Serialize,
+    D: fmt::Debug + Serialize,
 {
     pub fn new(
         cur_ts: Timestamp,

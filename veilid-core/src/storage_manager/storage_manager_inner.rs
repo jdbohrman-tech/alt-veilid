@@ -136,12 +136,12 @@ impl StorageManagerInner {
 
         // Final flush on record stores
         if let Some(mut local_record_store) = self.local_record_store.take() {
-            if let Err(e) = local_record_store.tick().await {
+            if let Err(e) = local_record_store.flush().await {
                 log_stor!(error "termination local record store tick failed: {}", e);
             }
         }
         if let Some(mut remote_record_store) = self.remote_record_store.take() {
-            if let Err(e) = remote_record_store.tick().await {
+            if let Err(e) = remote_record_store.flush().await {
                 log_stor!(error "termination remote record store tick failed: {}", e);
             }
         }

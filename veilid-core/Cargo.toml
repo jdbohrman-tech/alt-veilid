@@ -129,7 +129,7 @@ enum-as-inner = "=0.6.0"                                     # temporary fix for
 
 # Serialization
 capnp = { version = "0.18.1", default-features = false, features = ["alloc"] }
-serde = { version = "1.0.188", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive", "rc"] }
 serde_json = { version = "1.0.107" }
 serde-big-array = "0.5.1"
 json = "0.12.4"
