@@ -37,7 +37,7 @@ sudo -u veilid /bin/bash
 Copy the output to secure storage such as a password manager. This information will be used in the next step and can be used for node recovery, moving to a different server, etc.
 
 ```shell
-veilid-server --generate-key-pair
+veilid-server --generate-key-pair VLD0
 ```
 
 ### Create new node ID and flush existing route table
