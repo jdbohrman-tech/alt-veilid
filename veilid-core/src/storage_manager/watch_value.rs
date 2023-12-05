@@ -8,7 +8,7 @@ struct OutboundWatchValueContext {
 
 /// The result of the outbound_watch_value operation
 #[derive(Debug, Clone)]
-struct OutboundWatchValueResult {
+pub(super) struct OutboundWatchValueResult {
     /// The expiration of a successful watch
     pub expiration_ts: Timestamp,
     /// Which node accepted the watch
@@ -19,7 +19,8 @@ struct OutboundWatchValueResult {
 
 impl StorageManager {
     /// Perform a 'watch value' query on the network
-    pub async fn outbound_watch_value(
+    #[allow(clippy::too_many_arguments)]
+    pub(super) async fn outbound_watch_value(
         &self,
         rpc_processor: RPCProcessor,
         key: TypedKey,
@@ -219,8 +220,30 @@ impl StorageManager {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
-        value: SignedValueData,
+        value: Arc<SignedValueData>,
     ) -> VeilidAPIResult<()> {
-        //
+        // Update local record store with new value
+        let (res, opt_update_callback) = {
+            let mut inner = self.lock().await?;
+
+            let res = if let Some(first_subkey) = subkeys.first() {
+                inner
+                    .handle_set_local_value(key, first_subkey, value.clone())
+                    .await
+            } else {
+                VeilidAPIResult::Ok(())
+            };
+            (res, inner.update_callback.clone())
+        };
+        // Announce ValueChanged VeilidUpdate
+        if let Some(update_callback) = opt_update_callback {
+            update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
+                key,
+                subkeys,
+                count,
+                value: value.value_data().clone(),
+            })));
+        }
+        res
     }
 }

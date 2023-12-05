@@ -40,17 +40,7 @@ struct WatchedRecord {
     watchers: Vec<WatchedRecordWatch>,
 }
 
-#[derive(Debug, Clone)]
-/// A single 'value changed' message to send
-pub struct ValueChangedInfo {
-    target: Target,
-    key: TypedKey,
-    subkeys: ValueSubkeyRangeSet,
-    count: u32,
-    value: SignedValueData,
-}
-
-pub struct RecordStore<D>
+pub(super) struct RecordStore<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
@@ -631,7 +621,7 @@ where
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        signed_value_data: SignedValueData,
+        signed_value_data: Arc<SignedValueData>,
     ) -> VeilidAPIResult<()> {
         // Check size limit for data
         if signed_value_data.value_data().data().len() > self.limits.max_subkey_size {
@@ -847,7 +837,7 @@ where
             }
             if let Some(dw) = dead_watcher {
                 watch.watchers.remove(dw);
-                if watch.watchers.len() == 0 {
+                if watch.watchers.is_empty() {
                     is_empty = true;
                 }
             }
@@ -860,6 +850,16 @@ where
     }
 
     pub async fn take_value_changes(&mut self, changes: &mut Vec<ValueChangedInfo>) {
+        // ValueChangedInfo but without the subkey data that requires a double mutable borrow to get
+        struct EarlyValueChangedInfo {
+            target: Target,
+            key: TypedKey,
+            subkeys: ValueSubkeyRangeSet,
+            count: u32,
+        }
+
+        let mut evcis = vec![];
+
         for rtk in self.changed_watched_values.drain() {
             if let Some(watch) = self.watched_records.get_mut(&rtk) {
                 // Process watch notifications
@@ -877,38 +877,50 @@ where
                         dead_watchers.push(wn);
                     }
 
-                    // Get the first subkey data
-                    let Some(first_subkey) = subkeys.first() else {
-                        log_stor!(error "first subkey should exist for value change notification");
-                        continue;
-                    };
-                    let subkey_result = match self.get_subkey(rtk.key, first_subkey, false).await {
-                        Ok(Some(skr)) => skr,
-                        Ok(None) => {
-                            log_stor!(error "subkey should have data for value change notification");
-                            continue;
-                        }
-                        Err(e) => {
-                            log_stor!(error "error getting subkey data for value change notification: {}", e);
-                            continue;
-                        }
-                    };
-                    let Some(value) = subkey_result.value else {
-                        log_stor!(error "first subkey should have had value for value change notification");
-                        continue;
-                    };
-
-                    let vci = ValueChangedInfo {
+                    evcis.push(EarlyValueChangedInfo {
                         target: w.target.clone(),
                         key: rtk.key,
                         subkeys,
                         count,
-                        value,
-                    };
+                    });
+                }
 
-                    changes.push(vci);
+                // Remove in reverse so we don't have to offset the index to remove the right key
+                for dw in dead_watchers.iter().rev().copied() {
+                    watch.watchers.remove(dw);
                 }
             }
+        }
+
+        for evci in evcis {
+            // Get the first subkey data
+            let Some(first_subkey) = evci.subkeys.first() else {
+                log_stor!(error "first subkey should exist for value change notification");
+                continue;
+            };
+            let subkey_result = match self.get_subkey(evci.key, first_subkey, false).await {
+                Ok(Some(skr)) => skr,
+                Ok(None) => {
+                    log_stor!(error "subkey should have data for value change notification");
+                    continue;
+                }
+                Err(e) => {
+                    log_stor!(error "error getting subkey data for value change notification: {}", e);
+                    continue;
+                }
+            };
+            let Some(value) = subkey_result.value else {
+                log_stor!(error "first subkey should have had value for value change notification");
+                continue;
+            };
+
+            changes.push(ValueChangedInfo {
+                target: evci.target,
+                key: evci.key,
+                subkeys: evci.subkeys,
+                count: evci.count,
+                value,
+            });
         }
     }
 
@@ -931,7 +943,7 @@ where
         reclaimed
     }
 
-    pub(super) fn debug_records(&self) -> String {
+    pub fn debug_records(&self) -> String {
         // Dump fields in an abbreviated way
         let mut out = String::new();
 
@@ -963,16 +975,12 @@ where
         out
     }
 
-    pub(super) fn debug_record_info(&self, key: TypedKey) -> String {
+    pub fn debug_record_info(&self, key: TypedKey) -> String {
         self.peek_record(key, |r| format!("{:#?}", r))
             .unwrap_or("Not found".to_owned())
     }
 
-    pub(super) async fn debug_record_subkey_info(
-        &self,
-        key: TypedKey,
-        subkey: ValueSubkey,
-    ) -> String {
+    pub async fn debug_record_subkey_info(&self, key: TypedKey, subkey: ValueSubkey) -> String {
         match self.peek_subkey(key, subkey, true).await {
             Ok(Some(v)) => {
                 format!("{:#?}", v)

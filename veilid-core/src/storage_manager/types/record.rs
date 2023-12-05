@@ -1,11 +1,11 @@
 use super::*;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Record<D>
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(in crate::storage_manager) struct Record<D>
 where
-    D: fmt::Debug + Serialize,
+    D: fmt::Debug + Serialize + Clone,
 {
-    descriptor: SignedValueDescriptor,
+    descriptor: Arc<SignedValueDescriptor>,
     subkey_count: usize,
     stored_subkeys: ValueSubkeyRangeSet,
     last_touched_ts: Timestamp,
@@ -15,11 +15,11 @@ where
 
 impl<D> Record<D>
 where
-    D: fmt::Debug + Serialize,
+    D: fmt::Debug + Serialize + Clone,
 {
     pub fn new(
         cur_ts: Timestamp,
-        descriptor: SignedValueDescriptor,
+        descriptor: Arc<SignedValueDescriptor>,
         detail: D,
     ) -> VeilidAPIResult<Self> {
         let schema = descriptor.schema()?;
@@ -34,8 +34,8 @@ where
         })
     }
 
-    pub fn descriptor(&self) -> &SignedValueDescriptor {
-        &self.descriptor
+    pub fn descriptor(&self) -> Arc<SignedValueDescriptor> {
+        self.descriptor.clone()
     }
     pub fn owner(&self) -> &PublicKey {
         self.descriptor.owner()

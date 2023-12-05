@@ -120,6 +120,8 @@ impl ServicesContext {
 
         // Set up storage manager
         trace!("init storage manager");
+        let update_callback = self.update_callback.clone();
+
         let storage_manager = StorageManager::new(
             self.config.clone(),
             self.crypto.clone().unwrap(),
@@ -127,7 +129,7 @@ impl ServicesContext {
             #[cfg(feature = "unstable-blockstore")]
             self.block_store.clone().unwrap(),
         );
-        if let Err(e) = storage_manager.init().await {
+        if let Err(e) = storage_manager.init(update_callback).await {
             error!("failed to init storage manager: {}", e);
             self.shutdown().await;
             return Err(e);

@@ -97,7 +97,7 @@ impl RPCProcessor {
         );
 
         // Keep the reply private route that was used to return with the answer
-        let reply_private_route = waitable_reply.reply_private_route.clone();
+        let reply_private_route = waitable_reply.reply_private_route;
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
@@ -257,7 +257,7 @@ impl RPCProcessor {
             // Save the subkey, creating a new record if necessary
             let storage_manager = self.storage_manager();
             let new_value = network_result_try!(storage_manager
-                .inbound_set_value(key, subkey, value, descriptor)
+                .inbound_set_value(key, subkey, Arc::new(value), descriptor.map(Arc::new))
                 .await
                 .map_err(RPCError::internal)?);
 
@@ -292,7 +292,7 @@ impl RPCProcessor {
         }
 
         // Make SetValue answer
-        let set_value_a = RPCOperationSetValueA::new(set, new_value, closer_to_key_peers)?;
+        let set_value_a = RPCOperationSetValueA::new(set, new_value.map(|x| (*x).clone()), closer_to_key_peers)?;
 
         // Send SetValue answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::SetValueA(Box::new(set_value_a))))

@@ -123,11 +123,7 @@ impl RoutingContext {
     async fn get_destination(&self, target: Target) -> VeilidAPIResult<rpc_processor::Destination> {
         let rpc_processor = self.api.rpc_processor()?;
         rpc_processor
-            .resolve_target_to_destination(
-                target,
-                self.unlocked_inner.safety_selection,
-                self.sequencing(),
-            )
+            .resolve_target_to_destination(target, self.unlocked_inner.safety_selection)
             .await
             .map_err(VeilidAPIError::invalid_target)
     }

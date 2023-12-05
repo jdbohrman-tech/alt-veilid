@@ -55,7 +55,7 @@ impl DHTSchemaDFLT {
     }
 
     /// Check if a key is a schema member
-    pub fn is_member(&self, key: &PublicKey) -> bool {
+    pub fn is_member(&self, _key: &PublicKey) -> bool {
         false
     }
 }

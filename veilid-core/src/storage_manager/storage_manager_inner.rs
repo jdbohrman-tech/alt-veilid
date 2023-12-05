@@ -28,6 +28,8 @@ pub(super) struct StorageManagerInner {
     pub rpc_processor: Option<RPCProcessor>,
     /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
     pub tick_future: Option<SendPinBoxFuture<()>>,
+    /// Update callback to send ValueChanged notification to
+    pub update_callback: Option<UpdateCallback>,
 }
 
 fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
@@ -78,10 +80,15 @@ impl StorageManagerInner {
             metadata_db: Default::default(),
             rpc_processor: Default::default(),
             tick_future: Default::default(),
+            update_callback: None,
         }
     }
 
-    pub async fn init(&mut self, outer_self: StorageManager) -> EyreResult<()> {
+    pub async fn init(
+        &mut self,
+        outer_self: StorageManager,
+        update_callback: UpdateCallback,
+    ) -> EyreResult<()> {
         let metadata_db = self
             .unlocked_inner
             .table_store
@@ -121,13 +128,15 @@ impl StorageManagerInner {
             }
         });
         self.tick_future = Some(tick_future);
-
+        self.update_callback = Some(update_callback);
         self.initialized = true;
 
         Ok(())
     }
 
     pub async fn terminate(&mut self) {
+        self.update_callback = None;
+
         // Stop ticker
         let tick_future = self.tick_future.take();
         if let Some(f) = tick_future {
@@ -207,12 +216,12 @@ impl StorageManagerInner {
         let owner = vcrypto.generate_keypair();
 
         // Make a signed value descriptor for this dht value
-        let signed_value_descriptor = SignedValueDescriptor::make_signature(
+        let signed_value_descriptor = Arc::new(SignedValueDescriptor::make_signature(
             owner.key,
             schema_data,
             vcrypto.clone(),
             owner.secret,
-        )?;
+        )?);
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
@@ -428,11 +437,11 @@ impl StorageManagerInner {
         };
 
         // Get routing table to see if we still know about these nodes
-        let Some(routing_table) = self.rpc_processor.map(|r| r.routing_table()) else {
+        let Some(routing_table) = self.rpc_processor.as_ref().map(|r| r.routing_table()) else {
             apibail_try_again!("offline, try again later");
         };
 
-        let opt_value_nodes = local_record_store.with_record(key, |r| {
+        let opt_value_nodes = local_record_store.peek_record(key, |r| {
             let d = r.detail();
             d.value_nodes
                 .iter()
@@ -475,7 +484,7 @@ impl StorageManagerInner {
         Ok(opened_record)
     }
 
-    pub async fn handle_get_local_value(
+    pub(super) async fn handle_get_local_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -498,11 +507,11 @@ impl StorageManagerInner {
         })
     }
 
-    pub async fn handle_set_local_value(
+    pub(super) async fn handle_set_local_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        signed_value_data: SignedValueData,
+        signed_value_data: Arc<SignedValueData>,
     ) -> VeilidAPIResult<()> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
@@ -517,7 +526,7 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub async fn handle_watch_local_value(
+    pub(super) async fn handle_watch_local_value(
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
@@ -535,7 +544,7 @@ impl StorageManagerInner {
             .await
     }
 
-    pub async fn handle_get_remote_value(
+    pub(super) async fn handle_get_remote_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -558,12 +567,12 @@ impl StorageManagerInner {
         })
     }
 
-    pub async fn handle_set_remote_value(
+    pub(super) async fn handle_set_remote_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        signed_value_data: SignedValueData,
-        signed_value_descriptor: SignedValueDescriptor,
+        signed_value_data: Arc<SignedValueData>,
+        signed_value_descriptor: Arc<SignedValueDescriptor>,
     ) -> VeilidAPIResult<()> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
@@ -591,7 +600,7 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub async fn handle_watch_remote_value(
+    pub(super) async fn handle_watch_remote_value(
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
@@ -614,7 +623,8 @@ impl StorageManagerInner {
     where
         D: fmt::Debug + Clone + Serialize,
     {
-        let compiled = record.descriptor().schema_data();
+        let descriptor = record.descriptor();
+        let compiled = descriptor.schema_data();
         let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());
         hash_data.extend_from_slice(&vcrypto.kind().0);
         hash_data.extend_from_slice(&record.owner().bytes);

@@ -61,6 +61,17 @@ impl<E: Send + 'static> TickTask<E> {
         self.running.load(core::sync::atomic::Ordering::Acquire)
     }
 
+    pub fn last_timestamp_us(&self) -> Option<u64> {
+        let ts = self
+            .last_timestamp_us
+            .load(core::sync::atomic::Ordering::Acquire);
+        if ts == 0 {
+            None
+        } else {
+            Some(ts)
+        }
+    }
+
     pub async fn stop(&self) -> Result<(), E> {
         // drop the stop source if we have one
         let opt_stop_source = &mut *self.stop_source.lock().await;
@@ -89,6 +100,17 @@ impl<E: Send + 'static> TickTask<E> {
             return Ok(());
         }
 
+        self.internal_tick(now, last_timestamp_us).await.map(drop)
+    }
+
+    pub async fn try_tick_now(&self) -> Result<bool, E> {
+        let now = get_timestamp();
+        let last_timestamp_us = self.last_timestamp_us.load(Ordering::Acquire);
+
+        self.internal_tick(now, last_timestamp_us).await
+    }
+
+    async fn internal_tick(&self, now: u64, last_timestamp_us: u64) -> Result<bool, E> {
         // Lock the stop source, tells us if we have ever started this future
         let opt_stop_source = &mut *self.stop_source.lock().await;
         if opt_stop_source.is_some() {
@@ -104,12 +126,12 @@ impl<E: Send + 'static> TickTask<E> {
                 Ok(None) => {
                     // No prior result to return which means things are still running
                     // We can just return now, since the singlefuture will not run a second time
-                    return Ok(());
+                    return Ok(false);
                 }
                 Err(()) => {
                     // If we get this, it's because we are joining the singlefuture already
                     // Don't bother running but this is not an error in this case
-                    return Ok(());
+                    return Ok(false);
                 }
             };
         }
@@ -134,7 +156,7 @@ impl<E: Send + 'static> TickTask<E> {
                 self.last_timestamp_us.store(now, Ordering::Release);
                 // Save new stopper
                 *opt_stop_source = Some(stop_source);
-                Ok(())
+                Ok(true)
             }
             // All other conditions should not be reachable
             _ => {

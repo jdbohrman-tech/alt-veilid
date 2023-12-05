@@ -208,7 +208,7 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
 pub fn fix_veilidvaluechange() -> VeilidValueChange {
     VeilidValueChange {
         key: fix_typedkey(),
-        subkeys: vec![1, 2, 3, 4],
+        subkeys: ValueSubkeyRangeSet::new(),
         count: 5,
         value: ValueData::new_with_seq(23, b"ValueData".to_vec(), fix_cryptokey()).unwrap(),
     }

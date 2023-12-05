@@ -183,7 +183,6 @@ impl RPCProcessor {
         &self,
         target: Target,
         safety_selection: SafetySelection,
-        sequencing: Sequencing,
     ) -> Result<rpc_processor::Destination, RPCError> {
         match target {
             Target::NodeId(node_id) => {
@@ -195,7 +194,7 @@ impl RPCProcessor {
                     }
                 };
                 // Apply sequencing to match safety selection
-                nr.set_sequencing(sequencing);
+                nr.set_sequencing(safety_selection.get_sequencing());
 
                 Ok(rpc_processor::Destination::Direct {
                     node: nr,

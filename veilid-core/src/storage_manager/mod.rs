@@ -34,6 +34,16 @@ const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 1;
 /// Frequency to send ValueChanged notifications to the network
 const SEND_VALUE_CHANGES_INTERVAL_SECS: u32 = 1;
 
+#[derive(Debug, Clone)]
+/// A single 'value changed' message to send
+struct ValueChangedInfo {
+    target: Target,
+    key: TypedKey,
+    subkeys: ValueSubkeyRangeSet,
+    count: u32,
+    value: Arc<SignedValueData>,
+}
+
 struct StorageManagerUnlockedInner {
     config: VeilidConfig,
     crypto: Crypto,
@@ -112,11 +122,11 @@ impl StorageManager {
     }
 
     #[instrument(level = "debug", skip_all, err)]
-    pub async fn init(&self) -> EyreResult<()> {
+    pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
         debug!("startup storage manager");
 
         let mut inner = self.inner.lock().await;
-        inner.init(self.clone()).await?;
+        inner.init(self.clone(), update_callback).await?;
 
         Ok(())
     }
@@ -347,7 +357,7 @@ impl StorageManager {
         // Return the existing value if we have one unless we are forcing a refresh
         if !force_refresh {
             if let Some(last_subkey_result_value) = last_subkey_result.value {
-                return Ok(Some(last_subkey_result_value.into_value_data()));
+                return Ok(Some(last_subkey_result_value.value_data().clone()));
             }
         }
 
@@ -357,7 +367,7 @@ impl StorageManager {
         let Some(rpc_processor) = inner.rpc_processor.clone() else {
             // Return the existing value if we have one if we aren't online
             if let Some(last_subkey_result_value) = last_subkey_result.value {
-                return Ok(Some(last_subkey_result_value.into_value_data()));
+                return Ok(Some(last_subkey_result_value.value_data().clone()));
             }
             apibail_try_again!("offline, try again later");
         };
@@ -397,7 +407,7 @@ impl StorageManager {
                 .handle_set_local_value(key, subkey, subkey_result_value.clone())
                 .await?;
         }
-        Ok(Some(subkey_result_value.into_value_data()))
+        Ok(Some(subkey_result_value.value_data().clone()))
     }
 
     /// Set the value of a subkey on an opened local record
@@ -460,13 +470,13 @@ impl StorageManager {
         }
 
         // Sign the new value data with the writer
-        let signed_value_data = SignedValueData::make_signature(
+        let signed_value_data = Arc::new(SignedValueData::make_signature(
             value_data,
             descriptor.owner(),
             subkey,
             vcrypto,
             writer.secret,
-        )?;
+        )?);
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(rpc_processor) = Self::online_writes_ready_inner(&inner) else {
@@ -515,7 +525,7 @@ impl StorageManager {
 
         // Return the new value if it differs from what was asked to set
         if result.signed_value_data.value_data() != signed_value_data.value_data() {
-            return Ok(Some(result.signed_value_data.into_value_data()));
+            return Ok(Some(result.signed_value_data.value_data().clone()));
         }
 
         // If the original value was set, return None
@@ -667,5 +677,34 @@ impl StorageManager {
         }
 
         Ok(true)
+    }
+
+    // Send single value change out to the network
+    #[instrument(level = "trace", skip(self), err)]
+    async fn send_value_change(&self, vc: ValueChangedInfo) -> VeilidAPIResult<()> {
+        let rpc_processor = {
+            let inner = self.inner.lock().await;
+            if let Some(rpc_processor) = &inner.rpc_processor {
+                rpc_processor.clone()
+            } else {
+                apibail_try_again!("network is not available");
+            }
+        };
+
+        let dest = rpc_processor
+            .resolve_target_to_destination(
+                vc.target,
+                SafetySelection::Unsafe(Sequencing::NoPreference),
+            )
+            .await
+            .map_err(VeilidAPIError::from)?;
+
+        network_result_value_or_log!(rpc_processor
+        .rpc_call_value_changed(dest, vc.key, vc.subkeys, vc.count, (*vc.value).clone())
+        .await
+        .map_err(VeilidAPIError::from)? => [format!(": dest={:?} vc={:?}", dest, vc)] {
+        });
+
+        Ok(())
     }
 }

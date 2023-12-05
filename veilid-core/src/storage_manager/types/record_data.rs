@@ -1,11 +1,9 @@
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct RecordData {
+pub(in crate::storage_manager) struct RecordData {
     signed_value_data: Arc<SignedValueData>,
 }
-
-xxx continue here, use arc everywhere to avoid copies
 
 impl RecordData {
     pub fn new(signed_value_data: Arc<SignedValueData>) -> Self {

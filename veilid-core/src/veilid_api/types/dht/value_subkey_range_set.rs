@@ -30,21 +30,21 @@ impl ValueSubkeyRangeSet {
         Self { data }
     }
 
-    pub fn interset(&self, other: &ValueSubkeyRangeSet) -> ValueSubkeyRangeSet {
-        Self::new_with_data(self.data & other.data)
+    pub fn intersect(&self, other: &ValueSubkeyRangeSet) -> ValueSubkeyRangeSet {
+        Self::new_with_data(&self.data & &other.data)
     }
     pub fn difference(&self, other: &ValueSubkeyRangeSet) -> ValueSubkeyRangeSet {
-        Self::new_with_data(self.data - other.data)
+        Self::new_with_data(&self.data - &other.data)
     }
     pub fn union(&self, other: &ValueSubkeyRangeSet) -> ValueSubkeyRangeSet {
-        Self::new_with_data(self.data | other.data)
+        Self::new_with_data(&self.data | &other.data)
     }
 
-    pub fn data(&self) -> RangeSetBlaze<ValueSubkey> {
-        self.data().clone()
+    pub fn data(&self) -> &RangeSetBlaze<ValueSubkey> {
+        &self.data
     }
     pub fn into_data(self) -> RangeSetBlaze<ValueSubkey> {
-        self.data()
+        self.data
     }
 }
 

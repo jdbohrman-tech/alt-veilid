@@ -3,17 +3,17 @@ use super::*;
 /// The context of the outbound_get_value operation
 struct OutboundGetValueContext {
     /// The latest value of the subkey, may be the value passed in
-    pub value: Option<SignedValueData>,
+    pub value: Option<Arc<SignedValueData>>,
     /// The nodes that have returned the value so far (up to the consensus count)
     pub value_nodes: Vec<NodeRef>,
     /// The descriptor if we got a fresh one or empty if no descriptor was needed
-    pub descriptor: Option<SignedValueDescriptor>,
+    pub descriptor: Option<Arc<SignedValueDescriptor>>,
     /// The parsed schema from the descriptor if we have one
     pub schema: Option<DHTSchema>,
 }
 
 /// The result of the outbound_get_value operation
-struct OutboundGetValueResult {
+pub(super) struct OutboundGetValueResult {
     /// The subkey that was retrieved
     pub subkey_result: SubkeyResult,
     /// And where it was retrieved from
@@ -22,7 +22,7 @@ struct OutboundGetValueResult {
 
 impl StorageManager {
     /// Perform a 'get value' query on the network
-    pub async fn outbound_get_value(
+    pub(super) async fn outbound_get_value(
         &self,
         rpc_processor: RPCProcessor,
         key: TypedKey,
@@ -69,7 +69,7 @@ impl StorageManager {
                             Destination::direct(next_node.clone()).with_safety(safety_selection),
                             key,
                             subkey,
-                            last_descriptor,
+                            last_descriptor.map(|x| (*x).clone()),
                         )
                         .await?
                 );
@@ -80,7 +80,7 @@ impl StorageManager {
                     let mut ctx = context.lock();
                     if ctx.descriptor.is_none() && ctx.schema.is_none() {
                         ctx.schema = Some(descriptor.schema().map_err(RPCError::invalid_format)?);
-                        ctx.descriptor = Some(descriptor);
+                        ctx.descriptor = Some(Arc::new(descriptor));
                     }
                 }
 
@@ -127,7 +127,7 @@ impl StorageManager {
                             ctx.value_nodes.push(next_node);
                         } else if new_seq > prior_seq {
                             // If the sequence number is greater, start over with the new value
-                            ctx.value = Some(value);
+                            ctx.value = Some(Arc::new(value));
                             // One node has shown us this value so far
                             ctx.value_nodes = vec![next_node];
                         } else {
@@ -135,7 +135,7 @@ impl StorageManager {
                         }
                     } else {
                         // If we have no prior value, keep it
-                        ctx.value = Some(value);
+                        ctx.value = Some(Arc::new(value));
                         // One node has shown us this value so far
                         ctx.value_nodes = vec![next_node];
                     }

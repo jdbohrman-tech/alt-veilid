@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug)]
-pub struct ActiveWatch {
+pub(in crate::storage_manager) struct ActiveWatch {
     /// The expiration of a successful watch
     pub expiration_ts: Timestamp,
     /// Which node accepted the watch
@@ -17,7 +17,7 @@ pub struct ActiveWatch {
 /// The state associated with a local record when it is opened
 /// This is not serialized to storage as it is ephemeral for the lifetime of the opened record
 #[derive(Clone, Debug, Default)]
-pub struct OpenedRecord {
+pub(in crate::storage_manager) struct OpenedRecord {
     /// The key pair used to perform writes to subkey on this opened record
     /// Without this, set_value() will fail regardless of which key or subkey is being written to
     /// as all writes are signed

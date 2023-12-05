@@ -3,7 +3,7 @@ use super::*;
 /// The context of the outbound_set_value operation
 struct OutboundSetValueContext {
     /// The latest value of the subkey, may be the value passed in
-    pub value: SignedValueData,
+    pub value: Arc<SignedValueData>,
     /// The nodes that have set the value so far (up to the consensus count)
     pub value_nodes: Vec<NodeRef>,
     /// The number of non-sets since the last set we have received
@@ -13,23 +13,23 @@ struct OutboundSetValueContext {
 }
 
 /// The result of the outbound_set_value operation
-struct OutboundSetValueResult {
+pub(super) struct OutboundSetValueResult {
     /// The value that was set
-    pub signed_value_data: SignedValueData,
+    pub signed_value_data: Arc<SignedValueData>,
     /// And where it was set to
     pub value_nodes: Vec<NodeRef>,
 }
 
 impl StorageManager {
     /// Perform a 'set value' query on the network
-    pub async fn outbound_set_value(
+    pub(super) async fn outbound_set_value(
         &self,
         rpc_processor: RPCProcessor,
         key: TypedKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
-        value: SignedValueData,
-        descriptor: SignedValueDescriptor,
+        value: Arc<SignedValueData>,
+        descriptor: Arc<SignedValueDescriptor>,
     ) -> VeilidAPIResult<OutboundSetValueResult> {
         let routing_table = rpc_processor.routing_table();
 
@@ -75,8 +75,8 @@ impl StorageManager {
                             Destination::direct(next_node.clone()).with_safety(safety_selection),
                             key,
                             subkey,
-                            value,
-                            descriptor.clone(),
+                            (*value).clone(),
+                            (*descriptor).clone(),
                             send_descriptor,
                         )
                         .await?
@@ -105,7 +105,7 @@ impl StorageManager {
                         let new_seq = value.value_data().seq();
                         if new_seq > prior_seq {
                             // If the sequence number is greater, keep it
-                            ctx.value = value;
+                            ctx.value = Arc::new(value);
                             // One node has shown us this value so far
                             ctx.value_nodes = vec![next_node];
                             ctx.missed_since_last_set = 0;
@@ -225,9 +225,9 @@ impl StorageManager {
         &self,
         key: TypedKey,
         subkey: ValueSubkey,
-        value: SignedValueData,
-        descriptor: Option<SignedValueDescriptor>,
-    ) -> VeilidAPIResult<NetworkResult<Option<SignedValueData>>> {
+        value: Arc<SignedValueData>,
+        descriptor: Option<Arc<SignedValueDescriptor>>,
+    ) -> VeilidAPIResult<NetworkResult<Option<Arc<SignedValueData>>>> {
         let mut inner = self.lock().await?;
 
         // See if this is a remote or local value

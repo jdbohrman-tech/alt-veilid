@@ -59,7 +59,7 @@ impl RPCProcessor {
         // Save the subkey, creating a new record if necessary
         let storage_manager = self.storage_manager();
         storage_manager
-            .inbound_value_changed(key, subkeys, count, value)
+            .inbound_value_changed(key, subkeys, count, Arc::new(value))
             .await
             .map_err(RPCError::internal)?;
 
