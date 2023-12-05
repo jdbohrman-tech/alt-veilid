@@ -82,6 +82,8 @@ To start a headless Veilid node, run:
 sudo systemctl start veilid-server.service
 ```
 
+*-OR-*
+
 To have your headless Veilid node start at boot:
 
 ```shell
