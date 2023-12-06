@@ -219,7 +219,7 @@ impl StorageManager {
         &self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
-        count: u32,
+        mut count: u32,
         value: Arc<SignedValueData>,
     ) -> VeilidAPIResult<()> {
         // Update local record store with new value
@@ -233,8 +233,40 @@ impl StorageManager {
             } else {
                 VeilidAPIResult::Ok(())
             };
+
+            let Some(opened_record) = inner.opened_records.get_mut(&key) else {
+                // Don't send update or update the ActiveWatch if this record is closed
+                return res;
+            };
+            let Some(mut active_watch) = opened_record.active_watch() else {
+                // No active watch means no callback
+                return res;
+            };
+
+            if count > active_watch.count {
+                // If count is greater than our requested count then this is invalid, cancel the watch
+                log_stor!(debug "watch count went backward: {}: {}/{}", key, count, active_watch.count);
+                // Force count to zero
+                count = 0;
+                opened_record.clear_active_watch();
+            } else if count == 0 {
+                // If count is zero, we're done, cancel the watch and the app can renew it if it wants
+                log_stor!(debug "watch count finished: {}", key);
+                opened_record.clear_active_watch();
+            } else {
+                log_stor!(
+                    "watch count decremented: {}: {}/{}",
+                    key,
+                    count,
+                    active_watch.count
+                );
+                active_watch.count = count;
+                opened_record.set_active_watch(active_watch);
+            }
+
             (res, inner.update_callback.clone())
         };
+
         // Announce ValueChanged VeilidUpdate
         if let Some(update_callback) = opt_update_callback {
             update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
@@ -244,6 +276,7 @@ impl StorageManager {
                 value: value.value_data().clone(),
             })));
         }
+
         res
     }
 }

@@ -1,3 +1,4 @@
+pub mod check_active_watches;
 pub mod flush_record_stores;
 pub mod offline_subkey_writes;
 pub mod send_value_changes;
@@ -69,11 +70,35 @@ impl StorageManager {
                     )
                 });
         }
+        // Set check active watches tick task
+        debug!("starting check active watches task");
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .check_active_watches_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(
+                        this.clone()
+                            .check_active_watches_task_routine(
+                                s,
+                                Timestamp::new(l),
+                                Timestamp::new(t),
+                            )
+                            .instrument(trace_span!(
+                                parent: None,
+                                "StorageManager check active watches task routine"
+                            )),
+                    )
+                });
+        }
     }
 
     pub async fn tick(&self) -> EyreResult<()> {
         // Run the flush stores task
         self.unlocked_inner.flush_record_stores_task.tick().await?;
+
+        // Check active watches
+        self.unlocked_inner.check_active_watches_task.tick().await?;
 
         // Run online-only tasks
         if self.online_writes_ready().await?.is_some() {
@@ -92,6 +117,10 @@ impl StorageManager {
     }
 
     pub(crate) async fn cancel_tasks(&self) {
+        debug!("stopping check active watches task");
+        if let Err(e) = self.unlocked_inner.check_active_watches_task.stop().await {
+            warn!("check_active_watches_task not stopped: {}", e);
+        }
         debug!("stopping send value changes task");
         if let Err(e) = self.unlocked_inner.send_value_changes_task.stop().await {
             warn!("send_value_changes_task not stopped: {}", e);

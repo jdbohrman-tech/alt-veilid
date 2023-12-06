@@ -33,6 +33,8 @@ const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
 const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 1;
 /// Frequency to send ValueChanged notifications to the network
 const SEND_VALUE_CHANGES_INTERVAL_SECS: u32 = 1;
+/// Frequence to check for dead nodes and routes for active watches
+const CHECK_ACTIVE_WATCHES_INTERVAL_SECS: u32 = 1;
 
 #[derive(Debug, Clone)]
 /// A single 'value changed' message to send
@@ -55,6 +57,7 @@ struct StorageManagerUnlockedInner {
     flush_record_stores_task: TickTask<EyreReport>,
     offline_subkey_writes_task: TickTask<EyreReport>,
     send_value_changes_task: TickTask<EyreReport>,
+    check_active_watches_task: TickTask<EyreReport>,
 
     // Anonymous watch keys
     anonymous_watch_keys: TypedKeyPairGroup,
@@ -90,6 +93,7 @@ impl StorageManager {
             flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
             offline_subkey_writes_task: TickTask::new(OFFLINE_SUBKEY_WRITES_INTERVAL_SECS),
             send_value_changes_task: TickTask::new(SEND_VALUE_CHANGES_INTERVAL_SECS),
+            check_active_watches_task: TickTask::new(CHECK_ACTIVE_WATCHES_INTERVAL_SECS),
 
             anonymous_watch_keys,
         }
@@ -149,7 +153,12 @@ impl StorageManager {
 
     pub async fn set_rpc_processor(&self, opt_rpc_processor: Option<RPCProcessor>) {
         let mut inner = self.inner.lock().await;
-        inner.rpc_processor = opt_rpc_processor
+        inner.opt_rpc_processor = opt_rpc_processor
+    }
+
+    pub async fn set_routing_table(&self, opt_routing_table: Option<RoutingTable>) {
+        let mut inner = self.inner.lock().await;
+        inner.opt_routing_table = opt_routing_table
     }
 
     async fn lock(&self) -> VeilidAPIResult<AsyncMutexGuardArc<StorageManagerInner>> {
@@ -161,7 +170,7 @@ impl StorageManager {
     }
 
     fn online_writes_ready_inner(inner: &StorageManagerInner) -> Option<RPCProcessor> {
-        if let Some(rpc_processor) = { inner.rpc_processor.clone() } {
+        if let Some(rpc_processor) = { inner.opt_rpc_processor.clone() } {
             if let Some(network_class) = rpc_processor
                 .routing_table()
                 .get_network_class(RoutingDomain::PublicInternet)
@@ -234,7 +243,7 @@ impl StorageManager {
         // No record yet, try to get it from the network
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
-        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+        let Some(rpc_processor) = inner.opt_rpc_processor.clone() else {
             apibail_try_again!("offline, try again later");
         };
 
@@ -284,7 +293,7 @@ impl StorageManager {
     pub async fn close_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         let (opened_record, opt_rpc_processor) = {
             let mut inner = self.lock().await?;
-            (inner.close_record(key)?, inner.rpc_processor.clone())
+            (inner.close_record(key)?, inner.opt_rpc_processor.clone())
         };
 
         // Send a one-time cancel request for the watch if we have one and we're online
@@ -364,7 +373,7 @@ impl StorageManager {
         // Refresh if we can
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
-        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+        let Some(rpc_processor) = inner.opt_rpc_processor.clone() else {
             // Return the existing value if we have one if we aren't online
             if let Some(last_subkey_result_value) = last_subkey_result.value {
                 return Ok(Some(last_subkey_result_value.value_data().clone()));
@@ -562,7 +571,7 @@ impl StorageManager {
         };
 
         // Get rpc processor and drop mutex so we don't block while requesting the watch from the network
-        let Some(rpc_processor) = inner.rpc_processor.clone() else {
+        let Some(rpc_processor) = inner.opt_rpc_processor.clone() else {
             apibail_try_again!("offline, try again later");
         };
 
@@ -684,7 +693,7 @@ impl StorageManager {
     async fn send_value_change(&self, vc: ValueChangedInfo) -> VeilidAPIResult<()> {
         let rpc_processor = {
             let inner = self.inner.lock().await;
-            if let Some(rpc_processor) = &inner.rpc_processor {
+            if let Some(rpc_processor) = &inner.opt_rpc_processor {
                 rpc_processor.clone()
             } else {
                 apibail_try_again!("network is not available");

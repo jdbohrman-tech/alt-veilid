@@ -859,7 +859,7 @@ where
         }
 
         let mut evcis = vec![];
-
+        let mut empty_watched_records = vec![];
         for rtk in self.changed_watched_values.drain() {
             if let Some(watch) = self.watched_records.get_mut(&rtk) {
                 // Process watch notifications
@@ -888,8 +888,14 @@ where
                 // Remove in reverse so we don't have to offset the index to remove the right key
                 for dw in dead_watchers.iter().rev().copied() {
                     watch.watchers.remove(dw);
+                    if watch.watchers.is_empty() {
+                        empty_watched_records.push(rtk);
+                    }
                 }
             }
+        }
+        for ewr in empty_watched_records {
+            self.watched_records.remove(&ewr);
         }
 
         for evci in evcis {

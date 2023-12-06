@@ -25,7 +25,9 @@ pub(super) struct StorageManagerInner {
     /// Storage manager metadata that is persistent, including copy of offline subkey writes
     pub metadata_db: Option<TableDB>,
     /// RPC processor if it is available
-    pub rpc_processor: Option<RPCProcessor>,
+    pub opt_rpc_processor: Option<RPCProcessor>,
+    /// Routing table if it is available
+    pub opt_routing_table: Option<RoutingTable>,
     /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
     pub tick_future: Option<SendPinBoxFuture<()>>,
     /// Update callback to send ValueChanged notification to
@@ -78,7 +80,8 @@ impl StorageManagerInner {
             remote_record_store: Default::default(),
             offline_subkey_writes: Default::default(),
             metadata_db: Default::default(),
-            rpc_processor: Default::default(),
+            opt_rpc_processor: Default::default(),
+            opt_routing_table: Default::default(),
             tick_future: Default::default(),
             update_callback: None,
         }
@@ -437,7 +440,7 @@ impl StorageManagerInner {
         };
 
         // Get routing table to see if we still know about these nodes
-        let Some(routing_table) = self.rpc_processor.as_ref().map(|r| r.routing_table()) else {
+        let Some(routing_table) = self.opt_rpc_processor.as_ref().map(|r| r.routing_table()) else {
             apibail_try_again!("offline, try again later");
         };
 

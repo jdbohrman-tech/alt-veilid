@@ -1,7 +1,7 @@
 use super::*;
 
 impl StorageManager {
-    // Flush records stores to disk and remove dead records and send watch notifications
+    // Flush records stores to disk and remove dead records
     #[instrument(level = "trace", skip(self), err)]
     pub(crate) async fn flush_record_stores_task_routine(
         self,

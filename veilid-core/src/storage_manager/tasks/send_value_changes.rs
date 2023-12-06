@@ -3,7 +3,7 @@ use futures_util::StreamExt;
 use stop_token::future::FutureExt;
 
 impl StorageManager {
-    // Flush records stores to disk and remove dead records and send watch notifications
+    // Send value change notifications across the network
     #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn send_value_changes_task_routine(
         self,
