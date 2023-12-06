@@ -291,7 +291,7 @@ impl StorageManagerInner {
                 continue;
             };
             local_record_store
-                .set_subkey(key, subkey, subkey_data)
+                .set_subkey(key, subkey, subkey_data, WatchUpdateMode::NoUpdate)
                 .await?;
         }
 
@@ -420,7 +420,7 @@ impl StorageManagerInner {
         if let Some(signed_value_data) = subkey_result.value {
             // Write subkey to local store
             local_record_store
-                .set_subkey(key, subkey, signed_value_data)
+                .set_subkey(key, subkey, signed_value_data, WatchUpdateMode::NoUpdate)
                 .await?;
         }
 
@@ -519,6 +519,7 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
+        watch_update_mode: WatchUpdateMode,
     ) -> VeilidAPIResult<()> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
@@ -527,7 +528,7 @@ impl StorageManagerInner {
 
         // Write subkey to local store
         local_record_store
-            .set_subkey(key, subkey, signed_value_data)
+            .set_subkey(key, subkey, signed_value_data, watch_update_mode)
             .await?;
 
         Ok(())
@@ -580,6 +581,7 @@ impl StorageManagerInner {
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
         signed_value_descriptor: Arc<SignedValueDescriptor>,
+        watch_update_mode: WatchUpdateMode,
     ) -> VeilidAPIResult<()> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
@@ -601,7 +603,7 @@ impl StorageManagerInner {
 
         // Write subkey to remote store
         remote_record_store
-            .set_subkey(key, subkey, signed_value_data)
+            .set_subkey(key, subkey, signed_value_data, watch_update_mode)
             .await?;
 
         Ok(())

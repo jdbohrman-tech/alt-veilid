@@ -331,7 +331,7 @@ impl ConnectionManager {
         }
 
         // Attempt new connection
-        let mut retry_count = 0; // Someday, if we need this
+        let mut retry_count = 1;
 
         let prot_conn = network_result_try!(loop {
             let result_net_res = ProtocolNetworkConnection::connect(
@@ -350,12 +350,18 @@ impl ConnectionManager {
                 }
                 Err(e) => {
                     if retry_count == 0 {
-                        return Err(e).wrap_err("failed to connect");
+                        return Err(e).wrap_err(format!(
+                            "failed to connect: {:?} -> {:?}",
+                            preferred_local_address, dial_info
+                        ));
                     }
                 }
             };
             log_net!(debug "get_or_create_connection retries left: {}", retry_count);
             retry_count -= 1;
+
+            // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
+            preferred_local_address = None;
             sleep(500).await;
         });
 

@@ -227,6 +227,7 @@ impl StorageManager {
         subkey: ValueSubkey,
         value: Arc<SignedValueData>,
         descriptor: Option<Arc<SignedValueDescriptor>>,
+        target: Target,
     ) -> VeilidAPIResult<NetworkResult<Option<Arc<SignedValueData>>>> {
         let mut inner = self.lock().await?;
 
@@ -290,10 +291,18 @@ impl StorageManager {
 
         // Do the set and return no new value
         let res = if is_local {
-            inner.handle_set_local_value(key, subkey, value).await
+            inner
+                .handle_set_local_value(key, subkey, value, WatchUpdateMode::ExcludeTarget(target))
+                .await
         } else {
             inner
-                .handle_set_remote_value(key, subkey, value, actual_descriptor)
+                .handle_set_remote_value(
+                    key,
+                    subkey,
+                    value,
+                    actual_descriptor,
+                    WatchUpdateMode::ExcludeTarget(target),
+                )
                 .await
         };
         match res {

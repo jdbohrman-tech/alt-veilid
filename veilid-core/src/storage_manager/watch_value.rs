@@ -228,7 +228,12 @@ impl StorageManager {
 
             let res = if let Some(first_subkey) = subkeys.first() {
                 inner
-                    .handle_set_local_value(key, first_subkey, value.clone())
+                    .handle_set_local_value(
+                        key,
+                        first_subkey,
+                        value.clone(),
+                        WatchUpdateMode::NoUpdate,
+                    )
                     .await
             } else {
                 VeilidAPIResult::Ok(())

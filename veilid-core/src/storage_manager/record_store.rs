@@ -40,6 +40,12 @@ struct WatchedRecord {
     watchers: Vec<WatchedRecordWatch>,
 }
 
+pub(super) enum WatchUpdateMode {
+    NoUpdate,
+    UpdateAll,
+    ExcludeTarget(Target),
+}
+
 pub(super) struct RecordStore<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
@@ -599,7 +605,12 @@ where
         }))
     }
 
-    async fn update_watched_value(&mut self, key: TypedKey, subkey: ValueSubkey) {
+    async fn update_watched_value(
+        &mut self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        opt_ignore_target: Option<Target>,
+    ) {
         let rtk = RecordTableKey { key };
         let Some(wr) = self.watched_records.get_mut(&rtk) else {
             return;
@@ -608,7 +619,12 @@ where
         let mut changed = false;
         for w in &mut wr.watchers {
             // If this watcher is watching the changed subkey then add to the watcher's changed list
-            if w.subkeys.contains(subkey) && w.changed.insert(subkey) {
+            // Don't bother marking changes for value sets coming from the same watching node/target because they
+            // are already going to be aware of the changes in that case
+            if Some(&w.target) != opt_ignore_target.as_ref()
+                && w.subkeys.contains(subkey)
+                && w.changed.insert(subkey)
+            {
                 changed = true;
             }
         }
@@ -622,6 +638,7 @@ where
         key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
+        watch_update_mode: WatchUpdateMode,
     ) -> VeilidAPIResult<()> {
         // Check size limit for data
         if signed_value_data.value_data().data().len() > self.limits.max_subkey_size {
@@ -710,7 +727,16 @@ where
         self.total_storage_space.commit().unwrap();
 
         // Update watched value
-        self.update_watched_value(key, subkey).await;
+
+        let (do_update, opt_ignore_target) = match watch_update_mode {
+            WatchUpdateMode::NoUpdate => (false, None),
+            WatchUpdateMode::UpdateAll => (true, None),
+            WatchUpdateMode::ExcludeTarget(target) => (true, Some(target)),
+        };
+        if do_update {
+            self.update_watched_value(key, subkey, opt_ignore_target)
+                .await;
+        }
 
         Ok(())
     }

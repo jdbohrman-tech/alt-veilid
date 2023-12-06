@@ -416,7 +416,12 @@ impl StorageManager {
         // If we got a new value back then write it to the opened record
         if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
             inner
-                .handle_set_local_value(key, subkey, subkey_result_value.clone())
+                .handle_set_local_value(
+                    key,
+                    subkey,
+                    subkey_result_value.clone(),
+                    WatchUpdateMode::UpdateAll,
+                )
                 .await?;
         }
         Ok(Some(subkey_result_value.value_data().clone()))
@@ -496,7 +501,12 @@ impl StorageManager {
 
             // Offline, just write it locally and return immediately
             inner
-                .handle_set_local_value(key, subkey, signed_value_data.clone())
+                .handle_set_local_value(
+                    key,
+                    subkey,
+                    signed_value_data.clone(),
+                    WatchUpdateMode::UpdateAll,
+                )
                 .await?;
 
             log_stor!(debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
@@ -535,7 +545,12 @@ impl StorageManager {
 
         // Whatever record we got back, store it locally, might be newer than the one we asked to save
         inner
-            .handle_set_local_value(key, subkey, result.signed_value_data.clone())
+            .handle_set_local_value(
+                key,
+                subkey,
+                result.signed_value_data.clone(),
+                WatchUpdateMode::UpdateAll,
+            )
             .await?;
 
         // Return the new value if it differs from what was asked to set
