@@ -480,11 +480,15 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<OpenedRecord> {
-        let Some(opened_record) = self.opened_records.remove(&key) else {
-            apibail_generic!("record not open");
+    pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<Option<OpenedRecord>> {
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
         };
-        Ok(opened_record)
+        if local_record_store.peek_record(key, |_| {}).is_none() {
+            return Err(VeilidAPIError::key_not_found(key));
+        }
+
+        Ok(self.opened_records.remove(&key))
     }
 
     pub(super) async fn handle_get_local_value(

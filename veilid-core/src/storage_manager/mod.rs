@@ -291,40 +291,42 @@ impl StorageManager {
 
     /// Close an opened local record
     pub async fn close_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
-        let (opened_record, opt_rpc_processor) = {
+        let (opt_opened_record, opt_rpc_processor) = {
             let mut inner = self.lock().await?;
             (inner.close_record(key)?, inner.opt_rpc_processor.clone())
         };
 
         // Send a one-time cancel request for the watch if we have one and we're online
-        if let Some(active_watch) = opened_record.active_watch() {
-            if let Some(rpc_processor) = opt_rpc_processor {
-                // Use the safety selection we opened the record with
-                // Use the writer we opened with as the 'watcher' as well
-                let opt_owvresult = self
-                    .outbound_watch_value(
-                        rpc_processor,
-                        key,
-                        ValueSubkeyRangeSet::full(),
-                        Timestamp::new(0),
-                        0,
-                        opened_record.safety_selection(),
-                        opened_record.writer().cloned(),
-                        Some(active_watch.watch_node),
-                    )
-                    .await?;
-                if let Some(owvresult) = opt_owvresult {
-                    if owvresult.expiration_ts.as_u64() != 0 {
-                        log_stor!(debug
-                            "close record watch cancel got unexpected expiration: {}",
-                            owvresult.expiration_ts
-                        );
+        if let Some(opened_record) = opt_opened_record {
+            if let Some(active_watch) = opened_record.active_watch() {
+                if let Some(rpc_processor) = opt_rpc_processor {
+                    // Use the safety selection we opened the record with
+                    // Use the writer we opened with as the 'watcher' as well
+                    let opt_owvresult = self
+                        .outbound_watch_value(
+                            rpc_processor,
+                            key,
+                            ValueSubkeyRangeSet::full(),
+                            Timestamp::new(0),
+                            0,
+                            opened_record.safety_selection(),
+                            opened_record.writer().cloned(),
+                            Some(active_watch.watch_node),
+                        )
+                        .await?;
+                    if let Some(owvresult) = opt_owvresult {
+                        if owvresult.expiration_ts.as_u64() != 0 {
+                            log_stor!(debug
+                                "close record watch cancel got unexpected expiration: {}",
+                                owvresult.expiration_ts
+                            );
+                        }
+                    } else {
+                        log_stor!(debug "close record watch cancel unsuccessful");
                     }
                 } else {
-                    log_stor!(debug "close record watch cancel unsuccessful");
+                    log_stor!(debug "skipping last-ditch watch cancel because we are offline");
                 }
-            } else {
-                log_stor!(debug "skipping last-ditch watch cancel because we are offline");
             }
         }
 
@@ -336,6 +338,7 @@ impl StorageManager {
         // Ensure the record is closed
         self.close_record(key).await?;
 
+        // Get record from the local store
         let mut inner = self.lock().await?;
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_not_initialized!();
@@ -526,8 +529,11 @@ impl StorageManager {
             )
             .await?;
 
-        // Whatever record we got back, store it locally, might be newer than the one we asked to save
+        // Keep the list of nodes that returned a value for later reference
         let mut inner = self.lock().await?;
+        inner.set_value_nodes(key, result.value_nodes)?;
+
+        // Whatever record we got back, store it locally, might be newer than the one we asked to save
         inner
             .handle_set_local_value(key, subkey, result.signed_value_data.clone())
             .await?;
