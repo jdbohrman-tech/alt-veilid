@@ -74,7 +74,7 @@ where
     }
 
     pub fn total_size(&self) -> usize {
-        (mem::size_of::<Self>() - mem::size_of::<SignedValueDescriptor>())
+        (mem::size_of::<Self>() - mem::size_of::<Arc<SignedValueDescriptor>>())
             + self.descriptor.total_size()
             + self.record_data_size
     }
