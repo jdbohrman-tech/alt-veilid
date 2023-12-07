@@ -723,14 +723,14 @@ impl StorageManager {
 
         let dest = rpc_processor
             .resolve_target_to_destination(
-                vc.target,
+                vc.target.clone(),
                 SafetySelection::Unsafe(Sequencing::NoPreference),
             )
             .await
             .map_err(VeilidAPIError::from)?;
 
         network_result_value_or_log!(rpc_processor
-        .rpc_call_value_changed(dest, vc.key, vc.subkeys, vc.count, (*vc.value).clone())
+        .rpc_call_value_changed(dest, vc.key, vc.subkeys.clone(), vc.count, (*vc.value).clone())
         .await
         .map_err(VeilidAPIError::from)? => [format!(": dest={:?} vc={:?}", dest, vc)] {
         });

@@ -647,6 +647,11 @@ impl BucketEntryInner {
             return false;
         }
 
+        // If we have had any lost answers recently, this is not reliable
+        if self.peer_stats.rpc_stats.recent_lost_answers > 0 {
+            return false;
+        }
+
         match self.peer_stats.rpc_stats.first_consecutive_seen_ts {
             // If we have not seen seen a node consecutively, it can't be reliable
             None => false,
