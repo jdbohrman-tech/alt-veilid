@@ -1461,7 +1461,7 @@ impl VeilidAPI {
         dc.opened_record_contexts.insert(*record.key(), rc);
 
         debug!("DHT Record Created:\n{:#?}", record);
-        Ok(format!("Created: {:?}", record))
+        Ok(format!("Created: {:?} : {:?}", record.key(), record))
     }
 
     async fn debug_record_open(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1528,9 +1528,9 @@ impl VeilidAPI {
             Ok(v) => v,
         };
         let out = if let Some(value) = value {
-            format!("{:?}", value)
+            format!("Newer value found: {:?}", value)
         } else {
-            "No value data returned".to_owned()
+            "Success".to_owned()
         };
         Ok(out)
     }
@@ -1696,9 +1696,9 @@ impl VeilidAPI {
         } else if command == "info" {
             self.debug_record_info(args).await
         } else if command == "watch" {
-            self.debug_record_info(args).await
+            self.debug_record_watch(args).await
         } else if command == "cancel" {
-            self.debug_record_info(args).await
+            self.debug_record_cancel(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
