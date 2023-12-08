@@ -100,7 +100,7 @@ impl RPCProcessor {
                 if opt_watcher.is_some() { "+W " } else { "" },
                 subkeys,
                 expiration,
-                peer.len()
+                peer.len(),
                 dest
             );
 

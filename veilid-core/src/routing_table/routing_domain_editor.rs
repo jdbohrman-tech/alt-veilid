@@ -137,10 +137,8 @@ impl RoutingDomainEditor {
             None
         };
 
-        // Debug print
-        log_rtab!(debug "[{:?}] COMMIT: {:?}", self.routing_domain, self.changes);
-
         // Apply changes
+        log_rtab!("[{:?}] COMMIT: {:?}", self.routing_domain, self.changes);
         let mut peer_info_changed = false;
         {
             let mut inner = self.routing_table.inner.write();
@@ -181,7 +179,7 @@ impl RoutingDomainEditor {
                             peer_info_changed = true;
                         }
                         RoutingDomainChange::SetRelayNodeKeepalive { ts } => {
-                            debug!("[{:?}] relay node keepalive: {:?}", self.routing_domain, ts);
+                            trace!("[{:?}] relay node keepalive: {:?}", self.routing_domain, ts);
                             detail.common_mut().set_relay_node_last_keepalive(ts);
                         }
                         RoutingDomainChange::AddDialInfoDetail { dial_info_detail } => {

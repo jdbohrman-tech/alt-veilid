@@ -142,3 +142,34 @@ pub fn debug_duration(dur: u64) -> String {
         msecs
     )
 }
+
+pub fn parse_duration(s: &str) -> Option<u64> {
+    let mut dur_total: u64 = 0;
+    let mut dur: u64 = 0;
+    for c in s.as_bytes() {
+        match c {
+            b'0'..=b'9' => {
+                dur *= 10;
+                dur += (c - b'0') as u64;
+            }
+            b'h' => {
+                dur *= 3_600_000u64;
+                dur_total += dur;
+                dur = 0;
+            }
+            b'm' => {
+                dur *= 60_000u64;
+                dur_total += dur;
+                dur = 0;
+            }
+            b's' => {
+                dur *= 1_000u64;
+                dur_total += dur;
+                dur = 0;
+            }
+            _ => return None,
+        }
+    }
+    dur_total += dur;
+    Some(dur_total * 1_000u64)
+}
