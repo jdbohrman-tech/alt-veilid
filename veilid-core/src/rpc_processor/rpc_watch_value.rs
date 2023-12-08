@@ -55,7 +55,7 @@ impl RPCProcessor {
         // Send the watchvalue question
         let watch_value_q = RPCOperationWatchValueQ::new(
             key,
-            subkeys,
+            subkeys.clone(),
             expiration.as_u64(),
             count,
             watcher,
@@ -95,12 +95,11 @@ impl RPCProcessor {
         #[cfg(feature = "debug-dht")]
         {
             let debug_string_answer = format!(
-                "OUT <== WatchValueA({} {}#{:?}@{} peers={}) <= {}",
+                "OUT <== WatchValueA({} #{:?}@{} peers={}) <= {}",
                 key,
-                if opt_watcher.is_some() { "+W " } else { "" },
                 subkeys,
                 expiration,
-                peer.len(),
+                peers.len(),
                 dest
             );
 
@@ -217,7 +216,7 @@ impl RPCProcessor {
             network_result_try!(storage_manager
                 .inbound_watch_value(
                     key,
-                    subkeys,
+                    subkeys.clone(),
                     Timestamp::new(expiration),
                     count,
                     target,
