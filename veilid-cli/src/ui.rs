@@ -223,7 +223,7 @@ impl UI {
         });
     }
     fn clear_handler(siv: &mut Cursive) {
-        Self::node_events_view(siv).set_content("");
+        Self::node_events_view(siv).set_content([]);
         UI::update_cb(siv);
     }
 
@@ -262,15 +262,22 @@ impl UI {
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    pub fn push_styled(s: &mut Cursive, styled_string: StyledString) {
+    fn push_styled_line(s: &mut Cursive, styled_string: StyledString) {
         let mut ctv = UI::node_events_view(s);
-        ctv.append(styled_string)
+        ctv.append_line(styled_string)
     }
 
-    pub fn push_ansi_lines(s: &mut Cursive, starting_style: Style, lines: String) {
+    fn push_ansi_lines(s: &mut Cursive, mut starting_style: Style, lines: String) {
         let mut ctv = UI::node_events_view(s);
-        let (spanned_string, _end_style) = ansi::parse_with_starting_style(starting_style, lines);
-        ctv.append(spanned_string);
+
+        let mut sslines: Vec<StyledString> = vec![];
+        for line in lines.lines() {
+            let (spanned_string, end_style) = ansi::parse_with_starting_style(starting_style, line);
+            sslines.push(spanned_string);
+            starting_style = end_style;
+        }
+
+        ctv.append_lines(sslines.into_iter());
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -883,7 +890,7 @@ impl UI {
         node_log_scrollback: usize,
     ) -> ResizedView<NamedView<NodeEventsPanel>> {
         Panel::new(
-            CachedTextView::new("", node_log_scrollback)
+            CachedTextView::new([], node_log_scrollback, Some(node_log_scrollback))
                 .with_name("node-events-view")
                 .scrollable()
                 .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
@@ -1167,7 +1174,7 @@ impl UISender {
 
     pub fn push_styled(&self, styled_string: StyledString) -> std::io::Result<()> {
         let res = self.cb_sink.send(Box::new(move |s| {
-            UI::push_styled(s, styled_string);
+            UI::push_styled_line(s, styled_string);
         }));
         if res.is_err() {
             return Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe));
@@ -1206,6 +1213,7 @@ impl LogWriter for UISender {
 
         for argline in args.lines() {
             line.append_styled(argline, color);
+            line.append_plain("\n");
             self.push_styled(line)?;
             line = StyledString::new();
             line.append_plain(" ".repeat(indent));

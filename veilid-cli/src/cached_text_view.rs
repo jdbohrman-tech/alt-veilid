@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::{Mutex, MutexGuard};
@@ -12,7 +13,32 @@ use owning_ref::{ArcRef, OwningHandle};
 use unicode_width::UnicodeWidthStr;
 
 // Content type used internally for caching and storage
-type InnerContentType = Arc<StyledString>;
+type ContentType = VecDeque<StyledString>;
+type InnerContentType = Arc<ContentType>;
+type CacheType = StyledString;
+type InnerCacheType = Arc<StyledString>;
+
+/// A reference to the text content.
+///
+/// This can be deref'ed into a [`StyledString`].
+///
+/// [`StyledString`]: ../utils/markup/type.StyledString.html
+///
+/// This keeps the content locked. Do not store this!
+pub struct TextContentRef {
+    _handle: OwningHandle<ArcRef<Mutex<TextContentInner>>, MutexGuard<'static, TextContentInner>>,
+    // We also need to keep a copy of Arc so `deref` can return
+    // a reference to the `StyledString`
+    data: Arc<VecDeque<StyledString>>,
+}
+
+impl Deref for TextContentRef {
+    type Target = VecDeque<StyledString>;
+
+    fn deref(&self) -> &VecDeque<StyledString> {
+        self.data.as_ref()
+    }
+}
 
 /// Provides access to the content of a [`TextView`].
 ///
@@ -36,69 +62,75 @@ pub struct TextContent {
     content: Arc<Mutex<TextContentInner>>,
 }
 
+#[allow(dead_code)]
+
 impl TextContent {
     /// Creates a new text content around the given value.
     ///
     /// Parses the given value.
     pub fn new<S>(content: S) -> Self
     where
-        S: Into<StyledString>,
+        S: Into<ContentType>,
     {
         let content = Arc::new(content.into());
 
         TextContent {
             content: Arc::new(Mutex::new(TextContentInner {
                 content_value: content,
-                content_cache: Arc::new(StyledString::default()),
+                content_cache: Arc::new(CacheType::default()),
                 size_cache: None,
             })),
         }
     }
-}
 
-/// A reference to the text content.
-///
-/// This can be deref'ed into a [`StyledString`].
-///
-/// [`StyledString`]: ../utils/markup/type.StyledString.html
-///
-/// This keeps the content locked. Do not store this!
-pub struct TextContentRef {
-    _handle: OwningHandle<ArcRef<Mutex<TextContentInner>>, MutexGuard<'static, TextContentInner>>,
-    // We also need to keep a copy of Arc so `deref` can return
-    // a reference to the `StyledString`
-    data: Arc<StyledString>,
-}
-
-impl Deref for TextContentRef {
-    type Target = StyledString;
-
-    fn deref(&self) -> &StyledString {
-        self.data.as_ref()
-    }
-}
-
-#[allow(dead_code)]
-impl TextContent {
     /// Replaces the content with the given value.
     pub fn set_content<S>(&self, content: S)
     where
-        S: Into<StyledString>,
+        S: Into<ContentType>,
     {
         self.with_content(|c| {
             *c = content.into();
         });
     }
 
-    /// Append `content` to the end of a `TextView`.
-    pub fn append<S>(&self, content: S)
+    /// Append `line` to the end of a `TextView`.
+    pub fn append_line<S>(&self, line: S)
     where
         S: Into<StyledString>,
     {
         self.with_content(|c| {
-            // This will only clone content if content_cached and content_value
-            // are sharing the same underlying Rc.
-            c.append(content);
+            c.push_back(line.into());
+        })
+    }
+
+    /// Append `lines` to the end of a `TextView`.
+    pub fn append_lines<I, S>(&self, lines: S)
+    where
+        S: Iterator<Item = I>,
+        I: Into<StyledString>,
+    {
+        self.with_content(|c| {
+            for line in lines {
+                c.push_back(line.into());
+            }
+        })
+    }
+
+    /// Remove lines from the beginning until we have no more than 'count' from the end
+    pub fn resize_back(&self, count: usize) {
+        self.with_content(|c| {
+            while c.len() > count {
+                c.remove(0);
+            }
+        })
+    }
+
+    /// Remove lines from the end until we have no more than 'count' from the beginning
+    pub fn resize_front(&self, count: usize) {
+        self.with_content(|c| {
+            while c.len() > count {
+                c.remove(c.len() - 1);
+            }
         })
     }
 
@@ -113,7 +145,7 @@ impl TextContent {
     /// Apply the given closure to the inner content, and bust the cache afterward.
     pub fn with_content<F, O>(&self, f: F) -> O
     where
-        F: FnOnce(&mut StyledString) -> O,
+        F: FnOnce(&mut ContentType) -> O,
     {
         self.with_content_inner(|c| f(Arc::make_mut(&mut c.content_value)))
     }
@@ -141,7 +173,7 @@ impl TextContent {
 struct TextContentInner {
     // content: String,
     content_value: InnerContentType,
-    content_cache: InnerContentType,
+    content_cache: InnerCacheType,
 
     // We keep the cache here so it can be busted when we change the content.
     size_cache: Option<XY<SizeCache>>,
@@ -167,7 +199,7 @@ impl TextContentInner {
         }
     }
 
-    fn get_cache(&self) -> &InnerContentType {
+    fn get_cache(&self) -> &InnerCacheType {
         &self.content_cache
     }
 }
@@ -194,6 +226,9 @@ pub struct CachedTextView {
     // True if we can wrap long lines.
     wrap: bool,
 
+    // Maximum number of lines to keep while appending
+    max_lines: Option<usize>,
+
     // ScrollBase make many scrolling-related things easier
     width: Option<usize>,
 }
@@ -201,11 +236,11 @@ pub struct CachedTextView {
 #[allow(dead_code)]
 impl CachedTextView {
     /// Creates a new TextView with the given content.
-    pub fn new<S>(content: S, cache_size: usize) -> Self
+    pub fn new<S>(content: S, cache_size: usize, max_lines: Option<usize>) -> Self
     where
-        S: Into<StyledString>,
+        S: Into<ContentType>,
     {
-        Self::new_with_content(TextContent::new(content), cache_size)
+        Self::new_with_content(TextContent::new(content), cache_size, max_lines)
     }
 
     /// Creates a new TextView using the given `TextContent`.
@@ -224,7 +259,11 @@ impl CachedTextView {
     /// content.set_content("new content");
     /// assert!(view.get_content().source().contains("new"));
     /// ```
-    pub fn new_with_content(content: TextContent, cache_size: usize) -> Self {
+    pub fn new_with_content(
+        content: TextContent,
+        cache_size: usize,
+        max_lines: Option<usize>,
+    ) -> Self {
         CachedTextView {
             cache: TinyCache::new(cache_size),
             content,
@@ -232,12 +271,13 @@ impl CachedTextView {
             wrap: true,
             align: Align::top_left(),
             width: None,
+            max_lines,
         }
     }
 
     /// Creates a new empty `TextView`.
-    pub fn empty() -> Self {
-        CachedTextView::new("", 5)
+    pub fn empty(cache_size: usize, max_lines: Option<usize>) -> Self {
+        CachedTextView::new(ContentType::default(), cache_size, max_lines)
     }
 
     /// Sets the style for the content.
@@ -307,7 +347,7 @@ impl CachedTextView {
     #[must_use]
     pub fn content<S>(self, content: S) -> Self
     where
-        S: Into<StyledString>,
+        S: Into<ContentType>,
     {
         self.with(|s| s.set_content(content))
     }
@@ -315,19 +355,35 @@ impl CachedTextView {
     /// Replace the text in this view.
     pub fn set_content<S>(&mut self, content: S)
     where
-        S: Into<StyledString>,
+        S: Into<ContentType>,
     {
         self.cache.clear();
         self.content.set_content(content);
     }
 
     /// Append `content` to the end of a `TextView`.
-    pub fn append<S>(&mut self, content: S)
+    pub fn append_line<S>(&mut self, content: S)
     where
         S: Into<StyledString>,
     {
         self.cache.clear();
-        self.content.append(content);
+        self.content.append_line(content);
+        if let Some(max_lines) = self.max_lines {
+            self.content.resize_back(max_lines);
+        }
+    }
+
+    /// Append `content` lines to the end of a `TextView`.
+    pub fn append_lines<S, I>(&mut self, content: I)
+    where
+        I: Iterator<Item = S>,
+        S: Into<StyledString>,
+    {
+        self.cache.clear();
+        self.content.append_lines(content);
+        if let Some(max_lines) = self.max_lines {
+            self.content.resize_back(max_lines);
+        }
     }
 
     /// Returns the current text in this view.
@@ -357,7 +413,13 @@ impl CachedTextView {
         // Completely bust the cache
         // Just in case we fail, we don't want to leave a bad cache.
         content.size_cache = None;
-        content.content_cache = Arc::clone(&content.content_value);
+        content.content_cache = Arc::new(StyledString::from_iter(
+            content.content_value.iter().map(|s| {
+                let mut s = s.clone();
+                s.append_plain("\n");
+                s
+            }),
+        ));
 
         let rows = self.cache.compute(size.x, || {
             LinesIterator::new(content.get_cache().as_ref(), size.x).collect()
@@ -522,13 +584,14 @@ mod tests {
 
     #[test]
     fn sanity() {
-        let text_view = CachedTextView::new("", 5);
-        assert_eq!(text_view.get_content().data.spans().len(), 1);
+        let text_view = CachedTextView::new(ContentType::default(), 5, None);
+        assert_eq!(text_view.get_content().data.len(), 0);
     }
 
     #[test]
     fn test_cache() {
-        let mut text_view = CachedTextView::new("sample", 3);
+        let mut text_view =
+            CachedTextView::new(VecDeque::from([StyledString::from("sample")]), 3, None);
         assert!(text_view.cache.is_empty());
 
         text_view.compute_rows(Vec2::new(0, 0));
@@ -547,11 +610,11 @@ mod tests {
 
         assert_eq!(text_view.cache.keys(), [(&0, 1), (&2, 0), (&3, 0)]);
 
-        text_view.set_content("");
+        text_view.set_content(VecDeque::new());
         assert_eq!(text_view.cache.len(), 0);
         text_view.compute_rows(Vec2::new(0, 0));
 
-        text_view.append("sample");
+        text_view.append_line("sample");
         assert_eq!(text_view.cache.len(), 0);
         text_view.compute_rows(Vec2::new(0, 0));
 

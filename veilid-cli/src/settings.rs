@@ -20,7 +20,7 @@ logging:
         append: true
 interface:
     node_log:
-        scrollback: 2048
+        scrollback: 10000
     command_line:
         history_size: 2048
     theme:
