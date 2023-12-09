@@ -189,7 +189,7 @@ Server Debug Commands:
                     ui.send_callback(callback);
                 }
                 Err(e) => {
-                    ui.add_node_event(Level::Error, format!("{}\n", e));
+                    ui.add_node_event(Level::Error, e.to_string());
                     ui.send_callback(callback);
                 }
             }
@@ -424,7 +424,7 @@ Server Debug Commands:
         self.inner().ui_sender.add_node_event(
             log_level,
             format!(
-                "{}: {}{}\n",
+                "{}: {}{}",
                 log["log_level"].as_str().unwrap_or("???"),
                 log["message"].as_str().unwrap_or("???"),
                 if let Some(bt) = log["backtrace"].as_str() {
@@ -466,7 +466,7 @@ Server Debug Commands:
         self.inner().ui_sender.add_node_event(
             Level::Info,
             format!(
-                "AppMessage ({:?}): {}{}\n",
+                "AppMessage ({:?}): {}{}",
                 msg["sender"],
                 strmsg,
                 if truncated { "..." } else { "" }
@@ -506,7 +506,7 @@ Server Debug Commands:
         self.inner().ui_sender.add_node_event(
             Level::Info,
             format!(
-                "AppCall ({:?}) id = {:016x} : {}{}\n",
+                "AppCall ({:?}) id = {:016x} : {}{}",
                 call["sender"],
                 id,
                 strmsg,
