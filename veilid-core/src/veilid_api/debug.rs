@@ -1499,8 +1499,7 @@ impl VeilidAPI {
         let mut dc = DEBUG_CACHE.lock();
         dc.opened_record_contexts.insert(*record.key(), rc);
 
-        debug!("DHT Record Opened:\n{:#?}", record);
-        Ok(format!("Opened: {:?}", record))
+        Ok(format!("Opened: {} : {:?}", key, record))
     }
 
     async fn debug_record_close(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1511,7 +1510,6 @@ impl VeilidAPI {
             return Ok(format!("Can't close DHT record: {}", e));
         };
 
-        debug!("DHT Record Closed:\n{:#?}", key);
         Ok(format!("Closed: {:?}", key))
     }
 
@@ -1648,7 +1646,7 @@ impl VeilidAPI {
             Ok(v) => v,
         };
 
-        Ok(format!("Expiration at: {:?}", debug_ts(ts.as_u64())))
+        Ok(format!("Success: expiration={:?}", debug_ts(ts.as_u64())))
     }
 
     async fn debug_record_cancel(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1665,10 +1663,11 @@ impl VeilidAPI {
             Ok(v) => v,
         };
 
-        Ok(format!(
-            "Still Active: {:?}",
-            if still_active { "true" } else { "false" }
-        ))
+        Ok(if still_active {
+            "Watch partially cancelled".to_owned()
+        } else {
+            "Watch cancelled".to_owned()
+        })
     }
 
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {

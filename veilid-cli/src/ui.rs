@@ -7,13 +7,16 @@ use cursive::align::*;
 use cursive::event::*;
 use cursive::theme::*;
 use cursive::traits::*;
+use cursive::utils::markup::ansi;
 use cursive::utils::markup::StyledString;
 use cursive::view::SizeConstraint;
 use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
-use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
+use flexi_logger::writers::LogWriter;
+use flexi_logger::DeferredNow;
 // use cursive_multiplex::*;
+use crate::cached_text_view::*;
 use chrono::{Datelike, Timelike};
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
@@ -50,6 +53,7 @@ impl<T> Dirty<T> {
 }
 
 pub type UICallback = Box<dyn Fn(&mut Cursive) + Send>;
+pub type NodeEventsPanel = Panel<NamedView<ScrollView<NamedView<CachedTextView>>>>;
 
 static START_TIME: AtomicU64 = AtomicU64::new(0);
 
@@ -219,12 +223,25 @@ impl UI {
         });
     }
     fn clear_handler(siv: &mut Cursive) {
-        cursive_flexi_logger_view::clear_log();
+        Self::node_events_view(siv).set_content("");
         UI::update_cb(siv);
     }
-    fn node_events_panel(s: &mut Cursive) -> ViewRef<Panel<ScrollView<FlexiLoggerView>>> {
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Selectors
+
+    // fn main_layout(s: &mut Cursive) -> ViewRef<LinearLayout> {
+    //     s.find_name("main-layout").unwrap()
+    // }
+    fn node_events_panel(s: &mut Cursive) -> ViewRef<NodeEventsPanel> {
         s.find_name("node-events-panel").unwrap()
     }
+    fn node_events_view(s: &mut Cursive) -> ViewRef<CachedTextView> {
+        s.find_name("node-events-view").unwrap()
+    }
+    // fn node_events_scroll_view(s: &mut Cursive) -> ViewRef<ScrollView<CachedTextView>> {
+    //     s.find_name("node-events-scroll-view").unwrap()
+    // }
     fn command_line(s: &mut Cursive) -> ViewRef<EditView> {
         s.find_name("command-line").unwrap()
     }
@@ -237,6 +254,27 @@ impl UI {
     fn peers(s: &mut Cursive) -> ViewRef<PeersTableView> {
         s.find_name("peers").unwrap()
     }
+    fn connection_address(s: &mut Cursive) -> ViewRef<EditView> {
+        s.find_name("connection-address").unwrap()
+    }
+    fn connection_dialog(s: &mut Cursive) -> ViewRef<Dialog> {
+        s.find_name("connection-dialog").unwrap()
+    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
+    pub fn push_styled(s: &mut Cursive, styled_string: StyledString) {
+        let mut ctv = UI::node_events_view(s);
+        ctv.append(styled_string)
+    }
+
+    pub fn push_ansi_lines(s: &mut Cursive, starting_style: Style, lines: String) {
+        let mut ctv = UI::node_events_view(s);
+        let (spanned_string, _end_style) = ansi::parse_with_starting_style(starting_style, lines);
+        ctv.append(spanned_string);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     fn render_attachment_state(inner: &mut UIInner) -> String {
         let att = match inner.ui_state.attachment_state.get().as_str() {
             "Detached" => "[----]",
@@ -351,16 +389,17 @@ impl UI {
             return;
         }
         // run command
-
-        cursive_flexi_logger_view::parse_lines_to_log(
+        UI::push_ansi_lines(
+            s,
             ColorStyle::primary().into(),
-            format!("> {} {}", UI::cli_ts(Self::get_start_time()), text),
+            format!("{}> {}\n", UI::cli_ts(Self::get_start_time()), text),
         );
         match Self::run_command(s, text) {
             Ok(_) => {}
             Err(e) => {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Error).unwrap();
-                cursive_flexi_logger_view::parse_lines_to_log(
+                UI::push_ansi_lines(
+                    s,
                     color.into(),
                     format!(" {} Error: {}", UI::cli_ts(Self::get_start_time()), e),
                 );
@@ -446,7 +485,7 @@ impl UI {
     }
 
     fn submit_connection_address(s: &mut Cursive) {
-        let edit = s.find_name::<EditView>("connection-address").unwrap();
+        let edit = Self::connection_address(s);
         let addr = (*edit.get_content()).clone();
         let sa = match addr.parse::<std::net::SocketAddr>() {
             Ok(sa) => Some(sa),
@@ -475,7 +514,8 @@ impl UI {
             && std::io::stdout().flush().is_ok()
         {
             let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-            cursive_flexi_logger_view::parse_lines_to_log(
+            UI::push_ansi_lines(
+                s,
                 color.into(),
                 format!(
                     ">> {} Copied: {}",
@@ -491,7 +531,8 @@ impl UI {
             // X11/Wayland/other system copy
             if clipboard.set_text(text.as_ref()).is_ok() {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-                cursive_flexi_logger_view::parse_lines_to_log(
+                UI::push_ansi_lines(
+                    s,
                     color.into(),
                     format!(
                         ">> {} Copied: {}",
@@ -501,7 +542,8 @@ impl UI {
                 );
             } else {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
-                cursive_flexi_logger_view::parse_lines_to_log(
+                UI::push_ansi_lines(
+                    s,
                     color.into(),
                     format!(
                         ">> {} Could not copy to clipboard",
@@ -622,7 +664,7 @@ impl UI {
             return true;
         }
         if reset {
-            let mut dlg = s.find_name::<Dialog>("connection-dialog").unwrap();
+            let mut dlg = Self::connection_dialog(s);
             dlg.clear_buttons();
             return true;
         }
@@ -644,20 +686,20 @@ impl UI {
                     Some(addr) => addr.to_string(),
                 };
                 debug!("address is {}", addr);
-                let mut edit = s.find_name::<EditView>("connection-address").unwrap();
+                let mut edit = Self::connection_address(s);
                 edit.set_content(addr);
                 edit.set_enabled(true);
-                let mut dlg = s.find_name::<Dialog>("connection-dialog").unwrap();
+                let mut dlg = Self::connection_dialog(s);
                 dlg.add_button("Connect", Self::submit_connection_address);
             }
             ConnectionState::Connected(_, _) => {}
             ConnectionState::Retrying(addr, _) => {
                 //
-                let mut edit = s.find_name::<EditView>("connection-address").unwrap();
+                let mut edit = Self::connection_address(s);
                 debug!("address is {}", addr);
                 edit.set_content(addr.to_string());
                 edit.set_enabled(false);
-                let mut dlg = s.find_name::<Dialog>("connection-dialog").unwrap();
+                let mut dlg = Self::connection_dialog(s);
                 dlg.add_button("Cancel", |s| {
                     Self::command_processor(s).cancel_reconnect();
                 });
@@ -837,9 +879,23 @@ impl UI {
         START_TIME.load(Ordering::Relaxed)
     }
 
-    pub fn new(node_log_scrollback: usize, settings: &Settings) -> (Self, UISender) {
-        cursive_flexi_logger_view::resize(node_log_scrollback);
+    fn make_node_events_panel(
+        node_log_scrollback: usize,
+    ) -> ResizedView<NamedView<NodeEventsPanel>> {
+        Panel::new(
+            CachedTextView::new("", node_log_scrollback)
+                .with_name("node-events-view")
+                .scrollable()
+                .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
+                .with_name("node-events-scroll-view"),
+        )
+        .title_position(HAlign::Left)
+        .title("Node Events")
+        .with_name("node-events-panel")
+        .full_screen()
+    }
 
+    pub fn new(node_log_scrollback: usize, settings: &Settings) -> (Self, UISender) {
         UI::set_start_time();
         // Instantiate the cursive runnable
         let runnable = CursiveRunnable::new(
@@ -874,6 +930,7 @@ impl UI {
         let ui_sender = UISender {
             inner: this.inner.clone(),
             cb_sink,
+            colors: default_log_colors(),
         };
 
         let mut inner = this.inner.lock();
@@ -882,13 +939,7 @@ impl UI {
         this.siv.set_user_data(this.inner.clone());
 
         // Create layouts
-
-        let node_events_view = Panel::new(FlexiLoggerView::new_scrollable())
-            .title_position(HAlign::Left)
-            .title("Node Events")
-            .with_name("node-events-panel")
-            .full_screen();
-
+        let node_events_view = Self::make_node_events_panel(node_log_scrollback);
         let mut peers_table_view = PeersTableView::new()
             .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(48))
             .column(PeerTableColumn::Address, "Address", |c| c)
@@ -967,7 +1018,8 @@ impl UI {
                 .child(TextView::new(version)),
         );
 
-        this.siv.add_fullscreen_layer(mainlayout);
+        this.siv
+            .add_fullscreen_layer(mainlayout.with_name("main-layout"));
 
         UI::setup_colors(&mut this.siv, &mut inner, settings);
         UI::setup_quit_handler(&mut this.siv);
@@ -978,11 +1030,7 @@ impl UI {
 
         (this, ui_sender)
     }
-    pub fn cursive_flexi_logger(&self) -> Box<CursiveLogWriter> {
-        let mut flv = cursive_flexi_logger_view::cursive_flexi_logger(self.siv.cb_sink().clone());
-        flv.set_colors(self.inner.lock().log_colors.clone());
-        flv
-    }
+
     pub fn set_command_processor(&mut self, cmdproc: CommandProcessor) {
         let mut inner = self.inner.lock();
         inner.cmdproc = Some(cmdproc);
@@ -999,10 +1047,22 @@ impl UI {
 
 type CallbackSink = Box<dyn FnOnce(&mut Cursive) + 'static + Send>;
 
+/// Default log colors
+fn default_log_colors() -> HashMap<Level, Color> {
+    let mut colors = HashMap::<Level, Color>::new();
+    colors.insert(Level::Trace, Color::Dark(BaseColor::Green));
+    colors.insert(Level::Debug, Color::Dark(BaseColor::Cyan));
+    colors.insert(Level::Info, Color::Dark(BaseColor::Blue));
+    colors.insert(Level::Warn, Color::Dark(BaseColor::Yellow));
+    colors.insert(Level::Error, Color::Dark(BaseColor::Red));
+    colors
+}
+
 #[derive(Clone)]
 pub struct UISender {
     inner: Arc<Mutex<UIInner>>,
     cb_sink: Sender<CallbackSink>,
+    colors: HashMap<Level, Color>,
 }
 
 impl UISender {
@@ -1094,14 +1154,71 @@ impl UISender {
     }
 
     pub fn add_node_event(&self, log_color: Level, event: String) {
-        {
+        let color = {
             let inner = self.inner.lock();
-            let color = *inner.log_colors.get(&log_color).unwrap();
-            cursive_flexi_logger_view::parse_lines_to_log(
-                color.into(),
-                format!("{}: {}", UI::cli_ts(UI::get_start_time()), event),
-            );
+            *inner.log_colors.get(&log_color).unwrap()
+        };
+
+        let _ = self.push_styled_lines(
+            color.into(),
+            format!("{}: {}\n", UI::cli_ts(UI::get_start_time()), event),
+        );
+    }
+
+    pub fn push_styled(&self, styled_string: StyledString) -> std::io::Result<()> {
+        let res = self.cb_sink.send(Box::new(move |s| {
+            UI::push_styled(s, styled_string);
+        }));
+        if res.is_err() {
+            return Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe));
         }
-        let _ = self.cb_sink.send(Box::new(UI::update_cb));
+        Ok(())
+    }
+
+    pub fn push_styled_lines(&self, starting_style: Style, lines: String) -> std::io::Result<()> {
+        let res = self.cb_sink.send(Box::new(move |s| {
+            UI::push_ansi_lines(s, starting_style, lines);
+        }));
+        if res.is_err() {
+            return Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe));
+        }
+        Ok(())
+    }
+}
+impl LogWriter for UISender {
+    fn write(&self, _now: &mut DeferredNow, record: &Record) -> std::io::Result<()> {
+        let color = *self.colors.get(&record.level()).unwrap();
+
+        let args = format!("{}", &record.args());
+
+        let mut line = StyledString::new();
+        let mut indent = 0;
+        let levstr = format!("{}: ", record.level());
+        indent += levstr.len();
+        line.append_styled(levstr, color);
+        let filestr = format!(
+            "{}:{} ",
+            record.file().unwrap_or("(unnamed)"),
+            record.line().unwrap_or(0),
+        );
+        indent += filestr.len();
+        line.append_plain(filestr);
+
+        for argline in args.lines() {
+            line.append_styled(argline, color);
+            self.push_styled(line)?;
+            line = StyledString::new();
+            line.append_plain(" ".repeat(indent));
+        }
+        Ok(())
+    }
+
+    fn flush(&self) -> std::io::Result<()> {
+        // we are not buffering
+        Ok(())
+    }
+
+    fn max_log_level(&self) -> log::LevelFilter {
+        log::LevelFilter::max()
     }
 }

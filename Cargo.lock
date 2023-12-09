@@ -243,12 +243,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arraydeque"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0ffd3d69bd89910509a5d31d1f1353f38ccffdd116dd0099bbd6627f7bd8ad8"
-
-[[package]]
 name = "arrayref"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1301,20 +1295,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cursive-flexi-logger-view"
-version = "0.5.0"
-source = "git+https://gitlab.com/veilid/cursive-flexi-logger-view.git#7c931536b8c57339011bbe2ee604e431c91c0aa8"
-dependencies = [
- "arraydeque",
- "cursive_core",
- "flexi_logger",
- "lazy_static",
- "log",
- "time",
- "unicode-width",
-]
-
-[[package]]
 name = "cursive-macros"
 version = "0.1.0"
 source = "git+https://gitlab.com/veilid/cursive.git#a76fc9050f69edf56bc37efc63194050b9f222e4"
@@ -2235,6 +2215,15 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
+dependencies = [
+ "ahash 0.8.6",
+]
+
+[[package]]
+name = "hashbrown"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f93e7192158dbcda357bdec5fb5788eebf8bbac027f3f33e719d29135ae84156"
@@ -2833,6 +2822,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 dependencies = [
  "value-bag",
+]
+
+[[package]]
+name = "lru"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "718e8fae447df0c7e1ba7f5189829e63fd536945c8988d61444c19039f16b670"
+dependencies = [
+ "hashbrown 0.13.2",
 ]
 
 [[package]]
@@ -5491,7 +5489,6 @@ dependencies = [
  "config",
  "crossbeam-channel",
  "cursive",
- "cursive-flexi-logger-view",
  "cursive_buffered_backend",
  "cursive_table_view",
  "data-encoding",
@@ -5503,6 +5500,8 @@ dependencies = [
  "indent",
  "json",
  "log",
+ "lru",
+ "owning_ref",
  "parking_lot 0.12.1",
  "serde",
  "serde_derive",
@@ -5511,6 +5510,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
+ "unicode-width",
  "veilid-bugsalot",
  "veilid-tools",
 ]

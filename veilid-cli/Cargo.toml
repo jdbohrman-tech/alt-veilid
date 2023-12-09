@@ -34,7 +34,7 @@ cursive = { git = "https://gitlab.com/veilid/cursive.git", default-features = fa
     "toml",
     "ansi",
 ] }
-cursive-flexi-logger-view = { git = "https://gitlab.com/veilid/cursive-flexi-logger-view.git" }
+
 cursive_buffered_backend = { git = "https://gitlab.com/veilid/cursive-buffered-backend.git" }
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
@@ -64,6 +64,9 @@ data-encoding = { version = "^2" }
 indent = { version = "0.1.1" }
 
 chrono = "0.4.26"
+owning_ref = "0.4.1"
+unicode-width = "0.1.10"
+lru = "0.10.0"
 
 [dev-dependencies]
 serial_test = "^2"

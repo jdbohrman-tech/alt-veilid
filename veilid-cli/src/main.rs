@@ -9,6 +9,7 @@ use clap::{Parser, ValueEnum};
 use flexi_logger::*;
 use std::{net::ToSocketAddrs, path::PathBuf};
 
+mod cached_text_view;
 mod client_api_connection;
 mod command_processor;
 mod peers_table_view;
@@ -91,7 +92,6 @@ fn main() -> Result<(), String> {
         let logger = Logger::with(specbuilder.build());
 
         if settings.logging.terminal.enabled {
-            let flv = sivui.cursive_flexi_logger();
             if settings.logging.file.enabled {
                 std::fs::create_dir_all(settings.logging.file.directory.clone())
                     .map_err(map_to_string)?;
@@ -100,13 +100,13 @@ fn main() -> Result<(), String> {
                         FileSpec::default()
                             .directory(settings.logging.file.directory.clone())
                             .suppress_timestamp(),
-                        flv,
+                        Box::new(uisender.clone()),
                     )
                     .start()
                     .expect("failed to initialize logger!");
             } else {
                 logger
-                    .log_to_writer(flv)
+                    .log_to_writer(Box::new(uisender.clone()))
                     .start()
                     .expect("failed to initialize logger!");
             }
