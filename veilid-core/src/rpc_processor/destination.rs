@@ -138,24 +138,6 @@ impl Destination {
             }
         }
     }
-
-    pub fn get_private_route(&self) -> Option<PrivateRoute> {
-        match self {
-            Destination::Direct {
-                node: _,
-                safety_selection: _,
-            }
-            | Destination::Relay {
-                relay: _,
-                node: _,
-                safety_selection: _,
-            } => None,
-            Destination::PrivateRoute {
-                private_route,
-                safety_selection: _,
-            } => Some(private_route.clone()),
-        }
-    }
 }
 
 impl fmt::Display for Destination {
