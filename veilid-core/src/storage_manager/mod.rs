@@ -642,12 +642,15 @@ impl StorageManager {
             expiration.as_u64()
         };
 
-        // If the expiration time is less than our minimum expiration time or greater than the maximum time, consider this watch cancelled
-        if owvresult.expiration_ts.as_u64() < min_expiration_ts
-            || owvresult.expiration_ts.as_u64() > max_expiration_ts
-        {
-            // Don't set the watch so we ignore any stray valuechanged messages
+        // If the expiration time is less than our minimum expiration time consider this watch cancelled
+        let mut expiration_ts = owvresult.expiration_ts;
+        if expiration_ts.as_u64() < min_expiration_ts {
             return Ok(Timestamp::new(0));
+        }
+
+        // If the expiration time is greated than our maximum expiration time, clamp our local watch so we ignore extra valuechanged messages
+        if expiration_ts.as_u64() > max_expiration_ts {
+            expiration_ts = Timestamp::new(max_expiration_ts);
         }
 
         // If we requested a cancellation, then consider this watch cancelled
@@ -657,7 +660,7 @@ impl StorageManager {
 
         // Keep a record of the watch
         opened_record.set_active_watch(ActiveWatch {
-            expiration_ts: owvresult.expiration_ts,
+            expiration_ts,
             watch_node: owvresult.watch_node,
             opt_value_changed_route: owvresult.opt_value_changed_route,
             subkeys,

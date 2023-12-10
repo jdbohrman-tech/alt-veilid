@@ -760,9 +760,12 @@ where
         let cur_ts = get_timestamp();
         let max_ts = cur_ts + self.limits.max_watch_expiration.as_u64();
         let min_ts = cur_ts + self.limits.min_watch_expiration.as_u64();
-        if expiration.as_u64() == 0 {
+
+        if expiration.as_u64() == 0 || expiration.as_u64() > max_ts {
+            // Clamp expiration max time (or set zero expiration to max)
             expiration = Timestamp::new(max_ts);
-        } else if expiration.as_u64() < min_ts || expiration.as_u64() > max_ts {
+        } else if expiration.as_u64() < min_ts {
+            // Don't add watches with too low of an expiration time
             return Ok(None);
         }
 
