@@ -55,7 +55,7 @@ impl RPCOperationWatchValueQ {
     ) -> Vec<u8> {
         // Needed because RangeSetBlaze uses different types here all the time
         #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.len() as usize;
+        let subkeys_len = subkeys.ranges_len() as usize;
 
         let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 4);
         sig_data.extend_from_slice(&key.kind.0);
