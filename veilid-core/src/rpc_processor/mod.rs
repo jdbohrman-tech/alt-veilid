@@ -516,7 +516,7 @@ impl RPCProcessor {
             check_done,
         );
 
-        fanout_call.run(None).await
+        fanout_call.run(vec![]).await
     }
 
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference

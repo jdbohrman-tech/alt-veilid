@@ -165,7 +165,7 @@ impl StorageManager {
             check_done,
         );
 
-        match fanout_call.run(None).await {
+        match fanout_call.run(vec![]).await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
             TimeoutOr::Timeout => {
                 // Return the best answer we've got

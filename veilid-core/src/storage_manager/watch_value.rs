@@ -43,11 +43,11 @@ impl StorageManager {
         };
 
         // Get the nodes we know are caching this value to seed the fanout
-        let opt_init_fanout_queue = if let Some(watch_node) = opt_watch_node {
-            Some(vec![watch_node])
+        let init_fanout_queue = if let Some(watch_node) = opt_watch_node {
+            vec![watch_node]
         } else {
             let inner = self.inner.lock().await;
-            inner.get_value_nodes(key)?
+            inner.get_value_nodes(key)?.unwrap_or_default()
         };
 
         // Get the appropriate watcher key
@@ -132,7 +132,7 @@ impl StorageManager {
             check_done,
         );
 
-        match fanout_call.run(opt_init_fanout_queue).await {
+        match fanout_call.run(init_fanout_queue).await {
             // If we don't finish in the timeout (too much time passed without a successful watch)
             TimeoutOr::Timeout => {
                 // Return the best answer we've got
