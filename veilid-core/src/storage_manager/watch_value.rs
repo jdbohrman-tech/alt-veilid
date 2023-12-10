@@ -88,7 +88,7 @@ impl StorageManager {
                 if wva.answer.expiration_ts.as_u64() > 0 {
                     if count > 0 {
                         // If we asked for a nonzero notification count, then this is an accepted watch
-                        log_stor!(debug "Watch accepted: expiration_ts={}", wva.answer.expiration_ts);
+                        log_stor!(debug "Watch accepted: expiration_ts={}", debug_ts(wva.answer.expiration_ts.as_u64()));
                     } else {
                         // If we asked for a zero notification count, then this is a cancelled watch
                         log_stor!(debug "Watch cancelled");

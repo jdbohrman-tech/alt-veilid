@@ -627,16 +627,24 @@ impl StorageManager {
         opened_record.clear_active_watch();
 
         // Get the minimum expiration timestamp we will accept
-        let rpc_timeout_us = {
+        let (rpc_timeout_us, max_watch_expiration_us) = {
             let c = self.unlocked_inner.config.get();
-            TimestampDuration::from(ms_to_us(c.network.rpc.timeout_ms))
+            (
+                TimestampDuration::from(ms_to_us(c.network.rpc.timeout_ms)),
+                TimestampDuration::from(ms_to_us(c.network.dht.max_watch_expiration_ms)),
+            )
         };
         let cur_ts = get_timestamp();
         let min_expiration_ts = cur_ts + rpc_timeout_us.as_u64();
+        let max_expiration_ts = if expiration.as_u64() == 0 {
+            cur_ts + max_watch_expiration_us.as_u64()
+        } else {
+            expiration.as_u64()
+        };
 
-        // If the expiration time is less than our minimum expiration time or greater than the requested time, consider this watch cancelled
+        // If the expiration time is less than our minimum expiration time or greater than the maximum time, consider this watch cancelled
         if owvresult.expiration_ts.as_u64() < min_expiration_ts
-            || owvresult.expiration_ts.as_u64() > expiration.as_u64()
+            || owvresult.expiration_ts.as_u64() > max_expiration_ts
         {
             // Don't set the watch so we ignore any stray valuechanged messages
             return Ok(Timestamp::new(0));
