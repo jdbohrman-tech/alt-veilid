@@ -1710,8 +1710,18 @@ impl VeilidAPI {
         let network_manager = self.network_manager()?;
         let address_filter = network_manager.address_filter();
 
-        let out = format!("Address Filter Punishments:\n{:#?}", address_filter);
+        let out = format!("Address filter punishments:\n{:#?}", address_filter);
         Ok(out)
+    }
+
+    async fn debug_punish_clear(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+        //
+        let network_manager = self.network_manager()?;
+        let address_filter = network_manager.address_filter();
+
+        address_filter.clear_punishments();
+
+        Ok("Address Filter punishments cleared\n".to_owned())
     }
 
     async fn debug_punish(&self, args: String) -> VeilidAPIResult<String> {
@@ -1750,6 +1760,7 @@ appcall <destination> <data>
 appreply [#id] <data>
 relay <relay> [public|local]
 punish list
+       clear
 route allocate [ord|*ord] [rel] [<count>] [in|out]
       release <route>
       publish <route> [full]

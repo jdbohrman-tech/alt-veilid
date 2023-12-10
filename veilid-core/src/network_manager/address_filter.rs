@@ -268,6 +268,13 @@ impl AddressFilter {
             .or_insert(ts);
     }
 
+    pub fn clear_punishments(&self) {
+        let mut inner = self.inner.lock();
+        inner.punishments_by_ip4.clear();
+        inner.punishments_by_ip6_prefix.clear();
+        inner.punishments_by_node_id.clear();
+    }
+
     pub fn punish_ip_addr(&self, addr: IpAddr) {
         log_net!(debug ">>> PUNISHED: {}", addr);
         let ts = get_aligned_timestamp();
