@@ -763,6 +763,7 @@ impl VeilidConfig {
             get_config!(inner.network.dht.remote_max_storage_space_mb);
             get_config!(inner.network.dht.public_watch_limit);
             get_config!(inner.network.dht.member_watch_limit);
+            get_config!(inner.network.dht.max_watch_expiration_ms);
             get_config!(inner.network.rpc.concurrency);
             get_config!(inner.network.rpc.queue_size);
             get_config!(inner.network.rpc.max_timestamp_behind_ms);

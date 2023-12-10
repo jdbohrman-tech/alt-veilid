@@ -90,6 +90,7 @@ export const veilidCoreStartupConfig = {
       remote_max_storage_space_mb: 0,
       public_watch_limit: 32,
       member_watch_limit: 8,
+      max_watch_expiration_ms: 600000,
     },
     upnp: true,
     detect_address_changes: true,
