@@ -1501,7 +1501,7 @@ impl RPCProcessor {
                     ) {
                         address_filter.punish_node_id(sender_node_id);
                         return Ok(NetworkResult::invalid_message(
-                            "sender peerinfo has invalid peer scope",
+                            format!("sender peerinfo has invalid peer scope: {:?}",sender_peer_info.signed_node_info())
                         ));
                     }
                     opt_sender_nr = match self.routing_table().register_node_with_peer_info(
