@@ -239,9 +239,9 @@ impl UI {
     fn node_events_view(s: &mut Cursive) -> ViewRef<CachedTextView> {
         s.find_name("node-events-view").unwrap()
     }
-    // fn node_events_scroll_view(s: &mut Cursive) -> ViewRef<ScrollView<CachedTextView>> {
-    //     s.find_name("node-events-scroll-view").unwrap()
-    // }
+    fn node_events_scroll_view(s: &mut Cursive) -> ViewRef<ScrollView<NamedView<CachedTextView>>> {
+        s.find_name("node-events-scroll-view").unwrap()
+    }
     fn command_line(s: &mut Cursive) -> ViewRef<EditView> {
         s.find_name("command-line").unwrap()
     }
@@ -894,6 +894,12 @@ impl UI {
                 .with_name("node-events-view")
                 .scrollable()
                 .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
+                .on_scroll(|s, _r| {
+                    let mut sv = UI::node_events_scroll_view(s);
+                    if sv.is_at_bottom() {
+                        sv.set_scroll_strategy(cursive::view::ScrollStrategy::StickToBottom);
+                    }
+                })
                 .with_name("node-events-scroll-view"),
         )
         .title_position(HAlign::Left)

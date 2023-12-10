@@ -1645,7 +1645,9 @@ impl VeilidAPI {
             }
             Ok(v) => v,
         };
-
+        if ts.as_u64() == 0 {
+            return Ok("Failed to watch value".to_owned());
+        }
         Ok(format!("Success: expiration={:?}", debug_ts(ts.as_u64())))
     }
 

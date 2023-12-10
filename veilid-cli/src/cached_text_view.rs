@@ -118,6 +118,9 @@ impl TextContent {
 
     /// Remove lines from the beginning until we have no more than 'count' from the end
     pub fn resize_back(&self, count: usize) {
+        if self.get_content().len() <= count {
+            return;
+        }
         self.with_content(|c| {
             while c.len() > count {
                 c.remove(0);
@@ -127,13 +130,15 @@ impl TextContent {
 
     /// Remove lines from the end until we have no more than 'count' from the beginning
     pub fn resize_front(&self, count: usize) {
+        if self.get_content().len() <= count {
+            return;
+        }
         self.with_content(|c| {
             while c.len() > count {
                 c.remove(c.len() - 1);
             }
         })
     }
-
     /// Returns a reference to the content.
     ///
     /// This locks the data while the returned value is alive,
