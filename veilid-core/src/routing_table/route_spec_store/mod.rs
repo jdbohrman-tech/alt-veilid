@@ -1462,14 +1462,14 @@ impl RouteSpecStore {
         Ok(out)
     }
 
-    /// Import a remote private route for compilation
+    /// Import a remote private route set blob for compilation
     /// It is safe to import the same route more than once and it will return the same route id
     /// Returns a route set id
     #[cfg_attr(
         feature = "verbose-tracing",
         instrument(level = "trace", skip(self, blob), ret, err)
     )]
-    pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
+    pub fn import_remote_private_route_blob(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let cur_ts = get_aligned_timestamp();
 
         // decode the pr blob
@@ -1477,6 +1477,46 @@ impl RouteSpecStore {
             self.unlocked_inner.routing_table.crypto(),
             blob,
         )?;
+
+        // make the route id
+        let id = self.generate_remote_route_id(&private_routes)?;
+
+        // validate the private routes
+        let inner = &mut *self.inner.lock();
+        for private_route in &private_routes {
+            // ensure private route has first hop
+            if !matches!(private_route.hops, PrivateRouteHops::FirstHop(_)) {
+                apibail_generic!("private route must have first hop");
+            }
+
+            // ensure this isn't also an allocated route
+            // if inner.content.get_id_by_key(&private_route.public_key.value).is_some() {
+            //     bail!("should not import allocated route");
+            // }
+        }
+
+        inner
+            .cache
+            .cache_remote_private_route(cur_ts, id, private_routes);
+
+        Ok(id)
+    }
+
+    /// Add a single remote private route for compilation
+    /// It is safe to add the same route more than once and it will return the same route id
+    /// Returns a route set id
+    #[cfg_attr(
+        feature = "verbose-tracing",
+        instrument(level = "trace", skip(self, blob), ret, err)
+    )]
+    pub fn add_remote_private_route(
+        &self,
+        private_route: PrivateRoute,
+    ) -> VeilidAPIResult<RouteId> {
+        let cur_ts = get_aligned_timestamp();
+
+        // Make a single route set
+        let private_routes = vec![private_route];
 
         // make the route id
         let id = self.generate_remote_route_id(&private_routes)?;

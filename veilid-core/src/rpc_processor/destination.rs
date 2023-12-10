@@ -114,7 +114,7 @@ impl Destination {
         }
     }
 
-    pub fn get_target(&self) -> Target {
+    pub fn get_target(&self, rss: RouteSpecStore) -> Result<Target, RPCError> {
         match self {
             Destination::Direct {
                 node,
@@ -124,11 +124,36 @@ impl Destination {
                 relay: _,
                 node,
                 safety_selection: _,
-            } => Target::NodeId(node.best_node_id()),
+            } => Ok(Target::NodeId(node.best_node_id())),
             Destination::PrivateRoute {
                 private_route,
                 safety_selection: _,
-            } => Target::PrivateRoute(private_route.public_key.value),
+            } => {
+                // Add the remote private route if we're going to keep the id
+                let route_id = rss
+                    .add_remote_private_route(private_route.clone())
+                    .map_err(RPCError::protocol)?;
+
+                Ok(Target::PrivateRoute(route_id))
+            }
+        }
+    }
+
+    pub fn get_private_route(&self) -> Option<PrivateRoute> {
+        match self {
+            Destination::Direct {
+                node: _,
+                safety_selection: _,
+            }
+            | Destination::Relay {
+                relay: _,
+                node: _,
+                safety_selection: _,
+            } => None,
+            Destination::PrivateRoute {
+                private_route,
+                safety_selection: _,
+            } => Some(private_route.clone()),
         }
     }
 }

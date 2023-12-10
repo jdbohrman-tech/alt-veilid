@@ -295,7 +295,7 @@ impl VeilidAPI {
     /// Returns a route id that can be used to send private messages to the node creating this route.
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let rss = self.routing_table()?.route_spec_store();
-        rss.import_remote_private_route(blob)
+        rss.import_remote_private_route_blob(blob)
     }
 
     /// Release either a locally allocated or remotely imported private route

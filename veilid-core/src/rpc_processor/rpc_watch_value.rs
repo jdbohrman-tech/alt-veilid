@@ -145,6 +145,9 @@ impl RPCProcessor {
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_watch_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+        let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
+
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
@@ -177,7 +180,7 @@ impl RPCProcessor {
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
-        let target = dest.get_target();
+        let target = dest.get_target(rss)?;
 
         #[cfg(feature = "debug-dht")]
         {
@@ -195,7 +198,6 @@ impl RPCProcessor {
         }
 
         // Get the nodes that we know about that are closer to the the key than our own node
-        let routing_table = self.routing_table();
         let closer_to_key_peers = network_result_try!(
             routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT])
         );

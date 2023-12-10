@@ -1307,7 +1307,7 @@ impl VeilidAPI {
             .map_err(VeilidAPIError::generic)?;
         let rss = self.routing_table()?.route_spec_store();
         let route_id = rss
-            .import_remote_private_route(blob_dec)
+            .import_remote_private_route_blob(blob_dec)
             .map_err(VeilidAPIError::generic)?;
 
         let mut dc = DEBUG_CACHE.lock();

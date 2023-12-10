@@ -188,6 +188,8 @@ impl RPCProcessor {
     ) ->RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
+        
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
         if !opi
             .signed_node_info()
@@ -224,7 +226,7 @@ impl RPCProcessor {
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
-        let target = dest.get_target();
+        let target = dest.get_target(rss)?;
         
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
