@@ -205,6 +205,11 @@ impl UI {
         siv.set_global_callback(cursive::event::Event::Key(Key::Esc), UI::quit_handler);
     }
 
+    fn setup_clear_handler(siv: &mut Cursive) {
+        siv.clear_global_callbacks(cursive::event::Event::CtrlChar('k'));
+        siv.set_on_pre_event(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
+    }
+
     fn quit_handler(siv: &mut Cursive) {
         siv.add_layer(
             Dialog::text("Do you want to exit?")
@@ -1036,8 +1041,7 @@ impl UI {
 
         UI::setup_colors(&mut this.siv, &mut inner, settings);
         UI::setup_quit_handler(&mut this.siv);
-        this.siv
-            .set_global_callback(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
+        UI::setup_clear_handler(&mut this.siv);
 
         drop(inner);
 
