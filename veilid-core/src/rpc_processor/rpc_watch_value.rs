@@ -207,6 +207,10 @@ impl RPCProcessor {
         };
         let ret_expiration = if closer_to_key_peers.len() >= set_value_count {
             // Not close enough
+
+            #[cfg(feature = "debug-dht")]
+            log_rpc!(debug "Not close enough for watch value");
+
             Timestamp::default()
         } else {
             // Close enough, lets watch it

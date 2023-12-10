@@ -746,7 +746,7 @@ where
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
-        expiration: Timestamp,
+        mut expiration: Timestamp,
         count: u32,
         target: Target,
         watcher: CryptoKey,
@@ -760,7 +760,9 @@ where
         let cur_ts = get_timestamp();
         let max_ts = cur_ts + self.limits.max_watch_expiration.as_u64();
         let min_ts = cur_ts + self.limits.min_watch_expiration.as_u64();
-        if expiration.as_u64() < min_ts || expiration.as_u64() > max_ts {
+        if expiration.as_u64() == 0 {
+            expiration = Timestamp::new(max_ts);
+        } else if expiration.as_u64() < min_ts || expiration.as_u64() > max_ts {
             return Ok(None);
         }
 
