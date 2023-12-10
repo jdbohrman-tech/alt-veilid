@@ -25,7 +25,7 @@ impl RPCOperationWatchValueQ {
     ) -> Result<Self, RPCError> {
         // Needed because RangeSetBlaze uses different types here all the time
         #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.len() as usize;
+        let subkeys_len = subkeys.ranges_len() as usize;
 
         if subkeys_len > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
