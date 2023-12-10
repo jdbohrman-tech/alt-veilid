@@ -16,7 +16,7 @@ impl RPCProcessor {
         count: u32,
         value: SignedValueData,
     ) -> RPCNetworkResult<()> {
-        let value_changed = RPCOperationValueChanged::new(key, subkeys, count, value);
+        let value_changed = RPCOperationValueChanged::new(key, subkeys, count, value)?;
         let statement =
             RPCStatement::new(RPCStatementDetail::ValueChanged(Box::new(value_changed)));
 

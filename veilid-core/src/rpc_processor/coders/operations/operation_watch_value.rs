@@ -185,7 +185,7 @@ impl RPCOperationWatchValueQ {
 
         let mut sk_builder = builder.reborrow().init_subkeys(
             self.subkeys
-                .len()
+                .ranges_len()
                 .try_into()
                 .map_err(RPCError::map_internal("invalid subkey range list length"))?,
         );
