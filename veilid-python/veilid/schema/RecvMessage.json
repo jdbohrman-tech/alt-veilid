@@ -2588,9 +2588,21 @@
             "subkeys": {
               "type": "array",
               "items": {
-                "type": "integer",
-                "format": "uint32",
-                "minimum": 0.0
+                "type": "array",
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
               }
             },
             "value": {
@@ -3362,8 +3374,11 @@
         "local_max_subkey_cache_memory_mb",
         "local_subkey_cache_size",
         "max_find_node_count",
+        "max_watch_expiration_ms",
+        "member_watch_limit",
         "min_peer_count",
         "min_peer_refresh_time_ms",
+        "public_watch_limit",
         "remote_max_records",
         "remote_max_storage_space_mb",
         "remote_max_subkey_cache_memory_mb",
@@ -3407,12 +3422,27 @@
           "format": "uint32",
           "minimum": 0.0
         },
+        "max_watch_expiration_ms": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "member_watch_limit": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
         "min_peer_count": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "min_peer_refresh_time_ms": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "public_watch_limit": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
