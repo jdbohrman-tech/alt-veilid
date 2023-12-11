@@ -460,7 +460,7 @@ Server Debug Commands:
         let (message, truncated) = if message.len() > 64 {
             (&message[0..64], true)
         } else {
-            (&message[..], false)
+            (message, false)
         };
 
         let strmsg = if printable {
