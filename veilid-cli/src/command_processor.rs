@@ -414,7 +414,19 @@ Server Debug Commands:
         }
     }
     pub fn update_value_change(&self, value_change: &json::JsonValue) {
-        let out = format!("Value change: {:?}", value_change.as_str().unwrap_or("???"));
+        let data = json_str_vec_u8(&value_change["value"]["data"]);
+        let (datastr, truncated) = Self::print_json_str_vec_u8(&data);
+
+        let out = format!(
+            "Value change: key={} subkeys={} count={} value.seq={} value.writer={} value.data={}{}",
+            value_change["key"].dump(),
+            value_change["subkeys"].dump(),
+            value_change["count"].dump(),
+            value_change["value"]["seq"].dump(),
+            value_change["value"]["writer"].dump(),
+            datastr,
+            if truncated { "..." } else { "" }
+        );
         self.inner().ui_sender.add_node_event(Level::Info, out);
     }
 
@@ -436,16 +448,10 @@ Server Debug Commands:
         );
     }
 
-    pub fn update_app_message(&self, msg: &json::JsonValue) {
-        if !self.inner.lock().enable_app_messages {
-            return;
-        }
-
-        let message = json_str_vec_u8(&msg["message"]);
-
+    fn print_json_str_vec_u8(message: &[u8]) -> (String, bool) {
         // check if message body is ascii printable
         let mut printable = true;
-        for c in &message {
+        for c in message {
             if *c < 32 || *c > 126 {
                 printable = false;
             }
@@ -462,6 +468,17 @@ Server Debug Commands:
         } else {
             hex::encode(message)
         };
+
+        (strmsg, truncated)
+    }
+
+    pub fn update_app_message(&self, msg: &json::JsonValue) {
+        if !self.inner.lock().enable_app_messages {
+            return;
+        }
+
+        let message = json_str_vec_u8(&msg["message"]);
+        let (strmsg, truncated) = Self::print_json_str_vec_u8(&message);
 
         self.inner().ui_sender.add_node_event(
             Level::Info,
