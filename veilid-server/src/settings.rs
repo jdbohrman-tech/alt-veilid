@@ -384,7 +384,7 @@ impl serde::Serialize for NamedSocketAddrs {
 }
 
 impl NamedSocketAddrs {
-    pub fn offset_port(&mut self, offset: u16) -> EyreResult<()> {
+    pub fn offset_port(&mut self, offset: u16) -> EyreResult<bool> {
         // Bump port on name
         if let Some(split) = self.name.rfind(':') {
             let hoststr = &self.name[0..split];
@@ -393,7 +393,7 @@ impl NamedSocketAddrs {
 
             self.name = format!("{}:{}", hoststr, port);
         } else {
-            bail!("no port specified to offset");
+            return Ok(false);
         }
 
         // Bump port on addresses
@@ -401,7 +401,7 @@ impl NamedSocketAddrs {
             addr.set_port(addr.port() + offset);
         }
 
-        Ok(())
+        Ok(true)
     }
 }
 
