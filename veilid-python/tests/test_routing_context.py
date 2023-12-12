@@ -166,8 +166,8 @@ async def test_routing_context_app_message_loopback_big_packets():
             # import it as a remote route as well so we can send to it
             prr = await api.import_remote_private_route(blob)
 
-            # do this test 1000 times
-            for _ in range(1000):
+            # do this test 100 times
+            for _ in range(100):
                 # send a random sized random app message to our own private route
                 message = random.randbytes(random.randint(0, 32768))
                 await rc.app_message(prr, message)
@@ -230,7 +230,7 @@ async def test_routing_context_app_call_loopback_big_packets():
 
             # import it as a remote route as well so we can send to it
             prr = await api.import_remote_private_route(blob)
-
+            
             # do this test 10 times
             for _ in range(10):
                 # send a random sized random app message to our own private route

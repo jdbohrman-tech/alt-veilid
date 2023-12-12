@@ -2,7 +2,6 @@ use super::*;
 
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use futures_util::FutureExt;
-use stop_token::future::FutureExt as StopFutureExt;
 
 const BACKGROUND_SAFETY_ROUTE_COUNT: usize = 2;
 
@@ -103,10 +102,10 @@ impl RoutingTable {
     }
 
     /// Test set of routes and remove the ones that don't test clean
-    #[instrument(level = "trace", skip(self, stop_token), err)]
+    #[instrument(level = "trace", skip(self, _stop_token), err)]
     async fn test_route_set(
         &self,
-        stop_token: StopToken,
+        _stop_token: StopToken,
         routes_needing_testing: Vec<RouteId>,
     ) -> EyreResult<()> {
         if routes_needing_testing.is_empty() {
@@ -158,7 +157,7 @@ impl RoutingTable {
             }
 
             // Wait for test_route futures to complete in parallel
-            while let Ok(Some(_)) = unord.next().timeout_at(stop_token.clone()).await {}
+            while unord.next().await.is_some() {}
         }
 
         // Process failed routes

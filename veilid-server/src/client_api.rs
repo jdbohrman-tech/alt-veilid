@@ -217,6 +217,9 @@ impl ClientApi {
         // (trim all whitespace around input lines just to make things more permissive for API users)
         let request: json_api::Request = deserialize_json(&sanitized_line)?;
 
+        #[cfg(feature = "debug-json-api")]
+        debug!("JSONAPI: Request: {:?}", request);
+
         // See if this is a control message or a veilid-core message
         let response = if let json_api::RequestOp::Control { args } = request.op {
             // Process control messages
@@ -230,6 +233,9 @@ impl ClientApi {
             // Process with ndjson api
             jrp.clone().process_request(request).await
         };
+
+        #[cfg(feature = "debug-json-api")]
+        debug!("JSONAPI: Response: {:?}", response);
 
         // Marshal json + newline => NDJSON
         let response_string = serialize_json(json_api::RecvMessage::Response(response)) + "\n";

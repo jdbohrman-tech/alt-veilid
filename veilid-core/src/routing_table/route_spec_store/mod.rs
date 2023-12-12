@@ -152,6 +152,10 @@ impl RouteSpecStore {
 
     /// Purge the route spec store
     pub async fn purge(&self) -> VeilidAPIResult<()> {
+        // Briefly pause routing table ticker while changes are made
+        let _tick_guard = self.unlocked_inner.routing_table.pause_tasks().await;
+        self.unlocked_inner.routing_table.cancel_tasks().await;
+
         {
             let inner = &mut *self.inner.lock();
             inner.content = Default::default();

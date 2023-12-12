@@ -35,6 +35,7 @@ rt-tokio = [
 tracking = ["veilid-core/tracking"]
 network-result-extra = ["veilid-core/network-result-extra"]
 verbose-tracing = ["veilid-core/verbose-tracing"]
+debug-json-api = []
 
 [dependencies]
 veilid-core = { path = "../veilid-core", default-features = false }

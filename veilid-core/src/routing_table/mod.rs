@@ -38,6 +38,9 @@ pub use types::*;
 
 //////////////////////////////////////////////////////////////////////////
 
+/// How many nodes in our routing table we require for a functional PublicInternet RoutingDomain
+pub const MIN_PUBLIC_INTERNET_ROUTING_DOMAIN_NODE_COUNT: usize = 4;
+
 /// How frequently we tick the relay management routine
 pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 

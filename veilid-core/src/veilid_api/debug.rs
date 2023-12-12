@@ -809,7 +809,7 @@ impl VeilidAPI {
             }
 
             let netman = self.network_manager()?;
-            netman.debug_restart_network();
+            netman.restart_network();
 
             Ok("Network restarted".to_owned())
         } else {
