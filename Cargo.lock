@@ -5769,6 +5769,7 @@ dependencies = [
  "stop-token",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tracing",
  "tracing-oslog",

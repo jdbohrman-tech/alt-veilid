@@ -20,6 +20,7 @@ use crate::cached_text_view::*;
 use chrono::{Datelike, Timelike};
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
@@ -259,8 +260,17 @@ impl UI {
     fn peers(s: &mut Cursive) -> ViewRef<PeersTableView> {
         s.find_name("peers").unwrap()
     }
-    fn connection_address(s: &mut Cursive) -> ViewRef<EditView> {
-        s.find_name("connection-address").unwrap()
+    fn ipc_path(s: &mut Cursive) -> ViewRef<EditView> {
+        s.find_name("ipc-path").unwrap()
+    }
+    fn ipc_path_radio(s: &mut Cursive) -> ViewRef<RadioButton<u32>> {
+        s.find_name("ipc-path-radio").unwrap()
+    }
+    fn network_address(s: &mut Cursive) -> ViewRef<EditView> {
+        s.find_name("network-address").unwrap()
+    }
+    fn network_address_radio(s: &mut Cursive) -> ViewRef<RadioButton<u32>> {
+        s.find_name("network-address-radio").unwrap()
     }
     fn connection_dialog(s: &mut Cursive) -> ViewRef<Dialog> {
         s.find_name("connection-dialog").unwrap()
@@ -321,7 +331,7 @@ impl UI {
         }
     }
     fn render_button_attach<'a>(inner: &mut UIInner) -> (&'a str, bool) {
-        if let ConnectionState::Connected(_, _) = inner.ui_state.connection_state.get() {
+        if let ConnectionState::ConnectedTCP(_, _) = inner.ui_state.connection_state.get() {
             match inner.ui_state.attachment_state.get().as_str() {
                 "Detached" => ("Attach", true),
                 "Attaching" => ("Detach", true),
@@ -496,19 +506,39 @@ impl UI {
         button_attach.set_enabled(button_enable);
     }
 
-    fn submit_connection_address(s: &mut Cursive) {
-        let edit = Self::connection_address(s);
+    fn submit_ipc_path(s: &mut Cursive) {
+        let edit = Self::ipc_path(s);
         let addr = (*edit.get_content()).clone();
-        let sa = match addr.parse::<std::net::SocketAddr>() {
-            Ok(sa) => Some(sa),
+        let ipc_path = match addr.parse::<PathBuf>() {
+            Ok(sa) => sa,
             Err(_) => {
-                s.add_layer(Dialog::text("Invalid address").button("Close", |s| {
+                s.add_layer(Dialog::text("Invalid IPC path").button("Close", |s| {
                     s.pop_layer();
                 }));
                 return;
             }
         };
-        Self::command_processor(s).set_server_address(sa);
+        Self::command_processor(s).set_ipc_path(Some(ipc_path));
+        Self::command_processor(s).set_network_address(None);
+        Self::command_processor(s).start_connection();
+    }
+
+    fn submit_network_address(s: &mut Cursive) {
+        let edit = Self::network_address(s);
+        let addr = (*edit.get_content()).clone();
+        let sa = match addr.parse::<std::net::SocketAddr>() {
+            Ok(sa) => sa,
+            Err(_) => {
+                s.add_layer(
+                    Dialog::text("Invalid network address").button("Close", |s| {
+                        s.pop_layer();
+                    }),
+                );
+                return;
+            }
+        };
+        Self::command_processor(s).set_ipc_path(None);
+        Self::command_processor(s).set_network_address(Some(sa));
         Self::command_processor(s).start_connection();
     }
 
@@ -589,7 +619,18 @@ impl UI {
     }
 
     fn show_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
+        let is_ipc = Self::command_processor(s).get_ipc_path().is_some();
         let mut inner = Self::inner_mut(s);
+
+        let mut connection_type_group: RadioGroup<u32> = RadioGroup::new().on_change(|s, v| {
+            if *v == 0 {
+                Self::ipc_path(s).enable();
+                Self::network_address(s).disable();
+            } else if *v == 1 {
+                Self::ipc_path(s).disable();
+                Self::network_address(s).enable();
+            }
+        });
 
         let mut show: bool = false;
         let mut hide: bool = false;
@@ -613,7 +654,7 @@ impl UI {
                     reset = true;
                 }
             }
-            ConnectionState::Connected(_, _) => {
+            ConnectionState::ConnectedTCP(_, _) | ConnectionState::ConnectedIPC(_, _) => {
                 if inner.connection_dialog_state.is_some()
                     && !inner
                         .connection_dialog_state
@@ -624,7 +665,7 @@ impl UI {
                     hide = true;
                 }
             }
-            ConnectionState::Retrying(_, _) => {
+            ConnectionState::RetryingTCP(_, _) | ConnectionState::RetryingIPC(_, _) => {
                 if inner.connection_dialog_state.is_none()
                     || inner
                         .connection_dialog_state
@@ -655,15 +696,42 @@ impl UI {
                 ResizedView::with_full_screen(DummyView {}),
                 ColorStyle::new(PaletteColor::Background, PaletteColor::Background),
             ));
+
             s.add_layer(
                 Dialog::around(
                     LinearLayout::vertical().child(
                         LinearLayout::horizontal()
-                            .child(TextView::new("Address:"))
+                            .child(
+                                if is_ipc {
+                                    connection_type_group.button(0, "IPC Path").selected()
+                                } else {
+                                    connection_type_group.button(0, "IPC Path")
+                                }
+                                .with_name("ipc-path-radio"),
+                            )
                             .child(
                                 EditView::new()
-                                    .on_submit(|s, _| Self::submit_connection_address(s))
-                                    .with_name("connection-address")
+                                    .with_enabled(is_ipc)
+                                    .on_submit(|s, _| Self::submit_ipc_path(s))
+                                    .with_name("ipc-path")
+                                    .fixed_height(1)
+                                    .min_width(40),
+                            )
+                            .child(
+                                if is_ipc {
+                                    connection_type_group.button(1, "Network Address")
+                                } else {
+                                    connection_type_group
+                                        .button(1, "Network Address")
+                                        .selected()
+                                }
+                                .with_name("network-address-radio"),
+                            )
+                            .child(
+                                EditView::new()
+                                    .with_enabled(!is_ipc)
+                                    .on_submit(|s, _| Self::submit_network_address(s))
+                                    .with_name("network-address")
                                     .fixed_height(1)
                                     .min_width(40),
                             ),
@@ -693,24 +761,57 @@ impl UI {
 
         match new_state {
             ConnectionState::Disconnected => {
-                let addr = match Self::command_processor(s).get_server_address() {
-                    None => "".to_owned(),
-                    Some(addr) => addr.to_string(),
+                Self::ipc_path_radio(s).set_enabled(true);
+                Self::network_address_radio(s).set_enabled(true);
+
+                let (network_address, network_address_enabled) =
+                    match Self::command_processor(s).get_network_address() {
+                        None => ("".to_owned(), false),
+                        Some(addr) => (addr.to_string(), true),
+                    };
+                let mut edit = Self::network_address(s);
+                edit.set_content(network_address);
+                edit.set_enabled(network_address_enabled);
+
+                let (ipc_path, ipc_path_enabled) = match Self::command_processor(s).get_ipc_path() {
+                    None => ("".to_owned(), false),
+                    Some(ipc_path) => (ipc_path.to_string_lossy().to_string(), true),
                 };
-                debug!("address is {}", addr);
-                let mut edit = Self::connection_address(s);
-                edit.set_content(addr);
-                edit.set_enabled(true);
+                let mut edit = Self::ipc_path(s);
+                edit.set_content(ipc_path);
+                edit.set_enabled(ipc_path_enabled);
+
                 let mut dlg = Self::connection_dialog(s);
-                dlg.add_button("Connect", Self::submit_connection_address);
+                dlg.add_button("Connect", Self::submit_network_address);
             }
-            ConnectionState::Connected(_, _) => {}
-            ConnectionState::Retrying(addr, _) => {
+            ConnectionState::ConnectedTCP(_, _) | ConnectionState::ConnectedIPC(_, _) => {}
+            ConnectionState::RetryingTCP(addr, _) => {
+                Self::ipc_path_radio(s).set_enabled(false);
+                Self::network_address_radio(s).set_enabled(false);
+
                 //
-                let mut edit = Self::connection_address(s);
-                debug!("address is {}", addr);
+                let mut edit = Self::network_address(s);
                 edit.set_content(addr.to_string());
                 edit.set_enabled(false);
+
+                Self::ipc_path(s).set_enabled(false);
+
+                let mut dlg = Self::connection_dialog(s);
+                dlg.add_button("Cancel", |s| {
+                    Self::command_processor(s).cancel_reconnect();
+                });
+            }
+            ConnectionState::RetryingIPC(ipc_path, _) => {
+                Self::ipc_path_radio(s).set_enabled(false);
+                Self::network_address_radio(s).set_enabled(false);
+
+                //
+                let mut edit = Self::ipc_path(s);
+                edit.set_content(ipc_path.to_string_lossy().to_string());
+                edit.set_enabled(false);
+
+                Self::network_address(s).set_enabled(false);
+
                 let mut dlg = Self::connection_dialog(s);
                 dlg.add_button("Cancel", |s| {
                     Self::command_processor(s).cancel_reconnect();
@@ -732,6 +833,8 @@ impl UI {
 
         let mut status = StyledString::new();
 
+        let mut enable_status_fields = false;
+
         match inner.ui_state.connection_state.get() {
             ConnectionState::Disconnected => {
                 status.append_styled(
@@ -740,35 +843,64 @@ impl UI {
                 );
                 status.append_styled("|", ColorStyle::highlight_inactive());
             }
-            ConnectionState::Retrying(addr, _) => {
+            ConnectionState::RetryingTCP(addr, _) => {
                 status.append_styled(
                     format!("Reconnecting to {} ", addr),
                     ColorStyle::highlight_inactive(),
                 );
                 status.append_styled("|", ColorStyle::highlight_inactive());
             }
-            ConnectionState::Connected(addr, _) => {
+            ConnectionState::RetryingIPC(path, _) => {
+                status.append_styled(
+                    format!(
+                        "Reconnecting to IPC#{} ",
+                        path.file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned()
+                    ),
+                    ColorStyle::highlight_inactive(),
+                );
+                status.append_styled("|", ColorStyle::highlight_inactive());
+            }
+            ConnectionState::ConnectedTCP(addr, _) => {
                 status.append_styled(
                     format!("Connected to {} ", addr),
                     ColorStyle::highlight_inactive(),
                 );
-                status.append_styled("|", ColorStyle::highlight_inactive());
-                // Add attachment state
-                status.append_styled(
-                    format!(" {} ", UI::render_attachment_state(&mut inner)),
-                    ColorStyle::highlight_inactive(),
-                );
-                status.append_styled("|", ColorStyle::highlight_inactive());
-                // Add bandwidth status
-                status.append_styled(
-                    format!(" {} ", UI::render_network_status(&mut inner)),
-                    ColorStyle::highlight_inactive(),
-                );
-                status.append_styled("|", ColorStyle::highlight_inactive());
-                // Add tunnel status
-                status.append_styled(" No Tunnels ", ColorStyle::highlight_inactive());
-                status.append_styled("|", ColorStyle::highlight_inactive());
+                enable_status_fields = true;
             }
+            ConnectionState::ConnectedIPC(path, _) => {
+                status.append_styled(
+                    format!(
+                        "Connected to IPC#{} ",
+                        path.file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned()
+                    ),
+                    ColorStyle::highlight_inactive(),
+                );
+                enable_status_fields = true;
+            }
+        }
+        if enable_status_fields {
+            status.append_styled("|", ColorStyle::highlight_inactive());
+            // Add attachment state
+            status.append_styled(
+                format!(" {} ", UI::render_attachment_state(&mut inner)),
+                ColorStyle::highlight_inactive(),
+            );
+            status.append_styled("|", ColorStyle::highlight_inactive());
+            // Add bandwidth status
+            status.append_styled(
+                format!(" {} ", UI::render_network_status(&mut inner)),
+                ColorStyle::highlight_inactive(),
+            );
+            status.append_styled("|", ColorStyle::highlight_inactive());
+            // Add tunnel status
+            status.append_styled(" No Tunnels ", ColorStyle::highlight_inactive());
+            status.append_styled("|", ColorStyle::highlight_inactive());
         };
 
         statusbar.set_content(status);

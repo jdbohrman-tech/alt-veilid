@@ -18,7 +18,9 @@ pub fn load_default_config() -> EyreResult<config::Config> {
 daemon:
     enabled: false
 client_api:
-    enabled: true
+    ipc_enabled: false
+    ipc_directory: '%IPC_DIRECTORY%'
+    network_enabled: false
     listen_address: 'localhost:5959'
 auto_attach: true
 logging:
@@ -159,6 +161,10 @@ core:
         "#,
     )
     .replace(
+        "%IPC_DIRECTORY%",
+        &Settings::get_default_ipc_directory().to_string_lossy(),
+    )
+    .replace(
         "%TABLE_STORE_DIRECTORY%",
         &VeilidConfigTableStore::default().directory,
     )
@@ -172,11 +178,11 @@ core:
     )
     .replace(
         "%CERTIFICATE_PATH%",
-        &VeilidConfigTLS::default().certificate_path
+        &VeilidConfigTLS::default().certificate_path,
     )
     .replace(
         "%PRIVATE_KEY_PATH%",
-        &VeilidConfigTLS::default().private_key_path
+        &VeilidConfigTLS::default().private_key_path,
     )
     .replace(
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
@@ -445,7 +451,9 @@ pub struct Otlp {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ClientApi {
-    pub enabled: bool,
+    pub ipc_enabled: bool,
+    pub ipc_directory: PathBuf,
+    pub network_enabled: bool,
     pub listen_address: NamedSocketAddrs,
 }
 
@@ -798,6 +806,10 @@ impl Settings {
             .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
     }
 
+    pub fn get_default_ipc_directory() -> PathBuf {
+        Self::get_or_create_default_directory("ipc")
+    }
+
     pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {
         let sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_memory());
         ((sys.free_memory() / (1024u64 * 1024u64)) / 16) as u32
@@ -854,7 +866,9 @@ impl Settings {
         }
 
         set_config_value!(inner.daemon.enabled, value);
-        set_config_value!(inner.client_api.enabled, value);
+        set_config_value!(inner.client_api.ipc_enabled, value);
+        set_config_value!(inner.client_api.ipc_directory, value);
+        set_config_value!(inner.client_api.network_enabled, value);
         set_config_value!(inner.client_api.listen_address, value);
         set_config_value!(inner.auto_attach, value);
         set_config_value!(inner.logging.system.enabled, value);
@@ -1021,13 +1035,9 @@ impl Settings {
                 "protected_store.always_use_insecure_storage" => Ok(Box::new(
                     inner.core.protected_store.always_use_insecure_storage,
                 )),
-                "protected_store.directory" => Ok(Box::new(
-                    inner
-                        .core
-                        .protected_store
-                        .directory
-                        .clone(),
-                )),
+                "protected_store.directory" => {
+                    Ok(Box::new(inner.core.protected_store.directory.clone()))
+                }
                 "protected_store.delete" => Ok(Box::new(inner.core.protected_store.delete)),
                 "protected_store.device_encryption_key_password" => Ok(Box::new(
                     inner
@@ -1044,22 +1054,10 @@ impl Settings {
                         .clone(),
                 )),
 
-                "table_store.directory" => Ok(Box::new(
-                    inner
-                        .core
-                        .table_store
-                        .directory
-                        .clone(),
-                )),
+                "table_store.directory" => Ok(Box::new(inner.core.table_store.directory.clone())),
                 "table_store.delete" => Ok(Box::new(inner.core.table_store.delete)),
 
-                "block_store.directory" => Ok(Box::new(
-                    inner
-                        .core
-                        .block_store
-                        .directory
-                        .clone(),
-                )),
+                "block_store.directory" => Ok(Box::new(inner.core.block_store.directory.clone())),
                 "block_store.delete" => Ok(Box::new(inner.core.block_store.delete)),
 
                 "network.connection_initial_timeout_ms" => {
@@ -1214,22 +1212,12 @@ impl Settings {
                 "network.restricted_nat_retries" => {
                     Ok(Box::new(inner.core.network.restricted_nat_retries))
                 }
-                "network.tls.certificate_path" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .tls
-                        .certificate_path
-                        .clone(),
-                )),
-                "network.tls.private_key_path" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .tls
-                        .private_key_path
-                        .clone(),
-                )),
+                "network.tls.certificate_path" => {
+                    Ok(Box::new(inner.core.network.tls.certificate_path.clone()))
+                }
+                "network.tls.private_key_path" => {
+                    Ok(Box::new(inner.core.network.tls.private_key_path.clone()))
+                }
                 "network.tls.connection_initial_timeout_ms" => Ok(Box::new(
                     inner.core.network.tls.connection_initial_timeout_ms,
                 )),
@@ -1439,7 +1427,8 @@ mod tests {
         assert_eq!(s.daemon.group, None);
         assert_eq!(s.daemon.stdout_file, None);
         assert_eq!(s.daemon.stderr_file, None);
-        assert!(s.client_api.enabled);
+        assert!(s.client_api.ipc_enabled);
+        assert!(!s.client_api.network_enabled);
         assert_eq!(s.client_api.listen_address.name, "localhost:5959");
         assert_eq!(
             s.client_api.listen_address.addrs,

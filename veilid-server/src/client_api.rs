@@ -6,6 +6,7 @@ use futures_util::{future::join_all, stream::FuturesUnordered, StreamExt};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use stop_token::future::FutureExt as _;
 use stop_token::*;
@@ -46,7 +47,7 @@ struct ClientApiInner {
     settings: Settings,
     stop: Option<StopSource>,
     join_handle: Option<ClientApiAllFuturesJoinHandle>,
-    update_channels: HashMap<(SocketAddr, SocketAddr), flume::Sender<String>>,
+    update_channels: HashMap<u64, flume::Sender<String>>,
 }
 
 #[derive(Clone)]
@@ -108,9 +109,40 @@ impl ClientApi {
         trace!("ClientApi::stop: stopped");
     }
 
-    async fn handle_incoming(self, bind_addr: SocketAddr) -> std::io::Result<()> {
+    async fn handle_ipc_incoming(self, ipc_path: PathBuf) -> std::io::Result<()> {
+        let listener = IpcListener::bind(ipc_path.clone()).await?;
+        debug!("IPC Client API listening on: {:?}", ipc_path);
+
+        // Process the incoming accept stream
+        let mut incoming_stream = listener.incoming();
+
+        // Make wait group for all incoming connections
+        let awg = AsyncWaitGroup::new();
+
+        let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
+        while let Ok(Some(stream_result)) =
+            incoming_stream.next().timeout_at(stop_token.clone()).await
+        {
+            // Get the stream to process
+            let stream = stream_result?;
+
+            // Increment wait group
+            awg.add(1);
+            let t_awg = awg.clone();
+
+            // Process the connection
+            spawn(self.clone().handle_ipc_connection(stream, t_awg)).detach();
+        }
+
+        // Wait for all connections to terminate
+        awg.wait().await;
+
+        Ok(())
+    }
+
+    async fn handle_tcp_incoming(self, bind_addr: SocketAddr) -> std::io::Result<()> {
         let listener = TcpListener::bind(bind_addr).await?;
-        debug!("Client API listening on: {:?}", bind_addr);
+        debug!("TCPClient API listening on: {:?}", bind_addr);
 
         // Process the incoming accept stream
         cfg_if! {
@@ -137,7 +169,7 @@ impl ClientApi {
             let t_awg = awg.clone();
 
             // Process the connection
-            spawn(self.clone().handle_connection(stream, t_awg)).detach();
+            spawn(self.clone().handle_tcp_connection(stream, t_awg)).detach();
         }
 
         // Wait for all connections to terminate
@@ -300,47 +332,11 @@ impl ClientApi {
         VeilidAPIResult::Ok(None)
     }
 
-    pub async fn handle_connection(self, stream: TcpStream, awg: AsyncWaitGroup) {
-        // Get address of peer
-        let peer_addr = match stream.peer_addr() {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("can't get peer address: {}", e);
-                return;
-            }
-        };
-        // Get local address
-        let local_addr = match stream.local_addr() {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("can't get local address: {}", e);
-                return;
-            }
-        };
-        // Get connection tuple
-        let conn_tuple = (local_addr, peer_addr);
-
-        debug!(
-            "Accepted Client API Connection: {:?} -> {:?}",
-            peer_addr, local_addr
-        );
-
-        // Make stop token to quit when stop() is requested externally
-        let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
-
-        // Split into reader and writer halves
-        // with line buffering on the reader
-        cfg_if! {
-            if #[cfg(feature="rt-async-std")] {
-                use futures_util::AsyncReadExt;
-                let (reader, mut writer) = stream.split();
-                let reader = BufReader::new(reader);
-            } else {
-                let (reader, writer) = stream.into_split();
-                let reader = BufReader::new(reader);
-            }
-        }
-
+    pub async fn run_json_request_processor<R, W>(self, reader: R, writer: W, stop_token: StopToken)
+    where
+        R: AsyncBufReadExt + Unpin + Send,
+        W: AsyncWriteExt + Unpin + Send,
+    {
         // Make request processor for this connection
         let api = self.inner.lock().veilid_api.clone();
         let jrp = json_api::JsonRequestProcessor::new(api);
@@ -354,10 +350,11 @@ impl ClientApi {
         let (responses_tx, responses_rx) = flume::unbounded();
 
         // Start sending updates
+        let id = get_timestamp();
         self.inner
             .lock()
             .update_channels
-            .insert(conn_tuple, responses_tx.clone());
+            .insert(id, responses_tx.clone());
 
         // Request receive processor future
         // Receives from socket and enqueues RequestLines
@@ -407,12 +404,83 @@ impl ClientApi {
         }
 
         // Stop sending updates
-        self.inner.lock().update_channels.remove(&conn_tuple);
+        self.inner.lock().update_channels.remove(&id);
+    }
+
+    pub async fn handle_tcp_connection(self, stream: TcpStream, awg: AsyncWaitGroup) {
+        // Get address of peer
+        let peer_addr = match stream.peer_addr() {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("can't get peer address: {}", e);
+                return;
+            }
+        };
+        // Get local address
+        let local_addr = match stream.local_addr() {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("can't get local address: {}", e);
+                return;
+            }
+        };
+        // Get connection tuple
+        debug!(
+            "Accepted TCP Client API Connection: {:?} -> {:?}",
+            peer_addr, local_addr
+        );
+
+        // Make stop token to quit when stop() is requested externally
+        let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
+
+        // Split into reader and writer halves
+        // with line buffering on the reader
+        cfg_if! {
+            if #[cfg(feature="rt-async-std")] {
+                use futures_util::AsyncReadExt;
+                let (reader, mut writer) = stream.split();
+                let reader = BufReader::new(reader);
+            } else {
+                let (reader, writer) = stream.into_split();
+                let reader = BufReader::new(reader);
+            }
+        }
+
+        self.run_json_request_processor(reader, writer, stop_token)
+            .await;
 
         debug!(
             "Closed Client API Connection: {:?} -> {:?}",
             peer_addr, local_addr
         );
+
+        awg.done();
+    }
+
+    pub async fn handle_ipc_connection(self, stream: IpcStream, awg: AsyncWaitGroup) {
+        // Get connection tuple
+        debug!("Accepted IPC Client API Connection");
+
+        // Make stop token to quit when stop() is requested externally
+        let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
+
+        // Split into reader and writer halves
+        // with line buffering on the reader
+        use futures_util::AsyncReadExt;
+        let (reader, writer) = stream.split();
+        cfg_if! {
+            if #[cfg(feature = "rt-tokio")] {
+                use tokio_util::compat::{FuturesAsyncReadCompatExt, FuturesAsyncWriteCompatExt};
+                let reader = reader.compat();
+                let writer = writer.compat_write();
+            }
+        }
+        let reader = BufReader::new(reader);
+
+        self.run_json_request_processor(reader, writer, stop_token)
+            .await;
+
+        debug!("Closed Client API Connection",);
 
         awg.done();
     }
@@ -431,15 +499,29 @@ impl ClientApi {
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub fn run(&self, bind_addrs: Vec<SocketAddr>) {
-        let bind_futures = bind_addrs.iter().copied().map(|addr| {
+    pub fn run(&self, ipc_path: Option<PathBuf>, tcp_bind_addrs: Vec<SocketAddr>) {
+        let mut bind_futures: Vec<SendPinBoxFuture<()>> = Vec::new();
+
+        // Local IPC
+        if let Some(ipc_path) = ipc_path {
             let this = self.clone();
-            async move {
-                if let Err(e) = this.handle_incoming(addr).await {
-                    warn!("Not binding client API to {}: {}", addr, e);
+            bind_futures.push(Box::pin(async move {
+                if let Err(e) = this.handle_ipc_incoming(ipc_path.clone()).await {
+                    warn!("Not binding IPC client API to {:?}: {}", ipc_path, e);
                 }
-            }
-        });
+            }));
+        }
+
+        // Network sockets
+        for addr in tcp_bind_addrs.iter().copied() {
+            let this = self.clone();
+            bind_futures.push(Box::pin(async move {
+                if let Err(e) = this.handle_tcp_incoming(addr).await {
+                    warn!("Not binding TCP client API to {}: {}", addr, e);
+                }
+            }));
+        }
+
         let bind_futures_join = join_all(bind_futures);
         self.inner.lock().join_handle = Some(spawn(bind_futures_join));
     }

@@ -3,11 +3,11 @@
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
-use crate::tools::*;
+use crate::{settings::NamedSocketAddrs, tools::*};
 
 use clap::{Parser, ValueEnum};
 use flexi_logger::*;
-use std::{net::ToSocketAddrs, path::PathBuf};
+use std::path::PathBuf;
 
 mod cached_text_view;
 mod client_api_connection;
@@ -28,14 +28,20 @@ enum LogLevel {
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Veilid Console Client")]
 struct CmdlineArgs {
+    /// IPC socket to connect to
+    #[arg(long, short = 'p')]
+    ipc_path: Option<PathBuf>,
+    /// IPC socket to connect to
+    #[arg(long, short = 'i', default_value = "0")]
+    subnode_index: usize,
     /// Address to connect to
-    #[arg(long)]
+    #[arg(long, short = 'a')]
     address: Option<String>,
     /// Wait for debugger to attach
     #[arg(long)]
     wait_for_debug: bool,
     /// Specify a configuration file to use
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(short = 'c', long, value_name = "FILE")]
     config_file: Option<PathBuf>,
     /// log level
     #[arg(value_enum)]
@@ -123,16 +129,48 @@ fn main() -> Result<(), String> {
                 .expect("failed to initialize logger!");
         }
     }
+
     // Get client address
-    let server_addrs = if let Some(address_arg) = args.address {
-        address_arg
-            .to_socket_addrs()
-            .map_err(|e| format!("Invalid server address '{}'", e))?
-            .collect()
-    } else {
-        settings.address.addrs.clone()
-    };
-    let server_addr = server_addrs.first().cloned();
+    let enable_ipc = settings.enable_ipc;
+    let mut enable_network = settings.enable_network;
+
+    // Determine IPC path to try
+    let mut client_api_ipc_path = None;
+    if enable_ipc {
+        if let Some(ipc_path) = args.ipc_path.or(settings.ipc_path.clone()) {
+            if ipc_path.exists() && !ipc_path.is_dir() {
+                // try direct path
+                enable_network = false;
+                client_api_ipc_path = Some(ipc_path);
+            } else if ipc_path.exists() && ipc_path.is_dir() {
+                // try subnode index inside path
+                let ipc_path = ipc_path.join(args.subnode_index.to_string());
+                if ipc_path.exists() && !ipc_path.is_dir() {
+                    // subnode indexed path exists
+                    enable_network = false;
+                    client_api_ipc_path = Some(ipc_path);
+                }
+            }
+        }
+    }
+    let mut client_api_network_addresses = None;
+    if enable_network {
+        let args_address = if let Some(args_address) = args.address {
+            match NamedSocketAddrs::try_from(args_address) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    return Err(format!("Invalid server address: {}", e));
+                }
+            }
+        } else {
+            None
+        };
+        if let Some(address_arg) = args_address.or(settings.address.clone()) {
+            client_api_network_addresses = Some(address_arg.addrs);
+        } else if let Some(address) = settings.address.clone() {
+            client_api_network_addresses = Some(address.addrs.clone());
+        }
+    }
 
     // Create command processor
     debug!("Creating Command Processor ");
@@ -147,7 +185,13 @@ fn main() -> Result<(), String> {
     comproc.set_client_api_connection(capi.clone());
 
     // Keep a connection to the server
-    comproc.set_server_address(server_addr);
+    if let Some(client_api_ipc_path) = client_api_ipc_path {
+        comproc.set_ipc_path(Some(client_api_ipc_path));
+    } else if let Some(client_api_network_address) = client_api_network_addresses {
+        let network_addr = client_api_network_address.first().cloned();
+        comproc.set_network_address(network_addr);
+    }
+
     let comproc2 = comproc.clone();
     let connection_future = comproc.connection_manager();
 

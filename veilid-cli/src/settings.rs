@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 
 pub fn load_default_config() -> Result<config::Config, config::ConfigError> {
     let default_config = r#"---
+enable_ipc: true
+local_socket_path: '%LOCAL_SOCKET_DIRECTORY%'
+enable_network: true
 address: "localhost:5959"
 autoconnect: true
 autoreconnect: true
@@ -45,6 +48,10 @@ interface:
             warn               : "light yellow"
             error              : "light red"
     "#
+    .replace(
+        "%LOCAL_SOCKET_DIRECTORY%",
+        &Settings::get_default_local_socket_path().to_string_lossy(),
+    )
     .replace(
         "%LOGGING_FILE_DIRECTORY%",
         &Settings::get_default_log_directory().to_string_lossy(),
@@ -111,11 +118,22 @@ pub fn convert_loglevel(log_level: LogLevel) -> log::LevelFilter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NamedSocketAddrs {
     pub name: String,
     pub addrs: Vec<SocketAddr>,
 }
+
+impl TryFrom<String> for NamedSocketAddrs {
+    type Error = std::io::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let addrs = value.to_socket_addrs()?.collect();
+        let name = value;
+        Ok(NamedSocketAddrs { name, addrs })
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for NamedSocketAddrs {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -200,7 +218,10 @@ pub struct Interface {
 
 #[derive(Debug, Deserialize)]
 pub struct Settings {
-    pub address: NamedSocketAddrs,
+    pub enable_ipc: bool,
+    pub ipc_path: Option<PathBuf>,
+    pub enable_network: bool,
+    pub address: Option<NamedSocketAddrs>,
     pub autoconnect: bool,
     pub autoreconnect: bool,
     pub logging: Logging,
@@ -208,6 +229,29 @@ pub struct Settings {
 }
 
 impl Settings {
+    fn get_server_default_directory(subpath: &str) -> PathBuf {
+        #[cfg(unix)]
+        {
+            let globalpath = PathBuf::from("/var/db/veilid-server").join(subpath);
+            if globalpath.is_dir() {
+                return globalpath;
+            }
+        }
+
+        let mut ts_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
+            PathBuf::from(my_proj_dirs.data_local_dir())
+        } else {
+            PathBuf::from("./")
+        };
+        ts_path.push(subpath);
+
+        ts_path
+    }
+
+    pub fn get_default_local_socket_path() -> PathBuf {
+        Self::get_server_default_directory("local_sockets")
+    }
+
     pub fn get_default_config_path() -> PathBuf {
         // Get default configuration file location
         let mut default_config_path =

@@ -36,6 +36,7 @@ pub mod eventual_value_clone;
 pub mod interval;
 pub mod ip_addr_port;
 pub mod ip_extra;
+pub mod ipc;
 pub mod log_thru;
 pub mod must_join_handle;
 pub mod must_join_single_future;
@@ -175,6 +176,8 @@ pub use interval::*;
 pub use ip_addr_port::*;
 #[doc(inline)]
 pub use ip_extra::*;
+#[doc(inline)]
+pub use ipc::*;
 #[doc(inline)]
 pub use log_thru::*;
 #[doc(inline)]
