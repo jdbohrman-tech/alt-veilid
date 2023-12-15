@@ -1,6 +1,8 @@
+use crate::*;
 use futures_util::AsyncRead as FuturesAsyncRead;
 use futures_util::AsyncWrite as FuturesAsyncWrite;
 use futures_util::Stream;
+use std::path::PathBuf;
 use std::{io, path::Path};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{UnixListener, UnixStream};
@@ -64,6 +66,7 @@ impl FuturesAsyncWrite for IpcStream {
 /////////////////////////////////////////////////////////////
 
 pub struct IpcIncoming {
+    path: PathBuf,
     internal: UnixListenerStream,
 }
 
@@ -84,31 +87,54 @@ impl Stream for IpcIncoming {
     }
 }
 
+impl Drop for IpcIncoming {
+    fn drop(&mut self) {
+        // Clean up IPC path
+        if let Err(e) = std::fs::remove_file(&self.path) {
+            warn!("Unable to remove IPC socket: {}", e);
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////
 
 pub struct IpcListener {
-    internal: UnixListener,
+    path: Option<PathBuf>,
+    internal: Option<UnixListener>,
 }
 
 impl IpcListener {
     /// Creates a new `IpcListener` bound to the specified path.
     pub async fn bind<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         Ok(Self {
-            internal: UnixListener::bind(path)?,
+            path: Some(path.as_ref().to_path_buf()),
+            internal: Some(UnixListener::bind(path)?),
         })
     }
 
     /// Accepts a new incoming connection to this listener.
     pub async fn accept(&self) -> io::Result<IpcStream> {
         Ok(IpcStream {
-            internal: self.internal.accept().await?.0,
+            internal: self.internal.as_ref().unwrap().accept().await?.0,
         })
     }
 
     /// Returns a stream of incoming connections.
-    pub fn incoming(self) -> IpcIncoming {
+    pub fn incoming(mut self) -> IpcIncoming {
         IpcIncoming {
-            internal: UnixListenerStream::new(self.internal),
+            path: self.path.take().unwrap(),
+            internal: UnixListenerStream::new(self.internal.take().unwrap()),
+        }
+    }
+}
+
+impl Drop for IpcListener {
+    fn drop(&mut self) {
+        // Clean up IPC path
+        if let Some(path) = &self.path {
+            if let Err(e) = std::fs::remove_file(path) {
+                warn!("Unable to remove IPC socket: {}", e);
+            }
         }
     }
 }

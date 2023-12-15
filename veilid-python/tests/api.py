@@ -1,5 +1,8 @@
+import appdirs
 import errno
 import os
+import socket
+import sys
 import re
 from collections.abc import Callable
 from functools import cache
@@ -20,14 +23,37 @@ class VeilidTestConnectionError(Exception):
 @cache
 def server_info() -> tuple[str, int]:
     """Return the hostname and port of the test server."""
-    VEILID_SERVER = os.getenv("VEILID_SERVER")
-    if VEILID_SERVER is None:
+    VEILID_SERVER_NETWORK = os.getenv("VEILID_SERVER_NETWORK")
+    if VEILID_SERVER_NETWORK is None:
         return "localhost", 5959
 
-    hostname, *rest = VEILID_SERVER.split(":")
+    hostname, *rest = VEILID_SERVER_NETWORK.split(":")
     if rest:
         return hostname, int(rest[0])
     return hostname, 5959
+
+@cache
+def ipc_info() -> str:
+    """Return the path of the ipc socket of the test server."""
+    VEILID_SERVER_IPC = os.getenv("VEILID_SERVER_IPC")
+    if VEILID_SERVER_IPC is not None:
+        return VEILID_SERVER_IPC
+
+    if os.name == 'nt':
+        return '\\\\.\\PIPE\\veilid-server\\ipc\\0'
+
+    if os.name == 'posix':
+        ipc_0_path = "/var/db/veilid-server/ipc/0"
+        if os.path.exists(ipc_0_path):
+            return ipc_0_path
+
+    # hack to deal with rust's 'directories' crate case-inconsistency
+    if sys.platform.startswith('darwin'):
+        data_dir = appdirs.user_data_dir("Veilid","Veilid")
+    else:
+        data_dir = appdirs.user_data_dir("veilid","veilid")
+    ipc_0_path = os.path.join(data_dir, "ipc", "0")
+    return ipc_0_path
 
 
 async def api_connector(callback: Callable) -> _JsonVeilidAPI:
@@ -37,9 +63,15 @@ async def api_connector(callback: Callable) -> _JsonVeilidAPI:
     server's socket, raise an easy-to-catch VeilidTestConnectionError.
     """
 
+    ipc_path = ipc_info()    
     hostname, port = server_info()
+
     try:
-        return await veilid.json_api_connect(hostname, port, callback)
+        print(f"ipc_path: {ipc_path}")
+        if os.path.exists(ipc_path):
+            return await veilid.json_api_connect_ipc(ipc_path, callback)
+        else:
+            return await veilid.json_api_connect(hostname, port, callback)
     except OSError as exc:
         # This is a little goofy. The underlying Python library handles
         # connection errors in 2 ways, depending on how many connections

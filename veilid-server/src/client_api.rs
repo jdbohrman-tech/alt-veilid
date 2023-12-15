@@ -143,12 +143,6 @@ impl ClientApi {
         // Wait for all connections to terminate
         awg.wait().await;
 
-        // Clean up IPC path
-        if let Err(e) = std::fs::remove_file(&ipc_path) {
-            warn!("Unable to remove IPC socket: {}", e);
-            return Err(e);
-        }
-
         Ok(())
     }
 

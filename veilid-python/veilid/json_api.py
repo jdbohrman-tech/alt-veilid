@@ -1,6 +1,8 @@
 import asyncio
 import importlib.resources as importlib_resources
 import json
+import os
+import socket
 from typing import Awaitable, Callable, Optional, Self
 
 from jsonschema import exceptions, validators
@@ -143,6 +145,17 @@ class _JsonVeilidAPI(VeilidAPI):
         cls, host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
     ) -> Self:
         reader, writer = await asyncio.open_connection(host, port)
+        veilid_api = cls(reader, writer, update_callback)
+        veilid_api.handle_recv_messages_task = asyncio.create_task(
+            veilid_api.handle_recv_messages(), name="JsonVeilidAPI.handle_recv_messages"
+        )
+        return veilid_api
+
+    @classmethod
+    async def connect_ipc(
+        cls, ipc_path: str, update_callback: Callable[[VeilidUpdate], Awaitable]
+    ) -> Self:
+        reader, writer = await asyncio.open_unix_connection(ipc_path)
         veilid_api = cls(reader, writer, update_callback)
         veilid_api.handle_recv_messages_task = asyncio.create_task(
             veilid_api.handle_recv_messages(), name="JsonVeilidAPI.handle_recv_messages"
@@ -1173,3 +1186,8 @@ async def json_api_connect(
     host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
 ) -> _JsonVeilidAPI:
     return await _JsonVeilidAPI.connect(host, port, update_callback)
+
+async def json_api_connect_ipc(
+    ipc_path: str, update_callback: Callable[[VeilidUpdate], Awaitable]
+) -> _JsonVeilidAPI:
+    return await _JsonVeilidAPI.connect_ipc(ipc_path, update_callback)
