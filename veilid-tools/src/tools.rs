@@ -363,15 +363,41 @@ cfg_if::cfg_if! {
         pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> Result<(), String>
         {
             let path = path.as_ref();
-            if !path.exists() {
+            if !path.is_file() {
                 return Ok(());
             }
 
             Ok(())
         }
+
+        pub fn ensure_directory_private_owner<P:AsRef<Path>>(path: P, _group_read: bool) -> Result<(), String>
+        {
+            let path = path.as_ref();
+            if !path.is_dir() {
+                return Ok(());
+            }
+
+            Ok(())
+        }
+
     } else {
         pub fn ensure_file_private_owner<P:AsRef<Path>>(_path: P) -> Result<(), String>
         {
+            let path = path.as_ref();
+            if !path.is_file() {
+                return Ok(());
+            }
+
+            Ok(())
+        }
+
+        pub fn ensure_directory_private_owner<P:AsRef<Path>>(path: P, _group_read: bool) -> Result<(), String>
+        {
+            let path = path.as_ref();
+            if !path.is_dir() {
+                return Ok(());
+            }
+
             Ok(())
         }
     }

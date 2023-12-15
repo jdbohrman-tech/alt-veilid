@@ -807,7 +807,13 @@ impl Settings {
     }
 
     pub fn get_default_ipc_directory() -> PathBuf {
-        Self::get_or_create_default_directory("ipc")
+        cfg_if! {
+            if #[cfg(windows)] {
+                PathBuf::from(r"\\.\PIPE\veilid-server")
+            } else {
+                Self::get_or_create_default_directory("ipc")
+            }
+        }
     }
 
     pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {

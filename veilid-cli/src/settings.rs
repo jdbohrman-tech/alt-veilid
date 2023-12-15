@@ -229,6 +229,7 @@ pub struct Settings {
 }
 
 impl Settings {
+    #[allow(dead_code)]
     fn get_server_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {
@@ -249,7 +250,13 @@ impl Settings {
     }
 
     pub fn get_default_ipc_directory() -> PathBuf {
-        Self::get_server_default_directory("ipc")
+        cfg_if::cfg_if! {
+            if #[cfg(windows)] {
+                PathBuf::from(r"\\.\PIPE\veilid-server")
+            } else {
+                Self::get_server_default_directory("ipc")
+            }
+        }
     }
 
     pub fn get_default_config_path() -> PathBuf {

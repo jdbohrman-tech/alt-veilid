@@ -8,7 +8,6 @@ use crate::{settings::NamedSocketAddrs, tools::*};
 use clap::{Parser, ValueEnum};
 use flexi_logger::*;
 use std::path::PathBuf;
-
 mod cached_text_view;
 mod client_api_connection;
 mod command_processor;
@@ -137,18 +136,38 @@ fn main() -> Result<(), String> {
     // Determine IPC path to try
     let mut client_api_ipc_path = None;
     if enable_ipc {
-        if let Some(ipc_path) = args.ipc_path.or(settings.ipc_path.clone()) {
-            if ipc_path.exists() && !ipc_path.is_dir() {
-                // try direct path
-                enable_network = false;
-                client_api_ipc_path = Some(ipc_path);
-            } else if ipc_path.exists() && ipc_path.is_dir() {
-                // try subnode index inside path
-                let ipc_path = ipc_path.join(args.subnode_index.to_string());
-                if ipc_path.exists() && !ipc_path.is_dir() {
-                    // subnode indexed path exists
-                    enable_network = false;
-                    client_api_ipc_path = Some(ipc_path);
+        cfg_if::cfg_if! {
+            if #[cfg(windows)] {
+                if let Some(ipc_path) = args.ipc_path.or(settings.ipc_path.clone()) {
+                    if is_ipc_socket_path(&ipc_path) {
+                        // try direct path
+                        enable_network = false;
+                        client_api_ipc_path = Some(ipc_path);
+                    } else {
+                        // try subnode index inside path
+                        let ipc_path = ipc_path.join(args.subnode_index.to_string());
+                        if is_ipc_socket_path(&ipc_path) {
+                            // subnode indexed path exists
+                            enable_network = false;
+                            client_api_ipc_path = Some(ipc_path);
+                        }
+                    }
+                }
+            } else {
+                if let Some(ipc_path) = args.ipc_path.or(settings.ipc_path.clone()) {
+                    if is_ipc_socket_path(&ipc_path) {
+                        // try direct path
+                        enable_network = false;
+                        client_api_ipc_path = Some(ipc_path);
+                    } else if ipc_path.exists() && ipc_path.is_dir() {
+                        // try subnode index inside path
+                        let ipc_path = ipc_path.join(args.subnode_index.to_string());
+                        if is_ipc_socket_path(&ipc_path) {
+                            // subnode indexed path exists
+                            enable_network = false;
+                            client_api_ipc_path = Some(ipc_path);
+                        }
+                    }
                 }
             }
         }

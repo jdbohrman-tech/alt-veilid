@@ -805,7 +805,13 @@ impl UI {
                 edit.set_enabled(ipc_path_enabled);
 
                 let mut dlg = Self::connection_dialog(s);
-                dlg.add_button("Connect", Self::submit_network_address);
+                dlg.add_button("Connect", |s| {
+                    if Self::ipc_path_radio(s).is_selected() {
+                        Self::submit_ipc_path(s);
+                    } else {
+                        Self::submit_network_address(s);
+                    }
+                });
             }
             ConnectionState::ConnectedTCP(_, _) | ConnectionState::ConnectedIPC(_, _) => {}
             ConnectionState::RetryingTCP(addr, _) => {
