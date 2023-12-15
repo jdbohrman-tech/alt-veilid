@@ -100,7 +100,7 @@ impl Drop for IpcIncoming {
 
 pub struct IpcListener {
     path: Option<PathBuf>,
-    internal: Option<UnixListener>,
+    internal: Option<Arc<UnixListener>>,
 }
 
 impl IpcListener {
@@ -108,14 +108,20 @@ impl IpcListener {
     pub async fn bind<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         Ok(Self {
             path: Some(path.as_ref().to_path_buf()),
-            internal: Some(UnixListener::bind(path)?),
+            internal: Some(Arc::new(UnixListener::bind(path)?)),
         })
     }
 
     /// Accepts a new incoming connection to this listener.
-    pub async fn accept(&self) -> io::Result<IpcStream> {
-        Ok(IpcStream {
-            internal: self.internal.as_ref().unwrap().accept().await?.0,
+    pub fn accept(&self) -> SendPinBoxFuture<io::Result<IpcStream>> {
+        let this = IpcListener {
+            path: self.path.clone(),
+            internal: self.internal.clone(),
+        };
+        Box::pin(async move {
+            Ok(IpcStream {
+                internal: this.internal.as_ref().unwrap().accept().await?.0,
+            })
         })
     }
 
@@ -123,7 +129,9 @@ impl IpcListener {
     pub fn incoming(mut self) -> IpcIncoming {
         IpcIncoming {
             path: self.path.take().unwrap(),
-            internal: UnixListenerStream::new(self.internal.take().unwrap()),
+            internal: UnixListenerStream::new(
+                Arc::into_inner(self.internal.take().unwrap()).unwrap(),
+            ),
         }
     }
 }

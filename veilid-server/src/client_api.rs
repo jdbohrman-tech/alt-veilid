@@ -456,7 +456,7 @@ impl ClientApi {
             .await;
 
         debug!(
-            "Closed Client API Connection: {:?} -> {:?}",
+            "Closed TCP Client API Connection: {:?} -> {:?}",
             peer_addr, local_addr
         );
 
@@ -486,7 +486,7 @@ impl ClientApi {
         self.run_json_request_processor(reader, writer, stop_token)
             .await;
 
-        debug!("Closed Client API Connection",);
+        debug!("Closed IPC Client API Connection",);
 
         awg.done();
     }
