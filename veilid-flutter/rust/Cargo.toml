@@ -31,17 +31,17 @@ debug-load = ["dep:ctor", "dep:libc-print", "dep:android_log-sys", "dep:oslog"]
 
 [dependencies]
 veilid-core = { path = "../../veilid-core", default-features = false }
-tracing = { version = "0.1.37", features = ["log", "attributes"] }
-tracing-subscriber = "0.3.17"
+tracing = { version = "0.1.40", features = ["log", "attributes"] }
+tracing-subscriber = "0.3.18"
 parking_lot = "0.12.1"
 backtrace = "0.3.69"
-serde_json = "1.0.107"
-serde = "1.0.188"
-futures-util = { version = "0.3.28", default-features = false, features = [
+serde_json = "1.0.108"
+serde = "1.0.193"
+futures-util = { version = "0.3.29", default-features = false, features = [
     "alloc",
 ] }
 cfg-if = "1.0.0"
-data-encoding = { version = "2.4.0" }
+data-encoding = { version = "2.5.0" }
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
@@ -51,14 +51,14 @@ opentelemetry = { version = "0.20" }
 opentelemetry-otlp = { version = "0.13" }
 opentelemetry-semantic-conventions = "0.12"
 async-std = { version = "1.12.0", features = ["unstable"], optional = true }
-tokio = { version = "1.32.0", features = ["full"], optional = true }
+tokio = { version = "1.35.0", features = ["full"], optional = true }
 tokio-stream = { version = "0.1.14", features = ["net"], optional = true }
-tokio-util = { version = "0.7.8", features = ["compat"], optional = true }
+tokio-util = { version = "0.7.10", features = ["compat"], optional = true }
 allo-isolate = "0.1.20"
 ffi-support = "0.4.4"
 lazy_static = "1.4.0"
 hostname = "0.3.1"
-ctor = { version = "0.2.5", optional = true }
+ctor = { version = "0.2.6", optional = true }
 libc-print = { version = "0.1.22", optional = true }
 
 

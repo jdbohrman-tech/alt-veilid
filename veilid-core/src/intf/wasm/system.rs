@@ -40,6 +40,6 @@ pub async fn ptr_lookup(_ip_addr: IpAddr) -> EyreResult<String> {
     bail!("wasm does not support ptr lookup")
 }
 
-pub fn env_variable_is_defined<S: AsRef<str>>(s: S) -> bool {
+pub fn env_variable_is_defined<S: AsRef<str>>(_s: S) -> bool {
     false
 }
