@@ -18,7 +18,7 @@ pub fn load_default_config() -> EyreResult<config::Config> {
 daemon:
     enabled: false
 client_api:
-    ipc_enabled: false
+    ipc_enabled: true
     ipc_directory: '%IPC_DIRECTORY%'
     network_enabled: false
     listen_address: 'localhost:5959'

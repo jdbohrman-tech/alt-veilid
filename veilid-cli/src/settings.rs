@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 pub fn load_default_config() -> Result<config::Config, config::ConfigError> {
     let default_config = r#"---
 enable_ipc: true
-local_socket_path: '%LOCAL_SOCKET_DIRECTORY%'
+ipc_path: '%IPC_DIRECTORY%'
 enable_network: true
 address: "localhost:5959"
 autoconnect: true
@@ -49,8 +49,8 @@ interface:
             error              : "light red"
     "#
     .replace(
-        "%LOCAL_SOCKET_DIRECTORY%",
-        &Settings::get_default_local_socket_path().to_string_lossy(),
+        "%IPC_DIRECTORY%",
+        &Settings::get_default_ipc_directory().to_string_lossy(),
     )
     .replace(
         "%LOGGING_FILE_DIRECTORY%",
@@ -248,8 +248,8 @@ impl Settings {
         ts_path
     }
 
-    pub fn get_default_local_socket_path() -> PathBuf {
-        Self::get_server_default_directory("local_sockets")
+    pub fn get_default_ipc_directory() -> PathBuf {
+        Self::get_server_default_directory("ipc")
     }
 
     pub fn get_default_config_path() -> PathBuf {

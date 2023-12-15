@@ -180,9 +180,6 @@ fn main() -> EyreResult<()> {
         settingsrw.daemon.enabled = false;
     }
     if let Some(subnode_index) = args.subnode_index {
-        if subnode_index == 0 {
-            bail!("value of subnode_index should be between 1 and 65535");
-        }
         settingsrw.testing.subnode_index = subnode_index;
     };
 

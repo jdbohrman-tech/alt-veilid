@@ -31,7 +31,7 @@ struct CmdlineArgs {
     /// IPC socket to connect to
     #[arg(long, short = 'p')]
     ipc_path: Option<PathBuf>,
-    /// IPC socket to connect to
+    /// Subnode index to use when connecting
     #[arg(long, short = 'i', default_value = "0")]
     subnode_index: usize,
     /// Address to connect to

@@ -27,18 +27,24 @@ use thiserror::Error;
 
 //////////////////////////////////////////////////////////////
 ///
-struct Dirty<T> {
+struct Dirty<T>
+where
+    T: PartialEq,
+{
     value: T,
     dirty: bool,
 }
 
-impl<T> Dirty<T> {
+impl<T> Dirty<T>
+where
+    T: PartialEq,
+{
     pub fn new(value: T) -> Self {
         Self { value, dirty: true }
     }
     pub fn set(&mut self, value: T) {
+        self.dirty = self.value != value;
         self.value = value;
-        self.dirty = true;
     }
     pub fn get(&self) -> &T {
         &self.value
@@ -265,6 +271,9 @@ impl UI {
     }
     fn ipc_path_radio(s: &mut Cursive) -> ViewRef<RadioButton<u32>> {
         s.find_name("ipc-path-radio").unwrap()
+    }
+    fn connecting_text(s: &mut Cursive) -> ViewRef<TextView> {
+        s.find_name("connecting-text").unwrap()
     }
     fn network_address(s: &mut Cursive) -> ViewRef<EditView> {
         s.find_name("network-address").unwrap()
@@ -618,7 +627,7 @@ impl UI {
         EventResult::Ignored
     }
 
-    fn show_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
+    fn draw_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
         let is_ipc = Self::command_processor(s).get_ipc_path().is_some();
         let mut inner = Self::inner_mut(s);
 
@@ -634,7 +643,7 @@ impl UI {
 
         let mut show: bool = false;
         let mut hide: bool = false;
-        let mut reset: bool = false;
+        let mut connecting: bool = false;
         match state {
             ConnectionState::Disconnected => {
                 if inner.connection_dialog_state.is_none()
@@ -651,7 +660,8 @@ impl UI {
                     .unwrap()
                     .is_retrying()
                 {
-                    reset = true;
+                    hide = true;
+                    show = true
                 }
             }
             ConnectionState::ConnectedTCP(_, _) | ConnectionState::ConnectedIPC(_, _) => {
@@ -680,8 +690,10 @@ impl UI {
                     .unwrap()
                     .is_disconnected()
                 {
-                    reset = true;
+                    hide = true;
+                    show = true;
                 }
+                connecting = true;
             }
         }
         inner.connection_dialog_state = Some(state);
@@ -689,7 +701,6 @@ impl UI {
         if hide {
             s.pop_layer();
             s.pop_layer();
-            return true;
         }
         if show {
             s.add_fullscreen_layer(Layer::with_color(
@@ -698,54 +709,66 @@ impl UI {
             ));
 
             s.add_layer(
-                Dialog::around(
-                    LinearLayout::vertical().child(
-                        LinearLayout::horizontal()
-                            .child(
-                                if is_ipc {
-                                    connection_type_group.button(0, "IPC Path").selected()
-                                } else {
-                                    connection_type_group.button(0, "IPC Path")
-                                }
-                                .with_name("ipc-path-radio"),
-                            )
-                            .child(
-                                EditView::new()
-                                    .with_enabled(is_ipc)
-                                    .on_submit(|s, _| Self::submit_ipc_path(s))
-                                    .with_name("ipc-path")
-                                    .fixed_height(1)
-                                    .min_width(40),
-                            )
-                            .child(
-                                if is_ipc {
-                                    connection_type_group.button(1, "Network Address")
-                                } else {
-                                    connection_type_group
-                                        .button(1, "Network Address")
-                                        .selected()
-                                }
-                                .with_name("network-address-radio"),
-                            )
-                            .child(
-                                EditView::new()
-                                    .with_enabled(!is_ipc)
-                                    .on_submit(|s, _| Self::submit_network_address(s))
-                                    .with_name("network-address")
-                                    .fixed_height(1)
-                                    .min_width(40),
-                            ),
-                    ),
-                )
-                .title("Connect to server")
+                Dialog::around(if connecting {
+                    LinearLayout::vertical()
+                        .child(TextView::new(" "))
+                        .child(
+                            TextView::new(if is_ipc {
+                                "Connecting to IPC:"
+                            } else {
+                                "Connecting to TCP:"
+                            })
+                            .min_width(40),
+                        )
+                        .child(TextView::new("").with_name("connecting-text"))
+                } else {
+                    LinearLayout::vertical()
+                        .child(TextView::new(" "))
+                        .child(
+                            if is_ipc {
+                                connection_type_group.button(0, "IPC Path").selected()
+                            } else {
+                                connection_type_group.button(0, "IPC Path")
+                            }
+                            .with_name("ipc-path-radio"),
+                        )
+                        .child(
+                            EditView::new()
+                                .with_enabled(is_ipc)
+                                .on_submit(|s, _| Self::submit_ipc_path(s))
+                                .with_name("ipc-path")
+                                .fixed_height(1)
+                                .min_width(40),
+                        )
+                        .child(TextView::new(" "))
+                        .child(
+                            if is_ipc {
+                                connection_type_group.button(1, "Network Address")
+                            } else {
+                                connection_type_group
+                                    .button(1, "Network Address")
+                                    .selected()
+                            }
+                            .with_name("network-address-radio"),
+                        )
+                        .child(
+                            EditView::new()
+                                .with_enabled(!is_ipc)
+                                .on_submit(|s, _| Self::submit_network_address(s))
+                                .with_name("network-address")
+                                .fixed_height(1)
+                                .min_width(40),
+                        )
+                        .child(TextView::new(" "))
+                })
+                .title(if connecting {
+                    "Connecting to server..."
+                } else {
+                    "Connect to server"
+                })
                 .with_name("connection-dialog"),
             );
 
-            return true;
-        }
-        if reset {
-            let mut dlg = Self::connection_dialog(s);
-            dlg.clear_buttons();
             return true;
         }
 
@@ -755,7 +778,7 @@ impl UI {
     fn refresh_connection_dialog(s: &mut Cursive) {
         let new_state = Self::inner(s).ui_state.connection_state.get().clone();
 
-        if !Self::show_connection_dialog(s, new_state.clone()) {
+        if !Self::draw_connection_dialog(s, new_state.clone()) {
             return;
         }
 
@@ -786,15 +809,8 @@ impl UI {
             }
             ConnectionState::ConnectedTCP(_, _) | ConnectionState::ConnectedIPC(_, _) => {}
             ConnectionState::RetryingTCP(addr, _) => {
-                Self::ipc_path_radio(s).set_enabled(false);
-                Self::network_address_radio(s).set_enabled(false);
-
-                //
-                let mut edit = Self::network_address(s);
-                edit.set_content(addr.to_string());
-                edit.set_enabled(false);
-
-                Self::ipc_path(s).set_enabled(false);
+                let mut text = Self::connecting_text(s);
+                text.set_content(addr.to_string());
 
                 let mut dlg = Self::connection_dialog(s);
                 dlg.add_button("Cancel", |s| {
@@ -802,15 +818,8 @@ impl UI {
                 });
             }
             ConnectionState::RetryingIPC(ipc_path, _) => {
-                Self::ipc_path_radio(s).set_enabled(false);
-                Self::network_address_radio(s).set_enabled(false);
-
-                //
-                let mut edit = Self::ipc_path(s);
-                edit.set_content(ipc_path.to_string_lossy().to_string());
-                edit.set_enabled(false);
-
-                Self::network_address(s).set_enabled(false);
+                let mut text = Self::connecting_text(s);
+                text.set_content(ipc_path.to_string_lossy().to_string());
 
                 let mut dlg = Self::connection_dialog(s);
                 dlg.add_button("Cancel", |s| {

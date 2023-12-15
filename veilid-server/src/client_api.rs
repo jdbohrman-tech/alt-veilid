@@ -110,6 +110,12 @@ impl ClientApi {
     }
 
     async fn handle_ipc_incoming(self, ipc_path: PathBuf) -> std::io::Result<()> {
+        if ipc_path.exists() {
+            if let Err(e) = std::fs::remove_file(&ipc_path) {
+                error!("Binding failed because IPC path is in use: {}\nAnother copy of this application may be using the same IPC path.", e);
+                return Err(e);
+            }
+        }
         let listener = IpcListener::bind(ipc_path.clone()).await?;
         debug!("IPC Client API listening on: {:?}", ipc_path);
 
@@ -136,6 +142,12 @@ impl ClientApi {
 
         // Wait for all connections to terminate
         awg.wait().await;
+
+        // Clean up IPC path
+        if let Err(e) = std::fs::remove_file(&ipc_path) {
+            warn!("Unable to remove IPC socket: {}", e);
+            return Err(e);
+        }
 
         Ok(())
     }
