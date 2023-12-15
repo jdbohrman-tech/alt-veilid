@@ -131,8 +131,8 @@ fn main() -> Result<(), String> {
     }
 
     // Get client address
-    let enable_ipc = settings.enable_ipc;
-    let mut enable_network = settings.enable_network;
+    let enable_ipc = settings.enable_ipc && args.address.is_none();
+    let mut enable_network = settings.enable_network && args.ipc_path.is_none();
 
     // Determine IPC path to try
     let mut client_api_ipc_path = None;
