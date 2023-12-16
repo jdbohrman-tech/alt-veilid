@@ -32,6 +32,15 @@ def server_info() -> tuple[str, int]:
         return hostname, int(rest[0])
     return hostname, 5959
 
+def ipc_path_exists(path: str) -> bool:
+    """Determine if an IPC socket exists in a platform independent way."""
+    if os.name == 'nt':
+        if not path.upper().startswith("\\\\.\\PIPE\\"):
+            return False
+        return path[9:] in os.listdir("\\\\.\\PIPE")
+    else:
+        return os.path.exists(path)
+        
 @cache
 def ipc_info() -> str:
     """Return the path of the ipc socket of the test server."""
@@ -40,12 +49,11 @@ def ipc_info() -> str:
         return VEILID_SERVER_IPC
 
     if os.name == 'nt':
-        return '\\\\.\\PIPE\\veilid-server\\ipc\\0'
-
-    if os.name == 'posix':
-        ipc_0_path = "/var/db/veilid-server/ipc/0"
-        if os.path.exists(ipc_0_path):
-            return ipc_0_path
+        return '\\\\.\\PIPE\\veilid-server\\0'
+    
+    ipc_0_path = "/var/db/veilid-server/ipc/0"
+    if os.path.exists(ipc_0_path):
+        return ipc_0_path
 
     # hack to deal with rust's 'directories' crate case-inconsistency
     if sys.platform.startswith('darwin'):
@@ -67,8 +75,7 @@ async def api_connector(callback: Callable) -> _JsonVeilidAPI:
     hostname, port = server_info()
 
     try:
-        print(f"ipc_path: {ipc_path}")
-        if os.path.exists(ipc_path):
+        if ipc_path_exists(ipc_path):
             return await veilid.json_api_connect_ipc(ipc_path, callback)
         else:
             return await veilid.json_api_connect(hostname, port, callback)

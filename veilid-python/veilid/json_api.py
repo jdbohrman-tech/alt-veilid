@@ -155,11 +155,30 @@ class _JsonVeilidAPI(VeilidAPI):
     async def connect_ipc(
         cls, ipc_path: str, update_callback: Callable[[VeilidUpdate], Awaitable]
     ) -> Self:
-        reader, writer = await asyncio.open_unix_connection(ipc_path)
+        print("opening pipe")
+
+        if os.name=='nt': 
+            async def open_windows_pipe(path=None, *,
+                                   limit=65536, **kwds):
+                """Similar to `open_unix_connection` but works with Windows Named Pipes."""
+                loop = asyncio.events.get_running_loop()
+
+                reader = asyncio.StreamReader(limit=limit, loop=loop)
+                protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+                transport, _ = await loop.create_pipe_connection(
+                    lambda: protocol, path, **kwds)
+                writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+                return reader, writer
+            reader, writer = await open_windows_pipe(ipc_path)
+        else:
+            reader, writer = await asyncio.open_unix_connection(ipc_path)
+
+        print(f"reader: {vars(reader)}\nwriter: {vars(writer)}\n")
+
         veilid_api = cls(reader, writer, update_callback)
         veilid_api.handle_recv_messages_task = asyncio.create_task(
             veilid_api.handle_recv_messages(), name="JsonVeilidAPI.handle_recv_messages"
-        )
+            ) 
         return veilid_api
 
     async def handle_recv_message_response(self, j: dict):
