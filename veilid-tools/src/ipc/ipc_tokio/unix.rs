@@ -65,12 +65,13 @@ impl FuturesAsyncWrite for IpcStream {
 
 /////////////////////////////////////////////////////////////
 
-pub struct IpcIncoming {
+pub struct IpcIncoming<'a> {
     path: PathBuf,
     internal: UnixListenerStream,
+    phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl Stream for IpcIncoming {
+impl<'a> Stream for IpcIncoming<'a> {
     type Item = io::Result<IpcStream>;
 
     fn poll_next(
@@ -87,7 +88,7 @@ impl Stream for IpcIncoming {
     }
 }
 
-impl Drop for IpcIncoming {
+impl<'a> Drop for IpcIncoming<'a> {
     fn drop(&mut self) {
         // Clean up IPC path
         if let Err(e) = std::fs::remove_file(&self.path) {
@@ -126,13 +127,17 @@ impl IpcListener {
     }
 
     /// Returns a stream of incoming connections.
-    pub fn incoming(mut self) -> IpcIncoming {
-        IpcIncoming {
+    pub fn incoming(&mut self) -> io::Result<IpcIncoming<'_>> {
+        if self.path.is_none() {
+            return Err(io::Error::from(io::ErrorKind::NotConnected));
+        }
+        Ok(IpcIncoming {
             path: self.path.take().unwrap(),
             internal: UnixListenerStream::new(
                 Arc::into_inner(self.internal.take().unwrap()).unwrap(),
             ),
-        }
+            phantom: std::marker::PhantomData,
+        })
     }
 }
 

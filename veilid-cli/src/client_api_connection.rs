@@ -9,8 +9,7 @@ use stop_token::{future::FutureExt as _, StopSource};
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
-        use async_std::io::prelude::BufReadExt;
-        use async_std::io::WriteExt;
+        use futures::{AsyncBufReadExt, AsyncWriteExt};
         use async_std::io::BufReader;
     } else if #[cfg(feature="rt-tokio")] {
         use tokio::io::AsyncBufReadExt;
@@ -243,7 +242,7 @@ impl ClientApiConnection {
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 use futures::AsyncReadExt;
-                let (reader, mut writer) = stream.split();
+                let (reader, writer) = stream.split();
                 let reader = BufReader::new(reader);
             } else {
                 let (reader, writer) = stream.into_split();

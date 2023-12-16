@@ -20,8 +20,7 @@ const MAX_NON_JSON_LOGGING: usize = 50;
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
-        use async_std::io::prelude::BufReadExt;
-        use async_std::io::WriteExt;
+        use futures_util::{AsyncBufReadExt, AsyncWriteExt};
     } else if #[cfg(feature="rt-tokio")] {
         use tokio::io::AsyncBufReadExt;
         use tokio::io::AsyncWriteExt;
@@ -116,11 +115,11 @@ impl ClientApi {
                 return Err(e);
             }
         }
-        let listener = IpcListener::bind(ipc_path.clone()).await?;
+        let mut listener = IpcListener::bind(ipc_path.clone()).await?;
         debug!("IPC Client API listening on: {:?}", ipc_path);
 
         // Process the incoming accept stream
-        let mut incoming_stream = listener.incoming();
+        let mut incoming_stream = listener.incoming()?;
 
         // Make wait group for all incoming connections
         let awg = AsyncWaitGroup::new();
@@ -444,7 +443,7 @@ impl ClientApi {
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 use futures_util::AsyncReadExt;
-                let (reader, mut writer) = stream.split();
+                let (reader, writer) = stream.split();
                 let reader = BufReader::new(reader);
             } else {
                 let (reader, writer) = stream.into_split();

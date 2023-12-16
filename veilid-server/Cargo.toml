@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [features]
 default = ["rt-tokio", "veilid-core/default"]
+default-async-std = ["rt-async-std", "veilid-core/default-async-std"]
 crypto-test = ["rt-tokio", "veilid-core/crypto-test"]
 crypto-test-none = ["rt-tokio", "veilid-core/crypto-test-none"]
 

@@ -5576,7 +5576,6 @@ dependencies = [
  "nix 0.27.1",
  "num-traits",
  "once_cell",
- "owning_ref",
  "paranoid-android",
  "parking_lot 0.12.1",
  "paste",
