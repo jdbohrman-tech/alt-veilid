@@ -114,12 +114,13 @@ impl FuturesAsyncWrite for IpcStream {
 
 /////////////////////////////////////////////////////////////
 
-pub struct IpcIncoming {
-    listener: Arc<IpcListener>,
+pub struct IpcIncoming<'a> {
+    listener: IpcListener,
     unord: FuturesUnordered<SendPinBoxFuture<io::Result<IpcStream>>>,
+    phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl Stream for IpcIncoming {
+impl<'t> Stream for IpcIncoming<'t> {
     type Item = io::Result<IpcStream>;
 
     fn poll_next<'a>(
@@ -143,7 +144,7 @@ impl Stream for IpcIncoming {
 
 pub struct IpcListener {
     path: Option<PathBuf>,
-    internal: Mutex<Option<NamedPipeServer>>,
+    internal: Option<Mutex<Option<NamedPipeServer>>>,
 }
 
 impl IpcListener {
@@ -155,18 +156,20 @@ impl IpcListener {
             .create(&path)?;
         Ok(Self {
             path: Some(path),
-            internal: Mutex::new(Some(server)),
+            internal: Some(Mutex::new(Some(server))),
         })
     }
 
     /// Accepts a new incoming connection to this listener.
     pub fn accept(&self) -> SendPinBoxFuture<io::Result<IpcStream>> {
-        let mut opt_server = self.internal.lock();
-        let Some(server) = opt_server.take() else {
+        if self.path.is_none() {
             return Box::pin(std::future::ready(Err(io::Error::from(
-                io::ErrorKind::BrokenPipe,
+                io::ErrorKind::NotConnected,
             ))));
-        };
+        }
+        let internal = self.internal.as_ref().unwrap();
+        let mut opt_server = internal.lock();
+        let server = opt_server.take().unwrap();
         let path = self.path.clone().unwrap();
         *opt_server = match ServerOptions::new().create(path) {
             Ok(v) => Some(v),
@@ -183,10 +186,17 @@ impl IpcListener {
     }
 
     /// Returns a stream of incoming connections.
-    pub fn incoming(self) -> IpcIncoming {
-        IpcIncoming {
-            listener: Arc::new(self),
-            unord: FuturesUnordered::new(),
+    pub fn incoming(&mut self) -> io::Result<IpcIncoming<'_>> {
+        if self.path.is_none() {
+            return Err(io::Error::from(io::ErrorKind::NotConnected));
         }
+        Ok(IpcIncoming {
+            listener: IpcListener {
+                path: self.path.take(),
+                internal: self.internal.take(),
+            },
+            unord: FuturesUnordered::new(),
+            phantom: std::marker::PhantomData,
+        })
     }
 }
