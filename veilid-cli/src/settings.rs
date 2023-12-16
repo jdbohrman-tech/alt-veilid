@@ -9,7 +9,7 @@ pub fn load_default_config() -> Result<config::Config, config::ConfigError> {
     let default_config = r#"---
 enable_ipc: true
 ipc_path: '%IPC_DIRECTORY%'
-enable_network: true
+enable_network: false
 address: "localhost:5959"
 autoconnect: true
 autoreconnect: true

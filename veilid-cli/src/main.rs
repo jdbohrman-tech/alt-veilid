@@ -130,8 +130,9 @@ fn main() -> Result<(), String> {
     }
 
     // Get client address
-    let enable_ipc = settings.enable_ipc && args.address.is_none();
-    let mut enable_network = settings.enable_network && args.ipc_path.is_none();
+    let enable_ipc = (settings.enable_ipc && args.address.is_none()) || args.ipc_path.is_some();
+    let mut enable_network =
+        (settings.enable_network && args.ipc_path.is_none()) || args.address.is_some();
 
     // Determine IPC path to try
     let mut client_api_ipc_path = None;
@@ -209,6 +210,8 @@ fn main() -> Result<(), String> {
     } else if let Some(client_api_network_address) = client_api_network_addresses {
         let network_addr = client_api_network_address.first().cloned();
         comproc.set_network_address(network_addr);
+    } else {
+        return Err("veilid-server could not be reached".to_owned());
     }
 
     let comproc2 = comproc.clone();
