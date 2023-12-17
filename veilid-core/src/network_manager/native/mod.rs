@@ -31,11 +31,11 @@ pub const PEEK_DETECT_LEN: usize = 64;
 
 cfg_if! {
     if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 8;
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 9;
     } else if #[cfg(any(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 8;
     } else  {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
     }
 }
 pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
@@ -46,19 +46,21 @@ pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIE
     CAP_RELAY,
     CAP_VALIDATE_DIAL_INFO,
     CAP_DHT,
+    CAP_DHT_WATCH,
     CAP_APPMESSAGE,
     #[cfg(feature = "unstable-blockstore")]
     CAP_BLOCKSTORE,
 ];
 
 #[cfg(feature = "unstable-blockstore")]
-const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 5;
 #[cfg(not(feature = "unstable-blockstore"))]
-const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 3;
+const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
 
 pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
     CAP_RELAY,
     CAP_DHT,
+    CAP_DHT_WATCH,
     CAP_APPMESSAGE,
     #[cfg(feature = "unstable-blockstore")]
     CAP_BLOCKSTORE,
@@ -551,12 +553,9 @@ impl Network {
                             .wrap_err("connect failure")?
                         }
                         ProtocolType::WS | ProtocolType::WSS => {
-                            WebsocketProtocolHandler::connect(
-                                None,
-                                &dial_info,
-                                connect_timeout_ms)
-                            .await
-                            .wrap_err("connect failure")?
+                            WebsocketProtocolHandler::connect(None, &dial_info, connect_timeout_ms)
+                                .await
+                                .wrap_err("connect failure")?
                         }
                     });
 

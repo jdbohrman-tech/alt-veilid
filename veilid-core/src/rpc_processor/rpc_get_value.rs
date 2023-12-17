@@ -211,7 +211,7 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]));
+        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT, CAP_DHT_WATCH]));
 
         #[cfg(feature="debug-dht")]
         {   

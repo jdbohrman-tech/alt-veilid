@@ -169,7 +169,7 @@ impl StorageManager {
             key_count,
             fanout,
             timeout_us,
-            capability_fanout_node_info_filter(vec![CAP_DHT]),
+            capability_fanout_node_info_filter(vec![CAP_DHT, CAP_DHT_WATCH]),
             call_routine,
             check_done,
         );

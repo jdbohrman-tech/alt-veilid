@@ -164,6 +164,15 @@ impl RPCProcessor {
         if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
             return Ok(NetworkResult::service_unavailable("dht is not available"));
         }
+        if !opi
+            .signed_node_info()
+            .node_info()
+            .has_capability(CAP_DHT_WATCH)
+        {
+            return Ok(NetworkResult::service_unavailable(
+                "dht watch is not available",
+            ));
+        }
 
         // Get the question
         let kind = msg.operation.kind().clone();
@@ -199,7 +208,7 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let closer_to_key_peers = network_result_try!(
-            routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT])
+            routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT, CAP_DHT_WATCH])
         );
 
         // See if we would have accepted this as a set

@@ -8,6 +8,7 @@ pub const CAP_SIGNAL: Capability = FourCC(*b"SGNL");
 pub const CAP_RELAY: Capability = FourCC(*b"RLAY");
 pub const CAP_VALIDATE_DIAL_INFO: Capability = FourCC(*b"DIAL");
 pub const CAP_DHT: Capability = FourCC(*b"DHTV");
+pub const CAP_DHT_WATCH: Capability = FourCC(*b"DHTW");
 pub const CAP_APPMESSAGE: Capability = FourCC(*b"APPM");
 #[cfg(feature = "unstable-blockstore")]
 pub const CAP_BLOCKSTORE: Capability = FourCC(*b"BLOC");

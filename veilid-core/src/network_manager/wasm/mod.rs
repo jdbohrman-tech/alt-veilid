@@ -27,6 +27,7 @@ pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIE
     //CAP_RELAY,
     //CAP_VALIDATE_DIAL_INFO,
     CAP_DHT,
+    CAP_DHT_WATCH,
     CAP_APPMESSAGE,
     #[cfg(feature = "unstable-blockstore")]
     CAP_BLOCKSTORE,
@@ -40,6 +41,7 @@ pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIE
 // pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
 //     //CAP_RELAY,
 //     CAP_DHT,
+//     CAP_DHT_WATCH,
 //     CAP_APPMESSAGE,
 //     #[cfg(feature = "unstable-blockstore")]
 //     CAP_BLOCKSTORE,
