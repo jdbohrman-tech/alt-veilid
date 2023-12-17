@@ -4,6 +4,9 @@
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
+#[cfg(all(feature = "rt-async-std", windows))]
+compile_error! {"async-std compilation for windows is currently unsupported"}
+
 mod client_api;
 mod server;
 mod settings;
@@ -77,6 +80,7 @@ pub struct CmdlineArgs {
     /// Turn on OpenTelemetry tracing
     ///
     /// This option uses the GRPC OpenTelemetry protocol, not HTTP. The format for the endpoint is host:port, like 'localhost:4317'
+    #[cfg(feature = "opentelemetry-otlp")]
     #[arg(long, value_name = "endpoint")]
     otlp: Option<String>,
 
