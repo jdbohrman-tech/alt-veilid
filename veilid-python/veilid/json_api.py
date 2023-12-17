@@ -155,7 +155,6 @@ class _JsonVeilidAPI(VeilidAPI):
     async def connect_ipc(
         cls, ipc_path: str, update_callback: Callable[[VeilidUpdate], Awaitable]
     ) -> Self:
-        print("opening pipe")
 
         if os.name=='nt': 
             async def open_windows_pipe(path=None, *,
@@ -172,8 +171,6 @@ class _JsonVeilidAPI(VeilidAPI):
             reader, writer = await open_windows_pipe(ipc_path)
         else:
             reader, writer = await asyncio.open_unix_connection(ipc_path)
-
-        print(f"reader: {vars(reader)}\nwriter: {vars(writer)}\n")
 
         veilid_api = cls(reader, writer, update_callback)
         veilid_api.handle_recv_messages_task = asyncio.create_task(

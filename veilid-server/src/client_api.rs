@@ -19,9 +19,11 @@ use wg::AsyncWaitGroup;
 const MAX_NON_JSON_LOGGING: usize = 50;
 
 cfg_if! {
+   
     if #[cfg(feature="rt-async-std")] {
         use futures_util::{AsyncBufReadExt, AsyncWriteExt};
-    } else if #[cfg(feature="rt-tokio")] {
+    } else 
+    if #[cfg(feature="rt-tokio")] {
         use tokio::io::AsyncBufReadExt;
         use tokio::io::AsyncWriteExt;
     } else {

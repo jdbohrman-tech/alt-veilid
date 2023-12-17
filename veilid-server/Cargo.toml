@@ -14,16 +14,19 @@ name = "veilid-server"
 path = "src/main.rs"
 
 [features]
-default = ["rt-tokio", "veilid-core/default"]
+default = ["rt-tokio", "veilid-core/default", "otlp-tonic"]
 default-async-std = ["rt-async-std", "veilid-core/default-async-std"]
+
 crypto-test = ["rt-tokio", "veilid-core/crypto-test"]
 crypto-test-none = ["rt-tokio", "veilid-core/crypto-test-none"]
+
+otlp-tonic = [ "opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace" ]
+otlp-grpc = [ "opentelemetry-otlp/grpc-sys", "opentelemetry-otlp/trace" ]
 
 rt-async-std = [
     "veilid-core/rt-async-std",
     "async-std",
     "opentelemetry/rt-async-std",
-    "opentelemetry-otlp/grpc-sys",
 ]
 rt-tokio = [
     "veilid-core/rt-tokio",
@@ -46,7 +49,7 @@ tracing-appender = "^0"
 tracing-opentelemetry = "0.21"
 # Buggy: tracing-error = "^0"
 opentelemetry = { version = "0.20" }
-opentelemetry-otlp = { version = "0.13" }
+opentelemetry-otlp = { version = "0.13", default-features = false, optional=true }
 opentelemetry-semantic-conventions = "0.12"
 async-std = { version = "^1", features = ["unstable"], optional = true }
 tokio = { version = "1.35.0", features = ["full", "tracing"], optional = true }
