@@ -24,7 +24,7 @@ stages:
   - chmod +x /usr/local/bin/earthly
   - earthly bootstrap
   - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-  - test "$CI_PROJECT_PATH" != "veilid/veilid" && project_args="--CI_PROJECT_PATH=$CI_PROJECT_PATH"
+  - test "$CI_PROJECT_PATH" != "veilid/veilid" && project_args="--CI_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE"
 
 # Create the build container if:
 #  - no container in the registry
@@ -34,7 +34,7 @@ build_cache:
   extends: .base
   stage: prepare
   script:
-    - if ! docker manifest inspect registry.gitlab.com/$CI_PROJECT_PATH/build-cache:latest > /dev/null || [[ "$CI_PIPELINE_SOURCE" == "schedule" ]] || [[ "$CI_PIPELINE_SOURCE" == "web" ]] ; then
+    - if ! docker manifest inspect $CI_REGISTRY_IMAGE/build-cache:latest > /dev/null || [[ "$CI_PIPELINE_SOURCE" == "schedule" ]] || [[ "$CI_PIPELINE_SOURCE" == "web" ]] ; then
     -   *earthly_setup
     -   earthly --use-inline-cache --save-inline-cache --strict --push -P +build-linux-cache $project_args
     - else
