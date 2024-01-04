@@ -3,8 +3,8 @@ VERSION 0.7
 ########################################################################################################################
 ## ARGUMENTS
 ##
-## CI_PROJECT_PATH - used so that forks can refer to themselves, e.g. to use the fork's own registry cache in the
-## `+build-linux-cache` target, and defaulting to `veilid/veilid` if not specified
+## CI_REGISTRY_IMAGE - used so that forks can refer to themselves, e.g. to use the fork's own registry cache in the
+## `+build-linux-cache` target, and defaulting to `registry.gitlab.com/veilid/veilid` if not specified
 ##
 ## BASE - tells the build whether it should run in the default mode which runs the complete build, or run by starting
 ## with the remote `container` value which uses `build-cache:latest` as set up in the projects Container Registry
@@ -96,8 +96,8 @@ build-linux-cache:
     RUN cargo chef cook --recipe-path recipe.json
     RUN echo $PROJECT_PATH
     SAVE ARTIFACT target
-    ARG CI_PROJECT_PATH=veilid/veilid
-    SAVE IMAGE --push registry.gitlab.com/$CI_PROJECT_PATH/build-cache:latest
+    ARG CI_REGISTRY_IMAGE=registry.gitlab.com/veilid/veilid
+    SAVE IMAGE --push $CI_REGISTRY_IMAGE/build-cache:latest
 
 code-linux:
     # This target will either use the full earthly cache of local use (+build-linux-cache), or will use a containerized
@@ -106,8 +106,8 @@ code-linux:
     IF [ "$BASE" = "local" ]
         FROM +build-linux-cache
     ELSE
-        ARG CI_PROJECT_PATH=veilid/veilid
-        FROM registry.gitlab.com/$CI_PROJECT_PATH/build-cache:latest
+        ARG CI_REGISTRY_IMAGE=registry.gitlab.com/veilid/veilid
+        FROM $CI_REGISTRY_IMAGE/build-cache:latest
         # FROM registry.gitlab.com/veilid/build-cache:latest
     END
     COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
