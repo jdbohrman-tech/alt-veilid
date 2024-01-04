@@ -72,6 +72,16 @@ sudo yum-config-manager --add-repo https://packages.veilid.net/rpm/veilid-rpm-re
 sudo dnf install veilid-server veilid-cli
 ```
 
+### macOS
+
+Veilid is available [via Homebrew](https://formulae.brew.sh/formula/veilid).
+
+```shell
+brew install veilid
+```
+
+You can then run `veilid-server` and `veilid-cli` from the command line.
+
 ## Start headless node
 
 ### With systemd
