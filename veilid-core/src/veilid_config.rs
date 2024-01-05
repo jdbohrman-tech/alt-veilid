@@ -207,7 +207,7 @@ pub struct VeilidConfigDHT {
 
 /// Configure RPC
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
@@ -219,6 +219,20 @@ pub struct VeilidConfigRPC {
     pub timeout_ms: u32,
     pub max_route_hop_count: u8,
     pub default_route_hop_count: u8,
+}
+
+impl Default for VeilidConfigRPC {
+    fn default() -> Self {
+        Self {
+            concurrency: 0,
+            queue_size: 1024,
+            max_timestamp_behind_ms: None,
+            max_timestamp_ahead_ms: None,
+            timeout_ms: 5000,
+            max_route_hop_count: 4,
+            default_route_hop_count: 1,
+        }
+    }
 }
 
 /// Configure the network routing table
@@ -442,6 +456,19 @@ impl VeilidConfig {
 
         self.with_mut(|inner| {
             *inner = serde_json::from_str(&config).map_err(VeilidAPIError::generic)?;
+            Ok(())
+        })
+    }
+
+    pub fn setup_from_config(
+        &mut self,
+        config: VeilidConfigInner,
+        update_cb: UpdateCallback,
+    ) -> VeilidAPIResult<()> {
+        self.update_cb = Some(update_cb);
+
+        self.with_mut(|inner| {
+            *inner = config;
             Ok(())
         })
     }
