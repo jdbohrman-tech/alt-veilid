@@ -256,7 +256,7 @@ abstract class VeilidRoutingContext {
   Future<void> deleteDHTRecord(TypedKey key);
   Future<ValueData?> getDHTValue(TypedKey key, int subkey, bool forceRefresh);
   Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data);
-  Future<Timestamp> watchDHTValues(TypedKey key, List<ValueSubkeyRange> subkeys,
-      Timestamp expiration, int count);
-  Future<bool> cancelDHTWatch(TypedKey key, List<ValueSubkeyRange> subkeys);
+  Future<Timestamp> watchDHTValues(TypedKey key,
+      {List<ValueSubkeyRange>? subkeys, Timestamp? expiration, int? count});
+  Future<bool> cancelDHTWatch(TypedKey key, {List<ValueSubkeyRange>? subkeys});
 }

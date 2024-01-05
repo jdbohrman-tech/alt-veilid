@@ -1,7 +1,7 @@
 use super::*;
 
 impl StorageManager {
-    // Flush records stores to disk and remove dead records and send watch notifications
+    // Check if watches either have dead nodes or if the watch has expired
     #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn check_active_watches_task_routine(
         self,
@@ -44,8 +44,15 @@ impl StorageManager {
                         }
                     }
                 }
+                // See if the watch is expired
+                if !is_dead && active_watch.expiration_ts <= cur_ts {
+                    // Watch has expired
+                    is_dead = true;
+                }
 
                 if is_dead {
+                    v.clear_active_watch();
+
                     if let Some(update_callback) = opt_update_callback.clone() {
                         // Send valuechange with dead count and no subkeys
                         update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
@@ -55,8 +62,6 @@ impl StorageManager {
                             value: ValueData::default(),
                         })));
                     }
-
-                    v.clear_active_watch();
                 }
             }
         }
