@@ -22,11 +22,13 @@ extension ValidateDFLT on DHTSchemaDFLT {
     }
     return true;
   }
+
+  int subkeyCount() => oCnt;
 }
 
 extension ValidateSMPL on DHTSchemaSMPL {
   bool validate() {
-    final totalsv = members.fold(0, (acc, v) => acc + v.mCnt) + oCnt;
+    final totalsv = subkeyCount();
     if (totalsv > 65535) {
       return false;
     }
@@ -34,6 +36,28 @@ extension ValidateSMPL on DHTSchemaSMPL {
       return false;
     }
     return true;
+  }
+
+  int subkeyCount() => members.fold(0, (acc, v) => acc + v.mCnt) + oCnt;
+}
+
+extension Validate on DHTSchema {
+  bool validate() {
+    if (this is DHTSchemaDFLT) {
+      return (this as DHTSchemaDFLT).validate();
+    } else if (this is DHTSchemaSMPL) {
+      return (this as DHTSchemaSMPL).validate();
+    }
+    throw TypeError();
+  }
+
+  int subkeyCount() {
+    if (this is DHTSchemaDFLT) {
+      return (this as DHTSchemaDFLT).subkeyCount();
+    } else if (this is DHTSchemaSMPL) {
+      return (this as DHTSchemaSMPL).subkeyCount();
+    }
+    throw TypeError();
   }
 }
 
@@ -113,6 +137,14 @@ class ValueSubkeyRange with _$ValueSubkeyRange {
 
   factory ValueSubkeyRange.fromJson(dynamic json) =>
       _$ValueSubkeyRangeFromJson(json as Map<String, dynamic>);
+}
+
+extension ValueSubkeyRangeExt on ValueSubkeyRange {
+  bool contains(int v) => low <= v && v <= high;
+}
+
+extension ListValueSubkeyRangeExt on List<ValueSubkeyRange> {
+  bool containsSubkey(int v) => indexWhere((e) => e.contains(v)) != -1;
 }
 
 //////////////////////////////////////
