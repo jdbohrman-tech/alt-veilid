@@ -14,7 +14,7 @@ pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sy
 ///     url: 'https://localhost:5150'
 /// ```
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigHTTPS {
     pub enabled: bool,
@@ -22,6 +22,17 @@ pub struct VeilidConfigHTTPS {
     pub path: String,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     pub url: Option<String>, // Fixed URL is not optional for TLS-based protocols and is dynamically validated
+}
+
+impl Default for VeilidConfigHTTPS {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            listen_address: String::from(":5150"),
+            path: String::from("app"),
+            url: None,
+        }
+    }
 }
 
 /// Enable and configure HTTP access to the Veilid node
@@ -34,7 +45,7 @@ pub struct VeilidConfigHTTPS {
 ///     url: 'https://localhost:5150'
 /// ```
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigHTTP {
     pub enabled: bool,
@@ -42,6 +53,17 @@ pub struct VeilidConfigHTTP {
     pub path: String,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     pub url: Option<String>,
+}
+
+impl Default for VeilidConfigHTTP {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            listen_address: String::from(":5150"),
+            path: String::from("app"),
+            url: None,
+        }
+    }
 }
 
 /// Application configuration
@@ -67,7 +89,7 @@ pub struct VeilidConfigApplication {
 ///     public_address: ''
 /// ```
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigUDP {
     pub enabled: bool,
@@ -75,6 +97,17 @@ pub struct VeilidConfigUDP {
     pub listen_address: String,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     pub public_address: Option<String>,
+}
+
+impl Default for VeilidConfigUDP {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            socket_pool_size: 0,
+            listen_address: String::from(":5150"),
+            public_address: None,
+        }
+    }
 }
 
 /// Enable and configure TCP
@@ -87,7 +120,7 @@ pub struct VeilidConfigUDP {
 ///     listen_address: ':5150'
 ///     public_address: ''
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigTCP {
     pub connect: bool,
@@ -96,6 +129,18 @@ pub struct VeilidConfigTCP {
     pub listen_address: String,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     pub public_address: Option<String>,
+}
+
+impl Default for VeilidConfigTCP {
+    fn default() -> Self {
+        Self {
+            connect: true,
+            listen: true,
+            max_connections: 32,
+            listen_address: String::from(":5150"),
+            public_address: None,
+        }
+    }
 }
 
 /// Enable and configure Web Sockets
@@ -109,7 +154,7 @@ pub struct VeilidConfigTCP {
 ///     path: 'ws'
 ///     url: 'ws://localhost:5150/ws'
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 
 pub struct VeilidConfigWS {
@@ -120,6 +165,19 @@ pub struct VeilidConfigWS {
     pub path: String,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     pub url: Option<String>,
+}
+
+impl Default for VeilidConfigWS {
+    fn default() -> Self {
+        Self {
+            connect: true,
+            listen: true,
+            max_connections: 16,
+            listen_address: String::from(":5150"),
+            path: String::from("ws"),
+            url: None,
+        }
+    }
 }
 
 /// Enable and configure Secure Web Sockets
@@ -133,7 +191,7 @@ pub struct VeilidConfigWS {
 ///     path: 'ws'
 ///     url: ''
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 
 pub struct VeilidConfigWSS {
@@ -144,6 +202,19 @@ pub struct VeilidConfigWSS {
     pub path: String,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     pub url: Option<String>, // Fixed URL is not optional for TLS-based protocols and is dynamically validated
+}
+
+impl Default for VeilidConfigWSS {
+    fn default() -> Self {
+        Self {
+            connect: true,
+            listen: false,
+            max_connections: 16,
+            listen_address: String::from(":5150"),
+            path: String::from("ws"),
+            url: None,
+        }
+    }
 }
 
 /// Configure Network Protocols
@@ -171,7 +242,7 @@ pub struct VeilidConfigProtocol {
 ///     private_key_path: /path/to/private/key
 ///     connection_initial_timeout_ms: 2000
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigTLS {
     pub certificate_path: String,
@@ -179,9 +250,19 @@ pub struct VeilidConfigTLS {
     pub connection_initial_timeout_ms: u32,
 }
 
+impl Default for VeilidConfigTLS {
+    fn default() -> Self {
+        Self {
+            certificate_path: String::new(),
+            private_key_path: String::new(),
+            connection_initial_timeout_ms: 2000,
+        }
+    }
+}
+
 /// Configure the Distributed Hash Table (DHT)
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigDHT {
     pub max_find_node_count: u32,
@@ -205,9 +286,36 @@ pub struct VeilidConfigDHT {
     pub remote_max_storage_space_mb: u32,
 }
 
+impl Default for VeilidConfigDHT {
+    fn default() -> Self {
+        Self {
+            // Assuming some reasonable defaults
+            max_find_node_count: 20,
+            resolve_node_timeout_ms: 10000,
+            resolve_node_count: 1,
+            resolve_node_fanout: 4,
+            get_value_timeout_ms: 10000,
+            get_value_count: 3,
+            get_value_fanout: 4,
+            set_value_timeout_ms: 10000,
+            set_value_count: 5,
+            set_value_fanout: 4,
+            min_peer_count: 20,
+            min_peer_refresh_time_ms: 60000,
+            validate_dial_info_receipt_time_ms: 2000,
+            local_subkey_cache_size: 1024,
+            local_max_subkey_cache_memory_mb: 256,
+            remote_subkey_cache_size: 128,
+            remote_max_records: 128,
+            remote_max_subkey_cache_memory_mb: 256,
+            remote_max_storage_space_mb: 256,
+        }
+    }
+}
+
 /// Configure RPC
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
@@ -221,9 +329,23 @@ pub struct VeilidConfigRPC {
     pub default_route_hop_count: u8,
 }
 
+impl Default for VeilidConfigRPC {
+    fn default() -> Self {
+        Self {
+            concurrency: 0,
+            queue_size: 1024,
+            max_timestamp_behind_ms: None,
+            max_timestamp_ahead_ms: None,
+            timeout_ms: 5000,
+            max_route_hop_count: 4,
+            default_route_hop_count: 1,
+        }
+    }
+}
+
 /// Configure the network routing table
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
@@ -240,7 +362,22 @@ pub struct VeilidConfigRoutingTable {
     // xxx pub enable_local_network: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+impl Default for VeilidConfigRoutingTable {
+    fn default() -> Self {
+        Self {
+            node_id: TypedKeyGroup::default(),
+            node_id_secret: TypedSecretGroup::default(),
+            bootstrap: vec!["bootstrap.veilid.net".to_string()],
+            limit_over_attached: 64,
+            limit_fully_attached: 32,
+            limit_attached_strong: 16,
+            limit_attached_good: 8,
+            limit_attached_weak: 4,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigNetwork {
     pub connection_initial_timeout_ms: u32,
@@ -263,6 +400,32 @@ pub struct VeilidConfigNetwork {
     pub tls: VeilidConfigTLS,
     pub application: VeilidConfigApplication,
     pub protocol: VeilidConfigProtocol,
+}
+
+impl Default for VeilidConfigNetwork {
+    fn default() -> Self {
+        Self {
+            connection_initial_timeout_ms: 2000,
+            connection_inactivity_timeout_ms: 60000,
+            max_connections_per_ip4: 32,
+            max_connections_per_ip6_prefix: 32,
+            max_connections_per_ip6_prefix_size: 56,
+            max_connection_frequency_per_min: 128,
+            client_allowlist_timeout_ms: 300000,
+            reverse_connection_receipt_time_ms: 5000,
+            hole_punch_receipt_time_ms: 5000,
+            network_key_password: None,
+            routing_table: VeilidConfigRoutingTable::default(),
+            rpc: VeilidConfigRPC::default(),
+            dht: VeilidConfigDHT::default(),
+            upnp: true,
+            detect_address_changes: true,
+            restricted_nat_retries: 0,
+            tls: VeilidConfigTLS::default(),
+            application: VeilidConfigApplication::default(),
+            protocol: VeilidConfigProtocol::default(),
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
