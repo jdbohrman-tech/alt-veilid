@@ -5,7 +5,8 @@
 //! `veilid-core` contains all of the core logic for Veilid and can be used in mobile applications as well as desktop
 //! and in-browser WebAssembly apps.
 //!
-//! The public API is accessed by getting a [VeilidAPI] object via a call to [api_startup] or [api_startup_json].
+//! The public API is accessed by getting a [VeilidAPI] object via a call to [api_startup], [api_startup_json], or
+//! [api_startup_config].
 //!
 //! From there, a [RoutingContext] object can get you access to public and private routed operations.
 //!
@@ -59,7 +60,7 @@ mod veilid_layer_filter;
 mod wasm_helpers;
 
 pub use self::api_tracing_layer::ApiTracingLayer;
-pub use self::core_context::{api_startup, api_startup_json, UpdateCallback};
+pub use self::core_context::{api_startup, api_startup_json, api_startup_config, UpdateCallback};
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;

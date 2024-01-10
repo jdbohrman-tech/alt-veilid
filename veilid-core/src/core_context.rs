@@ -237,6 +237,19 @@ impl VeilidCoreContext {
         Self::new_common(update_callback, config).await
     }
 
+
+    #[instrument(err, skip_all)]
+    async fn new_with_config(
+        update_callback: UpdateCallback,
+        config_inner: VeilidConfigInner,
+    ) -> VeilidAPIResult<VeilidCoreContext> {
+        // Set up config from json
+        trace!("setup config with json");
+        let mut config = VeilidConfig::new();
+        config.setup_from_config(config_inner, update_callback.clone())?;
+        Self::new_common(update_callback, config).await
+    }
+
     #[instrument(err, skip_all)]
     async fn new_common(
         update_callback: UpdateCallback,
@@ -341,6 +354,36 @@ pub async fn api_startup_json(
 
     // Create core context
     let context = VeilidCoreContext::new_with_config_json(update_callback, config_json).await?;
+
+    // Return an API object around our context
+    let veilid_api = VeilidAPI::new(context);
+
+    *initialized_lock = true;
+
+    Ok(veilid_api)
+}
+
+/// Initialize a Veilid node, with the configuration object
+///
+/// Must be called only once at the start of an application
+///
+/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change
+/// * `config` - called at startup to supply a configuration object
+///
+/// Returns a [VeilidAPI] object that can be used to operate the node
+#[instrument(err, skip_all)]
+pub async fn api_startup_config(
+    update_callback: UpdateCallback,
+    config: VeilidConfigInner,
+) -> VeilidAPIResult<VeilidAPI> {
+    // See if we have an API started up already
+    let mut initialized_lock = INITIALIZED.lock().await;
+    if *initialized_lock {
+        apibail_already_initialized!();
+    }
+
+    // Create core context
+    let context = VeilidCoreContext::new_with_config(update_callback, config).await?;
 
     // Return an API object around our context
     let veilid_api = VeilidAPI::new(context);
