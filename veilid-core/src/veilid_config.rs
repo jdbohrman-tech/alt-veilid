@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+use directories::ProjectDirs;
 use crate::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,11 +255,26 @@ pub struct VeilidConfigTLS {
 impl Default for VeilidConfigTLS {
     fn default() -> Self {
         Self {
-            certificate_path: String::new(),
-            private_key_path: String::new(),
+            certificate_path: get_default_ssl_directory("certs/server.crt"),
+            private_key_path: get_default_ssl_directory("keys/server.key"),
             connection_initial_timeout_ms: 2000,
         }
     }
+}
+
+pub fn get_default_ssl_directory(sub_path: &str) -> String {
+    let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
+
+    #[cfg(unix)]
+    if default_path.exists() {
+        return default_path.to_string_lossy().into();
+    }
+
+    ProjectDirs::from("org", "Veilid", "Veilid")
+        .map(|dirs| dirs.data_local_dir().join("ssl").join(sub_path))
+        .unwrap_or_else(|| PathBuf::from("./ssl").join(sub_path))
+        .to_string_lossy()
+        .into()
 }
 
 /// Configure the Distributed Hash Table (DHT)
@@ -428,21 +445,56 @@ impl Default for VeilidConfigNetwork {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigTableStore {
     pub directory: String,
     pub delete: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+impl Default for VeilidConfigTableStore {
+    fn default() -> Self {
+        Self {
+            directory: get_default_store_path("table_store"),
+            delete: false,
+        }
+    }
+}
+
+fn get_default_store_path(store_type: &str) -> String {
+    #[cfg(unix)]
+    {
+        let globalpath = PathBuf::from(format!("/var/db/veilid-server/{}", store_type));
+        if globalpath.exists() {
+            return globalpath.to_string_lossy().into();
+        }
+    }
+
+    ProjectDirs::from("org", "Veilid", "Veilid")
+        .map(|dirs| dirs.data_local_dir().to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("./"))
+        .join(store_type)
+        .to_string_lossy()
+        .into()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigBlockStore {
     pub directory: String,
     pub delete: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+impl Default for VeilidConfigBlockStore {
+    fn default() -> Self {
+        Self {
+            directory: get_default_store_path("block_store"),
+            delete: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
@@ -452,6 +504,19 @@ pub struct VeilidConfigProtectedStore {
     pub device_encryption_key_password: String,
     #[cfg_attr(target_arch = "wasm32", tsify(optional))]
     pub new_device_encryption_key_password: Option<String>,
+}
+
+impl Default for VeilidConfigProtectedStore {
+    fn default() -> Self {
+        Self {
+            allow_insecure_fallback: false,
+            always_use_insecure_storage: false,
+            directory: get_default_store_path("protected_store"),
+            delete: false,
+            device_encryption_key_password: String::from(""),
+            new_device_encryption_key_password: None,
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
