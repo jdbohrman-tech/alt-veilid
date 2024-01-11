@@ -38,7 +38,7 @@ use hashlink::LruCache;
 #[cfg(not(target_arch = "wasm32"))]
 use native::*;
 #[cfg(not(target_arch = "wasm32"))]
-pub use native::{LOCAL_NETWORK_CAPABILITIES, MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
+pub use native::{MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
 use routing_table::*;
 use rpc_processor::*;
 use storage_manager::*;

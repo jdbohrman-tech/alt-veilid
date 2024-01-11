@@ -1,5 +1,5 @@
 pub use cfg_if::*;
-pub use color_eyre::eyre::{bail, ensure, eyre, Result as EyreResult, WrapErr};
+pub use color_eyre::eyre::{bail, eyre, Result as EyreResult, WrapErr};
 pub use core::future::Future;
 pub use parking_lot::*;
 pub use tracing::*;

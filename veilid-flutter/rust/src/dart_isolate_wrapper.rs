@@ -1,5 +1,5 @@
 use crate::tools::*;
-pub use allo_isolate::ffi::DartCObject;
+
 pub use allo_isolate::IntoDart;
 use allo_isolate::Isolate;
 use core::fmt::Debug;
