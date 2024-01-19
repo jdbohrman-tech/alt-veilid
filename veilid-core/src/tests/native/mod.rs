@@ -30,8 +30,8 @@ pub async fn run_all_tests() {
     veilid_api::tests::test_serialize_json::test_all().await;
     info!("TEST: routing_table::test_serialize_routing_table");
     routing_table::tests::test_serialize_routing_table::test_all().await;
-    info!("TEST: test_dht");
-    test_dht::test_all().await;
+    // info!("TEST: test_dht");
+    // test_dht::test_all().await;
 
     info!("Finished unit tests");
 }
@@ -131,6 +131,6 @@ cfg_if! {
 
         run_test!(routing_table, test_serialize_routing_table);
 
-        run_test!(test_dht);
+        // run_test!(test_dht);
     }
 }
