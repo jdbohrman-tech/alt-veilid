@@ -381,7 +381,7 @@ cfg_if::cfg_if! {
         }
 
     } else {
-        pub fn ensure_file_private_owner<P:AsRef<Path>>(_path: P) -> Result<(), String>
+        pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> Result<(), String>
         {
             let path = path.as_ref();
             if !path.is_file() {

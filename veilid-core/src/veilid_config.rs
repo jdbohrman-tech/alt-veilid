@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use directories::ProjectDirs;
 use crate::*;
+use directories::ProjectDirs;
+use std::path::PathBuf;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 pub type ConfigCallbackReturn = VeilidAPIResult<Box<dyn core::any::Any + Send>>;
@@ -329,6 +329,9 @@ impl Default for VeilidConfigDHT {
             remote_max_records: 128,
             remote_max_subkey_cache_memory_mb: 256,
             remote_max_storage_space_mb: 256,
+            public_watch_limit: 32,
+            member_watch_limit: 8,
+            max_watch_expiration_ms: 600000,
         }
     }
 }
