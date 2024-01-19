@@ -157,27 +157,23 @@ core:
     )
     .replace(
         "%TABLE_STORE_DIRECTORY%",
-        &Settings::get_default_table_store_path().to_string_lossy(),
+        &VeilidConfigTableStore::default().directory,
     )
     .replace(
         "%BLOCK_STORE_DIRECTORY%",
-        &Settings::get_default_block_store_path().to_string_lossy(),
+        &VeilidConfigBlockStore::default().directory,
     )
     .replace(
         "%DIRECTORY%",
-        &Settings::get_default_protected_store_directory().to_string_lossy(),
+        &VeilidConfigProtectedStore::default().directory,
     )
     .replace(
         "%CERTIFICATE_PATH%",
-        &Settings::get_default_certificate_directory()
-            .join("server.crt")
-            .to_string_lossy(),
+        &VeilidConfigTLS::default().certificate_path
     )
     .replace(
         "%PRIVATE_KEY_PATH%",
-        &Settings::get_default_private_key_directory()
-            .join("server.key")
-            .to_string_lossy(),
+        &VeilidConfigTLS::default().private_key_path
     )
     .replace(
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
@@ -529,8 +525,8 @@ pub struct Protocol {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Tls {
-    pub certificate_path: PathBuf,
-    pub private_key_path: PathBuf,
+    pub certificate_path: String,
+    pub private_key_path: String,
     pub connection_initial_timeout_ms: u32,
 }
 
@@ -610,13 +606,13 @@ pub struct Testing {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TableStore {
-    pub directory: PathBuf,
+    pub directory: String,
     pub delete: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BlockStore {
-    pub directory: PathBuf,
+    pub directory: String,
     pub delete: bool,
 }
 
@@ -624,7 +620,7 @@ pub struct BlockStore {
 pub struct ProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
-    pub directory: PathBuf,
+    pub directory: String,
     pub delete: bool,
     pub device_encryption_key_password: String,
     pub new_device_encryption_key_password: Option<String>,
@@ -784,122 +780,16 @@ impl Settings {
     /// `/Users/<user>/Library/Application Support/org.Veilid.Veilid`
     ///
     pub fn get_default_config_path() -> PathBuf {
+        let default_path = PathBuf::from("/etc/veilid-server/veilid-server.conf");
+
         #[cfg(unix)]
-        {
-            let globalpath = PathBuf::from("/etc/veilid-server/veilid-server.conf");
-            if globalpath.exists() {
-                return globalpath;
-            }
+        if default_path.exists() {
+            return default_path;
         }
 
-        let mut cfg_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid")
-        {
-            PathBuf::from(my_proj_dirs.config_dir())
-        } else {
-            PathBuf::from("./")
-        };
-        cfg_path.push("veilid-server.conf");
-
-        cfg_path
-    }
-
-    pub fn get_default_table_store_path() -> PathBuf {
-        #[cfg(unix)]
-        {
-            let globalpath = PathBuf::from("/var/db/veilid-server/table_store");
-            if globalpath.exists() {
-                return globalpath;
-            }
-        }
-
-        let mut ts_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
-            PathBuf::from(my_proj_dirs.data_local_dir())
-        } else {
-            PathBuf::from("./")
-        };
-        ts_path.push("table_store");
-
-        ts_path
-    }
-
-    pub fn get_default_block_store_path() -> PathBuf {
-        #[cfg(unix)]
-        {
-            let globalpath = PathBuf::from("/var/db/veilid-server/block_store");
-            if globalpath.exists() {
-                return globalpath;
-            }
-        }
-
-        let mut bs_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
-            PathBuf::from(my_proj_dirs.data_local_dir())
-        } else {
-            PathBuf::from("./")
-        };
-        bs_path.push("block_store");
-
-        bs_path
-    }
-
-    pub fn get_default_protected_store_directory() -> PathBuf {
-        #[cfg(unix)]
-        {
-            let globalpath = PathBuf::from("/var/db/veilid-server/protected_store");
-            if globalpath.exists() {
-                return globalpath;
-            }
-        }
-
-        let mut ps_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
-            PathBuf::from(my_proj_dirs.data_local_dir())
-        } else {
-            PathBuf::from("./")
-        };
-        ps_path.push("protected_store");
-
-        ps_path
-    }
-
-    pub fn get_default_certificate_directory() -> PathBuf {
-        #[cfg(unix)]
-        {
-            let mut globalpath = PathBuf::from("/etc/veilid-server");
-            if globalpath.exists() {
-                globalpath.push("ssl");
-                globalpath.push("certs");
-                return globalpath;
-            }
-        }
-
-        let mut c_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
-            PathBuf::from(my_proj_dirs.data_local_dir())
-        } else {
-            PathBuf::from("./")
-        };
-        c_path.push("ssl");
-        c_path.push("certs");
-        c_path
-    }
-
-    pub fn get_default_private_key_directory() -> PathBuf {
-        #[cfg(unix)]
-        {
-            let mut globalpath = PathBuf::from("/etc/veilid-server");
-            if globalpath.exists() {
-                globalpath.push("ssl");
-                globalpath.push("keys");
-                return globalpath;
-            }
-        }
-
-        let mut pk_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
-            PathBuf::from(my_proj_dirs.data_local_dir())
-        } else {
-            PathBuf::from("./")
-        };
-        pk_path.push("ssl");
-        pk_path.push("keys");
-        pk_path
+        ProjectDirs::from("org", "Veilid", "Veilid")
+            .map(|dirs| dirs.config_dir().join("veilid-server.conf"))
+            .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
     }
 
     pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {
@@ -918,7 +808,7 @@ impl Settings {
                 .cmp(&a.mount_point().to_string_lossy().len())
         });
         for disk in sys.disks() {
-            if dht_storage_path.starts_with(disk.mount_point()) {
+            if dht_storage_path.starts_with(&*disk.mount_point().to_string_lossy()) {
                 let available_mb = disk.available_space() / 1_000_000u64;
                 if available_mb > 40_000 {
                     // Default to 10GB if more than 40GB is available
@@ -1127,8 +1017,7 @@ impl Settings {
                         .core
                         .protected_store
                         .directory
-                        .to_string_lossy()
-                        .to_string(),
+                        .clone(),
                 )),
                 "protected_store.delete" => Ok(Box::new(inner.core.protected_store.delete)),
                 "protected_store.device_encryption_key_password" => Ok(Box::new(
@@ -1151,8 +1040,7 @@ impl Settings {
                         .core
                         .table_store
                         .directory
-                        .to_string_lossy()
-                        .to_string(),
+                        .clone(),
                 )),
                 "table_store.delete" => Ok(Box::new(inner.core.table_store.delete)),
 
@@ -1161,8 +1049,7 @@ impl Settings {
                         .core
                         .block_store
                         .directory
-                        .to_string_lossy()
-                        .to_string(),
+                        .clone(),
                 )),
                 "block_store.delete" => Ok(Box::new(inner.core.block_store.delete)),
 
@@ -1316,8 +1203,7 @@ impl Settings {
                         .network
                         .tls
                         .certificate_path
-                        .to_string_lossy()
-                        .to_string(),
+                        .clone(),
                 )),
                 "network.tls.private_key_path" => Ok(Box::new(
                     inner
@@ -1325,8 +1211,7 @@ impl Settings {
                         .network
                         .tls
                         .private_key_path
-                        .to_string_lossy()
-                        .to_string(),
+                        .clone(),
                 )),
                 "network.tls.connection_initial_timeout_ms" => Ok(Box::new(
                     inner.core.network.tls.connection_initial_timeout_ms,
@@ -1565,13 +1450,13 @@ mod tests {
 
         assert_eq!(
             s.core.table_store.directory,
-            Settings::get_default_table_store_path()
+            VeilidConfigTableStore::default().directory,
         );
         assert!(!s.core.table_store.delete);
 
         assert_eq!(
             s.core.block_store.directory,
-            Settings::get_default_block_store_path()
+            VeilidConfigBlockStore::default().directory,
         );
         assert!(!s.core.block_store.delete);
 
@@ -1579,7 +1464,7 @@ mod tests {
         assert!(s.core.protected_store.always_use_insecure_storage);
         assert_eq!(
             s.core.protected_store.directory,
-            Settings::get_default_protected_store_directory()
+            VeilidConfigProtectedStore::default().directory
         );
         assert!(!s.core.protected_store.delete);
         assert_eq!(s.core.protected_store.device_encryption_key_password, "");
@@ -1637,11 +1522,11 @@ mod tests {
         //
         assert_eq!(
             s.core.network.tls.certificate_path,
-            Settings::get_default_certificate_directory().join("server.crt")
+            VeilidConfigTLS::default().certificate_path
         );
         assert_eq!(
             s.core.network.tls.private_key_path,
-            Settings::get_default_private_key_directory().join("server.key")
+            VeilidConfigTLS::default().private_key_path
         );
         assert_eq!(s.core.network.tls.connection_initial_timeout_ms, 2_000u32);
         //
