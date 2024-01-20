@@ -806,13 +806,23 @@ impl Settings {
             .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
     }
 
-    #[allow(dead_code)]
+    fn get_or_create_private_directory<P: AsRef<Path>>(path: P, group_read: bool) -> bool {
+        let path = path.as_ref();
+        if !path.is_dir()
+            && (std::fs::create_dir_all(path).is_err()
+                || ensure_directory_private_owner(path, group_read).is_err())
+        {
+            return false;
+        }
+        true
+    }
+
     fn get_or_create_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
-        if PathBuf::from("/var/db/veilid-server").is_dir() {
+        {
             let globalpath = PathBuf::from("/var/db/veilid-server").join(subpath);
-            let _ = std::fs::create_dir_all(&globalpath);
-            if globalpath.is_dir() {
+
+            if Self::get_or_create_private_directory(&globalpath, true) {
                 return globalpath;
             }
         }
@@ -823,9 +833,12 @@ impl Settings {
             PathBuf::from("./")
         };
         ts_path.push(subpath);
-        let _ = std::fs::create_dir_all(&ts_path);
 
-        ts_path
+        if Self::get_or_create_private_directory(&ts_path, true) {
+            return ts_path;
+        }
+
+        panic!("Failed to create private directory for '{}'", subpath);
     }
 
     pub fn get_default_ipc_directory() -> PathBuf {
