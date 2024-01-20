@@ -263,11 +263,12 @@ impl Default for VeilidConfigTLS {
 }
 
 pub fn get_default_ssl_directory(sub_path: &str) -> String {
-    let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
-
     #[cfg(unix)]
-    if default_path.exists() {
-        return default_path.to_string_lossy().into();
+    {
+        let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
+        if default_path.exists() {
+            return default_path.to_string_lossy().into();
+        }
     }
 
     ProjectDirs::from("org", "Veilid", "Veilid")

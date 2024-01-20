@@ -12,11 +12,11 @@ use std::io;
 
 cfg_if! {
     if #[cfg(all(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
     } else if #[cfg(any(feature = "unstable-blockstore", feature="unstable-tunnels"))] {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 5;
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 6;
     } else  {
-        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 4;
+        const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 5;
     }
 }
 pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [

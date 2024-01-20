@@ -11,6 +11,7 @@ cfg_if! {
     }
 }
 
+#[allow(unused_variables)]
 pub fn is_ipc_socket_path<P: AsRef<Path>>(path: P) -> bool {
     cfg_if! {
         if #[cfg(windows)] {

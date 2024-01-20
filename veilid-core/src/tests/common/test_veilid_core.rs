@@ -19,12 +19,12 @@ pub async fn test_startup_shutdown_from_config() {
         table_store: VeilidConfigTableStore {
             directory: get_table_store_path(),
             delete: true,
-            ..Default::default()
+            // ..Default::default()
         },
         block_store: VeilidConfigBlockStore {
             directory: get_block_store_path(),
             delete: true,
-            ..Default::default()
+            //..Default::default()
         },
         protected_store: VeilidConfigProtectedStore {
             allow_insecure_fallback: true,
