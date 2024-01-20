@@ -806,6 +806,28 @@ impl Settings {
             .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
     }
 
+    #[allow(dead_code)]
+    fn get_or_create_default_directory(subpath: &str) -> PathBuf {
+        #[cfg(unix)]
+        if PathBuf::from("/var/db/veilid-server").is_dir() {
+            let globalpath = PathBuf::from("/var/db/veilid-server").join(subpath);
+            let _ = std::fs::create_dir_all(&globalpath);
+            if globalpath.is_dir() {
+                return globalpath;
+            }
+        }
+
+        let mut ts_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
+            PathBuf::from(my_proj_dirs.data_local_dir())
+        } else {
+            PathBuf::from("./")
+        };
+        ts_path.push(subpath);
+        let _ = std::fs::create_dir_all(&ts_path);
+
+        ts_path
+    }
+
     pub fn get_default_ipc_directory() -> PathBuf {
         cfg_if! {
             if #[cfg(windows)] {
