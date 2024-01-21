@@ -7680,7 +7680,7 @@ pub mod node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(2), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_envelope_support(&mut self, value: ::capnp::primitive_list::Reader<'a,u8>) -> ::capnp::Result<()> {
+    pub fn set_envelope_support(&mut self, value: ::capnp::primitive_list::Reader<'_,u8>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
@@ -7696,7 +7696,7 @@ pub mod node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(3), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_crypto_support(&mut self, value: ::capnp::primitive_list::Reader<'a,u32>) -> ::capnp::Result<()> {
+    pub fn set_crypto_support(&mut self, value: ::capnp::primitive_list::Reader<'_,u32>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
     }
     #[inline]
@@ -7712,7 +7712,7 @@ pub mod node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(4), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_capabilities(&mut self, value: ::capnp::primitive_list::Reader<'a,u32>) -> ::capnp::Result<()> {
+    pub fn set_capabilities(&mut self, value: ::capnp::primitive_list::Reader<'_,u32>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(4), value, false)
     }
     #[inline]
@@ -7728,7 +7728,7 @@ pub mod node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(5), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_dial_info_detail_list(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::dial_info_detail::Owned>) -> ::capnp::Result<()> {
+    pub fn set_dial_info_detail_list(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::dial_info_detail::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(5), value, false)
     }
     #[inline]
@@ -8096,7 +8096,7 @@ pub mod signed_direct_node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::typed_signature::Owned>) -> ::capnp::Result<()> {
+    pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_signature::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -8388,7 +8388,7 @@ pub mod signed_relayed_node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_relay_ids(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::typed_key::Owned>) -> ::capnp::Result<()> {
+    pub fn set_relay_ids(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_key::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -8428,7 +8428,7 @@ pub mod signed_relayed_node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(3), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::typed_signature::Owned>) -> ::capnp::Result<()> {
+    pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_signature::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
     }
     #[inline]
@@ -9004,7 +9004,7 @@ pub mod peer_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_node_ids(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::typed_key::Owned>) -> ::capnp::Result<()> {
+    pub fn set_node_ids(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_key::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
@@ -9277,7 +9277,7 @@ pub mod routed_operation {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::signature512::Owned>) -> ::capnp::Result<()> {
+    pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::signature512::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
@@ -10547,7 +10547,7 @@ pub mod operation_find_node_q {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_capabilities(&mut self, value: ::capnp::primitive_list::Reader<'a,u32>) -> ::capnp::Result<()> {
+    pub fn set_capabilities(&mut self, value: ::capnp::primitive_list::Reader<'_,u32>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -10777,7 +10777,7 @@ pub mod operation_find_node_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
+    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
@@ -12994,7 +12994,7 @@ pub mod operation_get_value_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
+    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -13619,7 +13619,7 @@ pub mod operation_set_value_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
+    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -13912,7 +13912,7 @@ pub mod operation_watch_value_q {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_subkeys(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::subkey_range::Owned>) -> ::capnp::Result<()> {
+    pub fn set_subkeys(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::subkey_range::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -14273,7 +14273,7 @@ pub mod operation_watch_value_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
+    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
@@ -14536,7 +14536,7 @@ pub mod operation_value_changed {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_subkeys(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::subkey_range::Owned>) -> ::capnp::Result<()> {
+    pub fn set_subkeys(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::subkey_range::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -15047,7 +15047,7 @@ pub mod operation_supply_block_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
+    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
@@ -15516,7 +15516,7 @@ pub mod operation_find_block_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_suppliers(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
+    pub fn set_suppliers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
@@ -15532,7 +15532,7 @@ pub mod operation_find_block_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(2), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
+    pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
@@ -21292,3 +21292,5 @@ pub mod operation {
     pub type WhichBuilder<'a,> = Which<::capnp::Result<crate::veilid_capnp::question::Builder<'a>>,::capnp::Result<crate::veilid_capnp::statement::Builder<'a>>,::capnp::Result<crate::veilid_capnp::answer::Builder<'a>>>;
   }
 }
+
+//BUILDHASH:ab4fd70d40c9e543f799ce326dd41c61c7ea78132fb53f164156073d9786a9f6

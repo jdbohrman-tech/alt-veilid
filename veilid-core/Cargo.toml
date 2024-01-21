@@ -274,6 +274,8 @@ wasm-logger = "0.2.0"
 capnpc = "0.18.0"
 glob = "0.3.1"
 filetime = "0.2.23"
+sha2 = "0.10.8"
+hex = "0.4.3"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]
