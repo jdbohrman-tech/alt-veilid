@@ -63,8 +63,8 @@ fn get_build_hash<Q: AsRef<Path>>(output_path: Q) -> Option<Vec<u8>> {
     let lines = std::io::BufReader::new(std::fs::File::open(output_path).ok()?).lines();
     for l in lines {
         let l = l.unwrap();
-        if l.starts_with("//BUILDHASH:") {
-            return Some(hex::decode(&l[12..]).unwrap());
+        if let Some(rest) = l.strip_prefix("//BUILDHASH:") {
+            return Some(hex::decode(rest).unwrap());
         }
     }
     None
