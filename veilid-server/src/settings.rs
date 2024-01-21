@@ -794,11 +794,12 @@ impl Settings {
     /// `/Users/<user>/Library/Application Support/org.Veilid.Veilid`
     ///
     pub fn get_default_config_path() -> PathBuf {
-        let default_path = PathBuf::from("/etc/veilid-server/veilid-server.conf");
-
         #[cfg(unix)]
-        if default_path.exists() {
-            return default_path;
+        {
+            let default_path = PathBuf::from("/etc/veilid-server/veilid-server.conf");
+            if default_path.exists() {
+                return default_path;
+            }
         }
 
         ProjectDirs::from("org", "Veilid", "Veilid")
@@ -806,6 +807,7 @@ impl Settings {
             .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
     }
 
+    #[allow(dead_code)]
     fn get_or_create_private_directory<P: AsRef<Path>>(path: P, group_read: bool) -> bool {
         let path = path.as_ref();
         if !path.is_dir()
@@ -817,6 +819,7 @@ impl Settings {
         true
     }
 
+    #[allow(dead_code)]
     fn get_or_create_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {
