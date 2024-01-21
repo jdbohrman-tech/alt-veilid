@@ -25,9 +25,13 @@ pub(super) struct StorageManagerInner {
     /// Storage manager metadata that is persistent, including copy of offline subkey writes
     pub metadata_db: Option<TableDB>,
     /// RPC processor if it is available
-    pub rpc_processor: Option<RPCProcessor>,
+    pub opt_rpc_processor: Option<RPCProcessor>,
+    /// Routing table if it is available
+    pub opt_routing_table: Option<RoutingTable>,
     /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
     pub tick_future: Option<SendPinBoxFuture<()>>,
+    /// Update callback to send ValueChanged notification to
+    pub update_callback: Option<UpdateCallback>,
 }
 
 fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
@@ -39,6 +43,12 @@ fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         max_records: None,
         max_subkey_cache_memory_mb: Some(c.network.dht.local_max_subkey_cache_memory_mb as usize),
         max_storage_space_mb: None,
+        public_watch_limit: c.network.dht.public_watch_limit as usize,
+        member_watch_limit: c.network.dht.member_watch_limit as usize,
+        max_watch_expiration: TimestampDuration::new(ms_to_us(
+            c.network.dht.max_watch_expiration_ms,
+        )),
+        min_watch_expiration: TimestampDuration::new(ms_to_us(c.network.rpc.timeout_ms)),
     }
 }
 
@@ -51,6 +61,12 @@ fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
         max_records: Some(c.network.dht.remote_max_records as usize),
         max_subkey_cache_memory_mb: Some(c.network.dht.remote_max_subkey_cache_memory_mb as usize),
         max_storage_space_mb: Some(c.network.dht.remote_max_storage_space_mb as usize),
+        public_watch_limit: c.network.dht.public_watch_limit as usize,
+        member_watch_limit: c.network.dht.member_watch_limit as usize,
+        max_watch_expiration: TimestampDuration::new(ms_to_us(
+            c.network.dht.max_watch_expiration_ms,
+        )),
+        min_watch_expiration: TimestampDuration::new(ms_to_us(c.network.rpc.timeout_ms)),
     }
 }
 
@@ -64,12 +80,18 @@ impl StorageManagerInner {
             remote_record_store: Default::default(),
             offline_subkey_writes: Default::default(),
             metadata_db: Default::default(),
-            rpc_processor: Default::default(),
+            opt_rpc_processor: Default::default(),
+            opt_routing_table: Default::default(),
             tick_future: Default::default(),
+            update_callback: None,
         }
     }
 
-    pub async fn init(&mut self, outer_self: StorageManager) -> EyreResult<()> {
+    pub async fn init(
+        &mut self,
+        outer_self: StorageManager,
+        update_callback: UpdateCallback,
+    ) -> EyreResult<()> {
         let metadata_db = self
             .unlocked_inner
             .table_store
@@ -109,13 +131,15 @@ impl StorageManagerInner {
             }
         });
         self.tick_future = Some(tick_future);
-
+        self.update_callback = Some(update_callback);
         self.initialized = true;
 
         Ok(())
     }
 
     pub async fn terminate(&mut self) {
+        self.update_callback = None;
+
         // Stop ticker
         let tick_future = self.tick_future.take();
         if let Some(f) = tick_future {
@@ -124,12 +148,12 @@ impl StorageManagerInner {
 
         // Final flush on record stores
         if let Some(mut local_record_store) = self.local_record_store.take() {
-            if let Err(e) = local_record_store.tick().await {
+            if let Err(e) = local_record_store.flush().await {
                 log_stor!(error "termination local record store tick failed: {}", e);
             }
         }
         if let Some(mut remote_record_store) = self.remote_record_store.take() {
-            if let Err(e) = remote_record_store.tick().await {
+            if let Err(e) = remote_record_store.flush().await {
                 log_stor!(error "termination remote record store tick failed: {}", e);
             }
         }
@@ -195,16 +219,19 @@ impl StorageManagerInner {
         let owner = vcrypto.generate_keypair();
 
         // Make a signed value descriptor for this dht value
-        let signed_value_descriptor = SignedValueDescriptor::make_signature(
+        let signed_value_descriptor = Arc::new(SignedValueDescriptor::make_signature(
             owner.key,
             schema_data,
             vcrypto.clone(),
             owner.secret,
-        )?;
+        )?);
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
-        let local_record_detail = LocalRecordDetail { safety_selection };
+        let local_record_detail = LocalRecordDetail {
+            safety_selection,
+            value_nodes: vec![],
+        };
         let record =
             Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
 
@@ -243,7 +270,10 @@ impl StorageManagerInner {
         let local_record = Record::new(
             cur_ts,
             remote_record.descriptor().clone(),
-            LocalRecordDetail { safety_selection },
+            LocalRecordDetail {
+                safety_selection,
+                value_nodes: vec![],
+            },
         )?;
         local_record_store.new_record(key, local_record).await?;
 
@@ -261,7 +291,7 @@ impl StorageManagerInner {
                 continue;
             };
             local_record_store
-                .set_subkey(key, subkey, subkey_data)
+                .set_subkey(key, subkey, subkey_data, WatchUpdateMode::NoUpdate)
                 .await?;
         }
 
@@ -379,7 +409,10 @@ impl StorageManagerInner {
         let record = Record::<LocalRecordDetail>::new(
             get_aligned_timestamp(),
             signed_value_descriptor,
-            LocalRecordDetail { safety_selection },
+            LocalRecordDetail {
+                safety_selection,
+                value_nodes: vec![],
+            },
         )?;
         local_record_store.new_record(key, record).await?;
 
@@ -387,7 +420,7 @@ impl StorageManagerInner {
         if let Some(signed_value_data) = subkey_result.value {
             // Write subkey to local store
             local_record_store
-                .set_subkey(key, subkey, signed_value_data)
+                .set_subkey(key, subkey, signed_value_data, WatchUpdateMode::NoUpdate)
                 .await?;
         }
 
@@ -400,14 +433,65 @@ impl StorageManagerInner {
         Ok(descriptor)
     }
 
-    pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<()> {
-        let Some(_opened_record) = self.opened_records.remove(&key) else {
-            apibail_generic!("record not open");
+    pub fn get_value_nodes(&self, key: TypedKey) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
+        // Get local record store
+        let Some(local_record_store) = self.local_record_store.as_ref() else {
+            apibail_not_initialized!();
         };
+
+        // Get routing table to see if we still know about these nodes
+        let Some(routing_table) = self.opt_rpc_processor.as_ref().map(|r| r.routing_table()) else {
+            apibail_try_again!("offline, try again later");
+        };
+
+        let opt_value_nodes = local_record_store.peek_record(key, |r| {
+            let d = r.detail();
+            d.value_nodes
+                .iter()
+                .copied()
+                .filter_map(|x| {
+                    routing_table
+                        .lookup_node_ref(TypedKey::new(key.kind, x))
+                        .ok()
+                        .flatten()
+                })
+                .collect()
+        });
+
+        Ok(opt_value_nodes)
+    }
+
+    pub fn set_value_nodes(
+        &mut self,
+        key: TypedKey,
+        value_nodes: Vec<NodeRef>,
+    ) -> VeilidAPIResult<()> {
+        // Get local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        local_record_store.with_record_mut(key, |r| {
+            let d = r.detail_mut();
+            d.value_nodes = value_nodes
+                .into_iter()
+                .filter_map(|x| x.node_ids().get(key.kind).map(|k| k.value))
+                .collect();
+        });
         Ok(())
     }
 
-    pub async fn handle_get_local_value(
+    pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<Option<OpenedRecord>> {
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        if local_record_store.peek_record(key, |_| {}).is_none() {
+            return Err(VeilidAPIError::key_not_found(key));
+        }
+
+        Ok(self.opened_records.remove(&key))
+    }
+
+    pub(super) async fn handle_get_local_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -430,11 +514,12 @@ impl StorageManagerInner {
         })
     }
 
-    pub async fn handle_set_local_value(
+    pub(super) async fn handle_set_local_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        signed_value_data: SignedValueData,
+        signed_value_data: Arc<SignedValueData>,
+        watch_update_mode: WatchUpdateMode,
     ) -> VeilidAPIResult<()> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
@@ -443,13 +528,31 @@ impl StorageManagerInner {
 
         // Write subkey to local store
         local_record_store
-            .set_subkey(key, subkey, signed_value_data)
+            .set_subkey(key, subkey, signed_value_data, watch_update_mode)
             .await?;
 
         Ok(())
     }
 
-    pub async fn handle_get_remote_value(
+    pub(super) async fn handle_watch_local_value(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        expiration: Timestamp,
+        count: u32,
+        target: Target,
+        watcher: CryptoKey,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+        // See if it's in the local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        local_record_store
+            .watch_record(key, subkeys, expiration, count, target, watcher)
+            .await
+    }
+
+    pub(super) async fn handle_get_remote_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -472,12 +575,13 @@ impl StorageManagerInner {
         })
     }
 
-    pub async fn handle_set_remote_value(
+    pub(super) async fn handle_set_remote_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        signed_value_data: SignedValueData,
-        signed_value_descriptor: SignedValueDescriptor,
+        signed_value_data: Arc<SignedValueData>,
+        signed_value_descriptor: Arc<SignedValueDescriptor>,
+        watch_update_mode: WatchUpdateMode,
     ) -> VeilidAPIResult<()> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
@@ -499,10 +603,28 @@ impl StorageManagerInner {
 
         // Write subkey to remote store
         remote_record_store
-            .set_subkey(key, subkey, signed_value_data)
+            .set_subkey(key, subkey, signed_value_data, watch_update_mode)
             .await?;
 
         Ok(())
+    }
+
+    pub(super) async fn handle_watch_remote_value(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        expiration: Timestamp,
+        count: u32,
+        target: Target,
+        watcher: CryptoKey,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+        // See if it's in the remote record store
+        let Some(remote_record_store) = self.remote_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        remote_record_store
+            .watch_record(key, subkeys, expiration, count, target, watcher)
+            .await
     }
 
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
@@ -510,7 +632,8 @@ impl StorageManagerInner {
     where
         D: fmt::Debug + Clone + Serialize,
     {
-        let compiled = record.descriptor().schema_data();
+        let descriptor = record.descriptor();
+        let compiled = descriptor.schema_data();
         let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());
         hash_data.extend_from_slice(&vcrypto.kind().0);
         hash_data.extend_from_slice(&record.owner().bytes);

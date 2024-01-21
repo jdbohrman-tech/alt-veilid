@@ -35,9 +35,9 @@ impl RPCProcessor {
     ) ->RPCNetworkResult<Answer<GetValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
-        let Some(target) = dest.target() else {
+        let Some(target) = dest.node() else {
             return Err(RPCError::internal(
-                "Never send set value requests over private routes",
+                "Never send get value requests over private routes",
             ));
         };
 
@@ -81,6 +81,9 @@ impl RPCProcessor {
             self.question(dest.clone(), question, Some(question_context))
                 .await?
         );
+
+        // Keep the reply private route that was used to return with the answer
+        let reply_private_route = waitable_reply.reply_private_route;
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
@@ -156,6 +159,7 @@ impl RPCProcessor {
 
         Ok(NetworkResult::value(Answer::new(
             latency,
+            reply_private_route,
             GetValueAnswer {
                 value,
                 peers,
@@ -207,7 +211,7 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]));
+        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT, CAP_DHT_WATCH]));
 
         #[cfg(feature="debug-dht")]
         {   
@@ -226,16 +230,29 @@ impl RPCProcessor {
             log_rpc!(debug "{}", debug_string);
         }
 
-        // See if we have this record ourselves
-        let storage_manager = self.storage_manager();
-        let subkey_result = network_result_try!(storage_manager
-            .inbound_get_value(key, subkey, want_descriptor)
-            .await
-            .map_err(RPCError::internal)?);
-        
+        // See if we would have accepted this as a set
+        let set_value_count = {
+            let c = self.config.get();
+            c.network.dht.set_value_count as usize
+        };
+        let (subkey_result_value, subkey_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
+            // Not close enough
+            (None, None)
+        } else {
+            // Close enough, lets get it
+
+            // See if we have this record ourselves
+            let storage_manager = self.storage_manager();
+            let subkey_result = network_result_try!(storage_manager
+                .inbound_get_value(key, subkey, want_descriptor)
+                .await
+                .map_err(RPCError::internal)?);
+            (subkey_result.value, subkey_result.descriptor)
+        };
+
         #[cfg(feature="debug-dht")]
         {
-            let debug_string_value = subkey_result.value.as_ref().map(|v| {
+            let debug_string_value = subkey_result_value.as_ref().map(|v| {
                 format!(" len={} seq={} writer={}",
                     v.value_data().data().len(),
                     v.value_data().seq(),
@@ -248,7 +265,7 @@ impl RPCProcessor {
                 key,
                 subkey,
                 debug_string_value,
-                if subkey_result.descriptor.is_some() {
+                if subkey_result_descriptor.is_some() {
                     " +desc"
                 } else {
                     ""
@@ -262,9 +279,9 @@ impl RPCProcessor {
             
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(
-            subkey_result.value,
+            subkey_result_value.map(|x| (*x).clone()),
             closer_to_key_peers,
-            subkey_result.descriptor,
+            subkey_result_descriptor.map(|x| (*x).clone()),
         )?;
 
         // Send GetValue answer

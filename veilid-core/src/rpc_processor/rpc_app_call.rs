@@ -23,6 +23,9 @@ impl RPCProcessor {
         // Send the app call question
         let waitable_reply = network_result_try!(self.question(dest, question, None).await?);
 
+        // Keep the reply private route that was used to return with the answer
+        let reply_private_route = waitable_reply.reply_private_route;
+
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
@@ -45,7 +48,11 @@ impl RPCProcessor {
         tracing::Span::current().record("ret.latency", latency.as_u64());
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.len", a_message.len());
-        Ok(NetworkResult::value(Answer::new(latency, a_message)))
+        Ok(NetworkResult::value(Answer::new(
+            latency,
+            reply_private_route,
+            a_message,
+        )))
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]

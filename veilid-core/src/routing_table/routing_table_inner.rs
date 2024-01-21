@@ -962,7 +962,10 @@ impl RoutingTableInner {
             None => has_valid_own_node_info,
             Some(entry) => entry.with_inner(|e| {
                 e.signed_node_info(routing_domain)
-                    .map(|sni| sni.has_any_signature())
+                    .map(|sni| {
+                        sni.has_any_signature()
+                            && !matches!(sni.node_info().network_class(), NetworkClass::Invalid)
+                    })
                     .unwrap_or(false)
             }),
         }

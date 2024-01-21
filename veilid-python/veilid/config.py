@@ -110,7 +110,9 @@ class VeilidConfigDHT(ConfigBase):
     remote_max_records: int
     remote_max_subkey_cache_memory_mb: int
     remote_max_storage_space_mb: int
-
+    public_watch_limit: int
+    member_watch_limit: int
+    max_watch_expiration_ms: int
 
 @dataclass
 class VeilidConfigTLS(ConfigBase):

@@ -11,10 +11,10 @@ impl StorageManager {
     ) -> EyreResult<()> {
         let mut inner = self.inner.lock().await;
         if let Some(local_record_store) = &mut inner.local_record_store {
-            local_record_store.tick().await?;
+            local_record_store.flush().await?;
         }
         if let Some(remote_record_store) = &mut inner.remote_record_store {
-            remote_record_store.tick().await?;
+            remote_record_store.flush().await?;
         }
         Ok(())
     }

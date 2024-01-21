@@ -93,6 +93,16 @@ impl DHTSchemaSMPL {
         // Subkey out of range
         false
     }
+
+    /// Check if a key is a schema member
+    pub fn is_member(&self, key: &PublicKey) -> bool {
+        for m in &self.members {
+            if m.m_key == *key {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl TryFrom<&[u8]> for DHTSchemaSMPL {

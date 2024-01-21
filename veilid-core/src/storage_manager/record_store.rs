@@ -13,16 +13,40 @@ struct DeadRecord<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
-    // The key used in the record_index
+    /// The key used in the record_index
     key: RecordTableKey,
-    // The actual record
+    /// The actual record
     record: Record<D>,
-    // True if this record is accounted for in the total storage
-    // and needs to have the statistics updated or not when purged
+    /// True if this record is accounted for in the total storage
+    /// and needs to have the statistics updated or not when purged
     in_total_storage: bool,
 }
 
-pub struct RecordStore<D>
+/// An individual watch
+#[derive(Debug, Clone)]
+struct WatchedRecordWatch {
+    subkeys: ValueSubkeyRangeSet,
+    expiration: Timestamp,
+    count: u32,
+    target: Target,
+    watcher: CryptoKey,
+    changed: ValueSubkeyRangeSet,
+}
+
+#[derive(Debug, Default, Clone)]
+/// A record being watched for changes
+struct WatchedRecord {
+    /// The list of active watchers
+    watchers: Vec<WatchedRecordWatch>,
+}
+
+pub(super) enum WatchUpdateMode {
+    NoUpdate,
+    UpdateAll,
+    ExcludeTarget(Target),
+}
+
+pub(super) struct RecordStore<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
@@ -46,6 +70,10 @@ where
     dead_records: Vec<DeadRecord<D>>,
     /// The list of records that have changed since last flush to disk (optimization for batched writes)
     changed_records: HashSet<RecordTableKey>,
+    /// The list of records being watched for changes
+    watched_records: HashMap<RecordTableKey, WatchedRecord>,
+    /// The list of watched records that have changed values since last notification
+    changed_watched_values: HashSet<RecordTableKey>,
 
     /// A mutex to ensure we handle this concurrently
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
@@ -55,9 +83,9 @@ where
 #[derive(Default, Debug)]
 pub struct SubkeyResult {
     /// The subkey value if we got one
-    pub value: Option<SignedValueData>,
+    pub value: Option<Arc<SignedValueData>>,
     /// The descriptor if we got a fresh one or empty if no descriptor was needed
-    pub descriptor: Option<SignedValueDescriptor>,
+    pub descriptor: Option<Arc<SignedValueDescriptor>>,
 }
 
 impl<D> RecordStore<D>
@@ -93,7 +121,9 @@ where
             ),
             dead_records: Vec::new(),
             changed_records: HashSet::new(),
+            watched_records: HashMap::new(),
             purge_dead_records_mutex: Arc::new(AsyncMutex::new(())),
+            changed_watched_values: HashSet::new(),
         }
     }
 
@@ -172,10 +202,6 @@ where
             record,
             in_total_storage: true,
         });
-    }
-
-    fn mark_record_changed(&mut self, key: RecordTableKey) {
-        self.changed_records.insert(key);
     }
 
     fn add_to_subkey_cache(&mut self, key: SubkeyTableKey, record_data: RecordData) {
@@ -292,7 +318,6 @@ where
     }
 
     async fn flush_changed_records(&mut self) {
-        // touch records
         if self.changed_records.is_empty() {
             return;
         }
@@ -314,7 +339,7 @@ where
         }
     }
 
-    pub async fn tick(&mut self) -> EyreResult<()> {
+    pub async fn flush(&mut self) -> EyreResult<()> {
         self.flush_changed_records().await;
         self.purge_dead_records(true).await;
         Ok(())
@@ -396,7 +421,9 @@ where
             record.touch(get_aligned_timestamp());
         }
         if out.is_some() {
-            self.mark_record_changed(rtk);
+            // Marks as changed because the record was touched and we want to keep the
+            // LRU ordering serialized
+            self.changed_records.insert(rtk);
         }
 
         out
@@ -431,15 +458,13 @@ where
             record.touch(get_aligned_timestamp());
         }
         if out.is_some() {
-            self.mark_record_changed(rtk);
+            // Marks as changed because the record was touched and we want to keep the
+            // LRU ordering serialized
+            self.changed_records.insert(rtk);
         }
 
         out
     }
-
-    // pub fn get_descriptor(&mut self, key: TypedKey) -> Option<SignedValueDescriptor> {
-    //     self.with_record(key, |record| record.descriptor().clone())
-    // }
 
     pub async fn get_subkey(
         &mut self,
@@ -580,11 +605,40 @@ where
         }))
     }
 
+    async fn update_watched_value(
+        &mut self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        opt_ignore_target: Option<Target>,
+    ) {
+        let rtk = RecordTableKey { key };
+        let Some(wr) = self.watched_records.get_mut(&rtk) else {
+            return;
+        };
+        // Update all watchers
+        let mut changed = false;
+        for w in &mut wr.watchers {
+            // If this watcher is watching the changed subkey then add to the watcher's changed list
+            // Don't bother marking changes for value sets coming from the same watching node/target because they
+            // are already going to be aware of the changes in that case
+            if Some(&w.target) != opt_ignore_target.as_ref()
+                && w.subkeys.contains(subkey)
+                && w.changed.insert(subkey)
+            {
+                changed = true;
+            }
+        }
+        if changed {
+            self.changed_watched_values.insert(rtk);
+        }
+    }
+
     pub async fn set_subkey(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        signed_value_data: SignedValueData,
+        signed_value_data: Arc<SignedValueData>,
+        watch_update_mode: WatchUpdateMode,
     ) -> VeilidAPIResult<()> {
         // Check size limit for data
         if signed_value_data.value_data().data().len() > self.limits.max_subkey_size {
@@ -672,7 +726,239 @@ where
         // Update storage space
         self.total_storage_space.commit().unwrap();
 
+        // Update watched value
+
+        let (do_update, opt_ignore_target) = match watch_update_mode {
+            WatchUpdateMode::NoUpdate => (false, None),
+            WatchUpdateMode::UpdateAll => (true, None),
+            WatchUpdateMode::ExcludeTarget(target) => (true, Some(target)),
+        };
+        if do_update {
+            self.update_watched_value(key, subkey, opt_ignore_target)
+                .await;
+        }
+
         Ok(())
+    }
+
+    /// Add a record watch for changes
+    pub async fn watch_record(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        mut expiration: Timestamp,
+        count: u32,
+        target: Target,
+        watcher: CryptoKey,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+        // If subkeys is empty or count is zero then we're cancelling a watch completely
+        if subkeys.is_empty() || count == 0 {
+            return self.cancel_watch(key, target, watcher).await;
+        }
+
+        // See if expiration timestamp is too far in the future or not enough in the future
+        let cur_ts = get_timestamp();
+        let max_ts = cur_ts + self.limits.max_watch_expiration.as_u64();
+        let min_ts = cur_ts + self.limits.min_watch_expiration.as_u64();
+
+        if expiration.as_u64() == 0 || expiration.as_u64() > max_ts {
+            // Clamp expiration max time (or set zero expiration to max)
+            expiration = Timestamp::new(max_ts);
+        } else if expiration.as_u64() < min_ts {
+            // Don't add watches with too low of an expiration time
+            return Ok(None);
+        }
+
+        // Get the record being watched
+        let Some(is_member) = self.with_record(key, |record| {
+            // Check if the watcher specified is a schema member
+            let schema = record.schema();
+            (*record.owner()) == watcher || schema.is_member(&watcher)
+        }) else {
+            // Record not found
+            return Ok(None);
+        };
+
+        // See if we are updating an existing watch
+        // with the watcher matched on target
+        let mut watch_count = 0;
+        let rtk = RecordTableKey { key };
+        if let Some(watch) = self.watched_records.get_mut(&rtk) {
+            for w in &mut watch.watchers {
+                if w.watcher == watcher {
+                    watch_count += 1;
+
+                    // Only one watch for an anonymous watcher
+                    // Allow members to have one watch per target
+                    if !is_member || w.target == target {
+                        // Updating an existing watch
+                        w.subkeys = subkeys;
+                        w.expiration = expiration;
+                        w.count = count;
+                        return Ok(Some(expiration));
+                    }
+                }
+            }
+        }
+
+        // Adding a new watcher to a watch
+        // Check watch table for limits
+        if is_member {
+            // Member watch
+            if watch_count >= self.limits.member_watch_limit {
+                // Too many watches
+                return Ok(None);
+            }
+        } else {
+            // Public watch
+            if watch_count >= self.limits.public_watch_limit {
+                // Too many watches
+                return Ok(None);
+            }
+        }
+
+        // Ok this is an acceptable new watch, add it
+        let watch = self.watched_records.entry(rtk).or_default();
+        watch.watchers.push(WatchedRecordWatch {
+            subkeys,
+            expiration,
+            count,
+            target,
+            watcher,
+            changed: ValueSubkeyRangeSet::new(),
+        });
+        Ok(Some(expiration))
+    }
+
+    /// Add a record watch for changes
+    async fn cancel_watch(
+        &mut self,
+        key: TypedKey,
+        target: Target,
+        watcher: CryptoKey,
+    ) -> VeilidAPIResult<Option<Timestamp>> {
+        // Get the record being watched
+        let Some(is_member) = self.with_record(key, |record| {
+            // Check if the watcher specified is a schema member
+            let schema = record.schema();
+            (*record.owner()) == watcher || schema.is_member(&watcher)
+        }) else {
+            // Record not found
+            return Ok(None);
+        };
+
+        // See if we are cancelling an existing watch
+        // with the watcher matched on target
+        let rtk = RecordTableKey { key };
+        let mut is_empty = false;
+        let mut ret_timestamp = None;
+        if let Some(watch) = self.watched_records.get_mut(&rtk) {
+            let mut dead_watcher = None;
+            for (wn, w) in watch.watchers.iter_mut().enumerate() {
+                if w.watcher == watcher {
+                    // Only one watch for an anonymous watcher
+                    // Allow members to have one watch per target
+                    if !is_member || w.target == target {
+                        // Canceling an existing watch
+                        dead_watcher = Some(wn);
+                        ret_timestamp = Some(w.expiration);
+                        break;
+                    }
+                }
+            }
+            if let Some(dw) = dead_watcher {
+                watch.watchers.remove(dw);
+                if watch.watchers.is_empty() {
+                    is_empty = true;
+                }
+            }
+        }
+        if is_empty {
+            self.watched_records.remove(&rtk);
+        }
+
+        Ok(ret_timestamp)
+    }
+
+    pub async fn take_value_changes(&mut self, changes: &mut Vec<ValueChangedInfo>) {
+        // ValueChangedInfo but without the subkey data that requires a double mutable borrow to get
+        struct EarlyValueChangedInfo {
+            target: Target,
+            key: TypedKey,
+            subkeys: ValueSubkeyRangeSet,
+            count: u32,
+        }
+
+        let mut evcis = vec![];
+        let mut empty_watched_records = vec![];
+        for rtk in self.changed_watched_values.drain() {
+            if let Some(watch) = self.watched_records.get_mut(&rtk) {
+                // Process watch notifications
+                let mut dead_watchers = vec![];
+                for (wn, w) in watch.watchers.iter_mut().enumerate() {
+                    // Get the subkeys that have changed
+                    let subkeys = w.changed.clone();
+                    w.changed.clear();
+
+                    // Reduce the count of changes sent
+                    // if count goes to zero mark this watcher dead
+                    w.count -= 1;
+                    let count = w.count;
+                    if count == 0 {
+                        dead_watchers.push(wn);
+                    }
+
+                    evcis.push(EarlyValueChangedInfo {
+                        target: w.target.clone(),
+                        key: rtk.key,
+                        subkeys,
+                        count,
+                    });
+                }
+
+                // Remove in reverse so we don't have to offset the index to remove the right key
+                for dw in dead_watchers.iter().rev().copied() {
+                    watch.watchers.remove(dw);
+                    if watch.watchers.is_empty() {
+                        empty_watched_records.push(rtk);
+                    }
+                }
+            }
+        }
+        for ewr in empty_watched_records {
+            self.watched_records.remove(&ewr);
+        }
+
+        for evci in evcis {
+            // Get the first subkey data
+            let Some(first_subkey) = evci.subkeys.first() else {
+                log_stor!(error "first subkey should exist for value change notification");
+                continue;
+            };
+            let subkey_result = match self.get_subkey(evci.key, first_subkey, false).await {
+                Ok(Some(skr)) => skr,
+                Ok(None) => {
+                    log_stor!(error "subkey should have data for value change notification");
+                    continue;
+                }
+                Err(e) => {
+                    log_stor!(error "error getting subkey data for value change notification: {}", e);
+                    continue;
+                }
+            };
+            let Some(value) = subkey_result.value else {
+                log_stor!(error "first subkey should have had value for value change notification");
+                continue;
+            };
+
+            changes.push(ValueChangedInfo {
+                target: evci.target,
+                key: evci.key,
+                subkeys: evci.subkeys,
+                count: evci.count,
+                value,
+            });
+        }
     }
 
     /// LRU out some records until we reclaim the amount of space requested
@@ -694,7 +980,7 @@ where
         reclaimed
     }
 
-    pub(super) fn debug_records(&self) -> String {
+    pub fn debug_records(&self) -> String {
         // Dump fields in an abbreviated way
         let mut out = String::new();
 
@@ -726,16 +1012,12 @@ where
         out
     }
 
-    pub(super) fn debug_record_info(&self, key: TypedKey) -> String {
+    pub fn debug_record_info(&self, key: TypedKey) -> String {
         self.peek_record(key, |r| format!("{:#?}", r))
             .unwrap_or("Not found".to_owned())
     }
 
-    pub(super) async fn debug_record_subkey_info(
-        &self,
-        key: TypedKey,
-        subkey: ValueSubkey,
-    ) -> String {
+    pub async fn debug_record_subkey_info(&self, key: TypedKey, subkey: ValueSubkey) -> String {
         match self.peek_subkey(key, subkey, true).await {
             Ok(Some(v)) => {
                 format!("{:#?}", v)

@@ -18,7 +18,9 @@ pub fn load_default_config() -> EyreResult<config::Config> {
 daemon:
     enabled: false
 client_api:
-    enabled: true
+    ipc_enabled: true
+    ipc_directory: '%IPC_DIRECTORY%'
+    network_enabled: false
     listen_address: 'localhost:5959'
 auto_attach: true
 logging:
@@ -109,6 +111,9 @@ core:
             remote_max_records: 65536
             remote_max_subkey_cache_memory_mb: %REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%
             remote_max_storage_space_mb: 0
+            public_watch_limit: 32
+            member_watch_limit: 8
+            max_watch_expiration_ms: 600000
         upnp: true
         detect_address_changes: true
         restricted_nat_retries: 0
@@ -156,6 +161,10 @@ core:
         "#,
     )
     .replace(
+        "%IPC_DIRECTORY%",
+        &Settings::get_default_ipc_directory().to_string_lossy(),
+    )
+    .replace(
         "%TABLE_STORE_DIRECTORY%",
         &VeilidConfigTableStore::default().directory,
     )
@@ -169,11 +178,11 @@ core:
     )
     .replace(
         "%CERTIFICATE_PATH%",
-        &VeilidConfigTLS::default().certificate_path
+        &VeilidConfigTLS::default().certificate_path,
     )
     .replace(
         "%PRIVATE_KEY_PATH%",
-        &VeilidConfigTLS::default().private_key_path
+        &VeilidConfigTLS::default().private_key_path,
     )
     .replace(
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
@@ -381,7 +390,7 @@ impl serde::Serialize for NamedSocketAddrs {
 }
 
 impl NamedSocketAddrs {
-    pub fn offset_port(&mut self, offset: u16) -> EyreResult<()> {
+    pub fn offset_port(&mut self, offset: u16) -> EyreResult<bool> {
         // Bump port on name
         if let Some(split) = self.name.rfind(':') {
             let hoststr = &self.name[0..split];
@@ -390,7 +399,7 @@ impl NamedSocketAddrs {
 
             self.name = format!("{}:{}", hoststr, port);
         } else {
-            bail!("no port specified to offset");
+            return Ok(false);
         }
 
         // Bump port on addresses
@@ -398,7 +407,7 @@ impl NamedSocketAddrs {
             addr.set_port(addr.port() + offset);
         }
 
-        Ok(())
+        Ok(true)
     }
 }
 
@@ -442,7 +451,9 @@ pub struct Otlp {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ClientApi {
-    pub enabled: bool,
+    pub ipc_enabled: bool,
+    pub ipc_directory: PathBuf,
+    pub network_enabled: bool,
     pub listen_address: NamedSocketAddrs,
 }
 
@@ -562,6 +573,9 @@ pub struct Dht {
     pub remote_max_records: u32,
     pub remote_max_subkey_cache_memory_mb: u32,
     pub remote_max_storage_space_mb: u32,
+    pub public_watch_limit: u32,
+    pub member_watch_limit: u32,
+    pub max_watch_expiration_ms: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -780,16 +794,64 @@ impl Settings {
     /// `/Users/<user>/Library/Application Support/org.Veilid.Veilid`
     ///
     pub fn get_default_config_path() -> PathBuf {
-        let default_path = PathBuf::from("/etc/veilid-server/veilid-server.conf");
-
         #[cfg(unix)]
-        if default_path.exists() {
-            return default_path;
+        {
+            let default_path = PathBuf::from("/etc/veilid-server/veilid-server.conf");
+            if default_path.exists() {
+                return default_path;
+            }
         }
 
         ProjectDirs::from("org", "Veilid", "Veilid")
             .map(|dirs| dirs.config_dir().join("veilid-server.conf"))
             .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
+    }
+
+    #[allow(dead_code)]
+    fn get_or_create_private_directory<P: AsRef<Path>>(path: P, group_read: bool) -> bool {
+        let path = path.as_ref();
+        if !path.is_dir()
+            && (std::fs::create_dir_all(path).is_err()
+                || ensure_directory_private_owner(path, group_read).is_err())
+        {
+            return false;
+        }
+        true
+    }
+
+    #[allow(dead_code)]
+    fn get_or_create_default_directory(subpath: &str) -> PathBuf {
+        #[cfg(unix)]
+        {
+            let globalpath = PathBuf::from("/var/db/veilid-server").join(subpath);
+
+            if Self::get_or_create_private_directory(&globalpath, true) {
+                return globalpath;
+            }
+        }
+
+        let mut ts_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
+            PathBuf::from(my_proj_dirs.data_local_dir())
+        } else {
+            PathBuf::from("./")
+        };
+        ts_path.push(subpath);
+
+        if Self::get_or_create_private_directory(&ts_path, true) {
+            return ts_path;
+        }
+
+        panic!("Failed to create private directory for '{}'", subpath);
+    }
+
+    pub fn get_default_ipc_directory() -> PathBuf {
+        cfg_if! {
+            if #[cfg(windows)] {
+                PathBuf::from(r"\\.\PIPE\veilid-server")
+            } else {
+                Self::get_or_create_default_directory("ipc")
+            }
+        }
     }
 
     pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {
@@ -848,7 +910,9 @@ impl Settings {
         }
 
         set_config_value!(inner.daemon.enabled, value);
-        set_config_value!(inner.client_api.enabled, value);
+        set_config_value!(inner.client_api.ipc_enabled, value);
+        set_config_value!(inner.client_api.ipc_directory, value);
+        set_config_value!(inner.client_api.network_enabled, value);
         set_config_value!(inner.client_api.listen_address, value);
         set_config_value!(inner.auto_attach, value);
         set_config_value!(inner.logging.system.enabled, value);
@@ -948,6 +1012,9 @@ impl Settings {
             value
         );
         set_config_value!(inner.core.network.dht.remote_max_storage_space_mb, value);
+        set_config_value!(inner.core.network.dht.public_watch_limit, value);
+        set_config_value!(inner.core.network.dht.member_watch_limit, value);
+        set_config_value!(inner.core.network.dht.max_watch_expiration_ms, value);
         set_config_value!(inner.core.network.upnp, value);
         set_config_value!(inner.core.network.detect_address_changes, value);
         set_config_value!(inner.core.network.restricted_nat_retries, value);
@@ -1012,13 +1079,9 @@ impl Settings {
                 "protected_store.always_use_insecure_storage" => Ok(Box::new(
                     inner.core.protected_store.always_use_insecure_storage,
                 )),
-                "protected_store.directory" => Ok(Box::new(
-                    inner
-                        .core
-                        .protected_store
-                        .directory
-                        .clone(),
-                )),
+                "protected_store.directory" => {
+                    Ok(Box::new(inner.core.protected_store.directory.clone()))
+                }
                 "protected_store.delete" => Ok(Box::new(inner.core.protected_store.delete)),
                 "protected_store.device_encryption_key_password" => Ok(Box::new(
                     inner
@@ -1035,22 +1098,10 @@ impl Settings {
                         .clone(),
                 )),
 
-                "table_store.directory" => Ok(Box::new(
-                    inner
-                        .core
-                        .table_store
-                        .directory
-                        .clone(),
-                )),
+                "table_store.directory" => Ok(Box::new(inner.core.table_store.directory.clone())),
                 "table_store.delete" => Ok(Box::new(inner.core.table_store.delete)),
 
-                "block_store.directory" => Ok(Box::new(
-                    inner
-                        .core
-                        .block_store
-                        .directory
-                        .clone(),
-                )),
+                "block_store.directory" => Ok(Box::new(inner.core.block_store.directory.clone())),
                 "block_store.delete" => Ok(Box::new(inner.core.block_store.delete)),
 
                 "network.connection_initial_timeout_ms" => {
@@ -1189,7 +1240,15 @@ impl Settings {
                 "network.dht.remote_max_storage_space_mb" => {
                     Ok(Box::new(inner.core.network.dht.remote_max_storage_space_mb))
                 }
-
+                "network.dht.public_watch_limit" => {
+                    Ok(Box::new(inner.core.network.dht.public_watch_limit))
+                }
+                "network.dht.member_watch_limit" => {
+                    Ok(Box::new(inner.core.network.dht.member_watch_limit))
+                }
+                "network.dht.max_watch_expiration_ms" => {
+                    Ok(Box::new(inner.core.network.dht.max_watch_expiration_ms))
+                }
                 "network.upnp" => Ok(Box::new(inner.core.network.upnp)),
                 "network.detect_address_changes" => {
                     Ok(Box::new(inner.core.network.detect_address_changes))
@@ -1197,22 +1256,12 @@ impl Settings {
                 "network.restricted_nat_retries" => {
                     Ok(Box::new(inner.core.network.restricted_nat_retries))
                 }
-                "network.tls.certificate_path" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .tls
-                        .certificate_path
-                        .clone(),
-                )),
-                "network.tls.private_key_path" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .tls
-                        .private_key_path
-                        .clone(),
-                )),
+                "network.tls.certificate_path" => {
+                    Ok(Box::new(inner.core.network.tls.certificate_path.clone()))
+                }
+                "network.tls.private_key_path" => {
+                    Ok(Box::new(inner.core.network.tls.private_key_path.clone()))
+                }
                 "network.tls.connection_initial_timeout_ms" => Ok(Box::new(
                     inner.core.network.tls.connection_initial_timeout_ms,
                 )),
@@ -1422,7 +1471,8 @@ mod tests {
         assert_eq!(s.daemon.group, None);
         assert_eq!(s.daemon.stdout_file, None);
         assert_eq!(s.daemon.stderr_file, None);
-        assert!(s.client_api.enabled);
+        assert!(s.client_api.ipc_enabled);
+        assert!(!s.client_api.network_enabled);
         assert_eq!(s.client_api.listen_address.name, "localhost:5959");
         assert_eq!(
             s.client_api.listen_address.addrs,
@@ -1515,6 +1565,9 @@ mod tests {
             s.core.network.dht.validate_dial_info_receipt_time_ms,
             2_000u32
         );
+        assert_eq!(s.core.network.dht.public_watch_limit, 32u32);
+        assert_eq!(s.core.network.dht.member_watch_limit, 8u32);
+        assert_eq!(s.core.network.dht.max_watch_expiration_ms, 600_000u32);
         //
         assert!(s.core.network.upnp);
         assert!(s.core.network.detect_address_changes);

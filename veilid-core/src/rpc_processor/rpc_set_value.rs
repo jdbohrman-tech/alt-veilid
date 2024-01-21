@@ -39,7 +39,7 @@ impl RPCProcessor {
     ) ->RPCNetworkResult<Answer<SetValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
-        let Some(target) = dest.target() else {
+        let Some(target) = dest.node() else {
             return Err(RPCError::internal(
                 "Never send set value requests over private routes",
             ));
@@ -96,6 +96,8 @@ impl RPCProcessor {
                 .await?
         );
 
+        // Keep the reply private route that was used to return with the answer
+        let reply_private_route = waitable_reply.reply_private_route;
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
@@ -174,6 +176,7 @@ impl RPCProcessor {
 
         Ok(NetworkResult::value(Answer::new(
             latency,
+            reply_private_route,
             SetValueAnswer { set, value, peers },
         )))
     }
@@ -185,6 +188,8 @@ impl RPCProcessor {
     ) ->RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
+        
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
         if !opi
             .signed_node_info()
@@ -219,6 +224,10 @@ impl RPCProcessor {
         // Destructure
         let (key, subkey, value, descriptor) = set_value_q.destructure();
 
+        // Get target for ValueChanged notifications
+        let dest = network_result_try!(self.get_respond_to_destination(&msg));
+        let target = dest.get_target(rss)?;
+        
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
         let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]));
@@ -254,7 +263,7 @@ impl RPCProcessor {
             // Save the subkey, creating a new record if necessary
             let storage_manager = self.storage_manager();
             let new_value = network_result_try!(storage_manager
-                .inbound_set_value(key, subkey, value, descriptor)
+                .inbound_set_value(key, subkey, Arc::new(value), descriptor.map(Arc::new), target)
                 .await
                 .map_err(RPCError::internal)?);
 
@@ -289,7 +298,7 @@ impl RPCProcessor {
         }
 
         // Make SetValue answer
-        let set_value_a = RPCOperationSetValueA::new(set, new_value, closer_to_key_peers)?;
+        let set_value_a = RPCOperationSetValueA::new(set, new_value.map(|x| (*x).clone()), closer_to_key_peers)?;
 
         // Send SetValue answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::SetValueA(Box::new(set_value_a))))

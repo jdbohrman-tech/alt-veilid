@@ -50,15 +50,21 @@ pub async fn run_veilid_server_internal(
 
     let (
         settings_auto_attach,
-        settings_client_api_enabled,
+        settings_client_api_ipc_enabled,
+        settings_client_api_network_enabled,
+        settings_client_api_ipc_directory,
         settings_client_api_listen_address_addrs,
+        subnode_index,
     ) = {
         let settingsr = settings.read();
 
         (
             settingsr.auto_attach,
-            settingsr.client_api.enabled,
+            settingsr.client_api.ipc_enabled,
+            settingsr.client_api.network_enabled,
+            settingsr.client_api.ipc_directory.clone(),
             settingsr.client_api.listen_address.addrs.clone(),
+            settingsr.testing.subnode_index,
         )
     };
 
@@ -84,12 +90,22 @@ pub async fn run_veilid_server_internal(
         .wrap_err("VeilidCore startup failed")?;
 
     // Start client api if one is requested
-    let mut capi = if settings_client_api_enabled && matches!(server_mode, ServerMode::Normal) {
+    let capi_enabled = settings_client_api_ipc_enabled || settings_client_api_network_enabled;
+    let mut capi = if capi_enabled && matches!(server_mode, ServerMode::Normal) {
         let some_capi =
             client_api::ClientApi::new(veilid_api.clone(), veilid_logs.clone(), settings.clone());
-        some_capi
-            .clone()
-            .run(settings_client_api_listen_address_addrs);
+        some_capi.clone().run(
+            if settings_client_api_ipc_enabled {
+                Some(settings_client_api_ipc_directory.join(subnode_index.to_string()))
+            } else {
+                None
+            },
+            if settings_client_api_network_enabled {
+                settings_client_api_listen_address_addrs
+            } else {
+                vec![]
+            },
+        );
         Some(some_capi)
     } else {
         None

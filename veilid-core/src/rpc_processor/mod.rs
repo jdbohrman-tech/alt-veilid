@@ -196,12 +196,16 @@ struct WaitableReply {
 
 #[derive(Clone, Debug, Default)]
 pub struct Answer<T> {
-    pub latency: TimestampDuration, // how long it took to get this answer
-    pub answer: T,                  // the answer itself
+    /// Hpw long it took to get this answer
+    pub latency: TimestampDuration, 
+    /// The private route requested to receive the reply
+    pub reply_private_route: Option<PublicKey>,
+    /// The answer itself
+    pub answer: T,                  
 }
 impl<T> Answer<T> {
-    pub fn new(latency: TimestampDuration, answer: T) -> Self {
-        Self { latency, answer }
+    pub fn new(latency: TimestampDuration, reply_private_route: Option<PublicKey>, answer: T) -> Self {
+        Self { latency, reply_private_route, answer }
     }
 }
 
@@ -512,7 +516,7 @@ impl RPCProcessor {
             check_done,
         );
 
-        fanout_call.run().await
+        fanout_call.run(vec![]).await
     }
 
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
@@ -728,12 +732,12 @@ impl RPCProcessor {
         // To where are we sending the request
         match dest {
             Destination::Direct {
-                target: ref node_ref,
+                node: ref node_ref,
                 safety_selection,
             }
             | Destination::Relay {
                 relay: ref node_ref,
-                target: _,
+                node: _,
                 safety_selection,
             } => {
                 // Send to a node without a private route
@@ -742,7 +746,7 @@ impl RPCProcessor {
                 // Get the actual destination node id accounting for relays
                 let (node_ref, destination_node_ref) = if let Destination::Relay {
                     relay: _,
-                    ref target,
+                    node: ref target,
                     safety_selection: _,
                 } = dest
                 {
@@ -850,12 +854,12 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         let target = match dest {
             Destination::Direct {
-                target,
+                node: target,
                 safety_selection: _,
             } => target.clone(),
             Destination::Relay {
                 relay: _,
-                target,
+                node: target,
                 safety_selection: _,
             } => target.clone(),
             Destination::PrivateRoute {
@@ -1497,7 +1501,7 @@ impl RPCProcessor {
                     ) {
                         address_filter.punish_node_id(sender_node_id);
                         return Ok(NetworkResult::invalid_message(
-                            "sender peerinfo has invalid peer scope",
+                            format!("sender peerinfo has invalid peer scope: {:?}",sender_peer_info.signed_node_info())
                         ));
                     }
                     opt_sender_nr = match self.routing_table().register_node_with_peer_info(

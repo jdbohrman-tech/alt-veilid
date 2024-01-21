@@ -59,6 +59,7 @@ class Capability(StrEnum):
     CAP_RELAY = "RLAY"
     CAP_VALIDATE_DIAL_INFO = "DIAL"
     CAP_DHT = "DHTV"
+    CAP_DHT_WATCH = "DHTW"
     CAP_APPMESSAGE = "APPM"
     CAP_BLOCKSTORE = "BLOC"
 

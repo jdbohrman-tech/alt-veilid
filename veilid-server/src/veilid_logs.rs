@@ -3,9 +3,15 @@ use crate::*;
 use cfg_if::*;
 #[cfg(feature = "rt-tokio")]
 use console_subscriber::ConsoleLayer;
-use opentelemetry::sdk::*;
-use opentelemetry::*;
-use opentelemetry_otlp::WithExportConfig;
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "opentelemetry-otlp")] {
+        use opentelemetry::sdk::*;
+        use opentelemetry::*;
+        use opentelemetry_otlp::WithExportConfig;
+    }
+}
+
 use parking_lot::*;
 use std::collections::BTreeMap;
 use std::path::*;
@@ -66,6 +72,7 @@ impl VeilidLogs {
         }
 
         // OpenTelemetry logger
+        #[cfg(feature="opentelemetry-otlp")]
         if settingsr.logging.otlp.enabled {
             let grpc_endpoint = settingsr.logging.otlp.grpc_endpoint.name.clone();
 

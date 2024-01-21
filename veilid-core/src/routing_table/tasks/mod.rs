@@ -157,7 +157,7 @@ impl RoutingTable {
         for ck in VALID_CRYPTO_KINDS {
             let eckey = (RoutingDomain::PublicInternet, ck);
             let cnt = entry_counts.get(&eckey).copied().unwrap_or_default();
-            if cnt == 0 {
+            if cnt < MIN_PUBLIC_INTERNET_ROUTING_DOMAIN_NODE_COUNT {
                 needs_bootstrap = true;
             } else if cnt < min_peer_count {
                 needs_peer_minimum_refresh = true;

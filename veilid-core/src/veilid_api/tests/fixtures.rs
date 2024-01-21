@@ -144,6 +144,9 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
                 remote_max_records: 17,
                 remote_max_subkey_cache_memory_mb: 18,
                 remote_max_storage_space_mb: 19,
+                public_watch_limit: 20,
+                member_watch_limit: 21,
+                max_watch_expiration_ms: 22,
             },
             upnp: true,
             detect_address_changes: false,
@@ -205,7 +208,7 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
 pub fn fix_veilidvaluechange() -> VeilidValueChange {
     VeilidValueChange {
         key: fix_typedkey(),
-        subkeys: vec![1, 2, 3, 4],
+        subkeys: ValueSubkeyRangeSet::new(),
         count: 5,
         value: ValueData::new_with_seq(23, b"ValueData".to_vec(), fix_cryptokey()).unwrap(),
     }

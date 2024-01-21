@@ -20,41 +20,52 @@ impl RPCOperationWatchValueQ {
         subkeys: ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
-        watcher: PublicKey,
-        signature: Signature,
+        watcher: KeyPair,
+        vcrypto: CryptoSystemVersion,
     ) -> Result<Self, RPCError> {
         // Needed because RangeSetBlaze uses different types here all the time
         #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.len() as usize;
+        let subkeys_len = subkeys.ranges_len() as usize;
 
         if subkeys_len > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
+
+        let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count);
+        let signature = vcrypto
+            .sign(&watcher.key, &watcher.secret, &signature_data)
+            .map_err(RPCError::protocol)?;
+
         Ok(Self {
             key,
             subkeys,
             expiration,
             count,
-            watcher,
+            watcher: watcher.key,
             signature,
         })
     }
 
     // signature covers: key, subkeys, expiration, count, using watcher key
-    fn make_signature_data(&self) -> Vec<u8> {
+    fn make_signature_data(
+        key: &TypedKey,
+        subkeys: &ValueSubkeyRangeSet,
+        expiration: u64,
+        count: u32,
+    ) -> Vec<u8> {
         // Needed because RangeSetBlaze uses different types here all the time
         #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = self.subkeys.len() as usize;
+        let subkeys_len = subkeys.ranges_len() as usize;
 
         let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 4);
-        sig_data.extend_from_slice(&self.key.kind.0);
-        sig_data.extend_from_slice(&self.key.value.bytes);
-        for sk in self.subkeys.ranges() {
+        sig_data.extend_from_slice(&key.kind.0);
+        sig_data.extend_from_slice(&key.value.bytes);
+        for sk in subkeys.ranges() {
             sig_data.extend_from_slice(&sk.start().to_le_bytes());
             sig_data.extend_from_slice(&sk.end().to_le_bytes());
         }
-        sig_data.extend_from_slice(&self.expiration.to_le_bytes());
-        sig_data.extend_from_slice(&self.count.to_le_bytes());
+        sig_data.extend_from_slice(&expiration.to_le_bytes());
+        sig_data.extend_from_slice(&count.to_le_bytes());
         sig_data
     }
 
@@ -63,11 +74,11 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("unsupported cryptosystem"));
         };
 
-        let sig_data = self.make_signature_data();
+        let sig_data =
+            Self::make_signature_data(&self.key, &self.subkeys, self.expiration, self.count);
         vcrypto
             .verify(&self.watcher, &sig_data, &self.signature)
             .map_err(RPCError::protocol)?;
-
         Ok(())
     }
 
@@ -95,12 +106,10 @@ impl RPCOperationWatchValueQ {
     pub fn watcher(&self) -> &PublicKey {
         &self.watcher
     }
-
     #[allow(dead_code)]
     pub fn signature(&self) -> &Signature {
         &self.signature
     }
-
     #[allow(dead_code)]
     pub fn destructure(
         self,
@@ -176,7 +185,7 @@ impl RPCOperationWatchValueQ {
 
         let mut sk_builder = builder.reborrow().init_subkeys(
             self.subkeys
-                .len()
+                .ranges_len()
                 .try_into()
                 .map_err(RPCError::map_internal("invalid subkey range list length"))?,
         );

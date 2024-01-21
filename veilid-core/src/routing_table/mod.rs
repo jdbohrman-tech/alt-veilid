@@ -38,6 +38,9 @@ pub use types::*;
 
 //////////////////////////////////////////////////////////////////////////
 
+/// How many nodes in our routing table we require for a functional PublicInternet RoutingDomain
+pub const MIN_PUBLIC_INTERNET_ROUTING_DOMAIN_NODE_COUNT: usize = 4;
+
 /// How frequently we tick the relay management routine
 pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 
@@ -276,6 +279,12 @@ impl RoutingTable {
             inner.route_spec_store = Some(route_spec_store);
         }
 
+        // Inform storage manager we are up
+        self.network_manager
+            .storage_manager()
+            .set_routing_table(Some(self.clone()))
+            .await;
+
         debug!("finished routing table init");
         Ok(())
     }
@@ -283,6 +292,12 @@ impl RoutingTable {
     /// Called to shut down the routing table
     pub async fn terminate(&self) {
         debug!("starting routing table terminate");
+
+        // Stop storage manager from using us
+        self.network_manager
+            .storage_manager()
+            .set_routing_table(None)
+            .await;
 
         // Stop tasks
         self.cancel_tasks().await;

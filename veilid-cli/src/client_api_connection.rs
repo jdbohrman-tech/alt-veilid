@@ -3,13 +3,13 @@ use crate::tools::*;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::time::SystemTime;
 use stop_token::{future::FutureExt as _, StopSource};
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
-        use async_std::io::prelude::BufReadExt;
-        use async_std::io::WriteExt;
+        use futures::{AsyncBufReadExt, AsyncWriteExt};
         use async_std::io::BufReader;
     } else if #[cfg(feature="rt-tokio")] {
         use tokio::io::AsyncBufReadExt;
@@ -20,7 +20,6 @@ cfg_if! {
 
 struct ClientApiConnectionInner {
     comproc: CommandProcessor,
-    connect_addr: Option<SocketAddr>,
     request_sender: Option<flume::Sender<String>>,
     disconnector: Option<StopSource>,
     disconnect_requested: bool,
@@ -38,7 +37,6 @@ impl ClientApiConnection {
         Self {
             inner: Arc::new(Mutex::new(ClientApiConnectionInner {
                 comproc,
-                connect_addr: None,
                 request_sender: None,
                 disconnector: None,
                 disconnect_requested: false,
@@ -117,33 +115,15 @@ impl ClientApiConnection {
         }
     }
 
-    async fn handle_connection(&self, connect_addr: SocketAddr) -> Result<(), String> {
-        trace!("ClientApiConnection::handle_connection");
-
-        // Connect the TCP socket
-        let stream = TcpStream::connect(connect_addr)
-            .await
-            .map_err(map_to_string)?;
-
-        // If it succeed, disable nagle algorithm
-        stream.set_nodelay(true).map_err(map_to_string)?;
-
-        // State we connected
-        let comproc = self.inner.lock().comproc.clone();
-        comproc.set_connection_state(ConnectionState::Connected(connect_addr, SystemTime::now()));
-
-        // Split the stream
-        cfg_if! {
-            if #[cfg(feature="rt-async-std")] {
-                use futures::AsyncReadExt;
-                let (reader, mut writer) = stream.split();
-                let mut reader = BufReader::new(reader);
-            } else if #[cfg(feature="rt-tokio")] {
-                let (reader, mut writer) = stream.into_split();
-                let mut reader = BufReader::new(reader);
-            }
-        }
-
+    pub async fn run_json_api_processor<R, W>(
+        self,
+        mut reader: R,
+        mut writer: W,
+    ) -> Result<(), String>
+    where
+        R: AsyncBufReadExt + Unpin + Send,
+        W: AsyncWriteExt + Unpin + Send,
+    {
         // Requests to send
         let (requests_tx, requests_rx) = flume::unbounded();
 
@@ -152,7 +132,6 @@ impl ClientApiConnection {
             let stop_source = StopSource::new();
             let token = stop_source.token();
             let mut inner = self.inner.lock();
-            inner.connect_addr = Some(connect_addr);
             inner.disconnector = Some(stop_source);
             inner.request_sender = Some(requests_tx);
             token
@@ -231,7 +210,6 @@ impl ClientApiConnection {
         inner.request_sender = None;
         inner.disconnector = None;
         inner.disconnect_requested = false;
-        inner.connect_addr = None;
 
         // Connection finished
         if disconnect_requested {
@@ -239,6 +217,66 @@ impl ClientApiConnection {
         } else {
             Err("Connection lost".to_owned())
         }
+    }
+
+    async fn handle_tcp_connection(&self, connect_addr: SocketAddr) -> Result<(), String> {
+        trace!("ClientApiConnection::handle_tcp_connection");
+
+        // Connect the TCP socket
+        let stream = TcpStream::connect(connect_addr)
+            .await
+            .map_err(map_to_string)?;
+
+        // If it succeed, disable nagle algorithm
+        stream.set_nodelay(true).map_err(map_to_string)?;
+
+        // State we connected
+        let comproc = self.inner.lock().comproc.clone();
+        comproc.set_connection_state(ConnectionState::ConnectedTCP(
+            connect_addr,
+            SystemTime::now(),
+        ));
+
+        // Split into reader and writer halves
+        // with line buffering on the reader
+        cfg_if! {
+            if #[cfg(feature="rt-async-std")] {
+                use futures::AsyncReadExt;
+                let (reader, writer) = stream.split();
+                let reader = BufReader::new(reader);
+            } else {
+                let (reader, writer) = stream.into_split();
+                let reader = BufReader::new(reader);
+            }
+        }
+
+        self.clone().run_json_api_processor(reader, writer).await
+    }
+
+    async fn handle_ipc_connection(&self, ipc_path: PathBuf) -> Result<(), String> {
+        trace!("ClientApiConnection::handle_ipc_connection");
+
+        // Connect the IPC socket
+        let stream = IpcStream::connect(&ipc_path).await.map_err(map_to_string)?;
+
+        // State we connected
+        let comproc = self.inner.lock().comproc.clone();
+        comproc.set_connection_state(ConnectionState::ConnectedIPC(ipc_path, SystemTime::now()));
+
+        // Split into reader and writer halves
+        // with line buffering on the reader
+        use futures::AsyncReadExt;
+        let (reader, writer) = stream.split();
+        cfg_if! {
+            if #[cfg(feature = "rt-tokio")] {
+                use tokio_util::compat::{FuturesAsyncReadCompatExt, FuturesAsyncWriteCompatExt};
+                let reader = reader.compat();
+                let writer = writer.compat_write();
+            }
+        }
+        let reader = BufReader::new(reader);
+
+        self.clone().run_json_api_processor(reader, writer).await
     }
 
     async fn perform_request(&self, mut req: json::JsonValue) -> Option<json::JsonValue> {
@@ -358,10 +396,15 @@ impl ClientApiConnection {
     }
 
     // Start Client API connection
-    pub async fn connect(&self, connect_addr: SocketAddr) -> Result<(), String> {
-        trace!("ClientApiConnection::connect");
+    pub async fn ipc_connect(&self, ipc_path: PathBuf) -> Result<(), String> {
+        trace!("ClientApiConnection::ipc_connect");
+        // Save the pathto connect to
+        self.handle_ipc_connection(ipc_path).await
+    }
+    pub async fn tcp_connect(&self, connect_addr: SocketAddr) -> Result<(), String> {
+        trace!("ClientApiConnection::tcp_connect");
         // Save the address to connect to
-        self.handle_connection(connect_addr).await
+        self.handle_tcp_connection(connect_addr).await
     }
 
     // End Client API connection

@@ -99,7 +99,7 @@ pub struct VeilidStateConfig {
 pub struct VeilidValueChange {
     #[schemars(with = "String")]
     pub key: TypedKey,
-    pub subkeys: Vec<ValueSubkey>,
+    pub subkeys: ValueSubkeyRangeSet,
     pub count: u32,
     pub value: ValueData,
 }

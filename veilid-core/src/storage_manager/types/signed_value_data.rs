@@ -48,10 +48,6 @@ impl SignedValueData {
         &self.value_data
     }
 
-    pub fn into_value_data(self) -> ValueData {
-        self.value_data
-    }
-
     pub fn signature(&self) -> &Signature {
         &self.signature
     }

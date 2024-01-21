@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use directories::ProjectDirs;
 use crate::*;
+use directories::ProjectDirs;
+use std::path::PathBuf;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 pub type ConfigCallbackReturn = VeilidAPIResult<Box<dyn core::any::Any + Send>>;
@@ -263,11 +263,12 @@ impl Default for VeilidConfigTLS {
 }
 
 pub fn get_default_ssl_directory(sub_path: &str) -> String {
-    let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
-
     #[cfg(unix)]
-    if default_path.exists() {
-        return default_path.to_string_lossy().into();
+    {
+        let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
+        if default_path.exists() {
+            return default_path.to_string_lossy().into();
+        }
     }
 
     ProjectDirs::from("org", "Veilid", "Veilid")
@@ -301,6 +302,9 @@ pub struct VeilidConfigDHT {
     pub remote_max_records: u32,
     pub remote_max_subkey_cache_memory_mb: u32,
     pub remote_max_storage_space_mb: u32,
+    pub public_watch_limit: u32,
+    pub member_watch_limit: u32,
+    pub max_watch_expiration_ms: u32,
 }
 
 impl Default for VeilidConfigDHT {
@@ -326,6 +330,9 @@ impl Default for VeilidConfigDHT {
             remote_max_records: 128,
             remote_max_subkey_cache_memory_mb: 256,
             remote_max_storage_space_mb: 256,
+            public_watch_limit: 32,
+            member_watch_limit: 8,
+            max_watch_expiration_ms: 600000,
         }
     }
 }
@@ -758,6 +765,9 @@ impl VeilidConfig {
             get_config!(inner.network.dht.remote_max_records);
             get_config!(inner.network.dht.remote_max_subkey_cache_memory_mb);
             get_config!(inner.network.dht.remote_max_storage_space_mb);
+            get_config!(inner.network.dht.public_watch_limit);
+            get_config!(inner.network.dht.member_watch_limit);
+            get_config!(inner.network.dht.max_watch_expiration_ms);
             get_config!(inner.network.rpc.concurrency);
             get_config!(inner.network.rpc.queue_size);
             get_config!(inner.network.rpc.max_timestamp_behind_ms);

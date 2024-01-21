@@ -63,10 +63,9 @@ veilid-tools = { version = "0.2.5", path = "../veilid-tools", features = [
     "tracing",
 ], default-features = false }
 paste = "1.0.14"
-once_cell = "1.18.0"
-owning_ref = "0.4.1"
+once_cell = "1.19.0"
 backtrace = "0.3.69"
-num-traits = "0.2.16"
+num-traits = "0.2.17"
 shell-words = "1.1.0"
 static_assertions = "1.1.0"
 cfg-if = "1.0.0"
@@ -75,32 +74,32 @@ lazy_static = "1.4.0"
 directories = "5.0.1"
 
 # Logging
-tracing = { version = "0.1.37", features = ["log", "attributes"] }
-tracing-subscriber = "0.3.17"
+tracing = { version = "0.1.40", features = ["log", "attributes"] }
+tracing-subscriber = "0.3.18"
 tracing-error = "0.2.0"
-eyre = "0.6.8"
-thiserror = "1.0.48"
+eyre = "0.6.11"
+thiserror = "1.0.50"
 
 # Data structures
-enumset = { version = "1.1.2", features = ["serde"] }
+enumset = { version = "1.1.3", features = ["serde"] }
 keyvaluedb = "0.1.1"
-range-set-blaze = "0.1.9"
+range-set-blaze = "0.1.13"
 weak-table = "0.3.2"
 hashlink = { package = "veilid-hashlink", version = "0.1.0", features = [
     "serde_impl",
 ] }
 
 # System
-futures-util = { version = "0.3.28", default-features = false, features = [
+futures-util = { version = "0.3.29", default-features = false, features = [
     "alloc",
 ] }
 flume = { version = "0.11.0", features = ["async"] }
 parking_lot = "0.12.1"
-lock_api = "0.4.10"
+lock_api = "0.4.11"
 stop-token = { version = "0.7.0", default-features = false }
 
 # Crypto
-ed25519-dalek = { version = "2.0.0", default-features = false, features = [
+ed25519-dalek = { version = "2.1.0", default-features = false, features = [
     "alloc",
     "rand_core",
     "digest",
@@ -112,29 +111,29 @@ x25519-dalek = { version = "2.0.0", default-features = false, features = [
     "zeroize",
     "precomputed-tables",
 ] }
-curve25519-dalek = { version = "4.1.0", default-features = false, features = [
+curve25519-dalek = { version = "4.1.1", default-features = false, features = [
     "alloc",
     "zeroize",
     "precomputed-tables",
 ] }
-blake3 = { version = "1.4.1" }
+blake3 = { version = "1.5.0" }
 chacha20poly1305 = "0.10.1"
 chacha20 = "0.9.1"
 argon2 = "0.5.2"
 
 # Network
-async-std-resolver = { version = "0.23.0", optional = true }
-trust-dns-resolver = { version = "0.23.0", optional = true }
+async-std-resolver = { version = "0.23.2", optional = true }
+trust-dns-resolver = { version = "0.23.2", optional = true }
 enum-as-inner = "=0.6.0"                                     # temporary fix for trust-dns-resolver v0.22.0
 
 # Serialization
-capnp = { version = "0.18.1", default-features = false, features = ["alloc"] }
-serde = { version = "1.0.188", features = ["derive"] }
-serde_json = { version = "1.0.107" }
+capnp = { version = "0.18.10", default-features = false, features = ["alloc"] }
+serde = { version = "1.0.193", features = ["derive", "rc"] }
+serde_json = { version = "1.0.108" }
 serde-big-array = "0.5.1"
 json = "0.12.4"
-data-encoding = { version = "2.4.0" }
-schemars = "0.8.13"
+data-encoding = { version = "2.5.0" }
+schemars = "0.8.16"
 lz4_flex = { version = "0.11.1", default-features = false, features = [
     "safe-encode",
     "safe-decode",
@@ -145,19 +144,19 @@ lz4_flex = { version = "0.11.1", default-features = false, features = [
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 
 # Tools
-config = { version = "0.13.3", features = ["yaml"] }
+config = { version = "0.13.4", features = ["yaml"] }
 bugsalot = { package = "veilid-bugsalot", version = "0.1.0" }
 chrono = "0.4.31"
-libc = "0.2.148"
+libc = "0.2.151"
 nix = "0.27.1"
 
 # System
 async-std = { version = "1.12.0", features = ["unstable"], optional = true }
-tokio = { version = "1.32.0", features = ["full"], optional = true }
-tokio-util = { version = "0.7.8", features = ["compat"], optional = true }
+tokio = { version = "1.35.0", features = ["full"], optional = true }
+tokio-util = { version = "0.7.10", features = ["compat"], optional = true }
 tokio-stream = { version = "0.1.14", features = ["net"], optional = true }
 async-io = { version = "1.13.0" }
-futures-util = { version = "0.3.28", default-features = false, features = [
+futures-util = { version = "0.3.29", default-features = false, features = [
     "async-await",
     "sink",
     "std",
@@ -165,7 +164,7 @@ futures-util = { version = "0.3.28", default-features = false, features = [
 ] }
 
 # Data structures
-keyring-manager = "0.5.0"
+keyring-manager = "0.5.1"
 keyvaluedb-sqlite = "0.1.1"
 
 # Network
@@ -174,11 +173,11 @@ async-tungstenite = { package = "veilid-async-tungstenite", version = "0.23.0", 
 ] }
 igd = { package = "veilid-igd", version = "0.1.1" }
 async-tls = { package = "veilid-async-tls", version = "0.12.0" }
-webpki = "0.22.1"
-webpki-roots = "0.25.2"
-rustls = "0.21.8"
-rustls-pemfile = "1.0.3"
-socket2 = { version = "0.5.4", features = ["all"] }
+webpki = "0.22.4"
+webpki-roots = "0.25.3"
+rustls = "0.21.10"
+rustls-pemfile = "1.0.4"
+socket2 = { version = "0.5.5", features = ["all"] }
 
 # Dependencies for WASM builds only
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -188,7 +187,7 @@ veilid-tools = { version = "0.2.5", path = "../veilid-tools", default-features =
 ] }
 
 # Tools
-getrandom = { version = "0.2.10", features = ["js"] }
+getrandom = { version = "0.2.11", features = ["js"] }
 
 # System
 async_executors = { version = "0.7.0", default-features = false, features = [
@@ -196,15 +195,15 @@ async_executors = { version = "0.7.0", default-features = false, features = [
     "timer",
 ] }
 async-lock = "2.8.0"
-wasm-bindgen = "0.2.87"
-js-sys = "0.3.64"
-wasm-bindgen-futures = "0.4.37"
+wasm-bindgen = "0.2.89"
+js-sys = "0.3.66"
+wasm-bindgen-futures = "0.4.39"
 send_wrapper = { version = "0.6.0", features = ["futures"] }
 serde_bytes = { version = "0.11", default_features = false, features = [
     "alloc",
 ] }
 tsify = { version = "0.4.5", features = ["js"] }
-serde-wasm-bindgen = "0.6.0"
+serde-wasm-bindgen = "0.6.3"
 
 # Network
 ws_stream_wasm = "0.7.4"
@@ -218,7 +217,7 @@ keyvaluedb-web = "0.1.1"
 
 ### Configuration for WASM32 'web-sys' crate
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
-version = "0.3.64"
+version = "0.3.66"
 features = [
     'Document',
     'HtmlDocument',
@@ -258,13 +257,13 @@ tracing-oslog = { version = "0.1.2", optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 simplelog = { version = "0.12.1", features = ["test"] }
 serial_test = "2.0.0"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 serial_test = { version = "2.0.0", default-features = false, features = [
     "async",
 ] }
-wasm-bindgen-test = "0.3.37"
+wasm-bindgen-test = "0.3.39"
 console_error_panic_hook = "0.1.7"
 wee_alloc = "0.4.5"
 wasm-logger = "0.2.0"
@@ -274,7 +273,9 @@ wasm-logger = "0.2.0"
 [build-dependencies]
 capnpc = "0.18.0"
 glob = "0.3.1"
-filetime = "0.2.22"
+filetime = "0.2.23"
+sha2 = "0.10.8"
+hex = "0.4.3"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]

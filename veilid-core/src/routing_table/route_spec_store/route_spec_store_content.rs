@@ -3,7 +3,7 @@ use super::*;
 /// The core representation of the RouteSpecStore that can be serialized
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(super) struct RouteSpecStoreContent {
-    /// All of the route sets we have allocated so far indexed by key
+    /// All of the route sets we have allocated so far indexed by key (many to one)
     id_by_key: HashMap<PublicKey, RouteId>,
     /// All of the route sets we have allocated so far
     details: HashMap<RouteId, RouteSetSpecDetail>,

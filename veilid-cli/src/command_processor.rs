@@ -4,6 +4,7 @@ use crate::tools::*;
 use crate::ui::*;
 use indent::indent_all_by;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::time::SystemTime;
 use veilid_tools::*;
 
@@ -22,18 +23,20 @@ pub fn convert_loglevel(s: &str) -> Result<String, String> {
 #[derive(PartialEq, Clone)]
 pub enum ConnectionState {
     Disconnected,
-    Connected(SocketAddr, SystemTime),
-    Retrying(SocketAddr, SystemTime),
+    ConnectedTCP(SocketAddr, SystemTime),
+    RetryingTCP(SocketAddr, SystemTime),
+    ConnectedIPC(PathBuf, SystemTime),
+    RetryingIPC(PathBuf, SystemTime),
 }
 impl ConnectionState {
     pub fn is_disconnected(&self) -> bool {
         matches!(*self, Self::Disconnected)
     }
     pub fn is_connected(&self) -> bool {
-        matches!(*self, Self::Connected(_, _))
+        matches!(*self, Self::ConnectedTCP(_, _) | Self::ConnectedIPC(_, _))
     }
     pub fn is_retrying(&self) -> bool {
-        matches!(*self, Self::Retrying(_, _))
+        matches!(*self, Self::RetryingTCP(_, _) | Self::RetryingIPC(_, _))
     }
 }
 
@@ -44,7 +47,8 @@ struct CommandProcessorInner {
     finished: bool,
     autoconnect: bool,
     autoreconnect: bool,
-    server_addr: Option<SocketAddr>,
+    ipc_path: Option<PathBuf>,
+    network_addr: Option<SocketAddr>,
     connection_waker: Eventual,
     last_call_id: Option<u64>,
     enable_app_messages: bool,
@@ -65,7 +69,8 @@ impl CommandProcessor {
                 finished: false,
                 autoconnect: settings.autoconnect,
                 autoreconnect: settings.autoreconnect,
-                server_addr: None,
+                ipc_path: None,
+                network_addr: None,
                 connection_waker: Eventual::new(),
                 last_call_id: None,
                 enable_app_messages: false,
@@ -306,38 +311,75 @@ Server Debug Commands:
             // Loop while we want to keep the connection
             let mut first = true;
             while self.inner().reconnect {
-                let server_addr_opt = self.inner_mut().server_addr;
-                let server_addr = match server_addr_opt {
-                    None => break,
-                    Some(addr) => addr,
-                };
-                if first {
-                    info!("Connecting to server at {}", server_addr);
-                    self.set_connection_state(ConnectionState::Retrying(
-                        server_addr,
+                // IPC
+                let ipc_path_opt = self.inner_mut().ipc_path.clone();
+                if let Some(ipc_path) = ipc_path_opt {
+                    if first {
+                        info!(
+                            "Connecting to server at {}",
+                            ipc_path.to_string_lossy().to_string()
+                        );
+                        self.set_connection_state(ConnectionState::RetryingIPC(
+                            ipc_path.clone(),
+                            SystemTime::now(),
+                        ));
+                    } else {
+                        debug!(
+                            "Retrying connection to {}",
+                            ipc_path.to_string_lossy().to_string()
+                        );
+                    }
+                    let capi = self.capi();
+                    let res = capi.ipc_connect(ipc_path.clone()).await;
+                    if res.is_ok() {
+                        info!(
+                            "Connection to server at {} terminated normally",
+                            ipc_path.to_string_lossy().to_string()
+                        );
+                        break;
+                    }
+                    if !self.inner().autoreconnect {
+                        info!("Connection to server lost.");
+                        break;
+                    }
+
+                    self.set_connection_state(ConnectionState::RetryingIPC(
+                        ipc_path,
                         SystemTime::now(),
                     ));
-                } else {
-                    debug!("Retrying connection to {}", server_addr);
-                }
-                let capi = self.capi();
-                let res = capi.connect(server_addr).await;
-                if res.is_ok() {
-                    info!(
-                        "Connection to server at {} terminated normally",
-                        server_addr
-                    );
-                    break;
-                }
-                if !self.inner().autoreconnect {
-                    info!("Connection to server lost.");
-                    break;
                 }
 
-                self.set_connection_state(ConnectionState::Retrying(
-                    server_addr,
-                    SystemTime::now(),
-                ));
+                // TCP
+                let network_addr_opt = self.inner_mut().network_addr;
+                if let Some(network_addr) = network_addr_opt {
+                    if first {
+                        info!("Connecting to server at {}", network_addr);
+                        self.set_connection_state(ConnectionState::RetryingTCP(
+                            network_addr,
+                            SystemTime::now(),
+                        ));
+                    } else {
+                        debug!("Retrying connection to {}", network_addr);
+                    }
+                    let capi = self.capi();
+                    let res = capi.tcp_connect(network_addr).await;
+                    if res.is_ok() {
+                        info!(
+                            "Connection to server at {} terminated normally",
+                            network_addr
+                        );
+                        break;
+                    }
+                    if !self.inner().autoreconnect {
+                        info!("Connection to server lost.");
+                        break;
+                    }
+
+                    self.set_connection_state(ConnectionState::RetryingTCP(
+                        network_addr,
+                        SystemTime::now(),
+                    ));
+                }
 
                 debug!("Connection lost, retrying in 2 seconds");
                 {
@@ -355,11 +397,17 @@ Server Debug Commands:
 
     // called by ui
     ////////////////////////////////////////////
-    pub fn set_server_address(&self, server_addr: Option<SocketAddr>) {
-        self.inner_mut().server_addr = server_addr;
+    pub fn set_ipc_path(&self, ipc_path: Option<PathBuf>) {
+        self.inner_mut().ipc_path = ipc_path;
     }
-    pub fn get_server_address(&self) -> Option<SocketAddr> {
-        self.inner().server_addr
+    pub fn get_ipc_path(&self) -> Option<PathBuf> {
+        self.inner().ipc_path.clone()
+    }
+    pub fn set_network_address(&self, network_addr: Option<SocketAddr>) {
+        self.inner_mut().network_addr = network_addr;
+    }
+    pub fn get_network_address(&self) -> Option<SocketAddr> {
+        self.inner().network_addr
     }
     // called by client_api_connection
     // calls into ui
@@ -414,7 +462,19 @@ Server Debug Commands:
         }
     }
     pub fn update_value_change(&self, value_change: &json::JsonValue) {
-        let out = format!("Value change: {:?}", value_change.as_str().unwrap_or("???"));
+        let data = json_str_vec_u8(&value_change["value"]["data"]);
+        let (datastr, truncated) = Self::print_json_str_vec_u8(&data);
+
+        let out = format!(
+            "Value change: key={} subkeys={} count={} value.seq={} value.writer={} value.data={}{}",
+            value_change["key"].dump(),
+            value_change["subkeys"].dump(),
+            value_change["count"].dump(),
+            value_change["value"]["seq"].dump(),
+            value_change["value"]["writer"].dump(),
+            datastr,
+            if truncated { "..." } else { "" }
+        );
         self.inner().ui_sender.add_node_event(Level::Info, out);
     }
 
@@ -436,16 +496,10 @@ Server Debug Commands:
         );
     }
 
-    pub fn update_app_message(&self, msg: &json::JsonValue) {
-        if !self.inner.lock().enable_app_messages {
-            return;
-        }
-
-        let message = json_str_vec_u8(&msg["message"]);
-
+    fn print_json_str_vec_u8(message: &[u8]) -> (String, bool) {
         // check if message body is ascii printable
         let mut printable = true;
-        for c in &message {
+        for c in message {
             if *c < 32 || *c > 126 {
                 printable = false;
             }
@@ -454,7 +508,7 @@ Server Debug Commands:
         let (message, truncated) = if message.len() > 64 {
             (&message[0..64], true)
         } else {
-            (&message[..], false)
+            (message, false)
         };
 
         let strmsg = if printable {
@@ -462,6 +516,17 @@ Server Debug Commands:
         } else {
             hex::encode(message)
         };
+
+        (strmsg, truncated)
+    }
+
+    pub fn update_app_message(&self, msg: &json::JsonValue) {
+        if !self.inner.lock().enable_app_messages {
+            return;
+        }
+
+        let message = json_str_vec_u8(&msg["message"]);
+        let (strmsg, truncated) = Self::print_json_str_vec_u8(&message);
 
         self.inner().ui_sender.add_node_event(
             Level::Info,

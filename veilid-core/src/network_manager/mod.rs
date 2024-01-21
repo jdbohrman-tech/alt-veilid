@@ -1096,7 +1096,7 @@ impl NetworkManager {
         Ok(true)
     }
 
-    pub fn debug_restart_network(&self) {
+    pub fn restart_network(&self) {
         self.net().restart_network();
     }
 }

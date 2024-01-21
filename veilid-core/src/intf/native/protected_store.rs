@@ -57,7 +57,7 @@ impl ProtectedStore {
                 inner.keyring_manager = match maybe_km {
                     Ok(v) => Some(v),
                     Err(e) => {
-                        log_pstore!(error "Failed to create secure keyring manager: {}", e);
+                        info!("Secure key storage service unavailable, falling back to direct disk-based storage: {}", e);
                         None
                     }
                 };

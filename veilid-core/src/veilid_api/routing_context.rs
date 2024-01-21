@@ -1,10 +1,9 @@
 use super::*;
-use routing_table::NodeRefBase;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// Valid destinations for a message sent over a routing context
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Target {
     /// Node by its public key
     NodeId(TypedKey),
@@ -123,40 +122,10 @@ impl RoutingContext {
 
     async fn get_destination(&self, target: Target) -> VeilidAPIResult<rpc_processor::Destination> {
         let rpc_processor = self.api.rpc_processor()?;
-
-        match target {
-            Target::NodeId(node_id) => {
-                // Resolve node
-                let mut nr = match rpc_processor
-                    .resolve_node(node_id, self.unlocked_inner.safety_selection)
-                    .await
-                {
-                    Ok(Some(nr)) => nr,
-                    Ok(None) => apibail_invalid_target!("could not resolve node id"),
-                    Err(e) => return Err(e.into()),
-                };
-                // Apply sequencing to match safety selection
-                nr.set_sequencing(self.sequencing());
-
-                Ok(rpc_processor::Destination::Direct {
-                    target: nr,
-                    safety_selection: self.unlocked_inner.safety_selection,
-                })
-            }
-            Target::PrivateRoute(rsid) => {
-                // Get remote private route
-                let rss = self.api.routing_table()?.route_spec_store();
-
-                let Some(private_route) = rss.best_remote_private_route(&rsid) else {
-                    apibail_invalid_target!("could not get remote private route");
-                };
-
-                Ok(rpc_processor::Destination::PrivateRoute {
-                    private_route,
-                    safety_selection: self.unlocked_inner.safety_selection,
-                })
-            }
-        }
+        rpc_processor
+            .resolve_target_to_destination(target, self.unlocked_inner.safety_selection)
+            .await
+            .map_err(VeilidAPIError::invalid_target)
     }
 
     ////////////////////////////////////////////////////////////////
@@ -314,13 +283,25 @@ impl RoutingContext {
         storage_manager.set_value(key, subkey, data).await
     }
 
-    /// Watches changes to an opened or created value
+    /// Add a watch to a DHT value that informs the user via an VeilidUpdate::ValueChange callback when the record has subkeys change.
+    /// One remote node will be selected to perform the watch and it will offer an expiration time based on a suggestion, and make an attempt to
+    /// continue to report changes via the callback. Nodes that agree to doing watches will be put on our 'ping' list to ensure they are still around
+    /// otherwise the watch will be cancelled and will have to be re-watched.
     ///
-    /// Changes to subkeys within the subkey range are returned via a ValueChanged callback
-    /// If the subkey range is empty, all subkey changes are considered
-    /// Expiration can be infinite to keep the watch for the maximum amount of time
+    /// There is only one watch permitted per record. If a change to a watch is desired, the first one must will be overwritten.
+    /// * `key` is the record key to watch. it must first be opened for reading or writing.
+    /// * `subkeys` is the the range of subkeys to watch. The range must not exceed 512 discrete non-overlapping or adjacent subranges. If no range is specified, this is equivalent to watching the entire range of subkeys.
+    /// * `expiration` is the desired timestamp of when to automatically terminate the watch, in microseconds. If this value is less than `network.rpc.timeout_ms` milliseconds in the future, this function will return an error immediately.
+    /// * `count` is the number of times the watch will be sent, maximum. A zero value here is equivalent to a cancellation.
     ///
-    /// Return value upon success is the amount of time allowed for the watch
+    /// Returns a timestamp of when the watch will expire. All watches are guaranteed to expire at some point in the future, and the returned timestamp will
+    /// be no later than the requested expiration, but -may- be before the requested expiration.
+    ///
+    /// DHT watches are accepted with the following conditions:
+    /// * First-come first-served basis for arbitrary unauthenticated readers, up to network.dht.public_watch_limit per record
+    /// * If a member (either the owner or a SMPL schema member) has opened the key for writing (even if no writing is performed) then the watch will be signed and guaranteed network.dht.member_watch_limit per writer
+    ///
+    /// Members can be specified via the SMPL schema and do not need to allocate writable subkeys in order to offer a member watch capability.
     pub async fn watch_dht_values(
         &self,
         key: TypedKey,
@@ -338,6 +319,8 @@ impl RoutingContext {
     /// Cancels a watch early
     ///
     /// This is a convenience function that cancels watching all subkeys in a range
+    /// Returns Ok(true) if there is any remaining watch for this record
+    /// Returns Ok(false) if the entire watch has been cancelled
     pub async fn cancel_dht_watch(
         &self,
         key: TypedKey,

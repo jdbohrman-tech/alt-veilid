@@ -314,7 +314,7 @@ cfg_if::cfg_if! {
         pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> Result<(), String>
         {
             let path = path.as_ref();
-            if !path.exists() {
+            if !path.is_file() {
                 return Ok(());
             }
 
@@ -330,6 +330,32 @@ cfg_if::cfg_if! {
             }
             Ok(())
         }
+
+        pub fn ensure_directory_private_owner<P:AsRef<Path>>(path: P, group_read: bool) -> Result<(), String>
+        {
+            let path = path.as_ref();
+            if !path.is_dir() {
+                return Ok(());
+            }
+
+            let uid = Uid::effective();
+            let gid = Gid::effective();
+            let meta = std::fs::metadata(path).map_err(|e| format!("unable to get metadata for path: {}", e))?;
+
+            let perm = if group_read {
+                0o750
+            } else {
+                0o700
+            };
+
+            if meta.mode() != perm {
+                std::fs::set_permissions(path,std::fs::Permissions::from_mode(perm)).map_err(|e| format!("unable to set correct permissions on path: {}", e))?;
+            }
+            if meta.uid() != uid.as_raw() || meta.gid() != gid.as_raw() {
+                return Err("path has incorrect owner/group".to_owned());
+            }
+            Ok(())
+        }
     } else if #[cfg(windows)] {
         //use std::os::windows::fs::MetadataExt;
         //use windows_permissions::*;
@@ -337,15 +363,41 @@ cfg_if::cfg_if! {
         pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> Result<(), String>
         {
             let path = path.as_ref();
-            if !path.exists() {
+            if !path.is_file() {
                 return Ok(());
             }
 
             Ok(())
         }
-    } else {
-        pub fn ensure_file_private_owner<P:AsRef<Path>>(_path: P) -> Result<(), String>
+
+        pub fn ensure_directory_private_owner<P:AsRef<Path>>(path: P, _group_read: bool) -> Result<(), String>
         {
+            let path = path.as_ref();
+            if !path.is_dir() {
+                return Ok(());
+            }
+
+            Ok(())
+        }
+
+    } else {
+        pub fn ensure_file_private_owner<P:AsRef<Path>>(path: P) -> Result<(), String>
+        {
+            let path = path.as_ref();
+            if !path.is_file() {
+                return Ok(());
+            }
+
+            Ok(())
+        }
+
+        pub fn ensure_directory_private_owner<P:AsRef<Path>>(path: P, _group_read: bool) -> Result<(), String>
+        {
+            let path = path.as_ref();
+            if !path.is_dir() {
+                return Ok(());
+            }
+
             Ok(())
         }
     }

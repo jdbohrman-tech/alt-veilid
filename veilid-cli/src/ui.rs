@@ -7,34 +7,44 @@ use cursive::align::*;
 use cursive::event::*;
 use cursive::theme::*;
 use cursive::traits::*;
+use cursive::utils::markup::ansi;
 use cursive::utils::markup::StyledString;
 use cursive::view::SizeConstraint;
 use cursive::views::*;
 use cursive::Cursive;
 use cursive::CursiveRunnable;
-use cursive_flexi_logger_view::{CursiveLogWriter, FlexiLoggerView};
+use flexi_logger::writers::LogWriter;
+use flexi_logger::DeferredNow;
 // use cursive_multiplex::*;
+use crate::cached_text_view::*;
 use chrono::{Datelike, Timelike};
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 //////////////////////////////////////////////////////////////
 ///
-struct Dirty<T> {
+struct Dirty<T>
+where
+    T: PartialEq,
+{
     value: T,
     dirty: bool,
 }
 
-impl<T> Dirty<T> {
+impl<T> Dirty<T>
+where
+    T: PartialEq,
+{
     pub fn new(value: T) -> Self {
         Self { value, dirty: true }
     }
     pub fn set(&mut self, value: T) {
+        self.dirty = self.value != value;
         self.value = value;
-        self.dirty = true;
     }
     pub fn get(&self) -> &T {
         &self.value
@@ -50,6 +60,7 @@ impl<T> Dirty<T> {
 }
 
 pub type UICallback = Box<dyn Fn(&mut Cursive) + Send>;
+pub type NodeEventsPanel = Panel<NamedView<ScrollView<NamedView<CachedTextView>>>>;
 
 static START_TIME: AtomicU64 = AtomicU64::new(0);
 
@@ -201,6 +212,11 @@ impl UI {
         siv.set_global_callback(cursive::event::Event::Key(Key::Esc), UI::quit_handler);
     }
 
+    fn setup_clear_handler(siv: &mut Cursive) {
+        siv.clear_global_callbacks(cursive::event::Event::CtrlChar('k'));
+        siv.set_on_pre_event(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
+    }
+
     fn quit_handler(siv: &mut Cursive) {
         siv.add_layer(
             Dialog::text("Do you want to exit?")
@@ -219,11 +235,24 @@ impl UI {
         });
     }
     fn clear_handler(siv: &mut Cursive) {
-        cursive_flexi_logger_view::clear_log();
+        Self::node_events_view(siv).set_content([]);
         UI::update_cb(siv);
     }
-    fn node_events_panel(s: &mut Cursive) -> ViewRef<Panel<ScrollView<FlexiLoggerView>>> {
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Selectors
+
+    // fn main_layout(s: &mut Cursive) -> ViewRef<LinearLayout> {
+    //     s.find_name("main-layout").unwrap()
+    // }
+    fn node_events_panel(s: &mut Cursive) -> ViewRef<NodeEventsPanel> {
         s.find_name("node-events-panel").unwrap()
+    }
+    fn node_events_view(s: &mut Cursive) -> ViewRef<CachedTextView> {
+        s.find_name("node-events-view").unwrap()
+    }
+    fn node_events_scroll_view(s: &mut Cursive) -> ViewRef<ScrollView<NamedView<CachedTextView>>> {
+        s.find_name("node-events-scroll-view").unwrap()
     }
     fn command_line(s: &mut Cursive) -> ViewRef<EditView> {
         s.find_name("command-line").unwrap()
@@ -237,6 +266,46 @@ impl UI {
     fn peers(s: &mut Cursive) -> ViewRef<PeersTableView> {
         s.find_name("peers").unwrap()
     }
+    fn ipc_path(s: &mut Cursive) -> ViewRef<EditView> {
+        s.find_name("ipc-path").unwrap()
+    }
+    fn ipc_path_radio(s: &mut Cursive) -> ViewRef<RadioButton<u32>> {
+        s.find_name("ipc-path-radio").unwrap()
+    }
+    fn connecting_text(s: &mut Cursive) -> ViewRef<TextView> {
+        s.find_name("connecting-text").unwrap()
+    }
+    fn network_address(s: &mut Cursive) -> ViewRef<EditView> {
+        s.find_name("network-address").unwrap()
+    }
+    fn network_address_radio(s: &mut Cursive) -> ViewRef<RadioButton<u32>> {
+        s.find_name("network-address-radio").unwrap()
+    }
+    fn connection_dialog(s: &mut Cursive) -> ViewRef<Dialog> {
+        s.find_name("connection-dialog").unwrap()
+    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
+    fn push_styled_line(s: &mut Cursive, styled_string: StyledString) {
+        let mut ctv = UI::node_events_view(s);
+        ctv.append_line(styled_string)
+    }
+
+    fn push_ansi_lines(s: &mut Cursive, mut starting_style: Style, lines: String) {
+        let mut ctv = UI::node_events_view(s);
+
+        let mut sslines: Vec<StyledString> = vec![];
+        for line in lines.lines() {
+            let (spanned_string, end_style) = ansi::parse_with_starting_style(starting_style, line);
+            sslines.push(spanned_string);
+            starting_style = end_style;
+        }
+
+        ctv.append_lines(sslines.into_iter());
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     fn render_attachment_state(inner: &mut UIInner) -> String {
         let att = match inner.ui_state.attachment_state.get().as_str() {
             "Detached" => "[----]",
@@ -271,7 +340,7 @@ impl UI {
         }
     }
     fn render_button_attach<'a>(inner: &mut UIInner) -> (&'a str, bool) {
-        if let ConnectionState::Connected(_, _) = inner.ui_state.connection_state.get() {
+        if let ConnectionState::ConnectedTCP(_, _) = inner.ui_state.connection_state.get() {
             match inner.ui_state.attachment_state.get().as_str() {
                 "Detached" => ("Attach", true),
                 "Attaching" => ("Detach", true),
@@ -351,16 +420,17 @@ impl UI {
             return;
         }
         // run command
-
-        cursive_flexi_logger_view::parse_lines_to_log(
+        UI::push_ansi_lines(
+            s,
             ColorStyle::primary().into(),
-            format!("> {} {}", UI::cli_ts(Self::get_start_time()), text),
+            format!("{}> {}\n", UI::cli_ts(Self::get_start_time()), text),
         );
         match Self::run_command(s, text) {
             Ok(_) => {}
             Err(e) => {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Error).unwrap();
-                cursive_flexi_logger_view::parse_lines_to_log(
+                UI::push_ansi_lines(
+                    s,
                     color.into(),
                     format!(" {} Error: {}", UI::cli_ts(Self::get_start_time()), e),
                 );
@@ -445,19 +515,39 @@ impl UI {
         button_attach.set_enabled(button_enable);
     }
 
-    fn submit_connection_address(s: &mut Cursive) {
-        let edit = s.find_name::<EditView>("connection-address").unwrap();
+    fn submit_ipc_path(s: &mut Cursive) {
+        let edit = Self::ipc_path(s);
         let addr = (*edit.get_content()).clone();
-        let sa = match addr.parse::<std::net::SocketAddr>() {
-            Ok(sa) => Some(sa),
+        let ipc_path = match addr.parse::<PathBuf>() {
+            Ok(sa) => sa,
             Err(_) => {
-                s.add_layer(Dialog::text("Invalid address").button("Close", |s| {
+                s.add_layer(Dialog::text("Invalid IPC path").button("Close", |s| {
                     s.pop_layer();
                 }));
                 return;
             }
         };
-        Self::command_processor(s).set_server_address(sa);
+        Self::command_processor(s).set_ipc_path(Some(ipc_path));
+        Self::command_processor(s).set_network_address(None);
+        Self::command_processor(s).start_connection();
+    }
+
+    fn submit_network_address(s: &mut Cursive) {
+        let edit = Self::network_address(s);
+        let addr = (*edit.get_content()).clone();
+        let sa = match addr.parse::<std::net::SocketAddr>() {
+            Ok(sa) => sa,
+            Err(_) => {
+                s.add_layer(
+                    Dialog::text("Invalid network address").button("Close", |s| {
+                        s.pop_layer();
+                    }),
+                );
+                return;
+            }
+        };
+        Self::command_processor(s).set_ipc_path(None);
+        Self::command_processor(s).set_network_address(Some(sa));
         Self::command_processor(s).start_connection();
     }
 
@@ -475,7 +565,8 @@ impl UI {
             && std::io::stdout().flush().is_ok()
         {
             let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-            cursive_flexi_logger_view::parse_lines_to_log(
+            UI::push_ansi_lines(
+                s,
                 color.into(),
                 format!(
                     ">> {} Copied: {}",
@@ -491,7 +582,8 @@ impl UI {
             // X11/Wayland/other system copy
             if clipboard.set_text(text.as_ref()).is_ok() {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Info).unwrap();
-                cursive_flexi_logger_view::parse_lines_to_log(
+                UI::push_ansi_lines(
+                    s,
                     color.into(),
                     format!(
                         ">> {} Copied: {}",
@@ -501,7 +593,8 @@ impl UI {
                 );
             } else {
                 let color = *Self::inner_mut(s).log_colors.get(&Level::Warn).unwrap();
-                cursive_flexi_logger_view::parse_lines_to_log(
+                UI::push_ansi_lines(
+                    s,
                     color.into(),
                     format!(
                         ">> {} Could not copy to clipboard",
@@ -534,12 +627,23 @@ impl UI {
         EventResult::Ignored
     }
 
-    fn show_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
+    fn draw_connection_dialog(s: &mut Cursive, state: ConnectionState) -> bool {
+        let is_ipc = Self::command_processor(s).get_ipc_path().is_some();
         let mut inner = Self::inner_mut(s);
+
+        let mut connection_type_group: RadioGroup<u32> = RadioGroup::new().on_change(|s, v| {
+            if *v == 0 {
+                Self::ipc_path(s).enable();
+                Self::network_address(s).disable();
+            } else if *v == 1 {
+                Self::ipc_path(s).disable();
+                Self::network_address(s).enable();
+            }
+        });
 
         let mut show: bool = false;
         let mut hide: bool = false;
-        let mut reset: bool = false;
+        let mut connecting: bool = false;
         match state {
             ConnectionState::Disconnected => {
                 if inner.connection_dialog_state.is_none()
@@ -556,10 +660,11 @@ impl UI {
                     .unwrap()
                     .is_retrying()
                 {
-                    reset = true;
+                    hide = true;
+                    show = true
                 }
             }
-            ConnectionState::Connected(_, _) => {
+            ConnectionState::ConnectedTCP(_, _) | ConnectionState::ConnectedIPC(_, _) => {
                 if inner.connection_dialog_state.is_some()
                     && !inner
                         .connection_dialog_state
@@ -570,7 +675,7 @@ impl UI {
                     hide = true;
                 }
             }
-            ConnectionState::Retrying(_, _) => {
+            ConnectionState::RetryingTCP(_, _) | ConnectionState::RetryingIPC(_, _) => {
                 if inner.connection_dialog_state.is_none()
                     || inner
                         .connection_dialog_state
@@ -585,8 +690,10 @@ impl UI {
                     .unwrap()
                     .is_disconnected()
                 {
-                    reset = true;
+                    hide = true;
+                    show = true;
                 }
+                connecting = true;
             }
         }
         inner.connection_dialog_state = Some(state);
@@ -594,36 +701,74 @@ impl UI {
         if hide {
             s.pop_layer();
             s.pop_layer();
-            return true;
         }
         if show {
             s.add_fullscreen_layer(Layer::with_color(
                 ResizedView::with_full_screen(DummyView {}),
                 ColorStyle::new(PaletteColor::Background, PaletteColor::Background),
             ));
+
             s.add_layer(
-                Dialog::around(
-                    LinearLayout::vertical().child(
-                        LinearLayout::horizontal()
-                            .child(TextView::new("Address:"))
-                            .child(
-                                EditView::new()
-                                    .on_submit(|s, _| Self::submit_connection_address(s))
-                                    .with_name("connection-address")
-                                    .fixed_height(1)
-                                    .min_width(40),
-                            ),
-                    ),
-                )
-                .title("Connect to server")
+                Dialog::around(if connecting {
+                    LinearLayout::vertical()
+                        .child(TextView::new(" "))
+                        .child(
+                            TextView::new(if is_ipc {
+                                "Connecting to IPC:"
+                            } else {
+                                "Connecting to TCP:"
+                            })
+                            .min_width(40),
+                        )
+                        .child(TextView::new("").with_name("connecting-text"))
+                } else {
+                    LinearLayout::vertical()
+                        .child(TextView::new(" "))
+                        .child(
+                            if is_ipc {
+                                connection_type_group.button(0, "IPC Path").selected()
+                            } else {
+                                connection_type_group.button(0, "IPC Path")
+                            }
+                            .with_name("ipc-path-radio"),
+                        )
+                        .child(
+                            EditView::new()
+                                .with_enabled(is_ipc)
+                                .on_submit(|s, _| Self::submit_ipc_path(s))
+                                .with_name("ipc-path")
+                                .fixed_height(1)
+                                .min_width(40),
+                        )
+                        .child(TextView::new(" "))
+                        .child(
+                            if is_ipc {
+                                connection_type_group.button(1, "Network Address")
+                            } else {
+                                connection_type_group
+                                    .button(1, "Network Address")
+                                    .selected()
+                            }
+                            .with_name("network-address-radio"),
+                        )
+                        .child(
+                            EditView::new()
+                                .with_enabled(!is_ipc)
+                                .on_submit(|s, _| Self::submit_network_address(s))
+                                .with_name("network-address")
+                                .fixed_height(1)
+                                .min_width(40),
+                        )
+                        .child(TextView::new(" "))
+                })
+                .title(if connecting {
+                    "Connecting to server..."
+                } else {
+                    "Connect to server"
+                })
                 .with_name("connection-dialog"),
             );
 
-            return true;
-        }
-        if reset {
-            let mut dlg = s.find_name::<Dialog>("connection-dialog").unwrap();
-            dlg.clear_buttons();
             return true;
         }
 
@@ -633,31 +778,56 @@ impl UI {
     fn refresh_connection_dialog(s: &mut Cursive) {
         let new_state = Self::inner(s).ui_state.connection_state.get().clone();
 
-        if !Self::show_connection_dialog(s, new_state.clone()) {
+        if !Self::draw_connection_dialog(s, new_state.clone()) {
             return;
         }
 
         match new_state {
             ConnectionState::Disconnected => {
-                let addr = match Self::command_processor(s).get_server_address() {
-                    None => "".to_owned(),
-                    Some(addr) => addr.to_string(),
+                Self::ipc_path_radio(s).set_enabled(true);
+                Self::network_address_radio(s).set_enabled(true);
+
+                let (network_address, network_address_enabled) =
+                    match Self::command_processor(s).get_network_address() {
+                        None => ("".to_owned(), false),
+                        Some(addr) => (addr.to_string(), true),
+                    };
+                let mut edit = Self::network_address(s);
+                edit.set_content(network_address);
+                edit.set_enabled(network_address_enabled);
+
+                let (ipc_path, ipc_path_enabled) = match Self::command_processor(s).get_ipc_path() {
+                    None => ("".to_owned(), false),
+                    Some(ipc_path) => (ipc_path.to_string_lossy().to_string(), true),
                 };
-                debug!("address is {}", addr);
-                let mut edit = s.find_name::<EditView>("connection-address").unwrap();
-                edit.set_content(addr);
-                edit.set_enabled(true);
-                let mut dlg = s.find_name::<Dialog>("connection-dialog").unwrap();
-                dlg.add_button("Connect", Self::submit_connection_address);
+                let mut edit = Self::ipc_path(s);
+                edit.set_content(ipc_path);
+                edit.set_enabled(ipc_path_enabled);
+
+                let mut dlg = Self::connection_dialog(s);
+                dlg.add_button("Connect", |s| {
+                    if Self::ipc_path_radio(s).is_selected() {
+                        Self::submit_ipc_path(s);
+                    } else {
+                        Self::submit_network_address(s);
+                    }
+                });
             }
-            ConnectionState::Connected(_, _) => {}
-            ConnectionState::Retrying(addr, _) => {
-                //
-                let mut edit = s.find_name::<EditView>("connection-address").unwrap();
-                debug!("address is {}", addr);
-                edit.set_content(addr.to_string());
-                edit.set_enabled(false);
-                let mut dlg = s.find_name::<Dialog>("connection-dialog").unwrap();
+            ConnectionState::ConnectedTCP(_, _) | ConnectionState::ConnectedIPC(_, _) => {}
+            ConnectionState::RetryingTCP(addr, _) => {
+                let mut text = Self::connecting_text(s);
+                text.set_content(addr.to_string());
+
+                let mut dlg = Self::connection_dialog(s);
+                dlg.add_button("Cancel", |s| {
+                    Self::command_processor(s).cancel_reconnect();
+                });
+            }
+            ConnectionState::RetryingIPC(ipc_path, _) => {
+                let mut text = Self::connecting_text(s);
+                text.set_content(ipc_path.to_string_lossy().to_string());
+
+                let mut dlg = Self::connection_dialog(s);
                 dlg.add_button("Cancel", |s| {
                     Self::command_processor(s).cancel_reconnect();
                 });
@@ -678,6 +848,8 @@ impl UI {
 
         let mut status = StyledString::new();
 
+        let mut enable_status_fields = false;
+
         match inner.ui_state.connection_state.get() {
             ConnectionState::Disconnected => {
                 status.append_styled(
@@ -686,35 +858,64 @@ impl UI {
                 );
                 status.append_styled("|", ColorStyle::highlight_inactive());
             }
-            ConnectionState::Retrying(addr, _) => {
+            ConnectionState::RetryingTCP(addr, _) => {
                 status.append_styled(
                     format!("Reconnecting to {} ", addr),
                     ColorStyle::highlight_inactive(),
                 );
                 status.append_styled("|", ColorStyle::highlight_inactive());
             }
-            ConnectionState::Connected(addr, _) => {
+            ConnectionState::RetryingIPC(path, _) => {
+                status.append_styled(
+                    format!(
+                        "Reconnecting to IPC#{} ",
+                        path.file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned()
+                    ),
+                    ColorStyle::highlight_inactive(),
+                );
+                status.append_styled("|", ColorStyle::highlight_inactive());
+            }
+            ConnectionState::ConnectedTCP(addr, _) => {
                 status.append_styled(
                     format!("Connected to {} ", addr),
                     ColorStyle::highlight_inactive(),
                 );
-                status.append_styled("|", ColorStyle::highlight_inactive());
-                // Add attachment state
-                status.append_styled(
-                    format!(" {} ", UI::render_attachment_state(&mut inner)),
-                    ColorStyle::highlight_inactive(),
-                );
-                status.append_styled("|", ColorStyle::highlight_inactive());
-                // Add bandwidth status
-                status.append_styled(
-                    format!(" {} ", UI::render_network_status(&mut inner)),
-                    ColorStyle::highlight_inactive(),
-                );
-                status.append_styled("|", ColorStyle::highlight_inactive());
-                // Add tunnel status
-                status.append_styled(" No Tunnels ", ColorStyle::highlight_inactive());
-                status.append_styled("|", ColorStyle::highlight_inactive());
+                enable_status_fields = true;
             }
+            ConnectionState::ConnectedIPC(path, _) => {
+                status.append_styled(
+                    format!(
+                        "Connected to IPC#{} ",
+                        path.file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned()
+                    ),
+                    ColorStyle::highlight_inactive(),
+                );
+                enable_status_fields = true;
+            }
+        }
+        if enable_status_fields {
+            status.append_styled("|", ColorStyle::highlight_inactive());
+            // Add attachment state
+            status.append_styled(
+                format!(" {} ", UI::render_attachment_state(&mut inner)),
+                ColorStyle::highlight_inactive(),
+            );
+            status.append_styled("|", ColorStyle::highlight_inactive());
+            // Add bandwidth status
+            status.append_styled(
+                format!(" {} ", UI::render_network_status(&mut inner)),
+                ColorStyle::highlight_inactive(),
+            );
+            status.append_styled("|", ColorStyle::highlight_inactive());
+            // Add tunnel status
+            status.append_styled(" No Tunnels ", ColorStyle::highlight_inactive());
+            status.append_styled("|", ColorStyle::highlight_inactive());
         };
 
         statusbar.set_content(status);
@@ -837,9 +1038,29 @@ impl UI {
         START_TIME.load(Ordering::Relaxed)
     }
 
-    pub fn new(node_log_scrollback: usize, settings: &Settings) -> (Self, UISender) {
-        cursive_flexi_logger_view::resize(node_log_scrollback);
+    fn make_node_events_panel(
+        node_log_scrollback: usize,
+    ) -> ResizedView<NamedView<NodeEventsPanel>> {
+        Panel::new(
+            CachedTextView::new([], node_log_scrollback, Some(node_log_scrollback))
+                .with_name("node-events-view")
+                .scrollable()
+                .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
+                .on_scroll(|s, _r| {
+                    let mut sv = UI::node_events_scroll_view(s);
+                    if sv.is_at_bottom() {
+                        sv.set_scroll_strategy(cursive::view::ScrollStrategy::StickToBottom);
+                    }
+                })
+                .with_name("node-events-scroll-view"),
+        )
+        .title_position(HAlign::Left)
+        .title("Node Events")
+        .with_name("node-events-panel")
+        .full_screen()
+    }
 
+    pub fn new(node_log_scrollback: usize, settings: &Settings) -> (Self, UISender) {
         UI::set_start_time();
         // Instantiate the cursive runnable
         let runnable = CursiveRunnable::new(
@@ -874,6 +1095,7 @@ impl UI {
         let ui_sender = UISender {
             inner: this.inner.clone(),
             cb_sink,
+            colors: default_log_colors(),
         };
 
         let mut inner = this.inner.lock();
@@ -882,13 +1104,7 @@ impl UI {
         this.siv.set_user_data(this.inner.clone());
 
         // Create layouts
-
-        let node_events_view = Panel::new(FlexiLoggerView::new_scrollable())
-            .title_position(HAlign::Left)
-            .title("Node Events")
-            .with_name("node-events-panel")
-            .full_screen();
-
+        let node_events_view = Self::make_node_events_panel(node_log_scrollback);
         let mut peers_table_view = PeersTableView::new()
             .column(PeerTableColumn::NodeId, "Node Id", |c| c.width(48))
             .column(PeerTableColumn::Address, "Address", |c| c)
@@ -967,22 +1183,18 @@ impl UI {
                 .child(TextView::new(version)),
         );
 
-        this.siv.add_fullscreen_layer(mainlayout);
+        this.siv
+            .add_fullscreen_layer(mainlayout.with_name("main-layout"));
 
         UI::setup_colors(&mut this.siv, &mut inner, settings);
         UI::setup_quit_handler(&mut this.siv);
-        this.siv
-            .set_global_callback(cursive::event::Event::CtrlChar('k'), UI::clear_handler);
+        UI::setup_clear_handler(&mut this.siv);
 
         drop(inner);
 
         (this, ui_sender)
     }
-    pub fn cursive_flexi_logger(&self) -> Box<CursiveLogWriter> {
-        let mut flv = cursive_flexi_logger_view::cursive_flexi_logger(self.siv.cb_sink().clone());
-        flv.set_colors(self.inner.lock().log_colors.clone());
-        flv
-    }
+
     pub fn set_command_processor(&mut self, cmdproc: CommandProcessor) {
         let mut inner = self.inner.lock();
         inner.cmdproc = Some(cmdproc);
@@ -999,10 +1211,22 @@ impl UI {
 
 type CallbackSink = Box<dyn FnOnce(&mut Cursive) + 'static + Send>;
 
+/// Default log colors
+fn default_log_colors() -> HashMap<Level, Color> {
+    let mut colors = HashMap::<Level, Color>::new();
+    colors.insert(Level::Trace, Color::Dark(BaseColor::Green));
+    colors.insert(Level::Debug, Color::Dark(BaseColor::Cyan));
+    colors.insert(Level::Info, Color::Dark(BaseColor::Blue));
+    colors.insert(Level::Warn, Color::Dark(BaseColor::Yellow));
+    colors.insert(Level::Error, Color::Dark(BaseColor::Red));
+    colors
+}
+
 #[derive(Clone)]
 pub struct UISender {
     inner: Arc<Mutex<UIInner>>,
     cb_sink: Sender<CallbackSink>,
+    colors: HashMap<Level, Color>,
 }
 
 impl UISender {
@@ -1094,14 +1318,72 @@ impl UISender {
     }
 
     pub fn add_node_event(&self, log_color: Level, event: String) {
-        {
+        let color = {
             let inner = self.inner.lock();
-            let color = *inner.log_colors.get(&log_color).unwrap();
-            cursive_flexi_logger_view::parse_lines_to_log(
-                color.into(),
-                format!("{}: {}", UI::cli_ts(UI::get_start_time()), event),
-            );
+            *inner.log_colors.get(&log_color).unwrap()
+        };
+
+        let _ = self.push_styled_lines(
+            color.into(),
+            format!("{}: {}\n", UI::cli_ts(UI::get_start_time()), event),
+        );
+    }
+
+    pub fn push_styled(&self, styled_string: StyledString) -> std::io::Result<()> {
+        let res = self.cb_sink.send(Box::new(move |s| {
+            UI::push_styled_line(s, styled_string);
+        }));
+        if res.is_err() {
+            return Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe));
         }
-        let _ = self.cb_sink.send(Box::new(UI::update_cb));
+        Ok(())
+    }
+
+    pub fn push_styled_lines(&self, starting_style: Style, lines: String) -> std::io::Result<()> {
+        let res = self.cb_sink.send(Box::new(move |s| {
+            UI::push_ansi_lines(s, starting_style, lines);
+        }));
+        if res.is_err() {
+            return Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe));
+        }
+        Ok(())
+    }
+}
+impl LogWriter for UISender {
+    fn write(&self, _now: &mut DeferredNow, record: &Record) -> std::io::Result<()> {
+        let color = *self.colors.get(&record.level()).unwrap();
+
+        let args = format!("{}", &record.args());
+
+        let mut line = StyledString::new();
+        let mut indent = 0;
+        let levstr = format!("{}: ", record.level());
+        indent += levstr.len();
+        line.append_styled(levstr, color);
+        let filestr = format!(
+            "{}:{} ",
+            record.file().unwrap_or("(unnamed)"),
+            record.line().unwrap_or(0),
+        );
+        indent += filestr.len();
+        line.append_plain(filestr);
+
+        for argline in args.lines() {
+            line.append_styled(argline, color);
+            line.append_plain("\n");
+            self.push_styled(line)?;
+            line = StyledString::new();
+            line.append_plain(" ".repeat(indent));
+        }
+        Ok(())
+    }
+
+    fn flush(&self) -> std::io::Result<()> {
+        // we are not buffering
+        Ok(())
+    }
+
+    fn max_log_level(&self) -> log::LevelFilter {
+        log::LevelFilter::max()
     }
 }

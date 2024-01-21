@@ -401,7 +401,7 @@ impl IGDManager {
                 let desc = this.get_description(k.llpt, k.local_port);
                 match gw.add_port(convert_llpt(k.llpt), v.mapped_port, SocketAddr::new(local_ip, k.local_port), (UPNP_MAPPING_LIFETIME_MS + 999) / 1000, &desc) {
                     Ok(()) => {
-                        log_net!(debug "renewed mapped port {:?} -> {:?}", v, k);
+                        log_net!("renewed mapped port {:?} -> {:?}", v, k);
 
                         inner.port_maps.insert(k, PortMapValue {
                             ext_ip: v.ext_ip,

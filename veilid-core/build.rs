@@ -1,7 +1,10 @@
-use filetime::{set_file_mtime, FileTime};
 use glob::glob;
+use sha2::{Digest, Sha256};
+use std::fs::OpenOptions;
+use std::io::BufRead;
+use std::io::Write;
 use std::{
-    env, fs, io,
+    env, io,
     path::Path,
     process::{Command, Stdio},
 };
@@ -29,24 +32,61 @@ fn get_capnp_version_string() -> String {
     s[20..].to_owned()
 }
 
-fn is_input_file_outdated<P1, P2>(input: P1, output: P2) -> io::Result<bool>
+fn is_input_file_outdated<P, Q>(input: P, output: Q) -> io::Result<bool>
 where
-    P1: AsRef<Path>,
-    P2: AsRef<Path>,
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
 {
-    let out_meta = fs::metadata(output);
-    if let Ok(meta) = out_meta {
-        let output_mtime = meta.modified()?;
+    let Some(out_bh) = get_build_hash(output) else {
+        // output file not found or no build hash, we are outdated
+        return Ok(true);
+    };
 
-        // if input file is more recent than our output, we are outdated
-        let input_meta = fs::metadata(input)?;
-        let input_mtime = input_meta.modified()?;
+    let in_bh = make_build_hash(input);
 
-        Ok(input_mtime > output_mtime)
-    } else {
-        // output file not found, we are outdated
-        Ok(true)
+    Ok(out_bh != in_bh)
+}
+
+fn calculate_hash(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    // Build hash of lines, ignoring EOL conventions
+    for l in lines {
+        let l = l.unwrap();
+        hasher.update(l.as_bytes());
+        hasher.update(b"\n");
     }
+    let out = hasher.finalize();
+    out.to_vec()
+}
+
+fn get_build_hash<Q: AsRef<Path>>(output_path: Q) -> Option<Vec<u8>> {
+    let lines = std::io::BufReader::new(std::fs::File::open(output_path).ok()?).lines();
+    for l in lines {
+        let l = l.unwrap();
+        if let Some(rest) = l.strip_prefix("//BUILDHASH:") {
+            return Some(hex::decode(rest).unwrap());
+        }
+    }
+    None
+}
+
+fn make_build_hash<P: AsRef<Path>>(input_path: P) -> Vec<u8> {
+    let input_path = input_path.as_ref();
+    let lines = std::io::BufReader::new(std::fs::File::open(input_path).unwrap()).lines();
+    calculate_hash(lines)
+}
+
+fn append_hash<P: AsRef<Path>, Q: AsRef<Path>>(input_path: P, output_path: Q) {
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
+    let lines = std::io::BufReader::new(std::fs::File::open(input_path).unwrap()).lines();
+    let h = calculate_hash(lines);
+    let mut out_file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(output_path)
+        .unwrap();
+    writeln!(out_file, "\n//BUILDHASH:{}", hex::encode(h)).unwrap();
 }
 
 fn do_capnp_build() {
@@ -86,8 +126,8 @@ fn do_capnp_build() {
         .run()
         .expect("compiling schema");
 
-    // If successful, update modification time
-    set_file_mtime("proto/veilid_capnp.rs", FileTime::now()).unwrap();
+    // If successful, append a hash of the input to the output file
+    append_hash("proto/veilid.capnp", "proto/veilid_capnp.rs");
 }
 
 // Fix for missing __extenddftf2 on Android x86_64 Emulator
@@ -97,11 +137,13 @@ fn fix_android_emulator() {
     if target_arch == "x86_64" && target_os == "android" {
         let missing_library = "clang_rt.builtins-x86_64-android";
         let android_home = env::var("ANDROID_HOME").expect("ANDROID_HOME not set");
-        let lib_path = glob(&format!("{android_home}/ndk/25.1.8937393/**/lib{missing_library}.a"))
-            .expect("failed to glob")
-            .next()
-            .expect("Need libclang_rt.builtins-x86_64-android.a")
-            .unwrap();
+        let lib_path = glob(&format!(
+            "{android_home}/ndk/25.1.8937393/**/lib{missing_library}.a"
+        ))
+        .expect("failed to glob")
+        .next()
+        .expect("Need libclang_rt.builtins-x86_64-android.a")
+        .unwrap();
         let lib_dir = lib_path.parent().unwrap();
         println!("cargo:rustc-link-search={}", lib_dir.display());
         println!("cargo:rustc-link-lib=static={missing_library}");
@@ -117,7 +159,7 @@ fn main() {
     }
 
     if is_input_file_outdated("./proto/veilid.capnp", "./proto/veilid_capnp.rs").unwrap() {
-        println!("cargo:warning=rebuilding proto/veilid_capnp.rs because it is older than proto/veilid.capnp");
+        println!("cargo:warning=rebuilding proto/veilid_capnp.rs because it has changed from the last generation of proto/veilid.capnp");
         do_capnp_build();
     }
 

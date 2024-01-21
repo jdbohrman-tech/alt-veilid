@@ -185,8 +185,14 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<Timestamp> watchDHTValues(TypedKey key, List<ValueSubkeyRange> subkeys,
-      Timestamp expiration, int count) async {
+  Future<Timestamp> watchDHTValues(TypedKey key,
+      {List<ValueSubkeyRange>? subkeys,
+      Timestamp? expiration,
+      int? count}) async {
+    subkeys ??= [];
+    expiration ??= Timestamp(value: BigInt.zero);
+    count ??= 0xFFFFFFFF;
+
     final id = _ctx.requireId();
     final ts = await _wrapApiPromise<String>(js_util.callMethod(
         wasm, 'routing_context_watch_dht_values', [
@@ -200,7 +206,9 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<bool> cancelDHTWatch(TypedKey key, List<ValueSubkeyRange> subkeys) {
+  Future<bool> cancelDHTWatch(TypedKey key, {List<ValueSubkeyRange>? subkeys}) {
+    subkeys ??= [];
+
     final id = _ctx.requireId();
     return _wrapApiPromise(js_util.callMethod(
         wasm,

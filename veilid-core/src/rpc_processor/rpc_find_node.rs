@@ -43,6 +43,9 @@ impl RPCProcessor {
         // Send the find_node request
         let waitable_reply = network_result_try!(self.question(dest, find_node_q, None).await?);
 
+        // Keep the reply private route that was used to return with the answer
+        let reply_private_route = waitable_reply.reply_private_route;
+
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {
             TimeoutOr::Timeout => return Ok(NetworkResult::Timeout),
@@ -74,7 +77,11 @@ impl RPCProcessor {
             }
         }
 
-        Ok(NetworkResult::value(Answer::new(latency, peers)))
+        Ok(NetworkResult::value(Answer::new(
+            latency,
+            reply_private_route,
+            peers,
+        )))
     }
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]

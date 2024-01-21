@@ -1,3 +1,5 @@
+use super::*;
+
 /// Configuration for the record store
 #[derive(Debug, Default, Copy, Clone)]
 pub struct RecordStoreLimits {
@@ -13,4 +15,12 @@ pub struct RecordStoreLimits {
     pub max_subkey_cache_memory_mb: Option<usize>,
     /// Limit on the amount of storage space to use for subkey data and record data
     pub max_storage_space_mb: Option<usize>,
+    /// Max number of anonymous watches
+    pub public_watch_limit: usize,
+    /// Max number of watches per schema member
+    pub member_watch_limit: usize,
+    /// Max expiration duration per watch
+    pub max_watch_expiration: TimestampDuration,
+    /// Min expiration duration per watch
+    pub min_watch_expiration: TimestampDuration,
 }

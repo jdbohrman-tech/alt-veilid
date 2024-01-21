@@ -3,16 +3,20 @@
 
 use super::*;
 use data_encoding::BASE64URL_NOPAD;
+use hashlink::LinkedHashMap;
 use network_manager::*;
+use once_cell::sync::Lazy;
 use routing_table::*;
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 struct DebugCache {
     imported_routes: Vec<RouteId>,
+    opened_record_contexts: Lazy<LinkedHashMap<TypedKey, RoutingContext>>,
 }
 
 static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
     imported_routes: Vec::new(),
+    opened_record_contexts: Lazy::new(LinkedHashMap::new),
 });
 
 fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
@@ -283,6 +287,7 @@ fn get_destination(
 fn get_number(text: &str) -> Option<usize> {
     usize::from_str(text).ok()
 }
+
 fn get_typed_key(text: &str) -> Option<TypedKey> {
     TypedKey::from_str(text).ok()
 }
@@ -299,6 +304,18 @@ fn get_crypto_system_version(crypto: Crypto) -> impl FnOnce(&str) -> Option<Cryp
         let kind = CryptoKind::from_str(&kindstr).ok()?;
         crypto.get(kind)
     }
+}
+
+fn get_dht_key_no_safety(text: &str) -> Option<TypedKey> {
+    let key = if let Some(key) = get_public_key(text) {
+        TypedKey::new(best_crypto_kind(), key)
+    } else if let Some(key) = get_typed_key(text) {
+        key
+    } else {
+        return None;
+    };
+
+    Some(key)
 }
 
 fn get_dht_key(
@@ -513,6 +530,34 @@ async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> SendPinBoxFuture<Opti
         apibail_invalid_argument!(context, argument, value);
     };
     Ok(val)
+}
+
+fn get_opened_dht_record_context(
+    args: &[String],
+    context: &str,
+    key: &str,
+    arg: usize,
+) -> VeilidAPIResult<(TypedKey, RoutingContext)> {
+    let dc = DEBUG_CACHE.lock();
+
+    let key = match get_debug_argument_at(args, arg, context, key, get_dht_key_no_safety)
+        .ok()
+        .or_else(|| {
+            // If unspecified, use the most recent key opened or created
+            dc.opened_record_contexts.back().map(|kv| kv.0).copied()
+        }) {
+        Some(k) => k,
+        None => {
+            apibail_missing_argument!("no keys are opened", "key");
+        }
+    };
+
+    // Get routing context for record
+    let Some(rc) = dc.opened_record_contexts.get(&key).cloned() else {
+        apibail_missing_argument!("key is not opened", "key");
+    };
+
+    Ok((key, rc))
 }
 
 pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
@@ -764,7 +809,7 @@ impl VeilidAPI {
             }
 
             let netman = self.network_manager()?;
-            netman.debug_restart_network();
+            netman.restart_network();
 
             Ok("Network restarted".to_owned())
         } else {
@@ -888,7 +933,7 @@ impl VeilidAPI {
 
         match &dest {
             Destination::Direct {
-                target,
+                node: target,
                 safety_selection: _,
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\n",
@@ -897,7 +942,7 @@ impl VeilidAPI {
             )),
             Destination::Relay {
                 relay,
-                target,
+                node: target,
                 safety_selection: _,
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\nRelay Entry:\n{}\n",
@@ -1262,7 +1307,7 @@ impl VeilidAPI {
             .map_err(VeilidAPIError::generic)?;
         let rss = self.routing_table()?.route_spec_store();
         let route_id = rss
-            .import_remote_private_route(blob_dec)
+            .import_remote_private_route_blob(blob_dec)
             .map_err(VeilidAPIError::generic)?;
 
         let mut dc = DEBUG_CACHE.lock();
@@ -1410,25 +1455,86 @@ impl VeilidAPI {
             Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
             Ok(v) => v,
         };
-        match rc.close_dht_record(*record.key()).await {
-            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
-            Ok(v) => v,
-        };
+
+        // Save routing context for record
+        let mut dc = DEBUG_CACHE.lock();
+        dc.opened_record_contexts.insert(*record.key(), rc);
+
         debug!("DHT Record Created:\n{:#?}", record);
-        Ok(format!("{:?}", record))
+        Ok(format!("Created: {:?} : {:?}", record.key(), record))
     }
 
-    async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+    async fn debug_record_open(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
 
         let (key, ss) = get_debug_argument_at(
             &args,
             1,
-            "debug_record_get",
+            "debug_record_open",
             "key",
             get_dht_key(routing_table),
         )?;
+        let writer =
+            get_debug_argument_at(&args, 2, "debug_record_open", "writer", get_keypair).ok();
+
+        // Get routing context with optional safety
+        let rc = self.routing_context()?;
+        let rc = if let Some(ss) = ss {
+            match rc.with_safety(ss) {
+                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
+                Ok(v) => v,
+            }
+        } else {
+            rc
+        };
+
+        // Do a record open
+        let record = match rc.open_dht_record(key, writer).await {
+            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
+            Ok(v) => v,
+        };
+
+        // Save routing context for record
+        let mut dc = DEBUG_CACHE.lock();
+        dc.opened_record_contexts.insert(*record.key(), rc);
+
+        Ok(format!("Opened: {} : {:?}", key, record))
+    }
+
+    async fn debug_record_close(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_close", "key", 1)?;
+
+        // Do a record close
+        if let Err(e) = rc.close_dht_record(key).await {
+            return Ok(format!("Can't close DHT record: {}", e));
+        };
+
+        Ok(format!("Closed: {:?}", key))
+    }
+
+    async fn debug_record_set(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_set", "key", 1)?;
+        let subkey = get_debug_argument_at(&args, 2, "debug_record_set", "subkey", get_number)?;
+        let data = get_debug_argument_at(&args, 3, "debug_record_set", "data", get_data)?;
+
+        // Do a record set
+        let value = match rc.set_dht_value(key, subkey as ValueSubkey, data).await {
+            Err(e) => {
+                return Ok(format!("Can't set DHT value: {}", e));
+            }
+            Ok(v) => v,
+        };
+        let out = if let Some(value) = value {
+            format!("Newer value found: {:?}", value)
+        } else {
+            "Success".to_owned()
+        };
+        Ok(out)
+    }
+
+    async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_get", "key", 1)?;
         let subkey = get_debug_argument_at(&args, 2, "debug_record_get", "subkey", get_number)?;
         let force_refresh = if args.len() >= 4 {
             Some(get_debug_argument_at(
@@ -1452,36 +1558,12 @@ impl VeilidAPI {
             false
         };
 
-        // Get routing context with optional privacy
-        let rc = self.routing_context()?;
-        let rc = if let Some(ss) = ss {
-            match rc.with_safety(ss) {
-                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
-                Ok(v) => v,
-            }
-        } else {
-            rc
-        };
-
         // Do a record get
-        let _record = match rc.open_dht_record(key, None).await {
-            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
-            Ok(v) => v,
-        };
         let value = match rc
             .get_dht_value(key, subkey as ValueSubkey, force_refresh)
             .await
         {
             Err(e) => {
-                match rc.close_dht_record(key).await {
-                    Err(e) => {
-                        return Ok(format!(
-                            "Can't get DHT value and can't close DHT record: {}",
-                            e
-                        ))
-                    }
-                    Ok(v) => v,
-                };
                 return Ok(format!("Can't get DHT value: {}", e));
             }
             Ok(v) => v,
@@ -1491,75 +1573,19 @@ impl VeilidAPI {
         } else {
             "No value data returned".to_owned()
         };
-        match rc.close_dht_record(key).await {
-            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
-            Ok(v) => v,
-        };
-        Ok(out)
-    }
-
-    async fn debug_record_set(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
-
-        let (key, ss) = get_debug_argument_at(
-            &args,
-            1,
-            "debug_record_set",
-            "key",
-            get_dht_key(routing_table),
-        )?;
-        let subkey = get_debug_argument_at(&args, 2, "debug_record_set", "subkey", get_number)?;
-        let writer = get_debug_argument_at(&args, 3, "debug_record_set", "writer", get_keypair)?;
-        let data = get_debug_argument_at(&args, 4, "debug_record_set", "data", get_data)?;
-
-        // Get routing context with optional privacy
-        let rc = self.routing_context()?;
-        let rc = if let Some(ss) = ss {
-            match rc.with_safety(ss) {
-                Err(e) => return Ok(format!("Can't use safety selection: {}", e)),
-                Ok(v) => v,
-            }
-        } else {
-            rc
-        };
-
-        // Do a record get
-        let _record = match rc.open_dht_record(key, Some(writer)).await {
-            Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
-            Ok(v) => v,
-        };
-        let value = match rc.set_dht_value(key, subkey as ValueSubkey, data).await {
-            Err(e) => {
-                match rc.close_dht_record(key).await {
-                    Err(e) => {
-                        return Ok(format!(
-                            "Can't set DHT value and can't close DHT record: {}",
-                            e
-                        ))
-                    }
-                    Ok(v) => v,
-                };
-                return Ok(format!("Can't set DHT value: {}", e));
-            }
-            Ok(v) => v,
-        };
-        let out = if let Some(value) = value {
-            format!("{:?}", value)
-        } else {
-            "No value data returned".to_owned()
-        };
-        match rc.close_dht_record(key).await {
-            Err(e) => return Ok(format!("Can't close DHT record: {}", e)),
-            Ok(v) => v,
-        };
         Ok(out)
     }
 
     async fn debug_record_delete(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        let key = get_debug_argument_at(&args, 1, "debug_record_delete", "key", get_typed_key)?;
+        let key = get_debug_argument_at(
+            &args,
+            1,
+            "debug_record_delete",
+            "key",
+            get_dht_key_no_safety,
+        )?;
 
-        // Do a record delete
+        // Do a record delete (can use any routing context here)
         let rc = self.routing_context()?;
         match rc.delete_dht_record(key).await {
             Err(e) => return Ok(format!("Can't delete DHT record: {}", e)),
@@ -1571,7 +1597,8 @@ impl VeilidAPI {
     async fn debug_record_info(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         let storage_manager = self.storage_manager()?;
 
-        let key = get_debug_argument_at(&args, 1, "debug_record_info", "key", get_typed_key)?;
+        let key =
+            get_debug_argument_at(&args, 1, "debug_record_info", "key", get_dht_key_no_safety)?;
 
         let subkey =
             get_debug_argument_at(&args, 2, "debug_record_info", "subkey", get_number).ok();
@@ -1595,6 +1622,56 @@ impl VeilidAPI {
         Ok(out)
     }
 
+    async fn debug_record_watch(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
+        let subkeys = get_debug_argument_at(&args, 2, "debug_record_watch", "subkeys", get_subkeys)
+            .ok()
+            .unwrap_or_default();
+        let expiration =
+            get_debug_argument_at(&args, 3, "debug_record_watch", "expiration", parse_duration)
+                .ok()
+                .unwrap_or_default();
+        let count = get_debug_argument_at(&args, 4, "debug_record_watch", "count", get_number)
+            .ok()
+            .unwrap_or(usize::MAX) as u32;
+
+        // Do a record watch
+        let ts = match rc
+            .watch_dht_values(key, subkeys, Timestamp::new(expiration), count)
+            .await
+        {
+            Err(e) => {
+                return Ok(format!("Can't watch DHT value: {}", e));
+            }
+            Ok(v) => v,
+        };
+        if ts.as_u64() == 0 {
+            return Ok("Failed to watch value".to_owned());
+        }
+        Ok(format!("Success: expiration={:?}", debug_ts(ts.as_u64())))
+    }
+
+    async fn debug_record_cancel(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
+        let subkeys = get_debug_argument_at(&args, 2, "debug_record_watch", "subkeys", get_subkeys)
+            .ok()
+            .unwrap_or_default();
+
+        // Do a record watch cancel
+        let still_active = match rc.cancel_dht_watch(key, subkeys).await {
+            Err(e) => {
+                return Ok(format!("Can't cancel DHT watch: {}", e));
+            }
+            Ok(v) => v,
+        };
+
+        Ok(if still_active {
+            "Watch partially cancelled".to_owned()
+        } else {
+            "Watch cancelled".to_owned()
+        })
+    }
+
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> =
             shell_words::split(&args).map_err(|e| VeilidAPIError::parse_error(e, args))?;
@@ -1607,6 +1684,10 @@ impl VeilidAPI {
             self.debug_record_purge(args).await
         } else if command == "create" {
             self.debug_record_create(args).await
+        } else if command == "open" {
+            self.debug_record_open(args).await
+        } else if command == "close" {
+            self.debug_record_close(args).await
         } else if command == "get" {
             self.debug_record_get(args).await
         } else if command == "set" {
@@ -1615,6 +1696,10 @@ impl VeilidAPI {
             self.debug_record_delete(args).await
         } else if command == "info" {
             self.debug_record_info(args).await
+        } else if command == "watch" {
+            self.debug_record_watch(args).await
+        } else if command == "cancel" {
+            self.debug_record_cancel(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
@@ -1625,8 +1710,18 @@ impl VeilidAPI {
         let network_manager = self.network_manager()?;
         let address_filter = network_manager.address_filter();
 
-        let out = format!("Address Filter Punishments:\n{:#?}", address_filter);
+        let out = format!("Address filter punishments:\n{:#?}", address_filter);
         Ok(out)
+    }
+
+    async fn debug_punish_clear(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+        //
+        let network_manager = self.network_manager()?;
+        let address_filter = network_manager.address_filter();
+
+        address_filter.clear_punishments();
+
+        Ok("Address Filter punishments cleared\n".to_owned())
     }
 
     async fn debug_punish(&self, args: String) -> VeilidAPIResult<String> {
@@ -1665,6 +1760,7 @@ appcall <destination> <data>
 appreply [#id] <data>
 relay <relay> [public|local]
 punish list
+       clear
 route allocate [ord|*ord] [rel] [<count>] [in|out]
       release <route>
       publish <route> [full]
@@ -1676,10 +1772,14 @@ route allocate [ord|*ord] [rel] [<count>] [in|out]
 record list <local|remote>
        purge <local|remote> [bytes]
        create <dhtschema> [<cryptokind> [<safety>]]
-       set <key>[+<safety>] <subkey> <writer> <data> 
-       get <key>[+<safety>] <subkey> [force]
+       open <key>[+<safety>] [<writer>]
+       close [<key>]
+       set [<key>] <subkey> <data> 
+       get [<key>] <subkey> [force]
        delete <key>
-       info <key> [subkey]
+       info [<key>] [subkey]
+       watch [<key>] [<subkeys>] [<expiration>] [<count>]
+       cancel [<key>] [<subkeys>]
 --------------------------------------------------------------------
 <key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
     * also <node>, <relay>, <target>, <route>
