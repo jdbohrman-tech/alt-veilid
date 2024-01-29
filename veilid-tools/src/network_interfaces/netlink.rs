@@ -26,7 +26,7 @@ cfg_if! {
 use std::convert::TryInto;
 use std::ffi::CStr;
 use std::io;
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_char};
 use tools::*;
 
 fn get_interface_name(index: u32) -> io::Result<String> {
@@ -37,7 +37,7 @@ fn get_interface_name(index: u32) -> io::Result<String> {
                 bail_io_error_other!("if_indextoname returned null");
             }
         } else {
-            if unsafe { if_indextoname(index, ifnamebuf.as_mut_ptr() as *mut i8) }.is_null() {
+            if unsafe { if_indextoname(index, ifnamebuf.as_mut_ptr() as *mut c_char) }.is_null() {
                 bail_io_error_other!("if_indextoname returned null");
             }
         }
