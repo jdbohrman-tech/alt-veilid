@@ -141,10 +141,37 @@ class ValueSubkeyRange with _$ValueSubkeyRange {
 
 extension ValueSubkeyRangeExt on ValueSubkeyRange {
   bool contains(int v) => low <= v && v <= high;
+  List<ValueSubkeyRange> remove(int v) {
+    if (v < low || v > high) {
+      return [this];
+    }
+    if (v == low) {
+      if (v == high) {
+        return [];
+      } else {
+        return [ValueSubkeyRange(low: v + 1, high: high)];
+      }
+    } else if (v == high) {
+      return [ValueSubkeyRange(low: low, high: v - 1)];
+    } else {
+      return [
+        ValueSubkeyRange(low: low, high: v - 1),
+        ValueSubkeyRange(low: v + 1, high: high)
+      ];
+    }
+  }
 }
 
 extension ListValueSubkeyRangeExt on List<ValueSubkeyRange> {
   bool containsSubkey(int v) => indexWhere((e) => e.contains(v)) != -1;
+  List<ValueSubkeyRange> remove(int v) {
+    for (var i = 0; i < length; i++) {
+      if (this[i].contains(v)) {
+        return [...sublist(0, i), ...this[i].remove(v), ...sublist(i + 1)];
+      }
+    }
+    return this;
+  }
 }
 
 //////////////////////////////////////
