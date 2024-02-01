@@ -3,7 +3,7 @@ use super::*;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// Valid destinations for a message sent over a routing context
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Copy, PartialOrd, Ord)]
 pub enum Target {
     /// Node by its public key
     NodeId(TypedKey),

@@ -734,7 +734,7 @@ impl StorageManager {
 
         let dest = rpc_processor
             .resolve_target_to_destination(
-                vc.target.clone(),
+                vc.target,
                 SafetySelection::Unsafe(Sequencing::NoPreference),
             )
             .await

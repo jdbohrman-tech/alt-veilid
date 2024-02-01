@@ -909,7 +909,7 @@ where
                     }
 
                     evcis.push(EarlyValueChangedInfo {
-                        target: w.target.clone(),
+                        target: w.target,
                         key: rtk.key,
                         subkeys,
                         count,
