@@ -261,6 +261,18 @@ macro_rules! byte_array_type {
                 &mut self.bytes
             }
         }
+
+        impl From<[u8; $size]> for $name {
+            fn from(value: [u8; $size]) -> Self {
+                Self::new(value)
+            }
+        }
+        
+        impl From<$name> for [u8; $size] {
+            fn from(value: $name) -> Self {
+                value.bytes
+            }
+        }
     };
 }
 
@@ -283,3 +295,16 @@ pub type CryptoKeyDistance = CryptoKey;
 
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);
 byte_array_type!(Nonce, NONCE_LENGTH, NONCE_LENGTH_ENCODED);
+
+
+// impl From<[u8; SIGNATURE_LENGTH]> for Signature {
+//     fn from(value: [u8; SIGNATURE_LENGTH]) -> Self {
+//         Self::new(value)
+//     }
+// }
+
+// impl From<Signature> for [u8; SIGNATURE_LENGTH] {
+//     fn from(value: Signature) -> Self {
+//         value.bytes
+//     }
+// }
