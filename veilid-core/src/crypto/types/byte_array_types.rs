@@ -295,16 +295,3 @@ pub type CryptoKeyDistance = CryptoKey;
 
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);
 byte_array_type!(Nonce, NONCE_LENGTH, NONCE_LENGTH_ENCODED);
-
-
-// impl From<[u8; SIGNATURE_LENGTH]> for Signature {
-//     fn from(value: [u8; SIGNATURE_LENGTH]) -> Self {
-//         Self::new(value)
-//     }
-// }
-
-// impl From<Signature> for [u8; SIGNATURE_LENGTH] {
-//     fn from(value: Signature) -> Self {
-//         value.bytes
-//     }
-// }
