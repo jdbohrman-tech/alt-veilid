@@ -170,6 +170,7 @@ build-android:
 unit-tests-linux:
     FROM +code-linux
     ENV RUST_BACKTRACE=1
+    RUN cargo clippy
     RUN cargo test -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 # TODO: Change t0 cross so that they work on any platform
