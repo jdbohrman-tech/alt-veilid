@@ -164,7 +164,7 @@ extension ValueSubkeyRangeExt on ValueSubkeyRange {
 
 extension ListValueSubkeyRangeExt on List<ValueSubkeyRange> {
   bool containsSubkey(int v) => indexWhere((e) => e.contains(v)) != -1;
-  List<ValueSubkeyRange> remove(int v) {
+  List<ValueSubkeyRange> removeSubkey(int v) {
     for (var i = 0; i < length; i++) {
       if (this[i].contains(v)) {
         return [...sublist(0, i), ...this[i].remove(v), ...sublist(i + 1)];
