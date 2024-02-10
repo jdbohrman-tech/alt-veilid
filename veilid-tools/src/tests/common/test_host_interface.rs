@@ -259,6 +259,7 @@ pub async fn test_interval() {
     stopper.await;
 }
 
+#[allow(clippy::await_holding_lock)]
 pub async fn test_timeout() {
     info!("testing timeout");
 
