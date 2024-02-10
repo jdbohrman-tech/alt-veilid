@@ -585,7 +585,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextAppMessage(sendPort.nativePort, _ctx.id!,
         nativeEncodedTarget, nativeEncodedMessage);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -626,7 +626,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextCloseDHTRecord(
         sendPort.nativePort, _ctx.id!, nativeKey);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -637,7 +637,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextDeleteDHTRecord(
         sendPort.nativePort, _ctx.id!, nativeKey);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -782,7 +782,7 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
       nativeEncodedKey,
       nativeEncodedValue,
     );
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -798,7 +798,7 @@ class VeilidTableDBTransactionFFI extends VeilidTableDBTransaction {
       col,
       nativeEncodedKey,
     );
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 }
 
@@ -848,7 +848,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
 
     _tdb.ffi._tableDbGetKeys(sendPort.nativePort, _tdb.id!, col);
 
-    return await processFutureJson(
+    return processFutureJson(
         jsonListConstructor<Uint8List>(base64UrlNoPadDecodeDynamic),
         recvPort.first);
   }
@@ -877,7 +877,7 @@ class VeilidTableDBFFI extends VeilidTableDB {
       nativeEncodedKey,
       nativeEncodedValue,
     );
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -938,7 +938,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_cached_dh');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoCachedDH(sendPort.nativePort, _kind, nativeKey, nativeSecret);
-    return await processFutureJson(SharedSecret.fromJson, recvPort.first);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
   }
 
   @override
@@ -949,7 +949,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_compute_dh');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoComputeDH(sendPort.nativePort, _kind, nativeKey, nativeSecret);
-    return await processFutureJson(SharedSecret.fromJson, recvPort.first);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
   }
 
   @override
@@ -966,7 +966,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_default_salt_length');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoDefaultSaltLength(sendPort.nativePort, _kind);
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -978,7 +978,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoHashPassword(
         sendPort.nativePort, _kind, nativeEncodedPassword, nativeEncodedSalt);
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -990,7 +990,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoVerifyPassword(sendPort.nativePort, _kind,
         nativeEncodedPassword, nativeEncodedPasswordHash);
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1003,7 +1003,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoDeriveSharedSecret(
         sendPort.nativePort, _kind, nativeEncodedPassword, nativeEncodedSalt);
-    return await processFutureJson(SharedSecret.fromJson, recvPort.first);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
   }
 
   @override
@@ -1011,7 +1011,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_random_nonce');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoRandomNonce(sendPort.nativePort, _kind);
-    return await processFutureJson(Nonce.fromJson, recvPort.first);
+    return processFutureJson(Nonce.fromJson, recvPort.first);
   }
 
   @override
@@ -1019,7 +1019,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_random_shared_secret');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoRandomSharedSecret(sendPort.nativePort, _kind);
-    return await processFutureJson(SharedSecret.fromJson, recvPort.first);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
   }
 
   @override
@@ -1027,7 +1027,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_generate_key_pair');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoGenerateKeyPair(sendPort.nativePort, _kind);
-    return await processFutureJson(KeyPair.fromJson, recvPort.first);
+    return processFutureJson(KeyPair.fromJson, recvPort.first);
   }
 
   @override
@@ -1037,7 +1037,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_generate_hash');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoGenerateHash(sendPort.nativePort, _kind, nativeEncodedData);
-    return await processFutureJson(HashDigest.fromJson, recvPort.first);
+    return processFutureJson(HashDigest.fromJson, recvPort.first);
   }
 
   @override
@@ -1049,7 +1049,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoValidateKeyPair(
         sendPort.nativePort, _kind, nativeKey, nativeSecret);
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1061,7 +1061,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoValidateHash(
         sendPort.nativePort, _kind, nativeEncodedData, nativeHash);
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1072,7 +1072,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final recvPort = ReceivePort('crypto_distance');
     final sendPort = recvPort.sendPort;
     _ffi._cryptoDistance(sendPort.nativePort, _kind, nativeKey1, nativeKey2);
-    return await processFutureJson(CryptoKeyDistance.fromJson, recvPort.first);
+    return processFutureJson(CryptoKeyDistance.fromJson, recvPort.first);
   }
 
   @override
@@ -1086,7 +1086,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoSign(
         sendPort.nativePort, _kind, nativeKey, nativeSecret, nativeEncodedData);
-    return await processFutureJson(Signature.fromJson, recvPort.first);
+    return processFutureJson(Signature.fromJson, recvPort.first);
   }
 
   @override
@@ -1100,7 +1100,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoVerify(sendPort.nativePort, _kind, nativeKey, nativeEncodedData,
         nativeSignature);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -1111,7 +1111,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
       sendPort.nativePort,
       _kind,
     );
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1508,7 +1508,7 @@ class VeilidFFI extends Veilid {
     _startupVeilidCore(
         sendPort.nativePort, sendStreamPort.nativePort, nativeConfig);
     malloc.free(nativeConfig);
-    return await processFutureStream(
+    return processFutureStream(
         processStreamJson(VeilidUpdate.fromJson, recvStreamPort),
         recvPort.first);
   }
@@ -1518,7 +1518,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('get_veilid_state');
     final sendPort = recvPort.sendPort;
     _getVeilidState(sendPort.nativePort);
-    return await processFutureJson(VeilidState.fromJson, recvPort.first);
+    return processFutureJson(VeilidState.fromJson, recvPort.first);
   }
 
   @override
@@ -1526,7 +1526,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('attach');
     final sendPort = recvPort.sendPort;
     _attach(sendPort.nativePort);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -1534,7 +1534,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('detach');
     final sendPort = recvPort.sendPort;
     _detach(sendPort.nativePort);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -1542,7 +1542,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('shutdown_veilid_core');
     final sendPort = recvPort.sendPort;
     _shutdownVeilidCore(sendPort.nativePort);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -1559,7 +1559,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('new_private_route');
     final sendPort = recvPort.sendPort;
     _newPrivateRoute(sendPort.nativePort);
-    return await processFutureJson(RouteBlob.fromJson, recvPort.first);
+    return processFutureJson(RouteBlob.fromJson, recvPort.first);
   }
 
   @override
@@ -1572,7 +1572,7 @@ class VeilidFFI extends Veilid {
         jsonEncode(stability).toNativeUtf8(),
         jsonEncode(sequencing).toNativeUtf8());
 
-    return await processFutureJson(RouteBlob.fromJson, recvPort.first);
+    return processFutureJson(RouteBlob.fromJson, recvPort.first);
   }
 
   @override
@@ -1582,7 +1582,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('import_remote_private_route');
     final sendPort = recvPort.sendPort;
     _importRemotePrivateRoute(sendPort.nativePort, nativeEncodedBlob);
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1592,7 +1592,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('release_private_route');
     final sendPort = recvPort.sendPort;
     _releasePrivateRoute(sendPort.nativePort, nativeEncodedKey);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -1602,7 +1602,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('app_call_reply');
     final sendPort = recvPort.sendPort;
     _appCallReply(sendPort.nativePort, nativeCallId, nativeEncodedMessage);
-    return await processFutureVoid(recvPort.first);
+    return processFutureVoid(recvPort.first);
   }
 
   @override
@@ -1619,7 +1619,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('delete_table_db');
     final sendPort = recvPort.sendPort;
     _deleteTableDb(sendPort.nativePort, name.toNativeUtf8());
-    return await processFuturePlain(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1653,7 +1653,7 @@ class VeilidFFI extends Veilid {
     final sendPort = recvPort.sendPort;
     _verifySignatures(
         sendPort.nativePort, nativeNodeIds, nativeData, nativeSignatures);
-    return await processFutureJson(
+    return processFutureJson(
         jsonListConstructor<TypedKey>(TypedKey.fromJson), recvPort.first);
   }
 
@@ -1666,7 +1666,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('generate_signatures');
     final sendPort = recvPort.sendPort;
     _generateSignatures(sendPort.nativePort, nativeData, nativeKeyPairs);
-    return await processFutureJson(
+    return processFutureJson(
         jsonListConstructor<TypedSignature>(TypedSignature.fromJson),
         recvPort.first);
   }
@@ -1682,7 +1682,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('generate_key_pair');
     final sendPort = recvPort.sendPort;
     _generateKeyPair(sendPort.nativePort, kind);
-    return await processFutureJson(TypedKeyPair.fromJson, recvPort.first);
+    return processFutureJson(TypedKeyPair.fromJson, recvPort.first);
   }
 
   @override
