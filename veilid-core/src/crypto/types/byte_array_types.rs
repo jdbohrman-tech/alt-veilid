@@ -261,6 +261,18 @@ macro_rules! byte_array_type {
                 &mut self.bytes
             }
         }
+
+        impl From<[u8; $size]> for $name {
+            fn from(value: [u8; $size]) -> Self {
+                Self::new(value)
+            }
+        }
+        
+        impl From<$name> for [u8; $size] {
+            fn from(value: $name) -> Self {
+                value.bytes
+            }
+        }
     };
 }
 
