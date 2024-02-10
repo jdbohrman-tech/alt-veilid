@@ -196,7 +196,7 @@ impl StorageManager {
                     subkeys.clone(),
                     expiration,
                     count,
-                    target.clone(),
+                    target,
                     watcher,
                 )
                 .await?;
