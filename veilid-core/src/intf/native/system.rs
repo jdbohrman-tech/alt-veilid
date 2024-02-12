@@ -9,8 +9,8 @@ pub async fn get_outbound_relay_peer() -> Option<crate::routing_table::PeerInfo>
 /////////////////////////////////////////////////////////////////////////////////
 // Resolver
 //
-// Uses system resolver on windows and trust-dns-resolver elsewhere
-// trust-dns-resolver hangs for a long time on Windows building some cache or something
+// Uses system resolver on windows and hickory-resolver elsewhere
+// hickory-resolver hangs for a long time on Windows building some cache or something
 // and we really should be using the built-in system resolver when possible
 
 cfg_if! {
@@ -18,9 +18,9 @@ cfg_if! {
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
                 use async_std_resolver::{config, resolver, resolver_from_system_conf, AsyncStdResolver as AsyncResolver};
-                use trust_dns_resolver::error::ResolveErrorKind;
+                use hickory_resolver::error::ResolveErrorKind;
             } else if #[cfg(feature="rt-tokio")] {
-                use trust_dns_resolver::{config, TokioAsyncResolver as AsyncResolver, error::ResolveError, error::ResolveErrorKind};
+                use hickory_resolver::{config, TokioAsyncResolver as AsyncResolver, error::ResolveError, error::ResolveErrorKind};
 
                 pub async fn resolver(
                     config: config::ResolverConfig,

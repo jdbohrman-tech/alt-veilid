@@ -25,7 +25,7 @@ default-wasm = ["enable-crypto-vld0"]
 rt-async-std = [
     "async-std",
     "async-std-resolver",
-    "trust-dns-resolver",
+    "hickory-resolver",
     "async_executors/async_std",
     "veilid-tools/rt-async-std",
 ]
@@ -33,7 +33,7 @@ rt-tokio = [
     "tokio",
     "tokio-util",
     "tokio-stream",
-    "trust-dns-resolver/tokio-runtime",
+    "hickory-resolver/tokio-runtime",
     "async_executors/tokio_tp",
     "async_executors/tokio_io",
     "async_executors/tokio_timer",
@@ -123,8 +123,7 @@ argon2 = "0.5.2"
 
 # Network
 async-std-resolver = { version = "0.23.2", optional = true }
-trust-dns-resolver = { version = "0.23.2", optional = true }
-enum-as-inner = "=0.6.0"                                     # temporary fix for trust-dns-resolver v0.22.0
+hickory-resolver = { version = "0.24.0", optional = true }
 
 # Serialization
 capnp = { version = "0.18.10", default-features = false, features = ["alloc"] }
