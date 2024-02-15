@@ -21,7 +21,7 @@ pub static DEFAULT_LOG_IGNORE_LIST: [&str; 21] = [
     "tungstenite",
     "netlink_proto",
     "netlink_sys",
-    "trust_dns_resolver",
-    "trust_dns_proto",
+    "hickory_resolver",
+    "hickory_proto",
     "attohttpc",
 ];

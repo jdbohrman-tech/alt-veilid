@@ -60,7 +60,7 @@ mod veilid_layer_filter;
 mod wasm_helpers;
 
 pub use self::api_tracing_layer::ApiTracingLayer;
-pub use self::core_context::{api_startup, api_startup_json, api_startup_config, UpdateCallback};
+pub use self::core_context::{api_startup, api_startup_config, api_startup_json, UpdateCallback};
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use self::veilid_layer_filter::*;
@@ -110,8 +110,8 @@ pub static DEFAULT_LOG_IGNORE_LIST: [&str; 23] = [
     "tungstenite",
     "netlink_proto",
     "netlink_sys",
-    "trust_dns_resolver",
-    "trust_dns_proto",
+    "hickory_resolver",
+    "hickory_proto",
     "attohttpc",
     "ws_stream_wasm",
     "keyvaluedb_web",
