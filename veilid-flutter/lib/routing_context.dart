@@ -135,6 +135,9 @@ class ValueSubkeyRange with _$ValueSubkeyRange {
     required int high,
   }) = _ValueSubkeyRange;
 
+  factory ValueSubkeyRange.single(int val) =>
+      ValueSubkeyRange(low: val, high: val);
+
   factory ValueSubkeyRange.fromJson(dynamic json) =>
       _$ValueSubkeyRangeFromJson(json as Map<String, dynamic>);
 }

@@ -6,31 +6,31 @@ part of 'veilid_config.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$_VeilidFFIConfigLoggingTerminal _$$_VeilidFFIConfigLoggingTerminalFromJson(
-        Map<String, dynamic> json) =>
-    _$_VeilidFFIConfigLoggingTerminal(
-      enabled: json['enabled'] as bool,
-      level: VeilidConfigLogLevel.fromJson(json['level']),
-    );
+_$VeilidFFIConfigLoggingTerminalImpl
+    _$$VeilidFFIConfigLoggingTerminalImplFromJson(Map<String, dynamic> json) =>
+        _$VeilidFFIConfigLoggingTerminalImpl(
+          enabled: json['enabled'] as bool,
+          level: VeilidConfigLogLevel.fromJson(json['level']),
+        );
 
-Map<String, dynamic> _$$_VeilidFFIConfigLoggingTerminalToJson(
-        _$_VeilidFFIConfigLoggingTerminal instance) =>
+Map<String, dynamic> _$$VeilidFFIConfigLoggingTerminalImplToJson(
+        _$VeilidFFIConfigLoggingTerminalImpl instance) =>
     <String, dynamic>{
       'enabled': instance.enabled,
       'level': instance.level.toJson(),
     };
 
-_$_VeilidFFIConfigLoggingOtlp _$$_VeilidFFIConfigLoggingOtlpFromJson(
+_$VeilidFFIConfigLoggingOtlpImpl _$$VeilidFFIConfigLoggingOtlpImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidFFIConfigLoggingOtlp(
+    _$VeilidFFIConfigLoggingOtlpImpl(
       enabled: json['enabled'] as bool,
       level: VeilidConfigLogLevel.fromJson(json['level']),
       grpcEndpoint: json['grpc_endpoint'] as String,
       serviceName: json['service_name'] as String,
     );
 
-Map<String, dynamic> _$$_VeilidFFIConfigLoggingOtlpToJson(
-        _$_VeilidFFIConfigLoggingOtlp instance) =>
+Map<String, dynamic> _$$VeilidFFIConfigLoggingOtlpImplToJson(
+        _$VeilidFFIConfigLoggingOtlpImpl instance) =>
     <String, dynamic>{
       'enabled': instance.enabled,
       'level': instance.level.toJson(),
@@ -38,57 +38,60 @@ Map<String, dynamic> _$$_VeilidFFIConfigLoggingOtlpToJson(
       'service_name': instance.serviceName,
     };
 
-_$_VeilidFFIConfigLoggingApi _$$_VeilidFFIConfigLoggingApiFromJson(
+_$VeilidFFIConfigLoggingApiImpl _$$VeilidFFIConfigLoggingApiImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidFFIConfigLoggingApi(
+    _$VeilidFFIConfigLoggingApiImpl(
       enabled: json['enabled'] as bool,
       level: VeilidConfigLogLevel.fromJson(json['level']),
     );
 
-Map<String, dynamic> _$$_VeilidFFIConfigLoggingApiToJson(
-        _$_VeilidFFIConfigLoggingApi instance) =>
+Map<String, dynamic> _$$VeilidFFIConfigLoggingApiImplToJson(
+        _$VeilidFFIConfigLoggingApiImpl instance) =>
     <String, dynamic>{
       'enabled': instance.enabled,
       'level': instance.level.toJson(),
     };
 
-_$_VeilidFFIConfigLogging _$$_VeilidFFIConfigLoggingFromJson(
+_$VeilidFFIConfigLoggingImpl _$$VeilidFFIConfigLoggingImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidFFIConfigLogging(
+    _$VeilidFFIConfigLoggingImpl(
       terminal: VeilidFFIConfigLoggingTerminal.fromJson(json['terminal']),
       otlp: VeilidFFIConfigLoggingOtlp.fromJson(json['otlp']),
       api: VeilidFFIConfigLoggingApi.fromJson(json['api']),
     );
 
-Map<String, dynamic> _$$_VeilidFFIConfigLoggingToJson(
-        _$_VeilidFFIConfigLogging instance) =>
+Map<String, dynamic> _$$VeilidFFIConfigLoggingImplToJson(
+        _$VeilidFFIConfigLoggingImpl instance) =>
     <String, dynamic>{
       'terminal': instance.terminal.toJson(),
       'otlp': instance.otlp.toJson(),
       'api': instance.api.toJson(),
     };
 
-_$_VeilidFFIConfig _$$_VeilidFFIConfigFromJson(Map<String, dynamic> json) =>
-    _$_VeilidFFIConfig(
+_$VeilidFFIConfigImpl _$$VeilidFFIConfigImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidFFIConfigImpl(
       logging: VeilidFFIConfigLogging.fromJson(json['logging']),
     );
 
-Map<String, dynamic> _$$_VeilidFFIConfigToJson(_$_VeilidFFIConfig instance) =>
+Map<String, dynamic> _$$VeilidFFIConfigImplToJson(
+        _$VeilidFFIConfigImpl instance) =>
     <String, dynamic>{
       'logging': instance.logging.toJson(),
     };
 
-_$_VeilidWASMConfigLoggingPerformance
-    _$$_VeilidWASMConfigLoggingPerformanceFromJson(Map<String, dynamic> json) =>
-        _$_VeilidWASMConfigLoggingPerformance(
+_$VeilidWASMConfigLoggingPerformanceImpl
+    _$$VeilidWASMConfigLoggingPerformanceImplFromJson(
+            Map<String, dynamic> json) =>
+        _$VeilidWASMConfigLoggingPerformanceImpl(
           enabled: json['enabled'] as bool,
           level: VeilidConfigLogLevel.fromJson(json['level']),
           logsInTimings: json['logs_in_timings'] as bool,
           logsInConsole: json['logs_in_console'] as bool,
         );
 
-Map<String, dynamic> _$$_VeilidWASMConfigLoggingPerformanceToJson(
-        _$_VeilidWASMConfigLoggingPerformance instance) =>
+Map<String, dynamic> _$$VeilidWASMConfigLoggingPerformanceImplToJson(
+        _$VeilidWASMConfigLoggingPerformanceImpl instance) =>
     <String, dynamic>{
       'enabled': instance.enabled,
       'level': instance.level.toJson(),
@@ -96,101 +99,108 @@ Map<String, dynamic> _$$_VeilidWASMConfigLoggingPerformanceToJson(
       'logs_in_console': instance.logsInConsole,
     };
 
-_$_VeilidWASMConfigLoggingApi _$$_VeilidWASMConfigLoggingApiFromJson(
+_$VeilidWASMConfigLoggingApiImpl _$$VeilidWASMConfigLoggingApiImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidWASMConfigLoggingApi(
+    _$VeilidWASMConfigLoggingApiImpl(
       enabled: json['enabled'] as bool,
       level: VeilidConfigLogLevel.fromJson(json['level']),
     );
 
-Map<String, dynamic> _$$_VeilidWASMConfigLoggingApiToJson(
-        _$_VeilidWASMConfigLoggingApi instance) =>
+Map<String, dynamic> _$$VeilidWASMConfigLoggingApiImplToJson(
+        _$VeilidWASMConfigLoggingApiImpl instance) =>
     <String, dynamic>{
       'enabled': instance.enabled,
       'level': instance.level.toJson(),
     };
 
-_$_VeilidWASMConfigLogging _$$_VeilidWASMConfigLoggingFromJson(
+_$VeilidWASMConfigLoggingImpl _$$VeilidWASMConfigLoggingImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidWASMConfigLogging(
+    _$VeilidWASMConfigLoggingImpl(
       performance:
           VeilidWASMConfigLoggingPerformance.fromJson(json['performance']),
       api: VeilidWASMConfigLoggingApi.fromJson(json['api']),
     );
 
-Map<String, dynamic> _$$_VeilidWASMConfigLoggingToJson(
-        _$_VeilidWASMConfigLogging instance) =>
+Map<String, dynamic> _$$VeilidWASMConfigLoggingImplToJson(
+        _$VeilidWASMConfigLoggingImpl instance) =>
     <String, dynamic>{
       'performance': instance.performance.toJson(),
       'api': instance.api.toJson(),
     };
 
-_$_VeilidWASMConfig _$$_VeilidWASMConfigFromJson(Map<String, dynamic> json) =>
-    _$_VeilidWASMConfig(
+_$VeilidWASMConfigImpl _$$VeilidWASMConfigImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidWASMConfigImpl(
       logging: VeilidWASMConfigLogging.fromJson(json['logging']),
     );
 
-Map<String, dynamic> _$$_VeilidWASMConfigToJson(_$_VeilidWASMConfig instance) =>
+Map<String, dynamic> _$$VeilidWASMConfigImplToJson(
+        _$VeilidWASMConfigImpl instance) =>
     <String, dynamic>{
       'logging': instance.logging.toJson(),
     };
 
-_$_VeilidConfigHTTPS _$$_VeilidConfigHTTPSFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigHTTPS(
-      enabled: json['enabled'] as bool,
-      listenAddress: json['listen_address'] as String,
-      path: json['path'] as String,
-      url: json['url'] as String?,
-    );
-
-Map<String, dynamic> _$$_VeilidConfigHTTPSToJson(
-        _$_VeilidConfigHTTPS instance) =>
-    <String, dynamic>{
-      'enabled': instance.enabled,
-      'listen_address': instance.listenAddress,
-      'path': instance.path,
-      'url': instance.url,
-    };
-
-_$_VeilidConfigHTTP _$$_VeilidConfigHTTPFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigHTTP(
-      enabled: json['enabled'] as bool,
-      listenAddress: json['listen_address'] as String,
-      path: json['path'] as String,
-      url: json['url'] as String?,
-    );
-
-Map<String, dynamic> _$$_VeilidConfigHTTPToJson(_$_VeilidConfigHTTP instance) =>
-    <String, dynamic>{
-      'enabled': instance.enabled,
-      'listen_address': instance.listenAddress,
-      'path': instance.path,
-      'url': instance.url,
-    };
-
-_$_VeilidConfigApplication _$$_VeilidConfigApplicationFromJson(
+_$VeilidConfigHTTPSImpl _$$VeilidConfigHTTPSImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigApplication(
+    _$VeilidConfigHTTPSImpl(
+      enabled: json['enabled'] as bool,
+      listenAddress: json['listen_address'] as String,
+      path: json['path'] as String,
+      url: json['url'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidConfigHTTPSImplToJson(
+        _$VeilidConfigHTTPSImpl instance) =>
+    <String, dynamic>{
+      'enabled': instance.enabled,
+      'listen_address': instance.listenAddress,
+      'path': instance.path,
+      'url': instance.url,
+    };
+
+_$VeilidConfigHTTPImpl _$$VeilidConfigHTTPImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigHTTPImpl(
+      enabled: json['enabled'] as bool,
+      listenAddress: json['listen_address'] as String,
+      path: json['path'] as String,
+      url: json['url'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidConfigHTTPImplToJson(
+        _$VeilidConfigHTTPImpl instance) =>
+    <String, dynamic>{
+      'enabled': instance.enabled,
+      'listen_address': instance.listenAddress,
+      'path': instance.path,
+      'url': instance.url,
+    };
+
+_$VeilidConfigApplicationImpl _$$VeilidConfigApplicationImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigApplicationImpl(
       https: VeilidConfigHTTPS.fromJson(json['https']),
       http: VeilidConfigHTTP.fromJson(json['http']),
     );
 
-Map<String, dynamic> _$$_VeilidConfigApplicationToJson(
-        _$_VeilidConfigApplication instance) =>
+Map<String, dynamic> _$$VeilidConfigApplicationImplToJson(
+        _$VeilidConfigApplicationImpl instance) =>
     <String, dynamic>{
       'https': instance.https.toJson(),
       'http': instance.http.toJson(),
     };
 
-_$_VeilidConfigUDP _$$_VeilidConfigUDPFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigUDP(
+_$VeilidConfigUDPImpl _$$VeilidConfigUDPImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigUDPImpl(
       enabled: json['enabled'] as bool,
       socketPoolSize: json['socket_pool_size'] as int,
       listenAddress: json['listen_address'] as String,
       publicAddress: json['public_address'] as String?,
     );
 
-Map<String, dynamic> _$$_VeilidConfigUDPToJson(_$_VeilidConfigUDP instance) =>
+Map<String, dynamic> _$$VeilidConfigUDPImplToJson(
+        _$VeilidConfigUDPImpl instance) =>
     <String, dynamic>{
       'enabled': instance.enabled,
       'socket_pool_size': instance.socketPoolSize,
@@ -198,8 +208,9 @@ Map<String, dynamic> _$$_VeilidConfigUDPToJson(_$_VeilidConfigUDP instance) =>
       'public_address': instance.publicAddress,
     };
 
-_$_VeilidConfigTCP _$$_VeilidConfigTCPFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigTCP(
+_$VeilidConfigTCPImpl _$$VeilidConfigTCPImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigTCPImpl(
       connect: json['connect'] as bool,
       listen: json['listen'] as bool,
       maxConnections: json['max_connections'] as int,
@@ -207,7 +218,8 @@ _$_VeilidConfigTCP _$$_VeilidConfigTCPFromJson(Map<String, dynamic> json) =>
       publicAddress: json['public_address'] as String?,
     );
 
-Map<String, dynamic> _$$_VeilidConfigTCPToJson(_$_VeilidConfigTCP instance) =>
+Map<String, dynamic> _$$VeilidConfigTCPImplToJson(
+        _$VeilidConfigTCPImpl instance) =>
     <String, dynamic>{
       'connect': instance.connect,
       'listen': instance.listen,
@@ -216,8 +228,8 @@ Map<String, dynamic> _$$_VeilidConfigTCPToJson(_$_VeilidConfigTCP instance) =>
       'public_address': instance.publicAddress,
     };
 
-_$_VeilidConfigWS _$$_VeilidConfigWSFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigWS(
+_$VeilidConfigWSImpl _$$VeilidConfigWSImplFromJson(Map<String, dynamic> json) =>
+    _$VeilidConfigWSImpl(
       connect: json['connect'] as bool,
       listen: json['listen'] as bool,
       maxConnections: json['max_connections'] as int,
@@ -226,7 +238,8 @@ _$_VeilidConfigWS _$$_VeilidConfigWSFromJson(Map<String, dynamic> json) =>
       url: json['url'] as String?,
     );
 
-Map<String, dynamic> _$$_VeilidConfigWSToJson(_$_VeilidConfigWS instance) =>
+Map<String, dynamic> _$$VeilidConfigWSImplToJson(
+        _$VeilidConfigWSImpl instance) =>
     <String, dynamic>{
       'connect': instance.connect,
       'listen': instance.listen,
@@ -236,37 +249,39 @@ Map<String, dynamic> _$$_VeilidConfigWSToJson(_$_VeilidConfigWS instance) =>
       'url': instance.url,
     };
 
-_$_VeilidConfigWSS _$$_VeilidConfigWSSFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigWSS(
-      connect: json['connect'] as bool,
-      listen: json['listen'] as bool,
-      maxConnections: json['max_connections'] as int,
-      listenAddress: json['listen_address'] as String,
-      path: json['path'] as String,
-      url: json['url'] as String?,
-    );
-
-Map<String, dynamic> _$$_VeilidConfigWSSToJson(_$_VeilidConfigWSS instance) =>
-    <String, dynamic>{
-      'connect': instance.connect,
-      'listen': instance.listen,
-      'max_connections': instance.maxConnections,
-      'listen_address': instance.listenAddress,
-      'path': instance.path,
-      'url': instance.url,
-    };
-
-_$_VeilidConfigProtocol _$$_VeilidConfigProtocolFromJson(
+_$VeilidConfigWSSImpl _$$VeilidConfigWSSImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigProtocol(
+    _$VeilidConfigWSSImpl(
+      connect: json['connect'] as bool,
+      listen: json['listen'] as bool,
+      maxConnections: json['max_connections'] as int,
+      listenAddress: json['listen_address'] as String,
+      path: json['path'] as String,
+      url: json['url'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidConfigWSSImplToJson(
+        _$VeilidConfigWSSImpl instance) =>
+    <String, dynamic>{
+      'connect': instance.connect,
+      'listen': instance.listen,
+      'max_connections': instance.maxConnections,
+      'listen_address': instance.listenAddress,
+      'path': instance.path,
+      'url': instance.url,
+    };
+
+_$VeilidConfigProtocolImpl _$$VeilidConfigProtocolImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigProtocolImpl(
       udp: VeilidConfigUDP.fromJson(json['udp']),
       tcp: VeilidConfigTCP.fromJson(json['tcp']),
       ws: VeilidConfigWS.fromJson(json['ws']),
       wss: VeilidConfigWSS.fromJson(json['wss']),
     );
 
-Map<String, dynamic> _$$_VeilidConfigProtocolToJson(
-        _$_VeilidConfigProtocol instance) =>
+Map<String, dynamic> _$$VeilidConfigProtocolImplToJson(
+        _$VeilidConfigProtocolImpl instance) =>
     <String, dynamic>{
       'udp': instance.udp.toJson(),
       'tcp': instance.tcp.toJson(),
@@ -274,22 +289,25 @@ Map<String, dynamic> _$$_VeilidConfigProtocolToJson(
       'wss': instance.wss.toJson(),
     };
 
-_$_VeilidConfigTLS _$$_VeilidConfigTLSFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigTLS(
+_$VeilidConfigTLSImpl _$$VeilidConfigTLSImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigTLSImpl(
       certificatePath: json['certificate_path'] as String,
       privateKeyPath: json['private_key_path'] as String,
       connectionInitialTimeoutMs: json['connection_initial_timeout_ms'] as int,
     );
 
-Map<String, dynamic> _$$_VeilidConfigTLSToJson(_$_VeilidConfigTLS instance) =>
+Map<String, dynamic> _$$VeilidConfigTLSImplToJson(
+        _$VeilidConfigTLSImpl instance) =>
     <String, dynamic>{
       'certificate_path': instance.certificatePath,
       'private_key_path': instance.privateKeyPath,
       'connection_initial_timeout_ms': instance.connectionInitialTimeoutMs,
     };
 
-_$_VeilidConfigDHT _$$_VeilidConfigDHTFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigDHT(
+_$VeilidConfigDHTImpl _$$VeilidConfigDHTImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigDHTImpl(
       resolveNodeTimeoutMs: json['resolve_node_timeout_ms'] as int,
       resolveNodeCount: json['resolve_node_count'] as int,
       resolveNodeFanout: json['resolve_node_fanout'] as int,
@@ -317,7 +335,8 @@ _$_VeilidConfigDHT _$$_VeilidConfigDHTFromJson(Map<String, dynamic> json) =>
       maxWatchExpirationMs: json['max_watch_expiration_ms'] as int,
     );
 
-Map<String, dynamic> _$$_VeilidConfigDHTToJson(_$_VeilidConfigDHT instance) =>
+Map<String, dynamic> _$$VeilidConfigDHTImplToJson(
+        _$VeilidConfigDHTImpl instance) =>
     <String, dynamic>{
       'resolve_node_timeout_ms': instance.resolveNodeTimeoutMs,
       'resolve_node_count': instance.resolveNodeCount,
@@ -345,8 +364,9 @@ Map<String, dynamic> _$$_VeilidConfigDHTToJson(_$_VeilidConfigDHT instance) =>
       'max_watch_expiration_ms': instance.maxWatchExpirationMs,
     };
 
-_$_VeilidConfigRPC _$$_VeilidConfigRPCFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfigRPC(
+_$VeilidConfigRPCImpl _$$VeilidConfigRPCImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidConfigRPCImpl(
       concurrency: json['concurrency'] as int,
       queueSize: json['queue_size'] as int,
       timeoutMs: json['timeout_ms'] as int,
@@ -356,7 +376,8 @@ _$_VeilidConfigRPC _$$_VeilidConfigRPCFromJson(Map<String, dynamic> json) =>
       maxTimestampAheadMs: json['max_timestamp_ahead_ms'] as int?,
     );
 
-Map<String, dynamic> _$$_VeilidConfigRPCToJson(_$_VeilidConfigRPC instance) =>
+Map<String, dynamic> _$$VeilidConfigRPCImplToJson(
+        _$VeilidConfigRPCImpl instance) =>
     <String, dynamic>{
       'concurrency': instance.concurrency,
       'queue_size': instance.queueSize,
@@ -367,9 +388,9 @@ Map<String, dynamic> _$$_VeilidConfigRPCToJson(_$_VeilidConfigRPC instance) =>
       'max_timestamp_ahead_ms': instance.maxTimestampAheadMs,
     };
 
-_$_VeilidConfigRoutingTable _$$_VeilidConfigRoutingTableFromJson(
+_$VeilidConfigRoutingTableImpl _$$VeilidConfigRoutingTableImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigRoutingTable(
+    _$VeilidConfigRoutingTableImpl(
       nodeId: (json['node_id'] as List<dynamic>)
           .map(Typed<FixedEncodedString43>.fromJson)
           .toList(),
@@ -385,8 +406,8 @@ _$_VeilidConfigRoutingTable _$$_VeilidConfigRoutingTableFromJson(
       limitAttachedWeak: json['limit_attached_weak'] as int,
     );
 
-Map<String, dynamic> _$$_VeilidConfigRoutingTableToJson(
-        _$_VeilidConfigRoutingTable instance) =>
+Map<String, dynamic> _$$VeilidConfigRoutingTableImplToJson(
+        _$VeilidConfigRoutingTableImpl instance) =>
     <String, dynamic>{
       'node_id': instance.nodeId.map((e) => e.toJson()).toList(),
       'node_id_secret': instance.nodeIdSecret.map((e) => e.toJson()).toList(),
@@ -398,9 +419,9 @@ Map<String, dynamic> _$$_VeilidConfigRoutingTableToJson(
       'limit_attached_weak': instance.limitAttachedWeak,
     };
 
-_$_VeilidConfigNetwork _$$_VeilidConfigNetworkFromJson(
+_$VeilidConfigNetworkImpl _$$VeilidConfigNetworkImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigNetwork(
+    _$VeilidConfigNetworkImpl(
       connectionInitialTimeoutMs: json['connection_initial_timeout_ms'] as int,
       connectionInactivityTimeoutMs:
           json['connection_inactivity_timeout_ms'] as int,
@@ -426,8 +447,8 @@ _$_VeilidConfigNetwork _$$_VeilidConfigNetworkFromJson(
       networkKeyPassword: json['network_key_password'] as String?,
     );
 
-Map<String, dynamic> _$$_VeilidConfigNetworkToJson(
-        _$_VeilidConfigNetwork instance) =>
+Map<String, dynamic> _$$VeilidConfigNetworkImplToJson(
+        _$VeilidConfigNetworkImpl instance) =>
     <String, dynamic>{
       'connection_initial_timeout_ms': instance.connectionInitialTimeoutMs,
       'connection_inactivity_timeout_ms':
@@ -453,37 +474,37 @@ Map<String, dynamic> _$$_VeilidConfigNetworkToJson(
       'network_key_password': instance.networkKeyPassword,
     };
 
-_$_VeilidConfigTableStore _$$_VeilidConfigTableStoreFromJson(
+_$VeilidConfigTableStoreImpl _$$VeilidConfigTableStoreImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigTableStore(
+    _$VeilidConfigTableStoreImpl(
       directory: json['directory'] as String,
       delete: json['delete'] as bool,
     );
 
-Map<String, dynamic> _$$_VeilidConfigTableStoreToJson(
-        _$_VeilidConfigTableStore instance) =>
+Map<String, dynamic> _$$VeilidConfigTableStoreImplToJson(
+        _$VeilidConfigTableStoreImpl instance) =>
     <String, dynamic>{
       'directory': instance.directory,
       'delete': instance.delete,
     };
 
-_$_VeilidConfigBlockStore _$$_VeilidConfigBlockStoreFromJson(
+_$VeilidConfigBlockStoreImpl _$$VeilidConfigBlockStoreImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigBlockStore(
+    _$VeilidConfigBlockStoreImpl(
       directory: json['directory'] as String,
       delete: json['delete'] as bool,
     );
 
-Map<String, dynamic> _$$_VeilidConfigBlockStoreToJson(
-        _$_VeilidConfigBlockStore instance) =>
+Map<String, dynamic> _$$VeilidConfigBlockStoreImplToJson(
+        _$VeilidConfigBlockStoreImpl instance) =>
     <String, dynamic>{
       'directory': instance.directory,
       'delete': instance.delete,
     };
 
-_$_VeilidConfigProtectedStore _$$_VeilidConfigProtectedStoreFromJson(
+_$VeilidConfigProtectedStoreImpl _$$VeilidConfigProtectedStoreImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigProtectedStore(
+    _$VeilidConfigProtectedStoreImpl(
       allowInsecureFallback: json['allow_insecure_fallback'] as bool,
       alwaysUseInsecureStorage: json['always_use_insecure_storage'] as bool,
       directory: json['directory'] as String,
@@ -494,8 +515,8 @@ _$_VeilidConfigProtectedStore _$$_VeilidConfigProtectedStoreFromJson(
           json['new_device_encryption_key_password'] as String?,
     );
 
-Map<String, dynamic> _$$_VeilidConfigProtectedStoreToJson(
-        _$_VeilidConfigProtectedStore instance) =>
+Map<String, dynamic> _$$VeilidConfigProtectedStoreImplToJson(
+        _$VeilidConfigProtectedStoreImpl instance) =>
     <String, dynamic>{
       'allow_insecure_fallback': instance.allowInsecureFallback,
       'always_use_insecure_storage': instance.alwaysUseInsecureStorage,
@@ -506,21 +527,21 @@ Map<String, dynamic> _$$_VeilidConfigProtectedStoreToJson(
           instance.newDeviceEncryptionKeyPassword,
     };
 
-_$_VeilidConfigCapabilities _$$_VeilidConfigCapabilitiesFromJson(
+_$VeilidConfigCapabilitiesImpl _$$VeilidConfigCapabilitiesImplFromJson(
         Map<String, dynamic> json) =>
-    _$_VeilidConfigCapabilities(
+    _$VeilidConfigCapabilitiesImpl(
       disable:
           (json['disable'] as List<dynamic>).map((e) => e as String).toList(),
     );
 
-Map<String, dynamic> _$$_VeilidConfigCapabilitiesToJson(
-        _$_VeilidConfigCapabilities instance) =>
+Map<String, dynamic> _$$VeilidConfigCapabilitiesImplToJson(
+        _$VeilidConfigCapabilitiesImpl instance) =>
     <String, dynamic>{
       'disable': instance.disable,
     };
 
-_$_VeilidConfig _$$_VeilidConfigFromJson(Map<String, dynamic> json) =>
-    _$_VeilidConfig(
+_$VeilidConfigImpl _$$VeilidConfigImplFromJson(Map<String, dynamic> json) =>
+    _$VeilidConfigImpl(
       programName: json['program_name'] as String,
       namespace: json['namespace'] as String,
       capabilities: VeilidConfigCapabilities.fromJson(json['capabilities']),
@@ -531,7 +552,7 @@ _$_VeilidConfig _$$_VeilidConfigFromJson(Map<String, dynamic> json) =>
       network: VeilidConfigNetwork.fromJson(json['network']),
     );
 
-Map<String, dynamic> _$$_VeilidConfigToJson(_$_VeilidConfig instance) =>
+Map<String, dynamic> _$$VeilidConfigImplToJson(_$VeilidConfigImpl instance) =>
     <String, dynamic>{
       'program_name': instance.programName,
       'namespace': instance.namespace,
