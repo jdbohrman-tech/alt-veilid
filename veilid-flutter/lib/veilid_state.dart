@@ -175,14 +175,8 @@ sealed class VeilidUpdate with _$VeilidUpdate {
     required ValueData valueData,
   }) = VeilidUpdateValueChange;
 
-  factory VeilidUpdate.fromJson(dynamic json) {
-    try {
-      return _$VeilidUpdateFromJson(json as Map<String, dynamic>);
-    } catch (e) {
-      print('VeilidUpdateFromJson failed: $e');
-      rethrow;
-    }
-  }
+  factory VeilidUpdate.fromJson(dynamic json) =>
+      _$VeilidUpdateFromJson(json as Map<String, dynamic>);
 }
 
 //////////////////////////////////////

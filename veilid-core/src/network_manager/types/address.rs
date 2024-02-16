@@ -50,6 +50,7 @@ impl Address {
             Address::IPV4(v4) => {
                 ipv4addr_is_private(v4)
                     || ipv4addr_is_link_local(v4)
+                    || ipv4addr_is_shared(v4)
                     || ipv4addr_is_ietf_protocol_assignment(v4)
             }
             Address::IPV6(v6) => {

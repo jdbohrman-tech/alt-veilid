@@ -1306,6 +1306,31 @@ abstract class _PeerTableData implements PeerTableData {
       throw _privateConstructorUsedError;
 }
 
+VeilidUpdate _$VeilidUpdateFromJson(Map<String, dynamic> json) {
+  switch (json['kind']) {
+    case 'Log':
+      return VeilidLog.fromJson(json);
+    case 'AppMessage':
+      return VeilidAppMessage.fromJson(json);
+    case 'AppCall':
+      return VeilidAppCall.fromJson(json);
+    case 'Attachment':
+      return VeilidUpdateAttachment.fromJson(json);
+    case 'Network':
+      return VeilidUpdateNetwork.fromJson(json);
+    case 'Config':
+      return VeilidUpdateConfig.fromJson(json);
+    case 'RouteChange':
+      return VeilidUpdateRouteChange.fromJson(json);
+    case 'ValueChange':
+      return VeilidUpdateValueChange.fromJson(json);
+
+    default:
+      throw CheckedFromJsonException(json, 'kind', 'VeilidUpdate',
+          'Invalid union type "${json['kind']}"!');
+  }
+}
+
 /// @nodoc
 mixin _$VeilidUpdate {
   @optionalTypeArgs
@@ -1422,6 +1447,7 @@ mixin _$VeilidUpdate {
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -1484,10 +1510,17 @@ class __$$VeilidLogImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidLogImpl implements VeilidLog {
   const _$VeilidLogImpl(
-      {required this.logLevel, required this.message, this.backtrace});
+      {required this.logLevel,
+      required this.message,
+      this.backtrace,
+      final String? $type})
+      : $type = $type ?? 'Log';
+
+  factory _$VeilidLogImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidLogImplFromJson(json);
 
   @override
   final VeilidLogLevel logLevel;
@@ -1495,6 +1528,9 @@ class _$VeilidLogImpl implements VeilidLog {
   final String message;
   @override
   final String? backtrace;
+
+  @JsonKey(name: 'kind')
+  final String $type;
 
   @override
   String toString() {
@@ -1513,6 +1549,7 @@ class _$VeilidLogImpl implements VeilidLog {
                 other.backtrace == backtrace));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, logLevel, message, backtrace);
 
@@ -1659,6 +1696,13 @@ class _$VeilidLogImpl implements VeilidLog {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidLogImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidLog implements VeilidUpdate {
@@ -1666,6 +1710,9 @@ abstract class VeilidLog implements VeilidUpdate {
       {required final VeilidLogLevel logLevel,
       required final String message,
       final String? backtrace}) = _$VeilidLogImpl;
+
+  factory VeilidLog.fromJson(Map<String, dynamic> json) =
+      _$VeilidLogImpl.fromJson;
 
   VeilidLogLevel get logLevel;
   String get message;
@@ -1714,16 +1761,25 @@ class __$$VeilidAppMessageImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidAppMessageImpl implements VeilidAppMessage {
   const _$VeilidAppMessageImpl(
-      {@Uint8ListJsonConverter() required this.message, this.sender});
+      {@Uint8ListJsonConverter() required this.message,
+      this.sender,
+      final String? $type})
+      : $type = $type ?? 'AppMessage';
+
+  factory _$VeilidAppMessageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidAppMessageImplFromJson(json);
 
   @override
   @Uint8ListJsonConverter()
   final Uint8List message;
   @override
   final Typed<FixedEncodedString43>? sender;
+
+  @JsonKey(name: 'kind')
+  final String $type;
 
   @override
   String toString() {
@@ -1739,6 +1795,7 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             (identical(other.sender, sender) || other.sender == sender));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType, const DeepCollectionEquality().hash(message), sender);
@@ -1887,12 +1944,22 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidAppMessageImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidAppMessage implements VeilidUpdate {
   const factory VeilidAppMessage(
       {@Uint8ListJsonConverter() required final Uint8List message,
       final Typed<FixedEncodedString43>? sender}) = _$VeilidAppMessageImpl;
+
+  factory VeilidAppMessage.fromJson(Map<String, dynamic> json) =
+      _$VeilidAppMessageImpl.fromJson;
 
   @Uint8ListJsonConverter()
   Uint8List get message;
@@ -1947,12 +2014,17 @@ class __$$VeilidAppCallImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidAppCallImpl implements VeilidAppCall {
   const _$VeilidAppCallImpl(
       {@Uint8ListJsonConverter() required this.message,
       required this.callId,
-      this.sender});
+      this.sender,
+      final String? $type})
+      : $type = $type ?? 'AppCall';
+
+  factory _$VeilidAppCallImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidAppCallImplFromJson(json);
 
   @override
   @Uint8ListJsonConverter()
@@ -1961,6 +2033,9 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
   final String callId;
   @override
   final Typed<FixedEncodedString43>? sender;
+
+  @JsonKey(name: 'kind')
+  final String $type;
 
   @override
   String toString() {
@@ -1977,6 +2052,7 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             (identical(other.sender, sender) || other.sender == sender));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType,
       const DeepCollectionEquality().hash(message), callId, sender);
@@ -2124,6 +2200,13 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidAppCallImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidAppCall implements VeilidUpdate {
@@ -2131,6 +2214,9 @@ abstract class VeilidAppCall implements VeilidUpdate {
       {@Uint8ListJsonConverter() required final Uint8List message,
       required final String callId,
       final Typed<FixedEncodedString43>? sender}) = _$VeilidAppCallImpl;
+
+  factory VeilidAppCall.fromJson(Map<String, dynamic> json) =
+      _$VeilidAppCallImpl.fromJson;
 
   @Uint8ListJsonConverter()
   Uint8List get message;
@@ -2188,12 +2274,17 @@ class __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
   const _$VeilidUpdateAttachmentImpl(
       {required this.state,
       required this.publicInternetReady,
-      required this.localNetworkReady});
+      required this.localNetworkReady,
+      final String? $type})
+      : $type = $type ?? 'Attachment';
+
+  factory _$VeilidUpdateAttachmentImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateAttachmentImplFromJson(json);
 
   @override
   final AttachmentState state;
@@ -2201,6 +2292,9 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
   final bool publicInternetReady;
   @override
   final bool localNetworkReady;
+
+  @JsonKey(name: 'kind')
+  final String $type;
 
   @override
   String toString() {
@@ -2219,6 +2313,7 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
                 other.localNetworkReady == localNetworkReady));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode =>
       Object.hash(runtimeType, state, publicInternetReady, localNetworkReady);
@@ -2367,6 +2462,13 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidUpdateAttachmentImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidUpdateAttachment implements VeilidUpdate {
@@ -2374,6 +2476,9 @@ abstract class VeilidUpdateAttachment implements VeilidUpdate {
       {required final AttachmentState state,
       required final bool publicInternetReady,
       required final bool localNetworkReady}) = _$VeilidUpdateAttachmentImpl;
+
+  factory VeilidUpdateAttachment.fromJson(Map<String, dynamic> json) =
+      _$VeilidUpdateAttachmentImpl.fromJson;
 
   AttachmentState get state;
   bool get publicInternetReady;
@@ -2431,14 +2536,19 @@ class __$$VeilidUpdateNetworkImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
   const _$VeilidUpdateNetworkImpl(
       {required this.started,
       required this.bpsDown,
       required this.bpsUp,
-      required final List<PeerTableData> peers})
-      : _peers = peers;
+      required final List<PeerTableData> peers,
+      final String? $type})
+      : _peers = peers,
+        $type = $type ?? 'Network';
+
+  factory _$VeilidUpdateNetworkImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateNetworkImplFromJson(json);
 
   @override
   final bool started;
@@ -2453,6 +2563,9 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_peers);
   }
+
+  @JsonKey(name: 'kind')
+  final String $type;
 
   @override
   String toString() {
@@ -2470,6 +2583,7 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             const DeepCollectionEquality().equals(other._peers, _peers));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, started, bpsDown, bpsUp,
       const DeepCollectionEquality().hash(_peers));
@@ -2618,6 +2732,13 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidUpdateNetworkImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidUpdateNetwork implements VeilidUpdate {
@@ -2626,6 +2747,9 @@ abstract class VeilidUpdateNetwork implements VeilidUpdate {
       required final BigInt bpsDown,
       required final BigInt bpsUp,
       required final List<PeerTableData> peers}) = _$VeilidUpdateNetworkImpl;
+
+  factory VeilidUpdateNetwork.fromJson(Map<String, dynamic> json) =
+      _$VeilidUpdateNetworkImpl.fromJson;
 
   bool get started;
   BigInt get bpsDown;
@@ -2678,12 +2802,19 @@ class __$$VeilidUpdateConfigImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
-  const _$VeilidUpdateConfigImpl({required this.config});
+  const _$VeilidUpdateConfigImpl({required this.config, final String? $type})
+      : $type = $type ?? 'Config';
+
+  factory _$VeilidUpdateConfigImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateConfigImplFromJson(json);
 
   @override
   final VeilidConfig config;
+
+  @JsonKey(name: 'kind')
+  final String $type;
 
   @override
   String toString() {
@@ -2698,6 +2829,7 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             (identical(other.config, config) || other.config == config));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, config);
 
@@ -2845,11 +2977,21 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidUpdateConfigImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidUpdateConfig implements VeilidUpdate {
   const factory VeilidUpdateConfig({required final VeilidConfig config}) =
       _$VeilidUpdateConfigImpl;
+
+  factory VeilidUpdateConfig.fromJson(Map<String, dynamic> json) =
+      _$VeilidUpdateConfigImpl.fromJson;
 
   VeilidConfig get config;
   @JsonKey(ignore: true)
@@ -2896,13 +3038,18 @@ class __$$VeilidUpdateRouteChangeImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
   const _$VeilidUpdateRouteChangeImpl(
       {required final List<String> deadRoutes,
-      required final List<String> deadRemoteRoutes})
+      required final List<String> deadRemoteRoutes,
+      final String? $type})
       : _deadRoutes = deadRoutes,
-        _deadRemoteRoutes = deadRemoteRoutes;
+        _deadRemoteRoutes = deadRemoteRoutes,
+        $type = $type ?? 'RouteChange';
+
+  factory _$VeilidUpdateRouteChangeImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateRouteChangeImplFromJson(json);
 
   final List<String> _deadRoutes;
   @override
@@ -2921,6 +3068,9 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
     return EqualUnmodifiableListView(_deadRemoteRoutes);
   }
 
+  @JsonKey(name: 'kind')
+  final String $type;
+
   @override
   String toString() {
     return 'VeilidUpdate.routeChange(deadRoutes: $deadRoutes, deadRemoteRoutes: $deadRemoteRoutes)';
@@ -2937,6 +3087,7 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
                 .equals(other._deadRemoteRoutes, _deadRemoteRoutes));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -3087,6 +3238,13 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidUpdateRouteChangeImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidUpdateRouteChange implements VeilidUpdate {
@@ -3094,6 +3252,9 @@ abstract class VeilidUpdateRouteChange implements VeilidUpdate {
           {required final List<String> deadRoutes,
           required final List<String> deadRemoteRoutes}) =
       _$VeilidUpdateRouteChangeImpl;
+
+  factory VeilidUpdateRouteChange.fromJson(Map<String, dynamic> json) =
+      _$VeilidUpdateRouteChangeImpl.fromJson;
 
   List<String> get deadRoutes;
   List<String> get deadRemoteRoutes;
@@ -3165,14 +3326,19 @@ class __$$VeilidUpdateValueChangeImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
   const _$VeilidUpdateValueChangeImpl(
       {required this.key,
       required final List<ValueSubkeyRange> subkeys,
       required this.count,
-      required this.valueData})
-      : _subkeys = subkeys;
+      required this.valueData,
+      final String? $type})
+      : _subkeys = subkeys,
+        $type = $type ?? 'ValueChange';
+
+  factory _$VeilidUpdateValueChangeImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateValueChangeImplFromJson(json);
 
   @override
   final Typed<FixedEncodedString43> key;
@@ -3188,6 +3354,9 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
   final int count;
   @override
   final ValueData valueData;
+
+  @JsonKey(name: 'kind')
+  final String $type;
 
   @override
   String toString() {
@@ -3206,6 +3375,7 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
                 other.valueData == valueData));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, key,
       const DeepCollectionEquality().hash(_subkeys), count, valueData);
@@ -3354,6 +3524,13 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidUpdateValueChangeImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class VeilidUpdateValueChange implements VeilidUpdate {
@@ -3362,6 +3539,9 @@ abstract class VeilidUpdateValueChange implements VeilidUpdate {
       required final List<ValueSubkeyRange> subkeys,
       required final int count,
       required final ValueData valueData}) = _$VeilidUpdateValueChangeImpl;
+
+  factory VeilidUpdateValueChange.fromJson(Map<String, dynamic> json) =
+      _$VeilidUpdateValueChangeImpl.fromJson;
 
   Typed<FixedEncodedString43> get key;
   List<ValueSubkeyRange> get subkeys;

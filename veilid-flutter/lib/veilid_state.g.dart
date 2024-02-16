@@ -114,6 +114,153 @@ Map<String, dynamic> _$$PeerTableDataImplToJson(_$PeerTableDataImpl instance) =>
       'peer_stats': instance.peerStats.toJson(),
     };
 
+_$VeilidLogImpl _$$VeilidLogImplFromJson(Map<String, dynamic> json) =>
+    _$VeilidLogImpl(
+      logLevel: VeilidLogLevel.fromJson(json['log_level']),
+      message: json['message'] as String,
+      backtrace: json['backtrace'] as String?,
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidLogImplToJson(_$VeilidLogImpl instance) =>
+    <String, dynamic>{
+      'log_level': instance.logLevel.toJson(),
+      'message': instance.message,
+      'backtrace': instance.backtrace,
+      'kind': instance.$type,
+    };
+
+_$VeilidAppMessageImpl _$$VeilidAppMessageImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidAppMessageImpl(
+      message: const Uint8ListJsonConverter().fromJson(json['message']),
+      sender: json['sender'] == null
+          ? null
+          : Typed<FixedEncodedString43>.fromJson(json['sender']),
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidAppMessageImplToJson(
+        _$VeilidAppMessageImpl instance) =>
+    <String, dynamic>{
+      'message': const Uint8ListJsonConverter().toJson(instance.message),
+      'sender': instance.sender?.toJson(),
+      'kind': instance.$type,
+    };
+
+_$VeilidAppCallImpl _$$VeilidAppCallImplFromJson(Map<String, dynamic> json) =>
+    _$VeilidAppCallImpl(
+      message: const Uint8ListJsonConverter().fromJson(json['message']),
+      callId: json['call_id'] as String,
+      sender: json['sender'] == null
+          ? null
+          : Typed<FixedEncodedString43>.fromJson(json['sender']),
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidAppCallImplToJson(_$VeilidAppCallImpl instance) =>
+    <String, dynamic>{
+      'message': const Uint8ListJsonConverter().toJson(instance.message),
+      'call_id': instance.callId,
+      'sender': instance.sender?.toJson(),
+      'kind': instance.$type,
+    };
+
+_$VeilidUpdateAttachmentImpl _$$VeilidUpdateAttachmentImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidUpdateAttachmentImpl(
+      state: AttachmentState.fromJson(json['state']),
+      publicInternetReady: json['public_internet_ready'] as bool,
+      localNetworkReady: json['local_network_ready'] as bool,
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidUpdateAttachmentImplToJson(
+        _$VeilidUpdateAttachmentImpl instance) =>
+    <String, dynamic>{
+      'state': instance.state.toJson(),
+      'public_internet_ready': instance.publicInternetReady,
+      'local_network_ready': instance.localNetworkReady,
+      'kind': instance.$type,
+    };
+
+_$VeilidUpdateNetworkImpl _$$VeilidUpdateNetworkImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidUpdateNetworkImpl(
+      started: json['started'] as bool,
+      bpsDown: BigInt.parse(json['bps_down'] as String),
+      bpsUp: BigInt.parse(json['bps_up'] as String),
+      peers:
+          (json['peers'] as List<dynamic>).map(PeerTableData.fromJson).toList(),
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidUpdateNetworkImplToJson(
+        _$VeilidUpdateNetworkImpl instance) =>
+    <String, dynamic>{
+      'started': instance.started,
+      'bps_down': instance.bpsDown.toString(),
+      'bps_up': instance.bpsUp.toString(),
+      'peers': instance.peers.map((e) => e.toJson()).toList(),
+      'kind': instance.$type,
+    };
+
+_$VeilidUpdateConfigImpl _$$VeilidUpdateConfigImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidUpdateConfigImpl(
+      config: VeilidConfig.fromJson(json['config']),
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidUpdateConfigImplToJson(
+        _$VeilidUpdateConfigImpl instance) =>
+    <String, dynamic>{
+      'config': instance.config.toJson(),
+      'kind': instance.$type,
+    };
+
+_$VeilidUpdateRouteChangeImpl _$$VeilidUpdateRouteChangeImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidUpdateRouteChangeImpl(
+      deadRoutes: (json['dead_routes'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
+      deadRemoteRoutes: (json['dead_remote_routes'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidUpdateRouteChangeImplToJson(
+        _$VeilidUpdateRouteChangeImpl instance) =>
+    <String, dynamic>{
+      'dead_routes': instance.deadRoutes,
+      'dead_remote_routes': instance.deadRemoteRoutes,
+      'kind': instance.$type,
+    };
+
+_$VeilidUpdateValueChangeImpl _$$VeilidUpdateValueChangeImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidUpdateValueChangeImpl(
+      key: Typed<FixedEncodedString43>.fromJson(json['key']),
+      subkeys: (json['subkeys'] as List<dynamic>)
+          .map(ValueSubkeyRange.fromJson)
+          .toList(),
+      count: json['count'] as int,
+      valueData: ValueData.fromJson(json['value_data']),
+      $type: json['kind'] as String?,
+    );
+
+Map<String, dynamic> _$$VeilidUpdateValueChangeImplToJson(
+        _$VeilidUpdateValueChangeImpl instance) =>
+    <String, dynamic>{
+      'key': instance.key.toJson(),
+      'subkeys': instance.subkeys.map((e) => e.toJson()).toList(),
+      'count': instance.count,
+      'value_data': instance.valueData.toJson(),
+      'kind': instance.$type,
+    };
+
 _$VeilidStateAttachmentImpl _$$VeilidStateAttachmentImplFromJson(
         Map<String, dynamic> json) =>
     _$VeilidStateAttachmentImpl(
