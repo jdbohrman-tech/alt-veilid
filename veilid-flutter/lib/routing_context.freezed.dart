@@ -903,8 +903,7 @@ class __$$ValueSubkeyRangeImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$ValueSubkeyRangeImpl implements _ValueSubkeyRange {
   const _$ValueSubkeyRangeImpl({required this.low, required this.high})
-      : assert(low < 0 || low > high, 'low out of range'),
-        assert(high < 0, 'high out of range');
+      : assert(low >= 0 && low <= high, 'range is invalid');
 
   factory _$ValueSubkeyRangeImpl.fromJson(Map<String, dynamic> json) =>
       _$$ValueSubkeyRangeImplFromJson(json);

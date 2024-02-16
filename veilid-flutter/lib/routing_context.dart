@@ -128,8 +128,7 @@ extension DHTRecordDescriptorExt on DHTRecordDescriptor {
 
 @freezed
 class ValueSubkeyRange with _$ValueSubkeyRange {
-  @Assert('low < 0 || low > high', 'low out of range')
-  @Assert('high < 0', 'high out of range')
+  @Assert('low >= 0 && low <= high', 'range is invalid')
   const factory ValueSubkeyRange({
     required int low,
     required int high,
