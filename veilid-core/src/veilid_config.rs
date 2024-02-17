@@ -30,7 +30,7 @@ impl Default for VeilidConfigHTTPS {
     fn default() -> Self {
         Self {
             enabled: false,
-            listen_address: String::from(":5150"),
+            listen_address: String::from(""),
             path: String::from("app"),
             url: None,
         }
@@ -61,7 +61,7 @@ impl Default for VeilidConfigHTTP {
     fn default() -> Self {
         Self {
             enabled: false,
-            listen_address: String::from(":5150"),
+            listen_address: String::from(""),
             path: String::from("app"),
             url: None,
         }
@@ -106,7 +106,7 @@ impl Default for VeilidConfigUDP {
         Self {
             enabled: true,
             socket_pool_size: 0,
-            listen_address: String::from(":5150"),
+            listen_address: String::from(""),
             public_address: None,
         }
     }
@@ -139,7 +139,7 @@ impl Default for VeilidConfigTCP {
             connect: true,
             listen: true,
             max_connections: 32,
-            listen_address: String::from(":5150"),
+            listen_address: String::from(""),
             public_address: None,
         }
     }
@@ -175,7 +175,7 @@ impl Default for VeilidConfigWS {
             connect: true,
             listen: true,
             max_connections: 16,
-            listen_address: String::from(":5150"),
+            listen_address: String::from(""),
             path: String::from("ws"),
             url: None,
         }
@@ -212,7 +212,7 @@ impl Default for VeilidConfigWSS {
             connect: true,
             listen: false,
             max_connections: 16,
-            listen_address: String::from(":5150"),
+            listen_address: String::from(""),
             path: String::from("ws"),
             url: None,
         }
