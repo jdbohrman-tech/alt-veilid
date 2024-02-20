@@ -1,5 +1,6 @@
 mod apple;
 mod netlink;
+mod openbsd;
 mod sockaddr_tools;
 mod tools;
 mod windows;
@@ -13,6 +14,8 @@ cfg_if::cfg_if! {
         use self::windows::PlatformSupportWindows as PlatformSupport;
     } else if #[cfg(any(target_os = "macos", target_os = "ios"))] {
         use self::apple::PlatformSupportApple as PlatformSupport;
+    } else if #[cfg(any(target_os = "openbsd"))] {
+        use self::openbsd::PlatformSupportOpenBSD as PlatformSupport;
     } else {
         compile_error!("No network interfaces support for this platform!");
     }
