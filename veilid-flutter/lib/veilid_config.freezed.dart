@@ -72,25 +72,25 @@ class _$VeilidFFIConfigLoggingTerminalCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidFFIConfigLoggingTerminalImplCopyWith<$Res>
+abstract class _$$_VeilidFFIConfigLoggingTerminalCopyWith<$Res>
     implements $VeilidFFIConfigLoggingTerminalCopyWith<$Res> {
-  factory _$$VeilidFFIConfigLoggingTerminalImplCopyWith(
-          _$VeilidFFIConfigLoggingTerminalImpl value,
-          $Res Function(_$VeilidFFIConfigLoggingTerminalImpl) then) =
-      __$$VeilidFFIConfigLoggingTerminalImplCopyWithImpl<$Res>;
+  factory _$$_VeilidFFIConfigLoggingTerminalCopyWith(
+          _$_VeilidFFIConfigLoggingTerminal value,
+          $Res Function(_$_VeilidFFIConfigLoggingTerminal) then) =
+      __$$_VeilidFFIConfigLoggingTerminalCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({bool enabled, VeilidConfigLogLevel level});
 }
 
 /// @nodoc
-class __$$VeilidFFIConfigLoggingTerminalImplCopyWithImpl<$Res>
+class __$$_VeilidFFIConfigLoggingTerminalCopyWithImpl<$Res>
     extends _$VeilidFFIConfigLoggingTerminalCopyWithImpl<$Res,
-        _$VeilidFFIConfigLoggingTerminalImpl>
-    implements _$$VeilidFFIConfigLoggingTerminalImplCopyWith<$Res> {
-  __$$VeilidFFIConfigLoggingTerminalImplCopyWithImpl(
-      _$VeilidFFIConfigLoggingTerminalImpl _value,
-      $Res Function(_$VeilidFFIConfigLoggingTerminalImpl) _then)
+        _$_VeilidFFIConfigLoggingTerminal>
+    implements _$$_VeilidFFIConfigLoggingTerminalCopyWith<$Res> {
+  __$$_VeilidFFIConfigLoggingTerminalCopyWithImpl(
+      _$_VeilidFFIConfigLoggingTerminal _value,
+      $Res Function(_$_VeilidFFIConfigLoggingTerminal) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -99,7 +99,7 @@ class __$$VeilidFFIConfigLoggingTerminalImplCopyWithImpl<$Res>
     Object? enabled = null,
     Object? level = null,
   }) {
-    return _then(_$VeilidFFIConfigLoggingTerminalImpl(
+    return _then(_$_VeilidFFIConfigLoggingTerminal(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -114,15 +114,15 @@ class __$$VeilidFFIConfigLoggingTerminalImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidFFIConfigLoggingTerminalImpl
+class _$_VeilidFFIConfigLoggingTerminal
     with DiagnosticableTreeMixin
     implements _VeilidFFIConfigLoggingTerminal {
-  const _$VeilidFFIConfigLoggingTerminalImpl(
+  const _$_VeilidFFIConfigLoggingTerminal(
       {required this.enabled, required this.level});
 
-  factory _$VeilidFFIConfigLoggingTerminalImpl.fromJson(
+  factory _$_VeilidFFIConfigLoggingTerminal.fromJson(
           Map<String, dynamic> json) =>
-      _$$VeilidFFIConfigLoggingTerminalImplFromJson(json);
+      _$$_VeilidFFIConfigLoggingTerminalFromJson(json);
 
   @override
   final bool enabled;
@@ -144,10 +144,10 @@ class _$VeilidFFIConfigLoggingTerminalImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidFFIConfigLoggingTerminalImpl &&
+            other is _$_VeilidFFIConfigLoggingTerminal &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.level, level) || other.level == level));
   }
@@ -159,14 +159,13 @@ class _$VeilidFFIConfigLoggingTerminalImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidFFIConfigLoggingTerminalImplCopyWith<
-          _$VeilidFFIConfigLoggingTerminalImpl>
-      get copyWith => __$$VeilidFFIConfigLoggingTerminalImplCopyWithImpl<
-          _$VeilidFFIConfigLoggingTerminalImpl>(this, _$identity);
+  _$$_VeilidFFIConfigLoggingTerminalCopyWith<_$_VeilidFFIConfigLoggingTerminal>
+      get copyWith => __$$_VeilidFFIConfigLoggingTerminalCopyWithImpl<
+          _$_VeilidFFIConfigLoggingTerminal>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidFFIConfigLoggingTerminalImplToJson(
+    return _$$_VeilidFFIConfigLoggingTerminalToJson(
       this,
     );
   }
@@ -177,10 +176,10 @@ abstract class _VeilidFFIConfigLoggingTerminal
   const factory _VeilidFFIConfigLoggingTerminal(
           {required final bool enabled,
           required final VeilidConfigLogLevel level}) =
-      _$VeilidFFIConfigLoggingTerminalImpl;
+      _$_VeilidFFIConfigLoggingTerminal;
 
   factory _VeilidFFIConfigLoggingTerminal.fromJson(Map<String, dynamic> json) =
-      _$VeilidFFIConfigLoggingTerminalImpl.fromJson;
+      _$_VeilidFFIConfigLoggingTerminal.fromJson;
 
   @override
   bool get enabled;
@@ -188,8 +187,7 @@ abstract class _VeilidFFIConfigLoggingTerminal
   VeilidConfigLogLevel get level;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidFFIConfigLoggingTerminalImplCopyWith<
-          _$VeilidFFIConfigLoggingTerminalImpl>
+  _$$_VeilidFFIConfigLoggingTerminalCopyWith<_$_VeilidFFIConfigLoggingTerminal>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -266,12 +264,12 @@ class _$VeilidFFIConfigLoggingOtlpCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidFFIConfigLoggingOtlpImplCopyWith<$Res>
+abstract class _$$_VeilidFFIConfigLoggingOtlpCopyWith<$Res>
     implements $VeilidFFIConfigLoggingOtlpCopyWith<$Res> {
-  factory _$$VeilidFFIConfigLoggingOtlpImplCopyWith(
-          _$VeilidFFIConfigLoggingOtlpImpl value,
-          $Res Function(_$VeilidFFIConfigLoggingOtlpImpl) then) =
-      __$$VeilidFFIConfigLoggingOtlpImplCopyWithImpl<$Res>;
+  factory _$$_VeilidFFIConfigLoggingOtlpCopyWith(
+          _$_VeilidFFIConfigLoggingOtlp value,
+          $Res Function(_$_VeilidFFIConfigLoggingOtlp) then) =
+      __$$_VeilidFFIConfigLoggingOtlpCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -282,13 +280,13 @@ abstract class _$$VeilidFFIConfigLoggingOtlpImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidFFIConfigLoggingOtlpImplCopyWithImpl<$Res>
+class __$$_VeilidFFIConfigLoggingOtlpCopyWithImpl<$Res>
     extends _$VeilidFFIConfigLoggingOtlpCopyWithImpl<$Res,
-        _$VeilidFFIConfigLoggingOtlpImpl>
-    implements _$$VeilidFFIConfigLoggingOtlpImplCopyWith<$Res> {
-  __$$VeilidFFIConfigLoggingOtlpImplCopyWithImpl(
-      _$VeilidFFIConfigLoggingOtlpImpl _value,
-      $Res Function(_$VeilidFFIConfigLoggingOtlpImpl) _then)
+        _$_VeilidFFIConfigLoggingOtlp>
+    implements _$$_VeilidFFIConfigLoggingOtlpCopyWith<$Res> {
+  __$$_VeilidFFIConfigLoggingOtlpCopyWithImpl(
+      _$_VeilidFFIConfigLoggingOtlp _value,
+      $Res Function(_$_VeilidFFIConfigLoggingOtlp) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -299,7 +297,7 @@ class __$$VeilidFFIConfigLoggingOtlpImplCopyWithImpl<$Res>
     Object? grpcEndpoint = null,
     Object? serviceName = null,
   }) {
-    return _then(_$VeilidFFIConfigLoggingOtlpImpl(
+    return _then(_$_VeilidFFIConfigLoggingOtlp(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -322,18 +320,17 @@ class __$$VeilidFFIConfigLoggingOtlpImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidFFIConfigLoggingOtlpImpl
+class _$_VeilidFFIConfigLoggingOtlp
     with DiagnosticableTreeMixin
     implements _VeilidFFIConfigLoggingOtlp {
-  const _$VeilidFFIConfigLoggingOtlpImpl(
+  const _$_VeilidFFIConfigLoggingOtlp(
       {required this.enabled,
       required this.level,
       required this.grpcEndpoint,
       required this.serviceName});
 
-  factory _$VeilidFFIConfigLoggingOtlpImpl.fromJson(
-          Map<String, dynamic> json) =>
-      _$$VeilidFFIConfigLoggingOtlpImplFromJson(json);
+  factory _$_VeilidFFIConfigLoggingOtlp.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidFFIConfigLoggingOtlpFromJson(json);
 
   @override
   final bool enabled;
@@ -361,10 +358,10 @@ class _$VeilidFFIConfigLoggingOtlpImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidFFIConfigLoggingOtlpImpl &&
+            other is _$_VeilidFFIConfigLoggingOtlp &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.level, level) || other.level == level) &&
             (identical(other.grpcEndpoint, grpcEndpoint) ||
@@ -381,13 +378,13 @@ class _$VeilidFFIConfigLoggingOtlpImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidFFIConfigLoggingOtlpImplCopyWith<_$VeilidFFIConfigLoggingOtlpImpl>
-      get copyWith => __$$VeilidFFIConfigLoggingOtlpImplCopyWithImpl<
-          _$VeilidFFIConfigLoggingOtlpImpl>(this, _$identity);
+  _$$_VeilidFFIConfigLoggingOtlpCopyWith<_$_VeilidFFIConfigLoggingOtlp>
+      get copyWith => __$$_VeilidFFIConfigLoggingOtlpCopyWithImpl<
+          _$_VeilidFFIConfigLoggingOtlp>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidFFIConfigLoggingOtlpImplToJson(
+    return _$$_VeilidFFIConfigLoggingOtlpToJson(
       this,
     );
   }
@@ -399,10 +396,10 @@ abstract class _VeilidFFIConfigLoggingOtlp
       {required final bool enabled,
       required final VeilidConfigLogLevel level,
       required final String grpcEndpoint,
-      required final String serviceName}) = _$VeilidFFIConfigLoggingOtlpImpl;
+      required final String serviceName}) = _$_VeilidFFIConfigLoggingOtlp;
 
   factory _VeilidFFIConfigLoggingOtlp.fromJson(Map<String, dynamic> json) =
-      _$VeilidFFIConfigLoggingOtlpImpl.fromJson;
+      _$_VeilidFFIConfigLoggingOtlp.fromJson;
 
   @override
   bool get enabled;
@@ -414,7 +411,7 @@ abstract class _VeilidFFIConfigLoggingOtlp
   String get serviceName;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidFFIConfigLoggingOtlpImplCopyWith<_$VeilidFFIConfigLoggingOtlpImpl>
+  _$$_VeilidFFIConfigLoggingOtlpCopyWith<_$_VeilidFFIConfigLoggingOtlp>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -474,25 +471,25 @@ class _$VeilidFFIConfigLoggingApiCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidFFIConfigLoggingApiImplCopyWith<$Res>
+abstract class _$$_VeilidFFIConfigLoggingApiCopyWith<$Res>
     implements $VeilidFFIConfigLoggingApiCopyWith<$Res> {
-  factory _$$VeilidFFIConfigLoggingApiImplCopyWith(
-          _$VeilidFFIConfigLoggingApiImpl value,
-          $Res Function(_$VeilidFFIConfigLoggingApiImpl) then) =
-      __$$VeilidFFIConfigLoggingApiImplCopyWithImpl<$Res>;
+  factory _$$_VeilidFFIConfigLoggingApiCopyWith(
+          _$_VeilidFFIConfigLoggingApi value,
+          $Res Function(_$_VeilidFFIConfigLoggingApi) then) =
+      __$$_VeilidFFIConfigLoggingApiCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({bool enabled, VeilidConfigLogLevel level});
 }
 
 /// @nodoc
-class __$$VeilidFFIConfigLoggingApiImplCopyWithImpl<$Res>
+class __$$_VeilidFFIConfigLoggingApiCopyWithImpl<$Res>
     extends _$VeilidFFIConfigLoggingApiCopyWithImpl<$Res,
-        _$VeilidFFIConfigLoggingApiImpl>
-    implements _$$VeilidFFIConfigLoggingApiImplCopyWith<$Res> {
-  __$$VeilidFFIConfigLoggingApiImplCopyWithImpl(
-      _$VeilidFFIConfigLoggingApiImpl _value,
-      $Res Function(_$VeilidFFIConfigLoggingApiImpl) _then)
+        _$_VeilidFFIConfigLoggingApi>
+    implements _$$_VeilidFFIConfigLoggingApiCopyWith<$Res> {
+  __$$_VeilidFFIConfigLoggingApiCopyWithImpl(
+      _$_VeilidFFIConfigLoggingApi _value,
+      $Res Function(_$_VeilidFFIConfigLoggingApi) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -501,7 +498,7 @@ class __$$VeilidFFIConfigLoggingApiImplCopyWithImpl<$Res>
     Object? enabled = null,
     Object? level = null,
   }) {
-    return _then(_$VeilidFFIConfigLoggingApiImpl(
+    return _then(_$_VeilidFFIConfigLoggingApi(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -516,14 +513,14 @@ class __$$VeilidFFIConfigLoggingApiImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidFFIConfigLoggingApiImpl
+class _$_VeilidFFIConfigLoggingApi
     with DiagnosticableTreeMixin
     implements _VeilidFFIConfigLoggingApi {
-  const _$VeilidFFIConfigLoggingApiImpl(
+  const _$_VeilidFFIConfigLoggingApi(
       {required this.enabled, required this.level});
 
-  factory _$VeilidFFIConfigLoggingApiImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidFFIConfigLoggingApiImplFromJson(json);
+  factory _$_VeilidFFIConfigLoggingApi.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidFFIConfigLoggingApiFromJson(json);
 
   @override
   final bool enabled;
@@ -545,10 +542,10 @@ class _$VeilidFFIConfigLoggingApiImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidFFIConfigLoggingApiImpl &&
+            other is _$_VeilidFFIConfigLoggingApi &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.level, level) || other.level == level));
   }
@@ -560,13 +557,13 @@ class _$VeilidFFIConfigLoggingApiImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidFFIConfigLoggingApiImplCopyWith<_$VeilidFFIConfigLoggingApiImpl>
-      get copyWith => __$$VeilidFFIConfigLoggingApiImplCopyWithImpl<
-          _$VeilidFFIConfigLoggingApiImpl>(this, _$identity);
+  _$$_VeilidFFIConfigLoggingApiCopyWith<_$_VeilidFFIConfigLoggingApi>
+      get copyWith => __$$_VeilidFFIConfigLoggingApiCopyWithImpl<
+          _$_VeilidFFIConfigLoggingApi>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidFFIConfigLoggingApiImplToJson(
+    return _$$_VeilidFFIConfigLoggingApiToJson(
       this,
     );
   }
@@ -576,10 +573,10 @@ abstract class _VeilidFFIConfigLoggingApi implements VeilidFFIConfigLoggingApi {
   const factory _VeilidFFIConfigLoggingApi(
           {required final bool enabled,
           required final VeilidConfigLogLevel level}) =
-      _$VeilidFFIConfigLoggingApiImpl;
+      _$_VeilidFFIConfigLoggingApi;
 
   factory _VeilidFFIConfigLoggingApi.fromJson(Map<String, dynamic> json) =
-      _$VeilidFFIConfigLoggingApiImpl.fromJson;
+      _$_VeilidFFIConfigLoggingApi.fromJson;
 
   @override
   bool get enabled;
@@ -587,7 +584,7 @@ abstract class _VeilidFFIConfigLoggingApi implements VeilidFFIConfigLoggingApi {
   VeilidConfigLogLevel get level;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidFFIConfigLoggingApiImplCopyWith<_$VeilidFFIConfigLoggingApiImpl>
+  _$$_VeilidFFIConfigLoggingApiCopyWith<_$_VeilidFFIConfigLoggingApi>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -686,12 +683,11 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidFFIConfigLoggingImplCopyWith<$Res>
+abstract class _$$_VeilidFFIConfigLoggingCopyWith<$Res>
     implements $VeilidFFIConfigLoggingCopyWith<$Res> {
-  factory _$$VeilidFFIConfigLoggingImplCopyWith(
-          _$VeilidFFIConfigLoggingImpl value,
-          $Res Function(_$VeilidFFIConfigLoggingImpl) then) =
-      __$$VeilidFFIConfigLoggingImplCopyWithImpl<$Res>;
+  factory _$$_VeilidFFIConfigLoggingCopyWith(_$_VeilidFFIConfigLogging value,
+          $Res Function(_$_VeilidFFIConfigLogging) then) =
+      __$$_VeilidFFIConfigLoggingCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -708,13 +704,12 @@ abstract class _$$VeilidFFIConfigLoggingImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidFFIConfigLoggingImplCopyWithImpl<$Res>
+class __$$_VeilidFFIConfigLoggingCopyWithImpl<$Res>
     extends _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
-        _$VeilidFFIConfigLoggingImpl>
-    implements _$$VeilidFFIConfigLoggingImplCopyWith<$Res> {
-  __$$VeilidFFIConfigLoggingImplCopyWithImpl(
-      _$VeilidFFIConfigLoggingImpl _value,
-      $Res Function(_$VeilidFFIConfigLoggingImpl) _then)
+        _$_VeilidFFIConfigLogging>
+    implements _$$_VeilidFFIConfigLoggingCopyWith<$Res> {
+  __$$_VeilidFFIConfigLoggingCopyWithImpl(_$_VeilidFFIConfigLogging _value,
+      $Res Function(_$_VeilidFFIConfigLogging) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -724,7 +719,7 @@ class __$$VeilidFFIConfigLoggingImplCopyWithImpl<$Res>
     Object? otlp = null,
     Object? api = null,
   }) {
-    return _then(_$VeilidFFIConfigLoggingImpl(
+    return _then(_$_VeilidFFIConfigLogging(
       terminal: null == terminal
           ? _value.terminal
           : terminal // ignore: cast_nullable_to_non_nullable
@@ -743,14 +738,14 @@ class __$$VeilidFFIConfigLoggingImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidFFIConfigLoggingImpl
+class _$_VeilidFFIConfigLogging
     with DiagnosticableTreeMixin
     implements _VeilidFFIConfigLogging {
-  const _$VeilidFFIConfigLoggingImpl(
+  const _$_VeilidFFIConfigLogging(
       {required this.terminal, required this.otlp, required this.api});
 
-  factory _$VeilidFFIConfigLoggingImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidFFIConfigLoggingImplFromJson(json);
+  factory _$_VeilidFFIConfigLogging.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidFFIConfigLoggingFromJson(json);
 
   @override
   final VeilidFFIConfigLoggingTerminal terminal;
@@ -775,10 +770,10 @@ class _$VeilidFFIConfigLoggingImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidFFIConfigLoggingImpl &&
+            other is _$_VeilidFFIConfigLogging &&
             (identical(other.terminal, terminal) ||
                 other.terminal == terminal) &&
             (identical(other.otlp, otlp) || other.otlp == otlp) &&
@@ -792,13 +787,13 @@ class _$VeilidFFIConfigLoggingImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidFFIConfigLoggingImplCopyWith<_$VeilidFFIConfigLoggingImpl>
-      get copyWith => __$$VeilidFFIConfigLoggingImplCopyWithImpl<
-          _$VeilidFFIConfigLoggingImpl>(this, _$identity);
+  _$$_VeilidFFIConfigLoggingCopyWith<_$_VeilidFFIConfigLogging> get copyWith =>
+      __$$_VeilidFFIConfigLoggingCopyWithImpl<_$_VeilidFFIConfigLogging>(
+          this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidFFIConfigLoggingImplToJson(
+    return _$$_VeilidFFIConfigLoggingToJson(
       this,
     );
   }
@@ -809,10 +804,10 @@ abstract class _VeilidFFIConfigLogging implements VeilidFFIConfigLogging {
           {required final VeilidFFIConfigLoggingTerminal terminal,
           required final VeilidFFIConfigLoggingOtlp otlp,
           required final VeilidFFIConfigLoggingApi api}) =
-      _$VeilidFFIConfigLoggingImpl;
+      _$_VeilidFFIConfigLogging;
 
   factory _VeilidFFIConfigLogging.fromJson(Map<String, dynamic> json) =
-      _$VeilidFFIConfigLoggingImpl.fromJson;
+      _$_VeilidFFIConfigLogging.fromJson;
 
   @override
   VeilidFFIConfigLoggingTerminal get terminal;
@@ -822,8 +817,8 @@ abstract class _VeilidFFIConfigLogging implements VeilidFFIConfigLogging {
   VeilidFFIConfigLoggingApi get api;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidFFIConfigLoggingImplCopyWith<_$VeilidFFIConfigLoggingImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  _$$_VeilidFFIConfigLoggingCopyWith<_$_VeilidFFIConfigLogging> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 VeilidFFIConfig _$VeilidFFIConfigFromJson(Map<String, dynamic> json) {
@@ -884,11 +879,11 @@ class _$VeilidFFIConfigCopyWithImpl<$Res, $Val extends VeilidFFIConfig>
 }
 
 /// @nodoc
-abstract class _$$VeilidFFIConfigImplCopyWith<$Res>
+abstract class _$$_VeilidFFIConfigCopyWith<$Res>
     implements $VeilidFFIConfigCopyWith<$Res> {
-  factory _$$VeilidFFIConfigImplCopyWith(_$VeilidFFIConfigImpl value,
-          $Res Function(_$VeilidFFIConfigImpl) then) =
-      __$$VeilidFFIConfigImplCopyWithImpl<$Res>;
+  factory _$$_VeilidFFIConfigCopyWith(
+          _$_VeilidFFIConfig value, $Res Function(_$_VeilidFFIConfig) then) =
+      __$$_VeilidFFIConfigCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({VeilidFFIConfigLogging logging});
@@ -898,11 +893,11 @@ abstract class _$$VeilidFFIConfigImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidFFIConfigImplCopyWithImpl<$Res>
-    extends _$VeilidFFIConfigCopyWithImpl<$Res, _$VeilidFFIConfigImpl>
-    implements _$$VeilidFFIConfigImplCopyWith<$Res> {
-  __$$VeilidFFIConfigImplCopyWithImpl(
-      _$VeilidFFIConfigImpl _value, $Res Function(_$VeilidFFIConfigImpl) _then)
+class __$$_VeilidFFIConfigCopyWithImpl<$Res>
+    extends _$VeilidFFIConfigCopyWithImpl<$Res, _$_VeilidFFIConfig>
+    implements _$$_VeilidFFIConfigCopyWith<$Res> {
+  __$$_VeilidFFIConfigCopyWithImpl(
+      _$_VeilidFFIConfig _value, $Res Function(_$_VeilidFFIConfig) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -910,7 +905,7 @@ class __$$VeilidFFIConfigImplCopyWithImpl<$Res>
   $Res call({
     Object? logging = null,
   }) {
-    return _then(_$VeilidFFIConfigImpl(
+    return _then(_$_VeilidFFIConfig(
       logging: null == logging
           ? _value.logging
           : logging // ignore: cast_nullable_to_non_nullable
@@ -921,13 +916,13 @@ class __$$VeilidFFIConfigImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidFFIConfigImpl
+class _$_VeilidFFIConfig
     with DiagnosticableTreeMixin
     implements _VeilidFFIConfig {
-  const _$VeilidFFIConfigImpl({required this.logging});
+  const _$_VeilidFFIConfig({required this.logging});
 
-  factory _$VeilidFFIConfigImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidFFIConfigImplFromJson(json);
+  factory _$_VeilidFFIConfig.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidFFIConfigFromJson(json);
 
   @override
   final VeilidFFIConfigLogging logging;
@@ -946,10 +941,10 @@ class _$VeilidFFIConfigImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidFFIConfigImpl &&
+            other is _$_VeilidFFIConfig &&
             (identical(other.logging, logging) || other.logging == logging));
   }
 
@@ -960,13 +955,12 @@ class _$VeilidFFIConfigImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidFFIConfigImplCopyWith<_$VeilidFFIConfigImpl> get copyWith =>
-      __$$VeilidFFIConfigImplCopyWithImpl<_$VeilidFFIConfigImpl>(
-          this, _$identity);
+  _$$_VeilidFFIConfigCopyWith<_$_VeilidFFIConfig> get copyWith =>
+      __$$_VeilidFFIConfigCopyWithImpl<_$_VeilidFFIConfig>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidFFIConfigImplToJson(
+    return _$$_VeilidFFIConfigToJson(
       this,
     );
   }
@@ -974,16 +968,16 @@ class _$VeilidFFIConfigImpl
 
 abstract class _VeilidFFIConfig implements VeilidFFIConfig {
   const factory _VeilidFFIConfig(
-      {required final VeilidFFIConfigLogging logging}) = _$VeilidFFIConfigImpl;
+      {required final VeilidFFIConfigLogging logging}) = _$_VeilidFFIConfig;
 
   factory _VeilidFFIConfig.fromJson(Map<String, dynamic> json) =
-      _$VeilidFFIConfigImpl.fromJson;
+      _$_VeilidFFIConfig.fromJson;
 
   @override
   VeilidFFIConfigLogging get logging;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidFFIConfigImplCopyWith<_$VeilidFFIConfigImpl> get copyWith =>
+  _$$_VeilidFFIConfigCopyWith<_$_VeilidFFIConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -1062,12 +1056,12 @@ class _$VeilidWASMConfigLoggingPerformanceCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidWASMConfigLoggingPerformanceImplCopyWith<$Res>
+abstract class _$$_VeilidWASMConfigLoggingPerformanceCopyWith<$Res>
     implements $VeilidWASMConfigLoggingPerformanceCopyWith<$Res> {
-  factory _$$VeilidWASMConfigLoggingPerformanceImplCopyWith(
-          _$VeilidWASMConfigLoggingPerformanceImpl value,
-          $Res Function(_$VeilidWASMConfigLoggingPerformanceImpl) then) =
-      __$$VeilidWASMConfigLoggingPerformanceImplCopyWithImpl<$Res>;
+  factory _$$_VeilidWASMConfigLoggingPerformanceCopyWith(
+          _$_VeilidWASMConfigLoggingPerformance value,
+          $Res Function(_$_VeilidWASMConfigLoggingPerformance) then) =
+      __$$_VeilidWASMConfigLoggingPerformanceCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -1078,13 +1072,13 @@ abstract class _$$VeilidWASMConfigLoggingPerformanceImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidWASMConfigLoggingPerformanceImplCopyWithImpl<$Res>
+class __$$_VeilidWASMConfigLoggingPerformanceCopyWithImpl<$Res>
     extends _$VeilidWASMConfigLoggingPerformanceCopyWithImpl<$Res,
-        _$VeilidWASMConfigLoggingPerformanceImpl>
-    implements _$$VeilidWASMConfigLoggingPerformanceImplCopyWith<$Res> {
-  __$$VeilidWASMConfigLoggingPerformanceImplCopyWithImpl(
-      _$VeilidWASMConfigLoggingPerformanceImpl _value,
-      $Res Function(_$VeilidWASMConfigLoggingPerformanceImpl) _then)
+        _$_VeilidWASMConfigLoggingPerformance>
+    implements _$$_VeilidWASMConfigLoggingPerformanceCopyWith<$Res> {
+  __$$_VeilidWASMConfigLoggingPerformanceCopyWithImpl(
+      _$_VeilidWASMConfigLoggingPerformance _value,
+      $Res Function(_$_VeilidWASMConfigLoggingPerformance) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1095,7 +1089,7 @@ class __$$VeilidWASMConfigLoggingPerformanceImplCopyWithImpl<$Res>
     Object? logsInTimings = null,
     Object? logsInConsole = null,
   }) {
-    return _then(_$VeilidWASMConfigLoggingPerformanceImpl(
+    return _then(_$_VeilidWASMConfigLoggingPerformance(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -1118,18 +1112,18 @@ class __$$VeilidWASMConfigLoggingPerformanceImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidWASMConfigLoggingPerformanceImpl
+class _$_VeilidWASMConfigLoggingPerformance
     with DiagnosticableTreeMixin
     implements _VeilidWASMConfigLoggingPerformance {
-  const _$VeilidWASMConfigLoggingPerformanceImpl(
+  const _$_VeilidWASMConfigLoggingPerformance(
       {required this.enabled,
       required this.level,
       required this.logsInTimings,
       required this.logsInConsole});
 
-  factory _$VeilidWASMConfigLoggingPerformanceImpl.fromJson(
+  factory _$_VeilidWASMConfigLoggingPerformance.fromJson(
           Map<String, dynamic> json) =>
-      _$$VeilidWASMConfigLoggingPerformanceImplFromJson(json);
+      _$$_VeilidWASMConfigLoggingPerformanceFromJson(json);
 
   @override
   final bool enabled;
@@ -1157,10 +1151,10 @@ class _$VeilidWASMConfigLoggingPerformanceImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidWASMConfigLoggingPerformanceImpl &&
+            other is _$_VeilidWASMConfigLoggingPerformance &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.level, level) || other.level == level) &&
             (identical(other.logsInTimings, logsInTimings) ||
@@ -1177,14 +1171,14 @@ class _$VeilidWASMConfigLoggingPerformanceImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidWASMConfigLoggingPerformanceImplCopyWith<
-          _$VeilidWASMConfigLoggingPerformanceImpl>
-      get copyWith => __$$VeilidWASMConfigLoggingPerformanceImplCopyWithImpl<
-          _$VeilidWASMConfigLoggingPerformanceImpl>(this, _$identity);
+  _$$_VeilidWASMConfigLoggingPerformanceCopyWith<
+          _$_VeilidWASMConfigLoggingPerformance>
+      get copyWith => __$$_VeilidWASMConfigLoggingPerformanceCopyWithImpl<
+          _$_VeilidWASMConfigLoggingPerformance>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidWASMConfigLoggingPerformanceImplToJson(
+    return _$$_VeilidWASMConfigLoggingPerformanceToJson(
       this,
     );
   }
@@ -1197,11 +1191,11 @@ abstract class _VeilidWASMConfigLoggingPerformance
           required final VeilidConfigLogLevel level,
           required final bool logsInTimings,
           required final bool logsInConsole}) =
-      _$VeilidWASMConfigLoggingPerformanceImpl;
+      _$_VeilidWASMConfigLoggingPerformance;
 
   factory _VeilidWASMConfigLoggingPerformance.fromJson(
           Map<String, dynamic> json) =
-      _$VeilidWASMConfigLoggingPerformanceImpl.fromJson;
+      _$_VeilidWASMConfigLoggingPerformance.fromJson;
 
   @override
   bool get enabled;
@@ -1213,8 +1207,8 @@ abstract class _VeilidWASMConfigLoggingPerformance
   bool get logsInConsole;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidWASMConfigLoggingPerformanceImplCopyWith<
-          _$VeilidWASMConfigLoggingPerformanceImpl>
+  _$$_VeilidWASMConfigLoggingPerformanceCopyWith<
+          _$_VeilidWASMConfigLoggingPerformance>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -1275,25 +1269,25 @@ class _$VeilidWASMConfigLoggingApiCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidWASMConfigLoggingApiImplCopyWith<$Res>
+abstract class _$$_VeilidWASMConfigLoggingApiCopyWith<$Res>
     implements $VeilidWASMConfigLoggingApiCopyWith<$Res> {
-  factory _$$VeilidWASMConfigLoggingApiImplCopyWith(
-          _$VeilidWASMConfigLoggingApiImpl value,
-          $Res Function(_$VeilidWASMConfigLoggingApiImpl) then) =
-      __$$VeilidWASMConfigLoggingApiImplCopyWithImpl<$Res>;
+  factory _$$_VeilidWASMConfigLoggingApiCopyWith(
+          _$_VeilidWASMConfigLoggingApi value,
+          $Res Function(_$_VeilidWASMConfigLoggingApi) then) =
+      __$$_VeilidWASMConfigLoggingApiCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({bool enabled, VeilidConfigLogLevel level});
 }
 
 /// @nodoc
-class __$$VeilidWASMConfigLoggingApiImplCopyWithImpl<$Res>
+class __$$_VeilidWASMConfigLoggingApiCopyWithImpl<$Res>
     extends _$VeilidWASMConfigLoggingApiCopyWithImpl<$Res,
-        _$VeilidWASMConfigLoggingApiImpl>
-    implements _$$VeilidWASMConfigLoggingApiImplCopyWith<$Res> {
-  __$$VeilidWASMConfigLoggingApiImplCopyWithImpl(
-      _$VeilidWASMConfigLoggingApiImpl _value,
-      $Res Function(_$VeilidWASMConfigLoggingApiImpl) _then)
+        _$_VeilidWASMConfigLoggingApi>
+    implements _$$_VeilidWASMConfigLoggingApiCopyWith<$Res> {
+  __$$_VeilidWASMConfigLoggingApiCopyWithImpl(
+      _$_VeilidWASMConfigLoggingApi _value,
+      $Res Function(_$_VeilidWASMConfigLoggingApi) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1302,7 +1296,7 @@ class __$$VeilidWASMConfigLoggingApiImplCopyWithImpl<$Res>
     Object? enabled = null,
     Object? level = null,
   }) {
-    return _then(_$VeilidWASMConfigLoggingApiImpl(
+    return _then(_$_VeilidWASMConfigLoggingApi(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -1317,15 +1311,14 @@ class __$$VeilidWASMConfigLoggingApiImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidWASMConfigLoggingApiImpl
+class _$_VeilidWASMConfigLoggingApi
     with DiagnosticableTreeMixin
     implements _VeilidWASMConfigLoggingApi {
-  const _$VeilidWASMConfigLoggingApiImpl(
+  const _$_VeilidWASMConfigLoggingApi(
       {required this.enabled, required this.level});
 
-  factory _$VeilidWASMConfigLoggingApiImpl.fromJson(
-          Map<String, dynamic> json) =>
-      _$$VeilidWASMConfigLoggingApiImplFromJson(json);
+  factory _$_VeilidWASMConfigLoggingApi.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidWASMConfigLoggingApiFromJson(json);
 
   @override
   final bool enabled;
@@ -1347,10 +1340,10 @@ class _$VeilidWASMConfigLoggingApiImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidWASMConfigLoggingApiImpl &&
+            other is _$_VeilidWASMConfigLoggingApi &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.level, level) || other.level == level));
   }
@@ -1362,13 +1355,13 @@ class _$VeilidWASMConfigLoggingApiImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidWASMConfigLoggingApiImplCopyWith<_$VeilidWASMConfigLoggingApiImpl>
-      get copyWith => __$$VeilidWASMConfigLoggingApiImplCopyWithImpl<
-          _$VeilidWASMConfigLoggingApiImpl>(this, _$identity);
+  _$$_VeilidWASMConfigLoggingApiCopyWith<_$_VeilidWASMConfigLoggingApi>
+      get copyWith => __$$_VeilidWASMConfigLoggingApiCopyWithImpl<
+          _$_VeilidWASMConfigLoggingApi>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidWASMConfigLoggingApiImplToJson(
+    return _$$_VeilidWASMConfigLoggingApiToJson(
       this,
     );
   }
@@ -1379,10 +1372,10 @@ abstract class _VeilidWASMConfigLoggingApi
   const factory _VeilidWASMConfigLoggingApi(
           {required final bool enabled,
           required final VeilidConfigLogLevel level}) =
-      _$VeilidWASMConfigLoggingApiImpl;
+      _$_VeilidWASMConfigLoggingApi;
 
   factory _VeilidWASMConfigLoggingApi.fromJson(Map<String, dynamic> json) =
-      _$VeilidWASMConfigLoggingApiImpl.fromJson;
+      _$_VeilidWASMConfigLoggingApi.fromJson;
 
   @override
   bool get enabled;
@@ -1390,7 +1383,7 @@ abstract class _VeilidWASMConfigLoggingApi
   VeilidConfigLogLevel get level;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidWASMConfigLoggingApiImplCopyWith<_$VeilidWASMConfigLoggingApiImpl>
+  _$$_VeilidWASMConfigLoggingApiCopyWith<_$_VeilidWASMConfigLoggingApi>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -1473,12 +1466,11 @@ class _$VeilidWASMConfigLoggingCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidWASMConfigLoggingImplCopyWith<$Res>
+abstract class _$$_VeilidWASMConfigLoggingCopyWith<$Res>
     implements $VeilidWASMConfigLoggingCopyWith<$Res> {
-  factory _$$VeilidWASMConfigLoggingImplCopyWith(
-          _$VeilidWASMConfigLoggingImpl value,
-          $Res Function(_$VeilidWASMConfigLoggingImpl) then) =
-      __$$VeilidWASMConfigLoggingImplCopyWithImpl<$Res>;
+  factory _$$_VeilidWASMConfigLoggingCopyWith(_$_VeilidWASMConfigLogging value,
+          $Res Function(_$_VeilidWASMConfigLogging) then) =
+      __$$_VeilidWASMConfigLoggingCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -1492,13 +1484,12 @@ abstract class _$$VeilidWASMConfigLoggingImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidWASMConfigLoggingImplCopyWithImpl<$Res>
+class __$$_VeilidWASMConfigLoggingCopyWithImpl<$Res>
     extends _$VeilidWASMConfigLoggingCopyWithImpl<$Res,
-        _$VeilidWASMConfigLoggingImpl>
-    implements _$$VeilidWASMConfigLoggingImplCopyWith<$Res> {
-  __$$VeilidWASMConfigLoggingImplCopyWithImpl(
-      _$VeilidWASMConfigLoggingImpl _value,
-      $Res Function(_$VeilidWASMConfigLoggingImpl) _then)
+        _$_VeilidWASMConfigLogging>
+    implements _$$_VeilidWASMConfigLoggingCopyWith<$Res> {
+  __$$_VeilidWASMConfigLoggingCopyWithImpl(_$_VeilidWASMConfigLogging _value,
+      $Res Function(_$_VeilidWASMConfigLogging) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1507,7 +1498,7 @@ class __$$VeilidWASMConfigLoggingImplCopyWithImpl<$Res>
     Object? performance = null,
     Object? api = null,
   }) {
-    return _then(_$VeilidWASMConfigLoggingImpl(
+    return _then(_$_VeilidWASMConfigLogging(
       performance: null == performance
           ? _value.performance
           : performance // ignore: cast_nullable_to_non_nullable
@@ -1522,14 +1513,14 @@ class __$$VeilidWASMConfigLoggingImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidWASMConfigLoggingImpl
+class _$_VeilidWASMConfigLogging
     with DiagnosticableTreeMixin
     implements _VeilidWASMConfigLogging {
-  const _$VeilidWASMConfigLoggingImpl(
+  const _$_VeilidWASMConfigLogging(
       {required this.performance, required this.api});
 
-  factory _$VeilidWASMConfigLoggingImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidWASMConfigLoggingImplFromJson(json);
+  factory _$_VeilidWASMConfigLogging.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidWASMConfigLoggingFromJson(json);
 
   @override
   final VeilidWASMConfigLoggingPerformance performance;
@@ -1551,10 +1542,10 @@ class _$VeilidWASMConfigLoggingImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidWASMConfigLoggingImpl &&
+            other is _$_VeilidWASMConfigLogging &&
             (identical(other.performance, performance) ||
                 other.performance == performance) &&
             (identical(other.api, api) || other.api == api));
@@ -1567,13 +1558,14 @@ class _$VeilidWASMConfigLoggingImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidWASMConfigLoggingImplCopyWith<_$VeilidWASMConfigLoggingImpl>
-      get copyWith => __$$VeilidWASMConfigLoggingImplCopyWithImpl<
-          _$VeilidWASMConfigLoggingImpl>(this, _$identity);
+  _$$_VeilidWASMConfigLoggingCopyWith<_$_VeilidWASMConfigLogging>
+      get copyWith =>
+          __$$_VeilidWASMConfigLoggingCopyWithImpl<_$_VeilidWASMConfigLogging>(
+              this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidWASMConfigLoggingImplToJson(
+    return _$$_VeilidWASMConfigLoggingToJson(
       this,
     );
   }
@@ -1583,10 +1575,10 @@ abstract class _VeilidWASMConfigLogging implements VeilidWASMConfigLogging {
   const factory _VeilidWASMConfigLogging(
           {required final VeilidWASMConfigLoggingPerformance performance,
           required final VeilidWASMConfigLoggingApi api}) =
-      _$VeilidWASMConfigLoggingImpl;
+      _$_VeilidWASMConfigLogging;
 
   factory _VeilidWASMConfigLogging.fromJson(Map<String, dynamic> json) =
-      _$VeilidWASMConfigLoggingImpl.fromJson;
+      _$_VeilidWASMConfigLogging.fromJson;
 
   @override
   VeilidWASMConfigLoggingPerformance get performance;
@@ -1594,7 +1586,7 @@ abstract class _VeilidWASMConfigLogging implements VeilidWASMConfigLogging {
   VeilidWASMConfigLoggingApi get api;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidWASMConfigLoggingImplCopyWith<_$VeilidWASMConfigLoggingImpl>
+  _$$_VeilidWASMConfigLoggingCopyWith<_$_VeilidWASMConfigLogging>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -1656,11 +1648,11 @@ class _$VeilidWASMConfigCopyWithImpl<$Res, $Val extends VeilidWASMConfig>
 }
 
 /// @nodoc
-abstract class _$$VeilidWASMConfigImplCopyWith<$Res>
+abstract class _$$_VeilidWASMConfigCopyWith<$Res>
     implements $VeilidWASMConfigCopyWith<$Res> {
-  factory _$$VeilidWASMConfigImplCopyWith(_$VeilidWASMConfigImpl value,
-          $Res Function(_$VeilidWASMConfigImpl) then) =
-      __$$VeilidWASMConfigImplCopyWithImpl<$Res>;
+  factory _$$_VeilidWASMConfigCopyWith(
+          _$_VeilidWASMConfig value, $Res Function(_$_VeilidWASMConfig) then) =
+      __$$_VeilidWASMConfigCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({VeilidWASMConfigLogging logging});
@@ -1670,11 +1662,11 @@ abstract class _$$VeilidWASMConfigImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidWASMConfigImplCopyWithImpl<$Res>
-    extends _$VeilidWASMConfigCopyWithImpl<$Res, _$VeilidWASMConfigImpl>
-    implements _$$VeilidWASMConfigImplCopyWith<$Res> {
-  __$$VeilidWASMConfigImplCopyWithImpl(_$VeilidWASMConfigImpl _value,
-      $Res Function(_$VeilidWASMConfigImpl) _then)
+class __$$_VeilidWASMConfigCopyWithImpl<$Res>
+    extends _$VeilidWASMConfigCopyWithImpl<$Res, _$_VeilidWASMConfig>
+    implements _$$_VeilidWASMConfigCopyWith<$Res> {
+  __$$_VeilidWASMConfigCopyWithImpl(
+      _$_VeilidWASMConfig _value, $Res Function(_$_VeilidWASMConfig) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1682,7 +1674,7 @@ class __$$VeilidWASMConfigImplCopyWithImpl<$Res>
   $Res call({
     Object? logging = null,
   }) {
-    return _then(_$VeilidWASMConfigImpl(
+    return _then(_$_VeilidWASMConfig(
       logging: null == logging
           ? _value.logging
           : logging // ignore: cast_nullable_to_non_nullable
@@ -1693,13 +1685,13 @@ class __$$VeilidWASMConfigImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidWASMConfigImpl
+class _$_VeilidWASMConfig
     with DiagnosticableTreeMixin
     implements _VeilidWASMConfig {
-  const _$VeilidWASMConfigImpl({required this.logging});
+  const _$_VeilidWASMConfig({required this.logging});
 
-  factory _$VeilidWASMConfigImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidWASMConfigImplFromJson(json);
+  factory _$_VeilidWASMConfig.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidWASMConfigFromJson(json);
 
   @override
   final VeilidWASMConfigLogging logging;
@@ -1718,10 +1710,10 @@ class _$VeilidWASMConfigImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidWASMConfigImpl &&
+            other is _$_VeilidWASMConfig &&
             (identical(other.logging, logging) || other.logging == logging));
   }
 
@@ -1732,13 +1724,12 @@ class _$VeilidWASMConfigImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidWASMConfigImplCopyWith<_$VeilidWASMConfigImpl> get copyWith =>
-      __$$VeilidWASMConfigImplCopyWithImpl<_$VeilidWASMConfigImpl>(
-          this, _$identity);
+  _$$_VeilidWASMConfigCopyWith<_$_VeilidWASMConfig> get copyWith =>
+      __$$_VeilidWASMConfigCopyWithImpl<_$_VeilidWASMConfig>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidWASMConfigImplToJson(
+    return _$$_VeilidWASMConfigToJson(
       this,
     );
   }
@@ -1746,17 +1737,16 @@ class _$VeilidWASMConfigImpl
 
 abstract class _VeilidWASMConfig implements VeilidWASMConfig {
   const factory _VeilidWASMConfig(
-          {required final VeilidWASMConfigLogging logging}) =
-      _$VeilidWASMConfigImpl;
+      {required final VeilidWASMConfigLogging logging}) = _$_VeilidWASMConfig;
 
   factory _VeilidWASMConfig.fromJson(Map<String, dynamic> json) =
-      _$VeilidWASMConfigImpl.fromJson;
+      _$_VeilidWASMConfig.fromJson;
 
   @override
   VeilidWASMConfigLogging get logging;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidWASMConfigImplCopyWith<_$VeilidWASMConfigImpl> get copyWith =>
+  _$$_VeilidWASMConfigCopyWith<_$_VeilidWASMConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -1826,22 +1816,22 @@ class _$VeilidConfigHTTPSCopyWithImpl<$Res, $Val extends VeilidConfigHTTPS>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigHTTPSImplCopyWith<$Res>
+abstract class _$$_VeilidConfigHTTPSCopyWith<$Res>
     implements $VeilidConfigHTTPSCopyWith<$Res> {
-  factory _$$VeilidConfigHTTPSImplCopyWith(_$VeilidConfigHTTPSImpl value,
-          $Res Function(_$VeilidConfigHTTPSImpl) then) =
-      __$$VeilidConfigHTTPSImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigHTTPSCopyWith(_$_VeilidConfigHTTPS value,
+          $Res Function(_$_VeilidConfigHTTPS) then) =
+      __$$_VeilidConfigHTTPSCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({bool enabled, String listenAddress, String path, String? url});
 }
 
 /// @nodoc
-class __$$VeilidConfigHTTPSImplCopyWithImpl<$Res>
-    extends _$VeilidConfigHTTPSCopyWithImpl<$Res, _$VeilidConfigHTTPSImpl>
-    implements _$$VeilidConfigHTTPSImplCopyWith<$Res> {
-  __$$VeilidConfigHTTPSImplCopyWithImpl(_$VeilidConfigHTTPSImpl _value,
-      $Res Function(_$VeilidConfigHTTPSImpl) _then)
+class __$$_VeilidConfigHTTPSCopyWithImpl<$Res>
+    extends _$VeilidConfigHTTPSCopyWithImpl<$Res, _$_VeilidConfigHTTPS>
+    implements _$$_VeilidConfigHTTPSCopyWith<$Res> {
+  __$$_VeilidConfigHTTPSCopyWithImpl(
+      _$_VeilidConfigHTTPS _value, $Res Function(_$_VeilidConfigHTTPS) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1852,7 +1842,7 @@ class __$$VeilidConfigHTTPSImplCopyWithImpl<$Res>
     Object? path = null,
     Object? url = freezed,
   }) {
-    return _then(_$VeilidConfigHTTPSImpl(
+    return _then(_$_VeilidConfigHTTPS(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -1875,17 +1865,17 @@ class __$$VeilidConfigHTTPSImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigHTTPSImpl
+class _$_VeilidConfigHTTPS
     with DiagnosticableTreeMixin
     implements _VeilidConfigHTTPS {
-  const _$VeilidConfigHTTPSImpl(
+  const _$_VeilidConfigHTTPS(
       {required this.enabled,
       required this.listenAddress,
       required this.path,
       this.url});
 
-  factory _$VeilidConfigHTTPSImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigHTTPSImplFromJson(json);
+  factory _$_VeilidConfigHTTPS.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigHTTPSFromJson(json);
 
   @override
   final bool enabled;
@@ -1913,10 +1903,10 @@ class _$VeilidConfigHTTPSImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigHTTPSImpl &&
+            other is _$_VeilidConfigHTTPS &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.listenAddress, listenAddress) ||
                 other.listenAddress == listenAddress) &&
@@ -1932,13 +1922,13 @@ class _$VeilidConfigHTTPSImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigHTTPSImplCopyWith<_$VeilidConfigHTTPSImpl> get copyWith =>
-      __$$VeilidConfigHTTPSImplCopyWithImpl<_$VeilidConfigHTTPSImpl>(
+  _$$_VeilidConfigHTTPSCopyWith<_$_VeilidConfigHTTPS> get copyWith =>
+      __$$_VeilidConfigHTTPSCopyWithImpl<_$_VeilidConfigHTTPS>(
           this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigHTTPSImplToJson(
+    return _$$_VeilidConfigHTTPSToJson(
       this,
     );
   }
@@ -1949,10 +1939,10 @@ abstract class _VeilidConfigHTTPS implements VeilidConfigHTTPS {
       {required final bool enabled,
       required final String listenAddress,
       required final String path,
-      final String? url}) = _$VeilidConfigHTTPSImpl;
+      final String? url}) = _$_VeilidConfigHTTPS;
 
   factory _VeilidConfigHTTPS.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigHTTPSImpl.fromJson;
+      _$_VeilidConfigHTTPS.fromJson;
 
   @override
   bool get enabled;
@@ -1964,7 +1954,7 @@ abstract class _VeilidConfigHTTPS implements VeilidConfigHTTPS {
   String? get url;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigHTTPSImplCopyWith<_$VeilidConfigHTTPSImpl> get copyWith =>
+  _$$_VeilidConfigHTTPSCopyWith<_$_VeilidConfigHTTPS> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -2034,22 +2024,22 @@ class _$VeilidConfigHTTPCopyWithImpl<$Res, $Val extends VeilidConfigHTTP>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigHTTPImplCopyWith<$Res>
+abstract class _$$_VeilidConfigHTTPCopyWith<$Res>
     implements $VeilidConfigHTTPCopyWith<$Res> {
-  factory _$$VeilidConfigHTTPImplCopyWith(_$VeilidConfigHTTPImpl value,
-          $Res Function(_$VeilidConfigHTTPImpl) then) =
-      __$$VeilidConfigHTTPImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigHTTPCopyWith(
+          _$_VeilidConfigHTTP value, $Res Function(_$_VeilidConfigHTTP) then) =
+      __$$_VeilidConfigHTTPCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({bool enabled, String listenAddress, String path, String? url});
 }
 
 /// @nodoc
-class __$$VeilidConfigHTTPImplCopyWithImpl<$Res>
-    extends _$VeilidConfigHTTPCopyWithImpl<$Res, _$VeilidConfigHTTPImpl>
-    implements _$$VeilidConfigHTTPImplCopyWith<$Res> {
-  __$$VeilidConfigHTTPImplCopyWithImpl(_$VeilidConfigHTTPImpl _value,
-      $Res Function(_$VeilidConfigHTTPImpl) _then)
+class __$$_VeilidConfigHTTPCopyWithImpl<$Res>
+    extends _$VeilidConfigHTTPCopyWithImpl<$Res, _$_VeilidConfigHTTP>
+    implements _$$_VeilidConfigHTTPCopyWith<$Res> {
+  __$$_VeilidConfigHTTPCopyWithImpl(
+      _$_VeilidConfigHTTP _value, $Res Function(_$_VeilidConfigHTTP) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2060,7 +2050,7 @@ class __$$VeilidConfigHTTPImplCopyWithImpl<$Res>
     Object? path = null,
     Object? url = freezed,
   }) {
-    return _then(_$VeilidConfigHTTPImpl(
+    return _then(_$_VeilidConfigHTTP(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -2083,17 +2073,17 @@ class __$$VeilidConfigHTTPImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigHTTPImpl
+class _$_VeilidConfigHTTP
     with DiagnosticableTreeMixin
     implements _VeilidConfigHTTP {
-  const _$VeilidConfigHTTPImpl(
+  const _$_VeilidConfigHTTP(
       {required this.enabled,
       required this.listenAddress,
       required this.path,
       this.url});
 
-  factory _$VeilidConfigHTTPImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigHTTPImplFromJson(json);
+  factory _$_VeilidConfigHTTP.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigHTTPFromJson(json);
 
   @override
   final bool enabled;
@@ -2121,10 +2111,10 @@ class _$VeilidConfigHTTPImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigHTTPImpl &&
+            other is _$_VeilidConfigHTTP &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.listenAddress, listenAddress) ||
                 other.listenAddress == listenAddress) &&
@@ -2140,13 +2130,12 @@ class _$VeilidConfigHTTPImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigHTTPImplCopyWith<_$VeilidConfigHTTPImpl> get copyWith =>
-      __$$VeilidConfigHTTPImplCopyWithImpl<_$VeilidConfigHTTPImpl>(
-          this, _$identity);
+  _$$_VeilidConfigHTTPCopyWith<_$_VeilidConfigHTTP> get copyWith =>
+      __$$_VeilidConfigHTTPCopyWithImpl<_$_VeilidConfigHTTP>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigHTTPImplToJson(
+    return _$$_VeilidConfigHTTPToJson(
       this,
     );
   }
@@ -2157,10 +2146,10 @@ abstract class _VeilidConfigHTTP implements VeilidConfigHTTP {
       {required final bool enabled,
       required final String listenAddress,
       required final String path,
-      final String? url}) = _$VeilidConfigHTTPImpl;
+      final String? url}) = _$_VeilidConfigHTTP;
 
   factory _VeilidConfigHTTP.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigHTTPImpl.fromJson;
+      _$_VeilidConfigHTTP.fromJson;
 
   @override
   bool get enabled;
@@ -2172,7 +2161,7 @@ abstract class _VeilidConfigHTTP implements VeilidConfigHTTP {
   String? get url;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigHTTPImplCopyWith<_$VeilidConfigHTTPImpl> get copyWith =>
+  _$$_VeilidConfigHTTPCopyWith<_$_VeilidConfigHTTP> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -2251,12 +2240,11 @@ class _$VeilidConfigApplicationCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigApplicationImplCopyWith<$Res>
+abstract class _$$_VeilidConfigApplicationCopyWith<$Res>
     implements $VeilidConfigApplicationCopyWith<$Res> {
-  factory _$$VeilidConfigApplicationImplCopyWith(
-          _$VeilidConfigApplicationImpl value,
-          $Res Function(_$VeilidConfigApplicationImpl) then) =
-      __$$VeilidConfigApplicationImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigApplicationCopyWith(_$_VeilidConfigApplication value,
+          $Res Function(_$_VeilidConfigApplication) then) =
+      __$$_VeilidConfigApplicationCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({VeilidConfigHTTPS https, VeilidConfigHTTP http});
@@ -2268,13 +2256,12 @@ abstract class _$$VeilidConfigApplicationImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigApplicationImplCopyWithImpl<$Res>
+class __$$_VeilidConfigApplicationCopyWithImpl<$Res>
     extends _$VeilidConfigApplicationCopyWithImpl<$Res,
-        _$VeilidConfigApplicationImpl>
-    implements _$$VeilidConfigApplicationImplCopyWith<$Res> {
-  __$$VeilidConfigApplicationImplCopyWithImpl(
-      _$VeilidConfigApplicationImpl _value,
-      $Res Function(_$VeilidConfigApplicationImpl) _then)
+        _$_VeilidConfigApplication>
+    implements _$$_VeilidConfigApplicationCopyWith<$Res> {
+  __$$_VeilidConfigApplicationCopyWithImpl(_$_VeilidConfigApplication _value,
+      $Res Function(_$_VeilidConfigApplication) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2283,7 +2270,7 @@ class __$$VeilidConfigApplicationImplCopyWithImpl<$Res>
     Object? https = null,
     Object? http = null,
   }) {
-    return _then(_$VeilidConfigApplicationImpl(
+    return _then(_$_VeilidConfigApplication(
       https: null == https
           ? _value.https
           : https // ignore: cast_nullable_to_non_nullable
@@ -2298,14 +2285,13 @@ class __$$VeilidConfigApplicationImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigApplicationImpl
+class _$_VeilidConfigApplication
     with DiagnosticableTreeMixin
     implements _VeilidConfigApplication {
-  const _$VeilidConfigApplicationImpl(
-      {required this.https, required this.http});
+  const _$_VeilidConfigApplication({required this.https, required this.http});
 
-  factory _$VeilidConfigApplicationImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigApplicationImplFromJson(json);
+  factory _$_VeilidConfigApplication.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigApplicationFromJson(json);
 
   @override
   final VeilidConfigHTTPS https;
@@ -2327,10 +2313,10 @@ class _$VeilidConfigApplicationImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigApplicationImpl &&
+            other is _$_VeilidConfigApplication &&
             (identical(other.https, https) || other.https == https) &&
             (identical(other.http, http) || other.http == http));
   }
@@ -2342,13 +2328,14 @@ class _$VeilidConfigApplicationImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigApplicationImplCopyWith<_$VeilidConfigApplicationImpl>
-      get copyWith => __$$VeilidConfigApplicationImplCopyWithImpl<
-          _$VeilidConfigApplicationImpl>(this, _$identity);
+  _$$_VeilidConfigApplicationCopyWith<_$_VeilidConfigApplication>
+      get copyWith =>
+          __$$_VeilidConfigApplicationCopyWithImpl<_$_VeilidConfigApplication>(
+              this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigApplicationImplToJson(
+    return _$$_VeilidConfigApplicationToJson(
       this,
     );
   }
@@ -2357,10 +2344,10 @@ class _$VeilidConfigApplicationImpl
 abstract class _VeilidConfigApplication implements VeilidConfigApplication {
   const factory _VeilidConfigApplication(
       {required final VeilidConfigHTTPS https,
-      required final VeilidConfigHTTP http}) = _$VeilidConfigApplicationImpl;
+      required final VeilidConfigHTTP http}) = _$_VeilidConfigApplication;
 
   factory _VeilidConfigApplication.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigApplicationImpl.fromJson;
+      _$_VeilidConfigApplication.fromJson;
 
   @override
   VeilidConfigHTTPS get https;
@@ -2368,7 +2355,7 @@ abstract class _VeilidConfigApplication implements VeilidConfigApplication {
   VeilidConfigHTTP get http;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigApplicationImplCopyWith<_$VeilidConfigApplicationImpl>
+  _$$_VeilidConfigApplicationCopyWith<_$_VeilidConfigApplication>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -2442,11 +2429,11 @@ class _$VeilidConfigUDPCopyWithImpl<$Res, $Val extends VeilidConfigUDP>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigUDPImplCopyWith<$Res>
+abstract class _$$_VeilidConfigUDPCopyWith<$Res>
     implements $VeilidConfigUDPCopyWith<$Res> {
-  factory _$$VeilidConfigUDPImplCopyWith(_$VeilidConfigUDPImpl value,
-          $Res Function(_$VeilidConfigUDPImpl) then) =
-      __$$VeilidConfigUDPImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigUDPCopyWith(
+          _$_VeilidConfigUDP value, $Res Function(_$_VeilidConfigUDP) then) =
+      __$$_VeilidConfigUDPCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -2457,11 +2444,11 @@ abstract class _$$VeilidConfigUDPImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigUDPImplCopyWithImpl<$Res>
-    extends _$VeilidConfigUDPCopyWithImpl<$Res, _$VeilidConfigUDPImpl>
-    implements _$$VeilidConfigUDPImplCopyWith<$Res> {
-  __$$VeilidConfigUDPImplCopyWithImpl(
-      _$VeilidConfigUDPImpl _value, $Res Function(_$VeilidConfigUDPImpl) _then)
+class __$$_VeilidConfigUDPCopyWithImpl<$Res>
+    extends _$VeilidConfigUDPCopyWithImpl<$Res, _$_VeilidConfigUDP>
+    implements _$$_VeilidConfigUDPCopyWith<$Res> {
+  __$$_VeilidConfigUDPCopyWithImpl(
+      _$_VeilidConfigUDP _value, $Res Function(_$_VeilidConfigUDP) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2472,7 +2459,7 @@ class __$$VeilidConfigUDPImplCopyWithImpl<$Res>
     Object? listenAddress = null,
     Object? publicAddress = freezed,
   }) {
-    return _then(_$VeilidConfigUDPImpl(
+    return _then(_$_VeilidConfigUDP(
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
@@ -2495,17 +2482,17 @@ class __$$VeilidConfigUDPImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigUDPImpl
+class _$_VeilidConfigUDP
     with DiagnosticableTreeMixin
     implements _VeilidConfigUDP {
-  const _$VeilidConfigUDPImpl(
+  const _$_VeilidConfigUDP(
       {required this.enabled,
       required this.socketPoolSize,
       required this.listenAddress,
       this.publicAddress});
 
-  factory _$VeilidConfigUDPImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigUDPImplFromJson(json);
+  factory _$_VeilidConfigUDP.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigUDPFromJson(json);
 
   @override
   final bool enabled;
@@ -2533,10 +2520,10 @@ class _$VeilidConfigUDPImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigUDPImpl &&
+            other is _$_VeilidConfigUDP &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.socketPoolSize, socketPoolSize) ||
                 other.socketPoolSize == socketPoolSize) &&
@@ -2554,13 +2541,12 @@ class _$VeilidConfigUDPImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigUDPImplCopyWith<_$VeilidConfigUDPImpl> get copyWith =>
-      __$$VeilidConfigUDPImplCopyWithImpl<_$VeilidConfigUDPImpl>(
-          this, _$identity);
+  _$$_VeilidConfigUDPCopyWith<_$_VeilidConfigUDP> get copyWith =>
+      __$$_VeilidConfigUDPCopyWithImpl<_$_VeilidConfigUDP>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigUDPImplToJson(
+    return _$$_VeilidConfigUDPToJson(
       this,
     );
   }
@@ -2571,10 +2557,10 @@ abstract class _VeilidConfigUDP implements VeilidConfigUDP {
       {required final bool enabled,
       required final int socketPoolSize,
       required final String listenAddress,
-      final String? publicAddress}) = _$VeilidConfigUDPImpl;
+      final String? publicAddress}) = _$_VeilidConfigUDP;
 
   factory _VeilidConfigUDP.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigUDPImpl.fromJson;
+      _$_VeilidConfigUDP.fromJson;
 
   @override
   bool get enabled;
@@ -2586,7 +2572,7 @@ abstract class _VeilidConfigUDP implements VeilidConfigUDP {
   String? get publicAddress;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigUDPImplCopyWith<_$VeilidConfigUDPImpl> get copyWith =>
+  _$$_VeilidConfigUDPCopyWith<_$_VeilidConfigUDP> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -2667,11 +2653,11 @@ class _$VeilidConfigTCPCopyWithImpl<$Res, $Val extends VeilidConfigTCP>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigTCPImplCopyWith<$Res>
+abstract class _$$_VeilidConfigTCPCopyWith<$Res>
     implements $VeilidConfigTCPCopyWith<$Res> {
-  factory _$$VeilidConfigTCPImplCopyWith(_$VeilidConfigTCPImpl value,
-          $Res Function(_$VeilidConfigTCPImpl) then) =
-      __$$VeilidConfigTCPImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigTCPCopyWith(
+          _$_VeilidConfigTCP value, $Res Function(_$_VeilidConfigTCP) then) =
+      __$$_VeilidConfigTCPCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -2683,11 +2669,11 @@ abstract class _$$VeilidConfigTCPImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigTCPImplCopyWithImpl<$Res>
-    extends _$VeilidConfigTCPCopyWithImpl<$Res, _$VeilidConfigTCPImpl>
-    implements _$$VeilidConfigTCPImplCopyWith<$Res> {
-  __$$VeilidConfigTCPImplCopyWithImpl(
-      _$VeilidConfigTCPImpl _value, $Res Function(_$VeilidConfigTCPImpl) _then)
+class __$$_VeilidConfigTCPCopyWithImpl<$Res>
+    extends _$VeilidConfigTCPCopyWithImpl<$Res, _$_VeilidConfigTCP>
+    implements _$$_VeilidConfigTCPCopyWith<$Res> {
+  __$$_VeilidConfigTCPCopyWithImpl(
+      _$_VeilidConfigTCP _value, $Res Function(_$_VeilidConfigTCP) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2699,7 +2685,7 @@ class __$$VeilidConfigTCPImplCopyWithImpl<$Res>
     Object? listenAddress = null,
     Object? publicAddress = freezed,
   }) {
-    return _then(_$VeilidConfigTCPImpl(
+    return _then(_$_VeilidConfigTCP(
       connect: null == connect
           ? _value.connect
           : connect // ignore: cast_nullable_to_non_nullable
@@ -2726,18 +2712,18 @@ class __$$VeilidConfigTCPImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigTCPImpl
+class _$_VeilidConfigTCP
     with DiagnosticableTreeMixin
     implements _VeilidConfigTCP {
-  const _$VeilidConfigTCPImpl(
+  const _$_VeilidConfigTCP(
       {required this.connect,
       required this.listen,
       required this.maxConnections,
       required this.listenAddress,
       this.publicAddress});
 
-  factory _$VeilidConfigTCPImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigTCPImplFromJson(json);
+  factory _$_VeilidConfigTCP.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigTCPFromJson(json);
 
   @override
   final bool connect;
@@ -2768,10 +2754,10 @@ class _$VeilidConfigTCPImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigTCPImpl &&
+            other is _$_VeilidConfigTCP &&
             (identical(other.connect, connect) || other.connect == connect) &&
             (identical(other.listen, listen) || other.listen == listen) &&
             (identical(other.maxConnections, maxConnections) ||
@@ -2790,13 +2776,12 @@ class _$VeilidConfigTCPImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigTCPImplCopyWith<_$VeilidConfigTCPImpl> get copyWith =>
-      __$$VeilidConfigTCPImplCopyWithImpl<_$VeilidConfigTCPImpl>(
-          this, _$identity);
+  _$$_VeilidConfigTCPCopyWith<_$_VeilidConfigTCP> get copyWith =>
+      __$$_VeilidConfigTCPCopyWithImpl<_$_VeilidConfigTCP>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigTCPImplToJson(
+    return _$$_VeilidConfigTCPToJson(
       this,
     );
   }
@@ -2808,10 +2793,10 @@ abstract class _VeilidConfigTCP implements VeilidConfigTCP {
       required final bool listen,
       required final int maxConnections,
       required final String listenAddress,
-      final String? publicAddress}) = _$VeilidConfigTCPImpl;
+      final String? publicAddress}) = _$_VeilidConfigTCP;
 
   factory _VeilidConfigTCP.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigTCPImpl.fromJson;
+      _$_VeilidConfigTCP.fromJson;
 
   @override
   bool get connect;
@@ -2825,7 +2810,7 @@ abstract class _VeilidConfigTCP implements VeilidConfigTCP {
   String? get publicAddress;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigTCPImplCopyWith<_$VeilidConfigTCPImpl> get copyWith =>
+  _$$_VeilidConfigTCPCopyWith<_$_VeilidConfigTCP> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -2913,11 +2898,11 @@ class _$VeilidConfigWSCopyWithImpl<$Res, $Val extends VeilidConfigWS>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigWSImplCopyWith<$Res>
+abstract class _$$_VeilidConfigWSCopyWith<$Res>
     implements $VeilidConfigWSCopyWith<$Res> {
-  factory _$$VeilidConfigWSImplCopyWith(_$VeilidConfigWSImpl value,
-          $Res Function(_$VeilidConfigWSImpl) then) =
-      __$$VeilidConfigWSImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigWSCopyWith(
+          _$_VeilidConfigWS value, $Res Function(_$_VeilidConfigWS) then) =
+      __$$_VeilidConfigWSCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -2930,11 +2915,11 @@ abstract class _$$VeilidConfigWSImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigWSImplCopyWithImpl<$Res>
-    extends _$VeilidConfigWSCopyWithImpl<$Res, _$VeilidConfigWSImpl>
-    implements _$$VeilidConfigWSImplCopyWith<$Res> {
-  __$$VeilidConfigWSImplCopyWithImpl(
-      _$VeilidConfigWSImpl _value, $Res Function(_$VeilidConfigWSImpl) _then)
+class __$$_VeilidConfigWSCopyWithImpl<$Res>
+    extends _$VeilidConfigWSCopyWithImpl<$Res, _$_VeilidConfigWS>
+    implements _$$_VeilidConfigWSCopyWith<$Res> {
+  __$$_VeilidConfigWSCopyWithImpl(
+      _$_VeilidConfigWS _value, $Res Function(_$_VeilidConfigWS) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2947,7 +2932,7 @@ class __$$VeilidConfigWSImplCopyWithImpl<$Res>
     Object? path = null,
     Object? url = freezed,
   }) {
-    return _then(_$VeilidConfigWSImpl(
+    return _then(_$_VeilidConfigWS(
       connect: null == connect
           ? _value.connect
           : connect // ignore: cast_nullable_to_non_nullable
@@ -2978,10 +2963,10 @@ class __$$VeilidConfigWSImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigWSImpl
+class _$_VeilidConfigWS
     with DiagnosticableTreeMixin
     implements _VeilidConfigWS {
-  const _$VeilidConfigWSImpl(
+  const _$_VeilidConfigWS(
       {required this.connect,
       required this.listen,
       required this.maxConnections,
@@ -2989,8 +2974,8 @@ class _$VeilidConfigWSImpl
       required this.path,
       this.url});
 
-  factory _$VeilidConfigWSImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigWSImplFromJson(json);
+  factory _$_VeilidConfigWS.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigWSFromJson(json);
 
   @override
   final bool connect;
@@ -3024,10 +3009,10 @@ class _$VeilidConfigWSImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigWSImpl &&
+            other is _$_VeilidConfigWS &&
             (identical(other.connect, connect) || other.connect == connect) &&
             (identical(other.listen, listen) || other.listen == listen) &&
             (identical(other.maxConnections, maxConnections) ||
@@ -3046,13 +3031,12 @@ class _$VeilidConfigWSImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigWSImplCopyWith<_$VeilidConfigWSImpl> get copyWith =>
-      __$$VeilidConfigWSImplCopyWithImpl<_$VeilidConfigWSImpl>(
-          this, _$identity);
+  _$$_VeilidConfigWSCopyWith<_$_VeilidConfigWS> get copyWith =>
+      __$$_VeilidConfigWSCopyWithImpl<_$_VeilidConfigWS>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigWSImplToJson(
+    return _$$_VeilidConfigWSToJson(
       this,
     );
   }
@@ -3065,10 +3049,10 @@ abstract class _VeilidConfigWS implements VeilidConfigWS {
       required final int maxConnections,
       required final String listenAddress,
       required final String path,
-      final String? url}) = _$VeilidConfigWSImpl;
+      final String? url}) = _$_VeilidConfigWS;
 
   factory _VeilidConfigWS.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigWSImpl.fromJson;
+      _$_VeilidConfigWS.fromJson;
 
   @override
   bool get connect;
@@ -3084,7 +3068,7 @@ abstract class _VeilidConfigWS implements VeilidConfigWS {
   String? get url;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigWSImplCopyWith<_$VeilidConfigWSImpl> get copyWith =>
+  _$$_VeilidConfigWSCopyWith<_$_VeilidConfigWS> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -3172,11 +3156,11 @@ class _$VeilidConfigWSSCopyWithImpl<$Res, $Val extends VeilidConfigWSS>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigWSSImplCopyWith<$Res>
+abstract class _$$_VeilidConfigWSSCopyWith<$Res>
     implements $VeilidConfigWSSCopyWith<$Res> {
-  factory _$$VeilidConfigWSSImplCopyWith(_$VeilidConfigWSSImpl value,
-          $Res Function(_$VeilidConfigWSSImpl) then) =
-      __$$VeilidConfigWSSImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigWSSCopyWith(
+          _$_VeilidConfigWSS value, $Res Function(_$_VeilidConfigWSS) then) =
+      __$$_VeilidConfigWSSCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -3189,11 +3173,11 @@ abstract class _$$VeilidConfigWSSImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigWSSImplCopyWithImpl<$Res>
-    extends _$VeilidConfigWSSCopyWithImpl<$Res, _$VeilidConfigWSSImpl>
-    implements _$$VeilidConfigWSSImplCopyWith<$Res> {
-  __$$VeilidConfigWSSImplCopyWithImpl(
-      _$VeilidConfigWSSImpl _value, $Res Function(_$VeilidConfigWSSImpl) _then)
+class __$$_VeilidConfigWSSCopyWithImpl<$Res>
+    extends _$VeilidConfigWSSCopyWithImpl<$Res, _$_VeilidConfigWSS>
+    implements _$$_VeilidConfigWSSCopyWith<$Res> {
+  __$$_VeilidConfigWSSCopyWithImpl(
+      _$_VeilidConfigWSS _value, $Res Function(_$_VeilidConfigWSS) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -3206,7 +3190,7 @@ class __$$VeilidConfigWSSImplCopyWithImpl<$Res>
     Object? path = null,
     Object? url = freezed,
   }) {
-    return _then(_$VeilidConfigWSSImpl(
+    return _then(_$_VeilidConfigWSS(
       connect: null == connect
           ? _value.connect
           : connect // ignore: cast_nullable_to_non_nullable
@@ -3237,10 +3221,10 @@ class __$$VeilidConfigWSSImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigWSSImpl
+class _$_VeilidConfigWSS
     with DiagnosticableTreeMixin
     implements _VeilidConfigWSS {
-  const _$VeilidConfigWSSImpl(
+  const _$_VeilidConfigWSS(
       {required this.connect,
       required this.listen,
       required this.maxConnections,
@@ -3248,8 +3232,8 @@ class _$VeilidConfigWSSImpl
       required this.path,
       this.url});
 
-  factory _$VeilidConfigWSSImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigWSSImplFromJson(json);
+  factory _$_VeilidConfigWSS.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigWSSFromJson(json);
 
   @override
   final bool connect;
@@ -3283,10 +3267,10 @@ class _$VeilidConfigWSSImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigWSSImpl &&
+            other is _$_VeilidConfigWSS &&
             (identical(other.connect, connect) || other.connect == connect) &&
             (identical(other.listen, listen) || other.listen == listen) &&
             (identical(other.maxConnections, maxConnections) ||
@@ -3305,13 +3289,12 @@ class _$VeilidConfigWSSImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigWSSImplCopyWith<_$VeilidConfigWSSImpl> get copyWith =>
-      __$$VeilidConfigWSSImplCopyWithImpl<_$VeilidConfigWSSImpl>(
-          this, _$identity);
+  _$$_VeilidConfigWSSCopyWith<_$_VeilidConfigWSS> get copyWith =>
+      __$$_VeilidConfigWSSCopyWithImpl<_$_VeilidConfigWSS>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigWSSImplToJson(
+    return _$$_VeilidConfigWSSToJson(
       this,
     );
   }
@@ -3324,10 +3307,10 @@ abstract class _VeilidConfigWSS implements VeilidConfigWSS {
       required final int maxConnections,
       required final String listenAddress,
       required final String path,
-      final String? url}) = _$VeilidConfigWSSImpl;
+      final String? url}) = _$_VeilidConfigWSS;
 
   factory _VeilidConfigWSS.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigWSSImpl.fromJson;
+      _$_VeilidConfigWSS.fromJson;
 
   @override
   bool get connect;
@@ -3343,7 +3326,7 @@ abstract class _VeilidConfigWSS implements VeilidConfigWSS {
   String? get url;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigWSSImplCopyWith<_$VeilidConfigWSSImpl> get copyWith =>
+  _$$_VeilidConfigWSSCopyWith<_$_VeilidConfigWSS> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -3455,11 +3438,11 @@ class _$VeilidConfigProtocolCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigProtocolImplCopyWith<$Res>
+abstract class _$$_VeilidConfigProtocolCopyWith<$Res>
     implements $VeilidConfigProtocolCopyWith<$Res> {
-  factory _$$VeilidConfigProtocolImplCopyWith(_$VeilidConfigProtocolImpl value,
-          $Res Function(_$VeilidConfigProtocolImpl) then) =
-      __$$VeilidConfigProtocolImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigProtocolCopyWith(_$_VeilidConfigProtocol value,
+          $Res Function(_$_VeilidConfigProtocol) then) =
+      __$$_VeilidConfigProtocolCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -3479,11 +3462,11 @@ abstract class _$$VeilidConfigProtocolImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigProtocolImplCopyWithImpl<$Res>
-    extends _$VeilidConfigProtocolCopyWithImpl<$Res, _$VeilidConfigProtocolImpl>
-    implements _$$VeilidConfigProtocolImplCopyWith<$Res> {
-  __$$VeilidConfigProtocolImplCopyWithImpl(_$VeilidConfigProtocolImpl _value,
-      $Res Function(_$VeilidConfigProtocolImpl) _then)
+class __$$_VeilidConfigProtocolCopyWithImpl<$Res>
+    extends _$VeilidConfigProtocolCopyWithImpl<$Res, _$_VeilidConfigProtocol>
+    implements _$$_VeilidConfigProtocolCopyWith<$Res> {
+  __$$_VeilidConfigProtocolCopyWithImpl(_$_VeilidConfigProtocol _value,
+      $Res Function(_$_VeilidConfigProtocol) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -3494,7 +3477,7 @@ class __$$VeilidConfigProtocolImplCopyWithImpl<$Res>
     Object? ws = null,
     Object? wss = null,
   }) {
-    return _then(_$VeilidConfigProtocolImpl(
+    return _then(_$_VeilidConfigProtocol(
       udp: null == udp
           ? _value.udp
           : udp // ignore: cast_nullable_to_non_nullable
@@ -3517,17 +3500,17 @@ class __$$VeilidConfigProtocolImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigProtocolImpl
+class _$_VeilidConfigProtocol
     with DiagnosticableTreeMixin
     implements _VeilidConfigProtocol {
-  const _$VeilidConfigProtocolImpl(
+  const _$_VeilidConfigProtocol(
       {required this.udp,
       required this.tcp,
       required this.ws,
       required this.wss});
 
-  factory _$VeilidConfigProtocolImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigProtocolImplFromJson(json);
+  factory _$_VeilidConfigProtocol.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigProtocolFromJson(json);
 
   @override
   final VeilidConfigUDP udp;
@@ -3555,10 +3538,10 @@ class _$VeilidConfigProtocolImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigProtocolImpl &&
+            other is _$_VeilidConfigProtocol &&
             (identical(other.udp, udp) || other.udp == udp) &&
             (identical(other.tcp, tcp) || other.tcp == tcp) &&
             (identical(other.ws, ws) || other.ws == ws) &&
@@ -3572,14 +3555,13 @@ class _$VeilidConfigProtocolImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigProtocolImplCopyWith<_$VeilidConfigProtocolImpl>
-      get copyWith =>
-          __$$VeilidConfigProtocolImplCopyWithImpl<_$VeilidConfigProtocolImpl>(
-              this, _$identity);
+  _$$_VeilidConfigProtocolCopyWith<_$_VeilidConfigProtocol> get copyWith =>
+      __$$_VeilidConfigProtocolCopyWithImpl<_$_VeilidConfigProtocol>(
+          this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigProtocolImplToJson(
+    return _$$_VeilidConfigProtocolToJson(
       this,
     );
   }
@@ -3590,10 +3572,10 @@ abstract class _VeilidConfigProtocol implements VeilidConfigProtocol {
       {required final VeilidConfigUDP udp,
       required final VeilidConfigTCP tcp,
       required final VeilidConfigWS ws,
-      required final VeilidConfigWSS wss}) = _$VeilidConfigProtocolImpl;
+      required final VeilidConfigWSS wss}) = _$_VeilidConfigProtocol;
 
   factory _VeilidConfigProtocol.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigProtocolImpl.fromJson;
+      _$_VeilidConfigProtocol.fromJson;
 
   @override
   VeilidConfigUDP get udp;
@@ -3605,8 +3587,8 @@ abstract class _VeilidConfigProtocol implements VeilidConfigProtocol {
   VeilidConfigWSS get wss;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigProtocolImplCopyWith<_$VeilidConfigProtocolImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  _$$_VeilidConfigProtocolCopyWith<_$_VeilidConfigProtocol> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 VeilidConfigTLS _$VeilidConfigTLSFromJson(Map<String, dynamic> json) {
@@ -3672,11 +3654,11 @@ class _$VeilidConfigTLSCopyWithImpl<$Res, $Val extends VeilidConfigTLS>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigTLSImplCopyWith<$Res>
+abstract class _$$_VeilidConfigTLSCopyWith<$Res>
     implements $VeilidConfigTLSCopyWith<$Res> {
-  factory _$$VeilidConfigTLSImplCopyWith(_$VeilidConfigTLSImpl value,
-          $Res Function(_$VeilidConfigTLSImpl) then) =
-      __$$VeilidConfigTLSImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigTLSCopyWith(
+          _$_VeilidConfigTLS value, $Res Function(_$_VeilidConfigTLS) then) =
+      __$$_VeilidConfigTLSCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -3686,11 +3668,11 @@ abstract class _$$VeilidConfigTLSImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigTLSImplCopyWithImpl<$Res>
-    extends _$VeilidConfigTLSCopyWithImpl<$Res, _$VeilidConfigTLSImpl>
-    implements _$$VeilidConfigTLSImplCopyWith<$Res> {
-  __$$VeilidConfigTLSImplCopyWithImpl(
-      _$VeilidConfigTLSImpl _value, $Res Function(_$VeilidConfigTLSImpl) _then)
+class __$$_VeilidConfigTLSCopyWithImpl<$Res>
+    extends _$VeilidConfigTLSCopyWithImpl<$Res, _$_VeilidConfigTLS>
+    implements _$$_VeilidConfigTLSCopyWith<$Res> {
+  __$$_VeilidConfigTLSCopyWithImpl(
+      _$_VeilidConfigTLS _value, $Res Function(_$_VeilidConfigTLS) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -3700,7 +3682,7 @@ class __$$VeilidConfigTLSImplCopyWithImpl<$Res>
     Object? privateKeyPath = null,
     Object? connectionInitialTimeoutMs = null,
   }) {
-    return _then(_$VeilidConfigTLSImpl(
+    return _then(_$_VeilidConfigTLS(
       certificatePath: null == certificatePath
           ? _value.certificatePath
           : certificatePath // ignore: cast_nullable_to_non_nullable
@@ -3719,16 +3701,16 @@ class __$$VeilidConfigTLSImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigTLSImpl
+class _$_VeilidConfigTLS
     with DiagnosticableTreeMixin
     implements _VeilidConfigTLS {
-  const _$VeilidConfigTLSImpl(
+  const _$_VeilidConfigTLS(
       {required this.certificatePath,
       required this.privateKeyPath,
       required this.connectionInitialTimeoutMs});
 
-  factory _$VeilidConfigTLSImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigTLSImplFromJson(json);
+  factory _$_VeilidConfigTLS.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigTLSFromJson(json);
 
   @override
   final String certificatePath;
@@ -3754,10 +3736,10 @@ class _$VeilidConfigTLSImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigTLSImpl &&
+            other is _$_VeilidConfigTLS &&
             (identical(other.certificatePath, certificatePath) ||
                 other.certificatePath == certificatePath) &&
             (identical(other.privateKeyPath, privateKeyPath) ||
@@ -3776,13 +3758,12 @@ class _$VeilidConfigTLSImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigTLSImplCopyWith<_$VeilidConfigTLSImpl> get copyWith =>
-      __$$VeilidConfigTLSImplCopyWithImpl<_$VeilidConfigTLSImpl>(
-          this, _$identity);
+  _$$_VeilidConfigTLSCopyWith<_$_VeilidConfigTLS> get copyWith =>
+      __$$_VeilidConfigTLSCopyWithImpl<_$_VeilidConfigTLS>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigTLSImplToJson(
+    return _$$_VeilidConfigTLSToJson(
       this,
     );
   }
@@ -3792,10 +3773,10 @@ abstract class _VeilidConfigTLS implements VeilidConfigTLS {
   const factory _VeilidConfigTLS(
       {required final String certificatePath,
       required final String privateKeyPath,
-      required final int connectionInitialTimeoutMs}) = _$VeilidConfigTLSImpl;
+      required final int connectionInitialTimeoutMs}) = _$_VeilidConfigTLS;
 
   factory _VeilidConfigTLS.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigTLSImpl.fromJson;
+      _$_VeilidConfigTLS.fromJson;
 
   @override
   String get certificatePath;
@@ -3805,7 +3786,7 @@ abstract class _VeilidConfigTLS implements VeilidConfigTLS {
   int get connectionInitialTimeoutMs;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigTLSImplCopyWith<_$VeilidConfigTLSImpl> get copyWith =>
+  _$$_VeilidConfigTLSCopyWith<_$_VeilidConfigTLS> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -4005,11 +3986,11 @@ class _$VeilidConfigDHTCopyWithImpl<$Res, $Val extends VeilidConfigDHT>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigDHTImplCopyWith<$Res>
+abstract class _$$_VeilidConfigDHTCopyWith<$Res>
     implements $VeilidConfigDHTCopyWith<$Res> {
-  factory _$$VeilidConfigDHTImplCopyWith(_$VeilidConfigDHTImpl value,
-          $Res Function(_$VeilidConfigDHTImpl) then) =
-      __$$VeilidConfigDHTImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigDHTCopyWith(
+          _$_VeilidConfigDHT value, $Res Function(_$_VeilidConfigDHT) then) =
+      __$$_VeilidConfigDHTCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -4038,11 +4019,11 @@ abstract class _$$VeilidConfigDHTImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigDHTImplCopyWithImpl<$Res>
-    extends _$VeilidConfigDHTCopyWithImpl<$Res, _$VeilidConfigDHTImpl>
-    implements _$$VeilidConfigDHTImplCopyWith<$Res> {
-  __$$VeilidConfigDHTImplCopyWithImpl(
-      _$VeilidConfigDHTImpl _value, $Res Function(_$VeilidConfigDHTImpl) _then)
+class __$$_VeilidConfigDHTCopyWithImpl<$Res>
+    extends _$VeilidConfigDHTCopyWithImpl<$Res, _$_VeilidConfigDHT>
+    implements _$$_VeilidConfigDHTCopyWith<$Res> {
+  __$$_VeilidConfigDHTCopyWithImpl(
+      _$_VeilidConfigDHT _value, $Res Function(_$_VeilidConfigDHT) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -4071,7 +4052,7 @@ class __$$VeilidConfigDHTImplCopyWithImpl<$Res>
     Object? memberWatchLimit = null,
     Object? maxWatchExpirationMs = null,
   }) {
-    return _then(_$VeilidConfigDHTImpl(
+    return _then(_$_VeilidConfigDHT(
       resolveNodeTimeoutMs: null == resolveNodeTimeoutMs
           ? _value.resolveNodeTimeoutMs
           : resolveNodeTimeoutMs // ignore: cast_nullable_to_non_nullable
@@ -4166,10 +4147,10 @@ class __$$VeilidConfigDHTImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigDHTImpl
+class _$_VeilidConfigDHT
     with DiagnosticableTreeMixin
     implements _VeilidConfigDHT {
-  const _$VeilidConfigDHTImpl(
+  const _$_VeilidConfigDHT(
       {required this.resolveNodeTimeoutMs,
       required this.resolveNodeCount,
       required this.resolveNodeFanout,
@@ -4193,8 +4174,8 @@ class _$VeilidConfigDHTImpl
       required this.memberWatchLimit,
       required this.maxWatchExpirationMs});
 
-  factory _$VeilidConfigDHTImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigDHTImplFromJson(json);
+  factory _$_VeilidConfigDHT.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigDHTFromJson(json);
 
   @override
   final int resolveNodeTimeoutMs;
@@ -4280,10 +4261,10 @@ class _$VeilidConfigDHTImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigDHTImpl &&
+            other is _$_VeilidConfigDHT &&
             (identical(other.resolveNodeTimeoutMs, resolveNodeTimeoutMs) ||
                 other.resolveNodeTimeoutMs == resolveNodeTimeoutMs) &&
             (identical(other.resolveNodeCount, resolveNodeCount) ||
@@ -4367,13 +4348,12 @@ class _$VeilidConfigDHTImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigDHTImplCopyWith<_$VeilidConfigDHTImpl> get copyWith =>
-      __$$VeilidConfigDHTImplCopyWithImpl<_$VeilidConfigDHTImpl>(
-          this, _$identity);
+  _$$_VeilidConfigDHTCopyWith<_$_VeilidConfigDHT> get copyWith =>
+      __$$_VeilidConfigDHTCopyWithImpl<_$_VeilidConfigDHT>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigDHTImplToJson(
+    return _$$_VeilidConfigDHTToJson(
       this,
     );
   }
@@ -4402,10 +4382,10 @@ abstract class _VeilidConfigDHT implements VeilidConfigDHT {
       required final int remoteMaxStorageSpaceMb,
       required final int publicWatchLimit,
       required final int memberWatchLimit,
-      required final int maxWatchExpirationMs}) = _$VeilidConfigDHTImpl;
+      required final int maxWatchExpirationMs}) = _$_VeilidConfigDHT;
 
   factory _VeilidConfigDHT.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigDHTImpl.fromJson;
+      _$_VeilidConfigDHT.fromJson;
 
   @override
   int get resolveNodeTimeoutMs;
@@ -4453,7 +4433,7 @@ abstract class _VeilidConfigDHT implements VeilidConfigDHT {
   int get maxWatchExpirationMs;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigDHTImplCopyWith<_$VeilidConfigDHTImpl> get copyWith =>
+  _$$_VeilidConfigDHTCopyWith<_$_VeilidConfigDHT> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -4548,11 +4528,11 @@ class _$VeilidConfigRPCCopyWithImpl<$Res, $Val extends VeilidConfigRPC>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigRPCImplCopyWith<$Res>
+abstract class _$$_VeilidConfigRPCCopyWith<$Res>
     implements $VeilidConfigRPCCopyWith<$Res> {
-  factory _$$VeilidConfigRPCImplCopyWith(_$VeilidConfigRPCImpl value,
-          $Res Function(_$VeilidConfigRPCImpl) then) =
-      __$$VeilidConfigRPCImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigRPCCopyWith(
+          _$_VeilidConfigRPC value, $Res Function(_$_VeilidConfigRPC) then) =
+      __$$_VeilidConfigRPCCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -4566,11 +4546,11 @@ abstract class _$$VeilidConfigRPCImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigRPCImplCopyWithImpl<$Res>
-    extends _$VeilidConfigRPCCopyWithImpl<$Res, _$VeilidConfigRPCImpl>
-    implements _$$VeilidConfigRPCImplCopyWith<$Res> {
-  __$$VeilidConfigRPCImplCopyWithImpl(
-      _$VeilidConfigRPCImpl _value, $Res Function(_$VeilidConfigRPCImpl) _then)
+class __$$_VeilidConfigRPCCopyWithImpl<$Res>
+    extends _$VeilidConfigRPCCopyWithImpl<$Res, _$_VeilidConfigRPC>
+    implements _$$_VeilidConfigRPCCopyWith<$Res> {
+  __$$_VeilidConfigRPCCopyWithImpl(
+      _$_VeilidConfigRPC _value, $Res Function(_$_VeilidConfigRPC) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -4584,7 +4564,7 @@ class __$$VeilidConfigRPCImplCopyWithImpl<$Res>
     Object? maxTimestampBehindMs = freezed,
     Object? maxTimestampAheadMs = freezed,
   }) {
-    return _then(_$VeilidConfigRPCImpl(
+    return _then(_$_VeilidConfigRPC(
       concurrency: null == concurrency
           ? _value.concurrency
           : concurrency // ignore: cast_nullable_to_non_nullable
@@ -4619,10 +4599,10 @@ class __$$VeilidConfigRPCImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigRPCImpl
+class _$_VeilidConfigRPC
     with DiagnosticableTreeMixin
     implements _VeilidConfigRPC {
-  const _$VeilidConfigRPCImpl(
+  const _$_VeilidConfigRPC(
       {required this.concurrency,
       required this.queueSize,
       required this.timeoutMs,
@@ -4631,8 +4611,8 @@ class _$VeilidConfigRPCImpl
       this.maxTimestampBehindMs,
       this.maxTimestampAheadMs});
 
-  factory _$VeilidConfigRPCImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigRPCImplFromJson(json);
+  factory _$_VeilidConfigRPC.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigRPCFromJson(json);
 
   @override
   final int concurrency;
@@ -4669,10 +4649,10 @@ class _$VeilidConfigRPCImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigRPCImpl &&
+            other is _$_VeilidConfigRPC &&
             (identical(other.concurrency, concurrency) ||
                 other.concurrency == concurrency) &&
             (identical(other.queueSize, queueSize) ||
@@ -4704,13 +4684,12 @@ class _$VeilidConfigRPCImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigRPCImplCopyWith<_$VeilidConfigRPCImpl> get copyWith =>
-      __$$VeilidConfigRPCImplCopyWithImpl<_$VeilidConfigRPCImpl>(
-          this, _$identity);
+  _$$_VeilidConfigRPCCopyWith<_$_VeilidConfigRPC> get copyWith =>
+      __$$_VeilidConfigRPCCopyWithImpl<_$_VeilidConfigRPC>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigRPCImplToJson(
+    return _$$_VeilidConfigRPCToJson(
       this,
     );
   }
@@ -4724,10 +4703,10 @@ abstract class _VeilidConfigRPC implements VeilidConfigRPC {
       required final int maxRouteHopCount,
       required final int defaultRouteHopCount,
       final int? maxTimestampBehindMs,
-      final int? maxTimestampAheadMs}) = _$VeilidConfigRPCImpl;
+      final int? maxTimestampAheadMs}) = _$_VeilidConfigRPC;
 
   factory _VeilidConfigRPC.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigRPCImpl.fromJson;
+      _$_VeilidConfigRPC.fromJson;
 
   @override
   int get concurrency;
@@ -4745,7 +4724,7 @@ abstract class _VeilidConfigRPC implements VeilidConfigRPC {
   int? get maxTimestampAheadMs;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigRPCImplCopyWith<_$VeilidConfigRPCImpl> get copyWith =>
+  _$$_VeilidConfigRPCCopyWith<_$_VeilidConfigRPC> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -4851,12 +4830,12 @@ class _$VeilidConfigRoutingTableCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigRoutingTableImplCopyWith<$Res>
+abstract class _$$_VeilidConfigRoutingTableCopyWith<$Res>
     implements $VeilidConfigRoutingTableCopyWith<$Res> {
-  factory _$$VeilidConfigRoutingTableImplCopyWith(
-          _$VeilidConfigRoutingTableImpl value,
-          $Res Function(_$VeilidConfigRoutingTableImpl) then) =
-      __$$VeilidConfigRoutingTableImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigRoutingTableCopyWith(
+          _$_VeilidConfigRoutingTable value,
+          $Res Function(_$_VeilidConfigRoutingTable) then) =
+      __$$_VeilidConfigRoutingTableCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -4871,13 +4850,12 @@ abstract class _$$VeilidConfigRoutingTableImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigRoutingTableImplCopyWithImpl<$Res>
+class __$$_VeilidConfigRoutingTableCopyWithImpl<$Res>
     extends _$VeilidConfigRoutingTableCopyWithImpl<$Res,
-        _$VeilidConfigRoutingTableImpl>
-    implements _$$VeilidConfigRoutingTableImplCopyWith<$Res> {
-  __$$VeilidConfigRoutingTableImplCopyWithImpl(
-      _$VeilidConfigRoutingTableImpl _value,
-      $Res Function(_$VeilidConfigRoutingTableImpl) _then)
+        _$_VeilidConfigRoutingTable>
+    implements _$$_VeilidConfigRoutingTableCopyWith<$Res> {
+  __$$_VeilidConfigRoutingTableCopyWithImpl(_$_VeilidConfigRoutingTable _value,
+      $Res Function(_$_VeilidConfigRoutingTable) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -4892,7 +4870,7 @@ class __$$VeilidConfigRoutingTableImplCopyWithImpl<$Res>
     Object? limitAttachedGood = null,
     Object? limitAttachedWeak = null,
   }) {
-    return _then(_$VeilidConfigRoutingTableImpl(
+    return _then(_$_VeilidConfigRoutingTable(
       nodeId: null == nodeId
           ? _value._nodeId
           : nodeId // ignore: cast_nullable_to_non_nullable
@@ -4931,10 +4909,10 @@ class __$$VeilidConfigRoutingTableImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigRoutingTableImpl
+class _$_VeilidConfigRoutingTable
     with DiagnosticableTreeMixin
     implements _VeilidConfigRoutingTable {
-  const _$VeilidConfigRoutingTableImpl(
+  const _$_VeilidConfigRoutingTable(
       {required final List<Typed<FixedEncodedString43>> nodeId,
       required final List<Typed<FixedEncodedString43>> nodeIdSecret,
       required final List<String> bootstrap,
@@ -4947,8 +4925,8 @@ class _$VeilidConfigRoutingTableImpl
         _nodeIdSecret = nodeIdSecret,
         _bootstrap = bootstrap;
 
-  factory _$VeilidConfigRoutingTableImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigRoutingTableImplFromJson(json);
+  factory _$_VeilidConfigRoutingTable.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigRoutingTableFromJson(json);
 
   final List<Typed<FixedEncodedString43>> _nodeId;
   @override
@@ -5006,10 +4984,10 @@ class _$VeilidConfigRoutingTableImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigRoutingTableImpl &&
+            other is _$_VeilidConfigRoutingTable &&
             const DeepCollectionEquality().equals(other._nodeId, _nodeId) &&
             const DeepCollectionEquality()
                 .equals(other._nodeIdSecret, _nodeIdSecret) &&
@@ -5043,13 +5021,13 @@ class _$VeilidConfigRoutingTableImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigRoutingTableImplCopyWith<_$VeilidConfigRoutingTableImpl>
-      get copyWith => __$$VeilidConfigRoutingTableImplCopyWithImpl<
-          _$VeilidConfigRoutingTableImpl>(this, _$identity);
+  _$$_VeilidConfigRoutingTableCopyWith<_$_VeilidConfigRoutingTable>
+      get copyWith => __$$_VeilidConfigRoutingTableCopyWithImpl<
+          _$_VeilidConfigRoutingTable>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigRoutingTableImplToJson(
+    return _$$_VeilidConfigRoutingTableToJson(
       this,
     );
   }
@@ -5064,10 +5042,10 @@ abstract class _VeilidConfigRoutingTable implements VeilidConfigRoutingTable {
       required final int limitFullyAttached,
       required final int limitAttachedStrong,
       required final int limitAttachedGood,
-      required final int limitAttachedWeak}) = _$VeilidConfigRoutingTableImpl;
+      required final int limitAttachedWeak}) = _$_VeilidConfigRoutingTable;
 
   factory _VeilidConfigRoutingTable.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigRoutingTableImpl.fromJson;
+      _$_VeilidConfigRoutingTable.fromJson;
 
   @override
   List<Typed<FixedEncodedString43>> get nodeId;
@@ -5087,7 +5065,7 @@ abstract class _VeilidConfigRoutingTable implements VeilidConfigRoutingTable {
   int get limitAttachedWeak;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigRoutingTableImplCopyWith<_$VeilidConfigRoutingTableImpl>
+  _$$_VeilidConfigRoutingTableCopyWith<_$_VeilidConfigRoutingTable>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -5323,11 +5301,11 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigNetworkImplCopyWith<$Res>
+abstract class _$$_VeilidConfigNetworkCopyWith<$Res>
     implements $VeilidConfigNetworkCopyWith<$Res> {
-  factory _$$VeilidConfigNetworkImplCopyWith(_$VeilidConfigNetworkImpl value,
-          $Res Function(_$VeilidConfigNetworkImpl) then) =
-      __$$VeilidConfigNetworkImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigNetworkCopyWith(_$_VeilidConfigNetwork value,
+          $Res Function(_$_VeilidConfigNetwork) then) =
+      __$$_VeilidConfigNetworkCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -5366,11 +5344,11 @@ abstract class _$$VeilidConfigNetworkImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigNetworkImplCopyWithImpl<$Res>
-    extends _$VeilidConfigNetworkCopyWithImpl<$Res, _$VeilidConfigNetworkImpl>
-    implements _$$VeilidConfigNetworkImplCopyWith<$Res> {
-  __$$VeilidConfigNetworkImplCopyWithImpl(_$VeilidConfigNetworkImpl _value,
-      $Res Function(_$VeilidConfigNetworkImpl) _then)
+class __$$_VeilidConfigNetworkCopyWithImpl<$Res>
+    extends _$VeilidConfigNetworkCopyWithImpl<$Res, _$_VeilidConfigNetwork>
+    implements _$$_VeilidConfigNetworkCopyWith<$Res> {
+  __$$_VeilidConfigNetworkCopyWithImpl(_$_VeilidConfigNetwork _value,
+      $Res Function(_$_VeilidConfigNetwork) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -5396,7 +5374,7 @@ class __$$VeilidConfigNetworkImplCopyWithImpl<$Res>
     Object? protocol = null,
     Object? networkKeyPassword = freezed,
   }) {
-    return _then(_$VeilidConfigNetworkImpl(
+    return _then(_$_VeilidConfigNetwork(
       connectionInitialTimeoutMs: null == connectionInitialTimeoutMs
           ? _value.connectionInitialTimeoutMs
           : connectionInitialTimeoutMs // ignore: cast_nullable_to_non_nullable
@@ -5479,10 +5457,10 @@ class __$$VeilidConfigNetworkImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigNetworkImpl
+class _$_VeilidConfigNetwork
     with DiagnosticableTreeMixin
     implements _VeilidConfigNetwork {
-  const _$VeilidConfigNetworkImpl(
+  const _$_VeilidConfigNetwork(
       {required this.connectionInitialTimeoutMs,
       required this.connectionInactivityTimeoutMs,
       required this.maxConnectionsPerIp4,
@@ -5503,8 +5481,8 @@ class _$VeilidConfigNetworkImpl
       required this.protocol,
       this.networkKeyPassword});
 
-  factory _$VeilidConfigNetworkImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigNetworkImplFromJson(json);
+  factory _$_VeilidConfigNetwork.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigNetworkFromJson(json);
 
   @override
   final int connectionInitialTimeoutMs;
@@ -5585,10 +5563,10 @@ class _$VeilidConfigNetworkImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigNetworkImpl &&
+            other is _$_VeilidConfigNetwork &&
             (identical(other.connectionInitialTimeoutMs, connectionInitialTimeoutMs) ||
                 other.connectionInitialTimeoutMs ==
                     connectionInitialTimeoutMs) &&
@@ -5660,13 +5638,13 @@ class _$VeilidConfigNetworkImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigNetworkImplCopyWith<_$VeilidConfigNetworkImpl> get copyWith =>
-      __$$VeilidConfigNetworkImplCopyWithImpl<_$VeilidConfigNetworkImpl>(
+  _$$_VeilidConfigNetworkCopyWith<_$_VeilidConfigNetwork> get copyWith =>
+      __$$_VeilidConfigNetworkCopyWithImpl<_$_VeilidConfigNetwork>(
           this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigNetworkImplToJson(
+    return _$$_VeilidConfigNetworkToJson(
       this,
     );
   }
@@ -5692,10 +5670,10 @@ abstract class _VeilidConfigNetwork implements VeilidConfigNetwork {
       required final VeilidConfigTLS tls,
       required final VeilidConfigApplication application,
       required final VeilidConfigProtocol protocol,
-      final String? networkKeyPassword}) = _$VeilidConfigNetworkImpl;
+      final String? networkKeyPassword}) = _$_VeilidConfigNetwork;
 
   factory _VeilidConfigNetwork.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigNetworkImpl.fromJson;
+      _$_VeilidConfigNetwork.fromJson;
 
   @override
   int get connectionInitialTimeoutMs;
@@ -5737,7 +5715,7 @@ abstract class _VeilidConfigNetwork implements VeilidConfigNetwork {
   String? get networkKeyPassword;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigNetworkImplCopyWith<_$VeilidConfigNetworkImpl> get copyWith =>
+  _$$_VeilidConfigNetworkCopyWith<_$_VeilidConfigNetwork> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -5797,25 +5775,23 @@ class _$VeilidConfigTableStoreCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigTableStoreImplCopyWith<$Res>
+abstract class _$$_VeilidConfigTableStoreCopyWith<$Res>
     implements $VeilidConfigTableStoreCopyWith<$Res> {
-  factory _$$VeilidConfigTableStoreImplCopyWith(
-          _$VeilidConfigTableStoreImpl value,
-          $Res Function(_$VeilidConfigTableStoreImpl) then) =
-      __$$VeilidConfigTableStoreImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigTableStoreCopyWith(_$_VeilidConfigTableStore value,
+          $Res Function(_$_VeilidConfigTableStore) then) =
+      __$$_VeilidConfigTableStoreCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({String directory, bool delete});
 }
 
 /// @nodoc
-class __$$VeilidConfigTableStoreImplCopyWithImpl<$Res>
+class __$$_VeilidConfigTableStoreCopyWithImpl<$Res>
     extends _$VeilidConfigTableStoreCopyWithImpl<$Res,
-        _$VeilidConfigTableStoreImpl>
-    implements _$$VeilidConfigTableStoreImplCopyWith<$Res> {
-  __$$VeilidConfigTableStoreImplCopyWithImpl(
-      _$VeilidConfigTableStoreImpl _value,
-      $Res Function(_$VeilidConfigTableStoreImpl) _then)
+        _$_VeilidConfigTableStore>
+    implements _$$_VeilidConfigTableStoreCopyWith<$Res> {
+  __$$_VeilidConfigTableStoreCopyWithImpl(_$_VeilidConfigTableStore _value,
+      $Res Function(_$_VeilidConfigTableStore) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -5824,7 +5800,7 @@ class __$$VeilidConfigTableStoreImplCopyWithImpl<$Res>
     Object? directory = null,
     Object? delete = null,
   }) {
-    return _then(_$VeilidConfigTableStoreImpl(
+    return _then(_$_VeilidConfigTableStore(
       directory: null == directory
           ? _value.directory
           : directory // ignore: cast_nullable_to_non_nullable
@@ -5839,14 +5815,14 @@ class __$$VeilidConfigTableStoreImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigTableStoreImpl
+class _$_VeilidConfigTableStore
     with DiagnosticableTreeMixin
     implements _VeilidConfigTableStore {
-  const _$VeilidConfigTableStoreImpl(
+  const _$_VeilidConfigTableStore(
       {required this.directory, required this.delete});
 
-  factory _$VeilidConfigTableStoreImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigTableStoreImplFromJson(json);
+  factory _$_VeilidConfigTableStore.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigTableStoreFromJson(json);
 
   @override
   final String directory;
@@ -5868,10 +5844,10 @@ class _$VeilidConfigTableStoreImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigTableStoreImpl &&
+            other is _$_VeilidConfigTableStore &&
             (identical(other.directory, directory) ||
                 other.directory == directory) &&
             (identical(other.delete, delete) || other.delete == delete));
@@ -5884,13 +5860,13 @@ class _$VeilidConfigTableStoreImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigTableStoreImplCopyWith<_$VeilidConfigTableStoreImpl>
-      get copyWith => __$$VeilidConfigTableStoreImplCopyWithImpl<
-          _$VeilidConfigTableStoreImpl>(this, _$identity);
+  _$$_VeilidConfigTableStoreCopyWith<_$_VeilidConfigTableStore> get copyWith =>
+      __$$_VeilidConfigTableStoreCopyWithImpl<_$_VeilidConfigTableStore>(
+          this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigTableStoreImplToJson(
+    return _$$_VeilidConfigTableStoreToJson(
       this,
     );
   }
@@ -5899,10 +5875,10 @@ class _$VeilidConfigTableStoreImpl
 abstract class _VeilidConfigTableStore implements VeilidConfigTableStore {
   const factory _VeilidConfigTableStore(
       {required final String directory,
-      required final bool delete}) = _$VeilidConfigTableStoreImpl;
+      required final bool delete}) = _$_VeilidConfigTableStore;
 
   factory _VeilidConfigTableStore.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigTableStoreImpl.fromJson;
+      _$_VeilidConfigTableStore.fromJson;
 
   @override
   String get directory;
@@ -5910,8 +5886,8 @@ abstract class _VeilidConfigTableStore implements VeilidConfigTableStore {
   bool get delete;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigTableStoreImplCopyWith<_$VeilidConfigTableStoreImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  _$$_VeilidConfigTableStoreCopyWith<_$_VeilidConfigTableStore> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 VeilidConfigBlockStore _$VeilidConfigBlockStoreFromJson(
@@ -5970,25 +5946,23 @@ class _$VeilidConfigBlockStoreCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigBlockStoreImplCopyWith<$Res>
+abstract class _$$_VeilidConfigBlockStoreCopyWith<$Res>
     implements $VeilidConfigBlockStoreCopyWith<$Res> {
-  factory _$$VeilidConfigBlockStoreImplCopyWith(
-          _$VeilidConfigBlockStoreImpl value,
-          $Res Function(_$VeilidConfigBlockStoreImpl) then) =
-      __$$VeilidConfigBlockStoreImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigBlockStoreCopyWith(_$_VeilidConfigBlockStore value,
+          $Res Function(_$_VeilidConfigBlockStore) then) =
+      __$$_VeilidConfigBlockStoreCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({String directory, bool delete});
 }
 
 /// @nodoc
-class __$$VeilidConfigBlockStoreImplCopyWithImpl<$Res>
+class __$$_VeilidConfigBlockStoreCopyWithImpl<$Res>
     extends _$VeilidConfigBlockStoreCopyWithImpl<$Res,
-        _$VeilidConfigBlockStoreImpl>
-    implements _$$VeilidConfigBlockStoreImplCopyWith<$Res> {
-  __$$VeilidConfigBlockStoreImplCopyWithImpl(
-      _$VeilidConfigBlockStoreImpl _value,
-      $Res Function(_$VeilidConfigBlockStoreImpl) _then)
+        _$_VeilidConfigBlockStore>
+    implements _$$_VeilidConfigBlockStoreCopyWith<$Res> {
+  __$$_VeilidConfigBlockStoreCopyWithImpl(_$_VeilidConfigBlockStore _value,
+      $Res Function(_$_VeilidConfigBlockStore) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -5997,7 +5971,7 @@ class __$$VeilidConfigBlockStoreImplCopyWithImpl<$Res>
     Object? directory = null,
     Object? delete = null,
   }) {
-    return _then(_$VeilidConfigBlockStoreImpl(
+    return _then(_$_VeilidConfigBlockStore(
       directory: null == directory
           ? _value.directory
           : directory // ignore: cast_nullable_to_non_nullable
@@ -6012,14 +5986,14 @@ class __$$VeilidConfigBlockStoreImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigBlockStoreImpl
+class _$_VeilidConfigBlockStore
     with DiagnosticableTreeMixin
     implements _VeilidConfigBlockStore {
-  const _$VeilidConfigBlockStoreImpl(
+  const _$_VeilidConfigBlockStore(
       {required this.directory, required this.delete});
 
-  factory _$VeilidConfigBlockStoreImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigBlockStoreImplFromJson(json);
+  factory _$_VeilidConfigBlockStore.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigBlockStoreFromJson(json);
 
   @override
   final String directory;
@@ -6041,10 +6015,10 @@ class _$VeilidConfigBlockStoreImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigBlockStoreImpl &&
+            other is _$_VeilidConfigBlockStore &&
             (identical(other.directory, directory) ||
                 other.directory == directory) &&
             (identical(other.delete, delete) || other.delete == delete));
@@ -6057,13 +6031,13 @@ class _$VeilidConfigBlockStoreImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigBlockStoreImplCopyWith<_$VeilidConfigBlockStoreImpl>
-      get copyWith => __$$VeilidConfigBlockStoreImplCopyWithImpl<
-          _$VeilidConfigBlockStoreImpl>(this, _$identity);
+  _$$_VeilidConfigBlockStoreCopyWith<_$_VeilidConfigBlockStore> get copyWith =>
+      __$$_VeilidConfigBlockStoreCopyWithImpl<_$_VeilidConfigBlockStore>(
+          this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigBlockStoreImplToJson(
+    return _$$_VeilidConfigBlockStoreToJson(
       this,
     );
   }
@@ -6072,10 +6046,10 @@ class _$VeilidConfigBlockStoreImpl
 abstract class _VeilidConfigBlockStore implements VeilidConfigBlockStore {
   const factory _VeilidConfigBlockStore(
       {required final String directory,
-      required final bool delete}) = _$VeilidConfigBlockStoreImpl;
+      required final bool delete}) = _$_VeilidConfigBlockStore;
 
   factory _VeilidConfigBlockStore.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigBlockStoreImpl.fromJson;
+      _$_VeilidConfigBlockStore.fromJson;
 
   @override
   String get directory;
@@ -6083,8 +6057,8 @@ abstract class _VeilidConfigBlockStore implements VeilidConfigBlockStore {
   bool get delete;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigBlockStoreImplCopyWith<_$VeilidConfigBlockStoreImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  _$$_VeilidConfigBlockStoreCopyWith<_$_VeilidConfigBlockStore> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 VeilidConfigProtectedStore _$VeilidConfigProtectedStoreFromJson(
@@ -6175,12 +6149,12 @@ class _$VeilidConfigProtectedStoreCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigProtectedStoreImplCopyWith<$Res>
+abstract class _$$_VeilidConfigProtectedStoreCopyWith<$Res>
     implements $VeilidConfigProtectedStoreCopyWith<$Res> {
-  factory _$$VeilidConfigProtectedStoreImplCopyWith(
-          _$VeilidConfigProtectedStoreImpl value,
-          $Res Function(_$VeilidConfigProtectedStoreImpl) then) =
-      __$$VeilidConfigProtectedStoreImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigProtectedStoreCopyWith(
+          _$_VeilidConfigProtectedStore value,
+          $Res Function(_$_VeilidConfigProtectedStore) then) =
+      __$$_VeilidConfigProtectedStoreCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -6193,13 +6167,13 @@ abstract class _$$VeilidConfigProtectedStoreImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigProtectedStoreImplCopyWithImpl<$Res>
+class __$$_VeilidConfigProtectedStoreCopyWithImpl<$Res>
     extends _$VeilidConfigProtectedStoreCopyWithImpl<$Res,
-        _$VeilidConfigProtectedStoreImpl>
-    implements _$$VeilidConfigProtectedStoreImplCopyWith<$Res> {
-  __$$VeilidConfigProtectedStoreImplCopyWithImpl(
-      _$VeilidConfigProtectedStoreImpl _value,
-      $Res Function(_$VeilidConfigProtectedStoreImpl) _then)
+        _$_VeilidConfigProtectedStore>
+    implements _$$_VeilidConfigProtectedStoreCopyWith<$Res> {
+  __$$_VeilidConfigProtectedStoreCopyWithImpl(
+      _$_VeilidConfigProtectedStore _value,
+      $Res Function(_$_VeilidConfigProtectedStore) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -6212,7 +6186,7 @@ class __$$VeilidConfigProtectedStoreImplCopyWithImpl<$Res>
     Object? deviceEncryptionKeyPassword = null,
     Object? newDeviceEncryptionKeyPassword = freezed,
   }) {
-    return _then(_$VeilidConfigProtectedStoreImpl(
+    return _then(_$_VeilidConfigProtectedStore(
       allowInsecureFallback: null == allowInsecureFallback
           ? _value.allowInsecureFallback
           : allowInsecureFallback // ignore: cast_nullable_to_non_nullable
@@ -6243,10 +6217,10 @@ class __$$VeilidConfigProtectedStoreImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigProtectedStoreImpl
+class _$_VeilidConfigProtectedStore
     with DiagnosticableTreeMixin
     implements _VeilidConfigProtectedStore {
-  const _$VeilidConfigProtectedStoreImpl(
+  const _$_VeilidConfigProtectedStore(
       {required this.allowInsecureFallback,
       required this.alwaysUseInsecureStorage,
       required this.directory,
@@ -6254,9 +6228,8 @@ class _$VeilidConfigProtectedStoreImpl
       required this.deviceEncryptionKeyPassword,
       this.newDeviceEncryptionKeyPassword});
 
-  factory _$VeilidConfigProtectedStoreImpl.fromJson(
-          Map<String, dynamic> json) =>
-      _$$VeilidConfigProtectedStoreImplFromJson(json);
+  factory _$_VeilidConfigProtectedStore.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigProtectedStoreFromJson(json);
 
   @override
   final bool allowInsecureFallback;
@@ -6293,10 +6266,10 @@ class _$VeilidConfigProtectedStoreImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigProtectedStoreImpl &&
+            other is _$_VeilidConfigProtectedStore &&
             (identical(other.allowInsecureFallback, allowInsecureFallback) ||
                 other.allowInsecureFallback == allowInsecureFallback) &&
             (identical(
@@ -6329,13 +6302,13 @@ class _$VeilidConfigProtectedStoreImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigProtectedStoreImplCopyWith<_$VeilidConfigProtectedStoreImpl>
-      get copyWith => __$$VeilidConfigProtectedStoreImplCopyWithImpl<
-          _$VeilidConfigProtectedStoreImpl>(this, _$identity);
+  _$$_VeilidConfigProtectedStoreCopyWith<_$_VeilidConfigProtectedStore>
+      get copyWith => __$$_VeilidConfigProtectedStoreCopyWithImpl<
+          _$_VeilidConfigProtectedStore>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigProtectedStoreImplToJson(
+    return _$$_VeilidConfigProtectedStoreToJson(
       this,
     );
   }
@@ -6350,10 +6323,10 @@ abstract class _VeilidConfigProtectedStore
           required final bool delete,
           required final String deviceEncryptionKeyPassword,
           final String? newDeviceEncryptionKeyPassword}) =
-      _$VeilidConfigProtectedStoreImpl;
+      _$_VeilidConfigProtectedStore;
 
   factory _VeilidConfigProtectedStore.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigProtectedStoreImpl.fromJson;
+      _$_VeilidConfigProtectedStore.fromJson;
 
   @override
   bool get allowInsecureFallback;
@@ -6369,7 +6342,7 @@ abstract class _VeilidConfigProtectedStore
   String? get newDeviceEncryptionKeyPassword;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigProtectedStoreImplCopyWith<_$VeilidConfigProtectedStoreImpl>
+  _$$_VeilidConfigProtectedStoreCopyWith<_$_VeilidConfigProtectedStore>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -6423,25 +6396,24 @@ class _$VeilidConfigCapabilitiesCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigCapabilitiesImplCopyWith<$Res>
+abstract class _$$_VeilidConfigCapabilitiesCopyWith<$Res>
     implements $VeilidConfigCapabilitiesCopyWith<$Res> {
-  factory _$$VeilidConfigCapabilitiesImplCopyWith(
-          _$VeilidConfigCapabilitiesImpl value,
-          $Res Function(_$VeilidConfigCapabilitiesImpl) then) =
-      __$$VeilidConfigCapabilitiesImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigCapabilitiesCopyWith(
+          _$_VeilidConfigCapabilities value,
+          $Res Function(_$_VeilidConfigCapabilities) then) =
+      __$$_VeilidConfigCapabilitiesCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({List<String> disable});
 }
 
 /// @nodoc
-class __$$VeilidConfigCapabilitiesImplCopyWithImpl<$Res>
+class __$$_VeilidConfigCapabilitiesCopyWithImpl<$Res>
     extends _$VeilidConfigCapabilitiesCopyWithImpl<$Res,
-        _$VeilidConfigCapabilitiesImpl>
-    implements _$$VeilidConfigCapabilitiesImplCopyWith<$Res> {
-  __$$VeilidConfigCapabilitiesImplCopyWithImpl(
-      _$VeilidConfigCapabilitiesImpl _value,
-      $Res Function(_$VeilidConfigCapabilitiesImpl) _then)
+        _$_VeilidConfigCapabilities>
+    implements _$$_VeilidConfigCapabilitiesCopyWith<$Res> {
+  __$$_VeilidConfigCapabilitiesCopyWithImpl(_$_VeilidConfigCapabilities _value,
+      $Res Function(_$_VeilidConfigCapabilities) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -6449,7 +6421,7 @@ class __$$VeilidConfigCapabilitiesImplCopyWithImpl<$Res>
   $Res call({
     Object? disable = null,
   }) {
-    return _then(_$VeilidConfigCapabilitiesImpl(
+    return _then(_$_VeilidConfigCapabilities(
       disable: null == disable
           ? _value._disable
           : disable // ignore: cast_nullable_to_non_nullable
@@ -6460,14 +6432,14 @@ class __$$VeilidConfigCapabilitiesImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigCapabilitiesImpl
+class _$_VeilidConfigCapabilities
     with DiagnosticableTreeMixin
     implements _VeilidConfigCapabilities {
-  const _$VeilidConfigCapabilitiesImpl({required final List<String> disable})
+  const _$_VeilidConfigCapabilities({required final List<String> disable})
       : _disable = disable;
 
-  factory _$VeilidConfigCapabilitiesImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigCapabilitiesImplFromJson(json);
+  factory _$_VeilidConfigCapabilities.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigCapabilitiesFromJson(json);
 
   final List<String> _disable;
   @override
@@ -6491,10 +6463,10 @@ class _$VeilidConfigCapabilitiesImpl
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigCapabilitiesImpl &&
+            other is _$_VeilidConfigCapabilities &&
             const DeepCollectionEquality().equals(other._disable, _disable));
   }
 
@@ -6506,13 +6478,13 @@ class _$VeilidConfigCapabilitiesImpl
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigCapabilitiesImplCopyWith<_$VeilidConfigCapabilitiesImpl>
-      get copyWith => __$$VeilidConfigCapabilitiesImplCopyWithImpl<
-          _$VeilidConfigCapabilitiesImpl>(this, _$identity);
+  _$$_VeilidConfigCapabilitiesCopyWith<_$_VeilidConfigCapabilities>
+      get copyWith => __$$_VeilidConfigCapabilitiesCopyWithImpl<
+          _$_VeilidConfigCapabilities>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigCapabilitiesImplToJson(
+    return _$$_VeilidConfigCapabilitiesToJson(
       this,
     );
   }
@@ -6520,16 +6492,16 @@ class _$VeilidConfigCapabilitiesImpl
 
 abstract class _VeilidConfigCapabilities implements VeilidConfigCapabilities {
   const factory _VeilidConfigCapabilities(
-      {required final List<String> disable}) = _$VeilidConfigCapabilitiesImpl;
+      {required final List<String> disable}) = _$_VeilidConfigCapabilities;
 
   factory _VeilidConfigCapabilities.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigCapabilitiesImpl.fromJson;
+      _$_VeilidConfigCapabilities.fromJson;
 
   @override
   List<String> get disable;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigCapabilitiesImplCopyWith<_$VeilidConfigCapabilitiesImpl>
+  _$$_VeilidConfigCapabilitiesCopyWith<_$_VeilidConfigCapabilities>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -6674,11 +6646,11 @@ class _$VeilidConfigCopyWithImpl<$Res, $Val extends VeilidConfig>
 }
 
 /// @nodoc
-abstract class _$$VeilidConfigImplCopyWith<$Res>
+abstract class _$$_VeilidConfigCopyWith<$Res>
     implements $VeilidConfigCopyWith<$Res> {
-  factory _$$VeilidConfigImplCopyWith(
-          _$VeilidConfigImpl value, $Res Function(_$VeilidConfigImpl) then) =
-      __$$VeilidConfigImplCopyWithImpl<$Res>;
+  factory _$$_VeilidConfigCopyWith(
+          _$_VeilidConfig value, $Res Function(_$_VeilidConfig) then) =
+      __$$_VeilidConfigCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -6703,11 +6675,11 @@ abstract class _$$VeilidConfigImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$VeilidConfigImplCopyWithImpl<$Res>
-    extends _$VeilidConfigCopyWithImpl<$Res, _$VeilidConfigImpl>
-    implements _$$VeilidConfigImplCopyWith<$Res> {
-  __$$VeilidConfigImplCopyWithImpl(
-      _$VeilidConfigImpl _value, $Res Function(_$VeilidConfigImpl) _then)
+class __$$_VeilidConfigCopyWithImpl<$Res>
+    extends _$VeilidConfigCopyWithImpl<$Res, _$_VeilidConfig>
+    implements _$$_VeilidConfigCopyWith<$Res> {
+  __$$_VeilidConfigCopyWithImpl(
+      _$_VeilidConfig _value, $Res Function(_$_VeilidConfig) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -6721,7 +6693,7 @@ class __$$VeilidConfigImplCopyWithImpl<$Res>
     Object? blockStore = null,
     Object? network = null,
   }) {
-    return _then(_$VeilidConfigImpl(
+    return _then(_$_VeilidConfig(
       programName: null == programName
           ? _value.programName
           : programName // ignore: cast_nullable_to_non_nullable
@@ -6756,8 +6728,8 @@ class __$$VeilidConfigImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidConfigImpl with DiagnosticableTreeMixin implements _VeilidConfig {
-  const _$VeilidConfigImpl(
+class _$_VeilidConfig with DiagnosticableTreeMixin implements _VeilidConfig {
+  const _$_VeilidConfig(
       {required this.programName,
       required this.namespace,
       required this.capabilities,
@@ -6766,8 +6738,8 @@ class _$VeilidConfigImpl with DiagnosticableTreeMixin implements _VeilidConfig {
       required this.blockStore,
       required this.network});
 
-  factory _$VeilidConfigImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidConfigImplFromJson(json);
+  factory _$_VeilidConfig.fromJson(Map<String, dynamic> json) =>
+      _$$_VeilidConfigFromJson(json);
 
   @override
   final String programName;
@@ -6804,10 +6776,10 @@ class _$VeilidConfigImpl with DiagnosticableTreeMixin implements _VeilidConfig {
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidConfigImpl &&
+            other is _$_VeilidConfig &&
             (identical(other.programName, programName) ||
                 other.programName == programName) &&
             (identical(other.namespace, namespace) ||
@@ -6831,12 +6803,12 @@ class _$VeilidConfigImpl with DiagnosticableTreeMixin implements _VeilidConfig {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidConfigImplCopyWith<_$VeilidConfigImpl> get copyWith =>
-      __$$VeilidConfigImplCopyWithImpl<_$VeilidConfigImpl>(this, _$identity);
+  _$$_VeilidConfigCopyWith<_$_VeilidConfig> get copyWith =>
+      __$$_VeilidConfigCopyWithImpl<_$_VeilidConfig>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidConfigImplToJson(
+    return _$$_VeilidConfigToJson(
       this,
     );
   }
@@ -6850,10 +6822,10 @@ abstract class _VeilidConfig implements VeilidConfig {
       required final VeilidConfigProtectedStore protectedStore,
       required final VeilidConfigTableStore tableStore,
       required final VeilidConfigBlockStore blockStore,
-      required final VeilidConfigNetwork network}) = _$VeilidConfigImpl;
+      required final VeilidConfigNetwork network}) = _$_VeilidConfig;
 
   factory _VeilidConfig.fromJson(Map<String, dynamic> json) =
-      _$VeilidConfigImpl.fromJson;
+      _$_VeilidConfig.fromJson;
 
   @override
   String get programName;
@@ -6871,6 +6843,6 @@ abstract class _VeilidConfig implements VeilidConfig {
   VeilidConfigNetwork get network;
   @override
   @JsonKey(ignore: true)
-  _$$VeilidConfigImplCopyWith<_$VeilidConfigImpl> get copyWith =>
+  _$$_VeilidConfigCopyWith<_$_VeilidConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }

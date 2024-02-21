@@ -6,20 +6,20 @@ part of 'routing_context.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$DHTSchemaDFLTImpl _$$DHTSchemaDFLTImplFromJson(Map<String, dynamic> json) =>
-    _$DHTSchemaDFLTImpl(
+_$DHTSchemaDFLT _$$DHTSchemaDFLTFromJson(Map<String, dynamic> json) =>
+    _$DHTSchemaDFLT(
       oCnt: json['o_cnt'] as int,
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$DHTSchemaDFLTImplToJson(_$DHTSchemaDFLTImpl instance) =>
+Map<String, dynamic> _$$DHTSchemaDFLTToJson(_$DHTSchemaDFLT instance) =>
     <String, dynamic>{
       'o_cnt': instance.oCnt,
       'kind': instance.$type,
     };
 
-_$DHTSchemaSMPLImpl _$$DHTSchemaSMPLImplFromJson(Map<String, dynamic> json) =>
-    _$DHTSchemaSMPLImpl(
+_$DHTSchemaSMPL _$$DHTSchemaSMPLFromJson(Map<String, dynamic> json) =>
+    _$DHTSchemaSMPL(
       oCnt: json['o_cnt'] as int,
       members: (json['members'] as List<dynamic>)
           .map(DHTSchemaMember.fromJson)
@@ -27,30 +27,28 @@ _$DHTSchemaSMPLImpl _$$DHTSchemaSMPLImplFromJson(Map<String, dynamic> json) =>
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$DHTSchemaSMPLImplToJson(_$DHTSchemaSMPLImpl instance) =>
+Map<String, dynamic> _$$DHTSchemaSMPLToJson(_$DHTSchemaSMPL instance) =>
     <String, dynamic>{
       'o_cnt': instance.oCnt,
       'members': instance.members.map((e) => e.toJson()).toList(),
       'kind': instance.$type,
     };
 
-_$DHTSchemaMemberImpl _$$DHTSchemaMemberImplFromJson(
-        Map<String, dynamic> json) =>
-    _$DHTSchemaMemberImpl(
+_$_DHTSchemaMember _$$_DHTSchemaMemberFromJson(Map<String, dynamic> json) =>
+    _$_DHTSchemaMember(
       mKey: FixedEncodedString43.fromJson(json['m_key']),
       mCnt: json['m_cnt'] as int,
     );
 
-Map<String, dynamic> _$$DHTSchemaMemberImplToJson(
-        _$DHTSchemaMemberImpl instance) =>
+Map<String, dynamic> _$$_DHTSchemaMemberToJson(_$_DHTSchemaMember instance) =>
     <String, dynamic>{
       'm_key': instance.mKey.toJson(),
       'm_cnt': instance.mCnt,
     };
 
-_$DHTRecordDescriptorImpl _$$DHTRecordDescriptorImplFromJson(
+_$_DHTRecordDescriptor _$$_DHTRecordDescriptorFromJson(
         Map<String, dynamic> json) =>
-    _$DHTRecordDescriptorImpl(
+    _$_DHTRecordDescriptor(
       key: Typed<FixedEncodedString43>.fromJson(json['key']),
       owner: FixedEncodedString43.fromJson(json['owner']),
       schema: DHTSchema.fromJson(json['schema']),
@@ -59,8 +57,8 @@ _$DHTRecordDescriptorImpl _$$DHTRecordDescriptorImplFromJson(
           : FixedEncodedString43.fromJson(json['owner_secret']),
     );
 
-Map<String, dynamic> _$$DHTRecordDescriptorImplToJson(
-        _$DHTRecordDescriptorImpl instance) =>
+Map<String, dynamic> _$$_DHTRecordDescriptorToJson(
+        _$_DHTRecordDescriptor instance) =>
     <String, dynamic>{
       'key': instance.key.toJson(),
       'owner': instance.owner.toJson(),
@@ -68,43 +66,40 @@ Map<String, dynamic> _$$DHTRecordDescriptorImplToJson(
       'owner_secret': instance.ownerSecret?.toJson(),
     };
 
-_$ValueSubkeyRangeImpl _$$ValueSubkeyRangeImplFromJson(
-        Map<String, dynamic> json) =>
-    _$ValueSubkeyRangeImpl(
+_$_ValueSubkeyRange _$$_ValueSubkeyRangeFromJson(Map<String, dynamic> json) =>
+    _$_ValueSubkeyRange(
       low: json['low'] as int,
       high: json['high'] as int,
     );
 
-Map<String, dynamic> _$$ValueSubkeyRangeImplToJson(
-        _$ValueSubkeyRangeImpl instance) =>
+Map<String, dynamic> _$$_ValueSubkeyRangeToJson(_$_ValueSubkeyRange instance) =>
     <String, dynamic>{
       'low': instance.low,
       'high': instance.high,
     };
 
-_$ValueDataImpl _$$ValueDataImplFromJson(Map<String, dynamic> json) =>
-    _$ValueDataImpl(
+_$_ValueData _$$_ValueDataFromJson(Map<String, dynamic> json) => _$_ValueData(
       seq: json['seq'] as int,
       data: const Uint8ListJsonConverter.jsIsArray().fromJson(json['data']),
       writer: FixedEncodedString43.fromJson(json['writer']),
     );
 
-Map<String, dynamic> _$$ValueDataImplToJson(_$ValueDataImpl instance) =>
+Map<String, dynamic> _$$_ValueDataToJson(_$_ValueData instance) =>
     <String, dynamic>{
       'seq': instance.seq,
       'data': const Uint8ListJsonConverter.jsIsArray().toJson(instance.data),
       'writer': instance.writer.toJson(),
     };
 
-_$SafetySpecImpl _$$SafetySpecImplFromJson(Map<String, dynamic> json) =>
-    _$SafetySpecImpl(
+_$_SafetySpec _$$_SafetySpecFromJson(Map<String, dynamic> json) =>
+    _$_SafetySpec(
       hopCount: json['hop_count'] as int,
       stability: Stability.fromJson(json['stability']),
       sequencing: Sequencing.fromJson(json['sequencing']),
       preferredRoute: json['preferred_route'] as String?,
     );
 
-Map<String, dynamic> _$$SafetySpecImplToJson(_$SafetySpecImpl instance) =>
+Map<String, dynamic> _$$_SafetySpecToJson(_$_SafetySpec instance) =>
     <String, dynamic>{
       'hop_count': instance.hopCount,
       'stability': instance.stability.toJson(),
@@ -112,13 +107,12 @@ Map<String, dynamic> _$$SafetySpecImplToJson(_$SafetySpecImpl instance) =>
       'preferred_route': instance.preferredRoute,
     };
 
-_$RouteBlobImpl _$$RouteBlobImplFromJson(Map<String, dynamic> json) =>
-    _$RouteBlobImpl(
+_$_RouteBlob _$$_RouteBlobFromJson(Map<String, dynamic> json) => _$_RouteBlob(
       routeId: json['route_id'] as String,
       blob: const Uint8ListJsonConverter().fromJson(json['blob']),
     );
 
-Map<String, dynamic> _$$RouteBlobImplToJson(_$RouteBlobImpl instance) =>
+Map<String, dynamic> _$$_RouteBlobToJson(_$_RouteBlob instance) =>
     <String, dynamic>{
       'route_id': instance.routeId,
       'blob': const Uint8ListJsonConverter().toJson(instance.blob),
