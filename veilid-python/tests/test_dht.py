@@ -195,6 +195,10 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         with pytest.raises(veilid.VeilidAPIError):
             vdtemp = await rc.set_dht_value(key, 0, va)
 
+        # Verify subkey 0 can be set because override with the right writer
+        with pytest.raises(veilid.VeilidAPIError):
+            vdtemp = await rc.set_dht_value(key, 0, va, veilid.KeyPair.from_parts(owner, secret))
+
         # Clean up
         await rc.close_dht_record(key)
         await rc.delete_dht_record(key)

@@ -572,7 +572,7 @@ class _JsonRoutingContext(RoutingContext):
         )
 
     async def open_dht_record(
-        self, key: TypedKey, writer: Optional[KeyPair]
+        self, key: TypedKey, writer: Optional[KeyPair] = None
     ) -> DHTRecordDescriptor:
         return DHTRecordDescriptor.from_json(
             raise_api_result(
@@ -626,7 +626,7 @@ class _JsonRoutingContext(RoutingContext):
         return None if ret is None else ValueData.from_json(ret)
 
     async def set_dht_value(
-        self, key: TypedKey, subkey: ValueSubkey, data: bytes, writer: Optional[KeyPair]
+        self, key: TypedKey, subkey: ValueSubkey, data: bytes, writer: Optional[KeyPair] = None
     ) -> Optional[ValueData]:
         ret = raise_api_result(
             await self.api.send_ndjson_request(

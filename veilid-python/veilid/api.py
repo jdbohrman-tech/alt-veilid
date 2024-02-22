@@ -55,7 +55,7 @@ class RoutingContext(ABC):
 
     @abstractmethod
     async def open_dht_record(
-        self, key: types.TypedKey, writer: Optional[types.KeyPair]
+        self, key: types.TypedKey, writer: Optional[types.KeyPair] = None
     ) -> types.DHTRecordDescriptor:
         pass
 
@@ -75,7 +75,7 @@ class RoutingContext(ABC):
 
     @abstractmethod
     async def set_dht_value(
-        self, key: types.TypedKey, subkey: types.ValueSubkey, data: bytes, writer: Optional[types.KeyPair]
+        self, key: types.TypedKey, subkey: types.ValueSubkey, data: bytes, writer: Optional[types.KeyPair] = None
     ) -> Optional[types.ValueData]:
         pass
 

@@ -57,7 +57,7 @@ def ipc_info() -> str:
 
     # hack to deal with rust's 'directories' crate case-inconsistency
     if sys.platform.startswith('darwin'):
-        data_dir = appdirs.user_data_dir("Veilid","Veilid")
+        data_dir = appdirs.user_data_dir("org.Veilid.Veilid")
     else:
         data_dir = appdirs.user_data_dir("veilid","veilid")
     ipc_0_path = os.path.join(data_dir, "ipc", "0")

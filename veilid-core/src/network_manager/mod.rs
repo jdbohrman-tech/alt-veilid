@@ -227,7 +227,7 @@ impl NetworkManager {
                     Some(
                         bcs.derive_shared_secret(
                             network_key_password.as_bytes(),
-                            network_key_password.as_bytes(),
+                            &bcs.generate_hash(network_key_password.as_bytes()).bytes,
                         )
                         .expect("failed to derive network key"),
                     )
