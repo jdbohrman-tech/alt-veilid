@@ -167,6 +167,31 @@ describe('VeilidRoutingContext', () => {
         );
         expect(setValueRes).toBeUndefined();
       });
+
+      it('should open readonly record and specify writer during the set', async () => {
+        await routingContext.closeDhtRecord(dhtRecord.key);
+
+        const writeableDhtRecord = await routingContext.openDhtRecord(
+          dhtRecord.key,
+        );
+        expect(writeableDhtRecord).toBeDefined();
+        const setValueResFail = routingContext.setDhtValue(
+          dhtRecord.key,
+          0,
+          textEncoder.encode(`${data}👋`),
+        );
+        await expect(setValueResFail).rejects.toEqual({
+          kind: 'Generic',
+          message: 'value is not writable',
+        });
+        const setValueRes = await routingContext.setDhtValue(
+          dhtRecord.key,
+          0,
+          textEncoder.encode(`${data}👋`),
+          `${dhtRecord.owner}:${dhtRecord.owner_secret}`
+        );
+        expect(setValueRes).toBeUndefined();
+      });
     });
   });
 });

@@ -285,12 +285,18 @@ impl VeilidRoutingContext {
         key: String,
         subKey: u32,
         data: Box<[u8]>,
+        writer: Option<String>,
     ) -> APIResult<Option<ValueData>> {
         let key = TypedKey::from_str(&key)?;
         let data = data.into_vec();
+        let writer = writer
+            .map(|writer| KeyPair::from_str(&writer))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let routing_context = self.getRoutingContext()?;
-        let res = routing_context.set_dht_value(key, subKey, data).await?;
+        let res = routing_context
+            .set_dht_value(key, subKey, data, writer)
+            .await?;
         APIResult::Ok(res)
     }
 

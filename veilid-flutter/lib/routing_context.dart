@@ -312,11 +312,13 @@ abstract class VeilidRoutingContext {
   // DHT Operations
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
       {CryptoKind kind = 0});
-  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key, KeyPair? writer);
+  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key, {KeyPair? writer});
   Future<void> closeDHTRecord(TypedKey key);
   Future<void> deleteDHTRecord(TypedKey key);
-  Future<ValueData?> getDHTValue(TypedKey key, int subkey, bool forceRefresh);
-  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data);
+  Future<ValueData?> getDHTValue(TypedKey key, int subkey,
+      {bool forceRefresh = false});
+  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data,
+      {KeyPair? writer});
   Future<Timestamp> watchDHTValues(TypedKey key,
       {List<ValueSubkeyRange>? subkeys, Timestamp? expiration, int? count});
   Future<bool> cancelDHTWatch(TypedKey key, {List<ValueSubkeyRange>? subkeys});

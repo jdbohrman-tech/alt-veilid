@@ -215,19 +215,24 @@ impl RoutingContext {
 
     /// Opens a DHT record at a specific key
     ///
-    /// Associates a secret if one is provided to provide writer capability.
-    /// Records may only be opened or created. To re-open with a different routing context, first close the value.
+    /// Associates a 'default_writer' secret if one is provided to provide writer capability. The
+    /// writer can be overridden if specified here via the set_dht_value writer.
+    ///
+    /// Records may only be opened or created. If a record is re-opened it will use the new writer and routing context
+    /// ignoring the settings of the last time it was opened. This allows one to open a record a second time
+    /// without first closing it, which will keep the active 'watches' on the record but change the default writer or
+    /// safety selection.
     ///
     /// Returns the DHT record descriptor for the opened record if successful
     pub async fn open_dht_record(
         &self,
         key: TypedKey,
-        writer: Option<KeyPair>,
+        default_writer: Option<KeyPair>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager
-            .open_record(key, writer, self.unlocked_inner.safety_selection)
+            .open_record(key, default_writer, self.unlocked_inner.safety_selection)
             .await
     }
 
@@ -269,6 +274,9 @@ impl RoutingContext {
     }
 
     /// Pushes a changed subkey value to the network
+    /// The DHT record must first by opened via open_dht_record or create_dht_record.
+    ///
+    /// The writer, if specified, will override the 'default_writer' specified when the record is opened.
     ///
     /// Returns `None` if the value was successfully put
     /// Returns `Some(data)` if the value put was older than the one available on the network
@@ -277,10 +285,11 @@ impl RoutingContext {
         key: TypedKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
+        writer: Option<KeyPair>,
     ) -> VeilidAPIResult<Option<ValueData>> {
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
-        storage_manager.set_value(key, subkey, data).await
+        storage_manager.set_value(key, subkey, data, writer).await
     }
 
     /// Add a watch to a DHT value that informs the user via an VeilidUpdate::ValueChange callback when the record has subkeys change.

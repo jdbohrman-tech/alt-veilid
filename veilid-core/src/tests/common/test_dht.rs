@@ -114,7 +114,7 @@ pub async fn test_set_get_dht_value(api: VeilidAPI) {
 
     let test_value = String::from("BLAH BLAH BLAH").as_bytes().to_vec();
     // convert string to byte array
-    let set_dht_value_result = rc.set_dht_value(dht_key, 0, test_value.clone()).await;
+    let set_dht_value_result = rc.set_dht_value(dht_key, 0, test_value.clone(), None).await;
     assert_eq!(set_dht_value_result.expect("should be Ok(None)"), None);
 
     let get_dht_value_result_0_non_force = rc.get_dht_value(dht_key, 0, false).await;
@@ -184,7 +184,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     // 5. Read data from subkey 0 with force_refresh, check data
     // 6. Read data from subkey 1 with force_refresh, check data
     // 7. Overwrite value 1 twice, check that there's no errors
-    let set_dht_test_value_1_result = rc.set_dht_value(key, 1, test_value_1.clone()).await;
+    let set_dht_test_value_1_result = rc.set_dht_value(key, 1, test_value_1.clone(), None).await;
     assert!(set_dht_test_value_1_result.is_ok());
 
     let get_dht_value_result_1_non_force = rc.get_dht_value(key, 1, false).await;
@@ -202,7 +202,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
         None
     );
 
-    let set_dht_test_value_0_result = rc.set_dht_value(key, 0, test_data_2.clone()).await;
+    let set_dht_test_value_0_result = rc.set_dht_value(key, 0, test_data_2.clone(), None).await;
     assert!(set_dht_test_value_0_result.is_ok());
 
     let get_dht_value_result_0_force = rc.get_dht_value(key, 0, true).await;
@@ -223,10 +223,10 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
         test_value_1
     );
 
-    let overwrite_value_1_result_1 = rc.set_dht_value(key, 1, test_value_1.clone()).await;
+    let overwrite_value_1_result_1 = rc.set_dht_value(key, 1, test_value_1.clone(), None).await;
     assert!(overwrite_value_1_result_1.is_ok());
 
-    let overwrite_value_1_result_2 = rc.set_dht_value(key, 1, test_data_2.clone()).await;
+    let overwrite_value_1_result_2 = rc.set_dht_value(key, 1, test_data_2.clone(), None).await;
     assert!(overwrite_value_1_result_2.is_ok());
 
     // Now that we initialized some subkeys
@@ -258,7 +258,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     ));
 
     //Verify subkey 1 can be set before it is get but newer is available online
-    let set_dht_test_value_1_result = rc.set_dht_value(key, 1, test_data_3.clone()).await;
+    let set_dht_test_value_1_result = rc.set_dht_value(key, 1, test_data_3.clone(), None).await;
     assert!(set_dht_test_value_1_result.is_ok());
     let vdtemp = set_dht_test_value_1_result.unwrap().unwrap();
     assert_eq!(vdtemp.data(), test_data_2);
@@ -266,7 +266,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     assert_eq!(vdtemp.writer(), owner);
 
     // Verify subkey 1 can be set a second time and it updates because seq is newer
-    let set_dht_test_value_1_result = rc.set_dht_value(key, 1, test_data_3.clone()).await;
+    let set_dht_test_value_1_result = rc.set_dht_value(key, 1, test_data_3.clone(), None).await;
     assert!(set_dht_test_value_1_result.is_ok());
 
     // Verify the network got the subkey update with a refresh check
@@ -308,11 +308,17 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     ));
 
     // Verify subkey 1 can NOT be set because we have the wrong writer
-    let set_dht_test_value_0_result = rc.set_dht_value(key, 1, test_value_1.clone()).await;
+    let set_dht_test_value_0_result = rc.set_dht_value(key, 1, test_value_1.clone(), None).await;
     assert_err!(set_dht_test_value_0_result);
 
     // Verify subkey 0 can NOT be set because we have the wrong writer
-    let set_dht_test_value_0_result = rc.set_dht_value(key, 0, test_value_1.clone()).await;
+    let set_dht_test_value_0_result = rc.set_dht_value(key, 0, test_value_1.clone(), None).await;
+    assert_err!(set_dht_test_value_0_result);
+
+    // Verify subkey 0 can be set because we have overridden with the correct writer
+    let set_dht_test_value_0_result = rc
+        .set_dht_value(key, 0, test_value_1.clone(), Some(keypair))
+        .await;
     assert_err!(set_dht_test_value_0_result);
 
     rc.close_dht_record(key).await.unwrap();

@@ -433,6 +433,7 @@ impl StorageManager {
         key: TypedKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
+        writer: Option<KeyPair>,
     ) -> VeilidAPIResult<Option<ValueData>> {
         let mut inner = self.lock().await?;
 
@@ -450,6 +451,9 @@ impl StorageManager {
                 opened_record.writer().cloned(),
             )
         };
+
+        // Use the specified writer, or if not specified, the default writer when the record was opened
+        let opt_writer = writer.or(opt_writer);
 
         // If we don't have a writer then we can't write
         let Some(writer) = opt_writer else {

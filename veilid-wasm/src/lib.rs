@@ -581,11 +581,19 @@ pub fn routing_context_get_dht_value(
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_set_dht_value(id: u32, key: String, subkey: u32, data: String) -> Promise {
+pub fn routing_context_set_dht_value(
+    id: u32,
+    key: String,
+    subkey: u32,
+    data: String,
+    writer: Option<String>,
+) -> Promise {
     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(data.as_bytes())
         .unwrap();
+    let writer: Option<veilid_core::KeyPair> =
+        writer.map(|s| veilid_core::deserialize_json(&s).unwrap());
 
     wrap_api_future_json(async move {
         let routing_context = {
@@ -599,7 +607,9 @@ pub fn routing_context_set_dht_value(id: u32, key: String, subkey: u32, data: St
             };
             routing_context.clone()
         };
-        let res = routing_context.set_dht_value(key, subkey, data).await?;
+        let res = routing_context
+            .set_dht_value(key, subkey, data, writer)
+            .await?;
         APIResult::Ok(res)
     })
 }

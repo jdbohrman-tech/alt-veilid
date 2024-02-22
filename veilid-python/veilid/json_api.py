@@ -626,7 +626,7 @@ class _JsonRoutingContext(RoutingContext):
         return None if ret is None else ValueData.from_json(ret)
 
     async def set_dht_value(
-        self, key: TypedKey, subkey: ValueSubkey, data: bytes
+        self, key: TypedKey, subkey: ValueSubkey, data: bytes, writer: Optional[KeyPair]
     ) -> Optional[ValueData]:
         ret = raise_api_result(
             await self.api.send_ndjson_request(
@@ -637,6 +637,7 @@ class _JsonRoutingContext(RoutingContext):
                 key=key,
                 subkey=subkey,
                 data=data,
+                writer=writer,
             )
         )
         return None if ret is None else ValueData.from_json(ret)

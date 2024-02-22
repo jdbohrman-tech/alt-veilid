@@ -129,8 +129,8 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<DHTRecordDescriptor> openDHTRecord(
-      TypedKey key, KeyPair? writer) async {
+  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key,
+      {KeyPair? writer}) async {
     final id = _ctx.requireId();
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, 'routing_context_open_dht_record', [
@@ -155,8 +155,8 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> getDHTValue(
-      TypedKey key, int subkey, bool forceRefresh) async {
+  Future<ValueData?> getDHTValue(TypedKey key, int subkey,
+      {bool forceRefresh = false}) async {
     final id = _ctx.requireId();
     final opt = await _wrapApiPromise<String?>(js_util.callMethod(
         wasm,
@@ -170,13 +170,17 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> setDHTValue(
-      TypedKey key, int subkey, Uint8List data) async {
+  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data,
+      {KeyPair? writer}) async {
     final id = _ctx.requireId();
-    final opt = await _wrapApiPromise<String?>(js_util.callMethod(
-        wasm,
-        'routing_context_set_dht_value',
-        [id, jsonEncode(key), subkey, base64UrlNoPadEncode(data)]));
+    final opt = await _wrapApiPromise<String?>(
+        js_util.callMethod(wasm, 'routing_context_set_dht_value', [
+      id,
+      jsonEncode(key),
+      subkey,
+      base64UrlNoPadEncode(data),
+      if (writer != null) jsonEncode(writer) else null
+    ]));
     if (opt == null) {
       return null;
     }

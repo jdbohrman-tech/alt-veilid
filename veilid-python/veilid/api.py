@@ -75,7 +75,7 @@ class RoutingContext(ABC):
 
     @abstractmethod
     async def set_dht_value(
-        self, key: types.TypedKey, subkey: types.ValueSubkey, data: bytes
+        self, key: types.TypedKey, subkey: types.ValueSubkey, data: bytes, writer: Optional[types.KeyPair]
     ) -> Optional[types.ValueData]:
         pass
 

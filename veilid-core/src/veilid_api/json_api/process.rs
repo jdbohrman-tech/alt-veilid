@@ -323,13 +323,18 @@ impl JsonRequestProcessor {
                         .await,
                 ),
             },
-            RoutingContextRequestOp::SetDhtValue { key, subkey, data } => {
-                RoutingContextResponseOp::SetDhtValue {
-                    result: to_json_api_result(
-                        routing_context.set_dht_value(key, subkey, data).await,
-                    ),
-                }
-            }
+            RoutingContextRequestOp::SetDhtValue {
+                key,
+                subkey,
+                data,
+                writer,
+            } => RoutingContextResponseOp::SetDhtValue {
+                result: to_json_api_result(
+                    routing_context
+                        .set_dht_value(key, subkey, data, writer)
+                        .await,
+                ),
+            },
             RoutingContextRequestOp::WatchDhtValues {
                 key,
                 subkeys,

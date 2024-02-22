@@ -451,6 +451,12 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
+            },
+            "writer": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         },

@@ -308,11 +308,6 @@ impl StorageManagerInner {
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<Option<DHTRecordDescriptor>> {
-        // Ensure the record is closed
-        if self.opened_records.contains_key(&key) {
-            apibail_generic!("record is already open and should be closed first");
-        }
-
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();

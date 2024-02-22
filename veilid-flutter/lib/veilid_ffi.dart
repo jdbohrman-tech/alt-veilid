@@ -81,9 +81,9 @@ typedef _RoutingContextDeleteDHTRecordDart = void Function(
 typedef _RoutingContextGetDHTValueDart = void Function(
     int, int, Pointer<Utf8>, int, bool);
 // fn routing_context_set_dht_value(port: i64,
-//    id: u32, key: FfiStr, subkey: u32, data: FfiStr)
+//    id: u32, key: FfiStr, subkey: u32, data: FfiStr, writer: FfiStr)
 typedef _RoutingContextSetDHTValueDart = void Function(
-    int, int, Pointer<Utf8>, int, Pointer<Utf8>);
+    int, int, Pointer<Utf8>, int, Pointer<Utf8>, Pointer<Utf8>);
 // fn routing_context_watch_dht_values(port: i64,
 //     id: u32, key: FfiStr, subkeys: FfiStr, expiration: FfiStr, count: u32)
 typedef _RoutingContextWatchDHTValuesDart = void Function(
@@ -603,8 +603,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  Future<DHTRecordDescriptor> openDHTRecord(
-      TypedKey key, KeyPair? writer) async {
+  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key,
+      {KeyPair? writer}) async {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeWriter =
@@ -641,8 +641,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> getDHTValue(
-      TypedKey key, int subkey, bool forceRefresh) async {
+  Future<ValueData?> getDHTValue(TypedKey key, int subkey,
+      {bool forceRefresh = false}) async {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final recvPort = ReceivePort('routing_context_get_dht_value');
@@ -655,16 +655,18 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> setDHTValue(
-      TypedKey key, int subkey, Uint8List data) async {
+  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data,
+      {KeyPair? writer}) async {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeWriter =
+        writer != null ? jsonEncode(writer).toNativeUtf8() : nullptr;
 
     final recvPort = ReceivePort('routing_context_set_dht_value');
     final sendPort = recvPort.sendPort;
-    _ctx.ffi._routingContextSetDHTValue(
-        sendPort.nativePort, _ctx.id!, nativeKey, subkey, nativeData);
+    _ctx.ffi._routingContextSetDHTValue(sendPort.nativePort, _ctx.id!,
+        nativeKey, subkey, nativeData, nativeWriter);
     final valueData =
         await processFutureOptJson(ValueData.fromJson, recvPort.first);
     return valueData;
@@ -1236,7 +1238,8 @@ class VeilidFFI extends Veilid {
             Void Function(Int64, Uint32, Pointer<Utf8>, Uint32, Bool),
             _RoutingContextGetDHTValueDart>('routing_context_get_dht_value'),
         _routingContextSetDHTValue = dylib.lookupFunction<
-            Void Function(Int64, Uint32, Pointer<Utf8>, Uint32, Pointer<Utf8>),
+            Void Function(Int64, Uint32, Pointer<Utf8>, Uint32, Pointer<Utf8>,
+                Pointer<Utf8>),
             _RoutingContextSetDHTValueDart>('routing_context_set_dht_value'),
         _routingContextWatchDHTValues = dylib.lookupFunction<
                 Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>,

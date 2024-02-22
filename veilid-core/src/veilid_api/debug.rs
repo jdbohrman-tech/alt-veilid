@@ -1517,9 +1517,14 @@ impl VeilidAPI {
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_set", "key", 1)?;
         let subkey = get_debug_argument_at(&args, 2, "debug_record_set", "subkey", get_number)?;
         let data = get_debug_argument_at(&args, 3, "debug_record_set", "data", get_data)?;
+        let writer =
+            get_debug_argument_at(&args, 4, "debug_record_set", "writer", get_keypair).ok();
 
         // Do a record set
-        let value = match rc.set_dht_value(key, subkey as ValueSubkey, data).await {
+        let value = match rc
+            .set_dht_value(key, subkey as ValueSubkey, data, writer)
+            .await
+        {
             Err(e) => {
                 return Ok(format!("Can't set DHT value: {}", e));
             }
