@@ -354,7 +354,12 @@ impl StorageManagerInner {
 
         // Write open record
         self.opened_records
-            .insert(key, OpenedRecord::new(writer, safety_selection));
+            .entry(key)
+            .and_modify(|e| {
+                e.set_writer(writer);
+                e.set_safety_selection(safety_selection);
+            })
+            .or_insert_with(|| OpenedRecord::new(writer, safety_selection));
 
         // Make DHT Record Descriptor to return
         let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
