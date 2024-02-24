@@ -66,18 +66,6 @@ Map<String, dynamic> _$$_DHTRecordDescriptorToJson(
       'owner_secret': instance.ownerSecret?.toJson(),
     };
 
-_$_ValueSubkeyRange _$$_ValueSubkeyRangeFromJson(Map<String, dynamic> json) =>
-    _$_ValueSubkeyRange(
-      low: json['low'] as int,
-      high: json['high'] as int,
-    );
-
-Map<String, dynamic> _$$_ValueSubkeyRangeToJson(_$_ValueSubkeyRange instance) =>
-    <String, dynamic>{
-      'low': instance.low,
-      'high': instance.high,
-    };
-
 _$_ValueData _$$_ValueDataFromJson(Map<String, dynamic> json) => _$_ValueData(
       seq: json['seq'] as int,
       data: const Uint8ListJsonConverter.jsIsArray().fromJson(json['data']),

@@ -18,6 +18,7 @@ import 'veilid_table_db.dart';
 
 export 'default_config.dart';
 export 'routing_context.dart';
+export 'value_subkey_range.dart';
 export 'veilid.dart';
 export 'veilid_api_exception.dart';
 export 'veilid_config.dart';
