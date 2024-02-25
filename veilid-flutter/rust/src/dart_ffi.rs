@@ -153,23 +153,23 @@ pub extern "C" fn initialize_veilid_flutter(dart_post_c_object_ptr: ffi::DartPos
             } else {
                 ("<unknown>", 0)
             };
-            error!("### Rust `panic!` hit at file '{}', line {}", file, line);
+            eprintln!("### Rust `panic!` hit at file '{}', line {}", file, line);
             if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-                error!("panic payload: {:?}", s);
+                eprintln!("panic payload: {:?}", s);
             } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-                error!("panic payload: {:?}", s);
+                eprintln!("panic payload: {:?}", s);
             } else if let Some(a) = panic_info.payload().downcast_ref::<std::fmt::Arguments>() {
-                error!("panic payload: {:?}", a);
+                eprintln!("panic payload: {:?}", a);
             } else {
-                error!("no panic payload");
+                eprintln!("no panic payload");
             }
-            error!(
+            eprintln!(
                 "  Complete stack trace:\n{:?}\n",
                 backtrace::Backtrace::new()
             );
 
             // And stop the process, no recovery is going to be possible here
-            error!("aborting!");
+            eprintln!("aborting!");
             std::process::abort();
         }));
     });

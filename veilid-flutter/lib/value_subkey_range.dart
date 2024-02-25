@@ -1,17 +1,14 @@
 import 'dart:math';
 
+import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-part 'value_subkey_range.freezed.dart';
-part 'value_subkey_range.g.dart';
-
-@freezed
-class ValueSubkeyRange with _$ValueSubkeyRange {
-  @Assert('low >= 0 && low <= high', 'range is invalid')
-  const factory ValueSubkeyRange({
-    required int low,
-    required int high,
-  }) = _ValueSubkeyRange;
+@immutable
+class ValueSubkeyRange extends Equatable {
+  const ValueSubkeyRange({
+    required this.low,
+    required this.high,
+  }) : assert(low >= 0 && low <= high, 'range is invalid');
 
   factory ValueSubkeyRange.single(int val) =>
       ValueSubkeyRange(low: val, high: val);
@@ -19,9 +16,20 @@ class ValueSubkeyRange with _$ValueSubkeyRange {
       ValueSubkeyRange(low: low, high: high);
   factory ValueSubkeyRange.fromIntPair((int, int) pair) =>
       ValueSubkeyRange(low: pair.$1, high: pair.$2);
-
+  factory ValueSubkeyRange.fromIntList(List<int> intlist) {
+    assert(intlist.length == 2, 'range must be a two item list');
+    return ValueSubkeyRange(low: intlist[0], high: intlist[1]);
+  }
   factory ValueSubkeyRange.fromJson(dynamic json) =>
-      _$ValueSubkeyRangeFromJson(json as Map<String, dynamic>);
+      ValueSubkeyRange.fromIntList(json as List<int>);
+
+  List<int> toJson() => <int>[low, high];
+
+  @override
+  List<Object> get props => [low, high];
+
+  final int low;
+  final int high;
 }
 
 extension ValueSubkeyRangeExt on ValueSubkeyRange {
