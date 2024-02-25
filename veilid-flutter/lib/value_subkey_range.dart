@@ -15,6 +15,10 @@ class ValueSubkeyRange with _$ValueSubkeyRange {
 
   factory ValueSubkeyRange.single(int val) =>
       ValueSubkeyRange(low: val, high: val);
+  factory ValueSubkeyRange.make(int low, int high) =>
+      ValueSubkeyRange(low: low, high: high);
+  factory ValueSubkeyRange.fromIntPair((int, int) pair) =>
+      ValueSubkeyRange(low: pair.$1, high: pair.$2);
 
   factory ValueSubkeyRange.fromJson(dynamic json) =>
       _$ValueSubkeyRangeFromJson(json as Map<String, dynamic>);
@@ -49,9 +53,20 @@ extension ValueSubkeyRangeExt on ValueSubkeyRange {
     return ValueSubkeyRange(
         low: max(low, other.low), high: min(high, other.high));
   }
+
+  ValueSubkeyRange? union(ValueSubkeyRange other) {
+    if (high < (other.low - 1) || low > (other.high + 1)) {
+      return null;
+    }
+    return ValueSubkeyRange(
+        low: min(low, other.low), high: max(high, other.high));
+  }
 }
 
 extension ListValueSubkeyRangeExt on List<ValueSubkeyRange> {
+  static List<ValueSubkeyRange> fromIntPairs(List<(int, int)> x) =>
+      x.map(ValueSubkeyRange.fromIntPair).toList();
+
   void validate() {
     int? lastHigh;
     for (final r in this) {
@@ -103,6 +118,34 @@ extension ListValueSubkeyRangeExt on List<ValueSubkeyRange> {
       } else {
         // Iterate other because this could still have some overlaps
         j++;
+      }
+    }
+    return out;
+  }
+
+  List<ValueSubkeyRange> unionSubkeys(List<ValueSubkeyRange> other) {
+    final out = <ValueSubkeyRange>[];
+    ValueSubkeyRange? current;
+    for (var i = 0, j = 0; i < length || j < other.length;) {
+      if (i == length) {
+        current = other[j];
+        j++;
+      } else if (j == other.length) {
+        current = this[i];
+        i++;
+      } else if (this[i].low < other[j].low) {
+        current = this[i];
+        i++;
+      } else {
+        current = other[j];
+        j++;
+      }
+
+      if (out.isNotEmpty && out.last.high >= (current.low - 1)) {
+        out[out.length - 1] = ValueSubkeyRange(
+            low: out.last.low, high: max(out.last.high, current.high));
+      } else {
+        out.add(current);
       }
     }
     return out;
