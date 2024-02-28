@@ -1352,7 +1352,7 @@ mixin _$VeilidUpdate {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) =>
       throw _privateConstructorUsedError;
@@ -1377,7 +1377,7 @@ mixin _$VeilidUpdate {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) =>
       throw _privateConstructorUsedError;
@@ -1402,7 +1402,7 @@ mixin _$VeilidUpdate {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) =>
@@ -1579,7 +1579,7 @@ class _$VeilidLog implements VeilidLog {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
     return log(logLevel, message, backtrace);
@@ -1607,7 +1607,7 @@ class _$VeilidLog implements VeilidLog {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
     return log?.call(logLevel, message, backtrace);
@@ -1635,7 +1635,7 @@ class _$VeilidLog implements VeilidLog {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
@@ -1825,7 +1825,7 @@ class _$VeilidAppMessage implements VeilidAppMessage {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
     return appMessage(message, sender);
@@ -1853,7 +1853,7 @@ class _$VeilidAppMessage implements VeilidAppMessage {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
     return appMessage?.call(message, sender);
@@ -1881,7 +1881,7 @@ class _$VeilidAppMessage implements VeilidAppMessage {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
@@ -2081,7 +2081,7 @@ class _$VeilidAppCall implements VeilidAppCall {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
     return appCall(message, callId, sender);
@@ -2109,7 +2109,7 @@ class _$VeilidAppCall implements VeilidAppCall {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
     return appCall?.call(message, callId, sender);
@@ -2137,7 +2137,7 @@ class _$VeilidAppCall implements VeilidAppCall {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
@@ -2341,7 +2341,7 @@ class _$VeilidUpdateAttachment implements VeilidUpdateAttachment {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
     return attachment(state, publicInternetReady, localNetworkReady);
@@ -2369,7 +2369,7 @@ class _$VeilidUpdateAttachment implements VeilidUpdateAttachment {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
     return attachment?.call(state, publicInternetReady, localNetworkReady);
@@ -2397,7 +2397,7 @@ class _$VeilidUpdateAttachment implements VeilidUpdateAttachment {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
@@ -2611,7 +2611,7 @@ class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
     return network(started, bpsDown, bpsUp, peers);
@@ -2639,7 +2639,7 @@ class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
     return network?.call(started, bpsDown, bpsUp, peers);
@@ -2667,7 +2667,7 @@ class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
@@ -2856,7 +2856,7 @@ class _$VeilidUpdateConfig implements VeilidUpdateConfig {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
     return config(this.config);
@@ -2884,7 +2884,7 @@ class _$VeilidUpdateConfig implements VeilidUpdateConfig {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
     return config?.call(this.config);
@@ -2912,7 +2912,7 @@ class _$VeilidUpdateConfig implements VeilidUpdateConfig {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
@@ -3115,7 +3115,7 @@ class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
     return routeChange(deadRoutes, deadRemoteRoutes);
@@ -3143,7 +3143,7 @@ class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
     return routeChange?.call(deadRoutes, deadRemoteRoutes);
@@ -3171,7 +3171,7 @@ class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
@@ -3264,9 +3264,9 @@ abstract class _$$VeilidUpdateValueChangeCopyWith<$Res> {
       {Typed<FixedEncodedString43> key,
       List<ValueSubkeyRange> subkeys,
       int count,
-      ValueData valueData});
+      ValueData value});
 
-  $ValueDataCopyWith<$Res> get valueData;
+  $ValueDataCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -3283,7 +3283,7 @@ class __$$VeilidUpdateValueChangeCopyWithImpl<$Res>
     Object? key = null,
     Object? subkeys = null,
     Object? count = null,
-    Object? valueData = null,
+    Object? value = null,
   }) {
     return _then(_$VeilidUpdateValueChange(
       key: null == key
@@ -3298,18 +3298,18 @@ class __$$VeilidUpdateValueChangeCopyWithImpl<$Res>
           ? _value.count
           : count // ignore: cast_nullable_to_non_nullable
               as int,
-      valueData: null == valueData
-          ? _value.valueData
-          : valueData // ignore: cast_nullable_to_non_nullable
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
               as ValueData,
     ));
   }
 
   @override
   @pragma('vm:prefer-inline')
-  $ValueDataCopyWith<$Res> get valueData {
-    return $ValueDataCopyWith<$Res>(_value.valueData, (value) {
-      return _then(_value.copyWith(valueData: value));
+  $ValueDataCopyWith<$Res> get value {
+    return $ValueDataCopyWith<$Res>(_value.value, (value) {
+      return _then(_value.copyWith(value: value));
     });
   }
 }
@@ -3321,7 +3321,7 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
       {required this.key,
       required final List<ValueSubkeyRange> subkeys,
       required this.count,
-      required this.valueData,
+      required this.value,
       final String? $type})
       : _subkeys = subkeys,
         $type = $type ?? 'ValueChange';
@@ -3342,14 +3342,14 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
   @override
   final int count;
   @override
-  final ValueData valueData;
+  final ValueData value;
 
   @JsonKey(name: 'kind')
   final String $type;
 
   @override
   String toString() {
-    return 'VeilidUpdate.valueChange(key: $key, subkeys: $subkeys, count: $count, valueData: $valueData)';
+    return 'VeilidUpdate.valueChange(key: $key, subkeys: $subkeys, count: $count, value: $value)';
   }
 
   @override
@@ -3360,14 +3360,13 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
             (identical(other.key, key) || other.key == key) &&
             const DeepCollectionEquality().equals(other._subkeys, _subkeys) &&
             (identical(other.count, count) || other.count == count) &&
-            (identical(other.valueData, valueData) ||
-                other.valueData == valueData));
+            (identical(other.value, value) || other.value == value));
   }
 
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, key,
-      const DeepCollectionEquality().hash(_subkeys), count, valueData);
+      const DeepCollectionEquality().hash(_subkeys), count, value);
 
   @JsonKey(ignore: true)
   @override
@@ -3399,10 +3398,10 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
             List<String> deadRoutes, List<String> deadRemoteRoutes)
         routeChange,
     required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
-    return valueChange(key, subkeys, count, valueData);
+    return valueChange(key, subkeys, count, value);
   }
 
   @override
@@ -3427,10 +3426,10 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
     TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
-    return valueChange?.call(key, subkeys, count, valueData);
+    return valueChange?.call(key, subkeys, count, value);
   }
 
   @override
@@ -3455,12 +3454,12 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
     TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
         routeChange,
     TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData valueData)?
+            List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
     required TResult orElse(),
   }) {
     if (valueChange != null) {
-      return valueChange(key, subkeys, count, valueData);
+      return valueChange(key, subkeys, count, value);
     }
     return orElse();
   }
@@ -3527,7 +3526,7 @@ abstract class VeilidUpdateValueChange implements VeilidUpdate {
       {required final Typed<FixedEncodedString43> key,
       required final List<ValueSubkeyRange> subkeys,
       required final int count,
-      required final ValueData valueData}) = _$VeilidUpdateValueChange;
+      required final ValueData value}) = _$VeilidUpdateValueChange;
 
   factory VeilidUpdateValueChange.fromJson(Map<String, dynamic> json) =
       _$VeilidUpdateValueChange.fromJson;
@@ -3535,7 +3534,7 @@ abstract class VeilidUpdateValueChange implements VeilidUpdate {
   Typed<FixedEncodedString43> get key;
   List<ValueSubkeyRange> get subkeys;
   int get count;
-  ValueData get valueData;
+  ValueData get value;
   @JsonKey(ignore: true)
   _$$VeilidUpdateValueChangeCopyWith<_$VeilidUpdateValueChange> get copyWith =>
       throw _privateConstructorUsedError;
