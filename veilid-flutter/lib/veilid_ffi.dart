@@ -1630,7 +1630,7 @@ class VeilidFFI extends Veilid {
     final vckString = _validCryptoKinds();
     final vck = jsonDecode(vckString.toDartString()) as List<dynamic>;
     _freeString(vckString);
-    return vck.map((v) => v as CryptoKind).toList();
+    return vck.cast<CryptoKind>();
   }
 
   @override

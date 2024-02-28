@@ -597,7 +597,7 @@ class VeilidJS extends Veilid {
   List<CryptoKind> validCryptoKinds() {
     final vck = jsonDecode(js_util.callMethod(wasm, 'valid_crypto_kinds', []))
         as List<dynamic>;
-    return vck.map((v) => v as CryptoKind).toList();
+    return vck.cast<CryptoKind>();
   }
 
   @override

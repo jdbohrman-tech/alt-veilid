@@ -43,7 +43,7 @@ Object? veilidApiToEncodable(Object? value) {
 
 List<T> Function(dynamic) jsonListConstructor<T>(
         T Function(dynamic) jsonConstructor) =>
-    (dynamic j) => (j as List<dynamic>).map((e) => jsonConstructor(e)).toList();
+    (dynamic j) => (j as List<dynamic>).map(jsonConstructor).toList();
 
 //////////////////////////////////////
 /// VeilidVersion

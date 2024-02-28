@@ -21,7 +21,7 @@ class ValueSubkeyRange extends Equatable {
     return ValueSubkeyRange(low: intlist[0], high: intlist[1]);
   }
   factory ValueSubkeyRange.fromJson(dynamic json) =>
-      ValueSubkeyRange.fromIntList(json as List<int>);
+      ValueSubkeyRange.fromIntList((json as List<dynamic>).cast<int>());
 
   List<int> toJson() => <int>[low, high];
 
