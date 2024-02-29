@@ -898,6 +898,12 @@ where
                 for (wn, w) in watch.watchers.iter_mut().enumerate() {
                     // Get the subkeys that have changed
                     let subkeys = w.changed.clone();
+
+                    // If no subkeys on this watcher have changed then skip it
+                    if subkeys.is_empty() {
+                        continue;
+                    }
+
                     w.changed.clear();
 
                     // Reduce the count of changes sent
