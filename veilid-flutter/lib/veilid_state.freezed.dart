@@ -12,7 +12,7 @@ part of 'veilid_state.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 LatencyStats _$LatencyStatsFromJson(Map<String, dynamic> json) {
   return _LatencyStats.fromJson(json);
@@ -77,11 +77,11 @@ class _$LatencyStatsCopyWithImpl<$Res, $Val extends LatencyStats>
 }
 
 /// @nodoc
-abstract class _$$_LatencyStatsCopyWith<$Res>
+abstract class _$$LatencyStatsImplCopyWith<$Res>
     implements $LatencyStatsCopyWith<$Res> {
-  factory _$$_LatencyStatsCopyWith(
-          _$_LatencyStats value, $Res Function(_$_LatencyStats) then) =
-      __$$_LatencyStatsCopyWithImpl<$Res>;
+  factory _$$LatencyStatsImplCopyWith(
+          _$LatencyStatsImpl value, $Res Function(_$LatencyStatsImpl) then) =
+      __$$LatencyStatsImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -91,11 +91,11 @@ abstract class _$$_LatencyStatsCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$_LatencyStatsCopyWithImpl<$Res>
-    extends _$LatencyStatsCopyWithImpl<$Res, _$_LatencyStats>
-    implements _$$_LatencyStatsCopyWith<$Res> {
-  __$$_LatencyStatsCopyWithImpl(
-      _$_LatencyStats _value, $Res Function(_$_LatencyStats) _then)
+class __$$LatencyStatsImplCopyWithImpl<$Res>
+    extends _$LatencyStatsCopyWithImpl<$Res, _$LatencyStatsImpl>
+    implements _$$LatencyStatsImplCopyWith<$Res> {
+  __$$LatencyStatsImplCopyWithImpl(
+      _$LatencyStatsImpl _value, $Res Function(_$LatencyStatsImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -105,7 +105,7 @@ class __$$_LatencyStatsCopyWithImpl<$Res>
     Object? average = null,
     Object? slowest = null,
   }) {
-    return _then(_$_LatencyStats(
+    return _then(_$LatencyStatsImpl(
       fastest: null == fastest
           ? _value.fastest
           : fastest // ignore: cast_nullable_to_non_nullable
@@ -124,12 +124,12 @@ class __$$_LatencyStatsCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_LatencyStats implements _LatencyStats {
-  const _$_LatencyStats(
+class _$LatencyStatsImpl implements _LatencyStats {
+  const _$LatencyStatsImpl(
       {required this.fastest, required this.average, required this.slowest});
 
-  factory _$_LatencyStats.fromJson(Map<String, dynamic> json) =>
-      _$$_LatencyStatsFromJson(json);
+  factory _$LatencyStatsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$LatencyStatsImplFromJson(json);
 
   @override
   final TimestampDuration fastest;
@@ -144,10 +144,10 @@ class _$_LatencyStats implements _LatencyStats {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_LatencyStats &&
+            other is _$LatencyStatsImpl &&
             (identical(other.fastest, fastest) || other.fastest == fastest) &&
             (identical(other.average, average) || other.average == average) &&
             (identical(other.slowest, slowest) || other.slowest == slowest));
@@ -160,12 +160,12 @@ class _$_LatencyStats implements _LatencyStats {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_LatencyStatsCopyWith<_$_LatencyStats> get copyWith =>
-      __$$_LatencyStatsCopyWithImpl<_$_LatencyStats>(this, _$identity);
+  _$$LatencyStatsImplCopyWith<_$LatencyStatsImpl> get copyWith =>
+      __$$LatencyStatsImplCopyWithImpl<_$LatencyStatsImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_LatencyStatsToJson(
+    return _$$LatencyStatsImplToJson(
       this,
     );
   }
@@ -175,10 +175,10 @@ abstract class _LatencyStats implements LatencyStats {
   const factory _LatencyStats(
       {required final TimestampDuration fastest,
       required final TimestampDuration average,
-      required final TimestampDuration slowest}) = _$_LatencyStats;
+      required final TimestampDuration slowest}) = _$LatencyStatsImpl;
 
   factory _LatencyStats.fromJson(Map<String, dynamic> json) =
-      _$_LatencyStats.fromJson;
+      _$LatencyStatsImpl.fromJson;
 
   @override
   TimestampDuration get fastest;
@@ -188,7 +188,7 @@ abstract class _LatencyStats implements LatencyStats {
   TimestampDuration get slowest;
   @override
   @JsonKey(ignore: true)
-  _$$_LatencyStatsCopyWith<_$_LatencyStats> get copyWith =>
+  _$$LatencyStatsImplCopyWith<_$LatencyStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -258,22 +258,22 @@ class _$TransferStatsCopyWithImpl<$Res, $Val extends TransferStats>
 }
 
 /// @nodoc
-abstract class _$$_TransferStatsCopyWith<$Res>
+abstract class _$$TransferStatsImplCopyWith<$Res>
     implements $TransferStatsCopyWith<$Res> {
-  factory _$$_TransferStatsCopyWith(
-          _$_TransferStats value, $Res Function(_$_TransferStats) then) =
-      __$$_TransferStatsCopyWithImpl<$Res>;
+  factory _$$TransferStatsImplCopyWith(
+          _$TransferStatsImpl value, $Res Function(_$TransferStatsImpl) then) =
+      __$$TransferStatsImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({BigInt total, BigInt maximum, BigInt average, BigInt minimum});
 }
 
 /// @nodoc
-class __$$_TransferStatsCopyWithImpl<$Res>
-    extends _$TransferStatsCopyWithImpl<$Res, _$_TransferStats>
-    implements _$$_TransferStatsCopyWith<$Res> {
-  __$$_TransferStatsCopyWithImpl(
-      _$_TransferStats _value, $Res Function(_$_TransferStats) _then)
+class __$$TransferStatsImplCopyWithImpl<$Res>
+    extends _$TransferStatsCopyWithImpl<$Res, _$TransferStatsImpl>
+    implements _$$TransferStatsImplCopyWith<$Res> {
+  __$$TransferStatsImplCopyWithImpl(
+      _$TransferStatsImpl _value, $Res Function(_$TransferStatsImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -284,7 +284,7 @@ class __$$_TransferStatsCopyWithImpl<$Res>
     Object? average = null,
     Object? minimum = null,
   }) {
-    return _then(_$_TransferStats(
+    return _then(_$TransferStatsImpl(
       total: null == total
           ? _value.total
           : total // ignore: cast_nullable_to_non_nullable
@@ -307,15 +307,15 @@ class __$$_TransferStatsCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_TransferStats implements _TransferStats {
-  const _$_TransferStats(
+class _$TransferStatsImpl implements _TransferStats {
+  const _$TransferStatsImpl(
       {required this.total,
       required this.maximum,
       required this.average,
       required this.minimum});
 
-  factory _$_TransferStats.fromJson(Map<String, dynamic> json) =>
-      _$$_TransferStatsFromJson(json);
+  factory _$TransferStatsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$TransferStatsImplFromJson(json);
 
   @override
   final BigInt total;
@@ -332,10 +332,10 @@ class _$_TransferStats implements _TransferStats {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_TransferStats &&
+            other is _$TransferStatsImpl &&
             (identical(other.total, total) || other.total == total) &&
             (identical(other.maximum, maximum) || other.maximum == maximum) &&
             (identical(other.average, average) || other.average == average) &&
@@ -350,12 +350,12 @@ class _$_TransferStats implements _TransferStats {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_TransferStatsCopyWith<_$_TransferStats> get copyWith =>
-      __$$_TransferStatsCopyWithImpl<_$_TransferStats>(this, _$identity);
+  _$$TransferStatsImplCopyWith<_$TransferStatsImpl> get copyWith =>
+      __$$TransferStatsImplCopyWithImpl<_$TransferStatsImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_TransferStatsToJson(
+    return _$$TransferStatsImplToJson(
       this,
     );
   }
@@ -366,10 +366,10 @@ abstract class _TransferStats implements TransferStats {
       {required final BigInt total,
       required final BigInt maximum,
       required final BigInt average,
-      required final BigInt minimum}) = _$_TransferStats;
+      required final BigInt minimum}) = _$TransferStatsImpl;
 
   factory _TransferStats.fromJson(Map<String, dynamic> json) =
-      _$_TransferStats.fromJson;
+      _$TransferStatsImpl.fromJson;
 
   @override
   BigInt get total;
@@ -381,7 +381,7 @@ abstract class _TransferStats implements TransferStats {
   BigInt get minimum;
   @override
   @JsonKey(ignore: true)
-  _$$_TransferStatsCopyWith<_$_TransferStats> get copyWith =>
+  _$$TransferStatsImplCopyWith<_$TransferStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -458,11 +458,11 @@ class _$TransferStatsDownUpCopyWithImpl<$Res, $Val extends TransferStatsDownUp>
 }
 
 /// @nodoc
-abstract class _$$_TransferStatsDownUpCopyWith<$Res>
+abstract class _$$TransferStatsDownUpImplCopyWith<$Res>
     implements $TransferStatsDownUpCopyWith<$Res> {
-  factory _$$_TransferStatsDownUpCopyWith(_$_TransferStatsDownUp value,
-          $Res Function(_$_TransferStatsDownUp) then) =
-      __$$_TransferStatsDownUpCopyWithImpl<$Res>;
+  factory _$$TransferStatsDownUpImplCopyWith(_$TransferStatsDownUpImpl value,
+          $Res Function(_$TransferStatsDownUpImpl) then) =
+      __$$TransferStatsDownUpImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({TransferStats down, TransferStats up});
@@ -474,11 +474,11 @@ abstract class _$$_TransferStatsDownUpCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$_TransferStatsDownUpCopyWithImpl<$Res>
-    extends _$TransferStatsDownUpCopyWithImpl<$Res, _$_TransferStatsDownUp>
-    implements _$$_TransferStatsDownUpCopyWith<$Res> {
-  __$$_TransferStatsDownUpCopyWithImpl(_$_TransferStatsDownUp _value,
-      $Res Function(_$_TransferStatsDownUp) _then)
+class __$$TransferStatsDownUpImplCopyWithImpl<$Res>
+    extends _$TransferStatsDownUpCopyWithImpl<$Res, _$TransferStatsDownUpImpl>
+    implements _$$TransferStatsDownUpImplCopyWith<$Res> {
+  __$$TransferStatsDownUpImplCopyWithImpl(_$TransferStatsDownUpImpl _value,
+      $Res Function(_$TransferStatsDownUpImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -487,7 +487,7 @@ class __$$_TransferStatsDownUpCopyWithImpl<$Res>
     Object? down = null,
     Object? up = null,
   }) {
-    return _then(_$_TransferStatsDownUp(
+    return _then(_$TransferStatsDownUpImpl(
       down: null == down
           ? _value.down
           : down // ignore: cast_nullable_to_non_nullable
@@ -502,11 +502,11 @@ class __$$_TransferStatsDownUpCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_TransferStatsDownUp implements _TransferStatsDownUp {
-  const _$_TransferStatsDownUp({required this.down, required this.up});
+class _$TransferStatsDownUpImpl implements _TransferStatsDownUp {
+  const _$TransferStatsDownUpImpl({required this.down, required this.up});
 
-  factory _$_TransferStatsDownUp.fromJson(Map<String, dynamic> json) =>
-      _$$_TransferStatsDownUpFromJson(json);
+  factory _$TransferStatsDownUpImpl.fromJson(Map<String, dynamic> json) =>
+      _$$TransferStatsDownUpImplFromJson(json);
 
   @override
   final TransferStats down;
@@ -519,10 +519,10 @@ class _$_TransferStatsDownUp implements _TransferStatsDownUp {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_TransferStatsDownUp &&
+            other is _$TransferStatsDownUpImpl &&
             (identical(other.down, down) || other.down == down) &&
             (identical(other.up, up) || other.up == up));
   }
@@ -534,13 +534,13 @@ class _$_TransferStatsDownUp implements _TransferStatsDownUp {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_TransferStatsDownUpCopyWith<_$_TransferStatsDownUp> get copyWith =>
-      __$$_TransferStatsDownUpCopyWithImpl<_$_TransferStatsDownUp>(
+  _$$TransferStatsDownUpImplCopyWith<_$TransferStatsDownUpImpl> get copyWith =>
+      __$$TransferStatsDownUpImplCopyWithImpl<_$TransferStatsDownUpImpl>(
           this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_TransferStatsDownUpToJson(
+    return _$$TransferStatsDownUpImplToJson(
       this,
     );
   }
@@ -549,10 +549,10 @@ class _$_TransferStatsDownUp implements _TransferStatsDownUp {
 abstract class _TransferStatsDownUp implements TransferStatsDownUp {
   const factory _TransferStatsDownUp(
       {required final TransferStats down,
-      required final TransferStats up}) = _$_TransferStatsDownUp;
+      required final TransferStats up}) = _$TransferStatsDownUpImpl;
 
   factory _TransferStatsDownUp.fromJson(Map<String, dynamic> json) =
-      _$_TransferStatsDownUp.fromJson;
+      _$TransferStatsDownUpImpl.fromJson;
 
   @override
   TransferStats get down;
@@ -560,7 +560,7 @@ abstract class _TransferStatsDownUp implements TransferStatsDownUp {
   TransferStats get up;
   @override
   @JsonKey(ignore: true)
-  _$$_TransferStatsDownUpCopyWith<_$_TransferStatsDownUp> get copyWith =>
+  _$$TransferStatsDownUpImplCopyWith<_$TransferStatsDownUpImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -661,10 +661,11 @@ class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
 }
 
 /// @nodoc
-abstract class _$$_RPCStatsCopyWith<$Res> implements $RPCStatsCopyWith<$Res> {
-  factory _$$_RPCStatsCopyWith(
-          _$_RPCStats value, $Res Function(_$_RPCStats) then) =
-      __$$_RPCStatsCopyWithImpl<$Res>;
+abstract class _$$RPCStatsImplCopyWith<$Res>
+    implements $RPCStatsCopyWith<$Res> {
+  factory _$$RPCStatsImplCopyWith(
+          _$RPCStatsImpl value, $Res Function(_$RPCStatsImpl) then) =
+      __$$RPCStatsImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -679,11 +680,11 @@ abstract class _$$_RPCStatsCopyWith<$Res> implements $RPCStatsCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$_RPCStatsCopyWithImpl<$Res>
-    extends _$RPCStatsCopyWithImpl<$Res, _$_RPCStats>
-    implements _$$_RPCStatsCopyWith<$Res> {
-  __$$_RPCStatsCopyWithImpl(
-      _$_RPCStats _value, $Res Function(_$_RPCStats) _then)
+class __$$RPCStatsImplCopyWithImpl<$Res>
+    extends _$RPCStatsCopyWithImpl<$Res, _$RPCStatsImpl>
+    implements _$$RPCStatsImplCopyWith<$Res> {
+  __$$RPCStatsImplCopyWithImpl(
+      _$RPCStatsImpl _value, $Res Function(_$RPCStatsImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -698,7 +699,7 @@ class __$$_RPCStatsCopyWithImpl<$Res>
     Object? recentLostAnswers = null,
     Object? failedToSend = null,
   }) {
-    return _then(_$_RPCStats(
+    return _then(_$RPCStatsImpl(
       messagesSent: null == messagesSent
           ? _value.messagesSent
           : messagesSent // ignore: cast_nullable_to_non_nullable
@@ -737,8 +738,8 @@ class __$$_RPCStatsCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_RPCStats implements _RPCStats {
-  const _$_RPCStats(
+class _$RPCStatsImpl implements _RPCStats {
+  const _$RPCStatsImpl(
       {required this.messagesSent,
       required this.messagesRcvd,
       required this.questionsInFlight,
@@ -748,8 +749,8 @@ class _$_RPCStats implements _RPCStats {
       required this.recentLostAnswers,
       required this.failedToSend});
 
-  factory _$_RPCStats.fromJson(Map<String, dynamic> json) =>
-      _$$_RPCStatsFromJson(json);
+  factory _$RPCStatsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$RPCStatsImplFromJson(json);
 
   @override
   final int messagesSent;
@@ -774,10 +775,10 @@ class _$_RPCStats implements _RPCStats {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_RPCStats &&
+            other is _$RPCStatsImpl &&
             (identical(other.messagesSent, messagesSent) ||
                 other.messagesSent == messagesSent) &&
             (identical(other.messagesRcvd, messagesRcvd) ||
@@ -812,12 +813,12 @@ class _$_RPCStats implements _RPCStats {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_RPCStatsCopyWith<_$_RPCStats> get copyWith =>
-      __$$_RPCStatsCopyWithImpl<_$_RPCStats>(this, _$identity);
+  _$$RPCStatsImplCopyWith<_$RPCStatsImpl> get copyWith =>
+      __$$RPCStatsImplCopyWithImpl<_$RPCStatsImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_RPCStatsToJson(
+    return _$$RPCStatsImplToJson(
       this,
     );
   }
@@ -832,9 +833,10 @@ abstract class _RPCStats implements RPCStats {
       required final Timestamp? lastSeenTs,
       required final Timestamp? firstConsecutiveSeenTs,
       required final int recentLostAnswers,
-      required final int failedToSend}) = _$_RPCStats;
+      required final int failedToSend}) = _$RPCStatsImpl;
 
-  factory _RPCStats.fromJson(Map<String, dynamic> json) = _$_RPCStats.fromJson;
+  factory _RPCStats.fromJson(Map<String, dynamic> json) =
+      _$RPCStatsImpl.fromJson;
 
   @override
   int get messagesSent;
@@ -854,7 +856,7 @@ abstract class _RPCStats implements RPCStats {
   int get failedToSend;
   @override
   @JsonKey(ignore: true)
-  _$$_RPCStatsCopyWith<_$_RPCStats> get copyWith =>
+  _$$RPCStatsImplCopyWith<_$RPCStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -959,10 +961,11 @@ class _$PeerStatsCopyWithImpl<$Res, $Val extends PeerStats>
 }
 
 /// @nodoc
-abstract class _$$_PeerStatsCopyWith<$Res> implements $PeerStatsCopyWith<$Res> {
-  factory _$$_PeerStatsCopyWith(
-          _$_PeerStats value, $Res Function(_$_PeerStats) then) =
-      __$$_PeerStatsCopyWithImpl<$Res>;
+abstract class _$$PeerStatsImplCopyWith<$Res>
+    implements $PeerStatsCopyWith<$Res> {
+  factory _$$PeerStatsImplCopyWith(
+          _$PeerStatsImpl value, $Res Function(_$PeerStatsImpl) then) =
+      __$$PeerStatsImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -980,11 +983,11 @@ abstract class _$$_PeerStatsCopyWith<$Res> implements $PeerStatsCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$_PeerStatsCopyWithImpl<$Res>
-    extends _$PeerStatsCopyWithImpl<$Res, _$_PeerStats>
-    implements _$$_PeerStatsCopyWith<$Res> {
-  __$$_PeerStatsCopyWithImpl(
-      _$_PeerStats _value, $Res Function(_$_PeerStats) _then)
+class __$$PeerStatsImplCopyWithImpl<$Res>
+    extends _$PeerStatsCopyWithImpl<$Res, _$PeerStatsImpl>
+    implements _$$PeerStatsImplCopyWith<$Res> {
+  __$$PeerStatsImplCopyWithImpl(
+      _$PeerStatsImpl _value, $Res Function(_$PeerStatsImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -995,7 +998,7 @@ class __$$_PeerStatsCopyWithImpl<$Res>
     Object? transfer = null,
     Object? latency = freezed,
   }) {
-    return _then(_$_PeerStats(
+    return _then(_$PeerStatsImpl(
       timeAdded: null == timeAdded
           ? _value.timeAdded
           : timeAdded // ignore: cast_nullable_to_non_nullable
@@ -1018,15 +1021,15 @@ class __$$_PeerStatsCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_PeerStats implements _PeerStats {
-  const _$_PeerStats(
+class _$PeerStatsImpl implements _PeerStats {
+  const _$PeerStatsImpl(
       {required this.timeAdded,
       required this.rpcStats,
       required this.transfer,
       this.latency});
 
-  factory _$_PeerStats.fromJson(Map<String, dynamic> json) =>
-      _$$_PeerStatsFromJson(json);
+  factory _$PeerStatsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PeerStatsImplFromJson(json);
 
   @override
   final Timestamp timeAdded;
@@ -1043,10 +1046,10 @@ class _$_PeerStats implements _PeerStats {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_PeerStats &&
+            other is _$PeerStatsImpl &&
             (identical(other.timeAdded, timeAdded) ||
                 other.timeAdded == timeAdded) &&
             (identical(other.rpcStats, rpcStats) ||
@@ -1064,12 +1067,12 @@ class _$_PeerStats implements _PeerStats {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_PeerStatsCopyWith<_$_PeerStats> get copyWith =>
-      __$$_PeerStatsCopyWithImpl<_$_PeerStats>(this, _$identity);
+  _$$PeerStatsImplCopyWith<_$PeerStatsImpl> get copyWith =>
+      __$$PeerStatsImplCopyWithImpl<_$PeerStatsImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_PeerStatsToJson(
+    return _$$PeerStatsImplToJson(
       this,
     );
   }
@@ -1080,10 +1083,10 @@ abstract class _PeerStats implements PeerStats {
       {required final Timestamp timeAdded,
       required final RPCStats rpcStats,
       required final TransferStatsDownUp transfer,
-      final LatencyStats? latency}) = _$_PeerStats;
+      final LatencyStats? latency}) = _$PeerStatsImpl;
 
   factory _PeerStats.fromJson(Map<String, dynamic> json) =
-      _$_PeerStats.fromJson;
+      _$PeerStatsImpl.fromJson;
 
   @override
   Timestamp get timeAdded;
@@ -1095,7 +1098,7 @@ abstract class _PeerStats implements PeerStats {
   LatencyStats? get latency;
   @override
   @JsonKey(ignore: true)
-  _$$_PeerStatsCopyWith<_$_PeerStats> get copyWith =>
+  _$$PeerStatsImplCopyWith<_$PeerStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -1173,11 +1176,11 @@ class _$PeerTableDataCopyWithImpl<$Res, $Val extends PeerTableData>
 }
 
 /// @nodoc
-abstract class _$$_PeerTableDataCopyWith<$Res>
+abstract class _$$PeerTableDataImplCopyWith<$Res>
     implements $PeerTableDataCopyWith<$Res> {
-  factory _$$_PeerTableDataCopyWith(
-          _$_PeerTableData value, $Res Function(_$_PeerTableData) then) =
-      __$$_PeerTableDataCopyWithImpl<$Res>;
+  factory _$$PeerTableDataImplCopyWith(
+          _$PeerTableDataImpl value, $Res Function(_$PeerTableDataImpl) then) =
+      __$$PeerTableDataImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -1190,11 +1193,11 @@ abstract class _$$_PeerTableDataCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$_PeerTableDataCopyWithImpl<$Res>
-    extends _$PeerTableDataCopyWithImpl<$Res, _$_PeerTableData>
-    implements _$$_PeerTableDataCopyWith<$Res> {
-  __$$_PeerTableDataCopyWithImpl(
-      _$_PeerTableData _value, $Res Function(_$_PeerTableData) _then)
+class __$$PeerTableDataImplCopyWithImpl<$Res>
+    extends _$PeerTableDataCopyWithImpl<$Res, _$PeerTableDataImpl>
+    implements _$$PeerTableDataImplCopyWith<$Res> {
+  __$$PeerTableDataImplCopyWithImpl(
+      _$PeerTableDataImpl _value, $Res Function(_$PeerTableDataImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1204,7 +1207,7 @@ class __$$_PeerTableDataCopyWithImpl<$Res>
     Object? peerAddress = null,
     Object? peerStats = null,
   }) {
-    return _then(_$_PeerTableData(
+    return _then(_$PeerTableDataImpl(
       nodeIds: null == nodeIds
           ? _value._nodeIds
           : nodeIds // ignore: cast_nullable_to_non_nullable
@@ -1223,15 +1226,15 @@ class __$$_PeerTableDataCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_PeerTableData implements _PeerTableData {
-  const _$_PeerTableData(
+class _$PeerTableDataImpl implements _PeerTableData {
+  const _$PeerTableDataImpl(
       {required final List<Typed<FixedEncodedString43>> nodeIds,
       required this.peerAddress,
       required this.peerStats})
       : _nodeIds = nodeIds;
 
-  factory _$_PeerTableData.fromJson(Map<String, dynamic> json) =>
-      _$$_PeerTableDataFromJson(json);
+  factory _$PeerTableDataImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PeerTableDataImplFromJson(json);
 
   final List<Typed<FixedEncodedString43>> _nodeIds;
   @override
@@ -1252,10 +1255,10 @@ class _$_PeerTableData implements _PeerTableData {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_PeerTableData &&
+            other is _$PeerTableDataImpl &&
             const DeepCollectionEquality().equals(other._nodeIds, _nodeIds) &&
             (identical(other.peerAddress, peerAddress) ||
                 other.peerAddress == peerAddress) &&
@@ -1271,12 +1274,12 @@ class _$_PeerTableData implements _PeerTableData {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_PeerTableDataCopyWith<_$_PeerTableData> get copyWith =>
-      __$$_PeerTableDataCopyWithImpl<_$_PeerTableData>(this, _$identity);
+  _$$PeerTableDataImplCopyWith<_$PeerTableDataImpl> get copyWith =>
+      __$$PeerTableDataImplCopyWithImpl<_$PeerTableDataImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_PeerTableDataToJson(
+    return _$$PeerTableDataImplToJson(
       this,
     );
   }
@@ -1286,10 +1289,10 @@ abstract class _PeerTableData implements PeerTableData {
   const factory _PeerTableData(
       {required final List<Typed<FixedEncodedString43>> nodeIds,
       required final String peerAddress,
-      required final PeerStats peerStats}) = _$_PeerTableData;
+      required final PeerStats peerStats}) = _$PeerTableDataImpl;
 
   factory _PeerTableData.fromJson(Map<String, dynamic> json) =
-      _$_PeerTableData.fromJson;
+      _$PeerTableDataImpl.fromJson;
 
   @override
   List<Typed<FixedEncodedString43>> get nodeIds;
@@ -1299,7 +1302,7 @@ abstract class _PeerTableData implements PeerTableData {
   PeerStats get peerStats;
   @override
   @JsonKey(ignore: true)
-  _$$_PeerTableDataCopyWith<_$_PeerTableData> get copyWith =>
+  _$$PeerTableDataImplCopyWith<_$PeerTableDataImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -1466,20 +1469,20 @@ class _$VeilidUpdateCopyWithImpl<$Res, $Val extends VeilidUpdate>
 }
 
 /// @nodoc
-abstract class _$$VeilidLogCopyWith<$Res> {
-  factory _$$VeilidLogCopyWith(
-          _$VeilidLog value, $Res Function(_$VeilidLog) then) =
-      __$$VeilidLogCopyWithImpl<$Res>;
+abstract class _$$VeilidLogImplCopyWith<$Res> {
+  factory _$$VeilidLogImplCopyWith(
+          _$VeilidLogImpl value, $Res Function(_$VeilidLogImpl) then) =
+      __$$VeilidLogImplCopyWithImpl<$Res>;
   @useResult
   $Res call({VeilidLogLevel logLevel, String message, String? backtrace});
 }
 
 /// @nodoc
-class __$$VeilidLogCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidLog>
-    implements _$$VeilidLogCopyWith<$Res> {
-  __$$VeilidLogCopyWithImpl(
-      _$VeilidLog _value, $Res Function(_$VeilidLog) _then)
+class __$$VeilidLogImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidLogImpl>
+    implements _$$VeilidLogImplCopyWith<$Res> {
+  __$$VeilidLogImplCopyWithImpl(
+      _$VeilidLogImpl _value, $Res Function(_$VeilidLogImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1489,7 +1492,7 @@ class __$$VeilidLogCopyWithImpl<$Res>
     Object? message = null,
     Object? backtrace = freezed,
   }) {
-    return _then(_$VeilidLog(
+    return _then(_$VeilidLogImpl(
       logLevel: null == logLevel
           ? _value.logLevel
           : logLevel // ignore: cast_nullable_to_non_nullable
@@ -1508,16 +1511,16 @@ class __$$VeilidLogCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidLog implements VeilidLog {
-  const _$VeilidLog(
+class _$VeilidLogImpl implements VeilidLog {
+  const _$VeilidLogImpl(
       {required this.logLevel,
       required this.message,
       this.backtrace,
       final String? $type})
       : $type = $type ?? 'Log';
 
-  factory _$VeilidLog.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidLogFromJson(json);
+  factory _$VeilidLogImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidLogImplFromJson(json);
 
   @override
   final VeilidLogLevel logLevel;
@@ -1535,10 +1538,10 @@ class _$VeilidLog implements VeilidLog {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidLog &&
+            other is _$VeilidLogImpl &&
             (identical(other.logLevel, logLevel) ||
                 other.logLevel == logLevel) &&
             (identical(other.message, message) || other.message == message) &&
@@ -1553,8 +1556,8 @@ class _$VeilidLog implements VeilidLog {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidLogCopyWith<_$VeilidLog> get copyWith =>
-      __$$VeilidLogCopyWithImpl<_$VeilidLog>(this, _$identity);
+  _$$VeilidLogImplCopyWith<_$VeilidLogImpl> get copyWith =>
+      __$$VeilidLogImplCopyWithImpl<_$VeilidLogImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -1696,7 +1699,7 @@ class _$VeilidLog implements VeilidLog {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidLogToJson(
+    return _$$VeilidLogImplToJson(
       this,
     );
   }
@@ -1706,23 +1709,24 @@ abstract class VeilidLog implements VeilidUpdate {
   const factory VeilidLog(
       {required final VeilidLogLevel logLevel,
       required final String message,
-      final String? backtrace}) = _$VeilidLog;
+      final String? backtrace}) = _$VeilidLogImpl;
 
-  factory VeilidLog.fromJson(Map<String, dynamic> json) = _$VeilidLog.fromJson;
+  factory VeilidLog.fromJson(Map<String, dynamic> json) =
+      _$VeilidLogImpl.fromJson;
 
   VeilidLogLevel get logLevel;
   String get message;
   String? get backtrace;
   @JsonKey(ignore: true)
-  _$$VeilidLogCopyWith<_$VeilidLog> get copyWith =>
+  _$$VeilidLogImplCopyWith<_$VeilidLogImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidAppMessageCopyWith<$Res> {
-  factory _$$VeilidAppMessageCopyWith(
-          _$VeilidAppMessage value, $Res Function(_$VeilidAppMessage) then) =
-      __$$VeilidAppMessageCopyWithImpl<$Res>;
+abstract class _$$VeilidAppMessageImplCopyWith<$Res> {
+  factory _$$VeilidAppMessageImplCopyWith(_$VeilidAppMessageImpl value,
+          $Res Function(_$VeilidAppMessageImpl) then) =
+      __$$VeilidAppMessageImplCopyWithImpl<$Res>;
   @useResult
   $Res call(
       {@Uint8ListJsonConverter() Uint8List message,
@@ -1730,11 +1734,11 @@ abstract class _$$VeilidAppMessageCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$VeilidAppMessageCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidAppMessage>
-    implements _$$VeilidAppMessageCopyWith<$Res> {
-  __$$VeilidAppMessageCopyWithImpl(
-      _$VeilidAppMessage _value, $Res Function(_$VeilidAppMessage) _then)
+class __$$VeilidAppMessageImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidAppMessageImpl>
+    implements _$$VeilidAppMessageImplCopyWith<$Res> {
+  __$$VeilidAppMessageImplCopyWithImpl(_$VeilidAppMessageImpl _value,
+      $Res Function(_$VeilidAppMessageImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1743,7 +1747,7 @@ class __$$VeilidAppMessageCopyWithImpl<$Res>
     Object? message = null,
     Object? sender = freezed,
   }) {
-    return _then(_$VeilidAppMessage(
+    return _then(_$VeilidAppMessageImpl(
       message: null == message
           ? _value.message
           : message // ignore: cast_nullable_to_non_nullable
@@ -1758,15 +1762,15 @@ class __$$VeilidAppMessageCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidAppMessage implements VeilidAppMessage {
-  const _$VeilidAppMessage(
+class _$VeilidAppMessageImpl implements VeilidAppMessage {
+  const _$VeilidAppMessageImpl(
       {@Uint8ListJsonConverter() required this.message,
       this.sender,
       final String? $type})
       : $type = $type ?? 'AppMessage';
 
-  factory _$VeilidAppMessage.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidAppMessageFromJson(json);
+  factory _$VeilidAppMessageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidAppMessageImplFromJson(json);
 
   @override
   @Uint8ListJsonConverter()
@@ -1783,10 +1787,10 @@ class _$VeilidAppMessage implements VeilidAppMessage {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidAppMessage &&
+            other is _$VeilidAppMessageImpl &&
             const DeepCollectionEquality().equals(other.message, message) &&
             (identical(other.sender, sender) || other.sender == sender));
   }
@@ -1799,8 +1803,9 @@ class _$VeilidAppMessage implements VeilidAppMessage {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidAppMessageCopyWith<_$VeilidAppMessage> get copyWith =>
-      __$$VeilidAppMessageCopyWithImpl<_$VeilidAppMessage>(this, _$identity);
+  _$$VeilidAppMessageImplCopyWith<_$VeilidAppMessageImpl> get copyWith =>
+      __$$VeilidAppMessageImplCopyWithImpl<_$VeilidAppMessageImpl>(
+          this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -1942,7 +1947,7 @@ class _$VeilidAppMessage implements VeilidAppMessage {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidAppMessageToJson(
+    return _$$VeilidAppMessageImplToJson(
       this,
     );
   }
@@ -1951,24 +1956,24 @@ class _$VeilidAppMessage implements VeilidAppMessage {
 abstract class VeilidAppMessage implements VeilidUpdate {
   const factory VeilidAppMessage(
       {@Uint8ListJsonConverter() required final Uint8List message,
-      final Typed<FixedEncodedString43>? sender}) = _$VeilidAppMessage;
+      final Typed<FixedEncodedString43>? sender}) = _$VeilidAppMessageImpl;
 
   factory VeilidAppMessage.fromJson(Map<String, dynamic> json) =
-      _$VeilidAppMessage.fromJson;
+      _$VeilidAppMessageImpl.fromJson;
 
   @Uint8ListJsonConverter()
   Uint8List get message;
   Typed<FixedEncodedString43>? get sender;
   @JsonKey(ignore: true)
-  _$$VeilidAppMessageCopyWith<_$VeilidAppMessage> get copyWith =>
+  _$$VeilidAppMessageImplCopyWith<_$VeilidAppMessageImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidAppCallCopyWith<$Res> {
-  factory _$$VeilidAppCallCopyWith(
-          _$VeilidAppCall value, $Res Function(_$VeilidAppCall) then) =
-      __$$VeilidAppCallCopyWithImpl<$Res>;
+abstract class _$$VeilidAppCallImplCopyWith<$Res> {
+  factory _$$VeilidAppCallImplCopyWith(
+          _$VeilidAppCallImpl value, $Res Function(_$VeilidAppCallImpl) then) =
+      __$$VeilidAppCallImplCopyWithImpl<$Res>;
   @useResult
   $Res call(
       {@Uint8ListJsonConverter() Uint8List message,
@@ -1977,11 +1982,11 @@ abstract class _$$VeilidAppCallCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$VeilidAppCallCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidAppCall>
-    implements _$$VeilidAppCallCopyWith<$Res> {
-  __$$VeilidAppCallCopyWithImpl(
-      _$VeilidAppCall _value, $Res Function(_$VeilidAppCall) _then)
+class __$$VeilidAppCallImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidAppCallImpl>
+    implements _$$VeilidAppCallImplCopyWith<$Res> {
+  __$$VeilidAppCallImplCopyWithImpl(
+      _$VeilidAppCallImpl _value, $Res Function(_$VeilidAppCallImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -1991,7 +1996,7 @@ class __$$VeilidAppCallCopyWithImpl<$Res>
     Object? callId = null,
     Object? sender = freezed,
   }) {
-    return _then(_$VeilidAppCall(
+    return _then(_$VeilidAppCallImpl(
       message: null == message
           ? _value.message
           : message // ignore: cast_nullable_to_non_nullable
@@ -2010,16 +2015,16 @@ class __$$VeilidAppCallCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidAppCall implements VeilidAppCall {
-  const _$VeilidAppCall(
+class _$VeilidAppCallImpl implements VeilidAppCall {
+  const _$VeilidAppCallImpl(
       {@Uint8ListJsonConverter() required this.message,
       required this.callId,
       this.sender,
       final String? $type})
       : $type = $type ?? 'AppCall';
 
-  factory _$VeilidAppCall.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidAppCallFromJson(json);
+  factory _$VeilidAppCallImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidAppCallImplFromJson(json);
 
   @override
   @Uint8ListJsonConverter()
@@ -2038,10 +2043,10 @@ class _$VeilidAppCall implements VeilidAppCall {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidAppCall &&
+            other is _$VeilidAppCallImpl &&
             const DeepCollectionEquality().equals(other.message, message) &&
             (identical(other.callId, callId) || other.callId == callId) &&
             (identical(other.sender, sender) || other.sender == sender));
@@ -2055,8 +2060,8 @@ class _$VeilidAppCall implements VeilidAppCall {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidAppCallCopyWith<_$VeilidAppCall> get copyWith =>
-      __$$VeilidAppCallCopyWithImpl<_$VeilidAppCall>(this, _$identity);
+  _$$VeilidAppCallImplCopyWith<_$VeilidAppCallImpl> get copyWith =>
+      __$$VeilidAppCallImplCopyWithImpl<_$VeilidAppCallImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -2198,7 +2203,7 @@ class _$VeilidAppCall implements VeilidAppCall {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidAppCallToJson(
+    return _$$VeilidAppCallImplToJson(
       this,
     );
   }
@@ -2208,25 +2213,26 @@ abstract class VeilidAppCall implements VeilidUpdate {
   const factory VeilidAppCall(
       {@Uint8ListJsonConverter() required final Uint8List message,
       required final String callId,
-      final Typed<FixedEncodedString43>? sender}) = _$VeilidAppCall;
+      final Typed<FixedEncodedString43>? sender}) = _$VeilidAppCallImpl;
 
   factory VeilidAppCall.fromJson(Map<String, dynamic> json) =
-      _$VeilidAppCall.fromJson;
+      _$VeilidAppCallImpl.fromJson;
 
   @Uint8ListJsonConverter()
   Uint8List get message;
   String get callId;
   Typed<FixedEncodedString43>? get sender;
   @JsonKey(ignore: true)
-  _$$VeilidAppCallCopyWith<_$VeilidAppCall> get copyWith =>
+  _$$VeilidAppCallImplCopyWith<_$VeilidAppCallImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateAttachmentCopyWith<$Res> {
-  factory _$$VeilidUpdateAttachmentCopyWith(_$VeilidUpdateAttachment value,
-          $Res Function(_$VeilidUpdateAttachment) then) =
-      __$$VeilidUpdateAttachmentCopyWithImpl<$Res>;
+abstract class _$$VeilidUpdateAttachmentImplCopyWith<$Res> {
+  factory _$$VeilidUpdateAttachmentImplCopyWith(
+          _$VeilidUpdateAttachmentImpl value,
+          $Res Function(_$VeilidUpdateAttachmentImpl) then) =
+      __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>;
   @useResult
   $Res call(
       {AttachmentState state,
@@ -2235,11 +2241,12 @@ abstract class _$$VeilidUpdateAttachmentCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$VeilidUpdateAttachmentCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateAttachment>
-    implements _$$VeilidUpdateAttachmentCopyWith<$Res> {
-  __$$VeilidUpdateAttachmentCopyWithImpl(_$VeilidUpdateAttachment _value,
-      $Res Function(_$VeilidUpdateAttachment) _then)
+class __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateAttachmentImpl>
+    implements _$$VeilidUpdateAttachmentImplCopyWith<$Res> {
+  __$$VeilidUpdateAttachmentImplCopyWithImpl(
+      _$VeilidUpdateAttachmentImpl _value,
+      $Res Function(_$VeilidUpdateAttachmentImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2249,7 +2256,7 @@ class __$$VeilidUpdateAttachmentCopyWithImpl<$Res>
     Object? publicInternetReady = null,
     Object? localNetworkReady = null,
   }) {
-    return _then(_$VeilidUpdateAttachment(
+    return _then(_$VeilidUpdateAttachmentImpl(
       state: null == state
           ? _value.state
           : state // ignore: cast_nullable_to_non_nullable
@@ -2268,16 +2275,16 @@ class __$$VeilidUpdateAttachmentCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateAttachment implements VeilidUpdateAttachment {
-  const _$VeilidUpdateAttachment(
+class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
+  const _$VeilidUpdateAttachmentImpl(
       {required this.state,
       required this.publicInternetReady,
       required this.localNetworkReady,
       final String? $type})
       : $type = $type ?? 'Attachment';
 
-  factory _$VeilidUpdateAttachment.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateAttachmentFromJson(json);
+  factory _$VeilidUpdateAttachmentImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateAttachmentImplFromJson(json);
 
   @override
   final AttachmentState state;
@@ -2295,10 +2302,10 @@ class _$VeilidUpdateAttachment implements VeilidUpdateAttachment {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateAttachment &&
+            other is _$VeilidUpdateAttachmentImpl &&
             (identical(other.state, state) || other.state == state) &&
             (identical(other.publicInternetReady, publicInternetReady) ||
                 other.publicInternetReady == publicInternetReady) &&
@@ -2314,9 +2321,9 @@ class _$VeilidUpdateAttachment implements VeilidUpdateAttachment {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidUpdateAttachmentCopyWith<_$VeilidUpdateAttachment> get copyWith =>
-      __$$VeilidUpdateAttachmentCopyWithImpl<_$VeilidUpdateAttachment>(
-          this, _$identity);
+  _$$VeilidUpdateAttachmentImplCopyWith<_$VeilidUpdateAttachmentImpl>
+      get copyWith => __$$VeilidUpdateAttachmentImplCopyWithImpl<
+          _$VeilidUpdateAttachmentImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -2458,7 +2465,7 @@ class _$VeilidUpdateAttachment implements VeilidUpdateAttachment {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateAttachmentToJson(
+    return _$$VeilidUpdateAttachmentImplToJson(
       this,
     );
   }
@@ -2468,35 +2475,35 @@ abstract class VeilidUpdateAttachment implements VeilidUpdate {
   const factory VeilidUpdateAttachment(
       {required final AttachmentState state,
       required final bool publicInternetReady,
-      required final bool localNetworkReady}) = _$VeilidUpdateAttachment;
+      required final bool localNetworkReady}) = _$VeilidUpdateAttachmentImpl;
 
   factory VeilidUpdateAttachment.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateAttachment.fromJson;
+      _$VeilidUpdateAttachmentImpl.fromJson;
 
   AttachmentState get state;
   bool get publicInternetReady;
   bool get localNetworkReady;
   @JsonKey(ignore: true)
-  _$$VeilidUpdateAttachmentCopyWith<_$VeilidUpdateAttachment> get copyWith =>
-      throw _privateConstructorUsedError;
+  _$$VeilidUpdateAttachmentImplCopyWith<_$VeilidUpdateAttachmentImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateNetworkCopyWith<$Res> {
-  factory _$$VeilidUpdateNetworkCopyWith(_$VeilidUpdateNetwork value,
-          $Res Function(_$VeilidUpdateNetwork) then) =
-      __$$VeilidUpdateNetworkCopyWithImpl<$Res>;
+abstract class _$$VeilidUpdateNetworkImplCopyWith<$Res> {
+  factory _$$VeilidUpdateNetworkImplCopyWith(_$VeilidUpdateNetworkImpl value,
+          $Res Function(_$VeilidUpdateNetworkImpl) then) =
+      __$$VeilidUpdateNetworkImplCopyWithImpl<$Res>;
   @useResult
   $Res call(
       {bool started, BigInt bpsDown, BigInt bpsUp, List<PeerTableData> peers});
 }
 
 /// @nodoc
-class __$$VeilidUpdateNetworkCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateNetwork>
-    implements _$$VeilidUpdateNetworkCopyWith<$Res> {
-  __$$VeilidUpdateNetworkCopyWithImpl(
-      _$VeilidUpdateNetwork _value, $Res Function(_$VeilidUpdateNetwork) _then)
+class __$$VeilidUpdateNetworkImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateNetworkImpl>
+    implements _$$VeilidUpdateNetworkImplCopyWith<$Res> {
+  __$$VeilidUpdateNetworkImplCopyWithImpl(_$VeilidUpdateNetworkImpl _value,
+      $Res Function(_$VeilidUpdateNetworkImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2507,7 +2514,7 @@ class __$$VeilidUpdateNetworkCopyWithImpl<$Res>
     Object? bpsUp = null,
     Object? peers = null,
   }) {
-    return _then(_$VeilidUpdateNetwork(
+    return _then(_$VeilidUpdateNetworkImpl(
       started: null == started
           ? _value.started
           : started // ignore: cast_nullable_to_non_nullable
@@ -2530,8 +2537,8 @@ class __$$VeilidUpdateNetworkCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
-  const _$VeilidUpdateNetwork(
+class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
+  const _$VeilidUpdateNetworkImpl(
       {required this.started,
       required this.bpsDown,
       required this.bpsUp,
@@ -2540,8 +2547,8 @@ class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
       : _peers = peers,
         $type = $type ?? 'Network';
 
-  factory _$VeilidUpdateNetwork.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateNetworkFromJson(json);
+  factory _$VeilidUpdateNetworkImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateNetworkImplFromJson(json);
 
   @override
   final bool started;
@@ -2566,10 +2573,10 @@ class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateNetwork &&
+            other is _$VeilidUpdateNetworkImpl &&
             (identical(other.started, started) || other.started == started) &&
             (identical(other.bpsDown, bpsDown) || other.bpsDown == bpsDown) &&
             (identical(other.bpsUp, bpsUp) || other.bpsUp == bpsUp) &&
@@ -2584,8 +2591,8 @@ class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidUpdateNetworkCopyWith<_$VeilidUpdateNetwork> get copyWith =>
-      __$$VeilidUpdateNetworkCopyWithImpl<_$VeilidUpdateNetwork>(
+  _$$VeilidUpdateNetworkImplCopyWith<_$VeilidUpdateNetworkImpl> get copyWith =>
+      __$$VeilidUpdateNetworkImplCopyWithImpl<_$VeilidUpdateNetworkImpl>(
           this, _$identity);
 
   @override
@@ -2728,7 +2735,7 @@ class _$VeilidUpdateNetwork implements VeilidUpdateNetwork {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateNetworkToJson(
+    return _$$VeilidUpdateNetworkImplToJson(
       this,
     );
   }
@@ -2739,25 +2746,25 @@ abstract class VeilidUpdateNetwork implements VeilidUpdate {
       {required final bool started,
       required final BigInt bpsDown,
       required final BigInt bpsUp,
-      required final List<PeerTableData> peers}) = _$VeilidUpdateNetwork;
+      required final List<PeerTableData> peers}) = _$VeilidUpdateNetworkImpl;
 
   factory VeilidUpdateNetwork.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateNetwork.fromJson;
+      _$VeilidUpdateNetworkImpl.fromJson;
 
   bool get started;
   BigInt get bpsDown;
   BigInt get bpsUp;
   List<PeerTableData> get peers;
   @JsonKey(ignore: true)
-  _$$VeilidUpdateNetworkCopyWith<_$VeilidUpdateNetwork> get copyWith =>
+  _$$VeilidUpdateNetworkImplCopyWith<_$VeilidUpdateNetworkImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateConfigCopyWith<$Res> {
-  factory _$$VeilidUpdateConfigCopyWith(_$VeilidUpdateConfig value,
-          $Res Function(_$VeilidUpdateConfig) then) =
-      __$$VeilidUpdateConfigCopyWithImpl<$Res>;
+abstract class _$$VeilidUpdateConfigImplCopyWith<$Res> {
+  factory _$$VeilidUpdateConfigImplCopyWith(_$VeilidUpdateConfigImpl value,
+          $Res Function(_$VeilidUpdateConfigImpl) then) =
+      __$$VeilidUpdateConfigImplCopyWithImpl<$Res>;
   @useResult
   $Res call({VeilidConfig config});
 
@@ -2765,11 +2772,11 @@ abstract class _$$VeilidUpdateConfigCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$VeilidUpdateConfigCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateConfig>
-    implements _$$VeilidUpdateConfigCopyWith<$Res> {
-  __$$VeilidUpdateConfigCopyWithImpl(
-      _$VeilidUpdateConfig _value, $Res Function(_$VeilidUpdateConfig) _then)
+class __$$VeilidUpdateConfigImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateConfigImpl>
+    implements _$$VeilidUpdateConfigImplCopyWith<$Res> {
+  __$$VeilidUpdateConfigImplCopyWithImpl(_$VeilidUpdateConfigImpl _value,
+      $Res Function(_$VeilidUpdateConfigImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -2777,7 +2784,7 @@ class __$$VeilidUpdateConfigCopyWithImpl<$Res>
   $Res call({
     Object? config = null,
   }) {
-    return _then(_$VeilidUpdateConfig(
+    return _then(_$VeilidUpdateConfigImpl(
       config: null == config
           ? _value.config
           : config // ignore: cast_nullable_to_non_nullable
@@ -2796,12 +2803,12 @@ class __$$VeilidUpdateConfigCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateConfig implements VeilidUpdateConfig {
-  const _$VeilidUpdateConfig({required this.config, final String? $type})
+class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
+  const _$VeilidUpdateConfigImpl({required this.config, final String? $type})
       : $type = $type ?? 'Config';
 
-  factory _$VeilidUpdateConfig.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateConfigFromJson(json);
+  factory _$VeilidUpdateConfigImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateConfigImplFromJson(json);
 
   @override
   final VeilidConfig config;
@@ -2815,10 +2822,10 @@ class _$VeilidUpdateConfig implements VeilidUpdateConfig {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateConfig &&
+            other is _$VeilidUpdateConfigImpl &&
             (identical(other.config, config) || other.config == config));
   }
 
@@ -2829,8 +2836,8 @@ class _$VeilidUpdateConfig implements VeilidUpdateConfig {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidUpdateConfigCopyWith<_$VeilidUpdateConfig> get copyWith =>
-      __$$VeilidUpdateConfigCopyWithImpl<_$VeilidUpdateConfig>(
+  _$$VeilidUpdateConfigImplCopyWith<_$VeilidUpdateConfigImpl> get copyWith =>
+      __$$VeilidUpdateConfigImplCopyWithImpl<_$VeilidUpdateConfigImpl>(
           this, _$identity);
 
   @override
@@ -2973,7 +2980,7 @@ class _$VeilidUpdateConfig implements VeilidUpdateConfig {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateConfigToJson(
+    return _$$VeilidUpdateConfigImplToJson(
       this,
     );
   }
@@ -2981,32 +2988,34 @@ class _$VeilidUpdateConfig implements VeilidUpdateConfig {
 
 abstract class VeilidUpdateConfig implements VeilidUpdate {
   const factory VeilidUpdateConfig({required final VeilidConfig config}) =
-      _$VeilidUpdateConfig;
+      _$VeilidUpdateConfigImpl;
 
   factory VeilidUpdateConfig.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateConfig.fromJson;
+      _$VeilidUpdateConfigImpl.fromJson;
 
   VeilidConfig get config;
   @JsonKey(ignore: true)
-  _$$VeilidUpdateConfigCopyWith<_$VeilidUpdateConfig> get copyWith =>
+  _$$VeilidUpdateConfigImplCopyWith<_$VeilidUpdateConfigImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateRouteChangeCopyWith<$Res> {
-  factory _$$VeilidUpdateRouteChangeCopyWith(_$VeilidUpdateRouteChange value,
-          $Res Function(_$VeilidUpdateRouteChange) then) =
-      __$$VeilidUpdateRouteChangeCopyWithImpl<$Res>;
+abstract class _$$VeilidUpdateRouteChangeImplCopyWith<$Res> {
+  factory _$$VeilidUpdateRouteChangeImplCopyWith(
+          _$VeilidUpdateRouteChangeImpl value,
+          $Res Function(_$VeilidUpdateRouteChangeImpl) then) =
+      __$$VeilidUpdateRouteChangeImplCopyWithImpl<$Res>;
   @useResult
   $Res call({List<String> deadRoutes, List<String> deadRemoteRoutes});
 }
 
 /// @nodoc
-class __$$VeilidUpdateRouteChangeCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateRouteChange>
-    implements _$$VeilidUpdateRouteChangeCopyWith<$Res> {
-  __$$VeilidUpdateRouteChangeCopyWithImpl(_$VeilidUpdateRouteChange _value,
-      $Res Function(_$VeilidUpdateRouteChange) _then)
+class __$$VeilidUpdateRouteChangeImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateRouteChangeImpl>
+    implements _$$VeilidUpdateRouteChangeImplCopyWith<$Res> {
+  __$$VeilidUpdateRouteChangeImplCopyWithImpl(
+      _$VeilidUpdateRouteChangeImpl _value,
+      $Res Function(_$VeilidUpdateRouteChangeImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -3015,7 +3024,7 @@ class __$$VeilidUpdateRouteChangeCopyWithImpl<$Res>
     Object? deadRoutes = null,
     Object? deadRemoteRoutes = null,
   }) {
-    return _then(_$VeilidUpdateRouteChange(
+    return _then(_$VeilidUpdateRouteChangeImpl(
       deadRoutes: null == deadRoutes
           ? _value._deadRoutes
           : deadRoutes // ignore: cast_nullable_to_non_nullable
@@ -3030,8 +3039,8 @@ class __$$VeilidUpdateRouteChangeCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
-  const _$VeilidUpdateRouteChange(
+class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
+  const _$VeilidUpdateRouteChangeImpl(
       {required final List<String> deadRoutes,
       required final List<String> deadRemoteRoutes,
       final String? $type})
@@ -3039,8 +3048,8 @@ class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
         _deadRemoteRoutes = deadRemoteRoutes,
         $type = $type ?? 'RouteChange';
 
-  factory _$VeilidUpdateRouteChange.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateRouteChangeFromJson(json);
+  factory _$VeilidUpdateRouteChangeImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateRouteChangeImplFromJson(json);
 
   final List<String> _deadRoutes;
   @override
@@ -3068,10 +3077,10 @@ class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateRouteChange &&
+            other is _$VeilidUpdateRouteChangeImpl &&
             const DeepCollectionEquality()
                 .equals(other._deadRoutes, _deadRoutes) &&
             const DeepCollectionEquality()
@@ -3088,9 +3097,9 @@ class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidUpdateRouteChangeCopyWith<_$VeilidUpdateRouteChange> get copyWith =>
-      __$$VeilidUpdateRouteChangeCopyWithImpl<_$VeilidUpdateRouteChange>(
-          this, _$identity);
+  _$$VeilidUpdateRouteChangeImplCopyWith<_$VeilidUpdateRouteChangeImpl>
+      get copyWith => __$$VeilidUpdateRouteChangeImplCopyWithImpl<
+          _$VeilidUpdateRouteChangeImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -3232,7 +3241,7 @@ class _$VeilidUpdateRouteChange implements VeilidUpdateRouteChange {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateRouteChangeToJson(
+    return _$$VeilidUpdateRouteChangeImplToJson(
       this,
     );
   }
@@ -3242,23 +3251,24 @@ abstract class VeilidUpdateRouteChange implements VeilidUpdate {
   const factory VeilidUpdateRouteChange(
           {required final List<String> deadRoutes,
           required final List<String> deadRemoteRoutes}) =
-      _$VeilidUpdateRouteChange;
+      _$VeilidUpdateRouteChangeImpl;
 
   factory VeilidUpdateRouteChange.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateRouteChange.fromJson;
+      _$VeilidUpdateRouteChangeImpl.fromJson;
 
   List<String> get deadRoutes;
   List<String> get deadRemoteRoutes;
   @JsonKey(ignore: true)
-  _$$VeilidUpdateRouteChangeCopyWith<_$VeilidUpdateRouteChange> get copyWith =>
-      throw _privateConstructorUsedError;
+  _$$VeilidUpdateRouteChangeImplCopyWith<_$VeilidUpdateRouteChangeImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateValueChangeCopyWith<$Res> {
-  factory _$$VeilidUpdateValueChangeCopyWith(_$VeilidUpdateValueChange value,
-          $Res Function(_$VeilidUpdateValueChange) then) =
-      __$$VeilidUpdateValueChangeCopyWithImpl<$Res>;
+abstract class _$$VeilidUpdateValueChangeImplCopyWith<$Res> {
+  factory _$$VeilidUpdateValueChangeImplCopyWith(
+          _$VeilidUpdateValueChangeImpl value,
+          $Res Function(_$VeilidUpdateValueChangeImpl) then) =
+      __$$VeilidUpdateValueChangeImplCopyWithImpl<$Res>;
   @useResult
   $Res call(
       {Typed<FixedEncodedString43> key,
@@ -3270,11 +3280,12 @@ abstract class _$$VeilidUpdateValueChangeCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$VeilidUpdateValueChangeCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateValueChange>
-    implements _$$VeilidUpdateValueChangeCopyWith<$Res> {
-  __$$VeilidUpdateValueChangeCopyWithImpl(_$VeilidUpdateValueChange _value,
-      $Res Function(_$VeilidUpdateValueChange) _then)
+class __$$VeilidUpdateValueChangeImplCopyWithImpl<$Res>
+    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateValueChangeImpl>
+    implements _$$VeilidUpdateValueChangeImplCopyWith<$Res> {
+  __$$VeilidUpdateValueChangeImplCopyWithImpl(
+      _$VeilidUpdateValueChangeImpl _value,
+      $Res Function(_$VeilidUpdateValueChangeImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -3285,7 +3296,7 @@ class __$$VeilidUpdateValueChangeCopyWithImpl<$Res>
     Object? count = null,
     Object? value = null,
   }) {
-    return _then(_$VeilidUpdateValueChange(
+    return _then(_$VeilidUpdateValueChangeImpl(
       key: null == key
           ? _value.key
           : key // ignore: cast_nullable_to_non_nullable
@@ -3316,8 +3327,8 @@ class __$$VeilidUpdateValueChangeCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
-  const _$VeilidUpdateValueChange(
+class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
+  const _$VeilidUpdateValueChangeImpl(
       {required this.key,
       required final List<ValueSubkeyRange> subkeys,
       required this.count,
@@ -3326,8 +3337,8 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
       : _subkeys = subkeys,
         $type = $type ?? 'ValueChange';
 
-  factory _$VeilidUpdateValueChange.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateValueChangeFromJson(json);
+  factory _$VeilidUpdateValueChangeImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidUpdateValueChangeImplFromJson(json);
 
   @override
   final Typed<FixedEncodedString43> key;
@@ -3353,10 +3364,10 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateValueChange &&
+            other is _$VeilidUpdateValueChangeImpl &&
             (identical(other.key, key) || other.key == key) &&
             const DeepCollectionEquality().equals(other._subkeys, _subkeys) &&
             (identical(other.count, count) || other.count == count) &&
@@ -3371,9 +3382,9 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidUpdateValueChangeCopyWith<_$VeilidUpdateValueChange> get copyWith =>
-      __$$VeilidUpdateValueChangeCopyWithImpl<_$VeilidUpdateValueChange>(
-          this, _$identity);
+  _$$VeilidUpdateValueChangeImplCopyWith<_$VeilidUpdateValueChangeImpl>
+      get copyWith => __$$VeilidUpdateValueChangeImplCopyWithImpl<
+          _$VeilidUpdateValueChangeImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -3515,7 +3526,7 @@ class _$VeilidUpdateValueChange implements VeilidUpdateValueChange {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateValueChangeToJson(
+    return _$$VeilidUpdateValueChangeImplToJson(
       this,
     );
   }
@@ -3526,18 +3537,18 @@ abstract class VeilidUpdateValueChange implements VeilidUpdate {
       {required final Typed<FixedEncodedString43> key,
       required final List<ValueSubkeyRange> subkeys,
       required final int count,
-      required final ValueData value}) = _$VeilidUpdateValueChange;
+      required final ValueData value}) = _$VeilidUpdateValueChangeImpl;
 
   factory VeilidUpdateValueChange.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateValueChange.fromJson;
+      _$VeilidUpdateValueChangeImpl.fromJson;
 
   Typed<FixedEncodedString43> get key;
   List<ValueSubkeyRange> get subkeys;
   int get count;
   ValueData get value;
   @JsonKey(ignore: true)
-  _$$VeilidUpdateValueChangeCopyWith<_$VeilidUpdateValueChange> get copyWith =>
-      throw _privateConstructorUsedError;
+  _$$VeilidUpdateValueChangeImplCopyWith<_$VeilidUpdateValueChangeImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 VeilidStateAttachment _$VeilidStateAttachmentFromJson(
@@ -3605,11 +3616,12 @@ class _$VeilidStateAttachmentCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$_VeilidStateAttachmentCopyWith<$Res>
+abstract class _$$VeilidStateAttachmentImplCopyWith<$Res>
     implements $VeilidStateAttachmentCopyWith<$Res> {
-  factory _$$_VeilidStateAttachmentCopyWith(_$_VeilidStateAttachment value,
-          $Res Function(_$_VeilidStateAttachment) then) =
-      __$$_VeilidStateAttachmentCopyWithImpl<$Res>;
+  factory _$$VeilidStateAttachmentImplCopyWith(
+          _$VeilidStateAttachmentImpl value,
+          $Res Function(_$VeilidStateAttachmentImpl) then) =
+      __$$VeilidStateAttachmentImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -3619,11 +3631,12 @@ abstract class _$$_VeilidStateAttachmentCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$_VeilidStateAttachmentCopyWithImpl<$Res>
-    extends _$VeilidStateAttachmentCopyWithImpl<$Res, _$_VeilidStateAttachment>
-    implements _$$_VeilidStateAttachmentCopyWith<$Res> {
-  __$$_VeilidStateAttachmentCopyWithImpl(_$_VeilidStateAttachment _value,
-      $Res Function(_$_VeilidStateAttachment) _then)
+class __$$VeilidStateAttachmentImplCopyWithImpl<$Res>
+    extends _$VeilidStateAttachmentCopyWithImpl<$Res,
+        _$VeilidStateAttachmentImpl>
+    implements _$$VeilidStateAttachmentImplCopyWith<$Res> {
+  __$$VeilidStateAttachmentImplCopyWithImpl(_$VeilidStateAttachmentImpl _value,
+      $Res Function(_$VeilidStateAttachmentImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -3633,7 +3646,7 @@ class __$$_VeilidStateAttachmentCopyWithImpl<$Res>
     Object? publicInternetReady = null,
     Object? localNetworkReady = null,
   }) {
-    return _then(_$_VeilidStateAttachment(
+    return _then(_$VeilidStateAttachmentImpl(
       state: null == state
           ? _value.state
           : state // ignore: cast_nullable_to_non_nullable
@@ -3652,14 +3665,14 @@ class __$$_VeilidStateAttachmentCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_VeilidStateAttachment implements _VeilidStateAttachment {
-  const _$_VeilidStateAttachment(
+class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
+  const _$VeilidStateAttachmentImpl(
       {required this.state,
       required this.publicInternetReady,
       required this.localNetworkReady});
 
-  factory _$_VeilidStateAttachment.fromJson(Map<String, dynamic> json) =>
-      _$$_VeilidStateAttachmentFromJson(json);
+  factory _$VeilidStateAttachmentImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidStateAttachmentImplFromJson(json);
 
   @override
   final AttachmentState state;
@@ -3674,10 +3687,10 @@ class _$_VeilidStateAttachment implements _VeilidStateAttachment {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_VeilidStateAttachment &&
+            other is _$VeilidStateAttachmentImpl &&
             (identical(other.state, state) || other.state == state) &&
             (identical(other.publicInternetReady, publicInternetReady) ||
                 other.publicInternetReady == publicInternetReady) &&
@@ -3693,13 +3706,13 @@ class _$_VeilidStateAttachment implements _VeilidStateAttachment {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_VeilidStateAttachmentCopyWith<_$_VeilidStateAttachment> get copyWith =>
-      __$$_VeilidStateAttachmentCopyWithImpl<_$_VeilidStateAttachment>(
-          this, _$identity);
+  _$$VeilidStateAttachmentImplCopyWith<_$VeilidStateAttachmentImpl>
+      get copyWith => __$$VeilidStateAttachmentImplCopyWithImpl<
+          _$VeilidStateAttachmentImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_VeilidStateAttachmentToJson(
+    return _$$VeilidStateAttachmentImplToJson(
       this,
     );
   }
@@ -3709,10 +3722,10 @@ abstract class _VeilidStateAttachment implements VeilidStateAttachment {
   const factory _VeilidStateAttachment(
       {required final AttachmentState state,
       required final bool publicInternetReady,
-      required final bool localNetworkReady}) = _$_VeilidStateAttachment;
+      required final bool localNetworkReady}) = _$VeilidStateAttachmentImpl;
 
   factory _VeilidStateAttachment.fromJson(Map<String, dynamic> json) =
-      _$_VeilidStateAttachment.fromJson;
+      _$VeilidStateAttachmentImpl.fromJson;
 
   @override
   AttachmentState get state;
@@ -3722,8 +3735,8 @@ abstract class _VeilidStateAttachment implements VeilidStateAttachment {
   bool get localNetworkReady;
   @override
   @JsonKey(ignore: true)
-  _$$_VeilidStateAttachmentCopyWith<_$_VeilidStateAttachment> get copyWith =>
-      throw _privateConstructorUsedError;
+  _$$VeilidStateAttachmentImplCopyWith<_$VeilidStateAttachmentImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 VeilidStateNetwork _$VeilidStateNetworkFromJson(Map<String, dynamic> json) {
@@ -3793,11 +3806,11 @@ class _$VeilidStateNetworkCopyWithImpl<$Res, $Val extends VeilidStateNetwork>
 }
 
 /// @nodoc
-abstract class _$$_VeilidStateNetworkCopyWith<$Res>
+abstract class _$$VeilidStateNetworkImplCopyWith<$Res>
     implements $VeilidStateNetworkCopyWith<$Res> {
-  factory _$$_VeilidStateNetworkCopyWith(_$_VeilidStateNetwork value,
-          $Res Function(_$_VeilidStateNetwork) then) =
-      __$$_VeilidStateNetworkCopyWithImpl<$Res>;
+  factory _$$VeilidStateNetworkImplCopyWith(_$VeilidStateNetworkImpl value,
+          $Res Function(_$VeilidStateNetworkImpl) then) =
+      __$$VeilidStateNetworkImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -3805,11 +3818,11 @@ abstract class _$$_VeilidStateNetworkCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$_VeilidStateNetworkCopyWithImpl<$Res>
-    extends _$VeilidStateNetworkCopyWithImpl<$Res, _$_VeilidStateNetwork>
-    implements _$$_VeilidStateNetworkCopyWith<$Res> {
-  __$$_VeilidStateNetworkCopyWithImpl(
-      _$_VeilidStateNetwork _value, $Res Function(_$_VeilidStateNetwork) _then)
+class __$$VeilidStateNetworkImplCopyWithImpl<$Res>
+    extends _$VeilidStateNetworkCopyWithImpl<$Res, _$VeilidStateNetworkImpl>
+    implements _$$VeilidStateNetworkImplCopyWith<$Res> {
+  __$$VeilidStateNetworkImplCopyWithImpl(_$VeilidStateNetworkImpl _value,
+      $Res Function(_$VeilidStateNetworkImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -3820,7 +3833,7 @@ class __$$_VeilidStateNetworkCopyWithImpl<$Res>
     Object? bpsUp = null,
     Object? peers = null,
   }) {
-    return _then(_$_VeilidStateNetwork(
+    return _then(_$VeilidStateNetworkImpl(
       started: null == started
           ? _value.started
           : started // ignore: cast_nullable_to_non_nullable
@@ -3843,16 +3856,16 @@ class __$$_VeilidStateNetworkCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_VeilidStateNetwork implements _VeilidStateNetwork {
-  const _$_VeilidStateNetwork(
+class _$VeilidStateNetworkImpl implements _VeilidStateNetwork {
+  const _$VeilidStateNetworkImpl(
       {required this.started,
       required this.bpsDown,
       required this.bpsUp,
       required final List<PeerTableData> peers})
       : _peers = peers;
 
-  factory _$_VeilidStateNetwork.fromJson(Map<String, dynamic> json) =>
-      _$$_VeilidStateNetworkFromJson(json);
+  factory _$VeilidStateNetworkImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidStateNetworkImplFromJson(json);
 
   @override
   final bool started;
@@ -3874,10 +3887,10 @@ class _$_VeilidStateNetwork implements _VeilidStateNetwork {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_VeilidStateNetwork &&
+            other is _$VeilidStateNetworkImpl &&
             (identical(other.started, started) || other.started == started) &&
             (identical(other.bpsDown, bpsDown) || other.bpsDown == bpsDown) &&
             (identical(other.bpsUp, bpsUp) || other.bpsUp == bpsUp) &&
@@ -3892,13 +3905,13 @@ class _$_VeilidStateNetwork implements _VeilidStateNetwork {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_VeilidStateNetworkCopyWith<_$_VeilidStateNetwork> get copyWith =>
-      __$$_VeilidStateNetworkCopyWithImpl<_$_VeilidStateNetwork>(
+  _$$VeilidStateNetworkImplCopyWith<_$VeilidStateNetworkImpl> get copyWith =>
+      __$$VeilidStateNetworkImplCopyWithImpl<_$VeilidStateNetworkImpl>(
           this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_VeilidStateNetworkToJson(
+    return _$$VeilidStateNetworkImplToJson(
       this,
     );
   }
@@ -3909,10 +3922,10 @@ abstract class _VeilidStateNetwork implements VeilidStateNetwork {
       {required final bool started,
       required final BigInt bpsDown,
       required final BigInt bpsUp,
-      required final List<PeerTableData> peers}) = _$_VeilidStateNetwork;
+      required final List<PeerTableData> peers}) = _$VeilidStateNetworkImpl;
 
   factory _VeilidStateNetwork.fromJson(Map<String, dynamic> json) =
-      _$_VeilidStateNetwork.fromJson;
+      _$VeilidStateNetworkImpl.fromJson;
 
   @override
   bool get started;
@@ -3924,7 +3937,7 @@ abstract class _VeilidStateNetwork implements VeilidStateNetwork {
   List<PeerTableData> get peers;
   @override
   @JsonKey(ignore: true)
-  _$$_VeilidStateNetworkCopyWith<_$_VeilidStateNetwork> get copyWith =>
+  _$$VeilidStateNetworkImplCopyWith<_$VeilidStateNetworkImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -3986,11 +3999,11 @@ class _$VeilidStateConfigCopyWithImpl<$Res, $Val extends VeilidStateConfig>
 }
 
 /// @nodoc
-abstract class _$$_VeilidStateConfigCopyWith<$Res>
+abstract class _$$VeilidStateConfigImplCopyWith<$Res>
     implements $VeilidStateConfigCopyWith<$Res> {
-  factory _$$_VeilidStateConfigCopyWith(_$_VeilidStateConfig value,
-          $Res Function(_$_VeilidStateConfig) then) =
-      __$$_VeilidStateConfigCopyWithImpl<$Res>;
+  factory _$$VeilidStateConfigImplCopyWith(_$VeilidStateConfigImpl value,
+          $Res Function(_$VeilidStateConfigImpl) then) =
+      __$$VeilidStateConfigImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({VeilidConfig config});
@@ -4000,11 +4013,11 @@ abstract class _$$_VeilidStateConfigCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$_VeilidStateConfigCopyWithImpl<$Res>
-    extends _$VeilidStateConfigCopyWithImpl<$Res, _$_VeilidStateConfig>
-    implements _$$_VeilidStateConfigCopyWith<$Res> {
-  __$$_VeilidStateConfigCopyWithImpl(
-      _$_VeilidStateConfig _value, $Res Function(_$_VeilidStateConfig) _then)
+class __$$VeilidStateConfigImplCopyWithImpl<$Res>
+    extends _$VeilidStateConfigCopyWithImpl<$Res, _$VeilidStateConfigImpl>
+    implements _$$VeilidStateConfigImplCopyWith<$Res> {
+  __$$VeilidStateConfigImplCopyWithImpl(_$VeilidStateConfigImpl _value,
+      $Res Function(_$VeilidStateConfigImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -4012,7 +4025,7 @@ class __$$_VeilidStateConfigCopyWithImpl<$Res>
   $Res call({
     Object? config = null,
   }) {
-    return _then(_$_VeilidStateConfig(
+    return _then(_$VeilidStateConfigImpl(
       config: null == config
           ? _value.config
           : config // ignore: cast_nullable_to_non_nullable
@@ -4023,11 +4036,11 @@ class __$$_VeilidStateConfigCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_VeilidStateConfig implements _VeilidStateConfig {
-  const _$_VeilidStateConfig({required this.config});
+class _$VeilidStateConfigImpl implements _VeilidStateConfig {
+  const _$VeilidStateConfigImpl({required this.config});
 
-  factory _$_VeilidStateConfig.fromJson(Map<String, dynamic> json) =>
-      _$$_VeilidStateConfigFromJson(json);
+  factory _$VeilidStateConfigImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidStateConfigImplFromJson(json);
 
   @override
   final VeilidConfig config;
@@ -4038,10 +4051,10 @@ class _$_VeilidStateConfig implements _VeilidStateConfig {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_VeilidStateConfig &&
+            other is _$VeilidStateConfigImpl &&
             (identical(other.config, config) || other.config == config));
   }
 
@@ -4052,13 +4065,13 @@ class _$_VeilidStateConfig implements _VeilidStateConfig {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_VeilidStateConfigCopyWith<_$_VeilidStateConfig> get copyWith =>
-      __$$_VeilidStateConfigCopyWithImpl<_$_VeilidStateConfig>(
+  _$$VeilidStateConfigImplCopyWith<_$VeilidStateConfigImpl> get copyWith =>
+      __$$VeilidStateConfigImplCopyWithImpl<_$VeilidStateConfigImpl>(
           this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_VeilidStateConfigToJson(
+    return _$$VeilidStateConfigImplToJson(
       this,
     );
   }
@@ -4066,16 +4079,16 @@ class _$_VeilidStateConfig implements _VeilidStateConfig {
 
 abstract class _VeilidStateConfig implements VeilidStateConfig {
   const factory _VeilidStateConfig({required final VeilidConfig config}) =
-      _$_VeilidStateConfig;
+      _$VeilidStateConfigImpl;
 
   factory _VeilidStateConfig.fromJson(Map<String, dynamic> json) =
-      _$_VeilidStateConfig.fromJson;
+      _$VeilidStateConfigImpl.fromJson;
 
   @override
   VeilidConfig get config;
   @override
   @JsonKey(ignore: true)
-  _$$_VeilidStateConfigCopyWith<_$_VeilidStateConfig> get copyWith =>
+  _$$VeilidStateConfigImplCopyWith<_$VeilidStateConfigImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -4170,11 +4183,11 @@ class _$VeilidStateCopyWithImpl<$Res, $Val extends VeilidState>
 }
 
 /// @nodoc
-abstract class _$$_VeilidStateCopyWith<$Res>
+abstract class _$$VeilidStateImplCopyWith<$Res>
     implements $VeilidStateCopyWith<$Res> {
-  factory _$$_VeilidStateCopyWith(
-          _$_VeilidState value, $Res Function(_$_VeilidState) then) =
-      __$$_VeilidStateCopyWithImpl<$Res>;
+  factory _$$VeilidStateImplCopyWith(
+          _$VeilidStateImpl value, $Res Function(_$VeilidStateImpl) then) =
+      __$$VeilidStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -4191,11 +4204,11 @@ abstract class _$$_VeilidStateCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$_VeilidStateCopyWithImpl<$Res>
-    extends _$VeilidStateCopyWithImpl<$Res, _$_VeilidState>
-    implements _$$_VeilidStateCopyWith<$Res> {
-  __$$_VeilidStateCopyWithImpl(
-      _$_VeilidState _value, $Res Function(_$_VeilidState) _then)
+class __$$VeilidStateImplCopyWithImpl<$Res>
+    extends _$VeilidStateCopyWithImpl<$Res, _$VeilidStateImpl>
+    implements _$$VeilidStateImplCopyWith<$Res> {
+  __$$VeilidStateImplCopyWithImpl(
+      _$VeilidStateImpl _value, $Res Function(_$VeilidStateImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -4205,7 +4218,7 @@ class __$$_VeilidStateCopyWithImpl<$Res>
     Object? network = null,
     Object? config = null,
   }) {
-    return _then(_$_VeilidState(
+    return _then(_$VeilidStateImpl(
       attachment: null == attachment
           ? _value.attachment
           : attachment // ignore: cast_nullable_to_non_nullable
@@ -4224,12 +4237,12 @@ class __$$_VeilidStateCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_VeilidState implements _VeilidState {
-  const _$_VeilidState(
+class _$VeilidStateImpl implements _VeilidState {
+  const _$VeilidStateImpl(
       {required this.attachment, required this.network, required this.config});
 
-  factory _$_VeilidState.fromJson(Map<String, dynamic> json) =>
-      _$$_VeilidStateFromJson(json);
+  factory _$VeilidStateImpl.fromJson(Map<String, dynamic> json) =>
+      _$$VeilidStateImplFromJson(json);
 
   @override
   final VeilidStateAttachment attachment;
@@ -4244,10 +4257,10 @@ class _$_VeilidState implements _VeilidState {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_VeilidState &&
+            other is _$VeilidStateImpl &&
             (identical(other.attachment, attachment) ||
                 other.attachment == attachment) &&
             (identical(other.network, network) || other.network == network) &&
@@ -4261,12 +4274,12 @@ class _$_VeilidState implements _VeilidState {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_VeilidStateCopyWith<_$_VeilidState> get copyWith =>
-      __$$_VeilidStateCopyWithImpl<_$_VeilidState>(this, _$identity);
+  _$$VeilidStateImplCopyWith<_$VeilidStateImpl> get copyWith =>
+      __$$VeilidStateImplCopyWithImpl<_$VeilidStateImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_VeilidStateToJson(
+    return _$$VeilidStateImplToJson(
       this,
     );
   }
@@ -4276,10 +4289,10 @@ abstract class _VeilidState implements VeilidState {
   const factory _VeilidState(
       {required final VeilidStateAttachment attachment,
       required final VeilidStateNetwork network,
-      required final VeilidStateConfig config}) = _$_VeilidState;
+      required final VeilidStateConfig config}) = _$VeilidStateImpl;
 
   factory _VeilidState.fromJson(Map<String, dynamic> json) =
-      _$_VeilidState.fromJson;
+      _$VeilidStateImpl.fromJson;
 
   @override
   VeilidStateAttachment get attachment;
@@ -4289,6 +4302,6 @@ abstract class _VeilidState implements VeilidState {
   VeilidStateConfig get config;
   @override
   @JsonKey(ignore: true)
-  _$$_VeilidStateCopyWith<_$_VeilidState> get copyWith =>
+  _$$VeilidStateImplCopyWith<_$VeilidStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

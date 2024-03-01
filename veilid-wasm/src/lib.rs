@@ -145,6 +145,7 @@ pub struct VeilidWASMConfigLoggingPerformance {
     pub level: veilid_core::VeilidConfigLogLevel,
     pub logs_in_timings: bool,
     pub logs_in_console: bool,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -152,6 +153,7 @@ pub struct VeilidWASMConfigLoggingPerformance {
 pub struct VeilidWASMConfigLoggingAPI {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -204,8 +206,10 @@ pub fn initialize_veilid_core(platform_config: String) {
 
     // Performance logger
     if platform_config.logging.performance.enabled {
-        let filter =
-            veilid_core::VeilidLayerFilter::new(platform_config.logging.performance.level, None);
+        let filter = veilid_core::VeilidLayerFilter::new(
+            platform_config.logging.performance.level,
+            &platform_config.logging.performance.ignore_log_targets,
+        );
         let layer = WASMLayer::new(
             WASMLayerConfigBuilder::new()
                 .set_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
@@ -223,7 +227,10 @@ pub fn initialize_veilid_core(platform_config: String) {
 
     // API logger
     if platform_config.logging.api.enabled {
-        let filter = veilid_core::VeilidLayerFilter::new(platform_config.logging.api.level, None);
+        let filter = veilid_core::VeilidLayerFilter::new(
+            platform_config.logging.api.level,
+            &platform_config.logging.api.ignore_log_targets,
+        );
         let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
         filters.insert("api", filter);
         layers.push(layer.boxed());

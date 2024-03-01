@@ -16,13 +16,25 @@ pub struct VeilidLayerFilter {
 impl VeilidLayerFilter {
     pub fn new(
         max_level: VeilidConfigLogLevel,
-        ignore_list: Option<Vec<String>>,
+        ignore_log_targets: &[String],
     ) -> VeilidLayerFilter {
+        let mut ignore_list = DEFAULT_LOG_IGNORE_LIST.map(|x| x.to_owned()).to_vec();
+        for igedit in ignore_log_targets {
+            if let Some(rest) = igedit.strip_prefix('-') {
+                for i in 0..ignore_list.len() {
+                    if ignore_list[i] == rest {
+                        ignore_list.remove(i);
+                        break;
+                    }
+                }
+            } else {
+                ignore_list.push(igedit.clone());
+            }
+        }
         Self {
             inner: Arc::new(RwLock::new(VeilidLayerFilterInner {
                 max_level: max_level.to_tracing_level_filter(),
-                ignore_list: ignore_list
-                    .unwrap_or_else(|| DEFAULT_LOG_IGNORE_LIST.map(|x| x.to_owned()).to_vec()),
+                ignore_list,
             })),
         }
     }

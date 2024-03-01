@@ -14,6 +14,7 @@ class VeilidFFIConfigLoggingTerminal with _$VeilidFFIConfigLoggingTerminal {
   const factory VeilidFFIConfigLoggingTerminal({
     required bool enabled,
     required VeilidConfigLogLevel level,
+    @Default([]) List<String> ignoreLogTargets,
   }) = _VeilidFFIConfigLoggingTerminal;
 
   factory VeilidFFIConfigLoggingTerminal.fromJson(dynamic json) =>
@@ -27,6 +28,7 @@ class VeilidFFIConfigLoggingOtlp with _$VeilidFFIConfigLoggingOtlp {
     required VeilidConfigLogLevel level,
     required String grpcEndpoint,
     required String serviceName,
+    @Default([]) List<String> ignoreLogTargets,
   }) = _VeilidFFIConfigLoggingOtlp;
 
   factory VeilidFFIConfigLoggingOtlp.fromJson(dynamic json) =>
@@ -38,6 +40,7 @@ class VeilidFFIConfigLoggingApi with _$VeilidFFIConfigLoggingApi {
   const factory VeilidFFIConfigLoggingApi({
     required bool enabled,
     required VeilidConfigLogLevel level,
+    @Default([]) List<String> ignoreLogTargets,
   }) = _VeilidFFIConfigLoggingApi;
 
   factory VeilidFFIConfigLoggingApi.fromJson(dynamic json) =>
@@ -76,6 +79,7 @@ class VeilidWASMConfigLoggingPerformance
     required VeilidConfigLogLevel level,
     required bool logsInTimings,
     required bool logsInConsole,
+    @Default([]) List<String> ignoreLogTargets,
   }) = _VeilidWASMConfigLoggingPerformance;
 
   factory VeilidWASMConfigLoggingPerformance.fromJson(dynamic json) =>
@@ -88,6 +92,7 @@ class VeilidWASMConfigLoggingApi with _$VeilidWASMConfigLoggingApi {
   const factory VeilidWASMConfigLoggingApi({
     required bool enabled,
     required VeilidConfigLogLevel level,
+    @Default([]) List<String> ignoreLogTargets,
   }) = _VeilidWASMConfigLoggingApi;
 
   factory VeilidWASMConfigLoggingApi.fromJson(dynamic json) =>

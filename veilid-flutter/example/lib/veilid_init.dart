@@ -11,24 +11,30 @@ void veilidInit() {
                 enabled: true,
                 level: VeilidConfigLogLevel.debug,
                 logsInTimings: true,
-                logsInConsole: false),
+                logsInConsole: false,
+                ignoreLogTargets: []),
             api: VeilidWASMConfigLoggingApi(
-                enabled: true, level: VeilidConfigLogLevel.info)));
+                enabled: true,
+                level: VeilidConfigLogLevel.info,
+                ignoreLogTargets: [])));
     Veilid.instance.initializeVeilidCore(platformConfig.toJson());
   } else {
     var platformConfig = const VeilidFFIConfig(
         logging: VeilidFFIConfigLogging(
             terminal: VeilidFFIConfigLoggingTerminal(
-              enabled: false,
-              level: VeilidConfigLogLevel.debug,
-            ),
+                enabled: false,
+                level: VeilidConfigLogLevel.debug,
+                ignoreLogTargets: []),
             otlp: VeilidFFIConfigLoggingOtlp(
                 enabled: false,
                 level: VeilidConfigLogLevel.trace,
                 grpcEndpoint: "localhost:4317",
-                serviceName: "VeilidExample"),
+                serviceName: "VeilidExample",
+                ignoreLogTargets: []),
             api: VeilidFFIConfigLoggingApi(
-                enabled: true, level: VeilidConfigLogLevel.info)));
+                enabled: true,
+                level: VeilidConfigLogLevel.info,
+                ignoreLogTargets: [])));
     Veilid.instance.initializeVeilidCore(platformConfig.toJson());
   }
 }

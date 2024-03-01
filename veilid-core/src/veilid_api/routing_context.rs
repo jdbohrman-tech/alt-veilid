@@ -74,6 +74,9 @@ impl RoutingContext {
     /// To customize the safety selection in use, use [RoutingContext::with_safety()].
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub fn with_default_safety(self) -> VeilidAPIResult<Self> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::with_default_safety(self: {:?})", self);
+
         let config = self.api.config()?;
         let c = config.get();
 
@@ -88,6 +91,9 @@ impl RoutingContext {
     /// Use a custom [SafetySelection]. Can be used to disable safety via [SafetySelection::Unsafe]
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub fn with_safety(self, safety_selection: SafetySelection) -> VeilidAPIResult<Self> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::with_safety(self: {:?}, safety_selection: {:?})", self, safety_selection);
+
         Ok(Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
@@ -98,6 +104,9 @@ impl RoutingContext {
     /// Use a specified [Sequencing] preference, with or without privacy
     #[instrument(target = "veilid_api", level = "debug", ret)]
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::with_sequencing(self: {:?}, sequencing: {:?})", self, sequencing);
+
         Self {
             api: self.api.clone(),
             inner: Arc::new(Mutex::new(RoutingContextInner {})),
@@ -134,6 +143,9 @@ impl RoutingContext {
 
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     async fn get_destination(&self, target: Target) -> VeilidAPIResult<rpc_processor::Destination> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::get_destination(self: {:?}, target: {:?})", self, target);
+
         let rpc_processor = self.api.rpc_processor()?;
         rpc_processor
             .resolve_target_to_destination(target, self.unlocked_inner.safety_selection)
@@ -154,6 +166,9 @@ impl RoutingContext {
     /// Returns an answer blob of up to 32768 bytes
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn app_call(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::app_call(self: {:?}, target: {:?}, message: {:?})", self, target, message);
+
         let rpc_processor = self.api.rpc_processor()?;
 
         // Get destination
@@ -185,6 +200,9 @@ impl RoutingContext {
     /// * `message` - an arbitrary message blob of up to 32768 bytes
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::app_message(self: {:?}, target: {:?}, message: {:?})", self, target, message);
+
         let rpc_processor = self.api.rpc_processor()?;
 
         // Get destination
@@ -221,6 +239,9 @@ impl RoutingContext {
         schema: DHTSchema,
         kind: Option<CryptoKind>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::create_dht_record(self: {:?}, schema: {:?}, kind: {:?})", self, schema, kind);
+
         let kind = kind.unwrap_or(best_crypto_kind());
         Crypto::validate_crypto_kind(kind)?;
         let storage_manager = self.api.storage_manager()?;
@@ -246,6 +267,9 @@ impl RoutingContext {
         key: TypedKey,
         default_writer: Option<KeyPair>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::open_dht_record(self: {:?}, key: {:?}, default_writer: {:?})", self, key, default_writer);
+
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager
@@ -258,6 +282,9 @@ impl RoutingContext {
     /// Closing a record allows you to re-open it with a different routing context
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::close_dht_record(self: {:?}, key: {:?})", self, key);
+
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.close_record(key).await
@@ -270,6 +297,9 @@ impl RoutingContext {
     /// locally, and will prevent its value from being refreshed on the network by this node.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn delete_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::delete_dht_record(self: {:?}, key: {:?})", self, key);
+
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.delete_record(key).await
@@ -288,6 +318,9 @@ impl RoutingContext {
         subkey: ValueSubkey,
         force_refresh: bool,
     ) -> VeilidAPIResult<Option<ValueData>> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::get_dht_value(self: {:?}, key: {:?}, subkey: {:?}, force_refresh: {:?})", self, key, subkey, force_refresh);
+
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.get_value(key, subkey, force_refresh).await
@@ -308,6 +341,9 @@ impl RoutingContext {
         data: Vec<u8>,
         writer: Option<KeyPair>,
     ) -> VeilidAPIResult<Option<ValueData>> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::set_dht_value(self: {:?}, key: {:?}, subkey: {:?}, data: {:?}, writer: {:?})", self, key, subkey, data, writer);
+
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.set_value(key, subkey, data, writer).await
@@ -340,6 +376,9 @@ impl RoutingContext {
         expiration: Timestamp,
         count: u32,
     ) -> VeilidAPIResult<Timestamp> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::watch_dht_values(self: {:?}, key: {:?}, subkeys: {:?}, expiration: {:?}, count: {:?})", self, key, subkeys, expiration, count);
+
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager
@@ -358,6 +397,9 @@ impl RoutingContext {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<bool> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::cancel_dht_watch(self: {:?}, key: {:?}, subkeys: {:?}", self, key, subkeys);
+
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager.cancel_watch_values(key, subkeys).await

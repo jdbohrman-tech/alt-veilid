@@ -373,7 +373,7 @@ impl RPCProcessor {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<()> {
-        debug!("startup rpc processor");
+        log_rpc!(debug "startup rpc processor");
         {
             let mut inner = self.inner.lock();
 
@@ -382,7 +382,7 @@ impl RPCProcessor {
             inner.stop_source = Some(StopSource::new());
 
             // spin up N workers
-            trace!(
+            log_rpc!(
                 "Spinning up {} RPC workers",
                 self.unlocked_inner.concurrency
             );
@@ -408,7 +408,7 @@ impl RPCProcessor {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        debug!("starting rpc processor shutdown");
+        log_rpc!(debug "starting rpc processor shutdown");
 
         // Stop storage manager from using us
         self.storage_manager.set_rpc_processor(None).await;
@@ -424,17 +424,17 @@ impl RPCProcessor {
             // drop the stop
             drop(inner.stop_source.take());
         }
-        debug!("stopping {} rpc worker tasks", unord.len());
+        log_rpc!(debug "stopping {} rpc worker tasks", unord.len());
 
         // Wait for them to complete
         while unord.next().await.is_some() {}
 
-        debug!("resetting rpc processor state");
+        log_rpc!(debug "resetting rpc processor state");
 
         // Release the rpc processor
         *self.inner.lock() = Self::new_inner();
 
-        debug!("finished rpc processor shutdown");
+        log_rpc!(debug "finished rpc processor shutdown");
     }
 
     //////////////////////////////////////////////////////////////////////

@@ -61,7 +61,7 @@ impl VeilidLogs {
         if settingsr.logging.terminal.enabled {
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.terminal.level),
-                None,
+                &settingsr.logging.terminal.ignore_log_targets,
             );
             let layer = fmt::Layer::new()
                 .compact()
@@ -72,7 +72,7 @@ impl VeilidLogs {
         }
 
         // OpenTelemetry logger
-        #[cfg(feature="opentelemetry-otlp")]
+        #[cfg(feature = "opentelemetry-otlp")]
         if settingsr.logging.otlp.enabled {
             let grpc_endpoint = settingsr.logging.otlp.grpc_endpoint.name.clone();
 
@@ -111,7 +111,7 @@ impl VeilidLogs {
 
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.otlp.level),
-                None,
+                &settingsr.logging.otlp.ignore_log_targets,
             );
             let layer = tracing_opentelemetry::layer()
                 .with_tracer(tracer)
@@ -147,7 +147,7 @@ impl VeilidLogs {
 
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.file.level),
-                None,
+                &settingsr.logging.file.ignore_log_targets,
             );
             let layer = fmt::Layer::new()
                 .compact()
@@ -162,7 +162,7 @@ impl VeilidLogs {
         if settingsr.logging.api.enabled {
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.api.level),
-                None,
+                &settingsr.logging.api.ignore_log_targets,
             );
             let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
             filters.insert("api", filter);
@@ -175,7 +175,7 @@ impl VeilidLogs {
                 if settingsr.logging.system.enabled {
                     let filter = veilid_core::VeilidLayerFilter::new(
                         convert_loglevel(settingsr.logging.system.level),
-                        None,
+                        &settingsr.logging.system.ignore_log_targets,
                     );
                     let layer = tracing_journald::layer().wrap_err("failed to set up journald logging")?
                         .with_filter(filter.clone());

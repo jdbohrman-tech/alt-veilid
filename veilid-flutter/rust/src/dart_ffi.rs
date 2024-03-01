@@ -99,6 +99,7 @@ const APIRESULT_VOID: APIResult<()> = APIResult::Ok(());
 pub struct VeilidFFIConfigLoggingTerminal {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -107,12 +108,14 @@ pub struct VeilidFFIConfigLoggingOtlp {
     pub level: veilid_core::VeilidConfigLogLevel,
     pub grpc_endpoint: String,
     pub service_name: String,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidFFIConfigLoggingApi {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -205,7 +208,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
         cfg_if! {
             if #[cfg(target_os = "android")] {
                 let filter =
-                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, None);
+                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets);
                 let layer = paranoid_android::layer("veilid-flutter")
                     .with_ansi(false)
                     .with_filter(filter.clone());
@@ -213,7 +216,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                 layers.push(layer.boxed());
             } else {
                 let filter =
-                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, None);
+                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets);
                 let layer = tracing_subscriber::fmt::Layer::new()
                     .compact()
                     .with_writer(std::io::stdout)
@@ -263,7 +266,10 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                 .map_err(|e| format!("failed to install OpenTelemetry tracer: {}", e))
                 .unwrap();
 
-        let filter = veilid_core::VeilidLayerFilter::new(platform_config.logging.otlp.level, None);
+        let filter = veilid_core::VeilidLayerFilter::new(
+            platform_config.logging.otlp.level,
+            &platform_config.logging.otlp.ignore_log_targets,
+        );
         let layer = tracing_opentelemetry::layer()
             .with_tracer(tracer)
             .with_filter(filter.clone());
@@ -273,7 +279,10 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
 
     // API logger
     if platform_config.logging.api.enabled {
-        let filter = veilid_core::VeilidLayerFilter::new(platform_config.logging.api.level, None);
+        let filter = veilid_core::VeilidLayerFilter::new(
+            platform_config.logging.api.level,
+            &platform_config.logging.api.ignore_log_targets,
+        );
         let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
         filters.insert("api", filter);
         layers.push(layer.boxed());

@@ -8,7 +8,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.10.6'
+  flutter: '>=3.19.1'
   
 dependencies:
   change_case: ^2.0.1

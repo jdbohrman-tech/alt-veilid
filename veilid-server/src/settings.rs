@@ -415,6 +415,7 @@ impl NamedSocketAddrs {
 pub struct Terminal {
     pub enabled: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -428,18 +429,21 @@ pub struct File {
     pub path: String,
     pub append: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct System {
     pub enabled: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Api {
     pub enabled: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -447,6 +451,7 @@ pub struct Otlp {
     pub enabled: bool,
     pub level: LogLevel,
     pub grpc_endpoint: NamedSocketAddrs,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

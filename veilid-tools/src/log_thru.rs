@@ -69,7 +69,7 @@ macro_rules! log_rpc {
     (warn $fmt:literal, $($arg:expr),+) => {
         warn!(target:"rpc", $fmt, $($arg),+);
     };
-    (debug $text:expr) => { error!(
+    (debug $text:expr) => { debug!(
         target: "rpc",
         "{}",
         $text,
