@@ -1,11 +1,11 @@
-#![cfg(any(target_os = "openbsd"))]
+#![cfg(target_os = "openbsd")]
 #![allow(non_camel_case_types)]
 use super::*;
 
 use libc::{
-    close, freeifaddrs, getifaddrs, if_nametoindex, ifaddrs, ioctl, pid_t, sockaddr, sockaddr_in6, c_short,
-    socket, sysctl, time_t, AF_INET6, CTL_NET, IFF_BROADCAST, IFF_LOOPBACK, IFF_POINTOPOINT,
-    IFF_RUNNING, IFNAMSIZ, NET_RT_FLAGS, PF_ROUTE, SOCK_DGRAM,
+    c_short, close, freeifaddrs, getifaddrs, if_nametoindex, ifaddrs, ioctl, pid_t, sockaddr,
+    sockaddr_in6, socket, sysctl, time_t, AF_INET6, CTL_NET, IFF_BROADCAST, IFF_LOOPBACK,
+    IFF_POINTOPOINT, IFF_RUNNING, IFNAMSIZ, NET_RT_FLAGS, PF_ROUTE, SOCK_DGRAM,
 };
 use sockaddr_tools::SockAddr;
 use std::ffi::CStr;
@@ -28,7 +28,6 @@ const RTAX_MAX: c_int = 15;
 const RTA_DST: c_int = 1;
 const RTA_GATEWAY: c_int = 2;
 const RTF_GATEWAY: c_int = 2;
-
 
 macro_rules! set_name {
     ($name_field:expr, $name_str:expr) => {{
@@ -364,7 +363,7 @@ impl PlatformSupportOpenBSD {
                     Some(a) => a,
                     None => continue,
                 };
-                 
+
                 let src_ipaddr = match saddr_src.as_ipaddr() {
                     Some(a) => a,
                     None => continue,
