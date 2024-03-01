@@ -5,12 +5,14 @@ export const veilidCoreInitConfig: VeilidWASMConfig = {
     api: {
       enabled: true,
       level: 'Debug',
+      ignore_log_targets: [],
     },
     performance: {
       enabled: false,
       level: 'Info',
       logs_in_timings: false,
       logs_in_console: false,
+      ignore_log_targets: [],
     },
   },
 };

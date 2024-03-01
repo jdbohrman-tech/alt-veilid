@@ -42,8 +42,10 @@ impl VeilidClient {
 
         // Performance logger
         if platformConfig.logging.performance.enabled {
-            let filter =
-                veilid_core::VeilidLayerFilter::new(platformConfig.logging.performance.level, None);
+            let filter = veilid_core::VeilidLayerFilter::new(
+                platformConfig.logging.performance.level,
+                &platformConfig.logging.performance.ignore_log_targets,
+            );
             let layer = WASMLayer::new(
                 WASMLayerConfigBuilder::new()
                     .set_report_logs_in_timings(platformConfig.logging.performance.logs_in_timings)
@@ -61,8 +63,10 @@ impl VeilidClient {
 
         // API logger
         if platformConfig.logging.api.enabled {
-            let filter =
-                veilid_core::VeilidLayerFilter::new(platformConfig.logging.api.level, None);
+            let filter = veilid_core::VeilidLayerFilter::new(
+                platformConfig.logging.api.level,
+                &platformConfig.logging.api.ignore_log_targets,
+            );
             let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
             filters.insert("api", filter);
             layers.push(layer.boxed());

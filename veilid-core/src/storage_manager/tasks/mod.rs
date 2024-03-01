@@ -8,7 +8,7 @@ use super::*;
 impl StorageManager {
     pub(crate) fn setup_tasks(&self) {
         // Set flush records tick task
-        debug!("starting flush record stores task");
+        log_stor!(debug "starting flush record stores task");
         {
             let this = self.clone();
             self.unlocked_inner
@@ -29,7 +29,7 @@ impl StorageManager {
                 });
         }
         // Set offline subkey writes tick task
-        debug!("starting offline subkey writes task");
+        log_stor!(debug "starting offline subkey writes task");
         {
             let this = self.clone();
             self.unlocked_inner
@@ -50,7 +50,7 @@ impl StorageManager {
                 });
         }
         // Set send value changes tick task
-        debug!("starting send value changes task");
+        log_stor!(debug "starting send value changes task");
         {
             let this = self.clone();
             self.unlocked_inner
@@ -71,7 +71,7 @@ impl StorageManager {
                 });
         }
         // Set check active watches tick task
-        debug!("starting check active watches task");
+        log_stor!(debug "starting check active watches task");
         {
             let this = self.clone();
             self.unlocked_inner
@@ -117,19 +117,19 @@ impl StorageManager {
     }
 
     pub(crate) async fn cancel_tasks(&self) {
-        debug!("stopping check active watches task");
+        log_stor!(debug "stopping check active watches task");
         if let Err(e) = self.unlocked_inner.check_active_watches_task.stop().await {
             warn!("check_active_watches_task not stopped: {}", e);
         }
-        debug!("stopping send value changes task");
+        log_stor!(debug "stopping send value changes task");
         if let Err(e) = self.unlocked_inner.send_value_changes_task.stop().await {
             warn!("send_value_changes_task not stopped: {}", e);
         }
-        debug!("stopping flush record stores task");
+        log_stor!(debug "stopping flush record stores task");
         if let Err(e) = self.unlocked_inner.flush_record_stores_task.stop().await {
             warn!("flush_record_stores_task not stopped: {}", e);
         }
-        debug!("stopping offline subkey writes task");
+        log_stor!(debug "stopping offline subkey writes task");
         if let Err(e) = self.unlocked_inner.offline_subkey_writes_task.stop().await {
             warn!("offline_subkey_writes_task not stopped: {}", e);
         }

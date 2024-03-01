@@ -27,21 +27,26 @@ logging:
     system:
         enabled: false
         level: 'info'
+        ignore_log_targets: []
     terminal:
         enabled: true
         level: 'info'
+        ignore_log_targets: []
     file: 
         enabled: false
         path: ''
         append: true
         level: 'info'
+        ignore_log_targets: []
     api:
         enabled: true
         level: 'info'
+        ignore_log_targets: []
     otlp:
         enabled: false
         level: 'trace'
         grpc_endpoint: 'localhost:4317'
+        ignore_log_targets: []
     console:
         enabled: false
 testing:
@@ -922,17 +927,22 @@ impl Settings {
         set_config_value!(inner.auto_attach, value);
         set_config_value!(inner.logging.system.enabled, value);
         set_config_value!(inner.logging.system.level, value);
+        set_config_value!(inner.logging.system.ignore_log_targets, value);
         set_config_value!(inner.logging.terminal.enabled, value);
         set_config_value!(inner.logging.terminal.level, value);
+        set_config_value!(inner.logging.terminal.ignore_log_targets, value);
         set_config_value!(inner.logging.file.enabled, value);
         set_config_value!(inner.logging.file.path, value);
         set_config_value!(inner.logging.file.append, value);
         set_config_value!(inner.logging.file.level, value);
+        set_config_value!(inner.logging.file.ignore_log_targets, value);
         set_config_value!(inner.logging.api.enabled, value);
         set_config_value!(inner.logging.api.level, value);
+        set_config_value!(inner.logging.api.ignore_log_targets, value);
         set_config_value!(inner.logging.otlp.enabled, value);
         set_config_value!(inner.logging.otlp.level, value);
         set_config_value!(inner.logging.otlp.grpc_endpoint, value);
+        set_config_value!(inner.logging.otlp.ignore_log_targets, value);
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         set_config_value!(inner.core.capabilities.disable, value);

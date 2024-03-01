@@ -17,14 +17,14 @@ impl Network {
         }
         trace!("task_count: {}", task_count);
         for _ in 0..task_count {
-            trace!("Spawning UDP listener task");
+            log_net!("Spawning UDP listener task");
 
             ////////////////////////////////////////////////////////////
             // Run thread task to process stream of messages
             let this = self.clone();
 
             let jh = spawn(async move {
-                trace!("UDP listener task spawned");
+                log_net!("UDP listener task spawned");
 
                 // Collect all our protocol handlers into a vector
                 let mut protocol_handlers: Vec<RawUdpProtocolHandler> = this

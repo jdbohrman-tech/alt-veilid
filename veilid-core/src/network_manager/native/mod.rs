@@ -710,7 +710,7 @@ impl Network {
         self.unlocked_inner
             .interfaces
             .with_interfaces(|interfaces| {
-                debug!("interfaces: {:#?}", interfaces);
+                log_net!(debug "interfaces: {:#?}", interfaces);
 
                 for intf in interfaces.values() {
                     // Skip networks that we should never encounter

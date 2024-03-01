@@ -268,7 +268,7 @@ impl Network {
             }
         }
 
-        debug!("spawn_socket_listener: binding successful to {}", addr);
+        log_net!(debug "spawn_socket_listener: binding successful to {}", addr);
 
         // Create protocol handler records
         let listener_state = Arc::new(RwLock::new(ListenerState::new()));
