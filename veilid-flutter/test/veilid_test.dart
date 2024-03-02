@@ -6,13 +6,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {});
-
   tearDown(() {});
 
-  test('testEncodingKnownVectors', testEncodingKnownVectors);
-  test('testEncodeDecodeGarbage', testEncodeDecodeGarbage);
-  test('testEncodeDecodeGarbagePad', testEncodeDecodeGarbagePad);
+  group('encoding', () {
+    test('test encoding known vectors', testEncodingKnownVectors);
+    test('test encode/decode garbage', testEncodeDecodeGarbage);
+    test('test encode/decode garbage with pad', testEncodeDecodeGarbagePad);
+  });
 
-  test('testVSR', testValueSubkeyRange);
-  test('test List<ValueSubkeyRange>', testValueSubkeyRangeList);
+  group('ValueSubkeyRange', () {
+    test('test ValueSubkeyRange', testValueSubkeyRange);
+    test('test List<ValueSubkeyRange>', testValueSubkeyRangeList);
+  });
 }
