@@ -281,93 +281,99 @@ impl PlatformSupportApple {
     }
 
     async fn refresh_default_route_interfaces(&mut self) {
-        self.default_route_interfaces.clear();
+        loop {
+            let mut mib = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_FLAGS, RTF_GATEWAY];
+            let mut sa_tab: [*const sockaddr; RTAX_MAX as usize] =
+                [std::ptr::null(); RTAX_MAX as usize];
+            let mut rt_buf_len = 0usize;
 
-        let mut mib = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_FLAGS, RTF_GATEWAY];
-        let mut sa_tab: [*const sockaddr; RTAX_MAX as usize] =
-            [std::ptr::null(); RTAX_MAX as usize];
-        let mut rt_buf_len = 0usize;
-
-        // Get memory size for mib result
-        if unsafe {
-            sysctl(
-                mib.as_mut_ptr(),
-                mib.len() as u32,
-                std::ptr::null_mut(),
-                &mut rt_buf_len as *mut usize,
-                std::ptr::null_mut(),
-                0,
-            )
-        } < 0
-        {
-            error!("Unable to get memory size for routing table");
-            return;
-        }
-
-        // Allocate a buffer
-        let mut rt_buf = vec![0u8; rt_buf_len];
-
-        // Get mib result
-        if unsafe {
-            sysctl(
-                mib.as_mut_ptr(),
-                mib.len() as u32,
-                rt_buf.as_mut_ptr() as *mut c_void,
-                &mut rt_buf_len as *mut usize,
-                std::ptr::null_mut(),
-                0,
-            )
-        } < 0
-        {
-            error!("Unable to get memory size for routing table");
-            return;
-        }
-
-        // Process each routing message
-        let mut mib_ptr = rt_buf.as_ptr();
-        let mib_end = unsafe { mib_ptr.add(rt_buf_len) };
-        while mib_ptr < mib_end {
-            let rt = mib_ptr as *const rt_msghdr;
-            let mut sa = unsafe { rt.add(1) } as *const sockaddr;
-            let rtm_addrs = unsafe { (*rt).rtm_addrs };
-            let intf_index = unsafe { (*rt).rtm_index } as u32;
-
-            // Fill in sockaddr table
-            (0..(RTAX_MAX as usize)).for_each(|i| {
-                if rtm_addrs & (1 << i) != 0 {
-                    sa_tab[i] = sa;
-                    sa = unsafe {
-                        let sa_len = (*sa).sa_len;
-                        sa = ((sa as *const u8).add(round_up!(sa_len as usize))) as *const sockaddr;
-                        sa
-                    };
-                }
-            });
-
-            // Look for gateways
-            if rtm_addrs & (RTA_DST | RTA_GATEWAY) == (RTA_DST | RTA_GATEWAY) {
-                // Only interested in AF_INET and AF_INET6 address families
-                // SockAddr::new() takes care of this for us
-                let saddr_dst = match SockAddr::new(sa_tab[RTAX_DST as usize]) {
-                    Some(a) => a,
-                    None => continue,
-                };
-                let _saddr_gateway = match SockAddr::new(sa_tab[RTAX_GATEWAY as usize]) {
-                    Some(a) => a,
-                    None => continue,
-                };
-
-                // Look for default gateways
-                let dst_ipaddr = match saddr_dst.as_ipaddr() {
-                    Some(a) => a,
-                    None => continue,
-                };
-                if dst_ipaddr.is_unspecified() {
-                    self.default_route_interfaces.insert(intf_index);
-                }
+            // Get memory size for mib result
+            if unsafe {
+                sysctl(
+                    mib.as_mut_ptr(),
+                    mib.len() as u32,
+                    std::ptr::null_mut(),
+                    &mut rt_buf_len as *mut usize,
+                    std::ptr::null_mut(),
+                    0,
+                )
+            } < 0
+            {
+                error!("Unable to get memory size for routing table");
+                return;
             }
 
-            mib_ptr = unsafe { mib_ptr.add((*rt).rtm_msglen.into()) };
+            // Allocate a buffer
+            let mut rt_buf = vec![0u8; rt_buf_len];
+
+            // Get mib result
+            if unsafe {
+                sysctl(
+                    mib.as_mut_ptr(),
+                    mib.len() as u32,
+                    rt_buf.as_mut_ptr() as *mut c_void,
+                    &mut rt_buf_len as *mut usize,
+                    std::ptr::null_mut(),
+                    0,
+                )
+            } < 0
+            {
+                debug!("routing table changed length between interface checks, trying again");
+                continue;
+            }
+
+            // Clear old interfaces
+            self.default_route_interfaces.clear();
+
+            // Process each routing message
+            let mut mib_ptr = rt_buf.as_ptr();
+            let mib_end = unsafe { mib_ptr.add(rt_buf_len) };
+            while mib_ptr < mib_end {
+                let rt = mib_ptr as *const rt_msghdr;
+                let mut sa = unsafe { rt.add(1) } as *const sockaddr;
+                let rtm_addrs = unsafe { (*rt).rtm_addrs };
+                let intf_index = unsafe { (*rt).rtm_index } as u32;
+
+                // Fill in sockaddr table
+                (0..(RTAX_MAX as usize)).for_each(|i| {
+                    if rtm_addrs & (1 << i) != 0 {
+                        sa_tab[i] = sa;
+                        sa = unsafe {
+                            let sa_len = (*sa).sa_len;
+                            sa = ((sa as *const u8).add(round_up!(sa_len as usize)))
+                                as *const sockaddr;
+                            sa
+                        };
+                    }
+                });
+
+                // Look for gateways
+                if rtm_addrs & (RTA_DST | RTA_GATEWAY) == (RTA_DST | RTA_GATEWAY) {
+                    // Only interested in AF_INET and AF_INET6 address families
+                    // SockAddr::new() takes care of this for us
+                    let saddr_dst = match SockAddr::new(sa_tab[RTAX_DST as usize]) {
+                        Some(a) => a,
+                        None => continue,
+                    };
+                    let _saddr_gateway = match SockAddr::new(sa_tab[RTAX_GATEWAY as usize]) {
+                        Some(a) => a,
+                        None => continue,
+                    };
+
+                    // Look for default gateways
+                    let dst_ipaddr = match saddr_dst.as_ipaddr() {
+                        Some(a) => a,
+                        None => continue,
+                    };
+                    if dst_ipaddr.is_unspecified() {
+                        self.default_route_interfaces.insert(intf_index);
+                    }
+                }
+
+                mib_ptr = unsafe { mib_ptr.add((*rt).rtm_msglen.into()) };
+            }
+
+            break;
         }
     }
 
