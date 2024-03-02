@@ -479,6 +479,7 @@ Stream<T> processStreamJson<T>(
           }
         case messageStreamClose:
           {
+            port.close();
             break;
           }
         default:
@@ -1551,6 +1552,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('shutdown_veilid_core');
     final sendPort = recvPort.sendPort;
     _shutdownVeilidCore(sendPort.nativePort);
+
     return processFutureVoid(recvPort.first);
   }
 
