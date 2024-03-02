@@ -1499,6 +1499,20 @@
           ]
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "op"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "DefaultVeilidConfig"
+          ]
+        }
+      }
     }
   ],
   "properties": {

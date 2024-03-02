@@ -792,6 +792,9 @@ impl JsonRequestProcessor {
                     patch,
                 }
             }
+            RequestOp::DefaultVeilidConfig => ResponseOp::DefaultVeilidConfig {
+                value: default_veilid_config(),
+            },
         };
 
         Response { id, op }

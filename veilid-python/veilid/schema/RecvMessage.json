@@ -2349,6 +2349,24 @@
               "minimum": 0.0
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "value"
+          ],
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "DefaultVeilidConfig"
+              ]
+            },
+            "value": {
+              "type": "string"
+            }
+          }
         }
       ],
       "required": [

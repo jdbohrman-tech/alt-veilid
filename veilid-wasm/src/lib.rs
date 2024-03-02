@@ -1624,3 +1624,8 @@ pub fn veilid_version() -> JsValue {
     };
     <JsValue as JsValueSerdeExt>::from_serde(&vv).unwrap()
 }
+
+#[wasm_bindgen()]
+pub fn default_veilid_config() -> String {
+    veilid_core::default_veilid_config()
+}

@@ -162,5 +162,6 @@ abstract class Veilid {
   Timestamp now();
   String veilidVersionString();
   VeilidVersion veilidVersion();
+  String defaultVeilidConfig();
   Future<String> debug(String command);
 }

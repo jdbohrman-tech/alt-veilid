@@ -28,6 +28,19 @@ describe('veilidClient', () => {
     expect(version.length).toBeGreaterThan(0);
   });
 
+  it('should get config string', async () => {
+    const defaultConfig = veilidClient.defaultConfig();
+    expect(typeof defaultConfig).toBe('string');
+    expect(defaultConfig.length).toBeGreaterThan(0);
+
+    const cfgObject1 = JSON.parse(defaultConfig);
+    const defaultConfigStr = JSON.stringify(cfgObject1);
+    const cfgObject2 = JSON.parse(defaultConfigStr);
+    const defaultConfigStr2 = JSON.stringify(cfgObject2);
+
+    expect(defaultConfigStr).toEqual(defaultConfigStr2);
+  });
+
   it('should attach and detach', async () => {
     await veilidClient.attach();
     await waitForMs(2000);

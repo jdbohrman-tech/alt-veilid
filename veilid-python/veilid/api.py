@@ -396,3 +396,7 @@ class VeilidAPI(ABC):
     @abstractmethod
     async def veilid_version(self) -> types.VeilidVersion:
         pass
+
+    @abstractmethod
+    async def default_veilid_config(self) -> str:
+        pass

@@ -88,6 +88,11 @@ pub fn veilid_version() -> (u32, u32, u32) {
     )
 }
 
+/// Return the default veilid config as a json object
+pub fn default_veilid_config() -> String {
+    serialize_json(VeilidConfigInner::default())
+}
+
 #[cfg(target_os = "android")]
 pub use intf::android::veilid_core_setup_android;
 

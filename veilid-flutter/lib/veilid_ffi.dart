@@ -235,6 +235,9 @@ final class VeilidVersionFFI extends Struct {
 
 typedef _VeilidVersionDart = VeilidVersionFFI Function();
 
+// fn default_veilid_config() -> *mut c_char
+typedef _DefaultVeilidConfigDart = Pointer<Utf8> Function();
+
 // Async message types
 const int messageOk = 0;
 const int messageErr = 1;
@@ -1388,7 +1391,9 @@ class VeilidFFI extends Veilid {
         _veilidVersionString = dylib.lookupFunction<Pointer<Utf8> Function(),
             _VeilidVersionStringDart>('veilid_version_string'),
         _veilidVersion = dylib.lookupFunction<VeilidVersionFFI Function(),
-            _VeilidVersionDart>('veilid_version') {
+            _VeilidVersionDart>('veilid_version'),
+        _defaultVeilidConfig = dylib.lookupFunction<Pointer<Utf8> Function(),
+            _DefaultVeilidConfigDart>('default_veilid_config') {
     // Get veilid_flutter initializer
     final initializeVeilidFlutter = _dylib.lookupFunction<
         Void Function(Pointer<_DartPostCObject>),
@@ -1481,6 +1486,7 @@ class VeilidFFI extends Veilid {
   final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
   final _VeilidVersionDart _veilidVersion;
+  final _DefaultVeilidConfigDart _defaultVeilidConfig;
 
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
@@ -1713,5 +1719,13 @@ class VeilidFFI extends Veilid {
       version.minor,
       version.patch,
     );
+  }
+
+  @override
+  String defaultVeilidConfig() {
+    final defaultVeilidConfig = _defaultVeilidConfig();
+    final ret = defaultVeilidConfig.toDartString();
+    _freeString(defaultVeilidConfig);
+    return ret;
   }
 }

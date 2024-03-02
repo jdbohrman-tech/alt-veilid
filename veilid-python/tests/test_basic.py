@@ -1,6 +1,8 @@
 # Basic veilid tests
 
 import socket
+import json
+import dataclasses
 
 import pytest
 import veilid
@@ -40,3 +42,19 @@ async def test_version(api_connection: veilid.VeilidAPI):
 
     vstr = await api_connection.veilid_version_string()
     print(f"veilid_version_string: {vstr}")
+
+
+@pytest.mark.asyncio
+async def test_config(api_connection: veilid.VeilidAPI):
+    cfgstr = await api_connection.default_veilid_config()
+    print(f"default_veilid_config:\n{cfgstr}")
+    cfgjson = json.loads(cfgstr)
+    
+    veilidConfigInstance = veilid.VeilidConfig(**cfgjson)
+    cfgstr2 = json.dumps(dataclasses.asdict(veilidConfigInstance))
+    
+    cfgjson2 = json.loads(cfgstr2)
+    veilidConfigInstance2 = veilid.VeilidConfig(**cfgjson2)
+    
+    assert veilidConfigInstance == veilidConfigInstance2
+

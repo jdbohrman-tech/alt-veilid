@@ -705,4 +705,8 @@ class VeilidJS extends Veilid {
     return VeilidVersion(jsonVersion['major'] as int,
         jsonVersion['minor'] as int, jsonVersion['patch'] as int);
   }
+
+  @override
+  String defaultVeilidConfig() =>
+      js_util.callMethod(wasm, 'default_veilid_config', []);
 }

@@ -28,6 +28,7 @@ class Operation(StrEnum):
     DEBUG = "Debug"
     VEILID_VERSION_STRING = "VeilidVersionString"
     VEILID_VERSION = "VeilidVersion"
+    DEFAULT_VEILID_CONFIG = "DefaultVeilidConfig"
 
 
 class RoutingContextOperation(StrEnum):

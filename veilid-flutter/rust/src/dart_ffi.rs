@@ -1765,3 +1765,8 @@ pub extern "C" fn veilid_version() -> VeilidVersion {
         patch,
     }
 }
+
+#[no_mangle]
+pub extern "C" fn default_veilid_config() -> *mut c_char {
+    veilid_core::default_veilid_config().into_ffi_value()
+}
