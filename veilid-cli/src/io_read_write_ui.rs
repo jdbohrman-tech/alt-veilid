@@ -85,17 +85,17 @@ impl<R: AsyncRead + Unpin + Send, W: AsyncWrite + Unpin + Send> IOReadWriteUI<R,
     }
 
     pub async fn command_loop(&self) {
-        let (in_io, out_sender, connection_state_receiver) = {
+        let (in_io, out_sender, connection_state_receiver, done) = {
             let inner = self.inner.lock();
             (
                 inner.in_io.clone(),
                 inner.out_sender.clone(),
                 inner.connection_state_receiver.clone(),
+                inner.done.as_ref().unwrap().token(),
             )
         };
         let mut in_io = in_io.lock().await;
 
-        let done = self.inner.lock().done.as_ref().unwrap().token();
         let (exec_sender, exec_receiver) = flume::bounded(1);
 
         // Wait for connection to be established
