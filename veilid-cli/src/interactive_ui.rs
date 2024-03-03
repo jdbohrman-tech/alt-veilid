@@ -114,7 +114,6 @@ impl UI for InteractiveUI {
         let mut inner = self.inner.lock();
         inner.cmdproc = Some(cmdproc);
     }
-    // Note: Cursive is not re-entrant, can't borrow_mut self.siv again after this
     fn run_async(&mut self) -> Pin<Box<dyn core::future::Future<Output = ()>>> {
         let this = self.clone();
         Box::pin(async move {
@@ -139,7 +138,12 @@ impl UISender for InteractiveUISender {
     }
 
     fn display_string_dialog(&self, title: &str, text: &str, close_cb: UICallback) {
-        println!("{}: {}", title, text);
+        let Some(mut stdout) = self.inner.lock().stdout.clone() else {
+            return;
+        };
+        if let Err(e) = writeln!(stdout, "{}: {}", title, text) {
+            self.inner.lock().error = Some(e.to_string());
+        }
         if let UICallback::Interactive(mut close_cb) = close_cb {
             close_cb()
         }
@@ -186,4 +190,5 @@ impl UISender for InteractiveUISender {
             self.inner.lock().error = Some(e.to_string());
         }
     }
+    fn add_log_event(&self, _log_color: Level, _event: &str) {}
 }

@@ -50,7 +50,7 @@ serde_derive = "^1"
 parking_lot = "^0"
 cfg-if = "^1"
 config = { version = "^0", features = ["yaml"] }
-bugsalot = { package = "veilid-bugsalot", version = "0.1.0" }
+bugsalot = { package = "veilid-bugsalot", version = "0.2.0" }
 flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"

@@ -414,7 +414,7 @@ Server Debug Commands:
     ////////////////////////////////////////////
 
     pub fn log_message(&self, log_level: Level, message: &str) {
-        self.inner().ui_sender.add_node_event(log_level, message);
+        self.inner().ui_sender.add_log_event(log_level, message);
     }
 
     pub fn update_attachment(&self, attachment: &json::JsonValue) {
@@ -481,7 +481,7 @@ Server Debug Commands:
     pub fn update_log(&self, log: &json::JsonValue) {
         let log_level =
             Level::from_str(log["log_level"].as_str().unwrap_or("error")).unwrap_or(Level::Error);
-        self.inner().ui_sender.add_node_event(
+        self.inner().ui_sender.add_log_event(
             log_level,
             &format!(
                 "{}: {}{}",

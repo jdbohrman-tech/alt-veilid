@@ -1,6 +1,7 @@
 use crate::command_processor::*;
 use crate::cursive_ui::CursiveUICallback;
 use crate::interactive_ui::InteractiveUICallback;
+use crate::io_read_write_ui::IOReadWriteUICallback;
 use crate::tools::*;
 use flexi_logger::writers::LogWriter;
 use log::Level;
@@ -8,6 +9,7 @@ use log::Level;
 pub enum UICallback {
     Cursive(CursiveUICallback),
     Interactive(InteractiveUICallback),
+    IOReadWrite(IOReadWriteUICallback),
 }
 
 pub trait UISender: Send {
@@ -33,6 +35,7 @@ pub trait UISender: Send {
     fn set_config(&mut self, config: &json::JsonValue);
     fn set_connection_state(&mut self, state: ConnectionState);
     fn add_node_event(&self, log_color: Level, event: &str);
+    fn add_log_event(&self, log_color: Level, event: &str);
 }
 
 pub trait UI {

@@ -1370,6 +1370,22 @@ impl UISender for CursiveUISender {
             ),
         );
     }
+    fn add_log_event(&self, log_color: Level, event: &str) {
+        let color = {
+            let inner = self.inner.lock();
+            *inner.log_colors.get(&log_color).unwrap()
+        };
+
+        let _ = self.push_styled_lines(
+            color.into(),
+            format!(
+                "{}: {}\n",
+                CursiveUI::cli_ts(CursiveUI::get_start_time()),
+                event
+            ),
+        );
+    }
+
 }
 impl CursiveUISender {
     pub fn push_styled(&self, styled_string: StyledString) -> std::io::Result<()> {

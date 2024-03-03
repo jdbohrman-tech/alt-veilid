@@ -76,7 +76,7 @@ futures-util = { version = "^0", default-features = false, features = [
 url = "^2"
 ctrlc = "^3"
 lazy_static = "^1"
-bugsalot = { package = "veilid-bugsalot", version = "0.1.0" }
+bugsalot = { package = "veilid-bugsalot", version = "0.2.0" }
 flume = { version = "^0", features = ["async"] }
 rpassword = "^7"
 hostname = "^0"
