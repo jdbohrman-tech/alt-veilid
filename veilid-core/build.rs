@@ -81,11 +81,7 @@ fn append_hash<P: AsRef<Path>, Q: AsRef<Path>>(input_path: P, output_path: Q) {
     let output_path = output_path.as_ref();
     let lines = std::io::BufReader::new(std::fs::File::open(input_path).unwrap()).lines();
     let h = calculate_hash(lines);
-    let mut out_file = OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(output_path)
-        .unwrap();
+    let mut out_file = OpenOptions::new().append(true).open(output_path).unwrap();
     writeln!(out_file, "\n//BUILDHASH:{}", hex::encode(h)).unwrap();
 }
 

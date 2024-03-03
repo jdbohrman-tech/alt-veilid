@@ -63,7 +63,7 @@ pub type NodeEventsPanel = Panel<NamedView<ScrollView<NamedView<CachedTextView>>
 
 static START_TIME: AtomicU64 = AtomicU64::new(0);
 
-pub type CursiveUICallback = Box<dyn Fn(&mut Cursive) + Send>;
+pub type CursiveUICallback = Box<dyn Fn(&mut Cursive) + Send + Sync>;
 
 struct UIState {
     attachment_state: Dirty<String>,
@@ -388,7 +388,7 @@ impl CursiveUI {
         close_cb: Option<CursiveUICallback>,
     ) {
         // Creates a dialog around some text with a single button
-        let close_cb = Rc::new(close_cb);
+        let close_cb = Arc::new(close_cb);
         let close_cb2 = close_cb.clone();
         s.add_layer(
             Dialog::around(TextView::new(contents).scrollable())
@@ -631,13 +631,15 @@ impl CursiveUI {
         }
     }
 
-    fn on_submit_peers_table_view(s: &mut Cursive, _row: usize, index: usize) {
-        let peers_table_view = CursiveUI::peers(s);
-        let node_id = peers_table_view
-            .borrow_item(index)
-            .map(|j| j["node_ids"][0].to_string());
-        if let Some(node_id) = node_id {
-            Self::copy_to_clipboard(s, node_id);
+    fn on_submit_peers_table_view(s: &mut Cursive, _row: Option<usize>, index: Option<usize>) {
+        if let Some(index) = index {
+            let peers_table_view = CursiveUI::peers(s);
+            let node_id = peers_table_view
+                .borrow_item(index)
+                .map(|j| j["node_ids"][0].to_string());
+            if let Some(node_id) = node_id {
+                Self::copy_to_clipboard(s, node_id);
+            }
         }
     }
 
