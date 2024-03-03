@@ -38,7 +38,7 @@ cursive = { git = "https://gitlab.com/veilid/cursive.git", default-features = fa
 cursive_buffered_backend = { git = "https://gitlab.com/veilid/cursive-buffered-backend.git" }
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
-cursive_table_view = { path = "../../cursive_table_view" }
+cursive_table_view = { git = "https://gitlab.com/veilid/cursive-table-view.git" }
 arboard = "3.3.0"
 # cursive-tabs = "0.5.0"
 clap = { version = "4", features = ["derive"] }

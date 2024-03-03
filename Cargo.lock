@@ -1431,6 +1431,7 @@ dependencies = [
 [[package]]
 name = "cursive_table_view"
 version = "0.14.0"
+source = "git+https://gitlab.com/veilid/cursive-table-view.git#5311a8aa0527b4619f7070b28a8418432c6918da"
 dependencies = [
  "cursive_core",
 ]
