@@ -80,7 +80,7 @@ impl ClientApiConnection {
     async fn process_veilid_update(&self, update: json::JsonValue) {
         let comproc = self.inner.lock().comproc.clone();
         let Some(kind) = update["kind"].as_str() else {
-            comproc.log_message(Level::Error, format!("missing update kind: {}", update));
+            comproc.log_message(Level::Error, &format!("missing update kind: {}", update));
             return;
         };
         match kind {
@@ -110,7 +110,7 @@ impl ClientApiConnection {
                 comproc.update_value_change(&update);
             }
             _ => {
-                comproc.log_message(Level::Error, format!("unknown update kind: {}", update));
+                comproc.log_message(Level::Error, &format!("unknown update kind: {}", update));
             }
         }
     }

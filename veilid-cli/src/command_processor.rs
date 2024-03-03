@@ -41,7 +41,7 @@ impl ConnectionState {
 }
 
 struct CommandProcessorInner {
-    ui_sender: UISender,
+    ui_sender: Box<dyn UISender>,
     capi: Option<ClientApiConnection>,
     reconnect: bool,
     finished: bool,
@@ -60,7 +60,7 @@ pub struct CommandProcessor {
 }
 
 impl CommandProcessor {
-    pub fn new(ui_sender: UISender, settings: &Settings) -> Self {
+    pub fn new(ui_sender: Box<dyn UISender>, settings: &Settings) -> Self {
         Self {
             inner: Arc::new(Mutex::new(CommandProcessorInner {
                 ui_sender,
@@ -86,8 +86,8 @@ impl CommandProcessor {
     fn inner_mut(&self) -> MutexGuard<CommandProcessorInner> {
         self.inner.lock()
     }
-    fn ui_sender(&self) -> UISender {
-        self.inner.lock().ui_sender.clone()
+    fn ui_sender(&self) -> Box<dyn UISender> {
+        self.inner.lock().ui_sender.clone_uisender()
     }
     fn capi(&self) -> ClientApiConnection {
         self.inner.lock().capi.as_ref().unwrap().clone()
@@ -126,7 +126,7 @@ impl CommandProcessor {
 
             ui.add_node_event(
                 Level::Info,
-                format!(
+                &format!(
                     r#"Client Commands:
     exit/quit                           exit the client
     disconnect                          disconnect the client from the Veilid node 
@@ -190,11 +190,11 @@ Server Debug Commands:
         spawn_detached_local(async move {
             match capi.server_debug(command_line).await {
                 Ok(output) => {
-                    ui.add_node_event(Level::Info, output);
+                    ui.add_node_event(Level::Info, &output);
                     ui.send_callback(callback);
                 }
                 Err(e) => {
-                    ui.add_node_event(Level::Error, e.to_string());
+                    ui.add_node_event(Level::Error, &e);
                     ui.send_callback(callback);
                 }
             }
@@ -215,7 +215,7 @@ Server Debug Commands:
             let log_level = match convert_loglevel(&rest.unwrap_or_default()) {
                 Ok(v) => v,
                 Err(e) => {
-                    ui.add_node_event(Level::Error, format!("Failed to change log level: {}", e));
+                    ui.add_node_event(Level::Error, &format!("Failed to change log level: {}", e));
                     ui.send_callback(callback);
                     return;
                 }
@@ -228,7 +228,7 @@ Server Debug Commands:
                 Err(e) => {
                     ui.display_string_dialog(
                         "Server command 'change_log_level' failed",
-                        e.to_string(),
+                        &e,
                         callback,
                     );
                 }
@@ -247,11 +247,11 @@ Server Debug Commands:
             match flag.as_str() {
                 "app_messages" => {
                     this.inner.lock().enable_app_messages = true;
-                    ui.add_node_event(Level::Info, format!("flag enabled: {}", flag));
+                    ui.add_node_event(Level::Info, &format!("flag enabled: {}", flag));
                     ui.send_callback(callback);
                 }
                 _ => {
-                    ui.add_node_event(Level::Error, format!("unknown flag: {}", flag));
+                    ui.add_node_event(Level::Error, &format!("unknown flag: {}", flag));
                     ui.send_callback(callback);
                 }
             }
@@ -269,11 +269,11 @@ Server Debug Commands:
             match flag.as_str() {
                 "app_messages" => {
                     this.inner.lock().enable_app_messages = false;
-                    ui.add_node_event(Level::Info, format!("flag disabled: {}", flag));
+                    ui.add_node_event(Level::Info, &format!("flag disabled: {}", flag));
                     ui.send_callback(callback);
                 }
                 _ => {
-                    ui.add_node_event(Level::Error, format!("unknown flag: {}", flag));
+                    ui.add_node_event(Level::Error, &format!("unknown flag: {}", flag));
                     ui.send_callback(callback);
                 }
             }
@@ -413,13 +413,13 @@ Server Debug Commands:
     // calls into ui
     ////////////////////////////////////////////
 
-    pub fn log_message(&self, log_level: Level, message: String) {
+    pub fn log_message(&self, log_level: Level, message: &str) {
         self.inner().ui_sender.add_node_event(log_level, message);
     }
 
     pub fn update_attachment(&self, attachment: &json::JsonValue) {
         self.inner_mut().ui_sender.set_attachment_state(
-            attachment["state"].as_str().unwrap_or_default().to_owned(),
+            attachment["state"].as_str().unwrap_or_default(),
             attachment["public_internet_ready"]
                 .as_bool()
                 .unwrap_or_default(),
@@ -458,7 +458,7 @@ Server Debug Commands:
             ));
         }
         if !out.is_empty() {
-            self.inner().ui_sender.add_node_event(Level::Info, out);
+            self.inner().ui_sender.add_node_event(Level::Info, &out);
         }
     }
     pub fn update_value_change(&self, value_change: &json::JsonValue) {
@@ -475,7 +475,7 @@ Server Debug Commands:
             datastr,
             if truncated { "..." } else { "" }
         );
-        self.inner().ui_sender.add_node_event(Level::Info, out);
+        self.inner().ui_sender.add_node_event(Level::Info, &out);
     }
 
     pub fn update_log(&self, log: &json::JsonValue) {
@@ -483,7 +483,7 @@ Server Debug Commands:
             Level::from_str(log["log_level"].as_str().unwrap_or("error")).unwrap_or(Level::Error);
         self.inner().ui_sender.add_node_event(
             log_level,
-            format!(
+            &format!(
                 "{}: {}{}",
                 log["log_level"].as_str().unwrap_or("???"),
                 log["message"].as_str().unwrap_or("???"),
@@ -530,7 +530,7 @@ Server Debug Commands:
 
         self.inner().ui_sender.add_node_event(
             Level::Info,
-            format!(
+            &format!(
                 "AppMessage ({:?}): {}{}",
                 msg["sender"],
                 strmsg,
@@ -570,7 +570,7 @@ Server Debug Commands:
 
         self.inner().ui_sender.add_node_event(
             Level::Info,
-            format!(
+            &format!(
                 "AppCall ({:?}) id = {:016x} : {}{}",
                 call["sender"],
                 id,

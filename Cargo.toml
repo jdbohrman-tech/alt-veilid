@@ -12,6 +12,7 @@ resolver = "2"
 [patch.crates-io]
 cursive = { git = "https://gitlab.com/veilid/cursive.git" }
 cursive_core = { git = "https://gitlab.com/veilid/cursive.git" }
+nom = { git = "https://gitlab.com/emixa-d/ansi-parser.git" }
 
 # For local development
 # keyvaluedb = { path = "../keyvaluedb/keyvaluedb" }

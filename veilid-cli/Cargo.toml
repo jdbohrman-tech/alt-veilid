@@ -55,7 +55,7 @@ flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"
 hex = "^0"
-veilid-tools = { version = "0.2.5", path = "../veilid-tools", default-features = false}
+veilid-tools = { version = "0.2.5", path = "../veilid-tools", default-features = false }
 
 json = "^0"
 stop-token = { version = "^0", default-features = false }
@@ -67,6 +67,7 @@ chrono = "0.4.31"
 owning_ref = "0.4.1"
 unicode-width = "0.1.11"
 lru = "0.10.1"
+rustyline-async = "0.4.2"
 
 [dev-dependencies]
 serial_test = "^2"

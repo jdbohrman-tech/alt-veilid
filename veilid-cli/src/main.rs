@@ -3,7 +3,7 @@
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
-use crate::{settings::NamedSocketAddrs, tools::*};
+use crate::{settings::NamedSocketAddrs, tools::*, ui::*};
 
 use clap::{Parser, ValueEnum};
 use flexi_logger::*;
@@ -11,6 +11,8 @@ use std::path::PathBuf;
 mod cached_text_view;
 mod client_api_connection;
 mod command_processor;
+mod cursive_ui;
+mod interactive_ui;
 mod peers_table_view;
 mod settings;
 mod tools;
@@ -31,7 +33,7 @@ struct CmdlineArgs {
     #[arg(long, short = 'p')]
     ipc_path: Option<PathBuf>,
     /// Subnode index to use when connecting
-    #[arg(long, short = 'i', default_value = "0")]
+    #[arg(long, default_value = "0")]
     subnode_index: usize,
     /// Address to connect to
     #[arg(long, short = 'a')]
@@ -45,6 +47,23 @@ struct CmdlineArgs {
     /// log level
     #[arg(value_enum)]
     log_level: Option<LogLevel>,
+    /// interactive
+    #[arg(long, short = 'i', group = "execution_mode")]
+    interactive: bool,
+    /// evaluate
+    #[arg(long, short = 'e', group = "execution_mode")]
+    evaluate: Option<String>,
+    /// show log
+    #[arg(long, short = 'l', group = "execution_mode")]
+    show_log: bool,
+    /// read commands from file
+    #[arg(
+        long,
+        short = 'f',
+        group = "execution_mode",
+        value_name = "COMMAND_FILE"
+    )]
+    command_file: Option<PathBuf>,
 }
 
 fn main() -> Result<(), String> {
@@ -78,8 +97,29 @@ fn main() -> Result<(), String> {
         settings.logging.terminal.enabled = true;
     }
 
+    // If we are running in interactive mode disable some things
+    let mut enable_cursive = true;
+    if args.interactive || args.show_log || args.command_file.is_some() || args.evaluate.is_some() {
+        settings.logging.terminal.enabled = false;
+        enable_cursive = false;
+    }
+
     // Create UI object
-    let (mut sivui, uisender) = ui::UI::new(settings.interface.node_log.scrollback, &settings);
+    let (mut ui, uisender) = if enable_cursive {
+        let (ui, uisender) = cursive_ui::CursiveUI::new(&settings);
+        (
+            Box::new(ui) as Box<dyn UI>,
+            Box::new(uisender) as Box<dyn UISender>,
+        )
+    } else if args.interactive {
+        let (ui, uisender) = interactive_ui::InteractiveUI::new(&settings);
+        (
+            Box::new(ui) as Box<dyn UI>,
+            Box::new(uisender) as Box<dyn UISender>,
+        )
+    } else {
+        panic!("unknown ui mode");
+    };
 
     // Set up loggers
     {
@@ -105,13 +145,13 @@ fn main() -> Result<(), String> {
                         FileSpec::default()
                             .directory(settings.logging.file.directory.clone())
                             .suppress_timestamp(),
-                        Box::new(uisender.clone()),
+                        uisender.as_logwriter().unwrap(),
                     )
                     .start()
                     .expect("failed to initialize logger!");
             } else {
                 logger
-                    .log_to_writer(Box::new(uisender.clone()))
+                    .log_to_writer(uisender.as_logwriter().unwrap())
                     .start()
                     .expect("failed to initialize logger!");
             }
@@ -195,7 +235,8 @@ fn main() -> Result<(), String> {
     // Create command processor
     debug!("Creating Command Processor ");
     let comproc = command_processor::CommandProcessor::new(uisender, &settings);
-    sivui.set_command_processor(comproc.clone());
+
+    ui.set_command_processor(comproc.clone());
 
     // Create client api client side
     info!("Starting API connection");
@@ -221,7 +262,7 @@ fn main() -> Result<(), String> {
     block_on(async move {
         // Start UI
         let ui_future = async move {
-            sivui.run_async().await;
+            ui.run_async().await;
 
             // When UI quits, close connection and command processor cleanly
             comproc2.quit();
