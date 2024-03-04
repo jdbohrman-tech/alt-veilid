@@ -1053,8 +1053,16 @@ where
     }
 
     pub fn debug_record_info(&self, key: TypedKey) -> String {
-        self.peek_record(key, |r| format!("{:#?}", r))
-            .unwrap_or("Not found".to_owned())
+        let record_info = self
+            .peek_record(key, |r| format!("{:#?}", r))
+            .unwrap_or("Not found".to_owned());
+        let watched_record = match self.watched_records.get(&RecordTableKey { key }) {
+            Some(w) => {
+                format!("Remote Watches: {:#?}", w)
+            }
+            None => "No remote watches".to_owned(),
+        };
+        format!("{}\n{}\n", record_info, watched_record)
     }
 
     pub async fn debug_record_subkey_info(&self, key: TypedKey, subkey: ValueSubkey) -> String {

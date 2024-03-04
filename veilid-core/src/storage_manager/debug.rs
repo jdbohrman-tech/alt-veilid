@@ -15,6 +15,18 @@ impl StorageManager {
         };
         remote_record_store.debug_records()
     }
+    pub(crate) async fn debug_opened_records(&self) -> String {
+        let inner = self.inner.lock().await;
+        format!(
+            "{:#?}",
+            inner
+                .opened_records
+                .keys()
+                .copied()
+                .collect::<Vec<TypedKey>>()
+        )
+    }
+
     pub(crate) async fn purge_local_records(&self, reclaim: Option<usize>) -> String {
         let mut inner = self.inner.lock().await;
         let Some(local_record_store) = &mut inner.local_record_store else {
@@ -66,8 +78,17 @@ impl StorageManager {
         let Some(local_record_store) = &inner.local_record_store else {
             return "not initialized".to_owned();
         };
-        local_record_store.debug_record_info(key)
+        let local_debug = local_record_store.debug_record_info(key);
+
+        let opened_debug = if let Some(o) = inner.opened_records.get(&key) {
+            format!("Opened Record: {:#?}\n", o)
+        } else {
+            "".to_owned()
+        };
+
+        format!("{}\n{}", local_debug, opened_debug)
     }
+
     pub(crate) async fn debug_remote_record_info(&self, key: TypedKey) -> String {
         let inner = self.inner.lock().await;
         let Some(remote_record_store) = &inner.remote_record_store else {

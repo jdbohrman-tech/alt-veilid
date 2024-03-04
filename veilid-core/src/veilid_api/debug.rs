@@ -1388,6 +1388,11 @@ impl VeilidAPI {
                 out += &storage_manager.debug_remote_records().await;
                 out
             }
+            "opened" => {
+                let mut out = "Opened Records:\n".to_string();
+                out += &storage_manager.debug_opened_records().await;
+                out
+            }
             _ => "Invalid scope\n".to_owned(),
         };
         Ok(out)

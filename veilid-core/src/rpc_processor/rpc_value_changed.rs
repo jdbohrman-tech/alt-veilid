@@ -69,12 +69,13 @@ impl RPCProcessor {
             );
 
             let debug_string_stmt = format!(
-                "IN <== ValueChanged({} #{:?}+{}{}) <= {}",
+                "IN <== ValueChanged({} #{:?}+{}{}) from {} <= {}",
                 key,
                 subkeys,
                 count,
                 debug_string_value,
-                msg.header.direct_sender_node_id()
+                inbound_node_id,
+                msg.header.direct_sender_node_id(),
             );
 
             log_rpc!(debug "{}", debug_string_stmt);
