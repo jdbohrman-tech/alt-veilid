@@ -221,9 +221,13 @@ Server Debug Commands:
                 }
             };
 
-            match capi.server_change_log_level(layer, log_level).await {
+            match capi.server_change_log_level(layer, log_level.clone()).await {
                 Ok(()) => {
-                    ui.display_string_dialog("Success", "Log level changed", callback);
+                    ui.display_string_dialog(
+                        "Log level changed",
+                        &format!("Log level set to '{}'", log_level),
+                        callback,
+                    );
                 }
                 Err(e) => {
                     ui.display_string_dialog(

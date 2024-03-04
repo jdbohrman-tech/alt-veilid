@@ -2,6 +2,7 @@ use crate::command_processor::*;
 use crate::cursive_ui::CursiveUICallback;
 use crate::interactive_ui::InteractiveUICallback;
 use crate::io_read_write_ui::IOReadWriteUICallback;
+use crate::log_viewer_ui::LogViewerUICallback;
 use crate::tools::*;
 use flexi_logger::writers::LogWriter;
 use log::Level;
@@ -10,6 +11,7 @@ pub enum UICallback {
     Cursive(CursiveUICallback),
     Interactive(InteractiveUICallback),
     IOReadWrite(IOReadWriteUICallback),
+    LogViewerUI(LogViewerUICallback),
 }
 
 pub trait UISender: Send {

@@ -15,6 +15,7 @@ mod command_processor;
 mod cursive_ui;
 mod interactive_ui;
 mod io_read_write_ui;
+mod log_viewer_ui;
 mod peers_table_view;
 mod settings;
 mod tools;
@@ -128,7 +129,18 @@ fn main() -> Result<(), String> {
         } else if let Some(command_file) = args.command_file {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    use async_std::prelude::*;
+                    let (in_obj, out_obj) =
+                        if command_file.to_string_lossy() == "-" {
+                            (Box::pin(async_std::io::stdin()) as Pin<Box<dyn futures::AsyncRead + Send>>, async_std::io::stdout())
+                        } else {
+                            let f = match async_std::fs::File::open(command_file).await {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    return Err(e.to_string());
+                                }
+                            };
+                            (Box::pin(f) as Pin<Box<dyn futures::AsyncRead + Send>>, async_std::io::stdout())
+                        };
                 } else if #[cfg(feature="rt-tokio")] {
                     use tokio_util::compat::{TokioAsyncWriteCompatExt, TokioAsyncReadCompatExt};
                     let (in_obj, out_obj) =
@@ -156,7 +168,8 @@ fn main() -> Result<(), String> {
         } else if let Some(evaluate) = args.evaluate {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    use async_std::prelude::*;
+                    let in_str = format!("{}\n", evaluate);
+                    let (in_obj, out_obj) = (futures::io::Cursor::new(in_str), async_std::io::stdout());
                 } else if #[cfg(feature="rt-tokio")] {
                     use tokio_util::compat::{TokioAsyncWriteCompatExt};
                     let in_str = format!("{}\n", evaluate);
@@ -167,6 +180,12 @@ fn main() -> Result<(), String> {
             }
 
             let (ui, uisender) = io_read_write_ui::IOReadWriteUI::new(&settings, in_obj, out_obj);
+            (
+                Box::new(ui) as Box<dyn UI>,
+                Box::new(uisender) as Box<dyn UISender>,
+            )
+        } else if args.show_log {
+            let (ui, uisender) = log_viewer_ui::LogViewerUI::new(&settings);
             (
                 Box::new(ui) as Box<dyn UI>,
                 Box::new(uisender) as Box<dyn UISender>,
