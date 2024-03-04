@@ -191,14 +191,7 @@ impl StorageManager {
         let (_is_local, opt_expiration_ts) = {
             // See if the subkey we are watching has a local value
             let opt_expiration_ts = inner
-                .handle_watch_local_value(
-                    key,
-                    subkeys.clone(),
-                    expiration,
-                    count,
-                    target,
-                    watcher,
-                )
+                .handle_watch_local_value(key, subkeys.clone(), expiration, count, target, watcher)
                 .await?;
             if opt_expiration_ts.is_some() {
                 (true, opt_expiration_ts)
@@ -221,32 +214,29 @@ impl StorageManager {
         subkeys: ValueSubkeyRangeSet,
         mut count: u32,
         value: Arc<SignedValueData>,
+        inbound_node_id: TypedKey,
     ) -> VeilidAPIResult<()> {
         // Update local record store with new value
         let (res, opt_update_callback) = {
             let mut inner = self.lock().await?;
 
-            let res = if let Some(first_subkey) = subkeys.first() {
-                inner
-                    .handle_set_local_value(
-                        key,
-                        first_subkey,
-                        value.clone(),
-                        WatchUpdateMode::NoUpdate,
-                    )
-                    .await
-            } else {
-                VeilidAPIResult::Ok(())
-            };
-
             let Some(opened_record) = inner.opened_records.get_mut(&key) else {
-                // Don't send update or update the ActiveWatch if this record is closed
-                return res;
+                // Don't process update if the record is closed
+                return Ok(());
             };
             let Some(mut active_watch) = opened_record.active_watch() else {
                 // No active watch means no callback
-                return res;
+                return Ok(());
             };
+
+            if !active_watch
+                .watch_node
+                .node_ids()
+                .contains(&inbound_node_id)
+            {
+                // If the reporting node is not the same as our watch, don't process the value change
+                return Ok(());
+            }
 
             if count > active_watch.count {
                 // If count is greater than our requested count then this is invalid, cancel the watch
@@ -259,7 +249,7 @@ impl StorageManager {
                 log_stor!(debug "watch count finished: {}", key);
                 opened_record.clear_active_watch();
             } else {
-                log_stor!(
+                log_stor!(debug
                     "watch count decremented: {}: {}/{}",
                     key,
                     count,
@@ -268,6 +258,20 @@ impl StorageManager {
                 active_watch.count = count;
                 opened_record.set_active_watch(active_watch);
             }
+
+            // Set the local value
+            let res = if let Some(first_subkey) = subkeys.first() {
+                inner
+                    .handle_set_local_value(
+                        key,
+                        first_subkey,
+                        value.clone(),
+                        WatchUpdateMode::NoUpdate,
+                    )
+                    .await
+            } else {
+                VeilidAPIResult::Ok(())
+            };
 
             (res, inner.update_callback.clone())
         };

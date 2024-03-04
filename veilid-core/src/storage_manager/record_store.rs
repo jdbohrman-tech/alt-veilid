@@ -35,7 +35,7 @@ struct WatchedRecordWatch {
 
 #[derive(Debug, Default, Clone)]
 /// A record being watched for changes
-struct WatchedRecord {
+pub(super) struct WatchedRecord {
     /// The list of active watchers
     watchers: Vec<WatchedRecordWatch>,
 }
@@ -279,6 +279,16 @@ where
                 log_stor!(error "dead record found in index: {:?}", dr.key);
             }
 
+            // Record should have no watches now
+            if self.watched_records.contains_key(&dr.key) {
+                log_stor!(error "dead record found in watches: {:?}", dr.key);
+            }
+
+            // Record should have no watch changes now
+            if self.changed_watched_values.contains(&dr.key) {
+                log_stor!(error "dead record found in watch changes: {:?}", dr.key);
+            }
+
             // Delete record
             if let Err(e) = rt_xact.delete(0, &dr.key.bytes()) {
                 log_stor!(error "record could not be deleted: {}", e);
@@ -399,8 +409,14 @@ where
             apibail_key_not_found!(key);
         };
 
-        self.add_dead_record(rtk, record);
+        // Remove watches
+        self.watched_records.remove(&rtk);
 
+        // Remove watch changes
+        self.changed_watched_values.remove(&rtk);
+
+        // Remove from table store immediately
+        self.add_dead_record(rtk, record);
         self.purge_dead_records(false).await;
 
         Ok(())
@@ -878,6 +894,24 @@ where
         }
 
         Ok(ret_timestamp)
+    }
+
+    /// Move watches from one store to another
+    pub fn move_watches(
+        &mut self,
+        key: TypedKey,
+        in_watch: Option<(WatchedRecord, bool)>,
+    ) -> Option<(WatchedRecord, bool)> {
+        let rtk = RecordTableKey { key };
+        let out = self.watched_records.remove(&rtk);
+        if let Some(in_watch) = in_watch {
+            self.watched_records.insert(rtk, in_watch.0);
+            if in_watch.1 {
+                self.changed_watched_values.insert(rtk);
+            }
+        }
+        let is_watched = self.changed_watched_values.remove(&rtk);
+        out.map(|r| (r, is_watched))
     }
 
     pub async fn take_value_changes(&mut self, changes: &mut Vec<ValueChangedInfo>) {

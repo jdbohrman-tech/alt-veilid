@@ -295,6 +295,9 @@ impl StorageManagerInner {
                 .await?;
         }
 
+        // Move watches
+        local_record_store.move_watches(key, remote_record_store.move_watches(key, None));
+
         // Delete remote record from store
         remote_record_store.delete_record(key).await?;
 

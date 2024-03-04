@@ -470,6 +470,11 @@ impl RPCProcessor {
     ) -> TimeoutOr<Result<Option<NodeRef>, RPCError>> {
         let routing_table = self.routing_table();
 
+        // Ignore own node
+        if routing_table.matches_own_node_id(&[node_id]) {
+            return TimeoutOr::Value(Err(RPCError::network("can't search for own node id")));
+        }
+
         // Routine to call to generate fanout
         let call_routine = |next_node: NodeRef| {
             let this = self.clone();
