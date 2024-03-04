@@ -1514,11 +1514,29 @@ impl VeilidAPI {
     }
 
     async fn debug_record_set(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_set", "key", 1)?;
-        let subkey = get_debug_argument_at(&args, 2, "debug_record_set", "subkey", get_number)?;
-        let data = get_debug_argument_at(&args, 3, "debug_record_set", "data", get_data)?;
-        let writer =
-            get_debug_argument_at(&args, 4, "debug_record_set", "writer", get_keypair).ok();
+        let subkey = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_set",
+            "subkey",
+            get_number,
+        )?;
+        let data =
+            get_debug_argument_at(&args, 2 + opt_arg_add, "debug_record_set", "data", get_data)?;
+        let writer = get_debug_argument_at(
+            &args,
+            3 + opt_arg_add,
+            "debug_record_set",
+            "writer",
+            get_keypair,
+        )
+        .ok();
 
         // Do a record set
         let value = match rc
@@ -1539,12 +1557,24 @@ impl VeilidAPI {
     }
 
     async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
+
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_get", "key", 1)?;
-        let subkey = get_debug_argument_at(&args, 2, "debug_record_get", "subkey", get_number)?;
+        let subkey = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_get",
+            "subkey",
+            get_number,
+        )?;
         let force_refresh = if args.len() >= 4 {
             Some(get_debug_argument_at(
                 &args,
-                3,
+                2 + opt_arg_add,
                 "debug_record_get",
                 "force_refresh",
                 get_string,
@@ -1628,17 +1658,40 @@ impl VeilidAPI {
     }
 
     async fn debug_record_watch(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
+
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
-        let subkeys = get_debug_argument_at(&args, 2, "debug_record_watch", "subkeys", get_subkeys)
-            .ok()
-            .unwrap_or_default();
-        let expiration =
-            get_debug_argument_at(&args, 3, "debug_record_watch", "expiration", parse_duration)
-                .ok()
-                .unwrap_or_default();
-        let count = get_debug_argument_at(&args, 4, "debug_record_watch", "count", get_number)
-            .ok()
-            .unwrap_or(usize::MAX) as u32;
+        let subkeys = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_watch",
+            "subkeys",
+            get_subkeys,
+        )
+        .ok()
+        .unwrap_or_default();
+        let expiration = get_debug_argument_at(
+            &args,
+            2 + opt_arg_add,
+            "debug_record_watch",
+            "expiration",
+            parse_duration,
+        )
+        .ok()
+        .unwrap_or_default();
+        let count = get_debug_argument_at(
+            &args,
+            3 + opt_arg_add,
+            "debug_record_watch",
+            "count",
+            get_number,
+        )
+        .ok()
+        .unwrap_or(usize::MAX) as u32;
 
         // Do a record watch
         let ts = match rc
@@ -1657,10 +1710,22 @@ impl VeilidAPI {
     }
 
     async fn debug_record_cancel(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
+
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
-        let subkeys = get_debug_argument_at(&args, 2, "debug_record_watch", "subkeys", get_subkeys)
-            .ok()
-            .unwrap_or_default();
+        let subkeys = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_watch",
+            "subkeys",
+            get_subkeys,
+        )
+        .ok()
+        .unwrap_or_default();
 
         // Do a record watch cancel
         let still_active = match rc.cancel_dht_watch(key, subkeys).await {
