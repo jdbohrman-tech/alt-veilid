@@ -26,7 +26,7 @@ cfg_if! {
 use std::convert::TryInto;
 use std::ffi::CStr;
 use std::io;
-use std::os::raw::{c_int, c_char};
+use std::os::raw::{c_char, c_int};
 use tools::*;
 
 fn get_interface_name(index: u32) -> io::Result<String> {
@@ -187,9 +187,9 @@ impl PlatformSupportNetlink {
         Some(InterfaceAddress::new(
             IfAddr::V4(Ifv4Addr {
                 ip,
-                /// The netmask of the interface.
+                // The netmask of the interface.
                 netmask,
-                /// The broadcast address of the interface.
+                // The broadcast address of the interface.
                 broadcast,
             }),
             flags_to_address_flags(flags),
@@ -234,9 +234,9 @@ impl PlatformSupportNetlink {
         Some(InterfaceAddress::new(
             IfAddr::V6(Ifv6Addr {
                 ip,
-                /// The netmask of the interface.
+                // The netmask of the interface.
                 netmask,
-                /// The broadcast address of the interface.
+                // The broadcast address of the interface.
                 broadcast: None,
             }),
             flags_to_address_flags(flags),
