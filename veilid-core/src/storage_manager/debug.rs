@@ -17,14 +17,16 @@ impl StorageManager {
     }
     pub(crate) async fn debug_opened_records(&self) -> String {
         let inner = self.inner.lock().await;
-        format!(
-            "{:#?}",
-            inner
-                .opened_records
-                .keys()
-                .copied()
-                .collect::<Vec<TypedKey>>()
-        )
+        let mut out = "[\n".to_owned();
+        for (k, v) in &inner.opened_records {
+            let writer = if let Some(w) = v.writer() {
+                w.to_string()
+            } else {
+                "".to_owned()
+            };
+            out += &format!("  {} {},\n", k, writer);
+        }
+        format!("{}]\n", out)
     }
 
     pub(crate) async fn purge_local_records(&self, reclaim: Option<usize>) -> String {

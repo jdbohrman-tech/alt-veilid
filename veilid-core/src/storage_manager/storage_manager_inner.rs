@@ -537,21 +537,23 @@ impl StorageManagerInner {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) async fn handle_watch_local_value(
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
+        watch_id: Option<u64>,
         target: Target,
-        watcher: CryptoKey,
-    ) -> VeilidAPIResult<Option<Timestamp>> {
+        watcher: PublicKey,
+    ) -> VeilidAPIResult<Option<(Timestamp, u64)>> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
         local_record_store
-            .watch_record(key, subkeys, expiration, count, target, watcher)
+            .watch_record(key, subkeys, expiration, count, watch_id, target, watcher)
             .await
     }
 
@@ -612,21 +614,23 @@ impl StorageManagerInner {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) async fn handle_watch_remote_value(
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
+        watch_id: Option<u64>,
         target: Target,
-        watcher: CryptoKey,
-    ) -> VeilidAPIResult<Option<Timestamp>> {
+        watcher: PublicKey,
+    ) -> VeilidAPIResult<Option<(Timestamp, u64)>> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
         };
         remote_record_store
-            .watch_record(key, subkeys, expiration, count, target, watcher)
+            .watch_record(key, subkeys, expiration, count, watch_id, target, watcher)
             .await
     }
 

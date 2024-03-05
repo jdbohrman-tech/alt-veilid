@@ -9,6 +9,7 @@ pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
     subkeys: ValueSubkeyRangeSet,
     expiration: u64,
     count: u32,
+    watch_id: Option<u64>,
     watcher: PublicKey,
     signature: Signature,
 }
@@ -20,6 +21,7 @@ impl RPCOperationWatchValueQ {
         subkeys: ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
+        watch_id: Option<u64>,
         watcher: KeyPair,
         vcrypto: CryptoSystemVersion,
     ) -> Result<Self, RPCError> {
@@ -31,7 +33,7 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
 
-        let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count);
+        let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count, watch_id);
         let signature = vcrypto
             .sign(&watcher.key, &watcher.secret, &signature_data)
             .map_err(RPCError::protocol)?;
@@ -41,6 +43,7 @@ impl RPCOperationWatchValueQ {
             subkeys,
             expiration,
             count,
+            watch_id,
             watcher: watcher.key,
             signature,
         })
@@ -52,6 +55,7 @@ impl RPCOperationWatchValueQ {
         subkeys: &ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
+        watch_id: Option<u64>,
     ) -> Vec<u8> {
         // Needed because RangeSetBlaze uses different types here all the time
         #[allow(clippy::unnecessary_cast)]
@@ -66,6 +70,9 @@ impl RPCOperationWatchValueQ {
         }
         sig_data.extend_from_slice(&expiration.to_le_bytes());
         sig_data.extend_from_slice(&count.to_le_bytes());
+        if let Some(watch_id) = watch_id {
+            sig_data.extend_from_slice(&watch_id.to_le_bytes());
+        }
         sig_data
     }
 
@@ -74,8 +81,13 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("unsupported cryptosystem"));
         };
 
-        let sig_data =
-            Self::make_signature_data(&self.key, &self.subkeys, self.expiration, self.count);
+        let sig_data = Self::make_signature_data(
+            &self.key,
+            &self.subkeys,
+            self.expiration,
+            self.count,
+            self.watch_id,
+        );
         vcrypto
             .verify(&self.watcher, &sig_data, &self.signature)
             .map_err(RPCError::protocol)?;
@@ -103,6 +115,11 @@ impl RPCOperationWatchValueQ {
     }
 
     #[allow(dead_code)]
+    pub fn watch_id(&self) -> Option<u64> {
+        self.watch_id
+    }
+
+    #[allow(dead_code)]
     pub fn watcher(&self) -> &PublicKey {
         &self.watcher
     }
@@ -118,6 +135,7 @@ impl RPCOperationWatchValueQ {
         ValueSubkeyRangeSet,
         u64,
         u32,
+        Option<u64>,
         PublicKey,
         Signature,
     ) {
@@ -126,6 +144,7 @@ impl RPCOperationWatchValueQ {
             self.subkeys,
             self.expiration,
             self.count,
+            self.watch_id,
             self.watcher,
             self.signature,
         )
@@ -159,6 +178,11 @@ impl RPCOperationWatchValueQ {
 
         let expiration = reader.get_expiration();
         let count = reader.get_count();
+        let watch_id = if reader.get_watch_id() == 0 {
+            Some(reader.get_watch_id())
+        } else {
+            None
+        };
 
         let w_reader = reader.get_watcher().map_err(RPCError::protocol)?;
         let watcher = decode_key256(&w_reader);
@@ -171,6 +195,7 @@ impl RPCOperationWatchValueQ {
             subkeys,
             expiration,
             count,
+            watch_id,
             watcher,
             signature,
         })
@@ -196,6 +221,7 @@ impl RPCOperationWatchValueQ {
         }
         builder.set_expiration(self.expiration);
         builder.set_count(self.count);
+        builder.set_watch_id(self.watch_id.unwrap_or(0u64));
 
         let mut w_builder = builder.reborrow().init_watcher();
         encode_key256(&self.watcher, &mut w_builder);
@@ -211,18 +237,26 @@ impl RPCOperationWatchValueQ {
 pub(in crate::rpc_processor) struct RPCOperationWatchValueA {
     expiration: u64,
     peers: Vec<PeerInfo>,
+    watch_id: u64,
 }
 
 impl RPCOperationWatchValueA {
     #[allow(dead_code)]
-    pub fn new(expiration: u64, peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
+    pub fn new(expiration: u64, peers: Vec<PeerInfo>, watch_id: u64) -> Result<Self, RPCError> {
         if peers.len() > MAX_WATCH_VALUE_A_PEERS_LEN {
             return Err(RPCError::protocol("WatchValueA peers length too long"));
         }
-        Ok(Self { expiration, peers })
+        Ok(Self {
+            expiration,
+            peers,
+            watch_id,
+        })
     }
 
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
+        if self.watch_id == 0 {
+            return Err(RPCError::protocol("WatchValueA does not have a valid id"));
+        }
         PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
         Ok(())
     }
@@ -236,8 +270,12 @@ impl RPCOperationWatchValueA {
         &self.peers
     }
     #[allow(dead_code)]
-    pub fn destructure(self) -> (u64, Vec<PeerInfo>) {
-        (self.expiration, self.peers)
+    pub fn watch_id(&self) -> u64 {
+        self.watch_id
+    }
+    #[allow(dead_code)]
+    pub fn destructure(self) -> (u64, Vec<PeerInfo>, u64) {
+        (self.expiration, self.peers, self.watch_id)
     }
 
     pub fn decode(
@@ -258,8 +296,13 @@ impl RPCOperationWatchValueA {
             let peer_info = decode_peer_info(&p)?;
             peers.push(peer_info);
         }
+        let watch_id = reader.get_watch_id();
 
-        Ok(Self { expiration, peers })
+        Ok(Self {
+            expiration,
+            peers,
+            watch_id,
+        })
     }
     pub fn encode(
         &self,
@@ -277,6 +320,7 @@ impl RPCOperationWatchValueA {
             let mut pi_builder = peers_builder.reborrow().get(i as u32);
             encode_peer_info(peer, &mut pi_builder)?;
         }
+        builder.set_watch_id(self.watch_id);
 
         Ok(())
     }

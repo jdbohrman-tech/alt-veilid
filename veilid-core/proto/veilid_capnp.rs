@@ -13822,6 +13822,10 @@ pub mod operation_watch_value_q {
       self.reader.get_data_field::<u32>(2)
     }
     #[inline]
+    pub fn get_watch_id(self) -> u64 {
+      self.reader.get_data_field::<u64>(2)
+    }
+    #[inline]
     pub fn get_watcher(self) -> ::capnp::Result<crate::veilid_capnp::key256::Reader<'a>> {
       ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(2), ::core::option::Option::None)
     }
@@ -13841,7 +13845,7 @@ pub mod operation_watch_value_q {
 
   pub struct Builder<'a> { builder: ::capnp::private::layout::StructBuilder<'a> }
   impl <'a,> ::capnp::traits::HasStructSize for Builder<'a,>  {
-    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 2, pointers: 4 };
+    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 3, pointers: 4 };
   }
   impl <'a,> ::capnp::traits::HasTypeId for Builder<'a,>  {
     const TYPE_ID: u64 = _private::TYPE_ID;
@@ -13940,6 +13944,14 @@ pub mod operation_watch_value_q {
       self.builder.set_data_field::<u32>(2, value);
     }
     #[inline]
+    pub fn get_watch_id(self) -> u64 {
+      self.builder.get_data_field::<u64>(2)
+    }
+    #[inline]
+    pub fn set_watch_id(&mut self, value: u64)  {
+      self.builder.set_data_field::<u64>(2, value);
+    }
+    #[inline]
     pub fn get_watcher(self) -> ::capnp::Result<crate::veilid_capnp::key256::Builder<'a>> {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(2), ::core::option::Option::None)
     }
@@ -13991,17 +14003,17 @@ pub mod operation_watch_value_q {
     }
   }
   mod _private {
-    pub static ENCODED_NODE: [::capnp::Word; 115] = [
+    pub static ENCODED_NODE: [::capnp::Word; 130] = [
       ::capnp::word(0, 0, 0, 0, 5, 0, 6, 0),
       ::capnp::word(40, 178, 185, 71, 197, 166, 165, 249),
-      ::capnp::word(19, 0, 0, 0, 1, 0, 2, 0),
+      ::capnp::word(19, 0, 0, 0, 1, 0, 3, 0),
       ::capnp::word(2, 171, 52, 55, 3, 232, 252, 143),
       ::capnp::word(4, 0, 7, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(21, 0, 0, 0, 66, 1, 0, 0),
       ::capnp::word(37, 0, 0, 0, 7, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(33, 0, 0, 0, 87, 1, 0, 0),
+      ::capnp::word(33, 0, 0, 0, 143, 1, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(112, 114, 111, 116, 111, 47, 118, 101),
@@ -14010,49 +14022,56 @@ pub mod operation_watch_value_q {
       ::capnp::word(116, 105, 111, 110, 87, 97, 116, 99),
       ::capnp::word(104, 86, 97, 108, 117, 101, 81, 0),
       ::capnp::word(0, 0, 0, 0, 1, 0, 1, 0),
-      ::capnp::word(24, 0, 0, 0, 3, 0, 4, 0),
+      ::capnp::word(28, 0, 0, 0, 3, 0, 4, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(153, 0, 0, 0, 34, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(148, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(160, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(1, 0, 0, 0, 1, 0, 0, 0),
-      ::capnp::word(0, 0, 1, 0, 1, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(157, 0, 0, 0, 66, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(152, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(180, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(2, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(0, 0, 1, 0, 2, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(177, 0, 0, 0, 90, 0, 0, 0),
+      ::capnp::word(181, 0, 0, 0, 34, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(176, 0, 0, 0, 3, 0, 1, 0),
       ::capnp::word(188, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(1, 0, 0, 0, 1, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 1, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(185, 0, 0, 0, 66, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(180, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(208, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(2, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 2, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(205, 0, 0, 0, 90, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(204, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(216, 0, 0, 0, 2, 0, 1, 0),
       ::capnp::word(3, 0, 0, 0, 2, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 3, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(185, 0, 0, 0, 50, 0, 0, 0),
+      ::capnp::word(213, 0, 0, 0, 50, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(180, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(192, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(208, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(220, 0, 0, 0, 2, 0, 1, 0),
       ::capnp::word(4, 0, 0, 0, 2, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 4, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(189, 0, 0, 0, 66, 0, 0, 0),
+      ::capnp::word(217, 0, 0, 0, 66, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(184, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(196, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(5, 0, 0, 0, 3, 0, 0, 0),
+      ::capnp::word(212, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(224, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(5, 0, 0, 0, 2, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 5, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(193, 0, 0, 0, 82, 0, 0, 0),
+      ::capnp::word(221, 0, 0, 0, 66, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(192, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(204, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(216, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(228, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(6, 0, 0, 0, 3, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 6, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(225, 0, 0, 0, 82, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(224, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(236, 0, 0, 0, 2, 0, 1, 0),
       ::capnp::word(107, 101, 121, 0, 0, 0, 0, 0),
       ::capnp::word(16, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(41, 27, 230, 241, 169, 103, 213, 226),
@@ -14090,6 +14109,14 @@ pub mod operation_watch_value_q {
       ::capnp::word(8, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(119, 97, 116, 99, 104, 73, 100, 0),
+      ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(119, 97, 116, 99, 104, 101, 114, 0),
       ::capnp::word(16, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(13, 169, 246, 134, 50, 78, 228, 221),
@@ -14114,8 +14141,9 @@ pub mod operation_watch_value_q {
         1 => <::capnp::struct_list::Owned<crate::veilid_capnp::subkey_range::Owned> as ::capnp::introspect::Introspect>::introspect(),
         2 => <u64 as ::capnp::introspect::Introspect>::introspect(),
         3 => <u32 as ::capnp::introspect::Introspect>::introspect(),
-        4 => <crate::veilid_capnp::key256::Owned as ::capnp::introspect::Introspect>::introspect(),
-        5 => <crate::veilid_capnp::signature512::Owned as ::capnp::introspect::Introspect>::introspect(),
+        4 => <u64 as ::capnp::introspect::Introspect>::introspect(),
+        5 => <crate::veilid_capnp::key256::Owned as ::capnp::introspect::Introspect>::introspect(),
+        6 => <crate::veilid_capnp::signature512::Owned as ::capnp::introspect::Introspect>::introspect(),
         _ => panic!("invalid field index {}", index),
       }
     }
@@ -14127,7 +14155,7 @@ pub mod operation_watch_value_q {
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
     };
-    pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4,5];
+    pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4,5,6];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
     pub const TYPE_ID: u64 = 0xf9a5_a6c5_47b9_b228;
   }
@@ -14206,11 +14234,15 @@ pub mod operation_watch_value_a {
     pub fn has_peers(&self) -> bool {
       !self.reader.get_pointer_field(0).is_null()
     }
+    #[inline]
+    pub fn get_watch_id(self) -> u64 {
+      self.reader.get_data_field::<u64>(1)
+    }
   }
 
   pub struct Builder<'a> { builder: ::capnp::private::layout::StructBuilder<'a> }
   impl <'a,> ::capnp::traits::HasStructSize for Builder<'a,>  {
-    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 1, pointers: 1 };
+    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 2, pointers: 1 };
   }
   impl <'a,> ::capnp::traits::HasTypeId for Builder<'a,>  {
     const TYPE_ID: u64 = _private::TYPE_ID;
@@ -14284,6 +14316,14 @@ pub mod operation_watch_value_a {
     pub fn has_peers(&self) -> bool {
       !self.builder.is_pointer_field_null(0)
     }
+    #[inline]
+    pub fn get_watch_id(self) -> u64 {
+      self.builder.get_data_field::<u64>(1)
+    }
+    #[inline]
+    pub fn set_watch_id(&mut self, value: u64)  {
+      self.builder.set_data_field::<u64>(1, value);
+    }
   }
 
   pub struct Pipeline { _typeless: ::capnp::any_pointer::Pipeline }
@@ -14295,17 +14335,17 @@ pub mod operation_watch_value_a {
   impl Pipeline  {
   }
   mod _private {
-    pub static ENCODED_NODE: [::capnp::Word; 54] = [
+    pub static ENCODED_NODE: [::capnp::Word; 69] = [
       ::capnp::word(0, 0, 0, 0, 5, 0, 6, 0),
       ::capnp::word(147, 168, 75, 6, 183, 202, 38, 167),
-      ::capnp::word(19, 0, 0, 0, 1, 0, 1, 0),
+      ::capnp::word(19, 0, 0, 0, 1, 0, 2, 0),
       ::capnp::word(2, 171, 52, 55, 3, 232, 252, 143),
       ::capnp::word(1, 0, 7, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(21, 0, 0, 0, 66, 1, 0, 0),
       ::capnp::word(37, 0, 0, 0, 7, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(33, 0, 0, 0, 119, 0, 0, 0),
+      ::capnp::word(33, 0, 0, 0, 175, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(112, 114, 111, 116, 111, 47, 118, 101),
@@ -14314,21 +14354,28 @@ pub mod operation_watch_value_a {
       ::capnp::word(116, 105, 111, 110, 87, 97, 116, 99),
       ::capnp::word(104, 86, 97, 108, 117, 101, 65, 0),
       ::capnp::word(0, 0, 0, 0, 1, 0, 1, 0),
-      ::capnp::word(8, 0, 0, 0, 3, 0, 4, 0),
+      ::capnp::word(12, 0, 0, 0, 3, 0, 4, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(41, 0, 0, 0, 90, 0, 0, 0),
+      ::capnp::word(69, 0, 0, 0, 90, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(40, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(52, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(68, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(80, 0, 0, 0, 2, 0, 1, 0),
       ::capnp::word(1, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 1, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(49, 0, 0, 0, 50, 0, 0, 0),
+      ::capnp::word(77, 0, 0, 0, 50, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(44, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(72, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(72, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(100, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(2, 0, 0, 0, 1, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 2, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(97, 0, 0, 0, 66, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(92, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(104, 0, 0, 0, 2, 0, 1, 0),
       ::capnp::word(101, 120, 112, 105, 114, 97, 116, 105),
       ::capnp::word(111, 110, 0, 0, 0, 0, 0, 0),
       ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
@@ -14350,11 +14397,20 @@ pub mod operation_watch_value_a {
       ::capnp::word(14, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(119, 97, 116, 99, 104, 73, 100, 0),
+      ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
     ];
     pub fn get_field_types(index: u16) -> ::capnp::introspect::Type {
       match index {
         0 => <u64 as ::capnp::introspect::Introspect>::introspect(),
         1 => <::capnp::struct_list::Owned<crate::veilid_capnp::peer_info::Owned> as ::capnp::introspect::Introspect>::introspect(),
+        2 => <u64 as ::capnp::introspect::Introspect>::introspect(),
         _ => panic!("invalid field index {}", index),
       }
     }
@@ -14366,7 +14422,7 @@ pub mod operation_watch_value_a {
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
     };
-    pub static NONUNION_MEMBERS : &[u16] = &[0,1];
+    pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
     pub const TYPE_ID: u64 = 0xa726_cab7_064b_a893;
   }
@@ -14454,6 +14510,10 @@ pub mod operation_value_changed {
       self.reader.get_data_field::<u32>(0)
     }
     #[inline]
+    pub fn get_watch_id(self) -> u64 {
+      self.reader.get_data_field::<u64>(1)
+    }
+    #[inline]
     pub fn get_value(self) -> ::capnp::Result<crate::veilid_capnp::signed_value_data::Reader<'a>> {
       ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(2), ::core::option::Option::None)
     }
@@ -14465,7 +14525,7 @@ pub mod operation_value_changed {
 
   pub struct Builder<'a> { builder: ::capnp::private::layout::StructBuilder<'a> }
   impl <'a,> ::capnp::traits::HasStructSize for Builder<'a,>  {
-    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 1, pointers: 3 };
+    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 2, pointers: 3 };
   }
   impl <'a,> ::capnp::traits::HasTypeId for Builder<'a,>  {
     const TYPE_ID: u64 = _private::TYPE_ID;
@@ -14556,6 +14616,14 @@ pub mod operation_value_changed {
       self.builder.set_data_field::<u32>(0, value);
     }
     #[inline]
+    pub fn get_watch_id(self) -> u64 {
+      self.builder.get_data_field::<u64>(1)
+    }
+    #[inline]
+    pub fn set_watch_id(&mut self, value: u64)  {
+      self.builder.set_data_field::<u64>(1, value);
+    }
+    #[inline]
     pub fn get_value(self) -> ::capnp::Result<crate::veilid_capnp::signed_value_data::Builder<'a>> {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(2), ::core::option::Option::None)
     }
@@ -14588,17 +14656,17 @@ pub mod operation_value_changed {
     }
   }
   mod _private {
-    pub static ENCODED_NODE: [::capnp::Word; 84] = [
+    pub static ENCODED_NODE: [::capnp::Word; 99] = [
       ::capnp::word(0, 0, 0, 0, 5, 0, 6, 0),
       ::capnp::word(246, 27, 204, 216, 189, 158, 197, 209),
-      ::capnp::word(19, 0, 0, 0, 1, 0, 1, 0),
+      ::capnp::word(19, 0, 0, 0, 1, 0, 2, 0),
       ::capnp::word(2, 171, 52, 55, 3, 232, 252, 143),
       ::capnp::word(3, 0, 7, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(21, 0, 0, 0, 74, 1, 0, 0),
       ::capnp::word(41, 0, 0, 0, 7, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(37, 0, 0, 0, 231, 0, 0, 0),
+      ::capnp::word(37, 0, 0, 0, 31, 1, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(112, 114, 111, 116, 111, 47, 118, 101),
@@ -14608,35 +14676,42 @@ pub mod operation_value_changed {
       ::capnp::word(101, 67, 104, 97, 110, 103, 101, 100),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 1, 0, 1, 0),
-      ::capnp::word(16, 0, 0, 0, 3, 0, 4, 0),
+      ::capnp::word(20, 0, 0, 0, 3, 0, 4, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(97, 0, 0, 0, 34, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(92, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(104, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(1, 0, 0, 0, 1, 0, 0, 0),
-      ::capnp::word(0, 0, 1, 0, 1, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(101, 0, 0, 0, 66, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(96, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(124, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(2, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(0, 0, 1, 0, 2, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(121, 0, 0, 0, 50, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(116, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(128, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(3, 0, 0, 0, 2, 0, 0, 0),
-      ::capnp::word(0, 0, 1, 0, 3, 0, 0, 0),
-      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(125, 0, 0, 0, 50, 0, 0, 0),
+      ::capnp::word(125, 0, 0, 0, 34, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(120, 0, 0, 0, 3, 0, 1, 0),
       ::capnp::word(132, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(1, 0, 0, 0, 1, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 1, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(129, 0, 0, 0, 66, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(124, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(152, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(2, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 2, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(149, 0, 0, 0, 50, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(144, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(156, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(3, 0, 0, 0, 1, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 3, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(153, 0, 0, 0, 66, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(148, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(160, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(4, 0, 0, 0, 2, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 4, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(157, 0, 0, 0, 50, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(152, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(164, 0, 0, 0, 2, 0, 1, 0),
       ::capnp::word(107, 101, 121, 0, 0, 0, 0, 0),
       ::capnp::word(16, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(41, 27, 230, 241, 169, 103, 213, 226),
@@ -14665,6 +14740,14 @@ pub mod operation_value_changed {
       ::capnp::word(8, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(119, 97, 116, 99, 104, 73, 100, 0),
+      ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(118, 97, 108, 117, 101, 0, 0, 0),
       ::capnp::word(16, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(61, 42, 159, 22, 111, 65, 183, 180),
@@ -14679,7 +14762,8 @@ pub mod operation_value_changed {
         0 => <crate::veilid_capnp::typed_key::Owned as ::capnp::introspect::Introspect>::introspect(),
         1 => <::capnp::struct_list::Owned<crate::veilid_capnp::subkey_range::Owned> as ::capnp::introspect::Introspect>::introspect(),
         2 => <u32 as ::capnp::introspect::Introspect>::introspect(),
-        3 => <crate::veilid_capnp::signed_value_data::Owned as ::capnp::introspect::Introspect>::introspect(),
+        3 => <u64 as ::capnp::introspect::Introspect>::introspect(),
+        4 => <crate::veilid_capnp::signed_value_data::Owned as ::capnp::introspect::Introspect>::introspect(),
         _ => panic!("invalid field index {}", index),
       }
     }
@@ -14691,7 +14775,7 @@ pub mod operation_value_changed {
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
     };
-    pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
+    pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
     pub const TYPE_ID: u64 = 0xd1c5_9ebd_d8cc_1bf6;
   }
@@ -21293,4 +21377,4 @@ pub mod operation {
   }
 }
 
-//BUILDHASH:ab4fd70d40c9e543f799ce326dd41c61c7ea78132fb53f164156073d9786a9f6
+//BUILDHASH:539ec27eab88af2af5785cd8c1145478f30cd3fe2c08cd0ec7f18d2f4f3c2128

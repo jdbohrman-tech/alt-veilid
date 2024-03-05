@@ -2,6 +2,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub(in crate::storage_manager) struct ActiveWatch {
+    /// The watch id returned from the watch node
+    pub id: u64,
     /// The expiration of a successful watch
     pub expiration_ts: Timestamp,
     /// Which node accepted the watch

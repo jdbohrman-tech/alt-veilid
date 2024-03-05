@@ -14,6 +14,7 @@ impl RPCProcessor {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
+        watch_id: u64,
         value: SignedValueData,
     ) -> RPCNetworkResult<()> {
         // Ensure destination is never using a safety route
@@ -22,7 +23,7 @@ impl RPCProcessor {
                 "Never send value changes over safety routes",
             ));
         }
-        let value_changed = RPCOperationValueChanged::new(key, subkeys, count, value)?;
+        let value_changed = RPCOperationValueChanged::new(key, subkeys, count, watch_id, value)?;
         let statement =
             RPCStatement::new(RPCStatementDetail::ValueChanged(Box::new(value_changed)));
 
@@ -33,7 +34,7 @@ impl RPCProcessor {
     pub(crate) async fn process_value_changed(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
-        let (key, subkeys, count, value) = match kind {
+        let (key, subkeys, count, watch_id, value) = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::ValueChanged(s) => s.destructure(),
                 _ => panic!("not a value changed statement"),
@@ -69,7 +70,8 @@ impl RPCProcessor {
             );
 
             let debug_string_stmt = format!(
-                "IN <== ValueChanged({} #{:?}+{}{}) from {} <= {}",
+                "IN <== ValueChanged(id={} {} #{:?}+{}{}) from {} <= {}",
+                watch_id,
                 key,
                 subkeys,
                 count,
@@ -84,7 +86,14 @@ impl RPCProcessor {
         // Save the subkey, creating a new record if necessary
         let storage_manager = self.storage_manager();
         storage_manager
-            .inbound_value_changed(key, subkeys, count, Arc::new(value), inbound_node_id)
+            .inbound_value_changed(
+                key,
+                subkeys,
+                count,
+                Arc::new(value),
+                inbound_node_id,
+                watch_id,
+            )
             .await
             .map_err(RPCError::internal)?;
 

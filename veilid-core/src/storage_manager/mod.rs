@@ -43,6 +43,7 @@ struct ValueChangedInfo {
     key: TypedKey,
     subkeys: ValueSubkeyRangeSet,
     count: u32,
+    watch_id: u64,
     value: Arc<SignedValueData>,
 }
 
@@ -311,6 +312,7 @@ impl StorageManager {
                             0,
                             opened_record.safety_selection(),
                             opened_record.writer().cloned(),
+                            Some(active_watch.id),
                             Some(active_watch.watch_node),
                         )
                         .await?;
@@ -582,14 +584,16 @@ impl StorageManager {
             subkeys
         };
 
-        // Get the safety selection and the writer we opened this record with
-        let (safety_selection, opt_writer, opt_watch_node) = {
+        // Get the safety selection and the writer we opened this record
+        // and whatever active watch id and watch node we may have in case this is a watch update
+        let (safety_selection, opt_writer, opt_watch_id, opt_watch_node) = {
             let Some(opened_record) = inner.opened_records.get(&key) else {
                 apibail_generic!("record not open");
             };
             (
                 opened_record.safety_selection(),
                 opened_record.writer().cloned(),
+                opened_record.active_watch().map(|aw| aw.id),
                 opened_record.active_watch().map(|aw| aw.watch_node.clone()),
             )
         };
@@ -613,6 +617,7 @@ impl StorageManager {
                 count,
                 safety_selection,
                 opt_writer,
+                opt_watch_id,
                 opt_watch_node,
             )
             .await?;
@@ -663,6 +668,7 @@ impl StorageManager {
 
         // Keep a record of the watch
         opened_record.set_active_watch(ActiveWatch {
+            id: owvresult.watch_id,
             expiration_ts,
             watch_node: owvresult.watch_node,
             opt_value_changed_route: owvresult.opt_value_changed_route,
@@ -744,7 +750,7 @@ impl StorageManager {
             .map_err(VeilidAPIError::from)?;
 
         network_result_value_or_log!(rpc_processor
-            .rpc_call_value_changed(dest, vc.key, vc.subkeys.clone(), vc.count, (*vc.value).clone())
+            .rpc_call_value_changed(dest, vc.key, vc.subkeys.clone(), vc.count, vc.watch_id, (*vc.value).clone() )
             .await
             .map_err(VeilidAPIError::from)? => [format!(": dest={:?} vc={:?}", dest, vc)] {});
 

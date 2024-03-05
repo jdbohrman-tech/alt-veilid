@@ -354,7 +354,7 @@ impl RoutingContext {
     /// continue to report changes via the callback. Nodes that agree to doing watches will be put on our 'ping' list to ensure they are still around
     /// otherwise the watch will be cancelled and will have to be re-watched.
     ///
-    /// There is only one watch permitted per record. If a change to a watch is desired, the first one must will be overwritten.
+    /// There is only one watch permitted per record. If a change to a watch is desired, the first one will be overwritten.
     /// * `key` is the record key to watch. it must first be opened for reading or writing.
     /// * `subkeys` is the the range of subkeys to watch. The range must not exceed 512 discrete non-overlapping or adjacent subranges. If no range is specified, this is equivalent to watching the entire range of subkeys.
     /// * `expiration` is the desired timestamp of when to automatically terminate the watch, in microseconds. If this value is less than `network.rpc.timeout_ms` milliseconds in the future, this function will return an error immediately.

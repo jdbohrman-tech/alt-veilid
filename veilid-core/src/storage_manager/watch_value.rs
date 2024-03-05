@@ -11,6 +11,8 @@ struct OutboundWatchValueContext {
 pub(super) struct OutboundWatchValueResult {
     /// The expiration of a successful watch
     pub expiration_ts: Timestamp,
+    /// What watch id was returned
+    pub watch_id: u64,
     /// Which node accepted the watch
     pub watch_node: NodeRef,
     /// Which private route is responsible for receiving ValueChanged notifications
@@ -29,6 +31,7 @@ impl StorageManager {
         count: u32,
         safety_selection: SafetySelection,
         opt_watcher: Option<KeyPair>,
+        opt_watch_id: Option<u64>,
         opt_watch_node: Option<NodeRef>,
     ) -> VeilidAPIResult<Option<OutboundWatchValueResult>> {
         let routing_table = rpc_processor.routing_table();
@@ -79,7 +82,8 @@ impl StorageManager {
                             subkeys,
                             expiration,
                             count,
-                            watcher
+                            watcher,
+                            opt_watch_id
                         )
                         .await?
                 );
@@ -88,14 +92,15 @@ impl StorageManager {
                 if wva.answer.expiration_ts.as_u64() > 0 {
                     if count > 0 {
                         // If we asked for a nonzero notification count, then this is an accepted watch
-                        log_stor!(debug "Watch accepted: expiration_ts={}", debug_ts(wva.answer.expiration_ts.as_u64()));
+                        log_stor!(debug "Watch accepted: id={} expiration_ts={}", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()));
                     } else {
                         // If we asked for a zero notification count, then this is a cancelled watch
-                        log_stor!(debug "Watch cancelled");
+                        log_stor!(debug "Watch cancelled: id={}", wva.answer.watch_id);
                     }
                     let mut ctx = context.lock();
                     ctx.opt_watch_value_result = Some(OutboundWatchValueResult {
                         expiration_ts: wva.answer.expiration_ts,
+                        watch_id: wva.answer.watch_id,
                         watch_node: next_node.clone(),
                         opt_value_changed_route: wva.reply_private_route,
                     });
@@ -176,35 +181,55 @@ impl StorageManager {
     }
 
     /// Handle a received 'Watch Value' query
+    #[allow(clippy::too_many_arguments)]
     pub async fn inbound_watch_value(
         &self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
+        watch_id: Option<u64>,
         target: Target,
-        watcher: CryptoKey,
-    ) -> VeilidAPIResult<NetworkResult<Timestamp>> {
+        watcher: PublicKey,
+    ) -> VeilidAPIResult<NetworkResult<(Timestamp, u64)>> {
         let mut inner = self.lock().await?;
 
+        // Validate input
+        if (subkeys.is_empty() || count == 0) && (watch_id.unwrap_or_default() == 0) {
+            // Can't cancel a watch without a watch id
+            return VeilidAPIResult::Ok(NetworkResult::invalid_message(
+                "can't cancel watch without id",
+            ));
+        }
+
         // See if this is a remote or local value
-        let (_is_local, opt_expiration_ts) = {
+        let (_is_local, opt_ret) = {
             // See if the subkey we are watching has a local value
-            let opt_expiration_ts = inner
-                .handle_watch_local_value(key, subkeys.clone(), expiration, count, target, watcher)
+            let opt_ret = inner
+                .handle_watch_local_value(
+                    key,
+                    subkeys.clone(),
+                    expiration,
+                    count,
+                    watch_id,
+                    target,
+                    watcher,
+                )
                 .await?;
-            if opt_expiration_ts.is_some() {
-                (true, opt_expiration_ts)
+            if opt_ret.is_some() {
+                (true, opt_ret)
             } else {
                 // See if the subkey we are watching is a remote value
-                let opt_expiration_ts = inner
-                    .handle_watch_remote_value(key, subkeys, expiration, count, target, watcher)
+                let opt_ret = inner
+                    .handle_watch_remote_value(
+                        key, subkeys, expiration, count, watch_id, target, watcher,
+                    )
                     .await?;
-                (false, opt_expiration_ts)
+                (false, opt_ret)
             }
         };
 
-        Ok(NetworkResult::value(opt_expiration_ts.unwrap_or_default()))
+        Ok(NetworkResult::value(opt_ret.unwrap_or_default()))
     }
 
     /// Handle a received 'Value Changed' statement
@@ -215,26 +240,33 @@ impl StorageManager {
         mut count: u32,
         value: Arc<SignedValueData>,
         inbound_node_id: TypedKey,
+        watch_id: u64,
     ) -> VeilidAPIResult<()> {
         // Update local record store with new value
         let (res, opt_update_callback) = {
             let mut inner = self.lock().await?;
 
+            // Don't process update if the record is closed
             let Some(opened_record) = inner.opened_records.get_mut(&key) else {
-                // Don't process update if the record is closed
-                return Ok(());
-            };
-            let Some(mut active_watch) = opened_record.active_watch() else {
-                // No active watch means no callback
                 return Ok(());
             };
 
+            // No active watch means no callback
+            let Some(mut active_watch) = opened_record.active_watch() else {
+                return Ok(());
+            };
+
+            // If the watch id doesn't match, then don't process this
+            if active_watch.id != watch_id {
+                return Ok(());
+            }
+
+            // If the reporting node is not the same as our watch, don't process the value change
             if !active_watch
                 .watch_node
                 .node_ids()
                 .contains(&inbound_node_id)
             {
-                // If the reporting node is not the same as our watch, don't process the value change
                 return Ok(());
             }
 

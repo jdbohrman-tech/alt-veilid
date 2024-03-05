@@ -4,6 +4,7 @@ use super::*;
 pub struct WatchValueAnswer {
     pub expiration_ts: Timestamp,
     pub peers: Vec<PeerInfo>,
+    pub watch_id: u64,
 }
 
 impl RPCProcessor {
@@ -22,6 +23,7 @@ impl RPCProcessor {
                 ret.peers.len
             ),err)
     )]
+    #[allow(clippy::too_many_arguments)]
     pub async fn rpc_call_watch_value(
         self,
         dest: Destination,
@@ -30,6 +32,7 @@ impl RPCProcessor {
         expiration: Timestamp,
         count: u32,
         watcher: KeyPair,
+        watch_id: Option<u64>,
     ) -> RPCNetworkResult<Answer<WatchValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
@@ -48,8 +51,18 @@ impl RPCProcessor {
         };
 
         let debug_string = format!(
-            "OUT ==> WatchValueQ({} {}@{}+{}) => {} (watcher={})",
-            key, subkeys, expiration, count, dest, watcher.key
+            "OUT ==> WatchValueQ({} {} {}@{}+{}) => {} (watcher={}) ",
+            if let Some(watch_id) = watch_id {
+                format!("id={} ", watch_id)
+            } else {
+                "".to_owned()
+            },
+            key,
+            subkeys,
+            expiration,
+            count,
+            dest,
+            watcher.key
         );
 
         // Send the watchvalue question
@@ -58,6 +71,7 @@ impl RPCProcessor {
             subkeys.clone(),
             expiration.as_u64(),
             count,
+            watch_id,
             watcher,
             vcrypto.clone(),
         )?;
@@ -90,12 +104,13 @@ impl RPCProcessor {
             },
             _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
-
-        let (expiration, peers) = watch_value_a.destructure();
+        let question_watch_id = watch_id;
+        let (expiration, peers, watch_id) = watch_value_a.destructure();
         #[cfg(feature = "debug-dht")]
         {
             let debug_string_answer = format!(
-                "OUT <== WatchValueA({} #{:?}@{} peers={}) <= {}",
+                "OUT <== WatchValueA(id={} {} #{:?}@{} peers={}) <= {}",
+                watch_id,
                 key,
                 subkeys,
                 expiration,
@@ -110,6 +125,16 @@ impl RPCProcessor {
                 .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
                 .collect();
             log_rpc!(debug "Peers: {:#?}", peer_ids);
+        }
+
+        // Validate returned answer watch id is the same as the question watch id if it exists
+        if let Some(question_watch_id) = question_watch_id {
+            if question_watch_id != watch_id {
+                return Ok(NetworkResult::invalid_message(format!(
+                    "answer watch id={} doesn't match question watch id={}",
+                    watch_id, question_watch_id,
+                )));
+            }
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
@@ -139,6 +164,7 @@ impl RPCProcessor {
             WatchValueAnswer {
                 expiration_ts: Timestamp::new(expiration),
                 peers,
+                watch_id,
             },
         )))
     }
@@ -185,7 +211,8 @@ impl RPCProcessor {
         };
 
         // Destructure
-        let (key, subkeys, expiration, count, watcher, _signature) = watch_value_q.destructure();
+        let (key, subkeys, expiration, count, watch_id, watcher, _signature) =
+            watch_value_q.destructure();
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
@@ -194,7 +221,12 @@ impl RPCProcessor {
         #[cfg(feature = "debug-dht")]
         {
             let debug_string = format!(
-                "IN <=== WatchValueQ({} {}@{}+{}) <== {} (watcher={})",
+                "IN <=== WatchValueQ({}{} {}@{}+{}) <== {} (watcher={})",
+                if let Some(watch_id) = watch_id {
+                    format!("id={} ", watch_id)
+                } else {
+                    "".to_owned()
+                },
                 key,
                 subkeys,
                 expiration,
@@ -216,13 +248,13 @@ impl RPCProcessor {
             let c = self.config.get();
             c.network.dht.set_value_count as usize
         };
-        let ret_expiration = if closer_to_key_peers.len() >= set_value_count {
+        let (ret_expiration, ret_watch_id) = if closer_to_key_peers.len() >= set_value_count {
             // Not close enough
 
             #[cfg(feature = "debug-dht")]
             log_rpc!(debug "Not close enough for watch value");
 
-            Timestamp::default()
+            (Timestamp::default(), 0)
         } else {
             // Close enough, lets watch it
 
@@ -234,6 +266,7 @@ impl RPCProcessor {
                     subkeys.clone(),
                     Timestamp::new(expiration),
                     count,
+                    watch_id,
                     target,
                     watcher
                 )
@@ -244,7 +277,8 @@ impl RPCProcessor {
         #[cfg(feature = "debug-dht")]
         {
             let debug_string_answer = format!(
-                "IN ===> WatchValueA({} #{} expiration={} peers={}) ==> {}",
+                "IN ===> WatchValueA(id={} {} #{} expiration={} peers={}) ==> {}",
+                ret_watch_id,
                 key,
                 subkeys,
                 ret_expiration,
@@ -263,6 +297,7 @@ impl RPCProcessor {
             } else {
                 vec![]
             },
+            ret_watch_id,
         )?;
 
         // Send GetValue answer

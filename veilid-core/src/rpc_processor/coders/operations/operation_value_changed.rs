@@ -8,6 +8,7 @@ pub(in crate::rpc_processor) struct RPCOperationValueChanged {
     key: TypedKey,
     subkeys: ValueSubkeyRangeSet,
     count: u32,
+    watch_id: u64,
     value: SignedValueData,
 }
 
@@ -17,6 +18,7 @@ impl RPCOperationValueChanged {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
+        watch_id: u64,
         value: SignedValueData,
     ) -> Result<Self, RPCError> {
         // Needed because RangeSetBlaze uses different types here all the time
@@ -31,12 +33,16 @@ impl RPCOperationValueChanged {
             key,
             subkeys,
             count,
+            watch_id,
             value,
         })
     }
 
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
-        // validation must be done by storage manager as this is more complicated
+        if self.watch_id == 0 {
+            return Err(RPCError::protocol("ValueChanged does not have a valid id"));
+        }
+        // further validation must be done by storage manager as this is more complicated
         Ok(())
     }
 
@@ -56,13 +62,24 @@ impl RPCOperationValueChanged {
     }
 
     #[allow(dead_code)]
+    pub fn watch_id(&self) -> u64 {
+        self.watch_id
+    }
+
+    #[allow(dead_code)]
     pub fn value(&self) -> &SignedValueData {
         &self.value
     }
 
     #[allow(dead_code)]
-    pub fn destructure(self) -> (TypedKey, ValueSubkeyRangeSet, u32, SignedValueData) {
-        (self.key, self.subkeys, self.count, self.value)
+    pub fn destructure(self) -> (TypedKey, ValueSubkeyRangeSet, u32, u64, SignedValueData) {
+        (
+            self.key,
+            self.subkeys,
+            self.count,
+            self.watch_id,
+            self.value,
+        )
     }
 
     pub fn decode(
@@ -93,11 +110,14 @@ impl RPCOperationValueChanged {
         }
         let count = reader.get_count();
         let v_reader = reader.get_value().map_err(RPCError::protocol)?;
+        let watch_id = reader.get_watch_id();
         let value = decode_signed_value_data(&v_reader)?;
+
         Ok(Self {
             key,
             subkeys,
             count,
+            watch_id,
             value,
         })
     }
@@ -121,6 +141,7 @@ impl RPCOperationValueChanged {
         }
 
         builder.set_count(self.count);
+        builder.set_watch_id(self.watch_id);
 
         let mut v_builder = builder.reborrow().init_value();
         encode_signed_value_data(&self.value, &mut v_builder)?;

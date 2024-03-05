@@ -356,20 +356,23 @@ struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
-    watcher                 @4  :PublicKey;             # optional: the watcher performing the watch, can be the owner or a schema member
-    signature               @5  :Signature;             # optional: signature of the watcher, must be one of the schema members or the key owner. signature covers: key, subkeys, expiration, count
+    watchId                 @4  :UInt64;                # optional: (0 = unspecified) existing watch id to update or cancel unless this is a new watch
+    watcher                 @5  :PublicKey;             # the watcher performing the watch, can be the owner or a schema member, or a generated anonymous watch keypair
+    signature               @6  :Signature;             # signature of the watcher, signature covers: key, subkeys, expiration, count, watchId
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
     expiration              @0  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch was rejected). if watch is being cancelled (with count = 0), this will be the non-zero former expiration time.
     peers                   @1  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
+    watchId                 @2  :UInt64;                # random id for watch instance on this node
 }
 
 struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     key                     @0  :TypedKey;              # key for value that changed
     subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
-    value                   @3  :SignedValueData;       # first value that changed (the rest can be gotten with getvalue)
+    watchId                 @3  :UInt64;                # watch id this value change came from
+    value                   @4  :SignedValueData;       # first value that changed (the rest can be gotten with getvalue)
 }
 
 struct OperationSupplyBlockQ @0xadbf4c542d749971 {
