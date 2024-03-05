@@ -61,7 +61,7 @@ impl RPCOperationWatchValueQ {
         #[allow(clippy::unnecessary_cast)]
         let subkeys_len = subkeys.ranges_len() as usize;
 
-        let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 4);
+        let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 8);
         sig_data.extend_from_slice(&key.kind.0);
         sig_data.extend_from_slice(&key.value.bytes);
         for sk in subkeys.ranges() {
@@ -178,7 +178,7 @@ impl RPCOperationWatchValueQ {
 
         let expiration = reader.get_expiration();
         let count = reader.get_count();
-        let watch_id = if reader.get_watch_id() == 0 {
+        let watch_id = if reader.get_watch_id() != 0 {
             Some(reader.get_watch_id())
         } else {
             None
