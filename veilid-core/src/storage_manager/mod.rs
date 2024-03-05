@@ -566,7 +566,8 @@ impl StorageManager {
         Ok(None)
     }
 
-    /// Add or change a watch to a DHT value
+    /// Add or change an outbound watch to a DHT value
+    xxx decide if empty subkey range is valid. should probably reject that everywhere and use a default range of 'full'
     pub async fn watch_values(
         &self,
         key: TypedKey,
@@ -604,7 +605,7 @@ impl StorageManager {
 
         // Drop the lock for network access
         drop(inner);
-xxx continue here, make sure watch value semantics respect the 'accepted' flag and appropriate return values everywhere
+
         // Use the safety selection we opened the record with
         // Use the writer we opened with as the 'watcher' as well
         let opt_owvresult = self
@@ -649,7 +650,7 @@ xxx continue here, make sure watch value semantics respect the 'accepted' flag a
             expiration.as_u64()
         };
 
-        // If the expiration time is less than our minimum expiration time consider this watch cancelled
+        // If the expiration time is less than our minimum expiration time (or zero) consider this watch cancelled
         let mut expiration_ts = owvresult.expiration_ts;
         if expiration_ts.as_u64() < min_expiration_ts {
             return Ok(Timestamp::new(0));
@@ -662,6 +663,10 @@ xxx continue here, make sure watch value semantics respect the 'accepted' flag a
 
         // If we requested a cancellation, then consider this watch cancelled
         if count == 0 {
+            // Expiration returned should be zero if we requested a cancellation
+            if expiration_ts.as_u64() != 0 {
+                log_stor!(debug "got unexpired watch despite asking for a cancellation");
+            }
             return Ok(Timestamp::new(0));
         }
 

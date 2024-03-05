@@ -131,6 +131,8 @@ impl RPCProcessor {
 
         // Validate accepted requests
         if accepted {
+            xxx does this make sense?
+            
             // Verify returned answer watch id is the same as the question watch id if it exists
             if let Some(question_watch_id) = question_watch_id {
                 if question_watch_id != watch_id {

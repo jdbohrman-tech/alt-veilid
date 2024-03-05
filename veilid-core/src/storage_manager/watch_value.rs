@@ -36,12 +36,12 @@ impl StorageManager {
     ) -> VeilidAPIResult<Option<OutboundWatchValueResult>> {
         let routing_table = rpc_processor.routing_table();
 
-        // Get the DHT parameters for 'WatchValue', some of which are the same for 'WatchValue' operations
+        // Get the DHT parameters for 'WatchValue', some of which are the same for 'SetValue' operations
         let (key_count, timeout_us) = {
             let c = self.unlocked_inner.config.get();
             (
                 c.network.dht.max_find_node_count as usize,
-                TimestampDuration::from(ms_to_us(c.network.dht.get_value_timeout_ms)),
+                TimestampDuration::from(ms_to_us(c.network.dht.set_value_timeout_ms)),
             )
         };
 
@@ -53,7 +53,8 @@ impl StorageManager {
             inner.get_value_nodes(key)?.unwrap_or_default()
         };
 
-        // Get the appropriate watcher key
+        // Get the appropriate watcher key, if anonymous use a static anonymous watch key
+        // which lives for the duration of the app's runtime
         let watcher = opt_watcher.unwrap_or_else(|| {
             self.unlocked_inner
                 .anonymous_watch_keys
@@ -89,10 +90,10 @@ impl StorageManager {
                 );
 
                 // Keep answer if we got one
-                if wva.answer.expiration_ts.as_u64() > 0 {
-                    if count > 0 {
-                        // If we asked for a nonzero notification count, then this is an accepted watch
-                        log_stor!(debug "Watch accepted: id={} expiration_ts={}", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()));
+                if wva.answer.accepted {
+                    if expiration_ts.as_u64() > 0 {
+                        // If the expiration time is greater than zero this watch is active
+                        log_stor!(debug "Watch active: id={} expiration_ts={}", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()));
                     } else {
                         // If we asked for a zero notification count, then this is a cancelled watch
                         log_stor!(debug "Watch cancelled: id={}", wva.answer.watch_id);
