@@ -200,6 +200,8 @@ impl RPCProcessor {
         )))
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the question

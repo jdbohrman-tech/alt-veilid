@@ -346,7 +346,7 @@ struct OperationSetValueQ @0xbac06191ff8bdbc5 {
 }
 
 struct OperationSetValueA @0x9378d0732dc95be2 {
-    set                     @0  :Bool;                  # true if the set was close enough to be set
+    set                     @0  :Bool;                  # true if the set was accepted
     value                   @1  :SignedValueData;       # optional: the current value at the key if the set seq number was lower or equal to what was there before
     peers                   @2  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
 }
@@ -356,15 +356,16 @@ struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), if empty, watch everything
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
-    watchId                 @4  :UInt64;                # optional: (0 = unspecified) existing watch id to update or cancel unless this is a new watch
+    watchId                 @4  :UInt64;                # if 0, request a new watch. if >0, existing watch id 
     watcher                 @5  :PublicKey;             # the watcher performing the watch, can be the owner or a schema member, or a generated anonymous watch keypair
     signature               @6  :Signature;             # signature of the watcher, signature covers: key, subkeys, expiration, count, watchId
 }
 
 struct OperationWatchValueA @0xa726cab7064ba893 {
-    expiration              @0  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch was rejected). if watch is being cancelled (with count = 0), this will be the non-zero former expiration time.
-    peers                   @1  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
-    watchId                 @2  :UInt64;                # random id for watch instance on this node
+    accepted                @0  :Bool;                  # true if the watch was close enough to be accepted
+    expiration              @1  :UInt64;                # timestamp when this watch will expire in usec since epoch (0 if watch was cancelled/dropped)
+    peers                   @2  :List(PeerInfo);        # returned list of other nodes to ask that could propagate watches
+    watchId                 @3  :UInt64;                # (0 = id not allocated if rejecting new watch) random id for watch instance on this node
 }
 
 struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {

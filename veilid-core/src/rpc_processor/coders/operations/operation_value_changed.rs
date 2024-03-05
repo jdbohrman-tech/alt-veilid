@@ -29,6 +29,10 @@ impl RPCOperationValueChanged {
             return Err(RPCError::protocol("ValueChanged subkeys length too long"));
         }
 
+        if watch_id == 0 {
+            return Err(RPCError::protocol("ValueChanged needs a nonzero watch id"));
+        }
+
         Ok(Self {
             key,
             subkeys,

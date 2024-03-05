@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub struct WatchValueAnswer {
+    pub accepted: bool,
     pub expiration_ts: Timestamp,
     pub peers: Vec<PeerInfo>,
     pub watch_id: u64,
@@ -105,11 +106,12 @@ impl RPCProcessor {
             _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
         let question_watch_id = watch_id;
-        let (expiration, peers, watch_id) = watch_value_a.destructure();
+        let (accepted, expiration, peers, watch_id) = watch_value_a.destructure();
         #[cfg(feature = "debug-dht")]
         {
             let debug_string_answer = format!(
-                "OUT <== WatchValueA(id={} {} #{:?}@{} peers={}) <= {}",
+                "OUT <== WatchValueA({}id={} {} #{:?}@{} peers={}) <= {}",
+                if accepted { "+accept " } else { "" },
                 watch_id,
                 key,
                 subkeys,
@@ -127,13 +129,22 @@ impl RPCProcessor {
             log_rpc!(debug "Peers: {:#?}", peer_ids);
         }
 
-        // Validate returned answer watch id is the same as the question watch id if it exists
-        if let Some(question_watch_id) = question_watch_id {
-            if question_watch_id != watch_id {
-                return Ok(NetworkResult::invalid_message(format!(
-                    "answer watch id={} doesn't match question watch id={}",
-                    watch_id, question_watch_id,
-                )));
+        // Validate accepted requests
+        if accepted {
+            // Verify returned answer watch id is the same as the question watch id if it exists
+            if let Some(question_watch_id) = question_watch_id {
+                if question_watch_id != watch_id {
+                    return Ok(NetworkResult::invalid_message(format!(
+                        "answer watch id={} doesn't match question watch id={}",
+                        watch_id, question_watch_id,
+                    )));
+                }
+            }
+            // Validate if a watch is created/updated, that it has a nonzero id
+            if expiration != 0 && watch_id == 0 {
+                return Ok(NetworkResult::invalid_message(
+                    "zero watch id returned on accepted or cancelled watch",
+                ));
             }
         }
 
@@ -162,12 +173,15 @@ impl RPCProcessor {
             latency,
             reply_private_route,
             WatchValueAnswer {
+                accepted,
                 expiration_ts: Timestamp::new(expiration),
                 peers,
                 watch_id,
             },
         )))
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_watch_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
@@ -243,41 +257,44 @@ impl RPCProcessor {
             routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT, CAP_DHT_WATCH])
         );
 
-        // See if we would have accepted this as a set
+        // See if we would have accepted this as a set, same set_value_count for watches
         let set_value_count = {
             let c = self.config.get();
             c.network.dht.set_value_count as usize
         };
-        let (ret_expiration, ret_watch_id) = if closer_to_key_peers.len() >= set_value_count {
-            // Not close enough
+        let (ret_accepted, ret_expiration, ret_watch_id) =
+            if closer_to_key_peers.len() >= set_value_count {
+                // Not close enough, not accepted
 
-            #[cfg(feature = "debug-dht")]
-            log_rpc!(debug "Not close enough for watch value");
+                #[cfg(feature = "debug-dht")]
+                log_rpc!(debug "Not close enough for watch value");
 
-            (Timestamp::default(), 0)
-        } else {
-            // Close enough, lets watch it
+                (false, Timestamp::default(), watch_id.unwrap_or_default())
+            } else {
+                // Accepted, lets try to watch or cancel it
 
-            // See if we have this record ourselves, if so, accept the watch
-            let storage_manager = self.storage_manager();
-            network_result_try!(storage_manager
-                .inbound_watch_value(
-                    key,
-                    subkeys.clone(),
-                    Timestamp::new(expiration),
-                    count,
-                    watch_id,
-                    target,
-                    watcher
-                )
-                .await
-                .map_err(RPCError::internal)?)
-        };
+                // See if we have this record ourselves, if so, accept the watch
+                let storage_manager = self.storage_manager();
+                let (ret_expiration, ret_watch_id) = network_result_try!(storage_manager
+                    .inbound_watch_value(
+                        key,
+                        subkeys.clone(),
+                        Timestamp::new(expiration),
+                        count,
+                        watch_id,
+                        target,
+                        watcher
+                    )
+                    .await
+                    .map_err(RPCError::internal)?);
+                (true, ret_expiration, ret_watch_id)
+            };
 
         #[cfg(feature = "debug-dht")]
         {
             let debug_string_answer = format!(
-                "IN ===> WatchValueA(id={} {} #{} expiration={} peers={}) ==> {}",
+                "IN ===> WatchValueA({}id={} {} #{} expiration={} peers={}) ==> {}",
+                if ret_accepted { "+accept " } else { "" },
                 ret_watch_id,
                 key,
                 subkeys,
@@ -291,12 +308,9 @@ impl RPCProcessor {
 
         // Make WatchValue answer
         let watch_value_a = RPCOperationWatchValueA::new(
+            ret_accepted,
             ret_expiration.as_u64(),
-            if ret_expiration.as_u64() == 0 {
-                closer_to_key_peers
-            } else {
-                vec![]
-            },
+            closer_to_key_peers,
             ret_watch_id,
         )?;
 

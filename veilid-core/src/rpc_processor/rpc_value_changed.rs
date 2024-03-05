@@ -31,6 +31,8 @@ impl RPCProcessor {
         self.statement(dest, statement).await
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     pub(crate) async fn process_value_changed(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();

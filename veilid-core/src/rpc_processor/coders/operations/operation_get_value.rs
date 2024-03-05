@@ -75,6 +75,8 @@ impl RPCOperationGetValueQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationGetValueA {
     value: Option<SignedValueData>,

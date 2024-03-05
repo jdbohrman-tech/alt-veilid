@@ -14223,8 +14223,12 @@ pub mod operation_watch_value_a {
       self.reader.total_size()
     }
     #[inline]
+    pub fn get_accepted(self) -> bool {
+      self.reader.get_bool_field(0)
+    }
+    #[inline]
     pub fn get_expiration(self) -> u64 {
-      self.reader.get_data_field::<u64>(0)
+      self.reader.get_data_field::<u64>(1)
     }
     #[inline]
     pub fn get_peers(self) -> ::capnp::Result<::capnp::struct_list::Reader<'a,crate::veilid_capnp::peer_info::Owned>> {
@@ -14236,13 +14240,13 @@ pub mod operation_watch_value_a {
     }
     #[inline]
     pub fn get_watch_id(self) -> u64 {
-      self.reader.get_data_field::<u64>(1)
+      self.reader.get_data_field::<u64>(2)
     }
   }
 
   pub struct Builder<'a> { builder: ::capnp::private::layout::StructBuilder<'a> }
   impl <'a,> ::capnp::traits::HasStructSize for Builder<'a,>  {
-    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 2, pointers: 1 };
+    const STRUCT_SIZE: ::capnp::private::layout::StructSize = ::capnp::private::layout::StructSize { data: 3, pointers: 1 };
   }
   impl <'a,> ::capnp::traits::HasTypeId for Builder<'a,>  {
     const TYPE_ID: u64 = _private::TYPE_ID;
@@ -14293,12 +14297,20 @@ pub mod operation_watch_value_a {
       self.builder.as_reader().total_size()
     }
     #[inline]
+    pub fn get_accepted(self) -> bool {
+      self.builder.get_bool_field(0)
+    }
+    #[inline]
+    pub fn set_accepted(&mut self, value: bool)  {
+      self.builder.set_bool_field(0, value);
+    }
+    #[inline]
     pub fn get_expiration(self) -> u64 {
-      self.builder.get_data_field::<u64>(0)
+      self.builder.get_data_field::<u64>(1)
     }
     #[inline]
     pub fn set_expiration(&mut self, value: u64)  {
-      self.builder.set_data_field::<u64>(0, value);
+      self.builder.set_data_field::<u64>(1, value);
     }
     #[inline]
     pub fn get_peers(self) -> ::capnp::Result<::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned>> {
@@ -14318,11 +14330,11 @@ pub mod operation_watch_value_a {
     }
     #[inline]
     pub fn get_watch_id(self) -> u64 {
-      self.builder.get_data_field::<u64>(1)
+      self.builder.get_data_field::<u64>(2)
     }
     #[inline]
     pub fn set_watch_id(&mut self, value: u64)  {
-      self.builder.set_data_field::<u64>(1, value);
+      self.builder.set_data_field::<u64>(2, value);
     }
   }
 
@@ -14335,17 +14347,17 @@ pub mod operation_watch_value_a {
   impl Pipeline  {
   }
   mod _private {
-    pub static ENCODED_NODE: [::capnp::Word; 69] = [
+    pub static ENCODED_NODE: [::capnp::Word; 85] = [
       ::capnp::word(0, 0, 0, 0, 5, 0, 6, 0),
       ::capnp::word(147, 168, 75, 6, 183, 202, 38, 167),
-      ::capnp::word(19, 0, 0, 0, 1, 0, 2, 0),
+      ::capnp::word(19, 0, 0, 0, 1, 0, 3, 0),
       ::capnp::word(2, 171, 52, 55, 3, 232, 252, 143),
       ::capnp::word(1, 0, 7, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(21, 0, 0, 0, 66, 1, 0, 0),
       ::capnp::word(37, 0, 0, 0, 7, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(33, 0, 0, 0, 175, 0, 0, 0),
+      ::capnp::word(33, 0, 0, 0, 231, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(112, 114, 111, 116, 111, 47, 118, 101),
@@ -14354,28 +14366,44 @@ pub mod operation_watch_value_a {
       ::capnp::word(116, 105, 111, 110, 87, 97, 116, 99),
       ::capnp::word(104, 86, 97, 108, 117, 101, 65, 0),
       ::capnp::word(0, 0, 0, 0, 1, 0, 1, 0),
-      ::capnp::word(12, 0, 0, 0, 3, 0, 4, 0),
+      ::capnp::word(16, 0, 0, 0, 3, 0, 4, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(69, 0, 0, 0, 90, 0, 0, 0),
+      ::capnp::word(97, 0, 0, 0, 74, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(68, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(80, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(1, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(96, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(108, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(1, 0, 0, 0, 1, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 1, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(77, 0, 0, 0, 50, 0, 0, 0),
+      ::capnp::word(105, 0, 0, 0, 90, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(72, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(100, 0, 0, 0, 2, 0, 1, 0),
-      ::capnp::word(2, 0, 0, 0, 1, 0, 0, 0),
+      ::capnp::word(104, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(116, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(2, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(0, 0, 1, 0, 2, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(97, 0, 0, 0, 66, 0, 0, 0),
+      ::capnp::word(113, 0, 0, 0, 50, 0, 0, 0),
       ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
-      ::capnp::word(92, 0, 0, 0, 3, 0, 1, 0),
-      ::capnp::word(104, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(108, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(136, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(3, 0, 0, 0, 2, 0, 0, 0),
+      ::capnp::word(0, 0, 1, 0, 3, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(133, 0, 0, 0, 66, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(128, 0, 0, 0, 3, 0, 1, 0),
+      ::capnp::word(140, 0, 0, 0, 2, 0, 1, 0),
+      ::capnp::word(97, 99, 99, 101, 112, 116, 101, 100),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(1, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(1, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
+      ::capnp::word(0, 0, 0, 0, 0, 0, 0, 0),
       ::capnp::word(101, 120, 112, 105, 114, 97, 116, 105),
       ::capnp::word(111, 110, 0, 0, 0, 0, 0, 0),
       ::capnp::word(9, 0, 0, 0, 0, 0, 0, 0),
@@ -14408,9 +14436,10 @@ pub mod operation_watch_value_a {
     ];
     pub fn get_field_types(index: u16) -> ::capnp::introspect::Type {
       match index {
-        0 => <u64 as ::capnp::introspect::Introspect>::introspect(),
-        1 => <::capnp::struct_list::Owned<crate::veilid_capnp::peer_info::Owned> as ::capnp::introspect::Introspect>::introspect(),
-        2 => <u64 as ::capnp::introspect::Introspect>::introspect(),
+        0 => <bool as ::capnp::introspect::Introspect>::introspect(),
+        1 => <u64 as ::capnp::introspect::Introspect>::introspect(),
+        2 => <::capnp::struct_list::Owned<crate::veilid_capnp::peer_info::Owned> as ::capnp::introspect::Introspect>::introspect(),
+        3 => <u64 as ::capnp::introspect::Introspect>::introspect(),
         _ => panic!("invalid field index {}", index),
       }
     }
@@ -14422,7 +14451,7 @@ pub mod operation_watch_value_a {
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
     };
-    pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
+    pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
     pub const TYPE_ID: u64 = 0xa726_cab7_064b_a893;
   }
@@ -21377,4 +21406,4 @@ pub mod operation {
   }
 }
 
-//BUILDHASH:539ec27eab88af2af5785cd8c1145478f30cd3fe2c08cd0ec7f18d2f4f3c2128
+//BUILDHASH:2361d45ebb46feb1cecc71c1756fc90ff94487663e8d7211177e6df6e4033386

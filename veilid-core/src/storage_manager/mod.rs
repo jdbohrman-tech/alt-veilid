@@ -317,10 +317,9 @@ impl StorageManager {
                         )
                         .await?;
                     if let Some(owvresult) = opt_owvresult {
-                        if owvresult.expiration_ts.as_u64() != 0 {
+                        if owvresult.expiration_ts.as_u64() == 0 {
                             log_stor!(debug
-                                "close record watch cancel got unexpected expiration: {}",
-                                owvresult.expiration_ts
+                                "close record watch cancel should have old expiration, but got zero"
                             );
                         }
                     } else {
@@ -567,7 +566,7 @@ impl StorageManager {
         Ok(None)
     }
 
-    /// Add a watch to a DHT value
+    /// Add or change a watch to a DHT value
     pub async fn watch_values(
         &self,
         key: TypedKey,
@@ -605,7 +604,7 @@ impl StorageManager {
 
         // Drop the lock for network access
         drop(inner);
-
+xxx continue here, make sure watch value semantics respect the 'accepted' flag and appropriate return values everywhere
         // Use the safety selection we opened the record with
         // Use the writer we opened with as the 'watcher' as well
         let opt_owvresult = self
@@ -622,9 +621,9 @@ impl StorageManager {
             )
             .await?;
 
-        // If we did not get a valid response return a zero timestamp
+        // If we did not get a valid response assume nothing changed
         let Some(owvresult) = opt_owvresult else {
-            return Ok(Timestamp::new(0));
+            apibail_try_again!("did not get a valid response");
         };
 
         // Clear any existing watch if the watch succeeded or got cancelled
@@ -656,7 +655,7 @@ impl StorageManager {
             return Ok(Timestamp::new(0));
         }
 
-        // If the expiration time is greated than our maximum expiration time, clamp our local watch so we ignore extra valuechanged messages
+        // If the expiration time is greater than our maximum expiration time, clamp our local watch so we ignore extra valuechanged messages
         if expiration_ts.as_u64() > max_expiration_ts {
             expiration_ts = Timestamp::new(max_expiration_ts);
         }
@@ -723,9 +722,11 @@ impl StorageManager {
 
         // A zero expiration time means the watch is done or nothing is left, and the watch is no longer active
         if expiration_ts.as_u64() == 0 {
+            // Return false indicating the watch is completely gone
             return Ok(false);
         }
 
+        // Return true because the the watch was changed
         Ok(true)
     }
 

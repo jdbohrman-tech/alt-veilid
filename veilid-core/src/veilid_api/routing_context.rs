@@ -349,19 +349,20 @@ impl RoutingContext {
         storage_manager.set_value(key, subkey, data, writer).await
     }
 
-    /// Add a watch to a DHT value that informs the user via an VeilidUpdate::ValueChange callback when the record has subkeys change.
+    /// Add or update a watch to a DHT value that informs the user via an VeilidUpdate::ValueChange callback when the record has subkeys change.
     /// One remote node will be selected to perform the watch and it will offer an expiration time based on a suggestion, and make an attempt to
     /// continue to report changes via the callback. Nodes that agree to doing watches will be put on our 'ping' list to ensure they are still around
     /// otherwise the watch will be cancelled and will have to be re-watched.
     ///
-    /// There is only one watch permitted per record. If a change to a watch is desired, the first one will be overwritten.
+    /// There is only one watch permitted per record. If a change to a watch is desired, the previous one will be overwritten.
     /// * `key` is the record key to watch. it must first be opened for reading or writing.
     /// * `subkeys` is the the range of subkeys to watch. The range must not exceed 512 discrete non-overlapping or adjacent subranges. If no range is specified, this is equivalent to watching the entire range of subkeys.
     /// * `expiration` is the desired timestamp of when to automatically terminate the watch, in microseconds. If this value is less than `network.rpc.timeout_ms` milliseconds in the future, this function will return an error immediately.
     /// * `count` is the number of times the watch will be sent, maximum. A zero value here is equivalent to a cancellation.
     ///
-    /// Returns a timestamp of when the watch will expire. All watches are guaranteed to expire at some point in the future, and the returned timestamp will
-    /// be no later than the requested expiration, but -may- be before the requested expiration.
+    /// Returns a timestamp of when the watch will expire. All watches are guaranteed to expire at some point in the future,
+    /// and the returned timestamp will be no later than the requested expiration, but -may- be before the requested expiration.
+    /// If the returned timestamp is zero it indicates that the watch creation or update has failed. In the case of a faild update, the watch is considered cancelled.
     ///
     /// DHT watches are accepted with the following conditions:
     /// * First-come first-served basis for arbitrary unauthenticated readers, up to network.dht.public_watch_limit per record

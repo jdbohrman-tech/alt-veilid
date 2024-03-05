@@ -33,6 +33,11 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
 
+        // Count is zero means cancelling, so there should always be a watch id in this case
+        if count == 0 && watch_id.is_none() {
+            return Err(RPCError::protocol("can't cancel zero watch id"));
+        }
+
         let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count, watch_id);
         let signature = vcrypto
             .sign(&watcher.key, &watcher.secret, &signature_data)
@@ -91,6 +96,12 @@ impl RPCOperationWatchValueQ {
         vcrypto
             .verify(&self.watcher, &sig_data, &self.signature)
             .map_err(RPCError::protocol)?;
+
+        // Count is zero means cancelling, so there should always be a watch id in this case
+        if self.count == 0 && self.watch_id.is_none() {
+            return Err(RPCError::protocol("can't cancel zero watch id"));
+        }
+
         Ok(())
     }
 
@@ -233,8 +244,11 @@ impl RPCOperationWatchValueQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationWatchValueA {
+    accepted: bool,
     expiration: u64,
     peers: Vec<PeerInfo>,
     watch_id: u64,
@@ -242,11 +256,17 @@ pub(in crate::rpc_processor) struct RPCOperationWatchValueA {
 
 impl RPCOperationWatchValueA {
     #[allow(dead_code)]
-    pub fn new(expiration: u64, peers: Vec<PeerInfo>, watch_id: u64) -> Result<Self, RPCError> {
+    pub fn new(
+        accepted: bool,
+        expiration: u64,
+        peers: Vec<PeerInfo>,
+        watch_id: u64,
+    ) -> Result<Self, RPCError> {
         if peers.len() > MAX_WATCH_VALUE_A_PEERS_LEN {
             return Err(RPCError::protocol("WatchValueA peers length too long"));
         }
         Ok(Self {
+            accepted,
             expiration,
             peers,
             watch_id,
@@ -254,13 +274,14 @@ impl RPCOperationWatchValueA {
     }
 
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
-        if self.watch_id == 0 {
-            return Err(RPCError::protocol("WatchValueA does not have a valid id"));
-        }
         PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
         Ok(())
     }
 
+    #[allow(dead_code)]
+    pub fn accepted(&self) -> bool {
+        self.accepted
+    }
     #[allow(dead_code)]
     pub fn expiration(&self) -> u64 {
         self.expiration
@@ -274,13 +295,14 @@ impl RPCOperationWatchValueA {
         self.watch_id
     }
     #[allow(dead_code)]
-    pub fn destructure(self) -> (u64, Vec<PeerInfo>, u64) {
-        (self.expiration, self.peers, self.watch_id)
+    pub fn destructure(self) -> (bool, u64, Vec<PeerInfo>, u64) {
+        (self.accepted, self.expiration, self.peers, self.watch_id)
     }
 
     pub fn decode(
         reader: &veilid_capnp::operation_watch_value_a::Reader,
     ) -> Result<Self, RPCError> {
+        let accepted = reader.get_accepted();
         let expiration = reader.get_expiration();
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
         if peers_reader.len() as usize > MAX_WATCH_VALUE_A_PEERS_LEN {
@@ -299,6 +321,7 @@ impl RPCOperationWatchValueA {
         let watch_id = reader.get_watch_id();
 
         Ok(Self {
+            accepted,
             expiration,
             peers,
             watch_id,
@@ -308,6 +331,7 @@ impl RPCOperationWatchValueA {
         &self,
         builder: &mut veilid_capnp::operation_watch_value_a::Builder,
     ) -> Result<(), RPCError> {
+        builder.set_accepted(self.accepted);
         builder.set_expiration(self.expiration);
 
         let mut peers_builder = builder.reborrow().init_peers(
