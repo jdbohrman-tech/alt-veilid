@@ -4,6 +4,27 @@
 /// This store does not perform any validation on the schema, and all ValueRecordData passed in must have been previously validated.
 /// Uses an in-memory store for the records, backed by the TableStore. Subkey data is LRU cached and rotated out by a limits policy,
 /// and backed to the TableStore for persistence.
+mod keys;
+mod limited_size;
+mod local_record_detail;
+mod opened_record;
+mod record;
+mod record_data;
+mod record_store_limits;
+mod remote_record_detail;
+mod watch;
+
+pub(super) use keys::*;
+pub(super) use limited_size::*;
+pub(super) use local_record_detail::*;
+pub(super) use opened_record::*;
+pub(super) use record::*;
+pub(super) use record_data::*;
+pub(super) use record_store_limits::*;
+pub(super) use remote_record_detail::*;
+pub(super) use watch::*;
+pub use watch::{WatchParameters, WatchResult};
+
 use super::*;
 use hashlink::LruCache;
 
@@ -20,31 +41,6 @@ where
     /// True if this record is accounted for in the total storage
     /// and needs to have the statistics updated or not when purged
     in_total_storage: bool,
-}
-
-/// An individual watch
-#[derive(Debug, Clone)]
-struct WatchedRecordWatch {
-    id: u64,
-    subkeys: ValueSubkeyRangeSet,
-    expiration: Timestamp,
-    count: u32,
-    target: Target,
-    watcher: CryptoKey,
-    changed: ValueSubkeyRangeSet,
-}
-
-#[derive(Debug, Default, Clone)]
-/// A record being watched for changes
-pub(super) struct WatchedRecord {
-    /// The list of active watchers
-    watchers: Vec<WatchedRecordWatch>,
-}
-
-pub(super) enum WatchUpdateMode {
-    NoUpdate,
-    UpdateAll,
-    ExcludeTarget(Target),
 }
 
 pub(super) struct RecordStore<D>
@@ -72,10 +68,9 @@ where
     /// The list of records that have changed since last flush to disk (optimization for batched writes)
     changed_records: HashSet<RecordTableKey>,
     /// The list of records being watched for changes
-    watched_records: HashMap<RecordTableKey, WatchedRecord>,
+    watched_records: HashMap<RecordTableKey, WatchList>,
     /// The list of watched records that have changed values since last notification
     changed_watched_values: HashSet<RecordTableKey>,
-
     /// A mutex to ensure we handle this concurrently
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
 }
@@ -423,6 +418,11 @@ where
         Ok(())
     }
 
+    pub(super) fn contains_record(&mut self, key: TypedKey) -> bool {
+        let rtk = RecordTableKey { key };
+        self.record_index.contains_key(&rtk)
+    }
+
     pub(super) fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
@@ -626,20 +626,30 @@ where
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        opt_ignore_target: Option<Target>,
+        watch_update_mode: WatchUpdateMode,
     ) {
+        let (do_update, opt_ignore_target) = match watch_update_mode {
+            WatchUpdateMode::NoUpdate => (false, None),
+            WatchUpdateMode::UpdateAll => (true, None),
+            WatchUpdateMode::ExcludeTarget(target) => (true, Some(target)),
+        };
+        if !do_update {
+            return;
+        }
+
         let rtk = RecordTableKey { key };
         let Some(wr) = self.watched_records.get_mut(&rtk) else {
             return;
         };
+
         // Update all watchers
         let mut changed = false;
-        for w in &mut wr.watchers {
+        for w in &mut wr.watches {
             // If this watcher is watching the changed subkey then add to the watcher's changed list
             // Don't bother marking changes for value sets coming from the same watching node/target because they
             // are already going to be aware of the changes in that case
-            if Some(&w.target) != opt_ignore_target.as_ref()
-                && w.subkeys.contains(subkey)
+            if Some(&w.params.target) != opt_ignore_target.as_ref()
+                && w.params.subkeys.contains(subkey)
                 && w.changed.insert(subkey)
             {
                 changed = true;
@@ -743,37 +753,154 @@ where
         // Update storage space
         self.total_storage_space.commit().unwrap();
 
-        // Update watched value
-
-        let (do_update, opt_ignore_target) = match watch_update_mode {
-            WatchUpdateMode::NoUpdate => (false, None),
-            WatchUpdateMode::UpdateAll => (true, None),
-            WatchUpdateMode::ExcludeTarget(target) => (true, Some(target)),
-        };
-        if do_update {
-            self.update_watched_value(key, subkey, opt_ignore_target)
-                .await;
-        }
+        // Send updates to
+        self.update_watched_value(key, subkey, watch_update_mode)
+            .await;
 
         Ok(())
     }
 
-    /// Add an inbound record watch for changes
+    pub async fn _change_existing_watch(
+        &mut self,
+        key: TypedKey,
+        params: WatchParameters,
+        watch_id: u64,
+    ) -> VeilidAPIResult<WatchResult> {
+        if params.count == 0 {
+            apibail_internal!("cancel watch should not have gotten here");
+        }
+        if params.expiration.as_u64() == 0 {
+            apibail_internal!("zero expiration should have been resolved to max by now");
+        }
+        // Get the watch list for this record
+        let rtk = RecordTableKey { key };
+        let Some(watch_list) = self.watched_records.get_mut(&rtk) else {
+            // No watches, nothing to change
+            return Ok(WatchResult::Rejected);
+        };
+
+        // Check each watch to see if we have an exact match for the id to change
+        for w in &mut watch_list.watches {
+            // If the watch id doesn't match, then we're not updating
+            // Also do not allow the watcher key to change
+            if w.id == watch_id && w.params.watcher == params.watcher {
+                // Updating an existing watch
+                w.params = params;
+                return Ok(WatchResult::Changed {
+                    expiration: w.params.expiration,
+                });
+            }
+        }
+
+        // No existing watch found
+        Ok(WatchResult::Rejected)
+    }
+
+    pub async fn _create_new_watch(
+        &mut self,
+        key: TypedKey,
+        params: WatchParameters,
+        member_check: Box<dyn Fn(PublicKey) -> bool + Send>,
+    ) -> VeilidAPIResult<WatchResult> {
+        // Generate a record-unique watch id > 0
+        let rtk = RecordTableKey { key };
+        let mut id = 0;
+        while id == 0 {
+            id = get_random_u64();
+        }
+        if let Some(watched_record) = self.watched_records.get_mut(&rtk) {
+            // Make sure it doesn't match any other id (unlikely, but lets be certain)
+            'x: loop {
+                for w in &mut watched_record.watches {
+                    if w.id == id {
+                        loop {
+                            id = id.overflowing_add(1).0;
+                            if id != 0 {
+                                break;
+                            }
+                        }
+                        continue 'x;
+                    }
+                }
+                break;
+            }
+        }
+
+        // Calculate watch limits
+        let mut watch_count = 0;
+        let mut target_watch_count = 0;
+
+        let is_member = member_check(params.watcher);
+
+        let rtk = RecordTableKey { key };
+        if let Some(watched_record) = self.watched_records.get_mut(&rtk) {
+            // Total up the number of watches for this key
+            for w in &mut watched_record.watches {
+                // See if this watch should be counted toward any limits
+                let count_watch = if is_member {
+                    // If the watcher is a member of the schema, then consider the total per-watcher key
+                    w.params.watcher == params.watcher
+                } else {
+                    // If the watcher is not a member of the schema, the check if this watch is an anonymous watch and contributes to per-record key total
+                    !member_check(w.params.watcher)
+                };
+
+                // For any watch, if the target matches our also tally that separately
+                // If the watcher is a member of the schema, then consider the total per-target-per-watcher key
+                // If the watcher is not a member of the schema, then it is an anonymous watch and the total is per-target-per-record key
+                if count_watch {
+                    watch_count += 1;
+                    if w.params.target == params.target {
+                        target_watch_count += 1;
+                    }
+                }
+            }
+        }
+
+        // For members, no more than one watch per target per watcher per record
+        // For anonymous, no more than one watch per target per record
+        if target_watch_count > 0 {
+            // Too many watches
+            return Ok(WatchResult::Rejected);
+        }
+
+        // Check watch table for limits
+        let watch_limit = if is_member {
+            self.limits.member_watch_limit
+        } else {
+            self.limits.public_watch_limit
+        };
+        if watch_count >= watch_limit {
+            return Ok(WatchResult::Rejected);
+        }
+
+        // Ok this is an acceptable new watch, add it
+        let watch_list = self.watched_records.entry(rtk).or_default();
+        let expiration = params.expiration;
+        watch_list.watches.push(Watch {
+            params,
+            id,
+            changed: ValueSubkeyRangeSet::new(),
+        });
+        Ok(WatchResult::Created { id, expiration })
+    }
+
+    /// Add or update an inbound record watch for changes
     #[allow(clippy::too_many_arguments)]
     pub async fn watch_record(
         &mut self,
         key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
-        mut expiration: Timestamp,
-        count: u32,
-        watch_id: Option<u64>,
-        target: Target,
-        watcher: PublicKey,
-    ) -> VeilidAPIResult<Option<(Timestamp, u64)>> {
-        // If subkeys is empty or count is zero then we're cancelling a watch completely
-        if subkeys.is_empty() || count == 0 {
-            if let Some(watch_id) = watch_id {
-                return self.cancel_watch(key, watch_id, watcher).await;
+        mut params: WatchParameters,
+        opt_watch_id: Option<u64>,
+    ) -> VeilidAPIResult<WatchResult> {
+        // If count is zero then we're cancelling a watch completely
+        if params.count == 0 {
+            if let Some(watch_id) = opt_watch_id {
+                let cancelled = self.cancel_watch(key, watch_id, params.watcher).await?;
+                if cancelled {
+                    return Ok(WatchResult::Cancelled);
+                }
+                return Ok(WatchResult::Rejected);
             }
             apibail_internal!("shouldn't have let a None watch id get here");
         }
@@ -783,161 +910,67 @@ where
         let max_ts = cur_ts + self.limits.max_watch_expiration.as_u64();
         let min_ts = cur_ts + self.limits.min_watch_expiration.as_u64();
 
-        if expiration.as_u64() == 0 || expiration.as_u64() > max_ts {
+        if params.expiration.as_u64() == 0 || params.expiration.as_u64() > max_ts {
             // Clamp expiration max time (or set zero expiration to max)
-            expiration = Timestamp::new(max_ts);
-        } else if expiration.as_u64() < min_ts {
+            params.expiration = Timestamp::new(max_ts);
+        } else if params.expiration.as_u64() < min_ts {
             // Don't add watches with too low of an expiration time
-            return Ok(None);
+            if let Some(watch_id) = opt_watch_id {
+                let cancelled = self.cancel_watch(key, watch_id, params.watcher).await?;
+                if cancelled {
+                    return Ok(WatchResult::Cancelled);
+                }
+            }
+            return Ok(WatchResult::Rejected);
         }
 
-        // Get the record being watched
-        let Some(is_member) = self.with_record(key, |record| {
-            // Check if the watcher specified is a schema member
+        // Make a closure to check for member vs anonymous
+        let Some(member_check) = self.with_record(key, |record| {
             let schema = record.schema();
-            (*record.owner()) == watcher || schema.is_member(&watcher)
+            let owner = *record.owner();
+            Box::new(move |watcher| owner == params.watcher || schema.is_member(&watcher))
         }) else {
             // Record not found
-            return Ok(None);
+            return Ok(WatchResult::Rejected);
         };
 
-        // Generate a record-unique watch id > 0 if one is not specified
-        let rtk = RecordTableKey { key };
-        let mut new_watch = false;
-        let watch_id = watch_id.unwrap_or_else(|| {
-            new_watch = true;
-            let mut id = 0;
-            while id == 0 {
-                id = get_random_u64();
-            }
-            if let Some(watched_record) = self.watched_records.get_mut(&rtk) {
-                // Make sure it doesn't match any other id (unlikely, but lets be certain)
-                'x: loop {
-                    for w in &mut watched_record.watchers {
-                        if w.id == id {
-                            loop {
-                                id = id.overflowing_add(1).0;
-                                if id != 0 {
-                                    break;
-                                }
-                            }
-                            continue 'x;
-                        }
-                    }
-                    break;
-                }
-            }
-            id
-        });
-
-        // See if we are updating an existing watch
-        // with the watcher matched on target
-        let mut watch_count = 0;
-        let mut target_watch_count = 0;
-        if let Some(watched_record) = self.watched_records.get_mut(&rtk) {
-            for w in &mut watched_record.watchers {
-                // Total up the number of watches for this key
-                // If the watcher is a member of the schema, then consider the total per-watcher key
-                // If the watcher is not a member of the schema, then it is an anonymous watch and the total is per-record key
-                if !is_member || w.watcher == watcher {
-                    watch_count += 1;
-
-                    // For any watch, if the target matches our also tally that separately
-                    // If the watcher is a member of the schema, then consider the total per-target-per-watcher key
-                    // If the watcher is not a member of the schema, then it is an anonymous watch and the total is per-target-per-record key
-                    if w.target == target {
-                        target_watch_count += 1;
-                    }
-                }
-
-                // If this is not a new watch and the watch id doesn't match, then we're not updating
-                if !new_watch && w.id == watch_id {
-                    // Updating an existing watch
-                    // You can change a watcher key, or target via this update
-                    // as well as the subkey range, expiration and count of the watch
-                    w.watcher = watcher;
-                    w.target = target;
-                    w.subkeys = subkeys;
-                    w.expiration = expiration;
-                    w.count = count;
-                    return Ok(Some((expiration, watch_id)));
-                }
-            }
-        }
-
-        // Only proceed here if this is a new watch
-        if !new_watch {
-            // Not a new watch
-            return Ok(None);
-        }
-
-        // For members, no more than one watch per target per watcher per record
-        // For anonymous, no more than one watch per target per record
-        if target_watch_count > 0 {
-            // Too many watches
-            return Ok(None);
-        }
-
-        // Adding a new watcher to a watch
-        // Check watch table for limits
-        if is_member {
-            // Member watch
-            if watch_count >= self.limits.member_watch_limit {
-                // Too many watches
-                return Ok(None);
-            }
+        // Create or update depending on if a watch id is specified or not
+        if let Some(watch_id) = opt_watch_id {
+            self._change_existing_watch(key, params, watch_id).await
         } else {
-            // Public watch
-            // No more than one
-            if watch_count >= self.limits.public_watch_limit {
-                // Too many watches
-                return Ok(None);
-            }
+            self._create_new_watch(key, params, member_check).await
         }
-
-        // Ok this is an acceptable new watch, add it
-        let watch = self.watched_records.entry(rtk).or_default();
-        watch.watchers.push(WatchedRecordWatch {
-            id: watch_id,
-            subkeys,
-            expiration,
-            count,
-            target,
-            watcher,
-            changed: ValueSubkeyRangeSet::new(),
-        });
-        Ok(Some((expiration, watch_id)))
     }
 
     /// Clear a specific watch for a record
+    /// returns true if the watch was found and cancelled
     async fn cancel_watch(
         &mut self,
         key: TypedKey,
         watch_id: u64,
         watcher: PublicKey,
-    ) -> VeilidAPIResult<Option<(Timestamp, u64)>> {
+    ) -> VeilidAPIResult<bool> {
         if watch_id == 0 {
-            apibail_internal!("should not have let a a zero watch id get here");
+            apibail_internal!("should not have let a zero watch id get here");
         }
         // See if we are cancelling an existing watch
-        // with the watcher matched on target
         let rtk = RecordTableKey { key };
         let mut is_empty = false;
-        let mut ret = None;
-        if let Some(watch) = self.watched_records.get_mut(&rtk) {
+        let mut ret = false;
+        if let Some(watch_list) = self.watched_records.get_mut(&rtk) {
             let mut dead_watcher = None;
-            for (wn, w) in watch.watchers.iter_mut().enumerate() {
+            for (wn, w) in watch_list.watches.iter_mut().enumerate() {
                 // Must match the watch id and the watcher key to cancel
-                if w.id == watch_id && w.watcher == watcher {
+                if w.id == watch_id && w.params.watcher == watcher {
                     // Canceling an existing watch
                     dead_watcher = Some(wn);
-                    ret = Some((w.expiration, watch_id));
+                    ret = true;
                     break;
                 }
             }
             if let Some(dw) = dead_watcher {
-                watch.watchers.remove(dw);
-                if watch.watchers.is_empty() {
+                watch_list.watches.remove(dw);
+                if watch_list.watches.is_empty() {
                     is_empty = true;
                 }
             }
@@ -953,8 +986,8 @@ where
     pub fn move_watches(
         &mut self,
         key: TypedKey,
-        in_watch: Option<(WatchedRecord, bool)>,
-    ) -> Option<(WatchedRecord, bool)> {
+        in_watch: Option<(WatchList, bool)>,
+    ) -> Option<(WatchList, bool)> {
         let rtk = RecordTableKey { key };
         let out = self.watched_records.remove(&rtk);
         if let Some(in_watch) = in_watch {
@@ -983,7 +1016,7 @@ where
             if let Some(watch) = self.watched_records.get_mut(&rtk) {
                 // Process watch notifications
                 let mut dead_watchers = vec![];
-                for (wn, w) in watch.watchers.iter_mut().enumerate() {
+                for (wn, w) in watch.watches.iter_mut().enumerate() {
                     // Get the subkeys that have changed
                     let subkeys = w.changed.clone();
 
@@ -996,14 +1029,14 @@ where
 
                     // Reduce the count of changes sent
                     // if count goes to zero mark this watcher dead
-                    w.count -= 1;
-                    let count = w.count;
+                    w.params.count -= 1;
+                    let count = w.params.count;
                     if count == 0 {
                         dead_watchers.push(wn);
                     }
 
                     evcis.push(EarlyValueChangedInfo {
-                        target: w.target,
+                        target: w.params.target,
                         key: rtk.key,
                         subkeys,
                         count,
@@ -1013,8 +1046,8 @@ where
 
                 // Remove in reverse so we don't have to offset the index to remove the right key
                 for dw in dead_watchers.iter().rev().copied() {
-                    watch.watchers.remove(dw);
-                    if watch.watchers.is_empty() {
+                    watch.watches.remove(dw);
+                    if watch.watches.is_empty() {
                         empty_watched_records.push(rtk);
                     }
                 }

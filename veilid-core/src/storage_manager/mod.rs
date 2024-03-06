@@ -1,27 +1,21 @@
 mod debug;
 mod get_value;
-mod keys;
-mod limited_size;
 mod record_store;
-mod record_store_limits;
 mod set_value;
 mod storage_manager_inner;
 mod tasks;
 mod types;
 mod watch_value;
 
-use keys::*;
-use limited_size::*;
-use record_store::*;
-use record_store_limits::*;
-use storage_manager_inner::*;
-
-pub use types::*;
-
 use super::*;
 use network_manager::*;
+use record_store::*;
 use routing_table::*;
 use rpc_processor::*;
+use storage_manager_inner::*;
+
+pub use record_store::{WatchParameters, WatchResult};
+pub use types::*;
 
 /// The maximum size of a single subkey
 const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
@@ -317,9 +311,9 @@ impl StorageManager {
                         )
                         .await?;
                     if let Some(owvresult) = opt_owvresult {
-                        if owvresult.expiration_ts.as_u64() == 0 {
+                        if owvresult.expiration_ts.as_u64() != 0 {
                             log_stor!(debug
-                                "close record watch cancel should have old expiration, but got zero"
+                                "close record watch cancel should have zero expiration"
                             );
                         }
                     } else {
@@ -649,7 +643,7 @@ impl StorageManager {
             expiration.as_u64()
         };
 
-        // If the expiration time is less than our minimum expiration time (or zero) consider this watch cancelled
+        // If the expiration time is less than our minimum expiration time (or zero) consider this watch inactive
         let mut expiration_ts = owvresult.expiration_ts;
         if expiration_ts.as_u64() < min_expiration_ts {
             return Ok(Timestamp::new(0));
@@ -664,7 +658,7 @@ impl StorageManager {
         if count == 0 {
             // Expiration returned should be zero if we requested a cancellation
             if expiration_ts.as_u64() != 0 {
-                log_stor!(debug "got unexpired watch despite asking for a cancellation");
+                log_stor!(debug "got active watch despite asking for a cancellation");
             }
             return Ok(Timestamp::new(0));
         }
@@ -719,12 +713,14 @@ impl StorageManager {
             active_watch.count
         };
 
-        // Update the watch
+        // Update the watch. This just calls through to the above watch_values() function
+        // This will update the active_watch so we don't need to do that in this routine.
         let expiration_ts = self
             .watch_values(key, subkeys, active_watch.expiration_ts, count)
             .await?;
 
-        // A zero expiration time means the watch is done or nothing is left, and the watch is no longer active
+        // A zero expiration time returned from watch_value() means the watch is done
+        // or no subkeys are left, and the watch is no longer active
         if expiration_ts.as_u64() == 0 {
             // Return false indicating the watch is completely gone
             return Ok(false);

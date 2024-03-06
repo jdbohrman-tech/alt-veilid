@@ -20,7 +20,7 @@ pub(super) struct OutboundWatchValueResult {
 }
 
 impl StorageManager {
-    /// Perform a 'watch value' query on the network
+    /// Perform a 'watch value' query on the network using fanout
     #[allow(clippy::too_many_arguments)]
     pub(super) async fn outbound_watch_value(
         &self,
@@ -91,12 +91,12 @@ impl StorageManager {
 
                 // Keep answer if we got one
                 if wva.answer.accepted {
-                    if expiration_ts.as_u64() > 0 {
+                    if wva.answer.expiration_ts.as_u64() > 0 {
                         // If the expiration time is greater than zero this watch is active
                         log_stor!(debug "Watch active: id={} expiration_ts={}", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()));
                     } else {
-                        // If we asked for a zero notification count, then this is a cancelled watch
-                        log_stor!(debug "Watch cancelled: id={}", wva.answer.watch_id);
+                        // If the returned expiration time is zero, this watch was cancelled, or inactive
+                        log_stor!(debug "Watch inactive: id={}", wva.answer.watch_id);
                     }
                     let mut ctx = context.lock();
                     ctx.opt_watch_value_result = Some(OutboundWatchValueResult {
@@ -186,51 +186,40 @@ impl StorageManager {
     pub async fn inbound_watch_value(
         &self,
         key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
-        expiration: Timestamp,
-        count: u32,
+        params: WatchParameters,
         watch_id: Option<u64>,
-        target: Target,
-        watcher: PublicKey,
-    ) -> VeilidAPIResult<NetworkResult<(Timestamp, u64)>> {
+    ) -> VeilidAPIResult<NetworkResult<WatchResult>> {
         let mut inner = self.lock().await?;
 
         // Validate input
-        if (subkeys.is_empty() || count == 0) && (watch_id.unwrap_or_default() == 0) {
+        if params.count == 0 && (watch_id.unwrap_or_default() == 0) {
             // Can't cancel a watch without a watch id
             return VeilidAPIResult::Ok(NetworkResult::invalid_message(
                 "can't cancel watch without id",
             ));
         }
 
-        // See if this is a remote or local value
-        let (_is_local, opt_ret) = {
-            // See if the subkey we are watching has a local value
-            let opt_ret = inner
-                .handle_watch_local_value(
-                    key,
-                    subkeys.clone(),
-                    expiration,
-                    count,
-                    watch_id,
-                    target,
-                    watcher,
-                )
-                .await?;
-            if opt_ret.is_some() {
-                (true, opt_ret)
-            } else {
-                // See if the subkey we are watching is a remote value
-                let opt_ret = inner
-                    .handle_watch_remote_value(
-                        key, subkeys, expiration, count, watch_id, target, watcher,
-                    )
-                    .await?;
-                (false, opt_ret)
-            }
+        // Try from local and remote record stores
+        let Some(local_record_store) = inner.local_record_store.as_mut() else {
+            apibail_not_initialized!();
         };
-
-        Ok(NetworkResult::value(opt_ret.unwrap_or_default()))
+        if local_record_store.contains_record(key) {
+            return local_record_store
+                .watch_record(key, params, watch_id)
+                .await
+                .map(NetworkResult::value);
+        }
+        let Some(remote_record_store) = inner.remote_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        if remote_record_store.contains_record(key) {
+            return remote_record_store
+                .watch_record(key, params, watch_id)
+                .await
+                .map(NetworkResult::value);
+        }
+        // No record found
+        Ok(NetworkResult::value(WatchResult::Rejected))
     }
 
     /// Handle a received 'Value Changed' statement

@@ -269,24 +269,35 @@ impl RPCProcessor {
                 #[cfg(feature = "debug-dht")]
                 log_rpc!(debug "Not close enough for watch value");
 
-                (false, Timestamp::default(), watch_id.unwrap_or_default())
+                (false, 0, watch_id.unwrap_or_default())
             } else {
                 // Accepted, lets try to watch or cancel it
 
+                let params = WatchParameters {
+                    subkeys,
+                    expiration: Timestamp::new(expiration),
+                    count,
+                    watcher,
+                    target,
+                };
+
                 // See if we have this record ourselves, if so, accept the watch
                 let storage_manager = self.storage_manager();
-                let (ret_expiration, ret_watch_id) = network_result_try!(storage_manager
-                    .inbound_watch_value(
-                        key,
-                        subkeys.clone(),
-                        Timestamp::new(expiration),
-                        count,
-                        watch_id,
-                        target,
-                        watcher
-                    )
+                let watch_result = network_result_try!(storage_manager
+                    .inbound_watch_value(key, params, watch_id,)
                     .await
                     .map_err(RPCError::internal)?);
+
+                // Encode the watch result
+                // Rejections and cancellations are treated the same way by clients
+                let (ret_expiration, ret_watch_id) = match watch_result {
+                    WatchResult::Created { id, expiration } => (expiration.as_u64(), id),
+                    WatchResult::Changed { expiration } => {
+                        (expiration.as_u64(), watch_id.unwrap_or_default())
+                    }
+                    WatchResult::Cancelled => (0, watch_id.unwrap_or_default()),
+                    WatchResult::Rejected => (0, watch_id.unwrap_or_default()),
+                };
                 (true, ret_expiration, ret_watch_id)
             };
 
@@ -309,7 +320,7 @@ impl RPCProcessor {
         // Make WatchValue answer
         let watch_value_a = RPCOperationWatchValueA::new(
             ret_accepted,
-            ret_expiration.as_u64(),
+            ret_expiration,
             closer_to_key_peers,
             ret_watch_id,
         )?;
