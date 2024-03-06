@@ -389,7 +389,10 @@ impl RoutingContext {
 
     /// Cancels a watch early
     ///
-    /// This is a convenience function that cancels watching all subkeys in a range
+    /// This is a convenience function that cancels watching all subkeys in a range. The subkeys specified here
+    /// are subtracted from the watched subkey range. If no range is specified, this is equivalent to cancelling the entire range of subkeys.
+    /// Only the subkey range is changed, the expiration and count remain the same.
+    /// If no subkeys remain, the watch is entirely cancelled and will receive no more updates.
     /// Returns Ok(true) if there is any remaining watch for this record
     /// Returns Ok(false) if the entire watch has been cancelled
     #[instrument(target = "veilid_api", level = "debug", ret, err)]

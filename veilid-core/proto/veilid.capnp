@@ -353,7 +353,7 @@ struct OperationSetValueA @0x9378d0732dc95be2 {
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     key                     @0  :TypedKey;              # key for value to watch
-    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), can not be empty, to watch everything use 0..=UINT32_MAX
+    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), if empty this implies 0..=UINT32_MAX
     expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
     watchId                 @4  :UInt64;                # if 0, request a new watch. if >0, existing watch id 
@@ -370,7 +370,7 @@ struct OperationWatchValueA @0xa726cab7064ba893 {
 
 struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     key                     @0  :TypedKey;              # key for value that changed
-    subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time, this can be empty if this is a watch expiration notice)
+    subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time, if empty this is a watch expiration notice)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
     watchId                 @3  :UInt64;                # watch id this value change came from
     value                   @4  :SignedValueData;       # first value that changed (the rest can be gotten with getvalue)

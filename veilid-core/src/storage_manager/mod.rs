@@ -566,8 +566,7 @@ impl StorageManager {
         Ok(None)
     }
 
-    /// Add or change an outbound watch to a DHT value
-    xxx decide if empty subkey range is valid. should probably reject that everywhere and use a default range of 'full'
+    /// Create,update or cancel an outbound watch to a DHT value
     pub async fn watch_values(
         &self,
         key: TypedKey,
