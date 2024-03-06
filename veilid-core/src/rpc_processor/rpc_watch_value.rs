@@ -274,7 +274,7 @@ impl RPCProcessor {
                 // Accepted, lets try to watch or cancel it
 
                 let params = WatchParameters {
-                    subkeys,
+                    subkeys: subkeys.clone(),
                     expiration: Timestamp::new(expiration),
                     count,
                     watcher,
