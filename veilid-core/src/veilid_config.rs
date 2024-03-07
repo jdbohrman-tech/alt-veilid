@@ -1,5 +1,4 @@
 use crate::*;
-use std::path::PathBuf;
 
 cfg_if::cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
@@ -310,6 +309,7 @@ pub fn get_default_ssl_directory(sub_path: &str) -> String {
         if #[cfg(target_arch = "wasm32")] {
             "".to_owned()
         } else {
+            use std::path::PathBuf;
             #[cfg(unix)]
             {
                 let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
@@ -555,6 +555,7 @@ fn get_default_store_path(store_type: &str) -> String {
         if #[cfg(target_arch = "wasm32")] {
             "".to_owned()
         } else {
+            use std::path::PathBuf;
             #[cfg(unix)]
             {
                 let globalpath = PathBuf::from(format!("/var/db/veilid-server/{}", store_type));

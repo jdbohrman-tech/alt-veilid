@@ -32,6 +32,8 @@ typedef _FreeStringDart = void Function(Pointer<Utf8>);
 typedef _InitializeVeilidCoreDart = void Function(Pointer<Utf8>);
 // fn change_log_level(layer: FfiStr, log_level: FfiStr)
 typedef _ChangeLogLevelDart = void Function(Pointer<Utf8>, Pointer<Utf8>);
+// fn change_log_ignore(layer: FfiStr, log_ignore: FfiStr)
+typedef _ChangeLogIgnoreDart = void Function(Pointer<Utf8>, Pointer<Utf8>);
 // fn startup_veilid_core(port: i64, config: FfiStr)
 typedef _StartupVeilidCoreDart = void Function(int, int, Pointer<Utf8>);
 // fn get_veilid_state(port: i64)
@@ -1185,6 +1187,9 @@ class VeilidFFI extends Veilid {
         _changeLogLevel = dylib.lookupFunction<
             Void Function(Pointer<Utf8>, Pointer<Utf8>),
             _ChangeLogLevelDart>('change_log_level'),
+        _changeLogIgnore = dylib.lookupFunction<
+            Void Function(Pointer<Utf8>, Pointer<Utf8>),
+            _ChangeLogIgnoreDart>('change_log_ignore'),
         _startupVeilidCore = dylib.lookupFunction<
             Void Function(Int64, Int64, Pointer<Utf8>),
             _StartupVeilidCoreDart>('startup_veilid_core'),
@@ -1408,6 +1413,7 @@ class VeilidFFI extends Veilid {
   final _FreeStringDart _freeString;
   final _InitializeVeilidCoreDart _initializeVeilidCore;
   final _ChangeLogLevelDart _changeLogLevel;
+  final _ChangeLogIgnoreDart _changeLogIgnore;
   final _StartupVeilidCoreDart _startupVeilidCore;
   final _GetVeilidStateDart _getVeilidState;
   final _AttachDart _attach;
@@ -1506,6 +1512,16 @@ class VeilidFFI extends Veilid {
     malloc
       ..free(nativeLayer)
       ..free(nativeLogLevel);
+  }
+
+  @override
+  void changeLogIgnore(String layer, List<String> changes) {
+    final nativeChanges = jsonEncode(changes.join(',')).toNativeUtf8();
+    final nativeLayer = layer.toNativeUtf8();
+    _changeLogIgnore(nativeLayer, nativeChanges);
+    malloc
+      ..free(nativeLayer)
+      ..free(nativeChanges);
   }
 
   @override

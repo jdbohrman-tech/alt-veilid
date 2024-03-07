@@ -19,10 +19,10 @@ use wg::AsyncWaitGroup;
 const MAX_NON_JSON_LOGGING: usize = 50;
 
 cfg_if! {
-   
+
     if #[cfg(feature="rt-async-std")] {
         use futures_util::{AsyncBufReadExt, AsyncWriteExt};
-    } else 
+    } else
     if #[cfg(feature="rt-tokio")] {
         use tokio::io::AsyncBufReadExt;
         use tokio::io::AsyncWriteExt;
@@ -91,6 +91,13 @@ impl ClientApi {
 
         let veilid_logs = self.inner.lock().veilid_logs.clone();
         veilid_logs.change_log_level(layer, log_level)
+    }
+
+    fn change_log_ignore(&self, layer: String, log_ignore: String) -> VeilidAPIResult<()> {
+        trace!("ClientApi::change_log_ignore");
+
+        let veilid_logs = self.inner.lock().veilid_logs.clone();
+        veilid_logs.change_log_ignore(layer, log_ignore)
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -202,6 +209,12 @@ impl ClientApi {
             }
             let log_level = VeilidConfigLogLevel::from_str(&args[2])?;
             self.change_log_level(args[1].clone(), log_level)?;
+            Ok("".to_owned())
+        } else if args[0] == "ChangeLogIgnore" {
+            if args.len() != 3 {
+                apibail_generic!("wrong number of arguments");
+            }
+            self.change_log_ignore(args[1].clone(), args[2].clone())?;
             Ok("".to_owned())
         } else if args[0] == "GetServerSettings" {
             if args.len() != 1 {

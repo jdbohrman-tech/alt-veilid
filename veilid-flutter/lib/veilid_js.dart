@@ -558,6 +558,13 @@ class VeilidJS extends Veilid {
   }
 
   @override
+  void changeLogIgnore(String layer, List<String> changes) {
+    final changesJsonString = jsonEncode(changes.join(','));
+    js_util.callMethod<void>(
+        wasm, 'change_log_ignore', [layer, changesJsonString]);
+  }
+
+  @override
   Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config) async {
     final streamController = StreamController<VeilidUpdate>();
     void updateCallback(String update) {

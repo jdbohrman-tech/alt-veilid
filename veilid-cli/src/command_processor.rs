@@ -136,6 +136,9 @@ impl CommandProcessor {
                                             all, terminal, system, api, file, otlp
                                         levels include:
                                             error, warn, info, debug, trace
+    change_log_ignore <layer> <changes> change the log target ignore list for a tracing layer
+                                        targets to add to the ignore list can be separated by a comma.
+                                        to remove a target from the ignore list, prepend it with a minus.
     enable [flag]                       set a flag
     disable [flag]                      unset a flag
                                         valid flags in include:
@@ -241,6 +244,41 @@ Server Debug Commands:
         Ok(())
     }
 
+    pub fn cmd_change_log_ignore(
+        &self,
+        rest: Option<String>,
+        callback: UICallback,
+    ) -> Result<(), String> {
+        trace!("CommandProcessor::cmd_change_log_ignore");
+        let capi = self.capi();
+        let ui = self.ui_sender();
+        spawn_detached_local(async move {
+            let (layer, rest) = Self::word_split(&rest.unwrap_or_default());
+            let log_ignore = rest.unwrap_or_default();
+
+            match capi
+                .server_change_log_ignore(layer, log_ignore.clone())
+                .await
+            {
+                Ok(()) => {
+                    ui.display_string_dialog(
+                        "Log ignore changed",
+                        &format!("Log ignore changed '{}'", log_ignore),
+                        callback,
+                    );
+                }
+                Err(e) => {
+                    ui.display_string_dialog(
+                        "Server command 'change_log_ignore' failed",
+                        &e,
+                        callback,
+                    );
+                }
+            }
+        });
+        Ok(())
+    }
+
     pub fn cmd_enable(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
         trace!("CommandProcessor::cmd_enable");
 
@@ -295,6 +333,7 @@ Server Debug Commands:
             "disconnect" => self.cmd_disconnect(callback),
             "shutdown" => self.cmd_shutdown(callback),
             "change_log_level" => self.cmd_change_log_level(rest, callback),
+            "change_log_ignore" => self.cmd_change_log_ignore(rest, callback),
             "enable" => self.cmd_enable(rest, callback),
             "disable" => self.cmd_disable(rest, callback),
             _ => self.cmd_debug(command_line.to_owned(), callback),
