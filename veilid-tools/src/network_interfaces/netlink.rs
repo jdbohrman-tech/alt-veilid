@@ -262,7 +262,7 @@ impl PlatformSupportNetlink {
                     let ifname = match get_interface_name(msg.header.index) {
                         Ok(v) => v,
                         Err(e) => {
-                            log_net!(warn
+                            warn!(target: "net",
                                 "couldn't get interface name for index {}: {}",
                                 msg.header.index,
                                 e
