@@ -8,6 +8,7 @@ pub(in crate::rpc_processor) enum RPCOperationKind {
 }
 
 impl RPCOperationKind {
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCOperationKind::Question(q) => q.desc(),

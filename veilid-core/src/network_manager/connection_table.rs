@@ -99,7 +99,7 @@ impl ConnectionTable {
             let unord = FuturesUnordered::new();
             for table in &mut inner.conn_by_id {
                 for (_, mut v) in table.drain() {
-                    trace!("connection table join: {:?}", v);
+                    log_net!("connection table join: {:?}", v);
                     v.close();
                     unord.push(v);
                 }

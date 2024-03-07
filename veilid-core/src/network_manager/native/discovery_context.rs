@@ -310,14 +310,16 @@ impl DiscoveryContext {
 
         // ask the node to send us a dial info validation receipt
 
-        rpc_processor
+        match rpc_processor
             .rpc_call_validate_dial_info(node_ref.clone(), dial_info, redirect)
             .await
-            .map_err(logthru_net!(
-                "failed to send validate_dial_info to {:?}",
-                node_ref
-            ))
-            .unwrap_or(false)
+        {
+            Err(e) => {
+                log_net!("failed to send validate_dial_info to {:?}: {}", node_ref, e);
+                false
+            }
+            Ok(v) => v,
+        }
     }
 
     #[instrument(level = "trace", skip(self), ret)]

@@ -158,8 +158,7 @@ where
                 #[allow(unused_variables)]
                 Ok(x) => {
                     // Call failed, node will not be considered again
-                    #[cfg(feature = "network-result-extra")]
-                    log_rpc!(debug "Fanout result {}: {:?}", &next_node, x);
+                    log_network_result!(debug "Fanout result {}: {:?}", &next_node, x);
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error

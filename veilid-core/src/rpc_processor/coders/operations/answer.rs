@@ -12,6 +12,7 @@ impl RPCAnswer {
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         self.detail.validate(validate_context)
     }
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
@@ -50,6 +51,7 @@ pub(in crate::rpc_processor) enum RPCAnswerDetail {
 }
 
 impl RPCAnswerDetail {
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCAnswerDetail::StatusA(_) => "StatusA",

@@ -62,8 +62,7 @@ impl RPCProcessor {
             }
         };
 
-        #[cfg(feature = "debug-dht")]
-        {
+        if debug_target_enabled!("dht") {
             let debug_string_value = format!(
                 " len={} seq={} writer={}",
                 value.value_data().data().len(),
@@ -82,7 +81,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id(),
             );
 
-            log_rpc!(debug "{}", debug_string_stmt);
+            log_dht!(debug "{}", debug_string_stmt);
         }
 
         // Save the subkey, creating a new record if necessary

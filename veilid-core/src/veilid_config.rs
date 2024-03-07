@@ -1167,29 +1167,29 @@ impl VeilidConfig {
         let table_key_node_id_secret = format!("node_id_secret_{}", ck);
 
         if node_id.is_none() {
-            debug!("pulling {} from storage", table_key_node_id);
+            log_tstore!(debug "pulling {} from storage", table_key_node_id);
             if let Ok(Some(stored_node_id)) = config_table
                 .load_json::<TypedKey>(0, table_key_node_id.as_bytes())
                 .await
             {
-                debug!("{} found in storage", table_key_node_id);
+                log_tstore!(debug "{} found in storage", table_key_node_id);
                 node_id = Some(stored_node_id);
             } else {
-                debug!("{} not found in storage", table_key_node_id);
+                log_tstore!(debug "{} not found in storage", table_key_node_id);
             }
         }
 
         // See if node id secret was previously stored in the protected store
         if node_id_secret.is_none() {
-            debug!("pulling {} from storage", table_key_node_id_secret);
+            log_tstore!(debug "pulling {} from storage", table_key_node_id_secret);
             if let Ok(Some(stored_node_id_secret)) = config_table
                 .load_json::<TypedSecret>(0, table_key_node_id_secret.as_bytes())
                 .await
             {
-                debug!("{} found in storage", table_key_node_id_secret);
+                log_tstore!(debug "{} found in storage", table_key_node_id_secret);
                 node_id_secret = Some(stored_node_id_secret);
             } else {
-                debug!("{} not found in storage", table_key_node_id_secret);
+                log_tstore!(debug "{} not found in storage", table_key_node_id_secret);
             }
         }
 
@@ -1206,7 +1206,7 @@ impl VeilidConfig {
                 (node_id, node_id_secret)
             } else {
                 // If we still don't have a valid node id, generate one
-                debug!("generating new node_id_{}", ck);
+                log_tstore!(debug "generating new node_id_{}", ck);
                 let kp = vcrypto.generate_keypair();
                 (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
             };
@@ -1258,8 +1258,6 @@ impl VeilidConfig {
             c.network.routing_table.node_id_secret = out_node_id_secret;
             Ok(())
         })?;
-
-        trace!("init_node_ids complete");
 
         Ok(())
     }

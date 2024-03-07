@@ -279,22 +279,22 @@ impl Network {
     fn load_server_config(&self) -> io::Result<ServerConfig> {
         let c = self.config.get();
         //
-        trace!(
+        log_net!(
             "loading certificate from {}",
             c.network.tls.certificate_path
         );
         let certs = Self::load_certs(&PathBuf::from(&c.network.tls.certificate_path))?;
-        trace!("loaded {} certificates", certs.len());
+        log_net!("loaded {} certificates", certs.len());
         if certs.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Certificates at {} could not be loaded.\nEnsure it is in PEM format, beginning with '-----BEGIN CERTIFICATE-----'",c.network.tls.certificate_path)));
         }
         //
-        trace!(
+        log_net!(
             "loading private key from {}",
             c.network.tls.private_key_path
         );
         let mut keys = Self::load_keys(&PathBuf::from(&c.network.tls.private_key_path))?;
-        trace!("loaded {} keys", keys.len());
+        log_net!("loaded {} keys", keys.len());
         if keys.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Private key at {} could not be loaded.\nEnsure it is unencrypted and in RSA or PKCS8 format, beginning with '-----BEGIN RSA PRIVATE KEY-----' or '-----BEGIN PRIVATE KEY-----'",c.network.tls.private_key_path)));
         }
@@ -915,12 +915,12 @@ impl Network {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        debug!("starting low level network shutdown");
+        log_net!(debug "starting low level network shutdown");
 
         let routing_table = self.routing_table();
 
         // Stop all tasks
-        debug!("stopping update network class task");
+        log_net!(debug "stopping update network class task");
         if let Err(e) = self.unlocked_inner.update_network_class_task.stop().await {
             error!("update_network_class_task not cancelled: {}", e);
         }
@@ -930,17 +930,17 @@ impl Network {
             let mut inner = self.inner.lock();
             // take the join handles out
             for h in inner.join_handles.drain(..) {
-                trace!("joining: {:?}", h);
+                log_net!("joining: {:?}", h);
                 unord.push(h);
             }
             // Drop the stop
             drop(inner.stop_source.take());
         }
-        debug!("stopping {} low level network tasks", unord.len());
+        log_net!(debug "stopping {} low level network tasks", unord.len());
         // Wait for everything to stop
         while unord.next().await.is_some() {}
 
-        debug!("clearing dial info");
+        log_net!(debug "clearing dial info");
 
         routing_table
             .edit_routing_domain(RoutingDomain::PublicInternet)
@@ -961,7 +961,7 @@ impl Network {
         // Reset state including network class
         *self.inner.lock() = Self::new_inner();
 
-        debug!("finished low level network shutdown");
+        log_net!(debug "finished low level network shutdown");
     }
 
     //////////////////////////////////////////

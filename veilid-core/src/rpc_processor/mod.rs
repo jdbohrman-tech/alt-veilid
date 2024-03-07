@@ -168,14 +168,14 @@ pub(crate) struct RPCMessage {
     opt_sender_nr: Option<NodeRef>,
 }
 
+#[instrument(skip_all, err)]
 pub fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
 where
     T: capnp::message::Allocator + 'a,
 {
     let mut buffer = vec![];
     capnp::serialize_packed::write_message(&mut buffer, &builder)
-        .map_err(RPCError::protocol)
-        .map_err(logthru_rpc!())?;
+        .map_err(RPCError::protocol)?;
     Ok(buffer)
 }
 
@@ -1408,6 +1408,7 @@ impl RPCProcessor {
     /// Decoding RPC from the wire
     /// This performs a capnp decode on the data, and if it passes the capnp schema
     /// it performs the cryptographic validation required to pass the operation up for processing
+    #[instrument(skip_all, err)]
     fn decode_rpc_operation(
         &self,
         encoded_msg: &RPCMessageEncoded,
@@ -1415,8 +1416,7 @@ impl RPCProcessor {
         let reader = encoded_msg.data.get_reader()?;
         let op_reader = reader
             .get_root::<veilid_capnp::operation::Reader>()
-            .map_err(RPCError::protocol)
-            .map_err(logthru_rpc!())?;
+            .map_err(RPCError::protocol)?;
         let mut operation = RPCOperation::decode(&op_reader)?;
 
         // Validate the RPC message
@@ -1568,29 +1568,35 @@ impl RPCProcessor {
         };
 
         // Process stats for questions/statements received
-        let kind = match msg.operation.kind() {
+        match msg.operation.kind() {
             RPCOperationKind::Question(_) => {
                 self.record_question_received(&msg);
 
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                     sender_nr.stats_question_rcvd(msg.header.timestamp, msg.header.body_len);
                 }
-                "question"
+                
+                // Log rpc receive
+                #[cfg(feature = "verbose-tracing")]
+                debug!(target: "rpc_message", dir = "recv", kind = "question", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);        
             }
             RPCOperationKind::Statement(_) => {
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                     sender_nr.stats_question_rcvd(msg.header.timestamp, msg.header.body_len);
                 }
-                "statement"
+                
+                // Log rpc receive
+                #[cfg(feature = "verbose-tracing")]
+                debug!(target: "rpc_message", dir = "recv", kind = "statement", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);        
             }
             RPCOperationKind::Answer(_) => {
                 // Answer stats are processed in wait_for_reply
-                "answer"
+
+                // Log rpc receive
+                #[cfg(feature = "verbose-tracing")]
+                debug!(target: "rpc_message", dir = "recv", kind = "answer", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);                        
             }
         };
-
-        // Log rpc receive
-        trace!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);
 
         // Process specific message kind
         match msg.operation.kind() {

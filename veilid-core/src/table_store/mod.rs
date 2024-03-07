@@ -237,7 +237,7 @@ impl TableStore {
     ) -> EyreResult<Vec<u8>> {
         // Check if we are to protect the key
         if device_encryption_key_password.is_empty() {
-            debug!("no dek password");
+            log_tstore!(debug "no dek password");
             // Return the unprotected key bytes
             let mut out = Vec::with_capacity(4 + SHARED_SECRET_LENGTH);
             out.extend_from_slice(&dek.kind.0);
@@ -273,7 +273,7 @@ impl TableStore {
             .load_user_secret("device_encryption_key")
             .await?;
         let Some(dek_bytes) = dek_bytes else {
-            debug!("no device encryption key");
+            log_tstore!(debug "no device encryption key");
             return Ok(None);
         };
 
@@ -298,7 +298,7 @@ impl TableStore {
                 .protected_store
                 .remove_user_secret("device_encryption_key")
                 .await?;
-            debug!("removed device encryption key. existed: {}", existed);
+            log_tstore!(debug "removed device encryption key. existed: {}", existed);
             return Ok(());
         };
 
@@ -310,7 +310,7 @@ impl TableStore {
         let device_encryption_key_password =
             if let Some(new_device_encryption_key_password) = new_device_encryption_key_password {
                 // Change password
-                debug!("changing dek password");
+                log_tstore!(debug "changing dek password");
                 self.config
                     .with_mut(|c| {
                         c.protected_store.device_encryption_key_password =
@@ -320,7 +320,7 @@ impl TableStore {
                     .unwrap()
             } else {
                 // Get device encryption key protection password if we have it
-                debug!("saving with existing dek password");
+                log_tstore!(debug "saving with existing dek password");
                 let c = self.config.get();
                 c.protected_store.device_encryption_key_password.clone()
             };
@@ -335,7 +335,7 @@ impl TableStore {
             .protected_store
             .save_user_secret("device_encryption_key", &dek_bytes)
             .await?;
-        debug!("saving device encryption key. existed: {}", existed);
+        log_tstore!(debug "saving device encryption key. existed: {}", existed);
         Ok(())
     }
 
@@ -393,7 +393,7 @@ impl TableStore {
             },
             Ok(None) => {
                 // No table names yet, that's okay
-                trace!("__veilid_all_tables is empty");
+                log_tstore!("__veilid_all_tables is empty");
             }
             Err(e) => {
                 error!("could not get __veilid_all_tables: {}", e);
@@ -586,7 +586,7 @@ impl TableStore {
                 apibail_not_initialized!();
             }
         }
-        trace!("TableStore::rename {} -> {}", old_name, new_name);
+        log_tstore!(debug "TableStore::rename {} -> {}", old_name, new_name);
         self.name_rename(old_name, new_name).await?;
         self.flush().await;
         Ok(())

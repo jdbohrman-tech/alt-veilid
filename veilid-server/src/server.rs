@@ -46,8 +46,6 @@ pub async fn run_veilid_server_internal(
     server_mode: ServerMode,
     veilid_logs: VeilidLogs,
 ) -> EyreResult<()> {
-    trace!(?settings, ?server_mode);
-
     let (
         settings_auto_attach,
         settings_client_api_ipc_enabled,

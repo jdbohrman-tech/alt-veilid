@@ -15,7 +15,7 @@ impl Network {
                 task_count = 1;
             }
         }
-        trace!("task_count: {}", task_count);
+        log_net!("task_count: {}", task_count);
         for _ in 0..task_count {
             log_net!("Spawning UDP listener task");
 
@@ -103,7 +103,7 @@ impl Network {
                     }
                 }
 
-                trace!("UDP listener task stopped");
+                log_net!("UDP listener task stopped");
             });
             ////////////////////////////////////////////////////////////
 

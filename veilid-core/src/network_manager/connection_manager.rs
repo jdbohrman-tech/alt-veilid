@@ -115,7 +115,7 @@ impl ConnectionManager {
     }
 
     pub async fn startup(&self) {
-        trace!("startup connection manager");
+        log_net!(debug "startup connection manager");
         let mut inner = self.arc.inner.lock();
         if inner.is_some() {
             panic!("shouldn't start connection manager twice without shutting it down first");
@@ -135,7 +135,7 @@ impl ConnectionManager {
     }
 
     pub async fn shutdown(&self) {
-        debug!("starting connection manager shutdown");
+        log_net!(debug "starting connection manager shutdown");
         // Remove the inner from the lock
         let mut inner = {
             let mut inner_lock = self.arc.inner.lock();
@@ -148,16 +148,16 @@ impl ConnectionManager {
         };
 
         // Stop all the connections and the async processor
-        debug!("stopping async processor task");
+        log_net!(debug "stopping async processor task");
         drop(inner.stop_source.take());
         let async_processor_jh = inner.async_processor_jh.take().unwrap();
         // wait for the async processor to stop
-        debug!("waiting for async processor to stop");
+        log_net!(debug "waiting for async processor to stop");
         async_processor_jh.await;
         // Wait for the connections to complete
-        debug!("waiting for connection handlers to complete");
+        log_net!(debug "waiting for connection handlers to complete");
         self.arc.connection_table.join().await;
-        debug!("finished connection manager shutdown");
+        log_net!(debug "finished connection manager shutdown");
     }
 
     // Internal routine to see if we should keep this connection

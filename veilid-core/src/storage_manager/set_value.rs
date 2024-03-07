@@ -127,8 +127,7 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                #[cfg(feature = "network-result-extra")]
-                log_stor!(debug "SetValue fanout call returned peers {}", sva.answer.peers.len());
+                log_network_result!(debug "SetValue fanout call returned peers {}", sva.answer.peers.len());
 
                 Ok(NetworkResult::value(sva.answer.peers))
             }

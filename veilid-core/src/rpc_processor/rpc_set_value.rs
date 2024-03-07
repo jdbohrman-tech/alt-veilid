@@ -88,8 +88,9 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
-        #[cfg(feature="debug-dht")]
-        log_rpc!(debug "{}", debug_string);
+        if debug_target_enabled!("dht") {
+            log_dht!(debug "{}", debug_string);
+        }
 
         let waitable_reply = network_result_try!(
             self.question(dest.clone(), question, Some(question_context))
@@ -117,8 +118,7 @@ impl RPCProcessor {
 
         let (set, value, peers) = set_value_a.destructure();
 
-        #[cfg(feature="debug-dht")]
-        {   
+        if debug_target_enabled!("dht") {
             let debug_string_value = value.as_ref().map(|v| {
                 format!(" len={} writer={}",
                     v.value_data().data().len(),
@@ -141,10 +141,10 @@ impl RPCProcessor {
                 dest,
             );
 
-            log_rpc!(debug "{}", debug_string_answer);
+            log_dht!(debug "{}", debug_string_answer);
             
             let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
-            log_rpc!(debug "Peers: {:#?}", peer_ids);
+            log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
@@ -272,8 +272,7 @@ impl RPCProcessor {
             (true, new_value)
         };
 
-        #[cfg(feature="debug-dht")]
-        {
+        if debug_target_enabled!("dht") {
             let debug_string_value = new_value.as_ref().map(|v| {
                 format!(" len={} seq={} writer={}",
                     v.value_data().data().len(),
@@ -296,7 +295,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
 
-            log_rpc!(debug "{}", debug_string_answer);
+            log_dht!(debug "{}", debug_string_answer);
         }
 
         // Make SetValue answer

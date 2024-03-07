@@ -77,7 +77,7 @@ impl ClientApi {
 
     #[instrument(level = "trace", skip_all)]
     fn shutdown(&self) {
-        trace!("ClientApi::shutdown");
+        trace!(target: "client_api", "ClientApi::shutdown");
 
         crate::server::shutdown();
     }
@@ -87,14 +87,14 @@ impl ClientApi {
         layer: String,
         log_level: VeilidConfigLogLevel,
     ) -> VeilidAPIResult<()> {
-        trace!("ClientApi::change_log_level");
+        trace!(target: "client_api", "ClientApi::change_log_level");
 
         let veilid_logs = self.inner.lock().veilid_logs.clone();
         veilid_logs.change_log_level(layer, log_level)
     }
 
     fn change_log_ignore(&self, layer: String, log_ignore: String) -> VeilidAPIResult<()> {
-        trace!("ClientApi::change_log_ignore");
+        trace!(target: "client_api", "ClientApi::change_log_ignore");
 
         let veilid_logs = self.inner.lock().veilid_logs.clone();
         veilid_logs.change_log_ignore(layer, log_ignore)
@@ -102,19 +102,19 @@ impl ClientApi {
 
     #[instrument(level = "trace", skip(self))]
     pub async fn stop(&self) {
-        trace!("ClientApi::stop requested");
+        trace!(target: "client_api", "ClientApi::stop requested");
         let jh = {
             let mut inner = self.inner.lock();
             if inner.join_handle.is_none() {
-                trace!("ClientApi stop ignored");
+                trace!(target: "client_api", "ClientApi stop ignored");
                 return;
             }
             drop(inner.stop.take());
             inner.join_handle.take().unwrap()
         };
-        trace!("ClientApi::stop: waiting for stop");
+        trace!(target: "client_api", "ClientApi::stop: waiting for stop");
         jh.await;
-        trace!("ClientApi::stop: stopped");
+        trace!(target: "client_api", "ClientApi::stop: stopped");
     }
 
     async fn handle_ipc_incoming(self, ipc_path: PathBuf) -> std::io::Result<()> {
@@ -125,7 +125,7 @@ impl ClientApi {
             }
         }
         let mut listener = IpcListener::bind(ipc_path.clone()).await?;
-        debug!("IPC Client API listening on: {:?}", ipc_path);
+        debug!(target: "client_api", "IPC Client API listening on: {:?}", ipc_path);
 
         // Process the incoming accept stream
         let mut incoming_stream = listener.incoming()?;
@@ -156,7 +156,7 @@ impl ClientApi {
 
     async fn handle_tcp_incoming(self, bind_addr: SocketAddr) -> std::io::Result<()> {
         let listener = TcpListener::bind(bind_addr).await?;
-        debug!("TCPClient API listening on: {:?}", bind_addr);
+        debug!(target: "client_api", "TCPClient API listening on: {:?}", bind_addr);
 
         // Process the incoming accept stream
         cfg_if! {

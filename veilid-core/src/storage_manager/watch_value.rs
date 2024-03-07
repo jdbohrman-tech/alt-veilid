@@ -108,8 +108,7 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                #[cfg(feature = "network-result-extra")]
-                log_stor!(debug "WatchValue fanout call returned peers {}", wva.answer.peers.len());
+                log_network_result!(debug "WatchValue fanout call returned peers {}", wva.answer.peers.len());
 
                 Ok(NetworkResult::value(wva.answer.peers))
             }

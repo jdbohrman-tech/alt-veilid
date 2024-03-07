@@ -64,7 +64,7 @@ impl NetworkManager {
                 };
                 
                 #[cfg(feature = "verbose-tracing")]
-                debug!(
+                log_net!(debug 
                     "ContactMethod: {:?} for {:?}",
                     contact_method, destination_node_ref
                 );
@@ -304,7 +304,7 @@ impl NetworkManager {
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(flow) = node_ref.last_flow() {
             #[cfg(feature = "verbose-tracing")]
-            debug!(
+            log_net!(debug 
                 "ExistingConnection: {:?} for {:?}",
                 flow, node_ref
             );

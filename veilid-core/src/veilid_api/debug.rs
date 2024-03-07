@@ -1465,7 +1465,6 @@ impl VeilidAPI {
         let mut dc = DEBUG_CACHE.lock();
         dc.opened_record_contexts.insert(*record.key(), rc);
 
-        debug!("DHT Record Created:\n{:#?}", record);
         Ok(format!("Created: {:?} : {:?}", record.key(), record))
     }
 

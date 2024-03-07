@@ -20,6 +20,7 @@ impl RPCQuestion {
     pub fn detail(&self) -> &RPCQuestionDetail {
         &self.detail
     }
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
@@ -62,6 +63,7 @@ pub(in crate::rpc_processor) enum RPCQuestionDetail {
 }
 
 impl RPCQuestionDetail {
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCQuestionDetail::StatusQ(_) => "StatusQ",

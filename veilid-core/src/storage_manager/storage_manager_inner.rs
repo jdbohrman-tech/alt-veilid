@@ -187,7 +187,7 @@ impl StorageManagerInner {
                 Ok(v) => v.unwrap_or_default(),
                 Err(_) => {
                     if let Err(e) = metadata_db.delete(0, OFFLINE_SUBKEY_WRITES).await {
-                        debug!("offline_subkey_writes format changed, clearing: {}", e);
+                        log_stor!(debug "offline_subkey_writes format changed, clearing: {}", e);
                     }
                     Default::default()
                 }

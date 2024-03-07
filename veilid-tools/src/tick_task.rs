@@ -77,13 +77,13 @@ impl<E: Send + 'static> TickTask<E> {
         let opt_stop_source = &mut *self.stop_source.lock().await;
         if opt_stop_source.is_none() {
             // already stopped, just return
-            trace!("tick task already stopped");
+            trace!(target: "veilid_tools", "tick task already stopped");
             return Ok(());
         }
         drop(opt_stop_source.take());
 
         // wait for completion of the tick task
-        trace!("stopping single future");
+        trace!(target: "veilid_tools", "stopping single future");
         match self.single_future.join().await {
             Ok(Some(Err(err))) => Err(err),
             _ => Ok(()),

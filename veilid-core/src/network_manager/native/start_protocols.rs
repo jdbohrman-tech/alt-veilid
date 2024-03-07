@@ -280,7 +280,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        trace!("starting udp listeners");
+        log_net!("starting udp listeners");
         let routing_table = self.routing_table();
         let (listen_address, public_address, detect_address_changes) = {
             let c = self.config.get();
@@ -312,7 +312,7 @@ impl Network {
         let local_dial_info_list = self.create_udp_inbound_sockets(ip_addrs, udp_port).await?;
         let mut static_public = false;
 
-        trace!("UDP: listener started on {:#?}", local_dial_info_list);
+        log_net!("UDP: listener started on {:#?}", local_dial_info_list);
 
         // Register local dial info
         for di in &local_dial_info_list {
@@ -383,7 +383,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        trace!("starting ws listeners");
+        log_net!("starting ws listeners");
         let routing_table = self.routing_table();
         let (listen_address, url, path, detect_address_changes) = {
             let c = self.config.get();
@@ -415,7 +415,7 @@ impl Network {
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?;
-        trace!("WS: listener started on {:#?}", socket_addresses);
+        log_net!("WS: listener started on {:#?}", socket_addresses);
 
         let mut static_public = false;
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();
@@ -493,7 +493,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        trace!("starting wss listeners");
+        log_net!("starting wss listeners");
 
         let (listen_address, url, detect_address_changes) = {
             let c = self.config.get();
@@ -524,7 +524,7 @@ impl Network {
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?;
-        trace!("WSS: listener started on {:#?}", socket_addresses);
+        log_net!("WSS: listener started on {:#?}", socket_addresses);
 
         // NOTE: No interface dial info for WSS, as there is no way to connect to a local dialinfo via TLS
         // If the hostname is specified, it is the public dialinfo via the URL. If no hostname
@@ -586,7 +586,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        trace!("starting tcp listeners");
+        log_net!("starting tcp listeners");
 
         let routing_table = self.routing_table();
         let (listen_address, public_address, detect_address_changes) = {
@@ -618,7 +618,7 @@ impl Network {
                 Box::new(|c, _| Box::new(RawTcpProtocolHandler::new(c))),
             )
             .await?;
-        trace!("TCP: listener started on {:#?}", socket_addresses);
+        log_net!("TCP: listener started on {:#?}", socket_addresses);
 
         let mut static_public = false;
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();

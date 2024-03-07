@@ -81,8 +81,7 @@ impl RPCProcessor {
             RPCQuestionDetail::WatchValueQ(Box::new(watch_value_q)),
         );
 
-        #[cfg(feature = "debug-dht")]
-        log_rpc!(debug "{}", debug_string);
+        log_dht!(debug "{}", debug_string);
 
         let waitable_reply =
             network_result_try!(self.question(dest.clone(), question, None).await?);
@@ -107,8 +106,7 @@ impl RPCProcessor {
         };
         let question_watch_id = watch_id;
         let (accepted, expiration, peers, watch_id) = watch_value_a.destructure();
-        #[cfg(feature = "debug-dht")]
-        {
+        if debug_target_enabled!("dht") {
             let debug_string_answer = format!(
                 "OUT <== WatchValueA({}id={} {} #{:?}@{} peers={}) <= {}",
                 if accepted { "+accept " } else { "" },
@@ -120,13 +118,13 @@ impl RPCProcessor {
                 dest
             );
 
-            log_rpc!(debug "{}", debug_string_answer);
+            log_dht!(debug "{}", debug_string_answer);
 
             let peer_ids: Vec<String> = peers
                 .iter()
                 .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
                 .collect();
-            log_rpc!(debug "Peers: {:#?}", peer_ids);
+            log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
         // Validate accepted requests
@@ -232,8 +230,7 @@ impl RPCProcessor {
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
         let target = dest.get_target(rss)?;
 
-        #[cfg(feature = "debug-dht")]
-        {
+        if debug_target_enabled!("dht") {
             let debug_string = format!(
                 "IN <=== WatchValueQ({}{} {}@{}+{}) <== {} (watcher={})",
                 if let Some(watch_id) = watch_id {
@@ -249,7 +246,7 @@ impl RPCProcessor {
                 watcher
             );
 
-            log_rpc!(debug "{}", debug_string);
+            log_dht!(debug "{}", debug_string);
         }
 
         // Get the nodes that we know about that are closer to the the key than our own node
@@ -265,9 +262,7 @@ impl RPCProcessor {
         let (ret_accepted, ret_expiration, ret_watch_id) =
             if closer_to_key_peers.len() >= set_value_count {
                 // Not close enough, not accepted
-
-                #[cfg(feature = "debug-dht")]
-                log_rpc!(debug "Not close enough for watch value");
+                log_dht!(debug "Not close enough for watch value");
 
                 (false, 0, watch_id.unwrap_or_default())
             } else {
@@ -301,8 +296,7 @@ impl RPCProcessor {
                 (true, ret_expiration, ret_watch_id)
             };
 
-        #[cfg(feature = "debug-dht")]
-        {
+        if debug_target_enabled!("dht") {
             let debug_string_answer = format!(
                 "IN ===> WatchValueA({}id={} {} #{} expiration={} peers={}) ==> {}",
                 if ret_accepted { "+accept " } else { "" },
@@ -314,7 +308,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
 
-            log_rpc!(debug "{}", debug_string_answer);
+            log_dht!(debug "{}", debug_string_answer);
         }
 
         // Make WatchValue answer

@@ -41,7 +41,7 @@ impl TableStoreDriver {
         // Ensure permissions are correct
         ensure_file_private_owner(&dbpath).map_err(VeilidAPIError::internal)?;
 
-        trace!(
+        log_tstore!(
             "opened table store '{}' at path '{:?}' with {} columns",
             table_name,
             dbpath,

@@ -39,18 +39,13 @@ impl RawUdpProtocolHandler {
                 NetworkResult::Value(None) => {
                     continue;
                 }
-                #[cfg(feature = "network-result-extra")]
                 nres => {
-                    log_network_result!(
+                    log_network_result!(debug
                         "UDP::recv_message insert_frame failed: {:?} <= size={} remote_addr={}",
                         nres,
                         size,
                         remote_addr
                     );
-                    continue;
-                }
-                #[cfg(not(feature = "network-result-extra"))]
-                _ => {
                     continue;
                 }
             };

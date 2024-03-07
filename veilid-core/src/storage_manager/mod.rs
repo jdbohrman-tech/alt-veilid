@@ -122,7 +122,7 @@ impl StorageManager {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
-        debug!("startup storage manager");
+        log_stor!(debug "startup storage manager");
 
         let mut inner = self.inner.lock().await;
         inner.init(self.clone(), update_callback).await?;
@@ -132,7 +132,7 @@ impl StorageManager {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn terminate(&self) {
-        debug!("starting storage manager shutdown");
+        log_stor!(debug "starting storage manager shutdown");
 
         let mut inner = self.inner.lock().await;
         inner.terminate().await;
@@ -143,7 +143,7 @@ impl StorageManager {
         // Release the storage manager
         *inner = Self::new_inner(self.unlocked_inner.clone());
 
-        debug!("finished storage manager shutdown");
+        log_stor!(debug "finished storage manager shutdown");
     }
 
     pub async fn set_rpc_processor(&self, opt_rpc_processor: Option<RPCProcessor>) {

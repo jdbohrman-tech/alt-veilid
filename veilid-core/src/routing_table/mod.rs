@@ -247,7 +247,7 @@ impl RoutingTable {
 
     /// Called to initialize the routing table after it is created
     pub async fn init(&self) -> EyreResult<()> {
-        debug!("starting routing table init");
+        log_rtab!(debug "starting routing table init");
 
         // Set up routing buckets
         {
@@ -256,7 +256,7 @@ impl RoutingTable {
         }
 
         // Load bucket entries from table db if possible
-        debug!("loading routing table entries");
+        log_rtab!(debug "loading routing table entries");
         if let Err(e) = self.load_buckets().await {
             log_rtab!(debug "Error loading buckets from storage: {:#?}. Resetting.", e);
             let mut inner = self.inner.write();
@@ -264,7 +264,7 @@ impl RoutingTable {
         }
 
         // Set up routespecstore
-        debug!("starting route spec store init");
+        log_rtab!(debug "starting route spec store init");
         let route_spec_store = match RouteSpecStore::load(self.clone()).await {
             Ok(v) => v,
             Err(e) => {
@@ -272,7 +272,7 @@ impl RoutingTable {
                 RouteSpecStore::new(self.clone())
             }
         };
-        debug!("finished route spec store init");
+        log_rtab!(debug "finished route spec store init");
 
         {
             let mut inner = self.inner.write();
@@ -285,13 +285,13 @@ impl RoutingTable {
             .set_routing_table(Some(self.clone()))
             .await;
 
-        debug!("finished routing table init");
+        log_rtab!(debug "finished routing table init");
         Ok(())
     }
 
     /// Called to shut down the routing table
     pub async fn terminate(&self) {
-        debug!("starting routing table terminate");
+        log_rtab!(debug "starting routing table terminate");
 
         // Stop storage manager from using us
         self.network_manager
@@ -303,12 +303,12 @@ impl RoutingTable {
         self.cancel_tasks().await;
 
         // Load bucket entries from table db if possible
-        debug!("saving routing table entries");
+        log_rtab!(debug "saving routing table entries");
         if let Err(e) = self.save_buckets().await {
             error!("failed to save routing table entries: {}", e);
         }
 
-        debug!("saving route spec store");
+        log_rtab!(debug "saving route spec store");
         let rss = {
             let mut inner = self.inner.write();
             inner.route_spec_store.take()
@@ -318,12 +318,12 @@ impl RoutingTable {
                 error!("couldn't save route spec store: {}", e);
             }
         }
-        debug!("shutting down routing table");
+        log_rtab!(debug "shutting down routing table");
 
         let mut inner = self.inner.write();
         *inner = RoutingTableInner::new(self.unlocked_inner.clone());
 
-        debug!("finished routing table terminate");
+        log_rtab!(debug "finished routing table terminate");
     }
 
     /// Serialize the routing table.

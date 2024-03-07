@@ -491,7 +491,10 @@ impl PlatformSupportApple {
                     ) {
                         Ok(v) => v,
                         Err(e) => {
-                            log_net!(debug "failed to get address flags for ifname={}, ifaddr={:?} : {}", ifname, ifaddr.ifa_addr, e);
+                            debug!(
+                                "failed to get address flags for ifname={}, ifaddr={:?} : {}",
+                                ifname, ifaddr.ifa_addr, e
+                            );
                             continue;
                         }
                     };
