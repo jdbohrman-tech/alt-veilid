@@ -212,6 +212,20 @@ impl StorageManagerInner {
             apibail_not_initialized!();
         };
 
+        // Verify the dht schema does not contain the node id
+        {
+            let cfg = self.unlocked_inner.config.get();
+            if let Some(node_id) = cfg.network.routing_table.node_id.get(kind) {
+                if schema.is_member(&node_id.value) {
+                    apibail_invalid_argument!(
+                        "node id can not be schema member",
+                        "schema",
+                        node_id.value
+                    );
+                }
+            }
+        }
+
         // Compile the dht schema
         let schema_data = schema.compile();
 

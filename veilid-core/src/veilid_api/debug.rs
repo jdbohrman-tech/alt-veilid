@@ -134,8 +134,11 @@ fn get_route_id(
     }
 }
 
-fn get_dht_schema(text: &str) -> Option<DHTSchema> {
-    deserialize_json::<DHTSchema>(text).ok()
+fn get_dht_schema(text: &str) -> Option<VeilidAPIResult<DHTSchema>> {
+    if text.is_empty() {
+        return None;
+    }
+    Some(deserialize_json::<DHTSchema>(text))
 }
 
 fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<SafetySelection> {
@@ -1424,7 +1427,7 @@ impl VeilidAPI {
             "dht_schema",
             get_dht_schema,
         )
-        .unwrap_or_else(|_| DHTSchema::dflt(1));
+        .unwrap_or_else(|_| Ok(DHTSchema::dflt(1)))?;
 
         let csv = get_debug_argument_at(
             &args,
